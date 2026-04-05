@@ -82,13 +82,13 @@ function setupFlockOS() {
   // ── 5. Copy Truth content FIRST (before dropdowns are applied) ───────────
   //   Truth data is written before setupAppApi so that data validation rules
   //   (setAllowInvalid:false) are not yet in place when rows are inserted.
-  var truthSheetId = (props.getProperty('TRUTH_SHEET_ID') || '').trim();
-  if (truthSheetId) {
-    _log_('\n[4/9] Copying content from master Truth sheet...');
+  var truthSheetId = TRUTH_DB_ID;
+  _log_('\n[4/9] Copying content from master Truth Database...');
+  try {
     setupTruthSheet();
     _log_('      ✅ Truth content copied.');
-  } else {
-    _log_('\n[4/9] TRUTH_SHEET_ID not set — skipping Truth content copy (add it to Script Properties if needed).');
+  } catch(e) {
+    _log_('      ⚠️  Truth copy failed: ' + e.message);
   }
 
   // ── 6. Build app/content tabs — creates schema + applies dropdowns ────────
@@ -243,12 +243,9 @@ var TRUTH_TABS_ = [
 
 function setupTruthSheet() {
   var props   = PropertiesService.getScriptProperties();
-  var truthId = (props.getProperty('TRUTH_SHEET_ID') || '').trim();
-  var destId  = (props.getProperty('SHEET_ID')       || '').trim();
+  var truthId = TRUTH_DB_ID;
+  var destId  = (props.getProperty('SHEET_ID') || '').trim();
 
-  if (!truthId) {
-    throw new Error('TRUTH_SHEET_ID script property is not set. Add it in Project Settings → Script Properties and try again.');
-  }
   if (!destId) {
     throw new Error('SHEET_ID script property is not set.');
   }
