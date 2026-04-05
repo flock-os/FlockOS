@@ -2,9 +2,10 @@
    FINE LINEN — FlockOS Design System
    Theme engine with pastel palettes, pill components, and auto dark mode.
 
-   THEMES (8 total):
+   THEMES (14 total):
      Light:  Dayspring · Meadow · Lavender · Rosewood
      Dark:   Vesper · Evergreen · Twilight · Obsidian
+     Flags:  America · Guatemala · Mexico (light) · Germany · Afghanistan (dark)
      Auto:   Follows device prefers-color-scheme
 
    USAGE:

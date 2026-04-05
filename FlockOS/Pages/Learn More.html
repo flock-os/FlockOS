@@ -81,7 +81,7 @@
     <li><strong>Biblically organized</strong> — codebase follows the books of the Bible as a mnemonic structure</li>
     <li><strong>48+ modules</strong> — directory, attendance, care, giving, events, groups, worship, missions, and more</li>
     <li><strong>Multi-church architecture</strong> — designed to scale across multiple campuses</li>
-    <li><strong>13 visual themes</strong> — from classic church to modern dark mode, plus Interface Studio customization</li>
+    <li><strong>14 visual themes</strong> — from classic church to modern dark mode, plus Interface Studio customization</li>
   </ul>
 
   <h2>How It Works</h2>
@@ -90,7 +90,7 @@
   </div>
 
   <h3>Unified Database</h3>
-  <p>One Google Sheet contains all 200 tabs, served by a single Apps Script backend (<code>Single.gs</code>). The tabs span four functional areas:</p>
+  <p>One Google Sheet contains all 200 tabs, served by a single Apps Script backend (<code>Master Code.gs</code>). The tabs span four functional areas:</p>
   <ul>
     <li><strong>CRM &amp; Operations</strong> — Members, auth, pastoral care, services, songs, communications, giving, events, groups, volunteers, and more.</li>
     <li><strong>Public Content</strong> — Devotionals, Bible encyclopedia, reading plans, quiz, theology. Read-only routes, no authentication required.</li>
@@ -109,10 +109,10 @@
   <ol class="steps">
     <li><strong>Create one Google Sheet</strong> — this single spreadsheet will hold all 200 tabs as your unified database.</li>
     <li><strong>Create an Apps Script project</strong> — open Extensions → Apps Script from your Sheet.</li>
-    <li><strong>Copy Single.gs</strong> — paste the unified backend file (<code>Database/Single.gs</code>) into your Apps Script project.</li>
-    <li><strong>Run the setup function</strong> — the setup function creates all 200 tabs with the correct headers automatically.</li>
-    <li><strong>Deploy as a Web App</strong> — publish the Apps Script project. Set access to "Anyone" to allow both public and authenticated routes through the single endpoint.</li>
-    <li><strong>Configure the frontend</strong> — paste your deployed Web App URL into the Settings → Provisioning panel as the Database URL.</li>
+    <li><strong>Copy Master Code.gs.md</strong> — paste the unified backend file (<code>FlockOS/Tools/Master Deployment/Master Code.gs.md</code>) as <code>Code.gs</code> in your Apps Script project.</li>
+    <li><strong>Run <code>setupFlockOS()</code></strong> — the setup function creates all 200 tabs with correct headers automatically.</li>
+    <li><strong>Deploy as a Web App</strong> — publish the Apps Script project. Set access to &ldquo;Anyone&rdquo; to allow both public and authenticated routes through the single endpoint.</li>
+    <li><strong>Run <code>registerChurchUrl()</code></strong> — paste your deployed Web App URL into <code>DEPLOY_CONFIG.churchAppUrl</code>, then run this function to register the URL in your database.</li>
     <li><strong>Create your first admin account</strong> — run the initial user setup to create a pastor-level admin account.</li>
     <li><strong>Invite your team</strong> — add staff and volunteers with appropriate role levels.</li>
   </ol>
@@ -124,7 +124,7 @@
       <span class="tag">Scripts</span> JavaScript source files (production)<br>
       <span class="tag">Pages</span> HTML pages (production)<br>
       <span class="tag">Images</span> Logo and image assets<br>
-      <span class="tag">Tools</span> Backend source — Single.gs, schema, deployment guides<br>
+      <span class="tag">Tools</span> Backend source — Master Code.gs.md, schema, deployment guides<br>
     </p>
   </div>
   <p>Scripts and Pages serve as the production source — no separate build step is required.</p>
@@ -161,7 +161,7 @@
     <p>
       <strong>Project:</strong> FlockOS — Church Relationship Management<br>
       <strong>License:</strong> See LICENSE file in the project root<br>
-      <strong>Source:</strong> Organized under <code>FlockOS/</code> with full documentation in <code>Revelation/</code>
+      <strong>Source:</strong> Organized under <code>FlockOS/</code> &mdash; backend in <code>FlockOS/Tools/Master Deployment/</code>
     </p>
   </div>
 
