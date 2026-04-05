@@ -44,6 +44,9 @@ function setupFlockOS() {
     throw new Error('Could not determine Sheet ID. Either run from a container-bound script, or add SHEET_ID to Script Properties.');
   }
 
+  // Persist resolved sheetId so all downstream functions can read it via props
+  props.setProperty('SHEET_ID', sheetId);
+
   _log_('╔══════════════════════════════════════════════════════════════╗');
   _log_('║            FlockOS — Master Deployment Starting              ║');
   _log_('╚══════════════════════════════════════════════════════════════╝');
