@@ -2,11 +2,27 @@
 // ══════════════════════════════════════════════════════════════════════════════
 //  MASTER DEPLOYMENT — FlockOS
 //
-//  ➤  STEP 1: Update DEPLOY_CONFIG below (if needed).
+//  ➤  STEP 1: Update DEPLOY_CONFIG below.
+//             Fill in churchName, churchAppUrl, and timezone for
+//             this specific church deployment. The other fields are
+//             shared defaults and rarely need changing.
 //
 //  ➤  STEP 2: Open this script from within the target Google Sheet
 //             (Extensions → Apps Script), then select setupFlockOS
 //             in the function dropdown and click Run.
+//
+//  setupFlockOS() handles everything in a single run:
+//    • Builds all ~200 tabs and seeds content
+//    • Initializes the auth pepper
+//    • Creates the first admin account
+//    • Seeds AppConfig with church name and timezone
+//    • Installs careFollowUpReminder and dailyPastoralSummary triggers
+//
+//  ➤  STEP 3: After deploying as a Web App, paste the Web App URL into
+//             DEPLOY_CONFIG.churchAppUrl below, then run registerChurchUrl
+//             from the function dropdown.
+//             This writes CHURCH_APP_URL to AppConfig so email footers and
+//             TheVine can reference the correct endpoint.
 //
 //  No Script Properties required — everything is pre-configured.
 // ══════════════════════════════════════════════════════════════════════════════
@@ -22,7 +38,26 @@ var DEPLOY_CONFIG = {
   mailerSecret:  '7B9E2A5D8C1F403E',
   truthDbId:     '1ZuLKjP1RUI7TibeHKEC_wUsnjiWq0ic-AXt_LIPKSbM',
   churchFolderId:'1f4MJgmOUuvqBLjSgZ6QlyfwLEOSDnObd',
+
+  // ── Church identity (used by finalizeSetup internally) ──────────────────
+  // Set these before running setupFlockOS() so AppConfig is seeded correctly.
+  churchName:    '',              // e.g. 'Grace Community Church'
+  timezone:      'America/Chicago', // IANA timezone for pastoral email triggers
+
+  // ── Set AFTER deploying as Web App (Step 3) ──────────────────────────────
+  // Paste the Web App URL here, then run registerChurchUrl from the dropdown.
+  churchAppUrl:  '',              // e.g. 'https://script.google.com/macros/s/.../exec'
 };
+// ─────────────────────────────────────────────────────────────────────────────
+
+
+// ── Step 3: Register Web App URL ─────────────────────────────────────────────
+// After setupFlockOS() completes and you've deployed as a Web App:
+// paste the URL into DEPLOY_CONFIG.churchAppUrl above, then run registerChurchUrl.
+
+function registerChurchUrl() {
+  registerWebAppUrl(DEPLOY_CONFIG.churchAppUrl);
+}
 // ─────────────────────────────────────────────────────────────────────────────
 
 
@@ -145,12 +180,18 @@ function setupFlockOS() {
   _sortTabsAlphabetically_(destSs);
   _log_('      ✅ Tabs sorted.');
 
+  // ── 10. Finalize — seed church identity + install triggers ───────────────
+  _log_('\n[10/10] Finalizing — seeding church identity and installing triggers...');
+  finalizeSetup();
+
   _log_('');
   _log_('╔══════════════════════════════════════════════════════════════╗');
   _log_('║          FlockOS Deployment Complete ✅                      ║');
   _log_('║                                                              ║');
-  _log_('║  Next: Deploy → New Deployment → Web App                    ║');
-  _log_('║  Execute as: Me   Access: Anyone                            ║');
+  _log_('║  Step 3: Deploy → New Deployment → Web App                  ║');
+  _log_('║          Execute as: Me   Access: Anyone                    ║');
+  _log_('║  Step 4: Copy the Web App URL, then run:                    ║');
+  _log_('║          registerWebAppUrl("https://script.google.com/...")  ║');
   _log_('╚══════════════════════════════════════════════════════════════╝');
 }
 
@@ -8837,6 +8878,129 @@ function _upsertAppConfig_(ss, key, value, description, category) {
   // Key not found — append new row
   sheet.appendRow([key, value, description || '', category || 'Failover', 'SYSTEM', isoNow()]);
 }
+
+
+// ══════════════════════════════════════════════════════════════════════════════
+// FINALIZE SETUP — Seeds church identity into AppConfig and installs triggers.
+//
+// Called automatically at the end of setupFlockOS(). Safe to re-run.
+//
+// What it does:
+//   1. Writes CHURCH_NAME and CHURCH_TIMEZONE into AppConfig using the values
+//      from DEPLOY_CONFIG (if they are not empty strings).
+//   2. Installs two time-driven GAS triggers (idempotent — skips if already
+//      present so re-running never creates duplicates):
+//        • careFollowUpReminder   — daily, any hour
+//        • dailyPastoralSummary   — daily, 6am–7am
+//
+// Usage: automatically called by setupFlockOS(). You can also run it
+//        alone after changing churchName / timezone in DEPLOY_CONFIG to push
+//        those values to AppConfig without re-running the full setup.
+// ══════════════════════════════════════════════════════════════════════════════
+
+function finalizeSetup() {
+  var ss = SpreadsheetApp.openById(
+    PropertiesService.getScriptProperties().getProperty('SHEET_ID')
+  );
+
+  _log_('\n[Finalize 1/2] Seeding church identity into AppConfig...');
+
+  // Only overwrite keys that have a real value in DEPLOY_CONFIG — never blank
+  // out a key that was already set by a previous deployment.
+  if (DEPLOY_CONFIG.churchName && DEPLOY_CONFIG.churchName.trim()) {
+    _upsertAppConfig_(ss, 'CHURCH_NAME', DEPLOY_CONFIG.churchName.trim(), 'Your church or organization name', 'General');
+  }
+  if (DEPLOY_CONFIG.timezone && DEPLOY_CONFIG.timezone.trim()) {
+    _upsertAppConfig_(ss, 'CHURCH_TIMEZONE', DEPLOY_CONFIG.timezone.trim(), 'IANA timezone for date display', 'General');
+  }
+  // CHURCH_APP_URL is set separately via registerChurchUrl() after the Web App
+  // deployment completes — paste the URL into DEPLOY_CONFIG.churchAppUrl first.
+
+  SpreadsheetApp.flush();
+  _log_('      ✅ AppConfig identity keys written.');
+
+  // ── Install time-driven triggers ─────────────────────────────────────────
+  _log_('[Finalize 2/2] Installing time-driven triggers...');
+
+  var existing = ScriptApp.getProjectTriggers();
+  var existingNames = existing.map(function(t) { return t.getHandlerFunction(); });
+
+  var installed = [];
+  var skipped   = [];
+
+  // careFollowUpReminder — runs daily (any hour is fine; GAS picks the time)
+  if (existingNames.indexOf('careFollowUpReminder') === -1) {
+    ScriptApp.newTrigger('careFollowUpReminder')
+      .timeBased()
+      .everyDays(1)
+      .create();
+    installed.push('careFollowUpReminder (daily)');
+  } else {
+    skipped.push('careFollowUpReminder');
+  }
+
+  // dailyPastoralSummary — runs daily between 6am and 7am
+  if (existingNames.indexOf('dailyPastoralSummary') === -1) {
+    ScriptApp.newTrigger('dailyPastoralSummary')
+      .timeBased()
+      .everyDays(1)
+      .atHour(6)
+      .create();
+    installed.push('dailyPastoralSummary (6am daily)');
+  } else {
+    skipped.push('dailyPastoralSummary');
+  }
+
+  if (installed.length > 0) {
+    _log_('      ✅ Triggers installed: ' + installed.join(', '));
+  }
+  if (skipped.length > 0) {
+    _log_('      ↩️  Triggers already present (skipped): ' + skipped.join(', '));
+  }
+
+  _log_('      ✅ finalizeSetup() complete.');
+}
+
+
+// ══════════════════════════════════════════════════════════════════════════════
+// REGISTER WEB APP URL — Run this ONCE after deploying as a Web App.
+//
+// After setupFlockOS() completes:
+//   1. Click Deploy → New Deployment → Web App
+//   2. Set Execute as: Me, Who has access: Anyone
+//   3. Copy the Web App URL
+//   4. Paste it into this call and run it:
+//        registerWebAppUrl('https://script.google.com/macros/s/.../exec')
+//
+// This writes CHURCH_APP_URL to AppConfig so that:
+//   • Email footers include a clickable link to the app
+//   • TheVine can discover the correct endpoint
+//
+// Safe to re-run if the URL changes (e.g. after a new major deployment).
+// ══════════════════════════════════════════════════════════════════════════════
+
+function registerWebAppUrl(webAppUrl) {
+  if (!webAppUrl || !String(webAppUrl).trim()) {
+    Logger.log('ERROR: Pass the Web App URL as the argument.');
+    Logger.log('Usage: registerWebAppUrl(\'https://script.google.com/macros/s/.../exec\')');
+    return;
+  }
+
+  var url = String(webAppUrl).trim();
+  var ss = SpreadsheetApp.openById(
+    PropertiesService.getScriptProperties().getProperty('SHEET_ID')
+  );
+
+  _upsertAppConfig_(ss, 'CHURCH_APP_URL', url, 'Full URL of this church\'s FlockOS web app', 'General');
+  SpreadsheetApp.flush();
+
+  Logger.log('╔══════════════════════════════════════════════════════════════╗');
+  Logger.log('║  CHURCH_APP_URL registered ✅                                ║');
+  Logger.log('║  ' + url);
+  Logger.log('║  Email footers and TheVine will now use this URL.           ║');
+  Logger.log('╚══════════════════════════════════════════════════════════════╝');
+}
+
 
 /**
  * Runs a complete deployment health check and prints a ✅/⚠️ checklist.
