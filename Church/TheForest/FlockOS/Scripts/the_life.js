@@ -988,6 +988,7 @@ const TheLife = (() => {
     ], async function(data) {
       data.caseId = caseId;
       data.interactionType = 'Follow-Up Scheduled';
+      data.followUpNeeded = true;
       await TheVine.flock.care.interactions.create(data);
       _toast('Follow-up scheduled!', 'success');
       openCareCase(caseId);
