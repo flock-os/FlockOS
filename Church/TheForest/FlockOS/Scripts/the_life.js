@@ -307,6 +307,11 @@ const TheLife = (() => {
   var _fpCareId = '';
 
   async function openCareCase(id) {
+    // For care users (non-pastor), verify they are assigned to this case's member
+    if (id && !Nehemiah.hasRole('pastor')) {
+      var _permCheck = (_cache.care || []).find(function(c) { return c.id === id; });
+      if (!_permCheck) { _toast('Access denied. You are not assigned to this case.', 'error'); return; }
+    }
     var el = _hubEl();
     if (!el) return;
     _fpCareId = id || '';
@@ -1764,6 +1769,7 @@ const TheLife = (() => {
   var _fpMemberId = '';
 
   async function openAddMember(emailOrId) {
+    if (!Nehemiah.hasRole('pastor')) { _toast('Adding or editing members requires Pastor or Administrator permissions.', 'error'); return; }
     var el = _hubEl();
     if (!el) return;
     _fpMemberId = emailOrId || '';
@@ -2512,14 +2518,17 @@ const TheLife = (() => {
 
   async function renderHub(el, session) {
     _audit('hub.open', 'MyFlock', '', 'Portal opened');
+    // Pre-compute roles synchronously for immediate header rendering
+    var _preIsPastor = Nehemiah.hasRole('pastor');
+    var _preIsCare   = !_preIsPastor && Nehemiah.hasRole('care');
     // Shell — render header instantly, data loads async
     el.innerHTML =
       '<div class="page-header"><h1>My Flock</h1>'
       + '<p>Pastoral command center \u2014 your dashboard for people, care, community & activity.</p>'
       + '<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">'
-      + '<button onclick="Modules.onboardMember()" style="background:var(--accent);color:var(--ink-inverse);border:none;font-weight:600;border-radius:6px;padding:7px 15px;cursor:pointer;font-size:0.83rem;font-family:inherit;">&#128075; Welcome Visitor</button>'
-      + '<button onclick="TheLife.openAddMember()" style="background:none;border:1px solid var(--line);color:var(--ink);border-radius:6px;padding:7px 15px;cursor:pointer;font-size:0.83rem;font-family:inherit;">&#128100;+ Add Member</button>'
-      + '<button onclick="TheLife.openCareCase()" style="background:none;border:1px solid var(--line);color:var(--ink);border-radius:6px;padding:7px 15px;cursor:pointer;font-size:0.83rem;font-family:inherit;">+ New Case</button>'
+      + (_preIsPastor ? '<button onclick="Modules.onboardMember()" style="background:var(--accent);color:var(--ink-inverse);border:none;font-weight:600;border-radius:6px;padding:7px 15px;cursor:pointer;font-size:0.83rem;font-family:inherit;">&#128075; Welcome Visitor</button>' : '')
+      + (_preIsPastor ? '<button onclick="TheLife.openAddMember()" style="background:none;border:1px solid var(--line);color:var(--ink);border-radius:6px;padding:7px 15px;cursor:pointer;font-size:0.83rem;font-family:inherit;">&#128100;+ Add Member</button>' : '')
+      + ((_preIsPastor || _preIsCare) ? '<button onclick="TheLife.openCareCase()" style="background:none;border:1px solid var(--line);color:var(--ink);border-radius:6px;padding:7px 15px;cursor:pointer;font-size:0.83rem;font-family:inherit;">+ New Case</button>' : '')
       + '<button onclick="TheLife.refresh()" style="background:none;border:1px solid var(--line);color:var(--ink);border-radius:6px;padding:7px 15px;cursor:pointer;font-size:0.83rem;font-family:inherit;">\u21BB Refresh</button>'
       + '</div></div><div id="ml-body">'
       + _spinner() + '</div>';
@@ -2578,6 +2587,16 @@ const TheLife = (() => {
 
       if (isPastorPlus && rawFlock.length) {
         _cache.memberDir = rawFlock;
+        _memberDirPromise = null;
+      } else if (isCareRole) {
+        // Restrict member directory to only the user's assigned members
+        var _assignedIds = {};
+        rawFlock.forEach(function(a) {
+          if (a.memberId) _assignedIds[a.memberId] = true;
+        });
+        _cache.memberDir = (_cache.memberDir || []).filter(function(m) {
+          return _assignedIds[m.id] || _assignedIds[m.email] || _assignedIds[m.memberNumber];
+        });
         _memberDirPromise = null;
       }
 
@@ -2691,7 +2710,7 @@ const TheLife = (() => {
       } else {
         html += '<div class="flock-kpi-row">';
         html += _flockKpi(myFlock.length, isCareRole ? 'My Assigned Flock' : 'Church Directory', 'accent',
-          "TheLife.openApp('people')");
+          isCareRole ? "TheLife.openApp('care','assignments')" : "TheLife.openApp('people')");
         html += _flockKpi(openCases.length, 'Open Cases',
           openCases.length ? 'warn' : 'success',
           "TheLife.openApp('care','care')");
@@ -2713,8 +2732,8 @@ const TheLife = (() => {
       html += '<div class="dash-zone-label" style="margin-top:20px;">The Courts</div>';
       html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;">';
 
-      html += _appCard('\uD83D\uDC64', 'People', 'Search, view & manage every person in your flock.',
-        myFlock.length + ' people', 'people');
+      html += isPastorPlus ? _appCard('\uD83D\uDC64', 'People', 'Search, view & manage every person in your flock.',
+        myFlock.length + ' people', 'people') : '';
 
       html += _appCard('\uD83D\uDC51', 'The Fold', 'Small groups, Bible studies & attendance tracking.',
         '', 'fold');
@@ -2825,6 +2844,7 @@ const TheLife = (() => {
 
     switch (key) {
       case 'people':
+        if (!Nehemiah.hasRole('pastor')) { _toast('Full directory access requires Pastor or Administrator permissions.', 'error'); return; }
         if (typeof TheShepherd !== 'undefined') TheShepherd.renderApp(body);
         break;
       case 'care':
