@@ -2,14 +2,13 @@
 // ══════════════════════════════════════════════════════════════════════════════
 //  MASTER DEPLOYMENT — FlockOS
 //
-//  ➤  STEP 1: In the GAS editor go to:
-//             Project Settings → Script Properties → Add ONE property:
+//  ➤  STEP 1: Update DEPLOY_CONFIG below (if needed).
 //
-//               SHEET_ID   Your Google Sheet ID (the church database sheet)
+//  ➤  STEP 2: Open this script from within the target Google Sheet
+//             (Extensions → Apps Script), then select setupFlockOS
+//             in the function dropdown and click Run.
 //
-//  ➤  STEP 2: Select  setupFlockOS  in the function dropdown → Run.
-//
-//  That's it. Everything else is pre-configured below.
+//  No Script Properties required — everything is pre-configured.
 // ══════════════════════════════════════════════════════════════════════════════
 
 // ── Deployment Configuration — edit here, not in Script Properties ────────────
@@ -19,6 +18,8 @@ var DEPLOY_CONFIG = {
   adminLast:     'Admin',
   adminPassword: '7kR2nP4m9vL1sW6jQ0x8!z&2',
   notifyEmail:   'flockos.notify@gmail.com',
+  mailerUrl:     'https://script.google.com/macros/s/AKfycby_YsnwtVJg4cNUzJhu6aTSup5L1QTy_t4Z82ZlpTvWHBnui0kFnxVvG6iCHGxXacK8lw/exec',
+  mailerSecret:  '7B9E2A5D8C1F403E',
   truthDbId:     '1ZuLKjP1RUI7TibeHKEC_wUsnjiWq0ic-AXt_LIPKSbM',
 };
 // ─────────────────────────────────────────────────────────────────────────────
@@ -27,8 +28,12 @@ var DEPLOY_CONFIG = {
 // ── Master Entry Point ────────────────────────────────────────────────────────
 
 function setupFlockOS() {
-  var props        = PropertiesService.getScriptProperties();
-  var sheetId      = (props.getProperty('SHEET_ID') || '').trim();
+  var props   = PropertiesService.getScriptProperties();
+  // Use the bound spreadsheet if available (container-bound script),
+  // otherwise fall back to SHEET_ID script property (standalone script).
+  var _activeSS = null;
+  try { _activeSS = SpreadsheetApp.getActiveSpreadsheet(); } catch(e) {}
+  var sheetId = (_activeSS ? _activeSS.getId() : (props.getProperty('SHEET_ID') || '').trim());
   var adminEmail   = DEPLOY_CONFIG.adminEmail;
   var adminFirst   = DEPLOY_CONFIG.adminFirst;
   var adminLast    = DEPLOY_CONFIG.adminLast;
@@ -36,7 +41,7 @@ function setupFlockOS() {
 
   // ── 1. Validate config ──────────────────────────────────────────────────
   if (!sheetId) {
-    throw new Error('SHEET_ID script property is missing. Go to Project Settings → Script Properties and add it, then run again.');
+    throw new Error('Could not determine Sheet ID. Either run from a container-bound script, or add SHEET_ID to Script Properties.');
   }
 
   _log_('╔══════════════════════════════════════════════════════════════╗');
@@ -8688,7 +8693,9 @@ function seedAppConfigDefaults_(ss) {
     ['NOTIFY_CARE_ASSIGNMENT','TRUE',                  'Send email to assigned caregiver when a care case is assigned or reassigned', 'Notifications'],
     ['NOTIFY_CONNECT_FORM',  'TRUE',                   'Send email to pastors/admins when a public Connect card is submitted', 'Notifications'],
     ['DAILY_SUMMARY_ENABLED','TRUE',                   'Send daily 6 AM pastoral summary email to all active pastors',  'Notifications'],
-    ['ADMIN_EMAIL',          DEPLOY_CONFIG.notifyEmail, 'Primary admin email for system notifications',                  'Notifications'],
+    ['ADMIN_EMAIL',          DEPLOY_CONFIG.notifyEmail,  'Primary admin email for system notifications',                  'Notifications'],
+    ['MAILER_URL',            DEPLOY_CONFIG.mailerUrl,    'FlockOS Mailer GAS Web App URL',                                'Notifications'],
+    ['MAILER_SECRET',         DEPLOY_CONFIG.mailerSecret, 'Shared secret for authenticating requests to the mailer',       'Notifications'],
     ['LEAD_PASTOR_MEMBER_ID','',                       'Member ID of the lead pastor — auto-assigned as Primary Caregiver on new care cases', 'Care'],
     ['CARE_FOLLOWUP_DAYS',   '3',                      'Days without a logged interaction before a follow-up reminder is emailed to the caregiver', 'Care'],
     ['ITEMS_PER_PAGE',       '50',                     'Default number of rows returned in list queries',               'Display'],
