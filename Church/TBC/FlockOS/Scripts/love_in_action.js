@@ -257,7 +257,7 @@ const LoveInAction = (() => {
         _cache.assignments = _filterClosed(_rows(r));
         if (panel) panel.innerHTML = _buildAssignments();
       } else {
-        var r2 = await TheVine.flock.care.interactions.list({ limit: 80, type: 'followup' });
+        var r2 = await TheVine.flock.care.followUps.due();
         _cache.followups = _rows(r2);
         if (panel) panel.innerHTML = _buildFollowUps();
       }
@@ -453,14 +453,17 @@ const LoveInAction = (() => {
     h += '</tr></thead><tbody>';
     rows.forEach(function(r) {
       var id    = _e(String(r.id || ''));
-      var done  = /^(done|completed|complete)$/i.test(r.status || '');
+      var done  = r.followUpDone || /^(done|completed|complete)$/i.test(r.status || '');
       var notes = (r.notes || r.summary || '');
+      var caseRec = (_cache.care || []).find(function(c) { return c.id === r.caseId; }) || {};
+      var memberName = _memberName(caseRec.memberId) || caseRec.memberName || r.memberName || r.caseId || '';
+      var caregiverName = _memberName(r.caregiverId) || r.caregiverName || r.caregiver || r.createdBy || '';
       h += '<tr>';
-      h += '<td>' + _e(r.memberName || r.member || '') + '</td>';
-      h += '<td>' + _e(r.caregiverName || r.caregiver || r.createdBy || '') + '</td>';
-      h += '<td>' + _e(r.followUpDate || r.date || '') + '</td>';
+      h += '<td>' + _e(memberName) + '</td>';
+      h += '<td>' + _e(caregiverName) + '</td>';
+      h += '<td>' + _e(r.followUpDate || r.date || r.interactionDate || '') + '</td>';
       h += '<td>' + _e(notes.length > 60 ? notes.substring(0, 60) + '\u2026' : notes) + '</td>';
-      h += '<td>' + _statusBadge(r.status || 'Pending') + '</td>';
+      h += '<td>' + _statusBadge(done ? 'Done' : (r.status || 'Pending')) + '</td>';
       h += '<td>' + (done
         ? '<span style="color:var(--ink-muted);font-size:0.76rem;">Done</span>'
         : '<button onclick="LoveInAction._followUpDone(\'' + id + '\')"'
