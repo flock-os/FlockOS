@@ -21,6 +21,7 @@ var DEPLOY_CONFIG = {
   mailerUrl:     'https://script.google.com/macros/s/AKfycby_YsnwtVJg4cNUzJhu6aTSup5L1QTy_t4Z82ZlpTvWHBnui0kFnxVvG6iCHGxXacK8lw/exec',
   mailerSecret:  '7B9E2A5D8C1F403E',
   truthDbId:     '1ZuLKjP1RUI7TibeHKEC_wUsnjiWq0ic-AXt_LIPKSbM',
+  churchFolderId:'1f4MJgmOUuvqBLjSgZ6QlyfwLEOSDnObd',
 };
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -15539,8 +15540,20 @@ function handleChurchCreate(params, auth) {
   var churchId = String(params.shortName).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
   // Create a new Google Sheet for this church's data
-  var newSS = SpreadsheetApp.create('FlockOS CRM \u2014 ' + String(params.churchName));
+  var newSS = SpreadsheetApp.create('FlockOS CRM — ' + String(params.churchName));
   var sheetId = newSS.getId();
+
+  // Move the new sheet into the designated Church Databases Drive folder
+  if (DEPLOY_CONFIG.churchFolderId) {
+    try {
+      var file   = DriveApp.getFileById(sheetId);
+      var folder = DriveApp.getFolderById(DEPLOY_CONFIG.churchFolderId);
+      folder.addFile(file);
+      DriveApp.getRootFolder().removeFile(file);
+    } catch(e) {
+      Logger.log('Warning: could not move sheet to church folder: ' + e.message);
+    }
+  }
 
   // Register in the central registry (18 columns A–R)
   var registry = getTab(REGISTRY_TAB);
