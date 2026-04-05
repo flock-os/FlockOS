@@ -1,0 +1,42 @@
+# ══════════════════════════════════════════════════════════════════════════
+# FlockOS .gitignore
+# ══════════════════════════════════════════════════════════════════════════
+
+# ── OS / Editor artifacts ─────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# ── Backup / temp files ──────────────────────────────────────────────────
+*.bak
+*.tmp
+*.log
+*.md
+*.md.bak
+
+# ── Google Apps Script backend files ─────────────────────────────────────
+# .gs files are deployed via the Apps Script editor, not git.
+*.gs
+
+# ── Documentation text files ─────────────────────────────────────────────
+# Internal docs with sensitive references; not for public repos.
+*.txt
+
+# ── Internal reference docs ───────────────────────────────────────────────
+# Large citation/reference markdown — useful locally, not for the repo.
+\#\ Code\ Citations.md
+\#\ Code\ References.md
+
+# ── Node / build artifacts (future-proofing) ─────────────────────────────
+node_modules/
+.env
+.env.*
+
+# ── Python build tools ───────────────────────────────────────────────────
+.venv/
+__pycache__/
+*.pyc
