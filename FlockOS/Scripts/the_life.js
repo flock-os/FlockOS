@@ -373,7 +373,7 @@ const TheLife = (() => {
     detSec += _fp2(
       _fpField('Member', 'memberId', rec.memberId, 'select', mOpts),
       _fpField('Care Type', 'careType', rec.careType || rec.type, 'select',
-        ['Shepherding','Elder Care','Crisis','Grief','Marriage','Addiction','Hospital Visit','Medical','New Believer','Restoration','Counseling','Discipleship','Family','Financial','Other']));
+        ['Shepherding','Elder Care','Crisis','Abuse / Domestic Violence','Immigration / Deportation','Incarceration & Re-Entry','Grief','Pregnancy & Infant Loss','Marriage','Pre-Marriage','Addiction','Pornography / Sexual Addiction','Hospital Visit','Medical','Terminal Illness / End of Life','New Believer','New Member Integration','Restoration','Counseling','Mental Health','Gender Identity / Sexuality','Discipleship','Family','Financial','Other']));
     detSec += _fp2(
       _fpField('Priority', 'priority', rec.priority, 'select', ['Low','Normal','High','Urgent']),
       _fpField('Status', 'status', rec.status || 'Open', 'select', ['Open','In Progress','Follow-Up','Resolved','Referred','Closed']));
@@ -658,6 +658,120 @@ const TheLife = (() => {
             { t: 'Stage 6 \u2014 Transition',            d: 'Facility/hospice: visit within first week. When member passes \u2192 open Grief case for family.' }
           ],
           notes: 'ASSESSMENT\n' + _L + '\nSpiritual (peace, connection, foundation):\n\n\nPhysical (meals, mobility, medication, safety):\n\n\nPractical (transport, bills, home, errands):\n\n\nRelational (family involvement, isolation):\n\n\n' + _L + '\nVisit Cadence: Weekly\nFamily Contact:\nNext Review Date:'
+        },
+        'Abuse / Domestic Violence': {
+          icon: '\uD83D\uDEE1', color: '#c94c4c', priority: 'Urgent',
+          stages: [
+            { t: 'Stage 1 \u2014 Disclosure & Response',  d: 'Believe them. Create a private setting immediately \u2014 never in the presence of the abuser. Ask: Are you safe? Are your children safe? Do not contact or confront the abuser.' },
+            { t: 'Stage 2 \u2014 Safety Planning',        d: 'Safe people, safe location, go-bag, documents. Refer to local DV shelter. Do not pressure a timeline \u2014 victims leave an average of 7 times before leaving for good.' },
+            { t: 'Stage 3 \u2014 Sustained Pastoral Care', d: 'Assign same-sex caregiver. Weekly contact minimum. Never place victim in a setting with the abuser without their explicit consent.' },
+            { t: 'Stage 4 \u2014 Legal & Practical Support', d: 'Accompany to court if requested. Connect to legal aid. Coordinate Compassion team: housing, meals, childcare, transport.' },
+            { t: 'Stage 5 \u2014 Long-Term Care',         d: 'Healing is measured in years. Watch for re-entry into abusive relationship (no condemnation), PTSD, spiritual wounds. At 6 months: formal review.' }
+          ],
+          notes: 'ABUSE / DV INTAKE (CONFIDENTIAL \u2014 DO NOT SHARE)\n' + _L + '\nNature of Abuse (physical / emotional / financial / sexual / spiritual):\n\nDuration:\n\nChildren in home:  YES / NO\n\n\n' + _L + '\nImmediate Safety:  SAFE / AT RISK\nShelter / Safe Location Identified:\nLegal Action Desired:  YES / NO / UNSURE\nMandatory Report Filed:  YES / NO / N/A\nNext Contact:'
+        },
+        'Immigration / Deportation': {
+          icon: '\u2708', color: '#5b9bd5', priority: 'High',
+          stages: [
+            { t: 'Stage 1 \u2014 Confidential Disclosure', d: 'Absolute confidentiality \u2014 immigration status disclosure can cause direct, irreversible harm. Is active enforcement underway? If yes: Crisis protocol + this workflow simultaneously.' },
+            { t: 'Stage 2 \u2014 Legal Resource Connection', d: 'Connect immediately to qualified immigration legal help (CLINIC, Immigration Advocates Network). Warn explicitly against notarios and unlicensed consultants.' },
+            { t: 'Stage 3 \u2014 Practical & Safety Planning', d: 'Organize critical documents. Build family emergency plan: who cares for children, power of attorney. Compassion team: meals, transport, financial assistance.' },
+            { t: 'Stage 4 \u2014 If Detention Occurs',      d: 'Contact immigration attorney immediately. Visit if facility allows. Support the family remaining at home \u2014 they are now in their own crisis.' },
+            { t: 'Stage 5 \u2014 If Deportation Occurs',   d: 'Continue pastoral care for the family remaining. Maintain contact with deported member. Long-term separation care is multi-year work.' },
+            { t: 'Stage 6 \u2014 Sustained Accompaniment', d: 'Immigration situations extend for months or years. Remain present through every court date and appeal. Case review every 6 months.' }
+          ],
+          notes: 'IMMIGRATION CARE INTAKE (CONFIDENTIAL \u2014 DO NOT DISCLOSE STATUS)\n' + _L + '\nGeneral Situation (no status details in this field \u2014 verbal only):\n\nFamily Members Affected:\n\nU.S.-Citizen Children:  YES / NO\n\n\n' + _L + '\nEnforcement Action Active:  YES / NO\nLegal Counsel Connected:  YES / NO\nFamily Emergency Plan in Place:  YES / NO\nNext Contact:'
+        },
+        'Incarceration & Re-Entry': {
+          icon: '\uD83D\uDD11', color: '#7eaacc', priority: 'High',
+          stages: [
+            { t: 'Stage 1 \u2014 Arrest / Sentencing',    d: 'Contact the family immediately. Open a separate Family case for the household. Do not withdraw from the incarcerated member \u2014 the fold extends inside.' },
+            { t: 'Stage 2 \u2014 Ministry Inside',        d: 'Establish visitation schedule. Send letters and cards. Ensure member has a Bible. Explore chaplaincy volunteer access.' },
+            { t: 'Stage 3 \u2014 Family on the Outside',  d: 'Spouse and children experience a distinct grief. Children with an incarcerated parent are at elevated risk. Activate Compassion: meals, financial, transport.' },
+            { t: 'Stage 4 \u2014 Pre-Release Planning',   d: 'Begin 60\u201390 days before release. Address: housing, employment (re-entry-friendly employers), community, and legal requirements (parole/probation terms).' },
+            { t: 'Stage 5 \u2014 Re-Entry',               d: 'Be present near release day \u2014 this is the highest-risk moment. Assign accountability partner. Weekly check-ins for first 90 days. Introduce personally to community.' },
+            { t: 'Stage 6 \u2014 Long-Term Stability',   d: 'Keep case open 12 months minimum. Watch for return to prior environments and isolation. Celebrate milestones. Close \u2192 transition to Discipleship or Shepherding.' }
+          ],
+          notes: 'INCARCERATION INTAKE\n' + _L + '\nCurrent Status (incarcerated / pre-sentencing / re-entry):\n\nFacility / Location:\n\nExpected Release Date:\n\nFamily Members Affected:\n\n\n' + _L + '\nFamily Care Case Opened:  YES / NO\nVisitation Registration Needed:  YES / NO\nKey Re-Entry Barriers:\nAccountability Partner:\nNext Contact:'
+        },
+        'Pregnancy & Infant Loss': {
+          icon: '\uD83D\uDD4A', color: '#9b7ec8', priority: 'High',
+          stages: [
+            { t: 'Stage 1 \u2014 First Contact (24 hrs)',  d: 'Contact within 24 hours. Lead with presence, not words. Acknowledge the father explicitly \u2014 his grief is real and often invisible. Do NOT say: "At least it was early," "You can try again," or "God needed an angel."' },
+            { t: 'Stage 2 \u2014 Presence & Acknowledgment', d: 'Visit in person. Bring food, not advice. Ask about the baby by name if given. Activate Compassion: meals 2+ weeks, childcare, errands.' },
+            { t: 'Stage 3 \u2014 Ongoing Grief Journey',  d: 'Follow standard Grief cadence. Calendar grief spikes: original due date, first Mother\u2019s/Father\u2019s Day, anniversary of loss, subsequent pregnancies.' },
+            { t: 'Stage 4 \u2014 Referral & Community',   d: 'Refer to SHARE Pregnancy & Infant Loss Support (nationalshare.org). Consider a private memorial prayer of naming. For infertility: long-term care with no defined endpoint is right.' },
+            { t: 'Stage 5 \u2014 Close or Transition',    d: 'Close when family is clearly stabilized. Leave the door open explicitly. Recurring loss or infertility: convert to Shepherding for sustained connection.' }
+          ],
+          notes: 'PREGNANCY & INFANT LOSS INTAKE\n' + _L + '\nType of Loss (miscarriage / stillbirth / infant death / infertility / other):\n\nDate of Loss:\n\nOriginal Due Date (if applicable):\n\nFather / Partner Acknowledged:  YES\n\n\n' + _L + '\nPractical Needs:\nSpiritual State:\nReferral Made:  YES / NO\nGrief Milestone Dates Calendared:  YES / NO\nNext Contact:'
+        },
+        'Pre-Marriage': {
+          icon: '\uD83D\uDC91', color: '#c47878', priority: 'Normal',
+          stages: [
+            { t: 'Stage 1 \u2014 Engagement Contact',     d: 'Contact within 1 week of learning of the engagement. Frame the process as a gift: \u201cWe want to do everything we can to help you both start well.\u201d' },
+            { t: 'Stage 2 \u2014 Initial Assessment',     d: 'Meet individually with husband and wife first. Assess: family of origin, communication patterns, conflict history, finances, children, faith alignment. Consider PREPARE/ENRICH assessment (prepare-enrich.com).' },
+            { t: 'Stage 3 \u2014 Structured Preparation', d: '6 sessions minimum: (1) Covenant & Commitment, (2) Communication & Conflict, (3) Family of Origin, (4) Finances, (5) Roles & Expectations, (6) Faith & Spiritual Life. Mentor couple model recommended.' },
+            { t: 'Stage 4 \u2014 Pre-Wedding Meeting',    d: 'Within 30 days of the wedding. Rehearsal logistics, ceremony content, Scripture. Ask both: \u201cIs there anything on your heart as you enter this covenant?\u201d Pray together.' },
+            { t: 'Stage 5 \u2014 Post-Wedding Follow-Up', d: 'Check in at 3 months, 6 months, and 1 year. These contacts are the bridge to the Marriage workflow if it is ever needed.' }
+          ],
+          notes: 'PRE-MARRIAGE INTAKE\n' + _L + '\nWedding Date:\n\nHusband Name:\n\nWife Name:\n\nPrior Marriage (either):  YES / NO\nChildren from Prior Relationship:  YES / NO\n\n\n' + _L + '\nAssessment Tool Used:\nMentor Couple Assigned:\nSessions Completed:\nKey Topics / Themes:\nPost-Wedding Check-In Dates:'
+        },
+        'Terminal Illness / End of Life': {
+          icon: '\uD83D\uDD6F', color: '#9b7ec8', priority: 'High',
+          stages: [
+            { t: 'Stage 1 \u2014 Receiving the News',     d: 'Contact within 24 hours. Lead with presence and prayer, not theology. Do not say \u201cGod will heal you\u201d unless they say it first. Ask about the family \u2014 open a second case if needed.' },
+            { t: 'Stage 2 \u2014 Walking the Journey',    d: 'Weekly visits minimum. Pray specifically. Walk through over time: their life story, what they believe about what comes next, forgiveness, legacy. Encourage advance directive conversations.' },
+            { t: 'Stage 3 \u2014 Family Care',            d: 'Family is in anticipatory grief \u2014 name it and tend to it. Separate pastoral care for the primary caregiver. Resources for children in the home. Partner with hospice team.' },
+            { t: 'Stage 4 \u2014 Active Dying Phase',     d: 'Pastor personally reachable at all hours. Be present in the vigil if wanted. Read Scripture aloud \u2014 hearing is often the last sense to fade. Pray. Name the person. Commit them to God\u2019s hands.' },
+            { t: 'Stage 5 \u2014 Immediate Family Care',  d: 'Remain with the family after death. Activate the Grief workflow for the family. Coordinate memorial / funeral. Personal contact every week for the first 30 days.' }
+          ],
+          notes: 'TERMINAL ILLNESS INTAKE\n' + _L + '\nDiagnosis:\n\nPrognosis / Timeline:\n\nHospice Enrolled:  YES / NO\nHospice Team:\n\nFamily Situation:\n\n\n' + _L + '\nPrimary Family Caregiver:\nAdvance Directive in Place:  YES / NO\nSpiritual State:\nKey Topics to Walk Through:\nNext Visit:'
+        },
+        'New Member Integration': {
+          icon: '\uD83E\uDD1D', color: '#4caf8a', priority: 'Normal',
+          stages: [
+            { t: 'Stage 1 \u2014 Connection at Joining',  d: 'Personal contact within 48 hours of a new member commitment. Assign a Welcome Elder or Deacon. Learn their story: background, what brought them here, what they\u2019re hoping for.' },
+            { t: 'Stage 2 \u2014 30 Days: Belonging',     d: 'Personal introduction to a small group within 30 days. Introduce them to 3\u20135 members who share something in common. Ensure the whole household is connected.' },
+            { t: 'Stage 3 \u2014 60 Days: Serving',       d: 'Conversation: where are your gifts? What have you loved doing? Make a specific invitation to a serving team \u2014 not a generic ask.' },
+            { t: 'Stage 4 \u2014 90-Day Assessment',      d: 'In a small group? At least one meaningful friendship? Connected to a serving area? If yes: close and celebrate. If no: identify the barrier and address it specifically.' },
+            { t: 'Stage 5 \u2014 Transfer to Shepherding', d: 'When integrated: close this case, open a Shepherding case. Note their small group, serving role, and key relationships as their pastoral profile.' }
+          ],
+          notes: 'NEW MEMBER INTEGRATION\n' + _L + '\nName(s):\n\nJoining Date:\n\nBackground (prior church, transfer, returning):\n\nFamily / Household Members:\n\n\n' + _L + '\nWelcome Elder / Deacon Assigned:\nSmall Group Connected:  YES / NO  \u25ba Date:\nServing Team Connected:  YES / NO  \u25ba Team:\n90-Day Assessment Date:\nNotes:'
+        },
+        'Pornography / Sexual Addiction': {
+          icon: '\uD83D\uDD12', color: '#d4853a', priority: 'High',
+          stages: [
+            { t: 'Stage 1 \u2014 Disclosure',             d: 'Receive without shock or lecture. Same-sex pastor or elder responds. Say: \u201cThank you. This took courage. You are not alone.\u201d Establish strict confidentiality immediately.' },
+            { t: 'Stage 2 \u2014 Assessment',             d: 'Duration, frequency, triggers, escalation pattern, spouse awareness, professional help in place, devices/subscriptions to address. If married: do not advise spouse disclosure \u2014 refer to a licensed therapist trained in sexual addiction to guide that step.' },
+            { t: 'Stage 3 \u2014 Accountability Structure', d: 'Assign same-sex accountability partner. Install accountability software (Covenant Eyes \u2014 covenanteyes.com). Weekly check-ins with specific questions: How many times? When? What was happening before?' },
+            { t: 'Stage 4 \u2014 Professional Referral',  d: 'CSAT (findacsat.com), Pure Desire Ministries, Celebrate Recovery, Every Man\u2019s Battle. If married: refer spouse to a betrayal trauma therapist. Walk alongside \u2014 do not attempt to provide the therapy.' },
+            { t: 'Stage 5 \u2014 Recovery & Relapse',     d: 'Contact within 24 hours of a relapse. Lead with grace, not shame. Reassess accountability structure. Celebrate: 30d, 90d, 6mo, 1yr. Address root causes over time.' },
+            { t: 'Stage 6 \u2014 Long-Term Freedom',      d: '12- and 24-month formal reviews. In time: invite them to give back as an accountability partner. When closing: convert to Shepherding \u2014 do not fully separate.' }
+          ],
+          notes: 'SEXUAL ADDICTION INTAKE (CONFIDENTIAL \u2014 DO NOT DISCLOSE)\n' + _L + '\nDuration / History:\n\nPattern / Frequency:\n\nEscalation (has it changed over time):  YES / NO\n\nSpouse / Family Aware:  YES / NO\nProfessional Help in Place:  YES / NO\n\n\n' + _L + '\nAccountability Partner Assigned:\nAccountability Software Installed:  YES / NO\nReferral Made:\nMarriage Case Opened:  YES / NO\nNext Check-In:'
+        },
+        'Mental Health': {
+          icon: '\uD83E\uDDE0', color: '#7eaacc', priority: 'Normal',
+          stages: [
+            { t: 'Stage 1 \u2014 Safe Disclosure',        d: 'Respond immediately. Lead with: \u201cThank you for telling me. You are not alone.\u201d Assess safety first: any risk of self-harm? If yes \u2192 Crisis workflow immediately. Establish confidentiality explicitly.' },
+            { t: 'Stage 2 \u2014 Understanding Situation', d: 'What is the condition? How long? In treatment (therapy, psychiatry, medication)? What does a hard day cost them? What role does their faith play? Do not attempt to diagnose.' },
+            { t: 'Stage 3 \u2014 Pastoral Care Plan',     d: 'Assign a caregiver with emotional stability and clear boundaries. Weekly check-in texts often preferred over formal visits. If not in professional care: encourage and provide a specific referral.' },
+            { t: 'Stage 4 \u2014 Long-Term Presence',     d: 'Do not disappear during stable seasons \u2014 steady contact prevents drift and shame re-entry. Watch for: stopping medication, increased isolation, sudden calm after despair (safety risk).' },
+            { t: 'Stage 5 \u2014 Crisis Response',        d: 'Suicidal ideation or intent: do not leave them alone. Call 988 together if needed. Activate Crisis workflow. Keep Mental Health case open for the ongoing journey.' },
+            { t: 'Stage 6 \u2014 Long-Term Review',       d: 'Formal review at 6 and 12 months. Some cases remain open indefinitely \u2014 this is faithful shepherding, not failure. When thriving: close \u2192 convert to Shepherding.' }
+          ],
+          notes: 'MENTAL HEALTH INTAKE (CONFIDENTIAL)\n' + _L + '\nPresenting Condition (as member describes it):\n\nDuration:\n\nCurrently in Professional Treatment:  YES / NO\nTherapist / Psychiatrist:\n\nMedication in Place:  YES / NO\n\n\n' + _L + '\nSafety Concern:  YES / NO  \u2014 If YES: Crisis workflow activated\nCaregiver Assigned:\nContact Cadence:\nReferral Made:\nNext Contact:'
+        },
+        'Gender Identity / Sexuality': {
+          icon: '\u271D', color: '#7eaacc', priority: 'Normal',
+          stages: [
+            { t: 'Stage 1 \u2014 Safe Disclosure',        d: 'Receive with calm, unhurried presence. Listen fully before responding. Same-sex pastor or elder responds whenever possible. Do not minimize, diagnose, or prescribe at first. Establish confidentiality explicitly.' },
+            { t: 'Stage 2 \u2014 Understanding Their World', d: 'What is the nature of the struggle? Same-sex attraction, gender confusion, or distress about their body? What do they believe theologically? What are they asking for from the church right now?' },
+            { t: 'Stage 3 \u2014 Pastoral Care Plan',     d: 'Assign same-sex, spiritually mature caregiver. Regular meetings (monthly minimum). Affirm: their place in this community is not conditional on their struggle. Refer to AACC-network counselor within biblical framework.' },
+            { t: 'Stage 4 \u2014 Community & Belonging',  d: 'Isolation is the enemy. Ensure genuine community: small group, friendships, belonging. For celibate path: the church must be a community where single men and women flourish. If married: spouse needs their own pastoral care.' },
+            { t: 'Stage 5 \u2014 Long-Term Accompaniment', d: 'This is rarely a short journey. Celebrate faithfulness. If a member steps away from biblical teaching: maintain relationship and hold truth in love. Formal review every 6 months.' }
+          ],
+          notes: 'GENDER IDENTITY / SEXUALITY INTAKE (CONFIDENTIAL)\n' + _L + '\nNature of Struggle (as member describes it):\n\nTheological Stance (member\u2019s understanding):\n\nWhat They Are Seeking from the Church:\n\nFamily / Spouse Aware:  YES / NO\n\n\n' + _L + '\nCaregiver Assigned (same sex):\nProfessional Referral Made:  YES / NO\nCommunity Connection Plan:\nNext Meeting:'
         }
       };
 
