@@ -1706,7 +1706,7 @@ const TheLife = (() => {
       _fpField('Suffix', 'suffix', rec.suffix, 'select',
         ['', 'Jr.', 'Sr.', 'II', 'III', 'IV', 'MD', 'PhD', 'Esq.']));
     basicSec += _fp2(
-      _fpField('Gender', 'gender', rec.gender, 'select', ['', 'Male', 'Female', 'Other']),
+      _fpField('Gender', 'gender', rec.gender, 'select', ['', 'Male', 'Female']),
       _fpField('Date of Birth', 'dateOfBirth', rec.dateOfBirth, 'date'));
     html += _fpSec('Basic Information', 'mem-basic', basicSec);
 
