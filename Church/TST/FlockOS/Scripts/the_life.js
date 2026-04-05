@@ -2926,8 +2926,9 @@ const TheLife = (() => {
     addOutreachFollowUp: addOutreachFollowUp,
 
     // Utilities (exposed for onclick)
-    _callPhone: _callPhone,
-    _smsPhone:  _smsPhone,
+    _callPhone:  _callPhone,
+    _smsPhone:   _smsPhone,
+    _miniModal:  _miniModal,
   };
 
 })();

@@ -503,20 +503,38 @@ const LoveInAction = (() => {
     } catch (e) { alert('Search failed: ' + (e.message || e)); }
   }
 
-  function _reassignCase(id) {
-    var newCaregiver = prompt('New caregiver ID or email:');
-    if (!newCaregiver || !newCaregiver.trim()) return;
-    var notes = prompt('Reason / notes (optional):') || '';
-    TheVine.flock.care.assignments.reassign({ id: id, caregiverId: newCaregiver.trim(), notes: notes })
-      .then(function() {
-        return TheVine.flock.care.assignments.list({ limit: 80 });
-      })
-      .then(function(res) {
-        _cache.assignments = _filterClosed(_rows(res));
-        var panel = document.getElementById('lia-p-assignments');
-        if (panel) panel.innerHTML = _buildAssignments();
-      })
-      .catch(function(e) { alert('Reassign failed: ' + (e.message || e)); });
+  async function _reassignCase(id) {
+    // Fetch pastor/admin users for the dropdown
+    var userOpts = [{ value: '', label: '— Select caregiver —' }];
+    try {
+      var uRes = await TheVine.flock.users.list({});
+      var users = (_rows(uRes) || []).filter(function(u) {
+        return /^(pastor|admin)$/i.test(u.role || '') && /^active$/i.test(u.status || 'active');
+      });
+      users.sort(function(a, b) {
+        return ((a.firstName || '') + (a.lastName || '')).localeCompare((b.firstName || '') + (b.lastName || ''));
+      });
+      users.forEach(function(u) {
+        userOpts.push({ value: u.email, label: (u.firstName || '') + ' ' + (u.lastName || '') + ' (' + u.role + ')' });
+      });
+    } catch (e) { /* fall through — modal still shows with empty list */ }
+
+    if (userOpts.length === 1) {
+      alert('No pastors or admins found to reassign to.');
+      return;
+    }
+
+    TheLife._miniModal('Reassign Care Assignment', [
+      { name: 'newCaregiverId', label: 'New Caregiver', type: 'select', options: userOpts, required: true },
+      { name: 'notes', label: 'Reason / Notes', type: 'textarea' },
+    ], async function(data) {
+      if (!data.newCaregiverId) throw new Error('Please select a caregiver.');
+      await TheVine.flock.care.assignments.reassign({ id: id, newCaregiverId: data.newCaregiverId, notes: data.notes });
+      var res = await TheVine.flock.care.assignments.list({ limit: 80 });
+      _cache.assignments = _filterClosed(_rows(res));
+      var panel = document.getElementById('lia-p-assignments');
+      if (panel) panel.innerHTML = _buildAssignments();
+    });
   }
 
   async function _endAssignment(id) {
