@@ -780,7 +780,7 @@ python3 -m http.server 8080</code></pre>
 
   <h3>API Deployment URL (Current)</h3>
   <p>The single database endpoint is configured in Settings &rarr; Provisioning (<code>DATABASE_URL</code>), or hardcoded in <code>FlockOS/Scripts/the_true_vine.js</code> (<code>_config</code> block). Health check:</p>
-  <pre><code>https://script.google.com/macros/s/AKfycbx2pemG039LB609OlVY-OcqLWK75qRV2ZgZNyf4Oc7dGogCR2HC4C__iWUqlG9JfYLt/exec?action=health</code></pre>
+  <pre><code>https://script.google.com/macros/s/AKfycbwAFp0BQvt0DiDJBjzBrycMripfUHOkP0PwiB_DSXgGVezP_y8jCOVxZWweTp58gai7/exec?action=health</code></pre>
   <p>Unified endpoint confirmed healthy.</p>
   <p style="margin-top:2rem;text-align:right;"><a href="#toc" style="color:var(--accent);text-decoration:none;font-size:0.9rem;">&uarr; Back to Table of Contents</a></p>
 </section>
@@ -1184,7 +1184,7 @@ Session expiry (default: 6 hours)
 
   <h3>Step 4.8 &mdash; Test</h3>
   <p>Open your browser and go to:</p>
-  <pre><code>https://script.google.com/macros/s/AKfycbx2pemG039LB609OlVY-OcqLWK75qRV2ZgZNyf4Oc7dGogCR2HC4C__iWUqlG9JfYLt/exec?action=health</code></pre>
+  <pre><code>https://script.google.com/macros/s/AKfycbwAFp0BQvt0DiDJBjzBrycMripfUHOkP0PwiB_DSXgGVezP_y8jCOVxZWweTp58gai7/exec?action=health</code></pre>
   <p>You should see:</p>
   <pre><code>{"ok":true,"message":"ATOG Church CRM Expansion is running.","version":"1.0.0"}</code></pre>
   <p style="margin-top:2rem;text-align:right;"><a href="#toc" style="color:var(--accent);text-decoration:none;font-size:0.9rem;">&uarr; Back to Table of Contents</a></p>
@@ -1236,7 +1236,7 @@ Session expiry (default: 6 hours)
 
   <h3>Step 1 &mdash; Health Check</h3>
   <p>Open the Database URL in your browser with <code>?action=health</code> appended. It should return <code>"ok": true</code>:</p>
-  <pre><code>https://script.google.com/macros/s/AKfycbx2pemG039LB609OlVY-OcqLWK75qRV2ZgZNyf4Oc7dGogCR2HC4C__iWUqlG9JfYLt/exec?action=health</code></pre>
+  <pre><code>https://script.google.com/macros/s/AKfycbwAFp0BQvt0DiDJBjzBrycMripfUHOkP0PwiB_DSXgGVezP_y8jCOVxZWweTp58gai7/exec?action=health</code></pre>
   <p>Expected: <code>{"ok":true,"message":"ATOG Church CRM Expansion is running.","version":"1.0.0"}</code></p>
 
   <h3>Step 2 &mdash; Tab Count Verification</h3>
@@ -1248,10 +1248,10 @@ Session expiry (default: 6 hours)
 
   <h3>Step 3 &mdash; End-to-End Tests</h3>
   <ul class="checklist">
-    <li>Login: <code>https://script.google.com/macros/s/AKfycbx2pemG039LB609OlVY-OcqLWK75qRV2ZgZNyf4Oc7dGogCR2HC4C__iWUqlG9JfYLt/exec?action=auth.login&amp;email=...&amp;passcode=...</code></li>
-    <li>Profile: <code>https://script.google.com/macros/s/AKfycbx2pemG039LB609OlVY-OcqLWK75qRV2ZgZNyf4Oc7dGogCR2HC4C__iWUqlG9JfYLt/exec?action=auth.profile&amp;token=...&amp;email=...</code></li>
-    <li>Tab reader: <code>https://script.google.com/macros/s/AKfycbx2pemG039LB609OlVY-OcqLWK75qRV2ZgZNyf4Oc7dGogCR2HC4C__iWUqlG9JfYLt/exec?tab=Books</code></li>
-    <li>Members: <code>https://script.google.com/macros/s/AKfycbx2pemG039LB609OlVY-OcqLWK75qRV2ZgZNyf4Oc7dGogCR2HC4C__iWUqlG9JfYLt/exec?action=members.list&amp;token=...&amp;email=...</code></li>
+    <li>Login: <code>https://script.google.com/macros/s/AKfycbwAFp0BQvt0DiDJBjzBrycMripfUHOkP0PwiB_DSXgGVezP_y8jCOVxZWweTp58gai7/exec?action=auth.login&amp;email=...&amp;passcode=...</code></li>
+    <li>Profile: <code>https://script.google.com/macros/s/AKfycbwAFp0BQvt0DiDJBjzBrycMripfUHOkP0PwiB_DSXgGVezP_y8jCOVxZWweTp58gai7/exec?action=auth.profile&amp;token=...&amp;email=...</code></li>
+    <li>Tab reader: <code>https://script.google.com/macros/s/AKfycbwAFp0BQvt0DiDJBjzBrycMripfUHOkP0PwiB_DSXgGVezP_y8jCOVxZWweTp58gai7/exec?tab=Books</code></li>
+    <li>Members: <code>https://script.google.com/macros/s/AKfycbwAFp0BQvt0DiDJBjzBrycMripfUHOkP0PwiB_DSXgGVezP_y8jCOVxZWweTp58gai7/exec?action=members.list&amp;token=...&amp;email=...</code></li>
   </ul>
 
   <h3>If Something Is Wrong</h3>
