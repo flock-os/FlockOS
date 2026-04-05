@@ -244,6 +244,30 @@ const Nehemiah = (() => {
   }
 
   /**
+   * Returns true for the given fine-grained capability key.
+   * Seed admin and Lead Pastor bypass all checks and always return true.
+   * All other users are evaluated against the permissions map returned at login.
+   *
+   * @param {string} capability — e.g. 'care.view-all', 'my-flock.add-edit-members'
+   * @returns {boolean}
+   */
+  function can(capability) {
+    const session = getSession();
+    if (!session) return false;
+    // Seed admin and Lead Pastor always have full access — they cannot be locked out
+    if (session.isSeed) return true;
+    const profile = getProfile();
+    if (profile && profile.groups) {
+      const groups = String(profile.groups).split(',').map(g => g.trim().toLowerCase());
+      if (groups.indexOf('lead pastor') !== -1) return true;
+    }
+    if (session.permissions && typeof session.permissions === 'object') {
+      return session.permissions[capability] === true;
+    }
+    return false;
+  }
+
+  /**
    * Returns true if the current user belongs to the named group.
    * Checks the profile's groups field (comma-separated in AccessControl).
    * @param {string} groupName — e.g. 'Lead Pastor'
@@ -451,6 +475,7 @@ const Nehemiah = (() => {
     hasRole,
     hasGroup,
     canAccess,
+    can,
     requireRole,
 
     // Auth actions

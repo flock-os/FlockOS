@@ -571,7 +571,7 @@ const TheVine = (() => {
     })(),
 
     // ── Permissions ──────────────────────────────────────────────────────
-    permissions: _f('permissions', ['get', 'set', 'copy', 'list']),
+    permissions: _f('permissions', ['get', 'set', 'copy', 'list', 'setAll']),
 
     // ── User Preferences ─────────────────────────────────────────────────
     preferences: _f('user.preferences', ['get', 'update']),

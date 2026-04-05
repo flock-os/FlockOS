@@ -138,6 +138,15 @@ const LoveInAction = (() => {
         _nurture('outreach',   () => TheVine.flock.outreach.contacts.list({ limit: 50 })),
       ]);
       _cache.care        = _filterClosed(_rows(res[0].status === 'fulfilled' ? res[0].value : []));
+      // Restrict to only assigned cases for users without the care.view-all capability
+      if (typeof Nehemiah !== 'undefined' && !Nehemiah.can('care.view-all')) {
+        var _liaMe = (TheVine.session() || {}).email || '';
+        _cache.care = _cache.care.filter(function(c) {
+          return (c.primaryCaregiverId && c.primaryCaregiverId === _liaMe)
+            || (c.secondaryCaregiverId && c.secondaryCaregiverId === _liaMe)
+            || (c.assignedTo && c.assignedTo === _liaMe);
+        });
+      }
       _cache.prayer      = _filterClosed(_rows(res[1].status === 'fulfilled' ? res[1].value : []), 'Status');
       _cache.compassion  = _filterClosed(_rows(res[2].status === 'fulfilled' ? res[2].value : []));
       _cache.outreach    = _filterClosed(_rows(res[3].status === 'fulfilled' ? res[3].value : []));
