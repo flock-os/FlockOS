@@ -3,40 +3,40 @@
 //  MASTER DEPLOYMENT — FlockOS
 //
 //  ➤  STEP 1: In the GAS editor go to:
-//             Project Settings → Script Properties → Add the following:
+//             Project Settings → Script Properties → Add ONE property:
 //
-//               SHEET_ID        Your Google Sheet ID (main church database)
-//               ADMIN_EMAIL     Admin login email
-//               ADMIN_FIRST     Admin first name
-//               ADMIN_LAST      Admin last name
-//               ADMIN_PASSWORD  Admin password
-//
-//             Optional — only if you maintain a separate Truth/content sheet:
-//               TRUTH_SHEET_ID  Google Sheet ID of your Truth (Matthew) database
+//               SHEET_ID   Your Google Sheet ID (the church database sheet)
 //
 //  ➤  STEP 2: Select  setupFlockOS  in the function dropdown → Run.
 //
-//  That's it. Everything else happens automatically.
-//  If TRUTH_SHEET_ID is set, its tabs are also built in the same run.
+//  That's it. Everything else is pre-configured below.
 // ══════════════════════════════════════════════════════════════════════════════
+
+// ── Deployment Configuration — edit here, not in Script Properties ────────────
+var DEPLOY_CONFIG = {
+  adminEmail:    'flockos.notify@gmail.com',
+  adminFirst:    'Flock',
+  adminLast:     'Admin',
+  adminPassword: '7kR2nP4m9vL1sW6jQ0x8!z&2',
+  notifyEmail:   'flockos.notify@gmail.com',
+  truthDbId:     '1ZuLKjP1RUI7TibeHKEC_wUsnjiWq0ic-AXt_LIPKSbM',
+};
+// ─────────────────────────────────────────────────────────────────────────────
 
 
 // ── Master Entry Point ────────────────────────────────────────────────────────
 
 function setupFlockOS() {
   var props        = PropertiesService.getScriptProperties();
-  var sheetId      = (props.getProperty('SHEET_ID')       || '').trim();
-  var adminEmail   = (props.getProperty('ADMIN_EMAIL')    || '').trim();
-  var adminFirst   = (props.getProperty('ADMIN_FIRST')    || 'System').trim();
-  var adminLast    = (props.getProperty('ADMIN_LAST')     || 'Admin').trim();
-  var adminPass    = (props.getProperty('ADMIN_PASSWORD') || '').trim();
+  var sheetId      = (props.getProperty('SHEET_ID') || '').trim();
+  var adminEmail   = DEPLOY_CONFIG.adminEmail;
+  var adminFirst   = DEPLOY_CONFIG.adminFirst;
+  var adminLast    = DEPLOY_CONFIG.adminLast;
+  var adminPass    = DEPLOY_CONFIG.adminPassword;
 
   // ── 1. Validate config ──────────────────────────────────────────────────
   if (!sheetId) {
     throw new Error('SHEET_ID script property is missing. Go to Project Settings → Script Properties and add it, then run again.');
-  }
-  if (!adminEmail || !adminPass) {
-    throw new Error('ADMIN_EMAIL and ADMIN_PASSWORD script properties are required. Add them in Project Settings → Script Properties.');
   }
 
   _log_('╔══════════════════════════════════════════════════════════════╗');
@@ -8688,7 +8688,7 @@ function seedAppConfigDefaults_(ss) {
     ['NOTIFY_CARE_ASSIGNMENT','TRUE',                  'Send email to assigned caregiver when a care case is assigned or reassigned', 'Notifications'],
     ['NOTIFY_CONNECT_FORM',  'TRUE',                   'Send email to pastors/admins when a public Connect card is submitted', 'Notifications'],
     ['DAILY_SUMMARY_ENABLED','TRUE',                   'Send daily 6 AM pastoral summary email to all active pastors',  'Notifications'],
-    ['ADMIN_EMAIL',          '',                       'Primary admin email for system notifications',                  'Notifications'],
+    ['ADMIN_EMAIL',          DEPLOY_CONFIG.notifyEmail, 'Primary admin email for system notifications',                  'Notifications'],
     ['LEAD_PASTOR_MEMBER_ID','',                       'Member ID of the lead pastor — auto-assigned as Primary Caregiver on new care cases', 'Care'],
     ['CARE_FOLLOWUP_DAYS',   '3',                      'Days without a logged interaction before a follow-up reminder is emailed to the caregiver', 'Care'],
     ['ITEMS_PER_PAGE',       '50',                     'Default number of rows returned in list queries',               'Display'],
@@ -15463,7 +15463,7 @@ function handleDiscipleshipDashboard(params, auth) {
  */
 
 var REGISTRY_TAB  = 'ChurchRegistry';
-var TRUTH_DB_ID   = '1ZuLKjP1RUI7TibeHKEC_wUsnjiWq0ic-AXt_LIPKSbM';
+var TRUTH_DB_ID   = DEPLOY_CONFIG.truthDbId;
 var REGISTRY_COLS = {
   ID: 0, SHEET_ID: 1, NAME: 2, PLAN: 3, STATUS: 4, CREATED: 5,
   SHORT_NAME: 6, BRAND_NAME: 7, TAGLINE: 8,
