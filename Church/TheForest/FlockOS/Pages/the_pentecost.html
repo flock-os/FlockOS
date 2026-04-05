@@ -434,13 +434,13 @@
       <td>Module System (the_tabernacle.js)</td>
       <td><code>FlockOS/Scripts/the_tabernacle.js</code></td>
       <td><span class="badge badge-success">Done</span></td>
-      <td>~10,436 lines. 48+ module renderers with full CRUD, card-based and table-based views, shared helpers, generic <code>_modal()</code> and <code>_edit()</code> form system. Card-based message inbox/detail view, notification bell integration, Daily Devotional unified page, The Upper Room spiritual dashboard. Delegates to 6 external IIFEs: TheSeasons, TheLife, TheWay, TheHarvest, TheShepherd, TheFold.</td>
+      <td>17,890 lines. 48+ module renderers with full CRUD, card-based and table-based views, shared helpers, generic <code>_modal()</code> and <code>_edit()</code> form system. Card-based message inbox/detail view, notification bell integration, Daily Devotional unified page, The Upper Room spiritual dashboard. Delegates to 6 external IIFEs: TheSeasons, TheLife, TheWay, TheHarvest, TheShepherd, TheFold.</td>
     </tr>
     <tr>
       <td>CSS Theme System (fine_linen.js)</td>
       <td><code>FlockOS/Scripts/fine_linen.js</code></td>
       <td><span class="badge badge-success">Done</span></td>
-      <td>13 themes (light and dark), full CSS framework, pills/badges, cards, tables, responsive layout. iOS zoom prevention (all inputs 16px). Dynamic theming across all pages including deployment guide. Interface Studio override engine.</td>
+      <td>14 themes (light, dark, and flag), full CSS framework, pills/badges, cards, tables, responsive layout. iOS zoom prevention (all inputs 16px). Dynamic theming across all pages including deployment guide. Interface Studio override engine.</td>
     </tr>
 
     <!-- BACKEND FIXES -->
@@ -762,7 +762,7 @@
 
   <h3>Immediate Next Steps</h3>
   <ol>
-    <li><strong>Deploy to first church for testing</strong> &mdash; paste <code>Single.gs</code> as Code.gs in one GAS project, set Script Properties, run setup, deploy as web app</li>
+    <li><strong>Deploy to first church for testing</strong> &mdash; paste <code>Master Code.gs.md</code> as Code.gs in one GAS project, set Script Properties, run setup, deploy as web app</li>
     <li><strong>Verify health check</strong> &mdash; confirm <code>?action=health</code> returns <code>ok: true</code></li>
     <li><strong>Test login &amp; session flow end-to-end</strong> &mdash; seed admin user, hash password, login via the_wall.html, verify redirect to index.html, test session expiry</li>
     <li><strong>Test My Flock Portal</strong> &mdash; add a member, edit an existing member, verify no row overwrite, confirm care assignment auto-creates</li>
@@ -774,7 +774,7 @@
 
   <h3>Local Development Server</h3>
   <p>Files must be served over HTTP (not <code>file://</code>) for <code>sessionStorage</code> to work correctly.</p>
-  <pre><code>cd /Users/greg.granger/Documents/ATOGsw/FlockOS
+  <pre><code>cd /Users/greg.granger/Desktop/FlockOS/Software
 python3 -m http.server 8080</code></pre>
   <p>Then open: <code>http://localhost:8080/the_wall.html</code></p>
 
@@ -817,7 +817,7 @@ python3 -m http.server 8080</code></pre>
 &boxv;   &boxv;   &boxur;&boxh;&boxh; the_invitation.html      &larr; Invitation page
 &boxv;   &boxv;
 &boxv;   &boxvr;&boxh;&boxh; Scripts/                     &larr; Production JavaScript (served via GitHub Pages)
-&boxv;   &boxv;   &boxvr;&boxh;&boxh; fine_linen.js            &larr; 13-theme CSS design system + Interface Studio
+&boxv;   &boxv;   &boxvr;&boxh;&boxh; fine_linen.js            &larr; 14-theme CSS design system + Interface Studio
 &boxv;   &boxv;   &boxvr;&boxh;&boxh; the_cornerstone.js       &larr; Architecture registry: APIs, actions, routes, RBAC
 &boxv;   &boxv;   &boxvr;&boxh;&boxh; the_true_vine.js         &larr; TheVine: centralized API client
 &boxv;   &boxv;   &boxvr;&boxh;&boxh; firm_foundation.js       &larr; Auth guard, session, role enforcement
@@ -839,13 +839,15 @@ python3 -m http.server 8080</code></pre>
 &boxv;   &boxv;   &boxvr;&boxh;&boxh; the_truth.js             &larr; Reserved placeholder (John 8:32)
 &boxv;   &boxv;   &boxur;&boxh;&boxh; the_living_water.js      &larr; Service worker source
 &boxv;   &boxv;
-&boxv;   &boxur;&boxh;&boxh; Tools/                       &larr; Backend source &amp; deployment reference
+&boxv;   &boxur;&boxh;&boxh; Tools/                       &larr; Backend source &amp; deployment reference (git-ignored)
+&boxv;       &boxvr;&boxh;&boxh; Master Deployment/
+&boxv;       &boxv;   &boxur;&boxh;&boxh; Master Code.gs.md    &larr; Unified API &mdash; paste as Code.gs (~26,200 lines)
+&boxv;       &boxvr;&boxh;&boxh; Active Deployments/
+&boxv;       &boxv;   &boxvr;&boxh;&boxh; ChurchTemplate.json  &larr; Church configuration template
+&boxv;       &boxv;   &boxur;&boxh;&boxh; master-api.json      &larr; Master church registry
 &boxv;       &boxur;&boxh;&boxh; Current Deployment/
-&boxv;           &boxvr;&boxh;&boxh; Single.gs                &larr; Unified API &mdash; paste as Code.gs (~24,965 lines)
-&boxv;           &boxvr;&boxh;&boxh; Backup_Single.gs         &larr; Backup / bidirectional sync
-&boxv;           &boxvr;&boxh;&boxh; SF_Deployment.md         &larr; Step-by-step deployment guide
-&boxv;           &boxvr;&boxh;&boxh; ActionItems.md           &larr; Development action items
-&boxv;           &boxur;&boxh;&boxh; SCHEMA_AUDIT.md          &larr; Schema audit notes
+&boxv;           &boxvr;&boxh;&boxh; Action Items.md      &larr; Development action items
+&boxv;           &boxur;&boxh;&boxh; Schema Audit Report.md &larr; Schema audit notes
 &boxv;
 &boxur;&boxh;&boxh; .gitignore                       &larr; Tracks Scripts/ and Pages/, ignores legacy folders</code></pre>
 
@@ -853,9 +855,9 @@ python3 -m http.server 8080</code></pre>
   <table>
     <tr><th>Source File</th><th>GAS Project Name</th><th>Lines</th><th>Spreadsheet</th><th>Deployment</th></tr>
     <tr>
-      <td><code>Database/Single.gs</code></td>
+      <td><code>FlockOS/Tools/Master Deployment/Master Code.gs.md</code></td>
       <td>FlockOS Database</td>
-      <td>~24,965</td>
+      <td>~26,200</td>
       <td>1 Google Sheet (200 tabs)</td>
       <td>Paste as <strong>Code.gs</strong> (only file needed)</td>
     </tr>
@@ -875,14 +877,14 @@ python3 -m http.server 8080</code></pre>
     <li>A Google Account (Workspace or personal Gmail)</li>
     <li>1 empty Google Sheet (will hold all 200 database tabs)</li>
     <li>Access to <a href="https://script.google.com" style="color:var(--accent)">script.google.com</a></li>
-    <li>The <code>FlockOS/Database/Single.gs</code> file (unified backend, ~24,965 lines)</li>
+    <li>The <code>FlockOS/Tools/Master Deployment/Master Code.gs.md</code> file (unified backend, ~26,200 lines)</li>
     <li>The <code>FlockOS/Scripts/</code> and <code>FlockOS/Pages/</code> folders with all frontend source files</li>
   </ul>
 
   <h3>Naming Convention</h3>
   <table>
     <tr><th>Spreadsheet</th><th>Source File</th><th>Lines</th><th>Purpose</th></tr>
-    <tr><td>FlockOS Database</td><td><code>Single.gs</code></td><td>~24,965</td><td>Unified CRM: auth, members, care, content, missions, statistics, all 200 tabs</td></tr>
+    <tr><td>FlockOS Database</td><td><code>Master Code.gs.md</code></td><td>~26,200</td><td>Unified CRM: auth, members, care, content, missions, statistics, all 200 tabs</td></tr>
   </table>
   <p style="margin-top:2rem;text-align:right;"><a href="#toc" style="color:var(--accent);text-decoration:none;font-size:0.9rem;">&uarr; Back to Table of Contents</a></p>
 </section>
@@ -922,8 +924,8 @@ User submits email + passcode
   &rarr; firm_foundation.js: Nehemiah.login(email, passcode)
     &rarr; the_true_vine.js: TheVine.auth.login(email, passcode)
       &rarr; POST to DATABASE_URL?action=auth.login
-        &rarr; Single.gs: login()
-          &rarr; Single.gs: hashPasscode(passcode, salt, pepper) &mdash; SHA-256
+        &rarr; Master Code.gs: login()
+          &rarr; Master Code.gs: hashPasscode(passcode, salt, pepper) &mdash; SHA-256
           &rarr; Compare hash to AuthUsers tab
           &rarr; Check AccessControl: role + status='approved'
           &rarr; Return {ok:true, session:{token,email,role,expires}, profile:{...}}
@@ -933,7 +935,7 @@ User submits email + passcode
 
 Every API call (after login)
   &rarr; the_true_vine.js auto-appends token + email to each request
-    &rarr; Single.gs: validateToken() &mdash; checks AuthUsers.token + expiry
+    &rarr; Master Code.gs: validateToken() &mdash; checks AuthUsers.token + expiry
     &rarr; requireRole(e, 'leader') gates each handler by RBAC level
 
 Session expiry (default: 6 hours)
@@ -946,7 +948,7 @@ Session expiry (default: 6 hours)
     <tr><td><code>SESSION_KEY</code></td><td>the_true_vine.js _config</td><td>flock_auth_session</td><td>Token + role stored in sessionStorage</td></tr>
     <tr><td><code>PROFILE_KEY</code></td><td>the_true_vine.js _config</td><td>flock_auth_profile</td><td>Display name, email, etc.</td></tr>
     <tr><td><code>VAULT_KEY</code></td><td>the_true_vine.js _config</td><td>flock_secure_vault</td><td>Reserved for encrypted local data</td></tr>
-    <tr><td><code>SESSION_TTL</code></td><td>the_true_vine.js _config</td><td>6 &times; 60 &times; 60 &times; 1000&nbsp;ms</td><td>Also enforced server-side by Single.gs</td></tr>
+    <tr><td><code>SESSION_TTL</code></td><td>the_true_vine.js _config</td><td>6 &times; 60 &times; 60 &times; 1000&nbsp;ms</td><td>Also enforced server-side by Master Code.gs</td></tr>
     <tr><td><code>FLOCK_AUTH_PEPPER</code></td><td>GAS Script Properties</td><td>auto-generated by initPepper()</td><td>Master secret &mdash; never share or log</td></tr>
   </table>
   <p style="margin-top:2rem;text-align:right;"><a href="#toc" style="color:var(--accent);text-decoration:none;font-size:0.9rem;">&uarr; Back to Table of Contents</a></p>
@@ -958,12 +960,12 @@ Session expiry (default: 6 hours)
   <h2><span class="num">3</span> The Golden Rule &amp; File Map</h2>
 
   <div class="alert alert-danger" style="font-size:1.05rem; padding:16px 20px; margin-bottom:20px;">
-    &#x1F6A8; <strong>THE GOLDEN RULE:</strong> The GAS project gets ONLY <code>Single.gs</code>, pasted as Code.gs.<br>
+    &#x1F6A8; <strong>THE GOLDEN RULE:</strong> The GAS project gets ONLY <code>Master Code.gs.md</code>, pasted as Code.gs.<br>
     Never create additional script files. Duplicate <code>doGet()</code> functions will break everything.
   </div>
 
   <h3>Which Files Go Where &mdash; Master Cheat Sheet</h3>
-  <p>This is the ONLY table you need. The single GAS project gets <strong>one file</strong> &mdash; <code>Single.gs</code> pasted as Code.gs.</p>
+  <p>This is the ONLY table you need. The single GAS project gets <strong>one file</strong> &mdash; <code>Master Code.gs.md</code> pasted as Code.gs.</p>
 
   <table>
     <tr>
@@ -973,25 +975,25 @@ Session expiry (default: 6 hours)
     </tr>
     <tr>
       <td><strong>FlockOS Database</strong></td>
-      <td><code>Database/Single.gs</code> (~24,965 lines)</td>
+      <td><code>FlockOS/Tools/Master Deployment/Master Code.gs.md</code> (~26,200 lines)</td>
       <td>Paste as <strong>Code.gs</strong> &mdash; 1 file total</td>
     </tr>
   </table>
 
   <div class="alert alert-warn" style="margin-top:16px;">
-    &starf; <strong>One project, one file:</strong> Paste <code>Database/Single.gs</code> as Code.gs in your FlockOS Database GAS project. That's all you need.
+    &starf; <strong>One project, one file:</strong> Paste <code>Master Code.gs.md</code> as Code.gs in your FlockOS Database GAS project. That's all you need.
   </div>
 
   <h3>Code.gs Source &mdash; Quick Reference</h3>
-  <p>The unified <code>Single.gs</code> contains everything:</p>
+  <p>The unified <code>Master Code.gs.md</code> contains everything:</p>
   <table>
     <tr><th>Project</th><th>Source File</th><th>What It Contains</th></tr>
-    <tr><td>FlockOS Database</td><td><code>Single.gs</code></td><td>doGet/doPost + 12 core utils + Auth + Api routing + Setup + Database + Hash + all domain modules (Matthew content, Mark missions, Luke statistics, John CRM) &mdash; ~745 functions, ~24,965 lines</td></tr>
+    <tr><td>FlockOS Database</td><td><code>Master Code.gs.md</code></td><td>doGet/doPost + 12 core utils + Auth + Api routing + Setup + Database + Hash + all domain modules (Matthew content, Mark missions, Luke statistics, John CRM) &mdash; ~745 functions, ~26,200 lines</td></tr>
   </table>
 
-  <h3>Database/ &mdash; GAS Backend Source &amp; Reference</h3>
+  <h3>Tools/Master Deployment/ &mdash; GAS Backend Source</h3>
   <div class="file-grid">
-    <div class="file">Single.gs <span>Unified API &mdash; ~24,965 lines, paste as Code.gs</span></div>
+    <div class="file">Master Code.gs.md <span>Unified API &mdash; ~26,200 lines, paste as Code.gs</span></div>
     <div class="file">flockos_schema.sql <span>SQL schema (106 tables, reference)</span></div>
     <div class="file">SCHEMA_AUDIT.md <span>Schema audit notes</span></div>
     <div class="file">flockos_project_notes.md <span>Project notes &amp; decisions</span></div>
@@ -1007,7 +1009,7 @@ Session expiry (default: 6 hours)
     <div class="file">firm_foundation.js <span>Auth guard / The Wall (462 lines)</span></div>
     <div class="file">the_wellspring.js <span>TheWellspring local data layer / IndexedDB (859 lines)</span></div>
     <div class="file">the_well.js <span>Google Drive sync for offline churches (559 lines)</span></div>
-    <div class="file">the_tabernacle.js <span>48+ module renderers (10,436 lines)</span></div>
+    <div class="file">the_tabernacle.js <span>48+ module renderers (17,890 lines)</span></div>
     <div class="file">the_seasons.js <span>Calendar, Tasks &amp; Check-In Hub (2,199 lines)</span></div>
     <div class="file">the_way.js <span>Learning Hub (16 tabs, 2,958 lines)</span></div>
     <div class="file">the_harvest.js <span>Ministry Hub (906 lines)</span></div>
@@ -1042,7 +1044,7 @@ Session expiry (default: 6 hours)
 
   <div class="alert alert-info">
     &#x1F4D6; All HTML pages are served via GitHub Pages. Reference docs and deployment scripts are <strong>local-only &mdash; never pasted into GAS</strong>.
-    Project reference data (schema, audit, project notes) now lives in <code>Database/</code>.
+    Project reference data (schema, audit, project notes) now lives in <code>FlockOS/Tools/</code> (git-ignored).
   </div>
 
   <div class="reveal-wrap">
@@ -1067,7 +1069,7 @@ Session expiry (default: 6 hours)
   <div class="gospel">"Feed my sheep." &mdash; John 21:17</div>
 
   <div class="alert alert-danger">
-    &#x1F6A8; The GAS project gets <strong>1 file</strong>: <code>Single.gs</code> pasted as Code.gs. Do NOT add any other files.
+    &#x1F6A8; The GAS project gets <strong>1 file</strong>: <code>Master Code.gs.md</code> pasted as Code.gs. Do NOT add any other files.
   </div>
 
   <h3>Step 4.1 &mdash; Create Google Sheet</h3>
@@ -1087,15 +1089,15 @@ Session expiry (default: 6 hours)
     <li>Go to <a href="https://script.google.com" style="color:var(--accent)">script.google.com</a> &rarr; <strong>New project</strong></li>
     <li>Name it: <strong>FlockOS Database</strong></li>
     <li>You'll see a default file called <code>Code.gs</code> &mdash; <strong>select all its contents and delete them</strong></li>
-    <li>Paste the <strong>entire contents</strong> of <code>Database/Single.gs</code> (~24,965 lines) into this Code file</li>
+    <li>Paste the <strong>entire contents</strong> of <code>FlockOS/Tools/Master Deployment/Master Code.gs.md</code> (~26,200 lines) into this Code file</li>
   </ol>
 
   <div class="alert alert-info">
-    &#x1F4CB; <strong>About Single.gs:</strong> This unified file contains everything FlockOS needs &mdash;
+    &#x1F4CB; <strong>About Master Code.gs.md:</strong> This unified file contains everything FlockOS needs &mdash;
     <code>doGet</code>/<code>doPost</code> entry points, 12 core utility functions, Auth, Api routing, Setup, Database CRUD, Hash crypto, Utilities,
     all domain modules (members, care, communications, compassion, discipleship, learning, ministries, missions, outreach, photos, sermons, services, songs, statistics, theology, tasks, expansions),
     plus public content (Matthew), missions data (Mark), and statistics (Luke).
-    Total: ~745 functions in ~24,965 lines.
+    Total: ~745 functions in ~26,200 lines.
   </div>
 
   <div class="alert alert-warn">
@@ -1268,13 +1270,13 @@ Session expiry (default: 6 hours)
     </tr>
     <tr>
       <td>Wrong API responds (e.g. FLOCK returns EXTRA's message)</td>
-      <td>Unlikely with unified Single.gs &mdash; but if using legacy files, only paste Single.gs</td>
-      <td>Each project gets ONLY Single.gs as Code.gs. Delete any extra files.</td>
+      <td>Unlikely with unified Master Code.gs &mdash; but if using legacy files, only paste Master Code.gs.md</td>
+      <td>Each project gets ONLY Master Code.gs.md as Code.gs. Delete any extra files.</td>
     </tr>
     <tr>
-      <td>"asJson is not defined"</td>
-      <td>Single.gs wasn't pasted correctly or is incomplete</td>
-      <td>Replace Code.gs contents with the full <code>Single.gs</code> (~25,000 lines)</td>
+      <td>&ldquo;asJson is not defined&rdquo;</td>
+      <td>Master Code.gs wasn't pasted correctly or is incomplete</td>
+      <td>Replace Code.gs contents with the full <code>Master Code.gs.md</code> (~26,200 lines)</td>
     </tr>
     <tr>
       <td>"Tab not found"</td>
@@ -1294,21 +1296,21 @@ Session expiry (default: 6 hours)
   <div class="alert alert-danger" style="font-size:1rem;">
     &#x1F6A8; If something isn't working, <strong>count your files</strong>. The GAS project should have:<br><br>
     <strong>FlockOS Database = 1 file (Code.gs)</strong><br><br>
-    The project gets exactly <strong>one</strong> file &mdash; <code>Single.gs</code> pasted as Code.gs. If you have more files than that, delete the extras.
+    The project gets exactly <strong>one</strong> file &mdash; <code>Master Code.gs.md</code> pasted as Code.gs. If you have more files than that, delete the extras.
   </div>
 
   <h3>"Unknown action"</h3>
   <p>The <code>action</code> parameter doesn't match any route. Check spelling &mdash; actions are case-sensitive and use dot notation (e.g. <code>members.list</code>, not <code>membersList</code>).</p>
 
   <h3>ReferenceError: [function] is not defined</h3>
-  <p>All modules live in one file &mdash; Single.gs. Any function can call any other function in the same global scope. This error means a function name was mistyped or renamed. Known bugs already fixed:</p>
+  <p>All modules live in one file &mdash; Master Code.gs. Any function can call any other function in the same global scope. This error means a function name was mistyped or renamed. Known bugs already fixed:</p>
   <ul>
     <li><code>newId is not defined</code> &rarr; <strong>Fixed:</strong> <code>seedTheologyCategories_</code> now calls <code>generateId()</code>.</li>
     <li><code>ensureTab is not defined</code> / <code>addDropdowns is not defined</code> &rarr; <strong>Fixed:</strong> both functions included in the unified file.</li>
     <li><code>resourceRowToObject is not defined</code> &rarr; <strong>Fixed:</strong> renamed to <code>compassionResourceToObj_()</code> and <code>discipleshipResourceToObj_()</code> to avoid collision.</li>
     <li><code>isModuleEnabled is not defined</code> (in Expansions context) &rarr; <strong>Fixed:</strong> renamed to <code>isExpansionModuleEnabled_()</code>; the primary <code>isModuleEnabled()</code> stays in the Auth section.</li>
   </ul>
-  <p>If a new ReferenceError appears, search Single.gs for the function name &mdash; a duplicate at the top level will silently shadow the one you expect.</p>
+  <p>If a new ReferenceError appears, search Master Code.gs for the function name &mdash; a duplicate at the top level will silently shadow the one you expect.</p>
 
   <h3>"SyntaxError: Illegal duplicate" / Duplicate function name</h3>
   <p>Two files in the same GAS project define the same function name. GAS allows the project to save but throws at runtime. Fix: rename one of the duplicates (suffix with the module name and a trailing underscore, e.g. <code>compassionResourceToObj_</code>). Known duplicates already resolved &mdash; see above.</p>
@@ -1393,8 +1395,8 @@ Session expiry (default: 6 hours)
   <h3>Add a New Module</h3>
   <p>If you add a new module (e.g. Events) to the FlockOS backend:</p>
   <ol>
-    <li>Add the new functions to <code>Database/Single.gs</code> in VS Code</li>
-    <li>In the GAS editor, select all contents of Code.gs and replace with the updated <code>Single.gs</code></li>
+    <li>Add the new functions to <code>FlockOS/Tools/Master Deployment/Master Code.gs.md</code> in VS Code</li>
+    <li>In the GAS editor, select all contents of Code.gs and replace with the updated <code>Master Code.gs.md</code></li>
     <li>Add setup logic to the Setup section if the module needs new spreadsheet tabs</li>
     <li>Add routing to the Api section so the action dispatcher knows about the new handlers</li>
     <li>If the module has helper functions that could collide with another module (e.g. <code>resourceRowToObject</code>), suffix them with the module name and a trailing underscore: <code>eventsResourceToObj_</code></li>
@@ -1415,7 +1417,7 @@ Session expiry (default: 6 hours)
   <ul class="checklist">
     <li>Create 1 new Google Sheet (FlockOS Database)</li>
     <li>Create 1 new GAS project following Section 4</li>
-    <li>Paste <code>Single.gs</code> from <code>FlockOS/Database/</code> as Code.gs</li>
+    <li>Paste <code>Master Code.gs.md</code> from <code>FlockOS/Tools/Master Deployment/</code> as Code.gs</li>
     <li>Set <code>SHEET_ID</code> Script Property</li>
     <li>Run <code>setupFlockOS()</code> to create all 200 tabs</li>
     <li>Run <code>initPepper()</code> &mdash; generates a NEW pepper (old passwords won't work)</li>
