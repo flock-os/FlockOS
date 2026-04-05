@@ -483,6 +483,7 @@ const TheVine = (() => {
       c.interactions = _f('care.interactions', ['list', 'create', 'followUpDone']);
       c.followUps    = _f('care.followUps', ['due']);
       c.assignments  = _f('care.assignments', ['list', 'forMember', 'myFlock', 'create', 'end', 'reassign']);
+      c.caregivers   = _f('care.caregivers', ['list']);
       return c;
     })(),
 

@@ -504,18 +504,14 @@ const LoveInAction = (() => {
   }
 
   async function _reassignCase(id) {
-    // Fetch pastor/admin users for the dropdown
+    // Fetch eligible caregivers (care, leader, pastor, admin) for the dropdown
     var userOpts = [{ value: '', label: '— Select caregiver —' }];
     try {
-      var uRes = await TheVine.flock.users.list({});
-      var users = (_rows(uRes) || []).filter(function(u) {
-        return /^(pastor|admin)$/i.test(u.role || '') && /^active$/i.test(u.status || 'active');
-      });
-      users.sort(function(a, b) {
-        return ((a.firstName || '') + (a.lastName || '')).localeCompare((b.firstName || '') + (b.lastName || ''));
-      });
+      var uRes = await TheVine.flock.care.caregivers.list({});
+      var users = _rows(uRes) || [];
       users.forEach(function(u) {
-        userOpts.push({ value: u.email, label: (u.firstName || '') + ' ' + (u.lastName || '') + ' (' + u.role + ')' });
+        var label = (u.displayName || u.email) + ' (' + u.role + ')';
+        userOpts.push({ value: u.email, label: label });
       });
     } catch (e) { /* fall through — modal still shows with empty list */ }
 
