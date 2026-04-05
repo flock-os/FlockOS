@@ -420,22 +420,37 @@ const LoveInAction = (() => {
     });
     h += '</tr></thead><tbody>';
     rows.forEach(function(r) {
-      var id     = _e(String(r.id || ''));
-      var isOpen = !/^(ended|closed|complete)$/i.test(r.status || '');
+      var id        = _e(String(r.id || ''));
+      var isOpen    = !/^(ended|closed|complete|inactive|reassigned)$/i.test(r.status || '');
+      var openCase  = (_cache.care || []).find(function(c) {
+        return c.memberId === r.memberId && !/^(resolved|closed|archived)$/i.test(c.status || '');
+      });
+      var caseId    = openCase ? _e(openCase.id) : '';
       h += '<tr>';
-      h += '<td>' + _e(r.memberName || r.member || '') + '</td>';
-      h += '<td>' + _e(r.caregiverName || r.caregiver || r.assignedTo || '') + '</td>';
-      h += '<td>' + _e(r.type || r.careType || '') + '</td>';
+      h += '<td>' + (caseId
+        ? '<a href="#" onclick="TheLife.openCareCase(\'' + caseId + '\');return false;"'
+          + ' style="color:var(--accent);text-decoration:none;font-weight:600;">'
+          + _e(_memberName(r.memberId) || r.memberId || '') + '</a>'
+        : _e(_memberName(r.memberId) || r.memberId || '')) + '</td>';
+      h += '<td>' + _e(_memberName(r.caregiverId) || r.caregiverId || '') + '</td>';
+      h += '<td>' + _e(r.role || '') + '</td>';
       h += '<td>' + _statusBadge(r.status || 'Active') + '</td>';
-      h += '<td>' + _e(r.assignedAt || r.createdAt || '') + '</td>';
-      h += '<td>' + (isOpen
+      h += '<td>' + _e(r.startDate || r.createdAt || '') + '</td>';
+      h += '<td>';
+      if (caseId) {
+        h += '<button onclick="TheLife.openCareCase(\'' + caseId + '\')"'
+          + ' style="background:var(--accent);color:var(--ink-inverse);border:none;border-radius:5px;padding:3px 7px;'
+          + 'font-size:0.73rem;cursor:pointer;margin-right:3px;font-family:inherit;">Open Case</button>';
+      }
+      h += (isOpen
         ? '<button onclick="LoveInAction._reassignCase(\'' + id + '\')"'
           + ' style="background:none;border:1px solid var(--line);border-radius:5px;padding:3px 7px;'
           + 'font-size:0.73rem;cursor:pointer;margin-right:3px;font-family:inherit;">Reassign</button>'
           + '<button onclick="LoveInAction._endAssignment(\'' + id + '\')"'
           + ' style="background:var(--danger);color:#fff;border:none;border-radius:5px;padding:3px 7px;'
           + 'font-size:0.73rem;cursor:pointer;font-family:inherit;">End</button>'
-        : '<span style="color:var(--ink-muted);font-size:0.76rem;">Closed</span>') + '</td>';
+        : '<span style="color:var(--ink-muted);font-size:0.76rem;">Closed</span>');
+      h += '</td>';
       h += '</tr>';
     });
     h += '</tbody></table></div>';
