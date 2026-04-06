@@ -9101,52 +9101,146 @@ const Modules = (() => {
 
     // ═══ SECTION: Permissions ═══
     (function() {
-      var om = {};
-      (permData.overrides || []).forEach(function(o) { om[o.module] = o.access; });
-      var rl = _roleLevels[u.role || permData.role] || 0;
-      var rlb = ['all','vol+','care+','leader+','pastor+','admin'];
+      var ovList = permData.overrides || [];
+      var ovMap = {};
+      ovList.forEach(function(o) { if (o && o.module) ovMap[o.module] = String(o.access || 'none').toLowerCase(); });
+      var memberRole = u.role || permData.role || '';
 
-      var ph = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">';
-      ph += '<span style="font-size:0.78rem;font-weight:700;color:var(--accent);">Permission Overrides</span>';
-      ph += '<button type="button" onclick="Modules._permCopyFrom(\'' + eid + '\')" style="background:none;border:1px solid var(--line);border-radius:var(--radius);padding:4px 10px;cursor:pointer;color:var(--ink-muted);font-size:0.7rem;">Copy From\u2026</button>';
-      ph += '</div>';
-      ph += '<div style="font-size:0.68rem;color:var(--ink-muted);margin-bottom:8px;">Click Override to cycle: \u2014 \u2192 GRANT \u2192 DENY \u2192 \u2014</div>';
-      ph += '<div style="max-height:400px;overflow-y:auto;border:1px solid var(--line);border-radius:var(--radius);">';
-      ph += '<table style="width:100%;font-size:0.75rem;border-collapse:collapse;">';
-      ph += '<tr style="background:var(--bg);position:sticky;top:0;z-index:1;">';
-      ph += '<th style="text-align:left;padding:6px 8px;">Module</th>';
-      ph += '<th style="padding:6px 6px;text-align:center;">Default</th>';
-      ph += '<th style="padding:6px 6px;text-align:center;">Override</th>';
-      ph += '<th style="padding:6px 6px;text-align:center;">Effective</th></tr>';
+      var PERM_ROWS = [
+        { group: 'People & My Flock', items: [
+          { key: 'my-flock',                  label: 'My Flock Access',                     desc: 'Allows the user to view their assigned flock list and basic member profiles.',                                                                    risk: 'low'      },
+          { key: 'my-flock.full-directory',   label: 'Full Flock Directory',                desc: 'Grants visibility into all member contact details, including addresses and phone numbers across the entire congregation.',                         risk: 'medium'   },
+          { key: 'my-flock.add-edit-members', label: 'Add / Edit Members',                  desc: 'Allows creating new member records and modifying existing ones, including personal and contact information.',                                      risk: 'high'     },
+        ]},
+        { group: 'Pastoral Care', items: [
+          { key: 'care',                       label: 'Care Cases — Own Assigned',           desc: 'Lets the user view and update care cases that are explicitly assigned to them.',                                                                  risk: 'low'      },
+          { key: 'care.view-all',              label: 'View All Care Cases',                 desc: 'Grants visibility into every active care case across the church, including sensitive pastoral notes.',                                             risk: 'high'     },
+          { key: 'prayer-admin',               label: 'Prayer Admin — Full Control',         desc: 'Full management of all prayer requests: edit, delete, reassign, and mark as answered. Use sparingly.',                                           risk: 'high'     },
+          { key: 'prayer-admin.public',        label: 'Prayer Requests — Non-Confidential',  desc: 'Allows viewing prayer requests that members have marked as shareable with the team.',                                                           risk: 'low'      },
+          { key: 'prayer-admin.confidential',  label: 'Prayer Requests — Confidential',      desc: 'Grants access to private prayer requests shared in confidence. Limit to pastors and trusted leaders.',                                            risk: 'high'     },
+          { key: 'compassion',                 label: 'Compassion & Benevolence',            desc: 'Access to compassion fund requests and assistance tracking. May include sensitive financial need information.',                                    risk: 'medium'   },
+        ]},
+        { group: 'Community', items: [
+          { key: 'outreach',     label: 'Outreach',               desc: 'Manage community outreach programs, volunteer lists, and engagement records.',                                  risk: 'low'      },
+          { key: 'groups',       label: 'Small Groups',           desc: 'View and manage small group rosters, schedules, and leader assignments.',                                       risk: 'low'      },
+          { key: 'attendance',   label: 'Attendance',             desc: 'Record and view attendance for services and events.',                                                           risk: 'low'      },
+          { key: 'giving',       label: 'Giving Records',         desc: 'Access individual and household giving history. This is sensitive financial data — restrict to leadership.',    risk: 'critical' },
+          { key: 'discipleship', label: 'Discipleship',           desc: 'Track discipleship progress, mentor relationships, and spiritual growth milestones.',                           risk: 'low'      },
+        ]},
+        { group: 'Ministry', items: [
+          { key: 'missions',      label: 'Missions',               desc: 'Manage mission trips, partnerships, and outreach initiatives.',                                                risk: 'low'      },
+          { key: 'comms',         label: 'Communications',         desc: 'Send messages and announcements directly to members or groups. Misuse could constitute spam or harassment.',   risk: 'high'     },
+          { key: 'content-admin', label: 'Content Editor',         desc: 'Edit and publish content visible to all members in the app (sermons, devotionals, pages).',                   risk: 'medium'   },
+          { key: 'sermons.edit',  label: 'Edit / Manage Sermons',  desc: 'Add, edit, or remove sermon records and media. Should be limited to pastoral staff.',                         risk: 'medium'   },
+          { key: 'reports',       label: 'Reports',                desc: 'Generate and view church-wide reports covering attendance, care, and engagement data.',                        risk: 'medium'   },
+          { key: 'statistics',    label: 'Statistics & Analytics', desc: 'View aggregate statistical dashboards for the church. Generally read-only but includes broad data access.',    risk: 'low'      },
+        ]},
+        { group: 'Administration', items: [
+          { key: 'audit',  label: 'Activity & Audit Log', desc: 'View the complete log of all system actions taken by all users. Useful for accountability.',                                      risk: 'medium'   },
+          { key: 'users',  label: 'User Management',      desc: 'Create, edit, and deactivate user accounts and assign system roles. Grants structural authority over who can access what.',     risk: 'critical' },
+          { key: 'config', label: 'System Settings',      desc: 'Modify church-wide configuration — integrations, defaults, and system behaviour. Incorrect changes can break the app.',         risk: 'critical' },
+        ]},
+      ];
 
-      Object.keys(moduleMap).sort(function(a, b) {
-        return (moduleMap[a].label || a).localeCompare(moduleMap[b].label || b);
-      }).forEach(function(key) {
-        var mod = moduleMap[key];
-        var def = rl >= mod.level;
-        var ovr = om[key] || '';
-        var eff = ovr === 'grant' ? true : ovr === 'deny' ? false : def;
-        var dl  = rlb[mod.level] || 'lvl' + mod.level;
-        var dc  = def
-          ? '<span style="color:var(--success);">\u2713 ' + dl + '</span>'
-          : '<span style="color:var(--ink-muted);">\u2717 ' + dl + '</span>';
-        var oc;
-        if (ovr === 'grant')
-          oc = '<span style="color:var(--success);font-weight:700;cursor:pointer;" onclick="Modules._permToggle(\'' + eid + '\',\'' + key + '\',this)">GRANT</span>';
-        else if (ovr === 'deny')
-          oc = '<span style="color:var(--danger);font-weight:700;cursor:pointer;" onclick="Modules._permToggle(\'' + eid + '\',\'' + key + '\',this)">DENY</span>';
-        else
-          oc = '<span style="color:var(--ink-muted);cursor:pointer;" onclick="Modules._permToggle(\'' + eid + '\',\'' + key + '\',this)">\u2014</span>';
-        var ec = eff
-          ? '<span style="color:var(--success);">\u2713</span>'
-          : '<span style="color:var(--danger);">\u2717</span>';
-        ph += '<tr style="border-top:1px solid var(--line);">';
-        ph += '<td style="padding:4px 8px;font-weight:500;">' + _e(mod.label || key) + '</td>';
-        ph += '<td style="padding:4px 6px;text-align:center;">' + dc + '</td>';
-        ph += '<td style="padding:4px 6px;text-align:center;">' + oc + '</td>';
-        ph += '<td style="padding:4px 6px;text-align:center;">' + ec + '</td></tr>';
+      var _riskMeta = {
+        low:      { label: 'Low Risk',    color: '#16a34a', bg: '#16a34a18' },
+        medium:   { label: 'Medium Risk', color: '#b45309', bg: '#b4530918' },
+        high:     { label: 'High Risk',   color: '#ea580c', bg: '#ea580c18' },
+        critical: { label: 'Critical',    color: '#dc2626', bg: '#dc262618' },
+      };
+      var _roleMeta = {
+        readonly:  { label: 'Read Only',  color: '#6b7280' },
+        volunteer: { label: 'Volunteer',  color: '#7c6f3e' },
+        care:      { label: 'Care Team',  color: '#2d7d9a' },
+        deacon:    { label: 'Deacon',     color: '#5a6e3a' },
+        leader:    { label: 'Leader',     color: '#7c3aed' },
+        pastor:    { label: 'Pastor',     color: '#b45309' },
+        admin:     { label: 'Admin',      color: '#dc2626' },
+      };
+      var _rm = _roleMeta[(memberRole || '').toLowerCase()] || { label: memberRole || 'No Role', color: '#6b7280' };
+
+      window._tabPermTemplates = {
+        care:   ['my-flock', 'care', 'prayer-admin.public', 'compassion'],
+        leader: ['my-flock', 'care', 'care.view-all', 'prayer-admin.public', 'compassion', 'outreach', 'groups', 'attendance'],
+        pastor: ['my-flock', 'my-flock.full-directory', 'my-flock.add-edit-members', 'care', 'care.view-all', 'prayer-admin', 'prayer-admin.public', 'prayer-admin.confidential', 'compassion', 'outreach', 'groups', 'attendance', 'giving', 'discipleship', 'missions', 'comms', 'content-admin', 'sermons.edit', 'reports', 'audit'],
+        admin:  ['my-flock', 'my-flock.full-directory', 'my-flock.add-edit-members', 'care', 'care.view-all', 'prayer-admin', 'prayer-admin.public', 'prayer-admin.confidential', 'compassion', 'outreach', 'groups', 'attendance', 'giving', 'discipleship', 'missions', 'comms', 'content-admin', 'sermons.edit', 'reports', 'statistics', 'audit', 'users', 'config'],
+      };
+
+      var ph = '';
+
+      // Role badge
+      if (memberRole) {
+        ph += '<div style="margin-bottom:18px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">';
+        ph += '<span style="font-size:0.82rem;color:var(--ink-muted);">System Role:</span>';
+        ph += '<span style="display:inline-block;padding:3px 12px;border-radius:20px;font-size:0.8rem;font-weight:700;letter-spacing:0.04em;'
+           + 'background:' + _rm.color + '22;color:' + _rm.color + ';border:1px solid ' + _rm.color + '55;">'
+           + _e(_rm.label) + '</span>';
+        ph += '<span style="font-size:0.76rem;color:var(--ink-faint);font-style:italic;">The role is informational only \u2014 access is determined entirely by the selections below.</span>';
+        ph += '</div>';
+      }
+
+      // Preset buttons
+      ph += '<div style="margin-bottom:20px;">';
+      ph += '<span style="font-size:0.82rem;color:var(--ink-muted);display:block;margin-bottom:8px;font-weight:600;">Quick Presets'
+         + ' <span style="color:var(--ink-faint);font-weight:400;font-style:italic;"> \u2014 sets a standard starting point, then adjust individually below</span></span>';
+      ph += '<div style="display:flex;gap:8px;flex-wrap:wrap;">';
+      [
+        { val: 'care',   label: 'Care Worker' },
+        { val: 'leader', label: 'Leader' },
+        { val: 'pastor', label: 'Pastor' },
+        { val: 'admin',  label: 'Admin' },
+      ].forEach(function(t) {
+        ph += '<button type="button" onclick="Modules._applyPermTemplate(\'' + t.val + '\')"'
+           + ' style="background:none;border:1px solid var(--line);border-radius:6px;padding:6px 16px;'
+           + 'cursor:pointer;color:var(--ink);font-size:0.82rem;font-family:inherit;font-weight:600;">'
+           + _e(t.label) + '</button>';
       });
-      ph += '</table></div>';
+      ph += '<button type="button" onclick="Modules._applyPermTemplate(\'none\')"'
+         + ' style="background:none;border:1px solid var(--line);border-radius:6px;padding:6px 16px;'
+         + 'cursor:pointer;color:var(--ink-muted);font-size:0.82rem;font-family:inherit;">Clear All</button>';
+      ph += '</div></div>';
+
+      // Matrix table
+      ph += '<table style="width:100%;border-collapse:collapse;font-size:0.83rem;">';
+      ph += '<thead><tr style="border-bottom:2px solid var(--line);">';
+      ph += '<th style="text-align:left;padding:8px 12px;color:var(--ink-muted);font-weight:600;font-size:0.78rem;text-transform:uppercase;letter-spacing:0.04em;">Permission</th>';
+      ph += '<th style="text-align:left;padding:8px 12px;color:var(--ink-muted);font-weight:600;font-size:0.78rem;text-transform:uppercase;letter-spacing:0.04em;">Risk</th>';
+      ph += '<th style="text-align:center;padding:8px 12px;color:var(--ink-muted);font-weight:600;font-size:0.78rem;text-transform:uppercase;letter-spacing:0.04em;width:120px;">Access</th>';
+      ph += '</tr></thead><tbody>';
+
+      PERM_ROWS.forEach(function(section) {
+        ph += '<tr><td colspan="3" style="padding:12px 12px 5px;font-weight:700;font-size:0.72rem;color:var(--gold,#d4a843);text-transform:uppercase;letter-spacing:0.06em;border-top:2px solid var(--line);">' + _e(section.group) + '</td></tr>';
+        section.items.forEach(function(item) {
+          var val   = ovMap[item.key] || 'none';
+          var rm    = _riskMeta[item.risk] || _riskMeta.low;
+          var selId = 'tabsel-' + item.key.replace(/\./g, '-');
+          ph += '<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">';
+          ph += '<td style="padding:10px 12px;vertical-align:top;">'
+             + '<div style="font-weight:600;color:var(--ink);margin-bottom:3px;">' + _e(item.label) + '</div>'
+             + '<div style="font-size:0.77rem;color:var(--ink-muted);line-height:1.45;">' + _e(item.desc) + '</div>'
+             + '</td>';
+          ph += '<td style="padding:10px 12px;vertical-align:top;white-space:nowrap;">'
+             + '<span style="display:inline-block;padding:2px 9px;border-radius:20px;font-size:0.72rem;font-weight:700;letter-spacing:0.03em;'
+             + 'background:' + rm.bg + ';color:' + rm.color + ';border:1px solid ' + rm.color + '44;">'
+             + _e(rm.label) + '</span></td>';
+          ph += '<td style="text-align:center;padding:10px 12px;vertical-align:top;">'
+             + '<select id="' + selId + '" class="tab-perm-sel" data-perm-key="' + _e(item.key) + '"'
+             + ' style="background:var(--bg-raised);border:1px solid var(--line);border-radius:6px;padding:5px 8px;'
+             + 'cursor:pointer;font-family:inherit;font-size:0.82rem;font-weight:600;width:100%;color:var(--ink);">'
+             + '<option value="none"'  + (val === 'none'  ? ' selected' : '') + '>None</option>'
+             + '<option value="grant"' + (val === 'grant' ? ' selected' : '') + '>Grant</option>'
+             + '<option value="deny"'  + (val === 'deny'  ? ' selected' : '') + '>Deny</option>'
+             + '</select></td>';
+          ph += '</tr>';
+        });
+      });
+
+      ph += '</tbody></table>';
+      ph += '<div style="margin-top:18px;display:flex;align-items:center;gap:12px;">';
+      ph += '<button type="button" onclick="Modules._savePerms(\'' + eid + '\')" style="background:var(--accent);color:var(--ink-inverse);border:none;border-radius:6px;padding:9px 22px;cursor:pointer;font-weight:700;font-size:0.86rem;font-family:inherit;">Save Permissions</button>';
+      ph += '<span id="tab-perm-status" style="font-size:0.82rem;color:var(--ink-muted);"></span>';
+      ph += '</div>';
+
       html += _ppSec('Permissions', 'permissions', ph);
     })();
 
@@ -15676,57 +15770,29 @@ const Modules = (() => {
     } catch (e) { _toast('Failed: ' + (e.message || 'Unknown error'), 'danger'); }
   }
 
-  async function _permToggle(email, moduleKey, el) {
-    var current = el.textContent.trim();
-    var next;
-    if (current === '\u2014') next = 'grant';
-    else if (current === 'GRANT') next = 'deny';
-    else next = 'clear';
-    try {
-      el.textContent = '\u2026';
-      await TheVine.flock.call('permissions.set', {
-        targetEmail: email, module: moduleKey, access: next
-      });
-      if (next === 'grant') {
-        el.textContent = 'GRANT'; el.style.color = 'var(--success)'; el.style.fontWeight = '700';
-      } else if (next === 'deny') {
-        el.textContent = 'DENY'; el.style.color = 'var(--danger)'; el.style.fontWeight = '700';
-      } else {
-        el.textContent = '\u2014'; el.style.color = 'var(--ink-muted)'; el.style.fontWeight = '';
-      }
-      var effTd = el.closest('td').nextElementSibling;
-      if (effTd) {
-        if (next === 'grant') effTd.innerHTML = '<span style="color:var(--success);">\u2713</span>';
-        else if (next === 'deny') effTd.innerHTML = '<span style="color:var(--danger);">\u2717</span>';
-        else {
-          var defTd = el.closest('td').previousElementSibling;
-          var hasCheck = defTd && defTd.textContent.indexOf('\u2713') >= 0;
-          effTd.innerHTML = hasCheck
-            ? '<span style="color:var(--success);">\u2713</span>'
-            : '<span style="color:var(--danger);">\u2717</span>';
-        }
-      }
-    } catch (e) {
-      el.textContent = current;
-      _toast('Failed: ' + (e.message || 'Unknown error'), 'danger');
-    }
+  function _applyPermTemplate(templateKey) {
+    var keys = templateKey === 'none' ? [] : ((window._tabPermTemplates && window._tabPermTemplates[templateKey]) || []);
+    document.querySelectorAll('.tab-perm-sel').forEach(function(sel) {
+      sel.value = keys.indexOf(sel.getAttribute('data-perm-key')) !== -1 ? 'grant' : 'none';
+    });
   }
 
-  async function _permCopyFrom(targetEmail) {
-    var users = _dataCache['users'] || [];
-    var options = users
-      .filter(function(u) { return u.email !== targetEmail; })
-      .map(function(u) {
-        return { value: u.email, label: (u.displayName || u.email) + ' (' + (u.role || '') + ')' };
-      });
-    _modal('Copy Permissions From', [
-      { name: 'fromEmail', label: 'Source User', type: 'select', options: options, required: true },
-    ], async function(data) {
-      await TheVine.flock.call('permissions.copy', {
-        fromEmail: data.fromEmail, toEmail: targetEmail
-      });
-      _ppOpen(targetEmail);
+  async function _savePerms(targetEmail) {
+    var st = document.getElementById('tab-perm-status');
+    if (st) st.textContent = 'Saving\u2026';
+    var grants = [], denies = [];
+    document.querySelectorAll('.tab-perm-sel').forEach(function(sel) {
+      var key = sel.getAttribute('data-perm-key');
+      var val = sel.value;
+      if (val === 'grant') grants.push(key);
+      else if (val === 'deny') denies.push(key);
     });
+    try {
+      await TheVine.flock.call('permissions.setAll', { targetEmail: targetEmail, grants: grants, denies: denies });
+      if (st) { st.textContent = '\u2713 Saved'; setTimeout(function() { if (st) st.textContent = ''; }, 2000); }
+    } catch (e) {
+      if (st) st.textContent = 'Error: ' + (e.message || e);
+    }
   }
 
   function editConfig(id) {
@@ -17857,8 +17923,8 @@ const Modules = (() => {
     _euSave,
     _euCreateMember,
     _euCreateCard,
-    _permToggle,
-    _permCopyFrom,
+    _applyPermTemplate,
+    _savePerms,
     _ppSearch,
     _ppFilter,
     _ppOpen,
