@@ -340,7 +340,21 @@ const TheLife = (() => {
     var dir = _r[0];
     var mOpts = _memberOpts(dir);
 
+    // For new cases created by a non-Lead-Pastor caregiver: default primary to
+    // the Lead Pastor and secondary to the current user.
     var rec = {};
+    if (!id) {
+      var _me = (TheVine.session() || {}).email || '';
+      var _lpMember = (dir || []).find(function(m) {
+        return m.groups && String(m.groups).toLowerCase().split(',').map(function(g){return g.trim();}).indexOf('lead pastor') !== -1;
+      });
+      var _lpId = _lpMember ? (_lpMember.id || _lpMember.email || '') : '';
+      // Only auto-populate if the current user is NOT the Lead Pastor
+      if (_lpId && _me && _lpId.toLowerCase() !== _me.toLowerCase()) {
+        rec.primaryCaregiverId = _lpId;
+        rec.secondaryCaregiverId = _me;
+      }
+    }
     if (id) {
       var _raw = _r[1];
       console.log('[TheLife] care.get raw response:', JSON.stringify(_raw));
