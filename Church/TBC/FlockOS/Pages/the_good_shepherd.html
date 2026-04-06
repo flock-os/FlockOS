@@ -1068,7 +1068,7 @@ let _autoRefreshTimer = null;
 let _lastRenderTime = Date.now(); // tracks when the active view was last rendered
 
 // Views that should never be silently auto-refreshed (user may be mid-edit)
-const _NO_AUTO_REFRESH = ['dashboard', 'users', 'config', 'my-flock', 'my-profile'];
+const _NO_AUTO_REFRESH = ['dashboard', 'users', 'config', 'my-flock', 'my-profile', 'access'];
 
 function _scheduleAutoRefresh(viewName) {
   if (_autoRefreshTimer) clearTimeout(_autoRefreshTimer);

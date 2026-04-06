@@ -1828,7 +1828,7 @@ const TheLife = (() => {
     var _permRes = _dirPermRes[1];
     // _permRes: { email, role, overrides, permissions } or null
     var _memberRole = (_permRes && _permRes.role) || rec.role || '';
-    var permData = (_permRes && _permRes.permissions) || {};
+    var permData = (_permRes && _permRes.overrides) || [];
 
     var careRoles = { care: 1, deacon: 1, pastor: 1, admin: 1 };
     var caregiverOpts = [{ value: '', label: '(none)' }].concat(
@@ -2935,8 +2935,10 @@ const TheLife = (() => {
   // PERMISSION MATRIX
   // ══════════════════════════════════════════════════════════════════════════
 
-  function _buildPermMatrix(perms, memberRole) {
-    perms = perms || {};
+  function _buildPermMatrix(overrides, memberRole) {
+    overrides = Array.isArray(overrides) ? overrides : [];
+    var ovMap = {};
+    overrides.forEach(function(o) { if (o && o.module) ovMap[o.module] = String(o.access || 'none').toLowerCase(); });
     memberRole = memberRole || '';
     var ROWS = [
       { group: 'People & My Flock', items: [
@@ -3003,7 +3005,7 @@ const TheLife = (() => {
       h += '<span style="display:inline-block;padding:3px 12px;border-radius:20px;font-size:0.8rem;font-weight:700;letter-spacing:0.04em;'
         + 'background:' + _rm.color + '22;color:' + _rm.color + ';border:1px solid ' + _rm.color + '55;">'
         + _e(_rm.label) + '</span>';
-      h += '<span style="font-size:0.76rem;color:var(--ink-faint);font-style:italic;">Access is controlled only by the checkboxes below</span>';
+      h += '<span style="font-size:0.76rem;color:var(--ink-faint);font-style:italic;">Access is controlled only by the dropdowns below</span>';
       h += '</div>';
     }
 
@@ -3031,17 +3033,21 @@ const TheLife = (() => {
     h += '<table style="width:100%;border-collapse:collapse;font-size:0.83rem;">';
     h += '<thead><tr style="border-bottom:2px solid var(--line);">';
     h += '<th style="text-align:left;padding:7px 10px;color:var(--ink-muted);font-weight:600;">Module / Capability</th>';
-    h += '<th style="text-align:center;padding:7px 10px;color:var(--ink-muted);font-weight:600;width:80px;">Granted</th>';
+    h += '<th style="text-align:center;padding:7px 10px;color:var(--ink-muted);font-weight:600;width:100px;">Access</th>';
     h += '</tr></thead><tbody>';
 
     ROWS.forEach(function(section) {
       h += '<tr><td colspan="2" style="padding:10px 10px 4px;font-weight:700;font-size:0.72rem;color:var(--gold,#d4a843);text-transform:uppercase;letter-spacing:0.05em;border-top:1px solid var(--line);">' + _e(section.group) + '</td></tr>';
       section.items.forEach(function(item) {
-        var checked = perms[item.key] === true ? ' checked' : '';
+        var val = ovMap[item.key] || 'none';
         h += '<tr style="border-bottom:1px solid rgba(255,255,255,0.04);">';
         h += '<td style="padding:6px 10px;color:var(--ink);">' + _e(item.label) + '</td>';
-        h += '<td style="text-align:center;padding:6px 10px;">';
-        h += '<input type="checkbox" class="fp-perm-check" data-perm-key="' + _e(item.key) + '"' + checked + ' style="width:16px;height:16px;cursor:pointer;">';
+        h += '<td style="text-align:center;padding:4px 10px;">';
+        h += '<select class="fp-perm-sel" data-perm-key="' + _e(item.key) + '" style="background:var(--bg-raised);border:1px solid var(--line);border-radius:5px;color:var(--ink);font-size:0.8rem;padding:3px 6px;cursor:pointer;font-family:inherit;">';
+        h += '<option value="none"'  + (val === 'none'  ? ' selected' : '') + '>None</option>';
+        h += '<option value="grant"' + (val === 'grant' ? ' selected' : '') + '>Grant</option>';
+        h += '<option value="deny"'  + (val === 'deny'  ? ' selected' : '') + '>Deny</option>';
+        h += '</select>';
         h += '</td></tr>';
       });
     });
@@ -3060,8 +3066,8 @@ const TheLife = (() => {
   function _applyPermTemplate(templateKey) {
     var key = templateKey || '';
     var keys = key === 'none' ? [] : ((window._fpPermTemplates && window._fpPermTemplates[key]) || []);
-    document.querySelectorAll('.fp-perm-check').forEach(function(cb) {
-      cb.checked = keys.indexOf(cb.getAttribute('data-perm-key')) !== -1;
+    document.querySelectorAll('.fp-perm-sel').forEach(function(sel) {
+      sel.value = keys.indexOf(sel.getAttribute('data-perm-key')) !== -1 ? 'grant' : 'none';
     });
   }
 
@@ -3073,16 +3079,19 @@ const TheLife = (() => {
       _toast('Cannot save permissions: this member has no email address.', 'error');
       return;
     }
-    var grants = [];
-    document.querySelectorAll('.fp-perm-check:checked').forEach(function(cb) {
-      grants.push(cb.getAttribute('data-perm-key'));
+    var grants = [], denies = [];
+    document.querySelectorAll('.fp-perm-sel').forEach(function(sel) {
+      var v = sel.value, k = sel.getAttribute('data-perm-key');
+      if (v === 'grant') grants.push(k);
+      else if (v === 'deny') denies.push(k);
     });
     var st = document.getElementById('fp-perm-status');
     if (st) st.textContent = 'Saving…';
     try {
-      await TheVine.flock.permissions.setAll({ targetEmail: targetEmail, grants: grants });
+      await TheVine.flock.permissions.setAll({ targetEmail: targetEmail, grants: grants, denies: denies });
       if (st) st.textContent = '\u2713 Saved';
       _toast('Permissions saved.', 'success');
+      setTimeout(function() { backToHub(); }, 600);
     } catch(e) {
       if (st) st.textContent = 'Error';
       _toast('Failed to save permissions: ' + (e.message || e), 'error');
