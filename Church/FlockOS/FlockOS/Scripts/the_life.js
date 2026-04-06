@@ -2940,39 +2940,110 @@ const TheLife = (() => {
     var ovMap = {};
     overrides.forEach(function(o) { if (o && o.module) ovMap[o.module] = String(o.access || 'none').toLowerCase(); });
     memberRole = memberRole || '';
+
+    // risk: 'low' | 'medium' | 'high' | 'critical'
     var ROWS = [
       { group: 'People & My Flock', items: [
-        { key: 'my-flock',                  label: 'My Flock Access' },
-        { key: 'my-flock.full-directory',   label: 'View Full Flock Directory' },
-        { key: 'my-flock.add-edit-members', label: 'Add / Edit Members' },
+        { key: 'my-flock',
+          label: 'My Flock Access',
+          desc:  'Allows the user to view their assigned flock list and basic member profiles.',
+          risk:  'low' },
+        { key: 'my-flock.full-directory',
+          label: 'Full Flock Directory',
+          desc:  'Grants visibility into all member contact details, including addresses and phone numbers across the entire congregation.',
+          risk:  'medium' },
+        { key: 'my-flock.add-edit-members',
+          label: 'Add / Edit Members',
+          desc:  'Allows creating new member records and modifying existing ones, including personal and contact information.',
+          risk:  'high' },
       ]},
       { group: 'Pastoral Care', items: [
-        { key: 'care',                       label: 'Care Cases (Own Assigned)' },
-        { key: 'care.view-all',              label: 'View All Care Cases' },
-        { key: 'prayer-admin',               label: 'Prayer Admin (Manage All)' },
-        { key: 'prayer-admin.public',        label: 'Prayer Requests (Non-Confidential)' },
-        { key: 'prayer-admin.confidential',  label: 'Prayer Requests (Confidential)' },
-        { key: 'compassion',    label: 'Compassion' },
+        { key: 'care',
+          label: 'Care Cases — Own Assigned',
+          desc:  'Lets the user view and update care cases that are explicitly assigned to them.',
+          risk:  'low' },
+        { key: 'care.view-all',
+          label: 'View All Care Cases',
+          desc:  'Grants visibility into every active care case across the church, including sensitive pastoral notes.',
+          risk:  'high' },
+        { key: 'prayer-admin',
+          label: 'Prayer Admin — Full Control',
+          desc:  'Full management of all prayer requests: edit, delete, reassign, and mark as answered. Use sparingly.',
+          risk:  'high' },
+        { key: 'prayer-admin.public',
+          label: 'Prayer Requests — Non-Confidential',
+          desc:  'Allows viewing prayer requests that members have marked as shareable with the team.',
+          risk:  'low' },
+        { key: 'prayer-admin.confidential',
+          label: 'Prayer Requests — Confidential',
+          desc:  'Grants access to private prayer requests shared in confidence. Limit to pastors and trusted leaders.',
+          risk:  'high' },
+        { key: 'compassion',
+          label: 'Compassion & Benevolence',
+          desc:  'Access to compassion fund requests and assistance tracking. May include sensitive financial need information.',
+          risk:  'medium' },
       ]},
       { group: 'Community', items: [
-        { key: 'outreach',     label: 'Outreach' },
-        { key: 'groups',       label: 'Small Groups' },
-        { key: 'attendance',   label: 'Attendance' },
-        { key: 'giving',       label: 'Giving' },
-        { key: 'discipleship', label: 'Discipleship' },
+        { key: 'outreach',
+          label: 'Outreach',
+          desc:  'Manage community outreach programs, volunteer lists, and engagement records.',
+          risk:  'low' },
+        { key: 'groups',
+          label: 'Small Groups',
+          desc:  'View and manage small group rosters, schedules, and leader assignments.',
+          risk:  'low' },
+        { key: 'attendance',
+          label: 'Attendance',
+          desc:  'Record and view attendance for services and events.',
+          risk:  'low' },
+        { key: 'giving',
+          label: 'Giving Records',
+          desc:  'Access individual and household giving history. This is sensitive financial data — restrict to leadership.',
+          risk:  'critical' },
+        { key: 'discipleship',
+          label: 'Discipleship',
+          desc:  'Track discipleship progress, mentor relationships, and spiritual growth milestones.',
+          risk:  'low' },
       ]},
       { group: 'Ministry', items: [
-        { key: 'missions',      label: 'Missions' },
-        { key: 'comms',         label: 'Communications' },
-        { key: 'content-admin', label: 'Content Editor' },
-        { key: 'sermons.edit',  label: 'Edit / Manage Sermons' },
-        { key: 'reports',       label: 'Reports' },
-        { key: 'statistics',    label: 'Statistics' },
+        { key: 'missions',
+          label: 'Missions',
+          desc:  'Manage mission trips, partnerships, and outreach initiatives.',
+          risk:  'low' },
+        { key: 'comms',
+          label: 'Communications',
+          desc:  'Send messages and announcements directly to members or groups. Misuse could constitute spam or harassment.',
+          risk:  'high' },
+        { key: 'content-admin',
+          label: 'Content Editor',
+          desc:  'Edit and publish content visible to all members in the app (sermons, devotionals, pages).',
+          risk:  'medium' },
+        { key: 'sermons.edit',
+          label: 'Edit / Manage Sermons',
+          desc:  'Add, edit, or remove sermon records and media. Should be limited to pastoral staff.',
+          risk:  'medium' },
+        { key: 'reports',
+          label: 'Reports',
+          desc:  'Generate and view church-wide reports covering attendance, care, and engagement data.',
+          risk:  'medium' },
+        { key: 'statistics',
+          label: 'Statistics & Analytics',
+          desc:  'View aggregate statistical dashboards for the church. Generally read-only but includes broad data access.',
+          risk:  'low' },
       ]},
       { group: 'Administration', items: [
-        { key: 'audit',  label: 'Activity / Audit Log' },
-        { key: 'users',  label: 'User Management' },
-        { key: 'config', label: 'Settings' },
+        { key: 'audit',
+          label: 'Activity & Audit Log',
+          desc:  'View the complete log of all system actions taken by all users. Useful for accountability.',
+          risk:  'medium' },
+        { key: 'users',
+          label: 'User Management',
+          desc:  'Create, edit, and deactivate user accounts and assign system roles. Grants structural authority over who can access what.',
+          risk:  'critical' },
+        { key: 'config',
+          label: 'System Settings',
+          desc:  'Modify church-wide configuration — integrations, defaults, and system behaviour. Incorrect changes can break the app.',
+          risk:  'critical' },
       ]},
     ];
 
@@ -2984,7 +3055,13 @@ const TheLife = (() => {
       admin:  ['my-flock', 'my-flock.full-directory', 'my-flock.add-edit-members', 'care', 'care.view-all', 'prayer-admin', 'prayer-admin.public', 'prayer-admin.confidential', 'compassion', 'outreach', 'groups', 'attendance', 'giving', 'discipleship', 'missions', 'comms', 'content-admin', 'sermons.edit', 'reports', 'statistics', 'audit', 'users', 'config'],
     };
 
-    // Role badge colours
+    var _riskMeta = {
+      low:      { label: 'Low Risk',      color: '#16a34a', bg: '#16a34a18' },
+      medium:   { label: 'Medium Risk',   color: '#b45309', bg: '#b4530918' },
+      high:     { label: 'High Risk',     color: '#ea580c', bg: '#ea580c18' },
+      critical: { label: 'Critical',      color: '#dc2626', bg: '#dc262618' },
+    };
+
     var _roleMeta = {
       readonly:  { label: 'Read Only',  color: '#6b7280' },
       volunteer: { label: 'Volunteer',  color: '#7c6f3e' },
@@ -3000,18 +3077,18 @@ const TheLife = (() => {
 
     // ── Role badge ──
     if (memberRole) {
-      h += '<div style="margin-bottom:18px;display:flex;align-items:center;gap:10px;">';
+      h += '<div style="margin-bottom:18px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">';
       h += '<span style="font-size:0.82rem;color:var(--ink-muted);">System Role:</span>';
       h += '<span style="display:inline-block;padding:3px 12px;border-radius:20px;font-size:0.8rem;font-weight:700;letter-spacing:0.04em;'
         + 'background:' + _rm.color + '22;color:' + _rm.color + ';border:1px solid ' + _rm.color + '55;">'
         + _e(_rm.label) + '</span>';
-      h += '<span style="font-size:0.76rem;color:var(--ink-faint);font-style:italic;">Access is controlled only by the dropdowns below</span>';
+      h += '<span style="font-size:0.76rem;color:var(--ink-faint);font-style:italic;">The role is informational only — access is determined entirely by the selections below.</span>';
       h += '</div>';
     }
 
     // ── Preset buttons ──
-    h += '<div style="margin-bottom:16px;">';
-    h += '<span style="font-size:0.82rem;color:var(--ink-muted);display:block;margin-bottom:8px;">Quick Presets <span style="color:var(--ink-faint);font-style:italic;">(replaces all selections below)</span></span>';
+    h += '<div style="margin-bottom:20px;">';
+    h += '<span style="font-size:0.82rem;color:var(--ink-muted);display:block;margin-bottom:8px;font-weight:600;">Quick Presets <span style="color:var(--ink-faint);font-weight:400;font-style:italic;"> — sets a standard starting point, then adjust individually below</span></span>';
     h += '<div style="display:flex;gap:8px;flex-wrap:wrap;">';
     [
       { val: 'care',   label: 'Care Worker' },
@@ -3020,30 +3097,46 @@ const TheLife = (() => {
       { val: 'admin',  label: 'Admin' },
     ].forEach(function(t) {
       h += '<button type="button" onclick="TheLife._applyPermTemplate(\'' + t.val + '\')"'
-        + ' style="background:none;border:1px solid var(--line);border-radius:5px;padding:5px 14px;'
-        + 'cursor:pointer;color:var(--ink);font-size:0.82rem;font-family:inherit;">'
+        + ' style="background:none;border:1px solid var(--line);border-radius:6px;padding:6px 16px;'
+        + 'cursor:pointer;color:var(--ink);font-size:0.82rem;font-family:inherit;font-weight:600;">'
         + _e(t.label) + '</button>';
     });
     h += '<button type="button" onclick="TheLife._applyPermTemplate(\'none\')"'
-      + ' style="background:none;border:1px solid var(--line);border-radius:5px;padding:5px 14px;'
+      + ' style="background:none;border:1px solid var(--line);border-radius:6px;padding:6px 16px;'
       + 'cursor:pointer;color:var(--ink-muted);font-size:0.82rem;font-family:inherit;">Clear All</button>';
     h += '</div></div>';
 
     // ── Matrix table ──
     h += '<table style="width:100%;border-collapse:collapse;font-size:0.83rem;">';
     h += '<thead><tr style="border-bottom:2px solid var(--line);">';
-    h += '<th style="text-align:left;padding:7px 10px;color:var(--ink-muted);font-weight:600;">Module / Capability</th>';
-    h += '<th style="text-align:center;padding:7px 10px;color:var(--ink-muted);font-weight:600;width:100px;">Access</th>';
+    h += '<th style="text-align:left;padding:8px 12px;color:var(--ink-muted);font-weight:600;font-size:0.78rem;text-transform:uppercase;letter-spacing:0.04em;">Permission</th>';
+    h += '<th style="text-align:left;padding:8px 12px;color:var(--ink-muted);font-weight:600;font-size:0.78rem;text-transform:uppercase;letter-spacing:0.04em;">Risk</th>';
+    h += '<th style="text-align:center;padding:8px 12px;color:var(--ink-muted);font-weight:600;font-size:0.78rem;text-transform:uppercase;letter-spacing:0.04em;width:120px;">Access</th>';
     h += '</tr></thead><tbody>';
 
     ROWS.forEach(function(section) {
-      h += '<tr><td colspan="2" style="padding:10px 10px 4px;font-weight:700;font-size:0.72rem;color:var(--gold,#d4a843);text-transform:uppercase;letter-spacing:0.05em;border-top:1px solid var(--line);">' + _e(section.group) + '</td></tr>';
+      h += '<tr><td colspan="3" style="padding:12px 12px 5px;font-weight:700;font-size:0.72rem;color:var(--gold,#d4a843);text-transform:uppercase;letter-spacing:0.06em;border-top:2px solid var(--line);">' + _e(section.group) + '</td></tr>';
       section.items.forEach(function(item) {
-        var val = ovMap[item.key] || 'none';
-        h += '<tr style="border-bottom:1px solid rgba(255,255,255,0.04);">';
-        h += '<td style="padding:6px 10px;color:var(--ink);">' + _e(item.label) + '</td>';
-        h += '<td style="text-align:center;padding:4px 10px;">';
-        h += '<select class="fp-perm-sel" data-perm-key="' + _e(item.key) + '" style="background:var(--bg-raised);border:1px solid var(--line);border-radius:5px;color:var(--ink);font-size:0.8rem;padding:3px 6px;cursor:pointer;font-family:inherit;">';
+        var val  = ovMap[item.key] || 'none';
+        var rm   = _riskMeta[item.risk] || _riskMeta.low;
+        var selId = 'psel-' + item.key.replace(/\./g, '-');
+        h += '<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">';
+        // Label + description
+        h += '<td style="padding:10px 12px;vertical-align:top;">';
+        h += '<div style="font-weight:600;color:var(--ink);margin-bottom:3px;">' + _e(item.label) + '</div>';
+        h += '<div style="font-size:0.77rem;color:var(--ink-muted);line-height:1.45;">' + _e(item.desc) + '</div>';
+        h += '</td>';
+        // Risk badge
+        h += '<td style="padding:10px 12px;vertical-align:top;white-space:nowrap;">';
+        h += '<span style="display:inline-block;padding:2px 9px;border-radius:20px;font-size:0.72rem;font-weight:700;letter-spacing:0.03em;'
+           + 'background:' + rm.bg + ';color:' + rm.color + ';border:1px solid ' + rm.color + '44;">'
+           + _e(rm.label) + '</span>';
+        h += '</td>';
+        // Dropdown
+        h += '<td style="text-align:center;padding:10px 12px;vertical-align:top;">';
+        h += '<select id="' + selId + '" class="fp-perm-sel" data-perm-key="' + _e(item.key) + '"'
+           + ' style="background:var(--bg-raised);border:1px solid var(--line);border-radius:6px;padding:5px 8px;'
+           + 'cursor:pointer;font-family:inherit;font-size:0.82rem;font-weight:600;width:100%;color:var(--ink);">';
         h += '<option value="none"'  + (val === 'none'  ? ' selected' : '') + '>None</option>';
         h += '<option value="grant"' + (val === 'grant' ? ' selected' : '') + '>Grant</option>';
         h += '<option value="deny"'  + (val === 'deny'  ? ' selected' : '') + '>Deny</option>';
@@ -3055,8 +3148,8 @@ const TheLife = (() => {
     h += '</tbody></table>';
 
     // ── Save button ──
-    h += '<div style="margin-top:14px;display:flex;align-items:center;gap:12px;">';
-    h += '<button type="button" onclick="TheLife.savePermissions()" style="background:var(--accent);color:var(--ink-inverse);border:none;border-radius:6px;padding:8px 18px;cursor:pointer;font-weight:600;font-size:0.84rem;font-family:inherit;">Save Permissions</button>';
+    h += '<div style="margin-top:18px;display:flex;align-items:center;gap:12px;">';
+    h += '<button type="button" onclick="TheLife.savePermissions()" style="background:var(--accent);color:var(--ink-inverse);border:none;border-radius:6px;padding:9px 22px;cursor:pointer;font-weight:700;font-size:0.86rem;font-family:inherit;">Save Permissions</button>';
     h += '<span id="fp-perm-status" style="font-size:0.82rem;color:var(--ink-muted);"></span>';
     h += '</div>';
 
