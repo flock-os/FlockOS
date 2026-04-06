@@ -77,23 +77,22 @@
     }
     .topbar-user .logout-btn:hover { border-color: var(--danger); color: var(--danger); }
 
-    /* ── Notification Bell ──────────────────────────────────────────────── */
+    /* ── Notification Role Badge ─────────────────────────────────────────── */
     .notif-wrap { position: relative; }
-    .notif-bell {
-      background: none; border: none; font-size: 1.25rem; cursor: pointer;
-      position: relative; padding: 4px 6px; line-height: 1; color: #9ca3af;
-      transition: color 0.2s;
+    .role-badge {
+      background: var(--bg-raised); border: 2px solid var(--line); border-radius: 999px;
+      padding: 3px 10px; cursor: pointer; font-size: 0.75rem; font-weight: 600;
+      text-transform: capitalize; color: var(--ink-muted); letter-spacing: 0.03em;
+      position: relative; transition: border-color 0.2s, color 0.2s, box-shadow 0.2s;
     }
-    .notif-bell:hover { color: var(--ink); }
-    .notif-bell.has-notif { color: var(--danger); animation: notif-glow 1.8s ease-in-out infinite; }
-    @keyframes notif-glow {
-      0%, 100% { filter: drop-shadow(0 0 3px var(--danger)); }
-      50%      { filter: drop-shadow(0 0 10px var(--danger)) drop-shadow(0 0 20px rgba(239,68,68,0.4)); }
+    .role-badge:hover { border-color: var(--accent); color: var(--ink); }
+    .role-badge.has-notif {
+      border-color: var(--danger); color: var(--danger);
+      animation: notif-badge-glow 1.8s ease-in-out infinite;
     }
-    .notif-dot {
-      position: absolute; top: 2px; right: 3px;
-      width: 9px; height: 9px; border-radius: 50%;
-      background: var(--danger); border: 2px solid var(--bg-raised);
+    @keyframes notif-badge-glow {
+      0%, 100% { box-shadow: 0 0 4px var(--danger); }
+      50%      { box-shadow: 0 0 12px var(--danger), 0 0 24px rgba(239,68,68,0.35); }
     }
     .notif-count {
       position: absolute; top: -2px; right: -4px;
@@ -409,8 +408,8 @@
     <div class="topbar-brand">FlockOS <span>Admin</span></div>
     <div class="topbar-user">
       <div class="notif-wrap" id="notifWrap">
-        <button class="notif-bell" id="notifBell" onclick="toggleNotifPanel()" title="Notifications">&#128276;
-          <span class="notif-dot" id="notifDot" style="display:none;"></span>
+        <button class="role-badge" id="notifBell" onclick="toggleNotifPanel()" title="Notifications">
+          <span id="userRole"></span>
           <span class="notif-count" id="notifCount" style="display:none;"></span>
         </button>
         <div class="notif-panel" id="notifPanel">
@@ -427,7 +426,6 @@
         </div>
       </div>
       <span class="name" id="userName"></span>
-      <span class="role" id="userRole"></span>
       <button class="logout-btn" onclick="Nehemiah.logout()">Sign Out</button>
     </div>
   </div>
@@ -1393,12 +1391,12 @@ async function refreshNotifBadge() {
     var badge = document.getElementById('notifCount');
     if (count > 0) {
       if (bell) bell.classList.add('has-notif');
-      dot.style.display = 'none';
+      if (dot) dot.style.display = 'none';
       badge.style.display = '';
       badge.textContent = count > 99 ? '99+' : String(count);
     } else {
       if (bell) bell.classList.remove('has-notif');
-      dot.style.display = 'none';
+      if (dot) dot.style.display = 'none';
       badge.style.display = 'none';
     }
 
