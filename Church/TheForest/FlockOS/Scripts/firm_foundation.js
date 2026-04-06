@@ -235,6 +235,13 @@ const Nehemiah = (() => {
   function canAccess(moduleKey) {
     const session = getSession();
     if (!session) return false;
+    // Seed admin and Lead Pastor always have full access — they can see everything
+    if (session.isSeed) return true;
+    const profile = getProfile();
+    if (profile && profile.groups) {
+      const groups = String(profile.groups).split(',').map(g => g.trim().toLowerCase());
+      if (groups.indexOf('lead pastor') !== -1) return true;
+    }
     // If the server provided a permissions map, use it
     if (session.permissions && typeof session.permissions === 'object') {
       return session.permissions[moduleKey] === true;

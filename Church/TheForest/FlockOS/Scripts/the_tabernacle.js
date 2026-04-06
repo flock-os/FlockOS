@@ -853,13 +853,30 @@ const Modules = (() => {
     document.querySelectorAll('.nav-item[data-view]').forEach(item => {
       const view = item.getAttribute('data-view');
       if (_protectedModules.indexOf(view) !== -1) return;
-      item.style.display = _isModuleEnabled(view) ? '' : 'none';
+      // Admin module toggle wins first
+      if (!_isModuleEnabled(view)) { item.style.display = 'none'; return; }
+      // Permission gate: if the item has a data-module key, check canAccess
+      const mod = item.getAttribute('data-module');
+      if (mod && typeof Nehemiah !== 'undefined' && !Nehemiah.canAccess(mod)) {
+        item.style.display = 'none'; return;
+      }
+      item.style.display = '';
     });
     document.querySelectorAll('.nav-group').forEach(group => {
       const items = group.querySelectorAll('.nav-item[data-view]');
       if (!items.length) return;
       const anyVisible = Array.from(items).some(i => i.style.display !== 'none');
       group.style.display = anyVisible ? '' : 'none';
+    });
+    // Hide threshold separators between hidden nav-groups
+    document.querySelectorAll('.sidebar .nav-threshold').forEach(function(thr) {
+      var prev = thr.previousElementSibling;
+      while (prev && !prev.classList.contains('nav-group')) prev = prev.previousElementSibling;
+      var next = thr.nextElementSibling;
+      while (next && !next.classList.contains('nav-group')) next = next.nextElementSibling;
+      var prevHidden = !prev || prev.style.display === 'none';
+      var nextHidden = !next || next.style.display === 'none';
+      thr.style.display = (prevHidden || nextHidden) ? 'none' : '';
     });
   }
   function _toggleRow(key, meta, isOn, isProtected) {
@@ -15157,10 +15174,12 @@ const Modules = (() => {
     vis[name] = enabled;
     _setModuleVis(vis);
     _applyModuleVisibility();
-    // Also update dashboard cards
+    // Also update dashboard cards — respect both admin toggle and permissions
     document.querySelectorAll('.card[data-view]').forEach(function(card) {
       var view = card.getAttribute('data-view');
-      card.style.display = _isModuleEnabled(view) ? '' : 'none';
+      if (!_isModuleEnabled(view)) { card.style.display = 'none'; return; }
+      if (typeof Nehemiah !== 'undefined' && !Nehemiah.canAccess(view)) { card.style.display = 'none'; return; }
+      card.style.display = '';
     });
   }
 

@@ -755,18 +755,16 @@ if (!Nehemiah.hasRole('leader')) {
 
 // ── Module-gate sidebar sections ─────────────────────────────────────────────
 // Uses canAccess() with per-user permission overrides from the server.
-// Each nav item has data-module="moduleKey"; hide if user lacks access.
+// Seed admin and Lead Pastor bypass all checks and see every item.
+// Each nav item with data-module="moduleKey" is hidden if the user lacks access.
 document.querySelectorAll('.nav-item[data-module]').forEach(item => {
   if (!Nehemiah.canAccess(item.dataset.module)) {
     item.style.display = 'none';
   }
 });
-// Hide Content Editor for non-pastor/non-admin
-var _caNav = document.querySelector('.nav-item[data-view="content-admin"]');
-if (_caNav && !Nehemiah.hasRole('pastor')) _caNav.style.display = 'none';
-// Hide Deployment Guide nav link for non-pastor roles
+// Hide Deployment Guide nav link for non-config users
 document.querySelectorAll('.nav-item[href="the_pentecost.html"]').forEach(function(item) {
-  if (!Nehemiah.hasRole('pastor')) item.style.display = 'none';
+  if (!Nehemiah.can('config')) item.style.display = 'none';
 });
 // Hide Photos nav if no URL configured
 if (!PHOTOS_URL) {
@@ -804,16 +802,33 @@ if (!PHOTOS_URL) {
   };
 })();
 // Hide nav groups that have ALL items hidden (no visible children)
-document.querySelectorAll('.nav-group').forEach(group => {
-  const items = group.querySelectorAll('.nav-group-items .nav-item');
-  const visible = Array.from(items).filter(i => i.style.display !== 'none');
-  if (items.length > 0 && visible.length === 0) {
-    group.style.display = 'none';
-  }
-});
+function _collapseNavGroups() {
+  document.querySelectorAll('.nav-group').forEach(group => {
+    const items = group.querySelectorAll('.nav-group-items .nav-item');
+    const visible = Array.from(items).filter(i => i.style.display !== 'none');
+    if (items.length > 0 && visible.length === 0) {
+      group.style.display = 'none';
+    } else {
+      group.style.display = '';
+    }
+  });
+  // Hide threshold separators orphaned by hidden groups
+  document.querySelectorAll('.sidebar .nav-threshold').forEach(function(thr) {
+    var prev = thr.previousElementSibling;
+    while (prev && !prev.classList.contains('nav-group')) prev = prev.previousElementSibling;
+    var next = thr.nextElementSibling;
+    while (next && !next.classList.contains('nav-group')) next = next.nextElementSibling;
+    var prevHidden = !prev || prev.style.display === 'none';
+    var nextHidden = !next || next.style.display === 'none';
+    thr.style.display = (prevHidden || nextHidden) ? 'none' : '';
+  });
+}
+_collapseNavGroups();
 
-// ── Apply module visibility toggles ────────────────────────────────────────────
+// ── Apply module visibility toggles (may adjust further) ───────────────────────
 if (typeof Modules !== 'undefined') Modules.applyVisibility();
+// Re-run collapse after module toggles, in case admin settings changed visibility
+_collapseNavGroups();
 
 // ── Dashboard Greeting ─────────────────────────────────────────────────────
 (function setGreeting() {
@@ -1098,6 +1113,12 @@ document.addEventListener('visibilitychange', function() {
 
 function navigate(viewName) {
   if (typeof Modules !== 'undefined' && !Modules.isModuleEnabled(viewName)) {
+    if (currentView !== 'dashboard') navigate('dashboard');
+    return;
+  }
+  // Permission gate — if the nav item for this view is hidden, block navigation
+  var _navEl = document.querySelector('.nav-item[data-view="' + viewName + '"]');
+  if (_navEl && _navEl.style.display === 'none') {
     if (currentView !== 'dashboard') navigate('dashboard');
     return;
   }
