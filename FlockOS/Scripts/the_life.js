@@ -2963,6 +2963,7 @@ const TheLife = (() => {
         { key: 'missions',      label: 'Missions' },
         { key: 'comms',         label: 'Communications' },
         { key: 'content-admin', label: 'Content Editor' },
+        { key: 'sermons.edit',  label: 'Edit / Manage Sermons' },
         { key: 'reports',       label: 'Reports' },
         { key: 'statistics',    label: 'Statistics' },
       ]},
@@ -2977,8 +2978,8 @@ const TheLife = (() => {
     window._fpPermTemplates = {
       care:   ['my-flock', 'care', 'prayer-admin.public', 'compassion'],
       leader: ['my-flock', 'care', 'care.view-all', 'prayer-admin.public', 'compassion', 'outreach', 'groups', 'attendance'],
-      pastor: ['my-flock', 'my-flock.full-directory', 'my-flock.add-edit-members', 'care', 'care.view-all', 'prayer-admin', 'prayer-admin.public', 'prayer-admin.confidential', 'compassion', 'outreach', 'groups', 'attendance', 'giving', 'discipleship', 'missions', 'comms', 'content-admin', 'reports', 'audit'],
-      admin:  ['my-flock', 'my-flock.full-directory', 'my-flock.add-edit-members', 'care', 'care.view-all', 'prayer-admin', 'prayer-admin.public', 'prayer-admin.confidential', 'compassion', 'outreach', 'groups', 'attendance', 'giving', 'discipleship', 'missions', 'comms', 'content-admin', 'reports', 'statistics', 'audit', 'users', 'config'],
+      pastor: ['my-flock', 'my-flock.full-directory', 'my-flock.add-edit-members', 'care', 'care.view-all', 'prayer-admin', 'prayer-admin.public', 'prayer-admin.confidential', 'compassion', 'outreach', 'groups', 'attendance', 'giving', 'discipleship', 'missions', 'comms', 'content-admin', 'sermons.edit', 'reports', 'audit'],
+      admin:  ['my-flock', 'my-flock.full-directory', 'my-flock.add-edit-members', 'care', 'care.view-all', 'prayer-admin', 'prayer-admin.public', 'prayer-admin.confidential', 'compassion', 'outreach', 'groups', 'attendance', 'giving', 'discipleship', 'missions', 'comms', 'content-admin', 'sermons.edit', 'reports', 'statistics', 'audit', 'users', 'config'],
     };
 
     // Role badge colours
