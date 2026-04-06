@@ -1818,8 +1818,18 @@ const TheLife = (() => {
       if (rec.id) _fpMemberId = rec.id;
     }
 
-    // Load member/user directory for caregiver dropdown
-    var dir = await _ensureDir();
+    // Load member/user directory for caregiver dropdown + permissions for existing user
+    var _dirP = _ensureDir();
+    var _permP = (isEdit && Nehemiah.can('users'))
+      ? TheVine.flock.permissions.get({ targetEmail: rec.primaryEmail || rec.email || emailOrId }).catch(function() { return null; })
+      : Promise.resolve(null);
+    var _dirPermRes = await Promise.all([_dirP, _permP]);
+    var dir = _dirPermRes[0];
+    var _permRes = _dirPermRes[1];
+    // _permRes: { email, role, overrides, permissions } or null
+    var _memberRole = (_permRes && _permRes.role) || rec.role || '';
+    var permData = (_permRes && _permRes.permissions) || {};
+
     var careRoles = { care: 1, deacon: 1, pastor: 1, admin: 1 };
     var caregiverOpts = [{ value: '', label: '(none)' }].concat(
       (dir || []).filter(function(m) { return m.role && careRoles[m.role.toLowerCase()]; })
@@ -1948,7 +1958,7 @@ const TheLife = (() => {
 
     // ── Section: Permissions (only shown to users with user-management capability) ──
     if (Nehemiah.can('users')) {
-      html += _fpSec('Permissions', 'mem-perms', _buildPermMatrix(permData), false);
+      html += _fpSec('Permissions', 'mem-perms', _buildPermMatrix(permData, _memberRole), false);
     }
 
     // Bottom save
@@ -2925,8 +2935,9 @@ const TheLife = (() => {
   // PERMISSION MATRIX
   // ══════════════════════════════════════════════════════════════════════════
 
-  function _buildPermMatrix(perms) {
+  function _buildPermMatrix(perms, memberRole) {
     perms = perms || {};
+    memberRole = memberRole || '';
     var ROWS = [
       { group: 'People & My Flock', items: [
         { key: 'my-flock',                  label: 'My Flock Access' },
@@ -2947,9 +2958,11 @@ const TheLife = (() => {
         { key: 'discipleship', label: 'Discipleship' },
       ]},
       { group: 'Ministry', items: [
-        { key: 'missions', label: 'Missions' },
-        { key: 'comms',    label: 'Communications' },
-        { key: 'reports',  label: 'Reports' },
+        { key: 'missions',      label: 'Missions' },
+        { key: 'comms',         label: 'Communications' },
+        { key: 'content-admin', label: 'Content Editor' },
+        { key: 'reports',       label: 'Reports' },
+        { key: 'statistics',    label: 'Statistics' },
       ]},
       { group: 'Administration', items: [
         { key: 'audit',  label: 'Activity / Audit Log' },
@@ -2957,30 +2970,61 @@ const TheLife = (() => {
         { key: 'config', label: 'Settings' },
       ]},
     ];
-    // Templates stored on window so _applyPermTemplate can access without closure
+
+    // Preset templates — stored on window so _applyPermTemplate can access
     window._fpPermTemplates = {
       care:   ['my-flock', 'care', 'prayer-admin', 'compassion'],
       leader: ['my-flock', 'care', 'care.view-all', 'prayer-admin', 'compassion', 'outreach', 'groups', 'attendance'],
-      pastor: ['my-flock', 'my-flock.full-directory', 'my-flock.add-edit-members', 'care', 'care.view-all', 'prayer-admin', 'compassion', 'outreach', 'groups', 'attendance', 'giving', 'discipleship', 'missions', 'comms', 'reports', 'audit'],
-      admin:  ['my-flock', 'my-flock.full-directory', 'my-flock.add-edit-members', 'care', 'care.view-all', 'prayer-admin', 'compassion', 'outreach', 'groups', 'attendance', 'giving', 'discipleship', 'missions', 'comms', 'reports', 'audit', 'users', 'config'],
+      pastor: ['my-flock', 'my-flock.full-directory', 'my-flock.add-edit-members', 'care', 'care.view-all', 'prayer-admin', 'compassion', 'outreach', 'groups', 'attendance', 'giving', 'discipleship', 'missions', 'comms', 'content-admin', 'reports', 'audit'],
+      admin:  ['my-flock', 'my-flock.full-directory', 'my-flock.add-edit-members', 'care', 'care.view-all', 'prayer-admin', 'compassion', 'outreach', 'groups', 'attendance', 'giving', 'discipleship', 'missions', 'comms', 'content-admin', 'reports', 'statistics', 'audit', 'users', 'config'],
     };
+
+    // Role badge colours
+    var _roleMeta = {
+      readonly:  { label: 'Read Only',  color: '#6b7280' },
+      volunteer: { label: 'Volunteer',  color: '#7c6f3e' },
+      care:      { label: 'Care Team',  color: '#2d7d9a' },
+      deacon:    { label: 'Deacon',     color: '#5a6e3a' },
+      leader:    { label: 'Leader',     color: '#7c3aed' },
+      pastor:    { label: 'Pastor',     color: '#b45309' },
+      admin:     { label: 'Admin',      color: '#dc2626' },
+    };
+    var _rm = _roleMeta[memberRole.toLowerCase()] || { label: memberRole || 'No Role', color: '#6b7280' };
 
     var h = '';
 
-    // Template selector
-    h += '<div style="margin-bottom:16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">';
-    h += '<span style="font-size:0.82rem;color:var(--ink-muted);">Apply Template:</span>';
-    h += '<select id="fp-perm-template" style="background:rgba(255,255,255,0.07);border:1px solid var(--line);border-radius:5px;padding:5px 10px;color:var(--ink);font-size:0.82rem;font-family:inherit;">';
-    h += '<option value="">— select —</option>';
-    h += '<option value="care">Care Worker</option>';
-    h += '<option value="leader">Leader</option>';
-    h += '<option value="pastor">Pastor</option>';
-    h += '<option value="admin">Admin</option>';
-    h += '</select>';
-    h += '<button type="button" onclick="TheLife._applyPermTemplate()" style="background:none;border:1px solid var(--line);border-radius:5px;padding:5px 12px;cursor:pointer;color:var(--ink);font-size:0.82rem;font-family:inherit;">Apply</button>';
-    h += '</div>';
+    // ── Role badge ──
+    if (memberRole) {
+      h += '<div style="margin-bottom:18px;display:flex;align-items:center;gap:10px;">';
+      h += '<span style="font-size:0.82rem;color:var(--ink-muted);">System Role:</span>';
+      h += '<span style="display:inline-block;padding:3px 12px;border-radius:20px;font-size:0.8rem;font-weight:700;letter-spacing:0.04em;'
+        + 'background:' + _rm.color + '22;color:' + _rm.color + ';border:1px solid ' + _rm.color + '55;">'
+        + _e(_rm.label) + '</span>';
+      h += '<span style="font-size:0.76rem;color:var(--ink-faint);font-style:italic;">Access is controlled only by the checkboxes below</span>';
+      h += '</div>';
+    }
 
-    // Matrix table
+    // ── Preset buttons ──
+    h += '<div style="margin-bottom:16px;">';
+    h += '<span style="font-size:0.82rem;color:var(--ink-muted);display:block;margin-bottom:8px;">Quick Presets <span style="color:var(--ink-faint);font-style:italic;">(replaces all selections below)</span></span>';
+    h += '<div style="display:flex;gap:8px;flex-wrap:wrap;">';
+    [
+      { val: 'care',   label: 'Care Worker' },
+      { val: 'leader', label: 'Leader' },
+      { val: 'pastor', label: 'Pastor' },
+      { val: 'admin',  label: 'Admin' },
+    ].forEach(function(t) {
+      h += '<button type="button" onclick="TheLife._applyPermTemplate(\'' + t.val + '\')"'
+        + ' style="background:none;border:1px solid var(--line);border-radius:5px;padding:5px 14px;'
+        + 'cursor:pointer;color:var(--ink);font-size:0.82rem;font-family:inherit;">'
+        + _e(t.label) + '</button>';
+    });
+    h += '<button type="button" onclick="TheLife._applyPermTemplate(\'none\')"'
+      + ' style="background:none;border:1px solid var(--line);border-radius:5px;padding:5px 14px;'
+      + 'cursor:pointer;color:var(--ink-muted);font-size:0.82rem;font-family:inherit;">Clear All</button>';
+    h += '</div></div>';
+
+    // ── Matrix table ──
     h += '<table style="width:100%;border-collapse:collapse;font-size:0.83rem;">';
     h += '<thead><tr style="border-bottom:2px solid var(--line);">';
     h += '<th style="text-align:left;padding:7px 10px;color:var(--ink-muted);font-weight:600;">Module / Capability</th>';
@@ -3001,7 +3045,7 @@ const TheLife = (() => {
 
     h += '</tbody></table>';
 
-    // Save button
+    // ── Save button ──
     h += '<div style="margin-top:14px;display:flex;align-items:center;gap:12px;">';
     h += '<button type="button" onclick="TheLife.savePermissions()" style="background:var(--accent);color:var(--ink-inverse);border:none;border-radius:6px;padding:8px 18px;cursor:pointer;font-weight:600;font-size:0.84rem;font-family:inherit;">Save Permissions</button>';
     h += '<span id="fp-perm-status" style="font-size:0.82rem;color:var(--ink-muted);"></span>';
@@ -3010,10 +3054,9 @@ const TheLife = (() => {
     return h;
   }
 
-  function _applyPermTemplate() {
-    var sel = document.getElementById('fp-perm-template');
-    if (!sel) return;
-    var keys = (window._fpPermTemplates && window._fpPermTemplates[sel.value]) || [];
+  function _applyPermTemplate(templateKey) {
+    var key = templateKey || '';
+    var keys = key === 'none' ? [] : ((window._fpPermTemplates && window._fpPermTemplates[key]) || []);
     document.querySelectorAll('.fp-perm-check').forEach(function(cb) {
       cb.checked = keys.indexOf(cb.getAttribute('data-perm-key')) !== -1;
     });

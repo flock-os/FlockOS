@@ -246,8 +246,8 @@ const Nehemiah = (() => {
     if (session.permissions && typeof session.permissions === 'object') {
       return session.permissions[moduleKey] === true;
     }
-    // Fallback: legacy role-level check (pre-permissions sessions)
-    return true; // allow if no permissions map (backward compat)
+    // No permissions map — deny everything (need-to-know model)
+    return false;
   }
 
   /**
