@@ -1069,9 +1069,12 @@ const AUTO_REFRESH_MS = 3 * 60 * 1000; // 3 minutes
 let _autoRefreshTimer = null;
 let _lastRenderTime = Date.now(); // tracks when the active view was last rendered
 
+// Views that should never be silently auto-refreshed (user may be mid-edit)
+const _NO_AUTO_REFRESH = ['dashboard', 'users', 'config', 'my-flock', 'my-profile'];
+
 function _scheduleAutoRefresh(viewName) {
   if (_autoRefreshTimer) clearTimeout(_autoRefreshTimer);
-  if (viewName === 'dashboard') return; // dashboard self-manages
+  if (_NO_AUTO_REFRESH.indexOf(viewName) !== -1) return; // self-manages or edit-heavy
   _autoRefreshTimer = setTimeout(function() {
     if (currentView !== viewName) return; // user has moved on
     if (typeof Modules !== 'undefined') {
@@ -1097,7 +1100,7 @@ const VISIBILITY_STALE_MS = 2 * 60 * 1000; // 2 minutes
 document.addEventListener('visibilitychange', function() {
   if (document.hidden) return;
   if (Date.now() - _lastRenderTime < VISIBILITY_STALE_MS) return;
-  if (currentView === 'dashboard') { _lastRenderTime = Date.now(); return; }
+  if (_NO_AUTO_REFRESH.indexOf(currentView) !== -1) { _lastRenderTime = Date.now(); return; }
   if (typeof Modules !== 'undefined') {
     const el = document.getElementById('view-' + currentView);
     if (el) {
