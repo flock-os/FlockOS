@@ -2945,9 +2945,11 @@ const TheLife = (() => {
         { key: 'my-flock.add-edit-members', label: 'Add / Edit Members' },
       ]},
       { group: 'Pastoral Care', items: [
-        { key: 'care',          label: 'Care Cases (Own Assigned)' },
-        { key: 'care.view-all', label: 'View All Care Cases' },
-        { key: 'prayer-admin',  label: 'Prayer Requests' },
+        { key: 'care',                       label: 'Care Cases (Own Assigned)' },
+        { key: 'care.view-all',              label: 'View All Care Cases' },
+        { key: 'prayer-admin',               label: 'Prayer Admin (Manage All)' },
+        { key: 'prayer-admin.public',        label: 'Prayer Requests (Non-Confidential)' },
+        { key: 'prayer-admin.confidential',  label: 'Prayer Requests (Confidential)' },
         { key: 'compassion',    label: 'Compassion' },
       ]},
       { group: 'Community', items: [
@@ -2973,10 +2975,10 @@ const TheLife = (() => {
 
     // Preset templates — stored on window so _applyPermTemplate can access
     window._fpPermTemplates = {
-      care:   ['my-flock', 'care', 'prayer-admin', 'compassion'],
-      leader: ['my-flock', 'care', 'care.view-all', 'prayer-admin', 'compassion', 'outreach', 'groups', 'attendance'],
-      pastor: ['my-flock', 'my-flock.full-directory', 'my-flock.add-edit-members', 'care', 'care.view-all', 'prayer-admin', 'compassion', 'outreach', 'groups', 'attendance', 'giving', 'discipleship', 'missions', 'comms', 'content-admin', 'reports', 'audit'],
-      admin:  ['my-flock', 'my-flock.full-directory', 'my-flock.add-edit-members', 'care', 'care.view-all', 'prayer-admin', 'compassion', 'outreach', 'groups', 'attendance', 'giving', 'discipleship', 'missions', 'comms', 'content-admin', 'reports', 'statistics', 'audit', 'users', 'config'],
+      care:   ['my-flock', 'care', 'prayer-admin.public', 'compassion'],
+      leader: ['my-flock', 'care', 'care.view-all', 'prayer-admin.public', 'compassion', 'outreach', 'groups', 'attendance'],
+      pastor: ['my-flock', 'my-flock.full-directory', 'my-flock.add-edit-members', 'care', 'care.view-all', 'prayer-admin', 'prayer-admin.public', 'prayer-admin.confidential', 'compassion', 'outreach', 'groups', 'attendance', 'giving', 'discipleship', 'missions', 'comms', 'content-admin', 'reports', 'audit'],
+      admin:  ['my-flock', 'my-flock.full-directory', 'my-flock.add-edit-members', 'care', 'care.view-all', 'prayer-admin', 'prayer-admin.public', 'prayer-admin.confidential', 'compassion', 'outreach', 'groups', 'attendance', 'giving', 'discipleship', 'missions', 'comms', 'content-admin', 'reports', 'statistics', 'audit', 'users', 'config'],
     };
 
     // Role badge colours
