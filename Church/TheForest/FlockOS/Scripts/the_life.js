@@ -1818,17 +1818,12 @@ const TheLife = (() => {
       if (rec.id) _fpMemberId = rec.id;
     }
 
-    // Load member/user directory for caregiver dropdown + permissions for existing user
+    // Load member/user directory for caregiver dropdown
     var _dirP = _ensureDir();
-    var _permP = (isEdit && Nehemiah.can('users'))
-      ? TheVine.flock.permissions.get({ targetEmail: rec.primaryEmail || rec.email || emailOrId }).catch(function() { return null; })
-      : Promise.resolve(null);
-    var _dirPermRes = await Promise.all([_dirP, _permP]);
+    var _dirPermRes = await Promise.all([_dirP]);
     var dir = _dirPermRes[0];
-    var _permRes = _dirPermRes[1];
-    // _permRes: { email, role, overrides, permissions } or null
-    var _memberRole = (_permRes && _permRes.role) || rec.role || '';
-    var permData = (_permRes && _permRes.overrides) || [];
+    var _memberRole = rec.role || '';
+    var permData = [];
 
     var careRoles = { care: 1, deacon: 1, pastor: 1, admin: 1 };
     var caregiverOpts = [{ value: '', label: '(none)' }].concat(
@@ -1958,7 +1953,10 @@ const TheLife = (() => {
 
     // ── Section: Permissions (only shown to users with user-management capability) ──
     if (Nehemiah.can('users')) {
-      html += _fpSec('Permissions', 'mem-perms', _buildPermMatrix(permData, _memberRole), false);
+      var _permTargetEmail = rec.primaryEmail || rec.email || (typeof emailOrId === 'string' && emailOrId.indexOf('@') !== -1 ? emailOrId : '');
+      html += _fpSec('Permissions', 'mem-perms',
+        '<div id="fp-perms-placeholder" style="color:var(--ink-muted);font-size:0.84rem;padding:8px 0;">'
+        + 'Expand this section to load permissions.</div>', false);
     }
 
     // Bottom save
@@ -1969,6 +1967,33 @@ const TheLife = (() => {
       + '</div>';
 
     document.getElementById('fp-body').innerHTML = html;
+
+    // ── Lazy-load permissions when section is first expanded ──
+    if (Nehemiah.can('users')) {
+      var _permTargetEmail = rec.primaryEmail || rec.email || (typeof emailOrId === 'string' && emailOrId.indexOf('@') !== -1 ? emailOrId : '');
+      var _permSec = document.getElementById('fp-sec-mem-perms');
+      var _permDetails = _permSec && _permSec.closest('details');
+      if (_permDetails) {
+        var _permLoaded = false;
+        _permDetails.addEventListener('toggle', function _onPermToggle() {
+          if (_permLoaded || !_permDetails.open) return;
+          _permLoaded = true;
+          var ph = document.getElementById('fp-perms-placeholder');
+          if (ph) ph.innerHTML = '<span style="color:var(--ink-muted);font-size:0.84rem;">Loading\u2026</span>';
+          TheVine.flock.permissions.get({ targetEmail: _permTargetEmail })
+            .then(function(res) {
+              var role = (res && res.role) || rec.role || '';
+              var ov   = (res && res.overrides) || [];
+              var sec  = document.getElementById('fp-sec-mem-perms');
+              if (sec) sec.innerHTML = _buildPermMatrix(ov, role);
+            })
+            .catch(function() {
+              var ph2 = document.getElementById('fp-perms-placeholder');
+              if (ph2) ph2.textContent = 'Could not load permissions. Please close and reopen this profile.';
+            });
+        });
+      }
+    }
   }
 
   async function saveMember() {
