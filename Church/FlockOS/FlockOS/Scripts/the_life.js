@@ -328,6 +328,7 @@ const TheLife = (() => {
     var _m = document.getElementById('main'); if (_m) _m.scrollTop = 0;
 
     // Parallel data fetch
+    var _cgListIdx = -1;
     var _p = [_ensureDir()];
     if (id) {
       _p.push(TheVine.flock.care.get({ caseId: id }).catch(function(err) {
@@ -335,6 +336,9 @@ const TheLife = (() => {
         return null;
       }));
       _p.push(TheVine.flock.care.interactions.list({ caseId: id }).catch(function() { return []; }));
+    } else {
+      _cgListIdx = _p.length;
+      _p.push(TheVine.flock.care.caregivers.list({}).catch(function() { return { rows: [] }; }));
     }
     var _r = await Promise.all(_p);
     var dir = _r[0];
@@ -345,10 +349,13 @@ const TheLife = (() => {
     var rec = {};
     if (!id) {
       var _me = (TheVine.session() || {}).email || '';
-      var _lpMember = (dir || []).find(function(m) {
-        return m.groups && String(m.groups).toLowerCase().split(',').map(function(g){return g.trim();}).indexOf('lead pastor') !== -1;
+      var _cgRes = _cgListIdx >= 0 ? (_r[_cgListIdx] || {}) : {};
+      var _caregivers = _cgRes.rows || [];
+      var _lpCg = _caregivers.find(function(cg) {
+        if (!cg.groups) return false;
+        return String(cg.groups).toLowerCase().split(',').map(function(g) { return g.trim(); }).indexOf('lead pastor') !== -1;
       });
-      var _lpId = _lpMember ? (_lpMember.id || _lpMember.email || '') : '';
+      var _lpId = _lpCg ? _lpCg.email : '';
       // Only auto-populate if the current user is NOT the Lead Pastor
       if (_lpId && _me && _lpId.toLowerCase() !== _me.toLowerCase()) {
         rec.primaryCaregiverId = _lpId;
