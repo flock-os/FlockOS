@@ -398,7 +398,7 @@
     <!-- ── Support ──────────────────────────────────────────────── -->
     <div class="nav-group" data-zone="support">
       <div class="nav-group-items">
-        <a class="nav-item" href="https://buymeacoffee.com/flockos" target="_blank" rel="noopener noreferrer">
+        <a class="nav-item" data-view="support" onclick="navigate('support')">
           <span class="icon">&#127838;</span> Support
         </a>
       </div>
@@ -531,6 +531,29 @@
     <div class="module-view" id="view-deployment-guide"></div>
     <div class="module-view" id="view-tools"></div>
     <div class="module-view" id="view-service-hub"></div>
+
+    <!-- Support view -->
+    <div class="module-view" id="view-support">
+      <div style="max-width:560px;margin:48px auto;padding:0 20px;text-align:center;">
+        <div style="font-size:3.5rem;margin-bottom:16px;">&#127838;</div>
+        <h2 style="font-size:1.5rem;font-weight:700;color:var(--accent);margin-bottom:8px;">Support FlockOS</h2>
+        <p style="color:var(--ink-muted);font-size:0.95rem;line-height:1.7;margin-bottom:8px;">
+          FlockOS is free, open, and built for the Church.<br>
+          If it has served your ministry, consider buying us a coffee &mdash;
+          every contribution helps keep the lights on and the flock moving.
+        </p>
+        <p style="color:var(--ink-muted);font-size:0.85rem;font-style:italic;margin-bottom:32px;">
+          &ldquo;Share with the Lord&rsquo;s people who are in need.&rdquo; &mdash; Romans 12:13
+        </p>
+        <a href="https://buymeacoffee.com/flockos" target="_blank" rel="noopener noreferrer"
+           style="display:inline-block;">
+          <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png"
+               alt="Buy Me A Coffee"
+               style="height:56px;width:auto;border-radius:8px;box-shadow:0 2px 12px rgba(0,0,0,0.18);">
+        </a>
+        <p style="margin-top:20px;font-size:0.78rem;color:var(--ink-muted);">Opens securely on buymeacoffee.com</p>
+      </div>
+    </div>
   </div>
 
 <!-- ═══ SCRIPTS ═══ -->

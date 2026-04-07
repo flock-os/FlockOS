@@ -9469,6 +9469,98 @@ const Modules = (() => {
       html += _ppSec('Permissions', 'permissions', ph);
     })();
 
+    // ═══ SECTION: Access Groups ═══
+    (function() {
+      var currentGroups = String(u.groups || '').toLowerCase().split(',')
+        .map(function(g) { return g.trim(); }).filter(Boolean);
+      var gh = '';
+      gh += '<p style="font-size:0.72rem;color:var(--ink-muted);margin:0 0 14px;">'
+         + 'Groups control email routing and hidden permission bypasses. Stored in AccessControl col D \u2014 '
+         + 'invisible to other users. <strong>Role</strong> (above) controls the visible label.</p>';
+
+      _GRP_TIERS.forEach(function(tier) {
+        var anyOn = tier.groups.some(function(g) { return currentGroups.indexOf(g) !== -1; });
+        gh += '<div style="border:1px solid ' + tier.color + '44;border-radius:10px;margin-bottom:12px;">';
+        gh += '<div style="background:' + tier.bg + ';padding:10px 14px;border-radius:10px 10px 0 0;'
+           + 'display:flex;align-items:center;gap:10px;cursor:pointer;" '
+           + 'onclick="Modules._grpToggleTier(\'' + tier.key + '\')">';
+        gh += '<input type="checkbox" id="grp-tier-' + tier.key + '" data-tier-toggle="' + tier.key + '"'
+           + (anyOn ? ' checked' : '')
+           + ' onclick="event.stopPropagation();Modules._grpToggleTier(\'' + tier.key + '\')"'
+           + ' style="accent-color:' + tier.color + ';width:15px;height:15px;cursor:pointer;">';
+        gh += '<span style="font-weight:800;color:' + tier.color + ';font-size:0.8rem;letter-spacing:0.05em;text-transform:uppercase;">' + tier.label + '</span>';
+        gh += '<span style="font-size:0.76rem;color:var(--ink-muted);flex:1;">' + tier.desc + '</span>';
+        gh += '</div>';
+        gh += '<div style="padding:10px 14px 12px;display:flex;flex-direction:column;gap:8px;">';
+        tier.groups.forEach(function(g) {
+          var ck      = currentGroups.indexOf(g) !== -1;
+          var gid     = 'grp-chk-' + g.replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+          var meta    = _GRP_META[g] || { label: g, desc: '' };
+          var prereqs = _GRP_PREREQS[g];
+          var prereqHtml = prereqs && prereqs.length
+            ? ' <em style="color:var(--ink-faint);font-size:0.69rem;">\u2192 pulls: ' + prereqs.join(', ') + '</em>'
+            : '';
+          gh += '<label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;">';
+          gh += '<input type="checkbox" id="' + gid + '" data-group="' + _e(g) + '" data-tier="' + tier.key + '"'
+             + (ck ? ' checked data-added-by="existing"' : '')
+             + ' onchange="Modules._grpOnChange(this)"'
+             + ' style="margin-top:3px;accent-color:' + tier.color + ';cursor:pointer;">';
+          gh += '<div><span style="font-weight:600;color:var(--ink);font-size:0.82rem;">' + _e(meta.label) + '</span>' + prereqHtml;
+          gh += '<div style="font-size:0.72rem;color:var(--ink-muted);margin-top:1px;">' + _e(meta.desc) + '</div></div></label>';
+        });
+        gh += '</div></div>';
+      });
+
+      // Restrictions
+      gh += '<div style="border:1px solid #9333ea44;border-radius:10px;margin-bottom:14px;">';
+      gh += '<div style="background:#9333ea14;padding:10px 14px;border-radius:10px 10px 0 0;display:flex;align-items:center;gap:10px;">';
+      gh += '<span style="font-weight:800;color:#9333ea;font-size:0.8rem;letter-spacing:0.05em;text-transform:uppercase;">Restrictions</span>';
+      gh += '<span style="font-size:0.76rem;color:var(--ink-muted);margin-left:6px;">Override auto-routing regardless of other groups.</span>';
+      gh += '</div>';
+      gh += '<div style="padding:10px 14px 14px;display:flex;flex-direction:column;gap:10px;">';
+      [{ g: 'nopimail', color: '#9333ea' }, { g: 'limitpii', color: '#dc2626' }].forEach(function(r) {
+        var ck   = currentGroups.indexOf(r.g) !== -1;
+        var gid  = 'grp-chk-' + r.g;
+        var meta = _GRP_META[r.g] || { label: r.g, desc: '' };
+        gh += '<label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;">';
+        gh += '<input type="checkbox" id="' + gid + '" data-group="' + _e(r.g) + '" data-tier="restrict"'
+           + (ck ? ' checked data-added-by="existing"' : '')
+           + ' onchange="Modules._grpOnChange(this)"'
+           + ' style="margin-top:3px;accent-color:' + r.color + ';cursor:pointer;">';
+        gh += '<div><span style="font-weight:700;color:var(--ink);font-size:0.82rem;">' + _e(meta.label) + '</span>';
+        gh += '<div style="font-size:0.72rem;color:var(--ink-muted);margin-top:1px;">' + _e(meta.desc) + '</div></div></label>';
+      });
+      gh += '</div></div>';
+
+      // Critical confirmation (shown only when a critical group is checked)
+      var anyCrit = ['admin', 'lead pastor', 'allmail'].some(function(g) { return currentGroups.indexOf(g) !== -1; });
+      gh += '<div id="grp-critical-confirm" style="' + (anyCrit ? '' : 'display:none;')
+         + 'border:2px solid #dc2626;border-radius:10px;background:#dc262610;padding:16px 18px;margin-bottom:14px;">';
+      gh += '<div style="font-weight:800;color:#dc2626;font-size:0.8rem;letter-spacing:0.06em;margin-bottom:10px;">'
+         + '\uD83D\uDD34 CRITICAL GROUP ACCESS \u2014 CONFIRMATION REQUIRED</div>';
+      gh += '<p style="font-size:0.84rem;color:var(--ink);margin:0 0 12px;">One or more Critical-level groups are selected. '
+         + 'These grant full permission bypass and/or access to all member data email streams.</p>';
+      gh += '<label style="display:flex;align-items:flex-start;gap:10px;margin-bottom:12px;cursor:pointer;">';
+      gh += '<input type="checkbox" id="grp-crit-chk" style="margin-top:2px;accent-color:#dc2626;">';
+      gh += '<span style="font-size:0.84rem;color:var(--ink);">I understand this grants critical system access or full data stream access to this user</span>';
+      gh += '</label>';
+      gh += '<input type="text" id="grp-crit-txt" placeholder="Type CONFIRM to save"'
+         + ' style="border:1px solid #dc262666;border-radius:6px;padding:6px 12px;font-size:0.84rem;'
+         + 'background:var(--bg);color:var(--ink);font-family:inherit;width:220px;">';
+      gh += '</div>';
+
+      // Save button
+      gh += '<div style="display:flex;align-items:center;gap:12px;">';
+      gh += '<button type="button" onclick="Modules._grpSave(\'' + eid + '\')"'
+         + ' style="background:var(--accent);color:var(--ink-inverse);border:none;border-radius:6px;'
+         + 'padding:9px 22px;cursor:pointer;font-weight:700;font-size:0.86rem;font-family:inherit;">'
+         + 'Save Groups</button>';
+      gh += '<span id="grp-save-status" style="font-size:0.82rem;color:var(--ink-muted);"></span>';
+      gh += '</div>';
+
+      html += _ppSec('Access Groups', 'access-groups', gh);
+    })();
+
     // ═══ SECTION: Volunteer Assignments ═══
     var vh = '';
     if (volRows.length) {
