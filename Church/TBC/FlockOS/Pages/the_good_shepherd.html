@@ -398,7 +398,7 @@
 
 <!-- ═══ SPLASH SCREEN ═══ -->
 <div id="splash">
-  <img class="splash-bg" src="../Images/FlockOS_Wide.jpeg" alt="Trinity Baptist Church">
+  <img id="church-splash-logo" class="splash-bg" src="../Images/TBC_Logo.png" alt="Trinity Baptist Church">
   <div class="splash-bar-track"><div class="splash-bar-fill"></div></div>
 </div>
 
@@ -800,6 +800,15 @@ const PHOTOS_URL = 'https://photos.app.goo.gl/wvz2urS3CkMiR5wW9';
 document.addEventListener('DOMContentLoaded', function() {
 Adornment.init();
 if (typeof TheVine !== 'undefined' && TheVine.lifecycle) TheVine.lifecycle.start();
+
+// ── Splash logo: use CHURCH_LOGO from AppConfig (synced to localStorage by admin) ────
+(function() {
+  var logo = localStorage.getItem('flock_church_logo');
+  if (logo) {
+    var img = document.getElementById('church-splash-logo');
+    if (img) img.src = '../Images/' + logo;
+  }
+})();
 
 // ── Splash dismiss ─────────────────────────────────────────────────────────
 setTimeout(function() {

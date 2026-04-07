@@ -4,8 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>FlockOS — Admin</title>
-  <link rel="icon" type="image/png" href="../Images/Favicon.png">
-  <link rel="apple-touch-icon" href="../Images/Favicon.png">
+  <link rel="icon" type="image/png" href="../Images/FlockOS_icon.png">
+  <link rel="apple-touch-icon" href="../Images/FlockOS_icon.png">
   <link rel="manifest" href="../../manifest.json">
   <meta name="theme-color" content="#e8a838">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -398,7 +398,7 @@
 
 <!-- ═══ SPLASH SCREEN ═══ -->
 <div id="splash">
-  <img class="splash-bg" src="../Images/FlockOS_Wide.jpeg" alt="FlockOS">
+  <img id="church-splash-logo" class="splash-bg" src="../Images/FlockOS_Wide.jpeg" alt="FlockOS">
   <div class="splash-bar-track"><div class="splash-bar-fill"></div></div>
 </div>
 
@@ -800,6 +800,15 @@ const PHOTOS_URL = '';
 document.addEventListener('DOMContentLoaded', function() {
 Adornment.init();
 if (typeof TheVine !== 'undefined' && TheVine.lifecycle) TheVine.lifecycle.start();
+
+// ── Splash logo: use CHURCH_LOGO from AppConfig (synced to localStorage by admin) ────
+(function() {
+  var logo = localStorage.getItem('flock_church_logo');
+  if (logo) {
+    var img = document.getElementById('church-splash-logo');
+    if (img) img.src = '../Images/' + logo;
+  }
+})();
 
 // ── Splash dismiss ─────────────────────────────────────────────────────────
 setTimeout(function() {
