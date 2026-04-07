@@ -9432,15 +9432,12 @@ const Modules = (() => {
              + '<div style="font-size:0.77rem;color:var(--ink-muted);line-height:1.45;margin-bottom:2px;">' + _e(item.desc) + '</div>'
              + '<div style="font-size:0.70rem;color:var(--ink-faint);font-style:italic;">' + _e(group) + '</div>'
              + '</td>';
-          ph += '<td style="text-align:center;padding:10px 12px;vertical-align:top;">'
-             + '<select id="' + selId + '" class="tab-perm-sel" data-perm-key="' + _e(item.key) + '" data-risk="' + _e(item.risk || 'low') + '"'
-             + ' onchange="Modules._tabOnPermSelChange(this)"'
-             + ' style="background:var(--bg-raised);border:1px solid var(--line);border-radius:6px;padding:5px 8px;'
-             + 'cursor:pointer;font-family:inherit;font-size:0.82rem;font-weight:600;width:100%;color:var(--ink);">'
-             + '<option value="none"'  + (val === 'none'  ? ' selected' : '') + '>None</option>'
-             + '<option value="grant"' + (val === 'grant' ? ' selected' : '') + '>Grant</option>'
-             + '<option value="deny"'  + (val === 'deny'  ? ' selected' : '') + '>Deny</option>'
-             + '</select></td>';
+          ph += '<td style="text-align:center;padding:10px 12px;vertical-align:middle;">'
+             + '<input type="checkbox" id="' + selId + '" class="tab-perm-chk" data-perm-key="' + _e(item.key) + '" data-risk="' + _e(item.risk || 'low') + '"'
+             + (val === 'grant' ? ' checked' : '')
+             + ' onchange="Modules._tabOnPermChkChange(this)"'
+             + ' style="width:18px;height:18px;accent-color:var(--accent);cursor:pointer;">'
+             + '</td>';
           ph += '</tr>';
           if (item.risk === 'critical') {
             ph += '<tr id="crit-box-' + keyId + '" style="display:none;">';
@@ -16117,24 +16114,24 @@ const Modules = (() => {
 
   function _applyPermTemplate(templateKey) {
     var keys = templateKey === 'none' ? [] : ((window._tabPermTemplates && window._tabPermTemplates[templateKey]) || []);
-    document.querySelectorAll('.tab-perm-sel').forEach(function(sel) {
-      sel.value = keys.indexOf(sel.getAttribute('data-perm-key')) !== -1 ? 'grant' : 'none';
-      _tabOnPermSelChange(sel);
+    document.querySelectorAll('.tab-perm-chk').forEach(function(chk) {
+      chk.checked = keys.indexOf(chk.getAttribute('data-perm-key')) !== -1;
+      _tabOnPermChkChange(chk);
     });
   }
 
-  function _tabOnPermSelChange(sel) {
-    var keyId = 'tab-' + sel.getAttribute('data-perm-key').replace(/\./g, '-');
-    var risk  = sel.getAttribute('data-risk');
+  function _tabOnPermChkChange(chk) {
+    var keyId = 'tab-' + chk.getAttribute('data-perm-key').replace(/\./g, '-');
+    var risk  = chk.getAttribute('data-risk');
     var box   = document.getElementById('crit-box-' + keyId);
     if (!box) return;
-    if (risk === 'critical' && sel.value === 'grant') {
+    if (risk === 'critical' && chk.checked) {
       box.style.display = '';
     } else {
       box.style.display = 'none';
-      var chk = document.getElementById('crit-chk-' + keyId);
+      var ck  = document.getElementById('crit-chk-' + keyId);
       var txt = document.getElementById('crit-txt-' + keyId);
-      if (chk) chk.checked = false;
+      if (ck) ck.checked = false;
       if (txt) txt.value = '';
     }
   }
@@ -16146,14 +16143,14 @@ const Modules = (() => {
     }
     // Block save if any critical permissions are pending confirmation
     var critBlocked = false;
-    document.querySelectorAll('.tab-perm-sel').forEach(function(sel) {
-      if (sel.value === 'grant' && sel.getAttribute('data-risk') === 'critical') {
-        var keyId = 'tab-' + sel.getAttribute('data-perm-key').replace(/\./g, '-');
+    document.querySelectorAll('.tab-perm-chk').forEach(function(chk) {
+      if (chk.checked && chk.getAttribute('data-risk') === 'critical') {
+        var keyId = 'tab-' + chk.getAttribute('data-perm-key').replace(/\./g, '-');
         var box = document.getElementById('crit-box-' + keyId);
         if (box && box.style.display !== 'none') {
-          var chk = document.getElementById('crit-chk-' + keyId);
+          var ck  = document.getElementById('crit-chk-' + keyId);
           var txt = document.getElementById('crit-txt-' + keyId);
-          if (!chk || !chk.checked || !txt || txt.value.trim() !== 'Yes') critBlocked = true;
+          if (!ck || !ck.checked || !txt || txt.value.trim() !== 'Yes') critBlocked = true;
         }
       }
     });
@@ -16164,11 +16161,9 @@ const Modules = (() => {
     var st = document.getElementById('tab-perm-status');
     if (st) st.textContent = 'Saving\u2026';
     var grants = [], denies = [];
-    document.querySelectorAll('.tab-perm-sel').forEach(function(sel) {
-      var key = sel.getAttribute('data-perm-key');
-      var val = sel.value;
-      if (val === 'grant') grants.push(key);
-      else if (val === 'deny') denies.push(key);
+    document.querySelectorAll('.tab-perm-chk').forEach(function(chk) {
+      var key = chk.getAttribute('data-perm-key');
+      if (chk.checked) grants.push(key);
     });
     try {
       await TheVine.flock.call('permissions.setAll', { targetEmail: targetEmail, grants: grants, denies: denies });
@@ -18413,7 +18408,7 @@ const Modules = (() => {
     _euCreateMember,
     _euCreateCard,
     _applyPermTemplate,
-    _tabOnPermSelChange,
+    _tabOnPermChkChange,
     _savePerms,
     _grpOnChange,
     _grpSave,
