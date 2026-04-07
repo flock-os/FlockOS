@@ -16175,6 +16175,171 @@ const Modules = (() => {
     }
   }
 
+  // ─── Access Groups: tier data, prerequisites, labels, and event handlers ────
+
+  var _GRP_TIERS = [
+    { key: 'low',      label: 'Low',      color: '#16a34a', bg: '#16a34a18',
+      desc: 'Label/tag groups \u2014 no routing or permission effect.',
+      groups: ['care', 'worship', 'youth', 'children', 'media', 'missions', 'outreach'] },
+    { key: 'medium',   label: 'Medium',   color: '#b45309', bg: '#b4530918',
+      desc: 'Summary emails and targeted care/prayer notifications.',
+      groups: ['elder', 'caremail', 'prayermail', 'church-office'] },
+    { key: 'high',     label: 'High',     color: '#ea580c', bg: '#ea580c18',
+      desc: 'Full pastoral email stream or financial data access.',
+      groups: ['timothy', 'finance', 'pastoralmail', 'womens leader'] },
+    { key: 'critical', label: 'Critical', color: '#dc2626', bg: '#dc262618',
+      desc: 'Full permission bypass and/or all PII email types.',
+      groups: ['admin', 'lead pastor', 'allmail'] },
+  ];
+
+  var _GRP_PREREQS = {
+    'caremail':     ['care'],
+    'timothy':      ['elder', 'caremail', 'prayermail'],
+    'pastoralmail': ['elder'],
+    'lead pastor':  ['timothy', 'pastoralmail'],
+    'allmail':      ['caremail', 'prayermail', 'pastoralmail', 'finance'],
+  };
+
+  var _GRP_META = {
+    'care':          { label: 'Care',                  desc: 'Care team label \u2014 readable via Nehemiah.hasGroup()' },
+    'worship':       { label: 'Worship',               desc: 'Worship leader label' },
+    'youth':         { label: 'Youth',                 desc: 'Youth ministry label' },
+    'children':      { label: 'Children',              desc: "Children's ministry label" },
+    'media':         { label: 'Media',                 desc: 'Media/tech team label' },
+    'missions':      { label: 'Missions',              desc: 'Missions team label' },
+    'outreach':      { label: 'Outreach',              desc: 'Outreach/evangelism label' },
+    'elder':         { label: 'Elder',                 desc: 'Daily pastoral summary only \u2014 no individual care/prayer emails' },
+    'caremail':      { label: 'Care Mail',             desc: 'Auto-receives care case emails \u2014 no CNP opt-in needed. Pulls: care' },
+    'prayermail':    { label: 'Prayer Mail',           desc: 'Auto-receives prayer request emails \u2014 no CNP opt-in needed' },
+    'church-office': { label: 'Church Office',         desc: 'Caps what permissions this user can grant to others' },
+    'timothy':       { label: 'Timothy',               desc: 'All pastoral emails \u2014 no CNP needed. Pulls: elder, caremail, prayermail' },
+    'finance':       { label: 'Finance',               desc: 'Giving/financial reports via notifyFinance_()' },
+    'pastoralmail':  { label: 'Pastoral Mail',         desc: 'All pastoral emails + daily summary. Pulls: elder' },
+    'womens leader': { label: "Women's Leader",        desc: 'Recognized by backend \u2014 reserved for future routing' },
+    'admin':         { label: 'Admin',                 desc: 'Full permission bypass \u2014 elevates to level 5 at login' },
+    'lead pastor':   { label: 'Lead Pastor',           desc: 'Full bypass + all pastoral emails. Pulls: timothy, pastoralmail' },
+    'allmail':       { label: 'All Mail',              desc: 'ALL notification types. Pulls: caremail, prayermail, pastoralmail, finance' },
+    'nopimail':      { label: 'No PII Mail',           desc: 'Soft block \u2014 removed from auto-routing; own CNP opt-in still honored' },
+    'limitpii':      { label: 'Limit PII (Hard Block)',desc: 'HARD OVERRIDE \u2014 blocks ALL PII email delivery regardless of role, group, or CNP opt-in' },
+  };
+
+  function _grpId(g) {
+    return 'grp-chk-' + g.replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+  }
+  function _grpCb(g) { return document.getElementById(_grpId(g)); }
+
+  function _grpNeededByOtherTiers(excludeTierKey) {
+    var needed = {};
+    _GRP_TIERS.forEach(function(t) {
+      if (t.key === excludeTierKey) return;
+      var tcb = document.getElementById('grp-tier-' + t.key);
+      if (!tcb || !tcb.checked) return;
+      t.groups.forEach(function(g) {
+        needed[g] = t.key;
+        (_GRP_PREREQS[g] || []).forEach(function(p) { if (!needed[p]) needed[p] = t.key; });
+      });
+    });
+    return needed;
+  }
+
+  function _grpUpdateTierToggle(tierKey) {
+    var tier = _GRP_TIERS.find(function(t) { return t.key === tierKey; });
+    if (!tier) return;
+    var tcb = document.getElementById('grp-tier-' + tierKey);
+    if (!tcb) return;
+    var checked = tier.groups.filter(function(g) { var cb = _grpCb(g); return cb && cb.checked; }).length;
+    tcb.checked = checked > 0;
+    tcb.indeterminate = checked > 0 && checked < tier.groups.length;
+  }
+
+  function _grpUpdateCritConfirm() {
+    var box = document.getElementById('grp-critical-confirm');
+    if (!box) return;
+    var anyCrit = ['admin', 'lead pastor', 'allmail'].some(function(g) {
+      var cb = _grpCb(g); return cb && cb.checked;
+    });
+    box.style.display = anyCrit ? '' : 'none';
+    if (!anyCrit) {
+      var chk = document.getElementById('grp-crit-chk');
+      var txt = document.getElementById('grp-crit-txt');
+      if (chk) chk.checked = false;
+      if (txt) txt.value = '';
+    }
+  }
+
+  function _grpToggleTier(tierKey) {
+    var tierCb = document.getElementById('grp-tier-' + tierKey);
+    if (!tierCb) return;
+    var isOn = tierCb.checked;
+    var tier = _GRP_TIERS.find(function(t) { return t.key === tierKey; });
+    if (!tier) return;
+    if (isOn) {
+      // Enable: check all tier groups + prerequisites that aren't already checked
+      tier.groups.forEach(function(g) {
+        var cb = _grpCb(g);
+        if (cb && !cb.checked) { cb.checked = true; cb.setAttribute('data-added-by', tierKey); }
+        (_GRP_PREREQS[g] || []).forEach(function(p) {
+          var pcb = _grpCb(p);
+          if (pcb && !pcb.checked) { pcb.checked = true; pcb.setAttribute('data-added-by', tierKey); }
+        });
+      });
+    } else {
+      // Disable: only remove items this tier added that aren't still needed by another active tier
+      var stillNeeded = _grpNeededByOtherTiers(tierKey);
+      var tierOwned = {};
+      tier.groups.forEach(function(g) {
+        tierOwned[g] = true;
+        (_GRP_PREREQS[g] || []).forEach(function(p) { tierOwned[p] = true; });
+      });
+      Object.keys(tierOwned).forEach(function(g) {
+        var cb = _grpCb(g);
+        if (!cb || cb.getAttribute('data-added-by') !== tierKey) return;
+        if (stillNeeded[g]) {
+          cb.setAttribute('data-added-by', stillNeeded[g]); // re-attribute to remaining owner
+        } else {
+          cb.checked = false;
+          cb.removeAttribute('data-added-by');
+        }
+      });
+    }
+    _grpUpdateCritConfirm();
+  }
+
+  function _grpOnChange(cb) {
+    if (cb.checked) {
+      cb.setAttribute('data-added-by', 'manual');
+    } else {
+      cb.removeAttribute('data-added-by');
+    }
+    var tierKey = cb.getAttribute('data-tier');
+    if (tierKey && tierKey !== 'restrict') _grpUpdateTierToggle(tierKey);
+    _grpUpdateCritConfirm();
+  }
+
+  async function _grpSave(targetEmail) {
+    var critBox = document.getElementById('grp-critical-confirm');
+    if (critBox && critBox.style.display !== 'none') {
+      var chk = document.getElementById('grp-crit-chk');
+      var txt = document.getElementById('grp-crit-txt');
+      if (!chk || !chk.checked || !txt || txt.value.trim().toUpperCase() !== 'CONFIRM') {
+        _toast('Critical groups are selected. Check the box and type CONFIRM to proceed.', 'warning');
+        return;
+      }
+    }
+    var st = document.getElementById('grp-save-status');
+    if (st) st.textContent = 'Saving\u2026';
+    var groups = [];
+    document.querySelectorAll('[data-group]').forEach(function(c) {
+      if (c.checked) groups.push(c.getAttribute('data-group'));
+    });
+    try {
+      await TheVine.flock.users.update({ targetEmail: targetEmail, groups: groups.join(', ') });
+      if (st) { st.textContent = '\u2713 Saved'; setTimeout(function() { if (st) st.textContent = ''; }, 2000); }
+    } catch (e) {
+      if (st) st.textContent = 'Error: ' + (e.message || e);
+    }
+  }
+
   function editConfig(id) {
     _edit('config', 'Edit Setting', [
       { name: 'value',       label: 'Value',       required: true },
@@ -18306,6 +18471,9 @@ const Modules = (() => {
     _applyPermTemplate,
     _tabOnPermSelChange,
     _savePerms,
+    _grpToggleTier,
+    _grpOnChange,
+    _grpSave,
     _ppSearch,
     _ppFilter,
     _ppOpen,
