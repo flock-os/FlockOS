@@ -8898,13 +8898,16 @@ const Modules = (() => {
     var u = p.user || {};
     var eid = _e(email);
 
+    // Permission check for the viewer — gates API calls and section renders
+    var canEditPerms = typeof Nehemiah !== 'undefined' && (Nehemiah.can('users.permissions') || Nehemiah.can('users.edit'));
+
     // parallel-load detailed records
     var permData = { overrides: [], permissions: {} }, moduleMap = {};
     var memberRec = null, cardRec = null, volRows = [];
     try {
       var f = await Promise.allSettled([
-        TheVine.flock.call('permissions.get', { targetEmail: email }),
-        TheVine.flock.call('permissions.list', {}),
+        canEditPerms ? TheVine.flock.call('permissions.get', { targetEmail: email }) : Promise.resolve(null),
+        canEditPerms ? TheVine.flock.call('permissions.list', {}) : Promise.resolve(null),
         TheVine.flock.call('members.get', { email: email }),
         TheVine.flock.memberCards.search({ q: email }),
         TheVine.flock.call('volunteers.list', {}),
@@ -9131,6 +9134,7 @@ const Modules = (() => {
 
     // ═══ SECTION: Permissions ═══
     (function() {
+      if (!canEditPerms) return;
       var ovList = permData.overrides || [];
       var ovMap = {};
       ovList.forEach(function(o) { if (o && o.module) ovMap[o.module] = String(o.access || 'none').toLowerCase(); });
@@ -9471,6 +9475,7 @@ const Modules = (() => {
 
     // ═══ SECTION: Access Groups ═══
     (function() {
+      if (!canEditPerms) return;
       var currentGroups = String(u.groups || '').toLowerCase().split(',')
         .map(function(g) { return g.trim(); }).filter(Boolean);
       var gh = '';
@@ -9479,15 +9484,9 @@ const Modules = (() => {
          + 'invisible to other users. <strong>Role</strong> (above) controls the visible label.</p>';
 
       _GRP_TIERS.forEach(function(tier) {
-        var anyOn = tier.groups.some(function(g) { return currentGroups.indexOf(g) !== -1; });
         gh += '<div style="border:1px solid ' + tier.color + '44;border-radius:10px;margin-bottom:12px;">';
         gh += '<div style="background:' + tier.bg + ';padding:10px 14px;border-radius:10px 10px 0 0;'
-           + 'display:flex;align-items:center;gap:10px;cursor:pointer;" '
-           + 'onclick="Modules._grpToggleTier(\'' + tier.key + '\')">';
-        gh += '<input type="checkbox" id="grp-tier-' + tier.key + '" data-tier-toggle="' + tier.key + '"'
-           + (anyOn ? ' checked' : '')
-           + ' onclick="event.stopPropagation();Modules._grpToggleTier(\'' + tier.key + '\')"'
-           + ' style="accent-color:' + tier.color + ';width:15px;height:15px;cursor:pointer;">';
+           + 'display:flex;align-items:center;gap:10px;">';
         gh += '<span style="font-weight:800;color:' + tier.color + ';font-size:0.8rem;letter-spacing:0.05em;text-transform:uppercase;">' + tier.label + '</span>';
         gh += '<span style="font-size:0.76rem;color:var(--ink-muted);flex:1;">' + tier.desc + '</span>';
         gh += '</div>';
@@ -9502,7 +9501,7 @@ const Modules = (() => {
             : '';
           gh += '<label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;">';
           gh += '<input type="checkbox" id="' + gid + '" data-group="' + _e(g) + '" data-tier="' + tier.key + '"'
-             + (ck ? ' checked data-added-by="existing"' : '')
+             + (ck ? ' checked' : '')
              + ' onchange="Modules._grpOnChange(this)"'
              + ' style="margin-top:3px;accent-color:' + tier.color + ';cursor:pointer;">';
           gh += '<div><span style="font-weight:600;color:var(--ink);font-size:0.82rem;">' + _e(meta.label) + '</span>' + prereqHtml;
@@ -16141,6 +16140,10 @@ const Modules = (() => {
   }
 
   async function _savePerms(targetEmail) {
+    if (typeof Nehemiah === 'undefined' || !Nehemiah.can('users.permissions')) {
+      _toast('You do not have permission to edit permissions.', 'danger');
+      return;
+    }
     // Block save if any critical permissions are pending confirmation
     var critBlocked = false;
     document.querySelectorAll('.tab-perm-sel').forEach(function(sel) {
@@ -16228,30 +16231,6 @@ const Modules = (() => {
   }
   function _grpCb(g) { return document.getElementById(_grpId(g)); }
 
-  function _grpNeededByOtherTiers(excludeTierKey) {
-    var needed = {};
-    _GRP_TIERS.forEach(function(t) {
-      if (t.key === excludeTierKey) return;
-      var tcb = document.getElementById('grp-tier-' + t.key);
-      if (!tcb || !tcb.checked) return;
-      t.groups.forEach(function(g) {
-        needed[g] = t.key;
-        (_GRP_PREREQS[g] || []).forEach(function(p) { if (!needed[p]) needed[p] = t.key; });
-      });
-    });
-    return needed;
-  }
-
-  function _grpUpdateTierToggle(tierKey) {
-    var tier = _GRP_TIERS.find(function(t) { return t.key === tierKey; });
-    if (!tier) return;
-    var tcb = document.getElementById('grp-tier-' + tierKey);
-    if (!tcb) return;
-    var checked = tier.groups.filter(function(g) { var cb = _grpCb(g); return cb && cb.checked; }).length;
-    tcb.checked = checked > 0;
-    tcb.indeterminate = checked > 0 && checked < tier.groups.length;
-  }
-
   function _grpUpdateCritConfirm() {
     var box = document.getElementById('grp-critical-confirm');
     if (!box) return;
@@ -16267,56 +16246,21 @@ const Modules = (() => {
     }
   }
 
-  function _grpToggleTier(tierKey) {
-    var tierCb = document.getElementById('grp-tier-' + tierKey);
-    if (!tierCb) return;
-    var isOn = tierCb.checked;
-    var tier = _GRP_TIERS.find(function(t) { return t.key === tierKey; });
-    if (!tier) return;
-    if (isOn) {
-      // Enable: check all tier groups + prerequisites that aren't already checked
-      tier.groups.forEach(function(g) {
-        var cb = _grpCb(g);
-        if (cb && !cb.checked) { cb.checked = true; cb.setAttribute('data-added-by', tierKey); }
-        (_GRP_PREREQS[g] || []).forEach(function(p) {
-          var pcb = _grpCb(p);
-          if (pcb && !pcb.checked) { pcb.checked = true; pcb.setAttribute('data-added-by', tierKey); }
-        });
-      });
-    } else {
-      // Disable: only remove items this tier added that aren't still needed by another active tier
-      var stillNeeded = _grpNeededByOtherTiers(tierKey);
-      var tierOwned = {};
-      tier.groups.forEach(function(g) {
-        tierOwned[g] = true;
-        (_GRP_PREREQS[g] || []).forEach(function(p) { tierOwned[p] = true; });
-      });
-      Object.keys(tierOwned).forEach(function(g) {
-        var cb = _grpCb(g);
-        if (!cb || cb.getAttribute('data-added-by') !== tierKey) return;
-        if (stillNeeded[g]) {
-          cb.setAttribute('data-added-by', stillNeeded[g]); // re-attribute to remaining owner
-        } else {
-          cb.checked = false;
-          cb.removeAttribute('data-added-by');
-        }
-      });
-    }
-    _grpUpdateCritConfirm();
-  }
-
   function _grpOnChange(cb) {
     if (cb.checked) {
-      cb.setAttribute('data-added-by', 'manual');
-    } else {
-      cb.removeAttribute('data-added-by');
+      (_GRP_PREREQS[cb.getAttribute('data-group')] || []).forEach(function(p) {
+        var pcb = _grpCb(p);
+        if (pcb && !pcb.checked) pcb.checked = true;
+      });
     }
-    var tierKey = cb.getAttribute('data-tier');
-    if (tierKey && tierKey !== 'restrict') _grpUpdateTierToggle(tierKey);
     _grpUpdateCritConfirm();
   }
 
   async function _grpSave(targetEmail) {
+    if (typeof Nehemiah === 'undefined' || !Nehemiah.can('users.permissions')) {
+      _toast('You do not have permission to edit groups.', 'danger');
+      return;
+    }
     var critBox = document.getElementById('grp-critical-confirm');
     if (critBox && critBox.style.display !== 'none') {
       var chk = document.getElementById('grp-crit-chk');
@@ -18471,7 +18415,6 @@ const Modules = (() => {
     _applyPermTemplate,
     _tabOnPermSelChange,
     _savePerms,
-    _grpToggleTier,
     _grpOnChange,
     _grpSave,
     _ppSearch,
