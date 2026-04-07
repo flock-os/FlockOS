@@ -3237,6 +3237,7 @@ const TheLife = (() => {
         var val  = ovMap[item.key] || 'none';
         var rm   = _riskMeta[item.risk] || _riskMeta.low;
         var selId = 'psel-' + item.key.replace(/\./g, '-');
+        var keyId = item.key.replace(/\./g, '-');
         h += '<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">';
         // Label + description
         h += '<td style="padding:10px 12px;vertical-align:top;">';
@@ -3251,7 +3252,8 @@ const TheLife = (() => {
         h += '</td>';
         // Dropdown
         h += '<td style="text-align:center;padding:10px 12px;vertical-align:top;">';
-        h += '<select id="' + selId + '" class="fp-perm-sel" data-perm-key="' + _e(item.key) + '"'
+        h += '<select id="' + selId + '" class="fp-perm-sel" data-perm-key="' + _e(item.key) + '" data-risk="' + _e(item.risk || 'low') + '"'
+           + ' onchange="TheLife._onPermSelChange(this)"'
            + ' style="background:var(--bg-raised);border:1px solid var(--line);border-radius:6px;padding:5px 8px;'
            + 'cursor:pointer;font-family:inherit;font-size:0.82rem;font-weight:600;width:100%;color:var(--ink);">';
         h += '<option value="none"'  + (val === 'none'  ? ' selected' : '') + '>None</option>';
@@ -3259,6 +3261,26 @@ const TheLife = (() => {
         h += '<option value="deny"'  + (val === 'deny'  ? ' selected' : '') + '>Deny</option>';
         h += '</select>';
         h += '</td></tr>';
+        // Critical confirmation box (hidden until user selects Grant)
+        if (item.risk === 'critical') {
+          h += '<tr id="crit-box-' + keyId + '" style="display:none;">';
+          h += '<td colspan="3" style="padding:0 12px 14px;">';
+          h += '<div style="border:2px solid #dc2626;border-radius:10px;background:#dc262610;padding:14px 18px;margin-top:2px;">';
+          h += '<div style="font-weight:800;color:#dc2626;font-size:0.8rem;letter-spacing:0.06em;margin-bottom:10px;">'
+             + '\uD83D\uDD34 CRITICAL PERMISSION \u2014 CONFIRMATION REQUIRED</div>';
+          h += '<label style="display:flex;align-items:flex-start;gap:10px;margin-bottom:10px;cursor:pointer;">';
+          h += '<input type="checkbox" id="crit-chk-' + keyId + '" style="margin-top:2px;accent-color:#dc2626;">';
+          h += '<span style="font-size:0.84rem;color:var(--ink);">I understand this grants critical-level system access to this person</span>';
+          h += '</label>';
+          h += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">';
+          h += '<input type="text" id="crit-txt-' + keyId + '" placeholder="Type Yes to confirm"'
+             + ' style="border:1px solid #dc262666;border-radius:6px;padding:6px 12px;font-size:0.84rem;'
+             + 'background:var(--bg);color:var(--ink);font-family:inherit;width:200px;">';
+          h += '</div>';
+          h += '<div style="font-size:0.76rem;color:var(--ink-muted);font-style:italic;">'
+             + '\uD83D\uDCE3 Pastoral leads will be notified when critical permissions are granted.</div>';
+          h += '</div></td></tr>';
+        }
       });
     });
 
@@ -3278,10 +3300,44 @@ const TheLife = (() => {
     var keys = key === 'none' ? [] : ((window._fpPermTemplates && window._fpPermTemplates[key]) || []);
     document.querySelectorAll('.fp-perm-sel').forEach(function(sel) {
       sel.value = keys.indexOf(sel.getAttribute('data-perm-key')) !== -1 ? 'grant' : 'none';
+      _onPermSelChange(sel);
     });
   }
 
+  function _onPermSelChange(sel) {
+    var keyId = sel.getAttribute('data-perm-key').replace(/\./g, '-');
+    var risk  = sel.getAttribute('data-risk');
+    var box   = document.getElementById('crit-box-' + keyId);
+    if (!box) return;
+    if (risk === 'critical' && sel.value === 'grant') {
+      box.style.display = '';
+    } else {
+      box.style.display = 'none';
+      var chk = document.getElementById('crit-chk-' + keyId);
+      var txt = document.getElementById('crit-txt-' + keyId);
+      if (chk) chk.checked = false;
+      if (txt) txt.value = '';
+    }
+  }
+
   async function savePermissions() {
+    // Block save if any critical permissions are pending confirmation
+    var critBlocked = false;
+    document.querySelectorAll('.fp-perm-sel').forEach(function(sel) {
+      if (sel.value === 'grant' && sel.getAttribute('data-risk') === 'critical') {
+        var keyId = sel.getAttribute('data-perm-key').replace(/\./g, '-');
+        var box = document.getElementById('crit-box-' + keyId);
+        if (box && box.style.display !== 'none') {
+          var chk = document.getElementById('crit-chk-' + keyId);
+          var txt = document.getElementById('crit-txt-' + keyId);
+          if (!chk || !chk.checked || !txt || txt.value.trim() !== 'Yes') critBlocked = true;
+        }
+      }
+    });
+    if (critBlocked) {
+      _toast('Please confirm all critical permissions before saving. Check the box and type \u201cYes\u201d for each.', 'warning');
+      return;
+    }
     var memberRec = _lookupMember(_fpMemberId);
     var targetEmail = memberRec.primaryEmail || memberRec.email ||
       (_fpMemberId && _fpMemberId.indexOf('@') !== -1 ? _fpMemberId : '');
@@ -3365,6 +3421,7 @@ const TheLife = (() => {
     _miniModal:         _miniModal,
     savePermissions:    savePermissions,
     _applyPermTemplate: _applyPermTemplate,
+    _onPermSelChange:   _onPermSelChange,
   };
 
 })();

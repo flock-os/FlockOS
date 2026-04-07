@@ -1078,8 +1078,8 @@ function _scheduleAutoRefresh(viewName) {
     if (typeof Modules !== 'undefined') {
       const el = document.getElementById('view-' + viewName);
       if (el) {
-        // Don't interrupt an active full-page editor (e.g. Add/Edit Member form)
-        if (el.querySelector('.fp-editor')) { _scheduleAutoRefresh(viewName); return; }
+        // Don't interrupt an active full-page editor or open modal
+        if (el.querySelector('.fp-editor') || document.querySelector('.modal-overlay.open')) { _scheduleAutoRefresh(viewName); return; }
         if (typeof TheVine !== 'undefined' && TheVine.cache) TheVine.cache.invalidate('tab:' + viewName);
         delete el.dataset.loaded;
         Modules.render(viewName, el, session);
@@ -1102,8 +1102,8 @@ document.addEventListener('visibilitychange', function() {
   if (typeof Modules !== 'undefined') {
     const el = document.getElementById('view-' + currentView);
     if (el) {
-      // Don't interrupt an active full-page editor (e.g. Add/Edit Member form)
-      if (el.querySelector('.fp-editor')) return;
+      // Don't interrupt an active full-page editor or open modal
+      if (el.querySelector('.fp-editor') || document.querySelector('.modal-overlay.open')) return;
       if (typeof TheVine !== 'undefined' && TheVine.cache) TheVine.cache.invalidate('tab:' + currentView);
       delete el.dataset.loaded;
       Modules.render(currentView, el, session);
