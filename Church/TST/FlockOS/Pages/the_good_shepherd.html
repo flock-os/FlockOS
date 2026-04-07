@@ -355,15 +355,15 @@
     /* ── Splash Screen ──────────────────────────────────────────────── */
     #splash {
       position: fixed; inset: 0; z-index: 9999;
-      background: #0a0e1a;
+      background: #ffffff;
       display: flex; flex-direction: column;
       align-items: center; justify-content: center;
       transition: opacity 0.6s ease;
     }
     #splash.fade-out { opacity: 0; pointer-events: none; }
     #splash .splash-bg {
-      max-width: 90%;
-      max-height: 60vh;
+      max-width: 96%;
+      max-height: 80vh;
       width: auto;
       height: auto;
       border-radius: 12px;
@@ -371,16 +371,16 @@
     #splash .splash-bar-track {
       margin-top: 32px;
       width: 300px; height: 14px;
-      background: rgba(255,255,255,0.15);
+      background: rgba(0,0,0,0.1);
       border-radius: 4px;
       overflow: hidden;
     }
     #splash .splash-bar-fill {
       height: 100%; width: 0;
-      background: linear-gradient(90deg, #3d0000, #8b0000 30%, #cc1a1a 50%, #8b0000 70%, #3d0000);
+      background: linear-gradient(90deg, #c47a0a, #e8a838 30%, #f5c26b 50%, #e8a838 70%, #c47a0a);
       background-size: 300% 100%;
       border-radius: 4px;
-      animation: splash-progress 9s ease-in-out forwards, blood-wash 2s ease-in-out infinite;
+      animation: splash-progress 9s ease-in-out forwards, splash-wash 2s ease-in-out infinite;
     }
     @keyframes splash-progress {
       0%   { width: 0; }
@@ -391,7 +391,7 @@
       90%  { width: 91%; }
       100% { width: 100%; }
     }
-    @keyframes blood-wash {
+    @keyframes splash-wash {
       0%   { background-position: 100% 0; }
       100% { background-position: -100% 0; }
     }
