@@ -322,7 +322,7 @@
 
 <!-- ═══ SPLASH SCREEN ═══ -->
 <div id="splash">
-  <img class="splash-bg" src="FlockOS/Images/FlockOS_Wide.jpeg" alt="The Forest">
+  <img id="church-hero-logo" class="splash-bg" src="FlockOS/Images/FlockOSLogoLarge.png" alt="The Forest">
   <div class="splash-bar-track"><div class="splash-bar-fill"></div></div>
 </div>
 
@@ -412,7 +412,7 @@
     <!-- Welcome Dashboard -->
     <div class="module-view active" id="view-dashboard">
       <div class="welcome-hero">
-        <img id="church-hero-logo" src="FlockOS/Images/FlockOSLogoLarge.png" alt="The Forest" style="max-height:80px;max-width:240px;margin-bottom:12px;object-fit:contain;">
+        <h1>FlockOS</h1>
         <div class="subtitle">"I am the vine; you are the branches."</div>
         <div class="verse">John 15:5</div>
 
@@ -642,7 +642,7 @@ window.addEventListener('scroll', function() {
 document.addEventListener('DOMContentLoaded', function() {
 Adornment.init();
 
-// ── Church logo: use CHURCH_LOGO from AppConfig (synced to localStorage by admin) ────
+// ── Splash logo: use CHURCH_LOGO from AppConfig (synced to localStorage by admin) ────
 (function() {
   var logo = localStorage.getItem('flock_church_logo');
   if (logo) {
