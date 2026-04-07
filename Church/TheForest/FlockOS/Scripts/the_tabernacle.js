@@ -9415,11 +9415,19 @@ const Modules = (() => {
         var entries = _riskGroups[lvl];
         if (!entries.length) return;
         var rm = _riskMeta[lvl];
-        ph += '<tr><td colspan="2" style="padding:14px 12px 6px;border-top:2px solid var(--line);">';
+        var headId = 'tab-grp-' + lvl;
+        ph += '<tr><td style="padding:14px 12px 6px;border-top:2px solid var(--line);">';
         ph += '<span style="display:inline-block;padding:3px 14px;border-radius:20px;font-size:0.72rem;font-weight:800;letter-spacing:0.07em;text-transform:uppercase;'
            + 'background:' + rm.bg + ';color:' + rm.color + ';border:1px solid ' + rm.color + '55;">'
            + _e(rm.label) + '</span>';
-        ph += '</td></tr>';
+        ph += '</td>';
+        ph += '<td style="text-align:center;padding:14px 12px 6px;border-top:2px solid var(--line);vertical-align:middle;">'
+           + '<input type="checkbox" id="' + headId + '" class="tab-grp-chk" data-risk-group="' + lvl + '"'
+           + ' onchange="Modules._tabOnGrpChkChange(this)"'
+           + ' style="width:18px;height:18px;accent-color:' + rm.color + ';cursor:pointer;"'
+           + ' title="Toggle all ' + rm.label + ' permissions">'
+           + '</td>';
+        ph += '</tr>';
         entries.forEach(function(e) {
           var item  = e.item;
           var group = e.group;
@@ -9598,6 +9606,10 @@ const Modules = (() => {
     html += '</div>';
 
     _body(el, html);
+
+    // Sync group header checkboxes to match the initial state of individual perm checkboxes
+    _syncAllGrpHeaders();
+    _syncCritConfirm();
 
     // Lazily populate the Spiritual Care History section (Lead Pastor / Seed Admin only).
     // Runs after the DOM renders so the profile page appears instantly.
@@ -16114,13 +16126,46 @@ const Modules = (() => {
     var keys = templateKey === 'none' ? [] : ((window._tabPermTemplates && window._tabPermTemplates[templateKey]) || []);
     document.querySelectorAll('.tab-perm-chk').forEach(function(chk) {
       chk.checked = keys.indexOf(chk.getAttribute('data-perm-key')) !== -1;
-      _tabOnPermChkChange(chk);
     });
+    _syncAllGrpHeaders();
+    _syncCritConfirm();
   }
 
+  /* ── Group header checkbox: toggle all child perms in that risk group ── */
+  function _tabOnGrpChkChange(grpChk) {
+    var lvl = grpChk.getAttribute('data-risk-group');
+    var isChecked = grpChk.checked;
+    document.querySelectorAll('.tab-perm-chk').forEach(function(c) {
+      if (c.getAttribute('data-risk') === lvl) c.checked = isChecked;
+    });
+    _syncCritConfirm();
+  }
+
+  /* ── Individual perm checkbox: sync parent group header + crit box ── */
   function _tabOnPermChkChange(chk) {
-    // Show/hide the single shared critical confirmation box based on whether
-    // any critical permission checkbox is currently checked
+    var lvl = chk.getAttribute('data-risk');
+    _syncGrpHeader(lvl);
+    _syncCritConfirm();
+  }
+
+  /* ── Sync one group header's checked/indeterminate state ── */
+  function _syncGrpHeader(lvl) {
+    var grpChk = document.getElementById('tab-grp-' + lvl);
+    if (!grpChk) return;
+    var children = document.querySelectorAll('.tab-perm-chk[data-risk="' + lvl + '"]');
+    var total = children.length, checked = 0;
+    children.forEach(function(c) { if (c.checked) checked++; });
+    grpChk.checked = (checked === total);
+    grpChk.indeterminate = (checked > 0 && checked < total);
+  }
+
+  /* ── Sync all group headers (after template application) ── */
+  function _syncAllGrpHeaders() {
+    ['low', 'medium', 'high', 'critical'].forEach(_syncGrpHeader);
+  }
+
+  /* ── Show/hide the critical-permission confirmation box ── */
+  function _syncCritConfirm() {
     var anyCritChecked = false;
     document.querySelectorAll('.tab-perm-chk').forEach(function(c) {
       if (c.getAttribute('data-risk') === 'critical' && c.checked) anyCritChecked = true;
@@ -18406,6 +18451,7 @@ const Modules = (() => {
     _euCreateCard,
     _applyPermTemplate,
     _tabOnPermChkChange,
+    _tabOnGrpChkChange,
     _savePerms,
     _grpOnChange,
     _grpSave,
