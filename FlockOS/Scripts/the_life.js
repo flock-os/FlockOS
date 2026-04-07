@@ -1986,6 +1986,8 @@ const TheLife = (() => {
               var ov   = (res && res.overrides) || [];
               var sec  = document.getElementById('fp-sec-mem-perms');
               if (sec) sec.innerHTML = _buildPermMatrix(ov, role);
+              _fpSyncAllGrpHeaders();
+              _fpSyncCritConfirm();
             })
             .catch(function() {
               var ph2 = document.getElementById('fp-perms-placeholder');
@@ -3243,56 +3245,56 @@ const TheLife = (() => {
       var entries = _riskGroups[lvl];
       if (!entries.length) return;
       var rm = _riskMeta[lvl];
-      h += '<tr><td colspan="2" style="padding:14px 12px 6px;border-top:2px solid var(--line);">';
+      var headId = 'fp-grp-' + lvl;
+      h += '<tr><td style="padding:14px 12px 6px;border-top:2px solid var(--line);">';
       h += '<span style="display:inline-block;padding:3px 14px;border-radius:20px;font-size:0.72rem;font-weight:800;letter-spacing:0.07em;text-transform:uppercase;'
          + 'background:' + rm.bg + ';color:' + rm.color + ';border:1px solid ' + rm.color + '55;">'
          + _e(rm.label) + '</span>';
-      h += '</td></tr>';
+      h += '</td>';
+      h += '<td style="text-align:center;padding:14px 12px 6px;border-top:2px solid var(--line);vertical-align:middle;">'
+         + '<input type="checkbox" id="' + headId + '" class="fp-grp-chk" data-risk-group="' + lvl + '"'
+         + ' onchange="TheLife._onGrpChkChange(this)"'
+         + ' style="width:18px;height:18px;accent-color:' + rm.color + ';cursor:pointer;"'
+         + ' title="Toggle all ' + rm.label + ' permissions">'
+         + '</td>';
+      h += '</tr>';
       entries.forEach(function(e) {
         var item  = e.item;
         var group = e.group;
         var val   = ovMap[item.key] || 'none';
         var selId = 'psel-' + item.key.replace(/\./g, '-');
-        var keyId = item.key.replace(/\./g, '-');
         h += '<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">';
         h += '<td style="padding:10px 12px;vertical-align:top;">';
         h += '<div style="font-weight:600;color:var(--ink);margin-bottom:2px;">' + _e(item.label) + '</div>';
         h += '<div style="font-size:0.77rem;color:var(--ink-muted);line-height:1.45;margin-bottom:2px;">' + _e(item.desc) + '</div>';
         h += '<div style="font-size:0.70rem;color:var(--ink-faint);font-style:italic;">' + _e(group) + '</div>';
         h += '</td>';
-        h += '<td style="text-align:center;padding:10px 12px;vertical-align:top;">';
-        h += '<select id="' + selId + '" class="fp-perm-sel" data-perm-key="' + _e(item.key) + '" data-risk="' + _e(item.risk || 'low') + '"'
-           + ' onchange="TheLife._onPermSelChange(this)"'
-           + ' style="background:var(--bg-raised);border:1px solid var(--line);border-radius:6px;padding:5px 8px;'
-           + 'cursor:pointer;font-family:inherit;font-size:0.82rem;font-weight:600;width:100%;color:var(--ink);">';
-        h += '<option value="none"'  + (val === 'none'  ? ' selected' : '') + '>None</option>';
-        h += '<option value="grant"' + (val === 'grant' ? ' selected' : '') + '>Grant</option>';
-        h += '<option value="deny"'  + (val === 'deny'  ? ' selected' : '') + '>Deny</option>';
-        h += '</select>';
+        h += '<td style="text-align:center;padding:10px 12px;vertical-align:middle;">';
+        h += '<input type="checkbox" id="' + selId + '" class="fp-perm-chk" data-perm-key="' + _e(item.key) + '" data-risk="' + _e(item.risk || 'low') + '"'
+           + (val === 'grant' ? ' checked' : '')
+           + ' onchange="TheLife._onPermChkChange(this)"'
+           + ' style="width:18px;height:18px;accent-color:var(--accent);cursor:pointer;">';
         h += '</td></tr>';
-        if (item.risk === 'critical') {
-          h += '<tr id="crit-box-' + keyId + '" style="display:none;">';
-          h += '<td colspan="2" style="padding:0 12px 14px;">';
-          h += '<div style="border:2px solid #dc2626;border-radius:10px;background:#dc262610;padding:14px 18px;margin-top:2px;">';
-          h += '<div style="font-weight:800;color:#dc2626;font-size:0.8rem;letter-spacing:0.06em;margin-bottom:10px;">'
-             + '\uD83D\uDD34 CRITICAL PERMISSION \u2014 CONFIRMATION REQUIRED</div>';
-          h += '<label style="display:flex;align-items:flex-start;gap:10px;margin-bottom:10px;cursor:pointer;">';
-          h += '<input type="checkbox" id="crit-chk-' + keyId + '" style="margin-top:2px;accent-color:#dc2626;">';
-          h += '<span style="font-size:0.84rem;color:var(--ink);">I understand this grants critical-level system access to this person</span>';
-          h += '</label>';
-          h += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">';
-          h += '<input type="text" id="crit-txt-' + keyId + '" placeholder="Type Yes to confirm"'
-             + ' style="border:1px solid #dc262666;border-radius:6px;padding:6px 12px;font-size:0.84rem;'
-             + 'background:var(--bg);color:var(--ink);font-family:inherit;width:200px;">';
-          h += '</div>';
-          h += '<div style="font-size:0.76rem;color:var(--ink-muted);font-style:italic;">'
-             + '\uD83D\uDCE3 Pastoral leads will be notified when critical permissions are granted.</div>';
-          h += '</div></td></tr>';
-        }
       });
     });
 
     h += '</tbody></table>';
+
+    // Single shared critical-permission confirmation box
+    h += '<div id="fp-crit-confirm" style="display:none;border:2px solid #dc2626;border-radius:10px;background:#dc262610;padding:16px 18px;margin:16px 0;">'
+       + '<div style="font-weight:800;color:#dc2626;font-size:0.8rem;letter-spacing:0.06em;margin-bottom:10px;">'
+       + '\uD83D\uDD34 CRITICAL PERMISSION \u2014 CONFIRMATION REQUIRED</div>'
+       + '<p style="font-size:0.84rem;color:var(--ink);margin:0 0 12px;">One or more critical permissions are selected. Please confirm before saving.</p>'
+       + '<label style="display:flex;align-items:flex-start;gap:10px;margin-bottom:12px;cursor:pointer;">'
+       + '<input type="checkbox" id="fp-crit-chk" style="margin-top:2px;accent-color:#dc2626;">'
+       + '<span style="font-size:0.84rem;color:var(--ink);">I understand this grants critical-level system access to this person</span>'
+       + '</label>'
+       + '<input type="text" id="fp-crit-txt" placeholder="Type Yes to confirm"'
+       + ' style="border:1px solid #dc262666;border-radius:6px;padding:6px 12px;font-size:0.84rem;'
+       + 'background:var(--bg);color:var(--ink);font-family:inherit;width:200px;">'
+       + '<div style="font-size:0.76rem;color:var(--ink-muted);font-style:italic;margin-top:10px;">'
+       + '\uD83D\uDCE3 Pastoral leads will be notified when critical permissions are granted.</div>'
+       + '</div>';
 
     // ── Save button ──
     h += '<div style="margin-top:18px;display:flex;align-items:center;gap:12px;">';
@@ -3306,45 +3308,77 @@ const TheLife = (() => {
   function _applyPermTemplate(templateKey) {
     var key = templateKey || '';
     var keys = key === 'none' ? [] : ((window._fpPermTemplates && window._fpPermTemplates[key]) || []);
-    document.querySelectorAll('.fp-perm-sel').forEach(function(sel) {
-      sel.value = keys.indexOf(sel.getAttribute('data-perm-key')) !== -1 ? 'grant' : 'none';
-      _onPermSelChange(sel);
+    document.querySelectorAll('.fp-perm-chk').forEach(function(chk) {
+      chk.checked = keys.indexOf(chk.getAttribute('data-perm-key')) !== -1;
     });
+    _fpSyncAllGrpHeaders();
+    _fpSyncCritConfirm();
   }
 
-  function _onPermSelChange(sel) {
-    var keyId = sel.getAttribute('data-perm-key').replace(/\./g, '-');
-    var risk  = sel.getAttribute('data-risk');
-    var box   = document.getElementById('crit-box-' + keyId);
-    if (!box) return;
-    if (risk === 'critical' && sel.value === 'grant') {
-      box.style.display = '';
-    } else {
-      box.style.display = 'none';
-      var chk = document.getElementById('crit-chk-' + keyId);
-      var txt = document.getElementById('crit-txt-' + keyId);
-      if (chk) chk.checked = false;
-      if (txt) txt.value = '';
+  /* ── Group header checkbox: toggle all child perms in that risk group ── */
+  function _onGrpChkChange(grpChk) {
+    var lvl = grpChk.getAttribute('data-risk-group');
+    var isChecked = grpChk.checked;
+    document.querySelectorAll('.fp-perm-chk').forEach(function(c) {
+      if (c.getAttribute('data-risk') === lvl) c.checked = isChecked;
+    });
+    _fpSyncCritConfirm();
+  }
+
+  /* ── Individual perm checkbox: sync parent group header + crit box ── */
+  function _onPermChkChange(chk) {
+    var lvl = chk.getAttribute('data-risk');
+    _fpSyncGrpHeader(lvl);
+    _fpSyncCritConfirm();
+  }
+
+  function _fpSyncGrpHeader(lvl) {
+    var grpChk = document.getElementById('fp-grp-' + lvl);
+    if (!grpChk) return;
+    var children = document.querySelectorAll('.fp-perm-chk[data-risk="' + lvl + '"]');
+    var total = children.length, checked = 0;
+    children.forEach(function(c) { if (c.checked) checked++; });
+    grpChk.checked = (checked === total);
+    grpChk.indeterminate = (checked > 0 && checked < total);
+  }
+
+  function _fpSyncAllGrpHeaders() {
+    ['low', 'medium', 'high', 'critical'].forEach(_fpSyncGrpHeader);
+  }
+
+  function _fpSyncCritConfirm() {
+    var anyCritChecked = false;
+    document.querySelectorAll('.fp-perm-chk').forEach(function(c) {
+      if (c.getAttribute('data-risk') === 'critical' && c.checked) anyCritChecked = true;
+    });
+    var box = document.getElementById('fp-crit-confirm');
+    if (box) {
+      box.style.display = anyCritChecked ? '' : 'none';
+      if (!anyCritChecked) {
+        var ck  = document.getElementById('fp-crit-chk');
+        var txt = document.getElementById('fp-crit-txt');
+        if (ck)  ck.checked = false;
+        if (txt) txt.value  = '';
+      }
     }
   }
 
+  function _onPermSelChange(sel) {
+    // Legacy stub — no longer used, kept for safety
+  }
+
   async function savePermissions() {
-    // Block save if any critical permissions are pending confirmation
-    var critBlocked = false;
-    document.querySelectorAll('.fp-perm-sel').forEach(function(sel) {
-      if (sel.value === 'grant' && sel.getAttribute('data-risk') === 'critical') {
-        var keyId = sel.getAttribute('data-perm-key').replace(/\./g, '-');
-        var box = document.getElementById('crit-box-' + keyId);
-        if (box && box.style.display !== 'none') {
-          var chk = document.getElementById('crit-chk-' + keyId);
-          var txt = document.getElementById('crit-txt-' + keyId);
-          if (!chk || !chk.checked || !txt || txt.value.trim() !== 'Yes') critBlocked = true;
-        }
+    var hasCritChecked = Array.from(document.querySelectorAll('.fp-perm-chk'))
+      .some(function(c) { return c.checked && c.getAttribute('data-risk') === 'critical'; });
+    if (hasCritChecked) {
+      var critChk = document.getElementById('fp-crit-chk');
+      var critTxt = document.getElementById('fp-crit-txt');
+      if (!critChk || !critChk.checked || !critTxt || critTxt.value.trim() !== 'Yes') {
+        _toast('Please confirm critical permissions: check the box and type \u201cYes\u201d before saving.', 'warning');
+        var critBox = document.getElementById('fp-crit-confirm');
+        if (critBox) critBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
       }
-    });
-    if (critBlocked) {
-      _toast('Please confirm all critical permissions before saving. Check the box and type \u201cYes\u201d for each.', 'warning');
-      return;
     }
     var memberRec = _lookupMember(_fpMemberId);
     var targetEmail = memberRec.primaryEmail || memberRec.email ||
@@ -3353,16 +3387,14 @@ const TheLife = (() => {
       _toast('Cannot save permissions: this member has no email address.', 'error');
       return;
     }
-    var grants = [], denies = [];
-    document.querySelectorAll('.fp-perm-sel').forEach(function(sel) {
-      var v = sel.value, k = sel.getAttribute('data-perm-key');
-      if (v === 'grant') grants.push(k);
-      else if (v === 'deny') denies.push(k);
+    var grants = [];
+    document.querySelectorAll('.fp-perm-chk').forEach(function(chk) {
+      if (chk.checked) grants.push(chk.getAttribute('data-perm-key'));
     });
     var st = document.getElementById('fp-perm-status');
     if (st) st.textContent = 'Saving…';
     try {
-      await TheVine.flock.permissions.setAll({ targetEmail: targetEmail, grants: grants, denies: denies });
+      await TheVine.flock.permissions.setAll({ targetEmail: targetEmail, grants: grants, denies: [] });
       if (st) st.textContent = '\u2713 Saved';
       _toast('Permissions saved.', 'success');
       setTimeout(function() { backToHub(); }, 600);
@@ -3430,6 +3462,8 @@ const TheLife = (() => {
     savePermissions:    savePermissions,
     _applyPermTemplate: _applyPermTemplate,
     _onPermSelChange:   _onPermSelChange,
+    _onPermChkChange:   _onPermChkChange,
+    _onGrpChkChange:    _onGrpChkChange,
   };
 
 })();

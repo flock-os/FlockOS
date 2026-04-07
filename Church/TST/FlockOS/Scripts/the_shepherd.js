@@ -808,57 +808,59 @@ const TheShepherd = (() => {
         var entries = _riskGroups[lvl];
         if (!entries.length) return;
         var rm = _riskMeta[lvl];
-        ph += '<tr><td colspan="2" style="padding:14px 12px 6px;border-top:2px solid var(--line);">';
+        var headId = 'shep-grp-' + lvl;
+        ph += '<tr><td style="padding:14px 12px 6px;border-top:2px solid var(--line);">';
         ph += '<span style="display:inline-block;padding:3px 14px;border-radius:20px;font-size:0.72rem;font-weight:800;letter-spacing:0.07em;text-transform:uppercase;'
            + 'background:' + rm.bg + ';color:' + rm.color + ';border:1px solid ' + rm.color + '55;">'
            + _e(rm.label) + '</span>';
-        ph += '</td></tr>';
+        ph += '</td>';
+        ph += '<td style="text-align:center;padding:14px 12px 6px;border-top:2px solid var(--line);vertical-align:middle;">'
+           + '<input type="checkbox" id="' + headId + '" class="shep-grp-chk" data-risk-group="' + lvl + '"'
+           + ' onchange="TheShepherd._onGrpChkChange(this)"'
+           + ' style="width:18px;height:18px;accent-color:' + rm.color + ';cursor:pointer;"'
+           + ' title="Toggle all ' + rm.label + ' permissions">'
+           + '</td>';
+        ph += '</tr>';
         entries.forEach(function(e) {
           var item  = e.item;
           var group = e.group;
           var val   = ovMap[item.key] || 'none';
           var selId = 'spsel-' + item.key.replace(/\./g, '-');
-          var keyId = 'sp-' + item.key.replace(/\./g, '-');
           ph += '<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">';
           ph += '<td style="padding:10px 12px;vertical-align:top;">'
              + '<div style="font-weight:600;color:var(--ink);margin-bottom:2px;">' + _e(item.label) + '</div>'
              + '<div style="font-size:0.77rem;color:var(--ink-muted);line-height:1.45;margin-bottom:2px;">' + _e(item.desc) + '</div>'
              + '<div style="font-size:0.70rem;color:var(--ink-faint);font-style:italic;">' + _e(group) + '</div>'
              + '</td>';
-          ph += '<td style="text-align:center;padding:10px 12px;vertical-align:top;">'
-             + '<select id="' + selId + '" class="shep-perm-sel" data-perm-key="' + _e(item.key) + '" data-risk="' + _e(item.risk || 'low') + '"'
-             + ' onchange="TheShepherd._onPermSelChange(this)"'
-             + ' style="background:var(--bg-raised);border:1px solid var(--line);border-radius:6px;padding:5px 8px;'
-             + 'cursor:pointer;font-family:inherit;font-size:0.82rem;font-weight:600;width:100%;color:var(--ink);">'
-             + '<option value="none"'  + (val === 'none'  ? ' selected' : '') + '>None</option>'
-             + '<option value="grant"' + (val === 'grant' ? ' selected' : '') + '>Grant</option>'
-             + '<option value="deny"'  + (val === 'deny'  ? ' selected' : '') + '>Deny</option>'
-             + '</select></td>';
+          ph += '<td style="text-align:center;padding:10px 12px;vertical-align:middle;">'
+             + '<input type="checkbox" id="' + selId + '" class="shep-perm-chk" data-perm-key="' + _e(item.key) + '" data-risk="' + _e(item.risk || 'low') + '"'
+             + (val === 'grant' ? ' checked' : '')
+             + ' onchange="TheShepherd._onPermChkChange(this)"'
+             + ' style="width:18px;height:18px;accent-color:var(--accent);cursor:pointer;">'
+             + '</td>';
           ph += '</tr>';
-          if (item.risk === 'critical') {
-            ph += '<tr id="crit-box-' + keyId + '" style="display:none;">';
-            ph += '<td colspan="2" style="padding:0 12px 14px;">';
-            ph += '<div style="border:2px solid #dc2626;border-radius:10px;background:#dc262610;padding:14px 18px;margin-top:2px;">';
-            ph += '<div style="font-weight:800;color:#dc2626;font-size:0.8rem;letter-spacing:0.06em;margin-bottom:10px;">'
-               + '\uD83D\uDD34 CRITICAL PERMISSION \u2014 CONFIRMATION REQUIRED</div>';
-            ph += '<label style="display:flex;align-items:flex-start;gap:10px;margin-bottom:10px;cursor:pointer;">';
-            ph += '<input type="checkbox" id="crit-chk-' + keyId + '" style="margin-top:2px;accent-color:#dc2626;">';
-            ph += '<span style="font-size:0.84rem;color:var(--ink);">I understand this grants critical-level system access to this person</span>';
-            ph += '</label>';
-            ph += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">';
-            ph += '<input type="text" id="crit-txt-' + keyId + '" placeholder="Type Yes to confirm"'
-               + ' style="border:1px solid #dc262666;border-radius:6px;padding:6px 12px;font-size:0.84rem;'
-               + 'background:var(--bg);color:var(--ink);font-family:inherit;width:200px;">';
-            ph += '</div>';
-            ph += '<div style="font-size:0.76rem;color:var(--ink-muted);font-style:italic;">'
-               + '\uD83D\uDCE3 Pastoral leads will be notified when critical permissions are granted.</div>';
-            ph += '</div></td></tr>';
-          }
         });
       });
 
       ph += '</tbody></table>';
-      ph += '<div style="margin-top:18px;display:flex;align-items:center;gap:12px;">';
+
+      // Single shared critical-permission confirmation box
+      ph += '<div id="shep-crit-confirm" style="display:none;border:2px solid #dc2626;border-radius:10px;background:#dc262610;padding:16px 18px;margin:16px 0;">'
+         + '<div style="font-weight:800;color:#dc2626;font-size:0.8rem;letter-spacing:0.06em;margin-bottom:10px;">'
+         + '\uD83D\uDD34 CRITICAL PERMISSION \u2014 CONFIRMATION REQUIRED</div>'
+         + '<p style="font-size:0.84rem;color:var(--ink);margin:0 0 12px;">One or more critical permissions are selected. Please confirm before saving.</p>'
+         + '<label style="display:flex;align-items:flex-start;gap:10px;margin-bottom:12px;cursor:pointer;">'
+         + '<input type="checkbox" id="shep-crit-chk" style="margin-top:2px;accent-color:#dc2626;">'
+         + '<span style="font-size:0.84rem;color:var(--ink);">I understand this grants critical-level system access to this person</span>'
+         + '</label>'
+         + '<input type="text" id="shep-crit-txt" placeholder="Type Yes to confirm"'
+         + ' style="border:1px solid #dc262666;border-radius:6px;padding:6px 12px;font-size:0.84rem;'
+         + 'background:var(--bg);color:var(--ink);font-family:inherit;width:200px;">'
+         + '<div style="font-size:0.76rem;color:var(--ink-muted);font-style:italic;margin-top:10px;">'
+         + '\uD83D\uDCE3 Pastoral leads will be notified when critical permissions are granted.</div>'
+         + '</div>';
+
+      ph += '<div style="margin-top:14px;display:flex;align-items:center;gap:12px;">';
       ph += '<button type="button" onclick="TheShepherd._savePerms(\'' + eid + '\')" style="background:var(--accent);color:var(--ink-inverse);border:none;border-radius:6px;padding:9px 22px;cursor:pointer;font-weight:700;font-size:0.86rem;font-family:inherit;">Save Permissions</button>';
       ph += '<span id="shep-perm-status" style="font-size:0.82rem;color:var(--ink-muted);"></span>';
       ph += '</div>';
@@ -1018,58 +1020,83 @@ const TheShepherd = (() => {
   // ── Permission helpers ──────────────────────────────────────────────────
   function _applyPermTemplate(templateKey) {
     var keys = templateKey === 'none' ? [] : ((window._shepPermTemplates && window._shepPermTemplates[templateKey]) || []);
-    document.querySelectorAll('.shep-perm-sel').forEach(function(sel) {
-      sel.value = keys.indexOf(sel.getAttribute('data-perm-key')) !== -1 ? 'grant' : 'none';
-      _onPermSelChange(sel);
+    document.querySelectorAll('.shep-perm-chk').forEach(function(chk) {
+      chk.checked = keys.indexOf(chk.getAttribute('data-perm-key')) !== -1;
     });
+    _syncAllGrpHeaders();
+    _syncCritConfirm();
   }
 
-  function _onPermSelChange(sel) {
-    var keyId = 'sp-' + sel.getAttribute('data-perm-key').replace(/\./g, '-');
-    var risk  = sel.getAttribute('data-risk');
-    var box   = document.getElementById('crit-box-' + keyId);
-    if (!box) return;
-    if (risk === 'critical' && sel.value === 'grant') {
-      box.style.display = '';
-    } else {
-      box.style.display = 'none';
-      var chk = document.getElementById('crit-chk-' + keyId);
-      var txt = document.getElementById('crit-txt-' + keyId);
-      if (chk) chk.checked = false;
-      if (txt) txt.value = '';
+  /* ── Group header checkbox: toggle all child perms in that risk group ── */
+  function _onGrpChkChange(grpChk) {
+    var lvl = grpChk.getAttribute('data-risk-group');
+    var isChecked = grpChk.checked;
+    document.querySelectorAll('.shep-perm-chk').forEach(function(c) {
+      if (c.getAttribute('data-risk') === lvl) c.checked = isChecked;
+    });
+    _syncCritConfirm();
+  }
+
+  /* ── Individual perm checkbox: sync parent group header + crit box ── */
+  function _onPermChkChange(chk) {
+    var lvl = chk.getAttribute('data-risk');
+    _syncGrpHeader(lvl);
+    _syncCritConfirm();
+  }
+
+  function _syncGrpHeader(lvl) {
+    var grpChk = document.getElementById('shep-grp-' + lvl);
+    if (!grpChk) return;
+    var children = document.querySelectorAll('.shep-perm-chk[data-risk="' + lvl + '"]');
+    var total = children.length, checked = 0;
+    children.forEach(function(c) { if (c.checked) checked++; });
+    grpChk.checked = (checked === total);
+    grpChk.indeterminate = (checked > 0 && checked < total);
+  }
+
+  function _syncAllGrpHeaders() {
+    ['low', 'medium', 'high', 'critical'].forEach(_syncGrpHeader);
+  }
+
+  function _syncCritConfirm() {
+    var anyCritChecked = false;
+    document.querySelectorAll('.shep-perm-chk').forEach(function(c) {
+      if (c.getAttribute('data-risk') === 'critical' && c.checked) anyCritChecked = true;
+    });
+    var box = document.getElementById('shep-crit-confirm');
+    if (box) {
+      box.style.display = anyCritChecked ? '' : 'none';
+      if (!anyCritChecked) {
+        var ck  = document.getElementById('shep-crit-chk');
+        var txt = document.getElementById('shep-crit-txt');
+        if (ck)  ck.checked = false;
+        if (txt) txt.value  = '';
+      }
     }
   }
 
   async function _savePerms(targetEmail) {
-    // Block save if any critical permissions are pending confirmation
-    var critBlocked = false;
-    document.querySelectorAll('.shep-perm-sel').forEach(function(sel) {
-      if (sel.value === 'grant' && sel.getAttribute('data-risk') === 'critical') {
-        var keyId = 'sp-' + sel.getAttribute('data-perm-key').replace(/\./g, '-');
-        var box = document.getElementById('crit-box-' + keyId);
-        if (box && box.style.display !== 'none') {
-          var chk = document.getElementById('crit-chk-' + keyId);
-          var txt = document.getElementById('crit-txt-' + keyId);
-          if (!chk || !chk.checked || !txt || txt.value.trim() !== 'Yes') critBlocked = true;
-        }
+    var hasCritChecked = Array.from(document.querySelectorAll('.shep-perm-chk'))
+      .some(function(c) { return c.checked && c.getAttribute('data-risk') === 'critical'; });
+    if (hasCritChecked) {
+      var critChk = document.getElementById('shep-crit-chk');
+      var critTxt = document.getElementById('shep-crit-txt');
+      if (!critChk || !critChk.checked || !critTxt || critTxt.value.trim() !== 'Yes') {
+        if (typeof _toast === 'function') _toast('Please confirm critical permissions: check the box and type \u201cYes\u201d before saving.', 'warning');
+        else alert('Please confirm all critical permissions before saving.');
+        var critBox = document.getElementById('shep-crit-confirm');
+        if (critBox) critBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
       }
-    });
-    if (critBlocked) {
-      if (typeof _toast === 'function') _toast('Please confirm all critical permissions before saving. Check the box and type \u201cYes\u201d for each.', 'warning');
-      else alert('Please confirm all critical permissions before saving.');
-      return;
     }
     var st = document.getElementById('shep-perm-status');
     if (st) st.textContent = 'Saving\u2026';
-    var grants = [], denies = [];
-    document.querySelectorAll('.shep-perm-sel').forEach(function(sel) {
-      var key = sel.getAttribute('data-perm-key');
-      var val = sel.value;
-      if (val === 'grant') grants.push(key);
-      else if (val === 'deny') denies.push(key);
+    var grants = [];
+    document.querySelectorAll('.shep-perm-chk').forEach(function(chk) {
+      if (chk.checked) grants.push(chk.getAttribute('data-perm-key'));
     });
     try {
-      await TheVine.flock.call('permissions.setAll', { targetEmail: targetEmail, grants: grants, denies: denies });
+      await TheVine.flock.call('permissions.setAll', { targetEmail: targetEmail, grants: grants, denies: [] });
       if (st) { st.textContent = '\u2713 Saved'; setTimeout(function() { if (st) st.textContent = ''; }, 2000); }
     } catch (e) {
       if (st) st.textContent = 'Error: ' + (e.message || e);
@@ -1174,7 +1201,8 @@ const TheShepherd = (() => {
     _createMember: _createMember,
     _createCard:   _createCard,
     _applyPermTemplate: _applyPermTemplate,
-    _onPermSelChange:   _onPermSelChange,
+    _onPermChkChange:   _onPermChkChange,
+    _onGrpChkChange:    _onGrpChkChange,
     _savePerms:         _savePerms,
     _resetPasscode: _resetPasscode,
     _createUserAccount: _createUserAccount,
