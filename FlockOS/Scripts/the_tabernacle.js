@@ -9391,30 +9391,43 @@ const Modules = (() => {
          + 'cursor:pointer;color:var(--ink-muted);font-size:0.82rem;font-family:inherit;">Clear All</button>';
       ph += '</div></div>';
 
-      // Matrix table
+      // Matrix table — grouped by access level
       ph += '<table style="width:100%;border-collapse:collapse;font-size:0.83rem;">';
       ph += '<thead><tr style="border-bottom:2px solid var(--line);">';
       ph += '<th style="text-align:left;padding:8px 12px;color:var(--ink-muted);font-weight:600;font-size:0.78rem;text-transform:uppercase;letter-spacing:0.04em;">Permission</th>';
-      ph += '<th style="text-align:left;padding:8px 12px;color:var(--ink-muted);font-weight:600;font-size:0.78rem;text-transform:uppercase;letter-spacing:0.04em;">Risk</th>';
       ph += '<th style="text-align:center;padding:8px 12px;color:var(--ink-muted);font-weight:600;font-size:0.78rem;text-transform:uppercase;letter-spacing:0.04em;width:120px;">Access</th>';
       ph += '</tr></thead><tbody>';
 
+      // Flatten PERM_ROWS into risk buckets: low → medium → high → critical
+      var _riskGroups = { low: [], medium: [], high: [], critical: [] };
       PERM_ROWS.forEach(function(section) {
-        ph += '<tr><td colspan="3" style="padding:12px 12px 5px;font-weight:700;font-size:0.72rem;color:var(--gold,#d4a843);text-transform:uppercase;letter-spacing:0.06em;border-top:2px solid var(--line);">' + _e(section.group) + '</td></tr>';
         section.items.forEach(function(item) {
+          var lvl = item.risk || 'low';
+          if (_riskGroups[lvl]) _riskGroups[lvl].push({ item: item, group: section.group });
+        });
+      });
+
+      ['low', 'medium', 'high', 'critical'].forEach(function(lvl) {
+        var entries = _riskGroups[lvl];
+        if (!entries.length) return;
+        var rm = _riskMeta[lvl];
+        ph += '<tr><td colspan="2" style="padding:14px 12px 6px;border-top:2px solid var(--line);">';
+        ph += '<span style="display:inline-block;padding:3px 14px;border-radius:20px;font-size:0.72rem;font-weight:800;letter-spacing:0.07em;text-transform:uppercase;'
+           + 'background:' + rm.bg + ';color:' + rm.color + ';border:1px solid ' + rm.color + '55;">'
+           + _e(rm.label) + '</span>';
+        ph += '</td></tr>';
+        entries.forEach(function(e) {
+          var item  = e.item;
+          var group = e.group;
           var val   = ovMap[item.key] || 'none';
-          var rm    = _riskMeta[item.risk] || _riskMeta.low;
           var selId = 'tabsel-' + item.key.replace(/\./g, '-');
           var keyId = 'tab-' + item.key.replace(/\./g, '-');
           ph += '<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">';
           ph += '<td style="padding:10px 12px;vertical-align:top;">'
-             + '<div style="font-weight:600;color:var(--ink);margin-bottom:3px;">' + _e(item.label) + '</div>'
-             + '<div style="font-size:0.77rem;color:var(--ink-muted);line-height:1.45;">' + _e(item.desc) + '</div>'
+             + '<div style="font-weight:600;color:var(--ink);margin-bottom:2px;">' + _e(item.label) + '</div>'
+             + '<div style="font-size:0.77rem;color:var(--ink-muted);line-height:1.45;margin-bottom:2px;">' + _e(item.desc) + '</div>'
+             + '<div style="font-size:0.70rem;color:var(--ink-faint);font-style:italic;">' + _e(group) + '</div>'
              + '</td>';
-          ph += '<td style="padding:10px 12px;vertical-align:top;white-space:nowrap;">'
-             + '<span style="display:inline-block;padding:2px 9px;border-radius:20px;font-size:0.72rem;font-weight:700;letter-spacing:0.03em;'
-             + 'background:' + rm.bg + ';color:' + rm.color + ';border:1px solid ' + rm.color + '44;">'
-             + _e(rm.label) + '</span></td>';
           ph += '<td style="text-align:center;padding:10px 12px;vertical-align:top;">'
              + '<select id="' + selId + '" class="tab-perm-sel" data-perm-key="' + _e(item.key) + '" data-risk="' + _e(item.risk || 'low') + '"'
              + ' onchange="Modules._tabOnPermSelChange(this)"'
@@ -9425,10 +9438,9 @@ const Modules = (() => {
              + '<option value="deny"'  + (val === 'deny'  ? ' selected' : '') + '>Deny</option>'
              + '</select></td>';
           ph += '</tr>';
-          // Critical confirmation box (hidden until user selects Grant)
           if (item.risk === 'critical') {
             ph += '<tr id="crit-box-' + keyId + '" style="display:none;">';
-            ph += '<td colspan="3" style="padding:0 12px 14px;">';
+            ph += '<td colspan="2" style="padding:0 12px 14px;">';
             ph += '<div style="border:2px solid #dc2626;border-radius:10px;background:#dc262610;padding:14px 18px;margin-top:2px;">';
             ph += '<div style="font-weight:800;color:#dc2626;font-size:0.8rem;letter-spacing:0.06em;margin-bottom:10px;">'
                + '\uD83D\uDD34 CRITICAL PERMISSION \u2014 CONFIRMATION REQUIRED</div>';

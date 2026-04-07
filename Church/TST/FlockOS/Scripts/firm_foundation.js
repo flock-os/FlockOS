@@ -237,6 +237,8 @@ const Nehemiah = (() => {
     if (!session) return false;
     // Seed admin and Lead Pastor always have full access — they can see everything
     if (session.isSeed) return true;
+    // Admin role (level 5) always has full access — group assignment is a notification profile only
+    if ((session.roleLevel || 0) >= 5) return true;
     const profile = getProfile();
     if (profile && profile.groups) {
       const groups = String(profile.groups).split(',').map(g => g.trim().toLowerCase());
@@ -263,6 +265,8 @@ const Nehemiah = (() => {
     if (!session) return false;
     // Seed admin and Lead Pastor always have full access — they cannot be locked out
     if (session.isSeed) return true;
+    // Admin role (level 5) always has full access — group assignment is a notification profile only
+    if ((session.roleLevel || 0) >= 5) return true;
     const profile = getProfile();
     if (profile && profile.groups) {
       const groups = String(profile.groups).split(',').map(g => g.trim().toLowerCase());
