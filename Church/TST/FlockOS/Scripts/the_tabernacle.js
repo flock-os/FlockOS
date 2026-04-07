@@ -7323,65 +7323,70 @@ const Modules = (() => {
 
   // ── Prayer focus card ───────────────────────────────────────────────────
   function _prayerCard(r) {
-    const priColor = { Urgent: 'var(--danger)', High: '#f59e0b', Normal: 'var(--accent)' };
-    const c = priColor[r.priority || r.Priority] || 'var(--accent)';
+    const priMeta = {
+      Urgent: { color: '#ef4444', bg: 'rgba(239,68,68,0.08)', border: 'rgba(239,68,68,0.3)',  icon: '🚨', label: 'Urgent' },
+      High:   { color: '#f59e0b', bg: 'rgba(245,158,11,0.08)', border: 'rgba(245,158,11,0.3)', icon: '🔴', label: 'High' },
+      Normal: { color: 'var(--accent)', bg: 'rgba(126,170,204,0.06)', border: 'rgba(126,170,204,0.25)', icon: '🙏', label: 'Normal' },
+    };
+    const pri = priMeta[r.priority || r.Priority] || priMeta.Normal;
     const uid = 'pfc-' + _e(r.id || Math.random().toString(36).slice(2));
     const toggleFn = 'var b=document.getElementById(\'' + uid + '\');'
       + 'var ch=document.getElementById(\'' + uid + '-ch\');'
       + 'var open=b.classList.toggle(\'dev-feed-open\');'
       + 'if(ch)ch.style.transform=open?\'rotate(180deg)\':\'\';';
-    // prayerPoints may be stored as newline-joined string or array
     const pts = Array.isArray(r.prayerPoints)
       ? r.prayerPoints
       : (r.prayerPoints ? String(r.prayerPoints).split('\n').filter(Boolean) : []);
-    return '<div class="dev-feed-card" style="border-left-color:' + c + ';border-radius:8px;overflow:hidden;margin-bottom:0;">'
-      // ── Collapsed header (always visible) ──
-      + '<div class="dev-feed-header" onclick="' + toggleFn + '" style="cursor:pointer;" onmouseover="this.style.background=\'var(--bg-sunken)\'" onmouseout="this.style.background=\'transparent\'">'
-      + '<div style="display:flex;align-items:center;gap:10px;min-width:0;flex:1;">'
-      + '<span style="font-size:1.15rem;flex-shrink:0;">🙏</span>'
-      + '<div class="dev-feed-info">'
-      + '<div class="dev-feed-title">' + _e(r.title || r.Title || '') + '</div>'
-      + ((r.country || r.countryId || r.peopleGroup) ? '<div class="dev-feed-meta">'
-          + (r.country || r.countryId ? '<span style="color:var(--ink-muted);font-size:0.82rem;">📍 ' + _e(r.country || r.countryId) + '</span> ' : '')
-          + (r.peopleGroup ? '<span style="color:var(--ink-muted);font-size:0.82rem;">👥 ' + _e(r.peopleGroup) + '</span>' : '')
-          + '</div>' : '')
+    const canEdit = typeof Nehemiah !== 'undefined' && Nehemiah.can('missions.prayer.edit');
+    return '<div style="background:var(--bg-raised);border:1px solid ' + pri.border + ';border-left:4px solid ' + pri.color + ';border-radius:12px;overflow:hidden;">'
+      // ── Header ──
+      + '<div onclick="' + toggleFn + '" style="display:flex;align-items:center;gap:12px;padding:16px 18px;cursor:pointer;" onmouseover="this.style.background=\'var(--bg-sunken)\'" onmouseout="this.style.background=\'transparent\'">'
+      + '<div style="width:40px;height:40px;border-radius:10px;background:' + pri.bg + ';display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;">' + pri.icon + '</div>'
+      + '<div style="flex:1;min-width:0;">'
+      + '<div style="font-weight:700;font-size:0.95rem;color:var(--ink);margin-bottom:3px;">' + _e(r.title || r.Title || '') + '</div>'
+      + '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">'
+      + (r.country || r.countryId ? '<span style="font-size:0.8rem;color:var(--ink-muted);">📍 ' + _e(r.country || r.countryId) + '</span>' : '')
+      + (r.peopleGroup ? '<span style="font-size:0.8rem;color:var(--ink-muted);">👥 ' + _e(r.peopleGroup) + '</span>' : '')
+      + '<span style="font-size:0.75rem;padding:2px 8px;border-radius:10px;background:' + pri.bg + ';color:' + pri.color + ';font-weight:600;border:1px solid ' + pri.border + ';">' + pri.label + '</span>'
+      + (r.responsesCount ? '<span style="font-size:0.78rem;color:var(--ink-muted);">🙏 ' + _e(String(r.responsesCount)) + ' praying</span>' : '')
       + '</div>'
       + '</div>'
       + '<div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">'
-      + _persLevel(r.priority || r.Priority)
+      + (canEdit ? '<button onclick="event.stopPropagation();Modules.editPrayerFocus(\'' + _e(r.id || '') + '\')" style="background:transparent;border:1px solid var(--line);border-radius:6px;padding:5px 10px;font-size:0.78rem;color:var(--ink-muted);cursor:pointer;" title="Edit">✏️</button>' : '')
       + '<span id="' + uid + '-ch" style="font-size:0.65rem;color:var(--ink-muted);transition:transform 0.2s;display:inline-block;">&#9660;</span>'
       + '</div>'
       + '</div>'
       // ── Expandable body ──
-      + '<div class="dev-feed-body" id="' + uid + '">'
-      + '<div style="display:grid;gap:14px;">'
+      + '<div class="dev-feed-body" id="' + uid + '" style="border-top:1px solid var(--line);">'
+      + '<div style="display:grid;gap:14px;padding:16px 18px;">'
       + (r.description || r.Description
-          ? '<div class="dev-section-card dev-reflection" style="background:var(--accent-soft,rgba(126,170,204,0.08));">'
-            + '<div class="dev-section-label" style="color:var(--ink);font-weight:700;"><span>&#128161;</span> Description</div>'
+          ? '<div class="dev-section-card dev-reflection" style="background:rgba(126,170,204,0.06);">'
+            + '<div class="dev-section-label"><span>💡</span> Background</div>'
             + '<div class="dev-section-content"><p>' + _e(r.description || r.Description) + '</p></div>'
             + '</div>'
           : '')
       + (r.scripture || r.Scripture
-          ? '<div class="dev-section-card dev-scripture" style="background:var(--gold-soft,rgba(212,184,112,0.08));">'
-            + '<div class="dev-section-label" style="color:var(--ink);font-weight:700;"><span>&#128214;</span> Scripture</div>'
+          ? '<div class="dev-section-card dev-scripture" style="background:rgba(212,184,112,0.06);">'
+            + '<div class="dev-section-label"><span>📖</span> Scripture</div>'
             + '<div class="dev-section-content">' + _bibleLink(r.scripture || r.Scripture) + '</div>'
             + '</div>'
           : '')
       + (pts.length
-          ? '<div class="dev-section-card dev-question" style="background:var(--mint-soft,rgba(140,197,162,0.08));">'
-            + '<div class="dev-section-label" style="color:var(--ink);font-weight:700;"><span>&#128591;</span> Prayer Points</div>'
-            + '<div class="dev-section-content"><ul style="margin:0;padding-left:18px;display:grid;gap:6px;">'
-            + pts.map(function(pt) { return '<li style="font-size:0.88rem;line-height:1.5;">' + _e(pt) + '</li>'; }).join('')
+          ? '<div class="dev-section-card dev-question" style="background:rgba(140,197,162,0.06);">'
+            + '<div class="dev-section-label"><span>🙏</span> Prayer Points</div>'
+            + '<div class="dev-section-content"><ul style="margin:0;padding-left:20px;display:grid;gap:8px;">'
+            + pts.map(function(pt) { return '<li style="font-size:0.9rem;line-height:1.6;">' + _e(pt) + '</li>'; }).join('')
             + '</ul></div>'
             + '</div>'
           : '')
-      + '<div class="dev-section-card dev-prayer-focus" style="background:var(--bg-raised);border:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">'
-      + '<div style="display:flex;gap:10px;flex-wrap:wrap;">'
-      + (r.country || r.countryId ? '<span style="font-size:0.78rem;color:var(--ink-muted);">📍 ' + _e(r.country || r.countryId) + '</span>' : '')
-      + (r.peopleGroup ? '<span style="font-size:0.78rem;color:var(--ink-muted);">👥 ' + _e(r.peopleGroup) + '</span>' : '')
-      + (r.responsesCount ? '<span style="font-size:0.78rem;color:var(--ink-muted);">🙏 ' + r.responsesCount + ' praying</span>' : '')
-      + '</div>'
-      + '<button onclick="Modules.newPrayerResponse(\'' + _e(r.id || '') + '\')" style="background:var(--accent);color:var(--ink-inverse);border:none;border-radius:6px;padding:6px 16px;font-size:0.80rem;font-weight:600;cursor:pointer;">🙏 Pray for This</button>'
+      + '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">'
+      + (r.startDate || r.endDate
+          ? '<span style="font-size:0.78rem;color:var(--ink-muted);">🗓 '
+            + (r.startDate ? _e(String(r.startDate).substring(0,10)) : '')
+            + (r.endDate ? ' → ' + _e(String(r.endDate).substring(0,10)) : '')
+            + '</span>'
+          : '<span></span>')
+      + '<button onclick="Modules.newPrayerResponse(\'' + _e(r.id || '') + '\')" style="background:var(--accent);color:var(--ink-inverse);border:none;border-radius:7px;padding:8px 20px;font-size:0.85rem;font-weight:700;cursor:pointer;letter-spacing:0.01em;">🙏 Pray for This</button>'
       + '</div>'
       + '</div>'
       + '</div>'
@@ -7476,9 +7481,10 @@ const Modules = (() => {
       + _mTab('📡 Updates',  'updates',  '')
       + '</div>';
 
+    const _canEditPrayer = typeof Nehemiah !== 'undefined' && Nehemiah.can('missions.prayer.edit');
     _shell(el, 'Missions', '"Go into all the world and preach the gospel to all creation." — Mark 16:15',
       _btn('+ Add Country', "Modules.newMissionsCountry()")
-      + _btn('+ Prayer Focus', "Modules.newPrayerFocus()", false)
+      + (_canEditPrayer ? _btn('+ Prayer Need', "Modules.newPrayerFocus()", false) : '')
       + _btn('+ Add Team', "Modules.newMissionsTeam()", false));
 
     try {
@@ -7624,55 +7630,86 @@ const Modules = (() => {
         const rows  = _rows(raw);
         _dataCache['missions-prayer'] = rows;
 
+        const canEdit = typeof Nehemiah !== 'undefined' && Nehemiah.can('missions.prayer.edit');
+
         html += _mHeading('Prayer Focus', 'Intercede for the persecuted church and unreached peoples of the world');
 
-        // Urgent count banner
-        const urgent = rows.filter(r => String(r.priority||r.Priority||'').toLowerCase() === 'urgent');
+        // ── KPI banner ──
+        const urgent   = rows.filter(r => String(r.priority||r.Priority||'').toLowerCase() === 'urgent');
+        const high     = rows.filter(r => String(r.priority||r.Priority||'').toLowerCase() === 'high');
+        const praying  = rows.reduce((s, r) => s + (parseInt(r.responsesCount)||0), 0);
+        html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:18px;">';
+        if (urgent.length > 0)
+          html += _mStat('🚨 Urgent', urgent.length, '#ef4444');
+        if (high.length > 0)
+          html += _mStat('🔴 High Priority', high.length, '#f59e0b');
+        html += _mStat('🙏 Active Needs', rows.filter(r => (r.status||r.Status||'active').toLowerCase()==='active').length, 'var(--accent)');
+        if (praying > 0)
+          html += _mStat('❤️ Times Prayed', praying, 'var(--success)');
+        html += '</div>';
+
+        // ── Urgent callout ──
         if (urgent.length > 0) {
-          html += '<div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.35);border-radius:10px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;gap:12px;">'
-            + '<span style="font-size:1.4rem;">🚨</span>'
-            + '<div><div style="font-weight:700;font-size:0.88rem;color:var(--danger);">' + urgent.length + ' Urgent Prayer Need' + (urgent.length > 1 ? 's' : '') + '</div>'
-            + '<div style="font-size:0.78rem;color:var(--ink-muted);">Brothers and sisters face extreme danger. Your prayers reach where people cannot go.</div></div>'
+          html += '<div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.35);border-radius:10px;padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;gap:14px;">'
+            + '<span style="font-size:1.6rem;flex-shrink:0;">🚨</span>'
+            + '<div><div style="font-weight:700;font-size:0.92rem;color:#ef4444;margin-bottom:2px;">' + urgent.length + ' Urgent Prayer Need' + (urgent.length > 1 ? 's' : '') + '</div>'
+            + '<div style="font-size:0.82rem;color:var(--ink-muted);">Brothers and sisters face extreme danger. Your prayers reach where people cannot go.</div></div>'
             + '</div>';
         }
 
-        // Actions
-        html += '<div style="display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap;">'
-          + '<button onclick="Modules.newPrayerFocus()" style="background:var(--accent);color:var(--ink-inverse);border:none;border-radius:7px;padding:8px 16px;font-size:0.82rem;font-weight:600;cursor:pointer;">+ Add Prayer Focus</button>'
-          + '</div>';
+        // ── Actions (deacon+) ──
+        if (canEdit) {
+          html += '<div style="display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap;">'
+            + '<button onclick="Modules.newPrayerFocus()" style="background:var(--accent);color:var(--ink-inverse);border:none;border-radius:7px;padding:8px 16px;font-size:0.85rem;font-weight:600;cursor:pointer;">+ Add Prayer Need</button>'
+            + '</div>';
+        }
 
         if (rows.length === 0) {
           html += '<div style="text-align:center;padding:48px 16px;">'
             + '<div style="font-size:2.5rem;margin-bottom:12px;">🙏</div>'
-            + '<div style="font-weight:700;margin-bottom:6px;">No prayer focuses added yet</div>'
-            + '<div style="color:var(--ink-muted);font-size:0.85rem;">Create specific prayer needs for countries, cities, and people groups.</div>'
+            + '<div style="font-weight:700;margin-bottom:6px;">No prayer needs added yet</div>'
+            + '<div style="color:var(--ink-muted);font-size:0.85rem;">'
+            + (canEdit ? 'Create specific prayer needs for countries, cities, and people groups.' : 'Prayer needs will appear here once added by a leader.')
+            + '</div>'
             + '</div>';
         } else {
-          // Group by status
           const active   = rows.filter(r => (r.status||r.Status||'active').toLowerCase() === 'active');
           const upcoming = rows.filter(r => (r.status||r.Status||'').toLowerCase() === 'upcoming');
-          if (active.length > 0) {
-            html += '<div style="font-size:0.78rem;font-weight:700;text-transform:uppercase;color:var(--ink-muted);letter-spacing:0.05em;margin-bottom:10px;">Active Prayer Needs</div>';
-            html += '<div style="display:flex;flex-direction:column;gap:10px;margin-bottom:20px;">';
-            active.forEach(r => { html += _prayerCard(r); });
+          if (urgent.length > 0) {
+            html += '<div style="font-size:0.78rem;font-weight:700;text-transform:uppercase;color:#ef4444;letter-spacing:0.06em;margin-bottom:10px;">🚨 Urgent</div>';
+            html += '<div style="display:grid;gap:12px;margin-bottom:22px;">';
+            urgent.forEach(r => { html += _prayerCard(r); });
+            html += '</div>';
+          }
+          const nonUrgentActive = active.filter(r => String(r.priority||r.Priority||'').toLowerCase() !== 'urgent');
+          if (nonUrgentActive.length > 0) {
+            html += '<div style="font-size:0.78rem;font-weight:700;text-transform:uppercase;color:var(--ink-muted);letter-spacing:0.06em;margin-bottom:10px;">Active Prayer Needs</div>';
+            html += '<div style="display:grid;gap:12px;margin-bottom:22px;">';
+            nonUrgentActive.forEach(r => { html += _prayerCard(r); });
             html += '</div>';
           }
           if (upcoming.length > 0) {
-            html += '<div style="font-size:0.78rem;font-weight:700;text-transform:uppercase;color:var(--ink-muted);letter-spacing:0.05em;margin-bottom:10px;">Upcoming</div>';
-            html += '<div style="display:flex;flex-direction:column;gap:10px;">';
+            html += '<div style="font-size:0.78rem;font-weight:700;text-transform:uppercase;color:var(--ink-muted);letter-spacing:0.06em;margin-bottom:10px;">Upcoming</div>';
+            html += '<div style="display:grid;gap:12px;">';
             upcoming.forEach(r => { html += _prayerCard(r); });
             html += '</div>';
           }
         }
 
-        // Daily prayer prompt
-        html += '<div style="margin-top:24px;background:linear-gradient(135deg,rgba(129,140,248,0.1),rgba(99,102,241,0.08));border:1px solid rgba(129,140,248,0.25);border-radius:10px;padding:16px 18px;">'
-          + '<div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;color:#818cf8;letter-spacing:0.05em;margin-bottom:8px;">Daily Prayer Guide</div>'
+        // ── Daily prayer guide ──
+        html += '<div style="margin-top:28px;background:linear-gradient(135deg,rgba(129,140,248,0.1),rgba(99,102,241,0.06));border:1px solid rgba(129,140,248,0.2);border-radius:12px;padding:18px 20px;">'
+          + '<div style="font-size:0.75rem;font-weight:700;text-transform:uppercase;color:#818cf8;letter-spacing:0.06em;margin-bottom:4px;">Daily Prayer Guide</div>'
+          + '<div style="font-size:0.82rem;color:var(--ink-muted);margin-bottom:12px;">Tap any topic to begin a new prayer focus' + (canEdit ? '' : ' (leaders add official needs)') + '</div>'
           + '<div style="display:flex;flex-wrap:wrap;gap:8px;">'
           + ['Christians in Iran', 'Underground church in China', 'Believers in North Korea',
              'Missionaries in restricted access nations', 'Persecuted families in Nigeria',
              'Converts from Islam', 'Bible translators', 'Unreached peoples of the 10/40 Window'].map(topic =>
-              '<span onclick="Modules.newPrayerFocus(\''+_e(topic)+'\')" style="font-size:0.75rem;padding:4px 10px;background:rgba(129,140,248,0.15);border:1px solid rgba(129,140,248,0.3);border-radius:12px;cursor:pointer;color:#a5b4fc;transition:background 0.15s;" onmouseover="this.style.background=\'rgba(129,140,248,0.3)\'" onmouseout="this.style.background=\'rgba(129,140,248,0.15)\'">' + topic + '</span>'
+              (canEdit
+                ? '<span onclick="Modules.newPrayerFocus(\'' + _e(topic) + '\')"'
+                : '<span')
+              + ' style="font-size:0.8rem;padding:6px 12px;background:rgba(129,140,248,0.12);border:1px solid rgba(129,140,248,0.28);border-radius:14px;' + (canEdit ? 'cursor:pointer;' : '') + 'color:#a5b4fc;transition:background 0.15s;"'
+              + (canEdit ? ' onmouseover="this.style.background=\'rgba(129,140,248,0.28)\'" onmouseout="this.style.background=\'rgba(129,140,248,0.12)\'"' : '')
+              + '>' + topic + '</span>'
            ).join('')
           + '</div>'
           + '</div>';
@@ -9287,7 +9324,7 @@ const Modules = (() => {
       window._tabPermTemplates = {
         member: [],
         leader: ['my-flock', 'care', 'care.create', 'care.edit', 'care.interactions', 'care.follow-ups', 'prayer-admin.public', 'compassion', 'compassion.resources', 'groups', 'groups.manage', 'attendance', 'attendance.record', 'outreach', 'outreach.contacts', 'outreach.follow-ups', 'discipleship', 'discipleship.paths', 'volunteers', 'volunteers.manage', 'events.rsvp-list', 'sermons.upload', 'albums', 'albums.manage', 'calendar.create', 'calendar.edit', 'calendar.share', 'songs.setlist'],
-        deacon: ['my-flock', 'care', 'care.create', 'care.edit', 'care.interactions', 'care.follow-ups', 'care.view-all', 'prayer-admin.public', 'prayer-admin.confidential', 'compassion', 'compassion.resources', 'compassion.approve', 'compassion.amount', 'compassion.log', 'compassion.log.create', 'directory', 'directory.contact-details', 'groups', 'groups.manage', 'attendance', 'attendance.record', 'outreach', 'outreach.contacts', 'outreach.contacts.edit', 'outreach.follow-ups', 'discipleship', 'discipleship.paths', 'giving', 'giving.pledges', 'volunteers', 'volunteers.manage', 'volunteers.swap', 'events.rsvp-list', 'events.edit', 'sermons.upload', 'sermons.series', 'albums', 'albums.manage', 'calendar.create', 'calendar.edit', 'calendar.share', 'songs', 'songs.edit', 'songs.setlist', 'services.edit', 'comms.send-group', 'memberCards.directory', 'memberCards.scan', 'checkin.manage', 'checkin.sessions'],
+        deacon: ['my-flock', 'care', 'care.create', 'care.edit', 'care.interactions', 'care.follow-ups', 'care.view-all', 'prayer-admin.public', 'prayer-admin.confidential', 'compassion', 'compassion.resources', 'compassion.approve', 'compassion.amount', 'compassion.log', 'compassion.log.create', 'directory', 'directory.contact-details', 'groups', 'groups.manage', 'attendance', 'attendance.record', 'outreach', 'outreach.contacts', 'outreach.contacts.edit', 'outreach.follow-ups', 'discipleship', 'discipleship.paths', 'giving', 'giving.pledges', 'volunteers', 'volunteers.manage', 'volunteers.swap', 'events.rsvp-list', 'events.edit', 'sermons.upload', 'sermons.series', 'albums', 'albums.manage', 'calendar.create', 'calendar.edit', 'calendar.share', 'songs', 'songs.edit', 'songs.setlist', 'services.edit', 'comms.send-group', 'memberCards.directory', 'memberCards.scan', 'checkin.manage', 'checkin.sessions', 'missions', 'missions.prayer', 'missions.prayer.edit'],
         care: ['my-flock', 'care', 'care.create', 'care.edit', 'care.interactions', 'care.follow-ups', 'care.view-all', 'prayer-admin.public', 'prayer-admin.confidential', 'compassion', 'compassion.resources', 'compassion.log', 'compassion.approve', 'compassion.amount', 'outreach.contacts', 'outreach.follow-ups'],
         elder: ['my-flock', 'care', 'care.create', 'care.edit', 'care.interactions', 'care.follow-ups', 'care.view-all', 'care.edit-all', 'care.reassign', 'care.close', 'care.assignments', 'prayer-admin.public', 'prayer-admin.confidential', 'compassion', 'compassion.resources', 'compassion.approve', 'compassion.amount', 'compassion.log', 'compassion.log.create', 'compassion.notes', 'compassion.resources.edit', 'directory', 'directory.contact-details', 'groups', 'groups.manage', 'groups.create', 'attendance', 'attendance.record', 'attendance.edit-past', 'outreach', 'outreach.contacts', 'outreach.contacts.edit', 'outreach.campaigns', 'outreach.campaigns.edit', 'outreach.follow-ups', 'discipleship', 'discipleship.paths', 'discipleship.enroll', 'discipleship.advance', 'discipleship.mentoring.edit', 'discipleship.assessments', 'discipleship.certificates', 'giving', 'giving.individual', 'giving.pledges', 'volunteers', 'volunteers.manage', 'volunteers.swap', 'events.rsvp-list', 'events.edit', 'sermons.upload', 'sermons.series', 'albums', 'albums.manage', 'calendar.create', 'calendar.edit', 'calendar.delete', 'calendar.share', 'songs', 'songs.edit', 'songs.setlist', 'services.edit', 'comms.send-group', 'memberCards.directory', 'memberCards.scan', 'checkin.manage', 'checkin.sessions', 'reports', 'statistics', 'ministry'],
         timothy: ['my-flock', 'my-flock.full-directory', 'my-flock.add-edit-members', 'directory', 'directory.contact-details', 'care', 'care.create', 'care.edit', 'care.view-all', 'care.edit-all', 'care.close', 'care.reassign', 'care.interactions', 'care.follow-ups', 'care.assignments', 'prayer-admin', 'prayer-admin.public', 'prayer-admin.confidential', 'compassion', 'compassion.approve', 'compassion.amount', 'compassion.resources', 'compassion.resources.edit', 'compassion.log', 'compassion.log.create', 'groups', 'groups.manage', 'groups.create', 'attendance', 'attendance.record', 'attendance.edit-past', 'giving', 'giving.individual', 'giving.pledges', 'discipleship', 'discipleship.paths', 'discipleship.paths.edit', 'discipleship.enroll', 'discipleship.advance', 'discipleship.mentoring.edit', 'discipleship.assessments', 'discipleship.certificates', 'discipleship.certificates.issue', 'discipleship.resources.edit', 'outreach', 'outreach.contacts', 'outreach.contacts.edit', 'outreach.campaigns', 'outreach.campaigns.edit', 'outreach.follow-ups', 'missions', 'missions.registry', 'missions.registry.edit', 'missions.partners', 'missions.partners.edit', 'missions.regions', 'missions.prayer', 'missions.prayer.edit', 'missions.updates', 'missions.updates.edit', 'comms', 'comms.send-individual', 'comms.send-group', 'comms.channels', 'comms.templates', 'content-admin', 'content-admin.publish', 'sermons.edit', 'sermons.upload', 'sermons.approve', 'sermons.series', 'albums', 'albums.manage', 'calendar.create', 'calendar.edit', 'calendar.delete', 'calendar.share', 'events.edit', 'events.rsvp-list', 'services.edit', 'volunteers', 'volunteers.manage', 'volunteers.swap', 'memberCards', 'memberCards.directory', 'memberCards.create', 'memberCards.edit', 'memberCards.scan', 'checkin.manage', 'checkin.sessions', 'reports', 'reports.sensitive', 'statistics', 'ministry', 'songs', 'songs.edit', 'songs.setlist'],
@@ -13476,7 +13513,7 @@ const Modules = (() => {
 
   // ── Missions: Add prayer focus ─────────────────────────────────────────
   function newPrayerFocus(prefillTitle) {
-    _modal('Add Prayer Focus', [
+    _modal('Add Prayer Need', [
       { name: 'title',       label: 'Prayer Title',   required: true, value: prefillTitle || '' },
       { name: 'description', label: 'Background / Description', type: 'textarea', required: true },
       { name: 'scripture',   label: 'Scripture Reference', placeholder: 'e.g. Isaiah 43:2' },
@@ -13485,13 +13522,42 @@ const Modules = (() => {
       { name: 'peopleGroup', label: 'People Group' },
       { name: 'prayerPoints', label: 'Specific Prayer Points', type: 'textarea',
         placeholder: 'List specific prayer points, one per line' },
+      { name: 'startDate',   label: 'Start Date',  type: 'date' },
+      { name: 'endDate',     label: 'End Date',    type: 'date' },
       { name: 'status',      label: 'Status', type: 'select', options: ['Active','Upcoming','Answered','Archived'] },
     ], async data => {
       if (data.prayerPoints) data.prayerPoints = data.prayerPoints.split('\n').filter(Boolean);
       await TheVine.missions.prayerFocus.create(data);
       _missionsTab = 'prayer';
       _reload('missions');
-    }, 'Add Prayer Focus');
+    }, 'Add Prayer Need');
+  }
+
+  // ── Missions: Edit prayer focus ────────────────────────────────────────
+  function editPrayerFocus(id) {
+    const rows = _dataCache['missions-prayer'] || [];
+    const r = rows.find(x => String(x.id) === String(id)) || {};
+    const pts = Array.isArray(r.prayerPoints)
+      ? r.prayerPoints.join('\n')
+      : (r.prayerPoints ? String(r.prayerPoints) : '');
+    _modal('Edit Prayer Need', [
+      { name: 'title',       label: 'Prayer Title',   required: true, value: r.title || '' },
+      { name: 'description', label: 'Background / Description', type: 'textarea', required: true, value: r.description || '' },
+      { name: 'scripture',   label: 'Scripture Reference', value: r.scripture || '' },
+      { name: 'priority',    label: 'Priority', type: 'select', options: ['Urgent','High','Normal'], value: r.priority || 'Normal' },
+      { name: 'country',     label: 'Country / Region', value: r.country || r.countryId || '' },
+      { name: 'peopleGroup', label: 'People Group', value: r.peopleGroup || '' },
+      { name: 'prayerPoints', label: 'Specific Prayer Points', type: 'textarea',
+        placeholder: 'One per line', value: pts },
+      { name: 'startDate',   label: 'Start Date', type: 'date', value: r.startDate ? String(r.startDate).substring(0,10) : '' },
+      { name: 'endDate',     label: 'End Date',   type: 'date', value: r.endDate   ? String(r.endDate).substring(0,10)   : '' },
+      { name: 'status',      label: 'Status', type: 'select', options: ['Active','Upcoming','Answered','Archived'], value: r.status || 'Active' },
+    ], async data => {
+      if (data.prayerPoints) data.prayerPoints = data.prayerPoints.split('\n').filter(Boolean);
+      await TheVine.missions.prayerFocus.update({ id, ...data });
+      _missionsTab = 'prayer';
+      _reload('missions');
+    }, 'Save Changes');
   }
 
   // ── Missions: Record prayer response ──────────────────────────────────
@@ -17955,7 +18021,7 @@ const Modules = (() => {
     _templateNew, _templateEdit, _templateDelete, _templateUse,
     _threadArchive, _threadMuteToggle, _threadAddParticipant,
     _viewReadReceipts,
-    newMissionsCountry, newPrayerFocus, newPrayerResponse, newMissionsUpdate, newMissionsTeam, newMissionPartner,
+    newMissionsCountry, newPrayerFocus, editPrayerFocus, newPrayerResponse, newMissionsUpdate, newMissionsTeam, newMissionPartner,
     missionsView, openCountry, _missionsFilter,
     newGift, givingSummary, givingView, _givingNewPledge, _givingStatement,
     _bulkImport, _bulkExport, _bulkPreview,
