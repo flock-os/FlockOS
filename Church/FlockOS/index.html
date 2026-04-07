@@ -412,7 +412,7 @@
     <!-- Welcome Dashboard -->
     <div class="module-view active" id="view-dashboard">
       <div class="welcome-hero">
-        <h1>FlockOS</h1>
+        <img id="church-hero-logo" src="FlockOS/Images/FlockOSLogoLarge.png" alt="FlockOS" style="max-height:80px;max-width:240px;margin-bottom:12px;object-fit:contain;">
         <div class="subtitle">"I am the vine; you are the branches."</div>
         <div class="verse">John 15:5</div>
 
@@ -641,6 +641,15 @@ window.addEventListener('scroll', function() {
 
 document.addEventListener('DOMContentLoaded', function() {
 Adornment.init();
+
+// ── Church logo: use CHURCH_LOGO from AppConfig (synced to localStorage by admin) ────
+(function() {
+  var logo = localStorage.getItem('flock_church_logo');
+  if (logo) {
+    var img = document.getElementById('church-hero-logo');
+    if (img) img.src = 'FlockOS/Images/' + logo;
+  }
+})();
 
 // ── Lockdown gate ──────────────────────────────────────────────────────────
 var _lockdownResolved = false;

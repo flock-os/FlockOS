@@ -9717,7 +9717,7 @@ const Modules = (() => {
       _dataCache['config'] = rows;
 
       // Sync display settings to localStorage so public site picks them up
-      var _syncKeys = { FONT_SCALE: 'flock_font_scale', FONT_SCALE_MOBILE: 'flock_font_scale_mobile', QUIZ_SIZE: 'flock_quiz_size' };
+      var _syncKeys = { FONT_SCALE: 'flock_font_scale', FONT_SCALE_MOBILE: 'flock_font_scale_mobile', QUIZ_SIZE: 'flock_quiz_size', CHURCH_LOGO: 'flock_church_logo' };
       rows.forEach(function(r) {
         var k = r.key || r.configKey || '';
         if (_syncKeys[k] && r.value != null) localStorage.setItem(_syncKeys[k], String(r.value));

@@ -10,13 +10,13 @@
   "orientation": "any",
   "icons": [
     {
-      "src": "FlockOS/Images/Favicon.png",
+      "src": "FlockOS/Images/FlockOS_icon.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "FlockOS/Images/Favicon.png",
+      "src": "FlockOS/Images/FlockOS_icon.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
@@ -32,7 +32,7 @@
       "url": "FlockOS/Pages/the_good_shepherd.html#dashboard",
       "icons": [
         {
-          "src": "FlockOS/Images/Favicon.png",
+          "src": "FlockOS/Images/FlockOS_icon.png",
           "sizes": "192x192"
         }
       ]
@@ -42,7 +42,7 @@
       "url": "FlockOS/Pages/the_good_shepherd.html#comms",
       "icons": [
         {
-          "src": "FlockOS/Images/Favicon.png",
+          "src": "FlockOS/Images/FlockOS_icon.png",
           "sizes": "192x192"
         }
       ]
@@ -52,7 +52,7 @@
       "url": "FlockOS/Pages/the_good_shepherd.html#directory",
       "icons": [
         {
-          "src": "FlockOS/Images/Favicon.png",
+          "src": "FlockOS/Images/FlockOS_icon.png",
           "sizes": "192x192"
         }
       ]
