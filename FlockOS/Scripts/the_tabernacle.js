@@ -9439,30 +9439,28 @@ const Modules = (() => {
              + ' style="width:18px;height:18px;accent-color:var(--accent);cursor:pointer;">'
              + '</td>';
           ph += '</tr>';
-          if (item.risk === 'critical') {
-            ph += '<tr id="crit-box-' + keyId + '" style="display:none;">';
-            ph += '<td colspan="2" style="padding:0 12px 14px;">';
-            ph += '<div style="border:2px solid #dc2626;border-radius:10px;background:#dc262610;padding:14px 18px;margin-top:2px;">';
-            ph += '<div style="font-weight:800;color:#dc2626;font-size:0.8rem;letter-spacing:0.06em;margin-bottom:10px;">'
-               + '\uD83D\uDD34 CRITICAL PERMISSION \u2014 CONFIRMATION REQUIRED</div>';
-            ph += '<label style="display:flex;align-items:flex-start;gap:10px;margin-bottom:10px;cursor:pointer;">';
-            ph += '<input type="checkbox" id="crit-chk-' + keyId + '" style="margin-top:2px;accent-color:#dc2626;">';
-            ph += '<span style="font-size:0.84rem;color:var(--ink);">I understand this grants critical-level system access to this person</span>';
-            ph += '</label>';
-            ph += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">';
-            ph += '<input type="text" id="crit-txt-' + keyId + '" placeholder="Type Yes to confirm"'
-               + ' style="border:1px solid #dc262666;border-radius:6px;padding:6px 12px;font-size:0.84rem;'
-               + 'background:var(--bg);color:var(--ink);font-family:inherit;width:200px;">';
-            ph += '</div>';
-            ph += '<div style="font-size:0.76rem;color:var(--ink-muted);font-style:italic;">'
-               + '\uD83D\uDCE3 Pastoral leads will be notified when critical permissions are granted.</div>';
-            ph += '</div></td></tr>';
-          }
         });
       });
 
       ph += '</tbody></table>';
-      ph += '<div style="margin-top:18px;display:flex;align-items:center;gap:12px;">';
+
+      // Single shared critical-permission confirmation box
+      ph += '<div id="tab-crit-confirm" style="display:none;border:2px solid #dc2626;border-radius:10px;background:#dc262610;padding:16px 18px;margin:16px 0;">'
+         + '<div style="font-weight:800;color:#dc2626;font-size:0.8rem;letter-spacing:0.06em;margin-bottom:10px;">'
+         + '\uD83D\uDD34 CRITICAL PERMISSION \u2014 CONFIRMATION REQUIRED</div>'
+         + '<p style="font-size:0.84rem;color:var(--ink);margin:0 0 12px;">One or more critical permissions are selected. Please confirm before saving.</p>'
+         + '<label style="display:flex;align-items:flex-start;gap:10px;margin-bottom:12px;cursor:pointer;">'
+         + '<input type="checkbox" id="tab-crit-chk" style="margin-top:2px;accent-color:#dc2626;">'
+         + '<span style="font-size:0.84rem;color:var(--ink);">I understand this grants critical-level system access to this person</span>'
+         + '</label>'
+         + '<input type="text" id="tab-crit-txt" placeholder="Type Yes to confirm"'
+         + ' style="border:1px solid #dc262666;border-radius:6px;padding:6px 12px;font-size:0.84rem;'
+         + 'background:var(--bg);color:var(--ink);font-family:inherit;width:200px;">'
+         + '<div style="font-size:0.76rem;color:var(--ink-muted);font-style:italic;margin-top:10px;">'
+         + '\uD83D\uDCE3 Pastoral leads will be notified when critical permissions are granted.</div>'
+         + '</div>';
+
+      ph += '<div style="margin-top:14px;display:flex;align-items:center;gap:12px;">';
       ph += '<button type="button" onclick="Modules._savePerms(\'' + eid + '\')" style="background:var(--accent);color:var(--ink-inverse);border:none;border-radius:6px;padding:9px 22px;cursor:pointer;font-weight:700;font-size:0.86rem;font-family:inherit;">Save Permissions</button>';
       ph += '<span id="tab-perm-status" style="font-size:0.82rem;color:var(--ink-muted);"></span>';
       ph += '</div>';
@@ -16121,18 +16119,21 @@ const Modules = (() => {
   }
 
   function _tabOnPermChkChange(chk) {
-    var keyId = 'tab-' + chk.getAttribute('data-perm-key').replace(/\./g, '-');
-    var risk  = chk.getAttribute('data-risk');
-    var box   = document.getElementById('crit-box-' + keyId);
-    if (!box) return;
-    if (risk === 'critical' && chk.checked) {
-      box.style.display = '';
-    } else {
-      box.style.display = 'none';
-      var ck  = document.getElementById('crit-chk-' + keyId);
-      var txt = document.getElementById('crit-txt-' + keyId);
-      if (ck) ck.checked = false;
-      if (txt) txt.value = '';
+    // Show/hide the single shared critical confirmation box based on whether
+    // any critical permission checkbox is currently checked
+    var anyCritChecked = false;
+    document.querySelectorAll('.tab-perm-chk').forEach(function(c) {
+      if (c.getAttribute('data-risk') === 'critical' && c.checked) anyCritChecked = true;
+    });
+    var box = document.getElementById('tab-crit-confirm');
+    if (box) {
+      box.style.display = anyCritChecked ? '' : 'none';
+      if (!anyCritChecked) {
+        var ck  = document.getElementById('tab-crit-chk');
+        var txt = document.getElementById('tab-crit-txt');
+        if (ck)  ck.checked = false;
+        if (txt) txt.value  = '';
+      }
     }
   }
 
@@ -16141,22 +16142,18 @@ const Modules = (() => {
       _toast('You do not have permission to edit permissions.', 'danger');
       return;
     }
-    // Block save if any critical permissions are pending confirmation
-    var critBlocked = false;
-    document.querySelectorAll('.tab-perm-chk').forEach(function(chk) {
-      if (chk.checked && chk.getAttribute('data-risk') === 'critical') {
-        var keyId = 'tab-' + chk.getAttribute('data-perm-key').replace(/\./g, '-');
-        var box = document.getElementById('crit-box-' + keyId);
-        if (box && box.style.display !== 'none') {
-          var ck  = document.getElementById('crit-chk-' + keyId);
-          var txt = document.getElementById('crit-txt-' + keyId);
-          if (!ck || !ck.checked || !txt || txt.value.trim() !== 'Yes') critBlocked = true;
-        }
+    // Block save if critical permissions are selected but not confirmed
+    var hasCritChecked = Array.from(document.querySelectorAll('.tab-perm-chk'))
+      .some(function(c) { return c.checked && c.getAttribute('data-risk') === 'critical'; });
+    if (hasCritChecked) {
+      var critBox = document.getElementById('tab-crit-confirm');
+      var critChk = document.getElementById('tab-crit-chk');
+      var critTxt = document.getElementById('tab-crit-txt');
+      if (!critChk || !critChk.checked || !critTxt || critTxt.value.trim() !== 'Yes') {
+        _toast('Please confirm critical permissions: check the box and type \u201cYes\u201d before saving.', 'warning');
+        if (critBox) critBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
       }
-    });
-    if (critBlocked) {
-      _toast('Please confirm all critical permissions before saving. Check the box and type \u201cYes\u201d for each.', 'warning');
-      return;
     }
     var st = document.getElementById('tab-perm-status');
     if (st) st.textContent = 'Saving\u2026';
