@@ -269,7 +269,15 @@ const Nehemiah = (() => {
       if (groups.indexOf('lead pastor') !== -1) return true;
     }
     if (session.permissions && typeof session.permissions === 'object') {
-      return session.permissions[capability] === true;
+      // Exact match
+      if (session.permissions[capability] === true) return true;
+      // Walk up parent chain — 'care.view-all' → 'care', 'discipleship.paths.edit' → 'discipleship.paths' → 'discipleship'
+      let key = capability;
+      while (key.includes('.')) {
+        key = key.substring(0, key.lastIndexOf('.'));
+        if (session.permissions[key] === true) return true;
+      }
+      return false;
     }
     return false;
   }

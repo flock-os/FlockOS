@@ -6946,8 +6946,8 @@ const Modules = (() => {
   }
 
   function _notifPrefsForm(prefs) {
-    const ch = (key, label, dflt) => {
-      const checked = prefs[key] === true || prefs[key] === 'true' || (prefs[key] == null && dflt);
+    const ch = (key, label) => {
+      const checked = prefs[key] === true || prefs[key] === 'true';
       return '<label style="display:flex;align-items:center;gap:10px;padding:12px 0;'
         + 'border-bottom:1px solid var(--line);cursor:pointer;">'
         + '<input type="checkbox" id="np-' + _e(key) + '"' + (checked ? ' checked' : '') + ' style="width:16px;height:16px;accent-color:var(--accent);">'
@@ -6957,21 +6957,16 @@ const Modules = (() => {
     return '<div style="background:var(--bg-sunken);border:1px solid var(--line);border-radius:10px;padding:20px;max-width:520px;">'
       + '<div style="font-weight:700;font-size:1rem;margin-bottom:4px;">Notification Preferences</div>'
       + '<div style="font-size:0.8rem;color:var(--ink-muted);margin-bottom:16px;">Choose which notifications you receive.</div>'
-      + ch('messages',      'New messages',             true)
-      + ch('prayerRequests','New prayer requests',       true)
-      + ch('announcements', 'Church announcements',      true)
-      + ch('events',        'Event reminders',           true)
-      + ch('discipleship',  'Discipleship milestones',   false)
-      + ch('giving',        'Giving receipts',           true)
-      + ch('attendance',    'Attendance alerts',         false)
-      + ch('groupUpdates',  'Small group updates',       true)
-      + '<div style="margin-top:20px;">'
-      + '<label style="font-size:0.82rem;color:var(--ink-muted);display:block;margin-bottom:6px;">Delivery method</label>'
-      + '<select id="np-delivery" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:7px;background:var(--bg-raised);color:var(--ink);font-family:inherit;font-size:0.9rem;">'
-      + _opt('inApp',  'In-app only',              (prefs.delivery||'inApp')==='inApp')
-      + _opt('email',  'Email',                    (prefs.delivery||'')==='email')
-      + _opt('both',   'In-app + Email',           (prefs.delivery||'')==='both')
-      + '</select>'
+      + ch('notifMessages',      'New messages')
+      + ch('notifPrayer',        'New prayer requests')
+      + ch('notifAnnouncements', 'Church announcements')
+      + ch('notifEvents',        'Event reminders')
+      + ch('notifCare',          'Care case updates')
+      + ch('notifSystem',        'System notifications')
+      + '<div style="margin-top:20px;border-bottom:1px solid var(--line);padding-bottom:16px;">'
+      + '<div style="font-size:0.82rem;color:var(--ink-muted);font-weight:600;margin-bottom:8px;">Delivery</div>'
+      + ch('emailEnabled',  'Email')
+      + ch('inAppEnabled',  'In-app / bell')
       + '</div>'
       + '<button onclick="Modules._saveNotifPrefs()" style="margin-top:18px;background:var(--accent);color:var(--ink-inverse);border:none;border-radius:7px;padding:9px 22px;font-size:0.9rem;cursor:pointer;font-family:inherit;font-weight:600;">Save Preferences</button>'
       + '</div>';
@@ -7026,14 +7021,12 @@ const Modules = (() => {
   }
 
   async function _saveNotifPrefs() {
-    const keys = ['messages','prayerRequests','announcements','events','discipleship','giving','attendance','groupUpdates'];
+    const keys = ['notifMessages','notifPrayer','notifAnnouncements','notifEvents','notifCare','notifSystem','emailEnabled','inAppEnabled'];
     const prefs = {};
     keys.forEach(k => {
       const el = document.getElementById('np-' + k);
       if (el) prefs[k] = el.checked;
     });
-    const del = document.getElementById('np-delivery');
-    if (del) prefs.delivery = del.value;
     try {
       await TheVine.flock.comms.notifPrefs.update(prefs);
       _toast('Preferences saved.');
