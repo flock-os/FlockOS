@@ -3,16 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>FlockOS</title>
-  <link rel="icon" type="image/png" href="FlockOS/Images/FlockOS_icon.png">
-  <link rel="apple-touch-icon" href="FlockOS/Images/FlockOS_icon.png">
-  <link rel="manifest" href="manifest.json">
+  <title>The Forest</title>
+  <link rel="icon" type="image/png" href="../Images/Favicon.png">
+  <link rel="apple-touch-icon" href="../Images/Favicon.png">
+  <link rel="manifest" href="../../manifest.json">
   <meta name="theme-color" content="#e8a838">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta property="og:title" content="FlockOS">
+  <meta property="og:title" content="The Forest">
   <meta property="og:description" content="Church Management & Ministry Platform">
-  <meta property="og:image" content="FlockOS/Images/FlockOS_Wide.jpeg">
+  <meta property="og:image" content="../Images/FlockOS_Wide.jpeg">
   <meta name="twitter:card" content="summary_large_image">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -27,43 +27,35 @@
       position: fixed; inset: 0; z-index: 9999;
       background: #0a0e1a;
       display: flex; flex-direction: column;
-      align-items: center; justify-content: center;
+      align-items: center; justify-content: flex-end;
       transition: opacity 0.6s ease;
     }
     #splash.fade-out { opacity: 0; pointer-events: none; }
     #splash .splash-bg {
-      max-width: 90%;
-      max-height: 60vh;
-      width: auto;
-      height: auto;
-      border-radius: 12px;
+      position: absolute; inset: 0;
+      width: 100%; height: 100%;
+      object-fit: cover; object-position: center;
     }
     #splash .splash-bar-track {
-      margin-top: 32px;
-      width: 300px; height: 14px;
-      background: rgba(255,255,255,0.15);
+      position: relative; z-index: 1;
+      margin-bottom: 12vh;
+      width: 200px; height: 4px;
+      background: rgba(255,255,255,0.1);
       border-radius: 4px;
       overflow: hidden;
     }
     #splash .splash-bar-fill {
       height: 100%; width: 0;
-      background: linear-gradient(90deg, #3d0000, #8b0000 30%, #cc1a1a 50%, #8b0000 70%, #3d0000);
-      background-size: 300% 100%;
+      background: #4b5320;
       border-radius: 4px;
-      animation: splash-progress 9s ease-in-out forwards, blood-wash 2s ease-in-out infinite;
+      animation: splash-progress 3s ease-in-out forwards;
     }
     @keyframes splash-progress {
       0%   { width: 0; }
-      10%  { width: 12%; }
-      30%  { width: 35%; }
-      55%  { width: 58%; }
-      75%  { width: 78%; }
-      90%  { width: 91%; }
+      20%  { width: 25%; }
+      50%  { width: 55%; }
+      80%  { width: 85%; }
       100% { width: 100%; }
-    }
-    @keyframes blood-wash {
-      0%   { background-position: 100% 0; }
-      100% { background-position: -100% 0; }
     }
 
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -298,31 +290,13 @@
     .toggle-row-label { display: flex; align-items: center; gap: 10px; font-size: 0.85rem; color: var(--ink); }
     .toggle-row-label .icon { font-size: 1.1rem; opacity: 0.7; }
     .toggle-row-label .name { font-weight: 600; }
-
-    /* ── Top Progress Bar ───────────────────────────────────────────── */
-    #top-bar {
-      position: fixed; top: 0; left: 0; z-index: 99999;
-      width: 0; height: 6px;
-      background: linear-gradient(90deg, #3d0000, #8b0000 30%, #cc1a1a 50%, #8b0000 70%, #3d0000);
-      background-size: 300% 100%;
-      animation: blood-wash 1.5s ease-in-out infinite;
-      transition: width 0.3s ease, opacity 0.4s ease;
-      opacity: 0;
-      pointer-events: none;
-    }
-    #top-bar.active { opacity: 1; }
-    @keyframes blood-wash {
-      0%   { background-position: 100% 0; }
-      100% { background-position: -100% 0; }
-    }
   </style>
 </head>
 <body>
-<div id="top-bar"></div>
 
 <!-- ═══ SPLASH SCREEN ═══ -->
 <div id="splash">
-  <img class="splash-bg" src="FlockOS/Images/FlockOS_Wide.jpeg" alt="FlockOS">
+  <img class="splash-bg" src="../Images/FlockOS_Wide.jpeg" alt="The Forest">
   <div class="splash-bar-track"><div class="splash-bar-fill"></div></div>
 </div>
 
@@ -331,7 +305,7 @@
     <button class="topbar-toggle" id="menuToggle" onclick="toggleSidebar()">&#9776;</button>
     <div class="topbar-brand" onclick="navigate('dashboard')" title="Home">FlockOS</div>
     <div class="topbar-actions">
-      <a class="staff-link" href="FlockOS/Pages/the_good_shepherd.html">Member Login &#8594;</a>
+      <a class="staff-link" href="the_good_shepherd.html">Member Login &#8594;</a>
     </div>
   </div>
 
@@ -345,11 +319,8 @@
         <a class="nav-item active" data-view="dashboard" onclick="navigate('dashboard')">
           <span class="icon">&#9673;</span> Dashboard
         </a>
-        <a class="nav-item" href="FlockOS/Pages/the_invitation.html">
+        <a class="nav-item" href="the_invitation.html">
           <span class="icon">&#9993;</span> Invitation
-        </a>
-        <a class="nav-item" data-view="connect" onclick="navigate('connect')">
-          <span class="icon">&#128075;</span> Connect
         </a>
         <a class="nav-item" data-view="calendar" onclick="navigate('calendar')">
           <span class="icon">&#128197;</span> Calendar
@@ -389,17 +360,6 @@
       <div class="nav-group-items">
         <a class="nav-item" data-view="my-profile" onclick="navigate('my-profile')">
           <span class="icon">&#128100;</span> My Profile
-        </a>
-      </div>
-    </div>
-
-    <div class="nav-threshold"><span class="nav-threshold-glyph">&#183;</span></div>
-
-    <!-- ── Support ──────────────────────────────────────────────── -->
-    <div class="nav-group" data-zone="support">
-      <div class="nav-group-items">
-        <a class="nav-item" data-view="support" onclick="navigate('support')">
-          <span class="icon">&#127838;</span> Support
         </a>
       </div>
     </div>
@@ -504,7 +464,6 @@
     <div class="module-view" id="view-apologetics"></div>
     <div class="module-view" id="view-library"></div>
     <div class="module-view" id="view-prayer"></div>
-    <div class="module-view" id="view-connect"></div>
     <div class="module-view" id="view-my-requests"></div>
     <div class="module-view" id="view-upper-room"></div>
     <div class="module-view" id="view-learning"></div>
@@ -531,114 +490,21 @@
     <div class="module-view" id="view-deployment-guide"></div>
     <div class="module-view" id="view-tools"></div>
     <div class="module-view" id="view-service-hub"></div>
-
-    <!-- Support view -->
-    <div class="module-view" id="view-support">
-      <div style="max-width:680px;margin:0 auto;padding:32px 24px 80px;">
-
-        <!-- Hero -->
-        <div style="text-align:center;padding:40px 0 36px;">
-          <div style="font-size:2.8rem;margin-bottom:14px;">&#127838;</div>
-          <h1 style="font-size:1.65rem;font-weight:700;color:var(--accent);margin-bottom:12px;line-height:1.3;">Support FlockOS</h1>
-          <p style="color:var(--ink-muted);font-size:0.97rem;line-height:1.8;max-width:520px;margin:0 auto;">
-            It is not about the money. It is not about the software.<br>
-            <strong style="color:var(--ink);">It is the people that we serve.</strong>
-          </p>
-        </div>
-
-        <!-- 1. Pray -->
-        <div style="background:var(--bg-raised);border:1px solid var(--line);border-radius:12px;padding:28px 28px 24px;margin-bottom:16px;">
-          <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
-            <span style="font-size:1.6rem;">&#128591;</span>
-            <h3 style="font-size:0.95rem;font-weight:700;color:var(--accent);letter-spacing:0.02em;text-transform:uppercase;margin:0;">First &mdash; Pray</h3>
-          </div>
-          <p style="color:var(--ink-muted);font-size:0.9rem;line-height:1.8;margin:0;">
-            The first and most important way you can bless FlockOS is to <strong style="color:var(--ink);">pray for it.</strong>
-            Pray for its development. Pray for its spread. Pray for its use.
-            <br><br>
-            Pray that it reaches a pastor who is barely keeping his head above water &mdash;
-            who is visiting the hospital, counseling marriages, preparing sermons, and still trying to
-            remember who hasn&rsquo;t been checked on in three weeks.
-            <br><br>
-            That pastor doesn&rsquo;t need another bill. He needs someone in his corner.
-            <strong style="color:var(--ink);">Be that person &mdash; on your knees first.</strong>
-          </p>
-        </div>
-
-        <!-- 2. Deploy & Use -->
-        <div style="background:var(--bg-raised);border:1px solid var(--line);border-radius:12px;padding:28px 28px 24px;margin-bottom:16px;">
-          <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
-            <span style="font-size:1.6rem;">&#127963;</span>
-            <h3 style="font-size:0.95rem;font-weight:700;color:var(--accent);letter-spacing:0.02em;text-transform:uppercase;margin:0;">Second &mdash; Deploy It. Use It.</h3>
-          </div>
-          <p style="color:var(--ink-muted);font-size:0.9rem;line-height:1.8;margin:0;">
-            Deploy FlockOS. Use it. <strong style="color:var(--ink);">Be an early adopter</strong> who helps solve
-            real problems that we face in the Church every single week.
-            <br><br>
-            When the internet goes out at a rural church in Guatemala, FlockOS stays on.
-            When a family shares one phone between three households, FlockOS installs on it.
-            When a small congregation of forty faithful tithers can&rsquo;t afford $3,000 a year
-            for software, FlockOS is there &mdash; and it costs them nothing.
-            <br><br>
-            <strong style="color:var(--ink);">The Gospel is always free.</strong>
-            The tools that serve it should be too.
-          </p>
-        </div>
-
-        <!-- 3. Give -->
-        <div style="background:var(--bg-raised);border:1px solid var(--line);border-radius:12px;padding:28px 28px 24px;margin-bottom:28px;">
-          <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
-            <span style="font-size:1.6rem;">&#127838;</span>
-            <h3 style="font-size:0.95rem;font-weight:700;color:var(--accent);letter-spacing:0.02em;text-transform:uppercase;margin:0;">Third &mdash; If It Has Blessed You</h3>
-          </div>
-          <p style="color:var(--ink-muted);font-size:0.9rem;line-height:1.8;margin:0;">
-            If &mdash; and only if &mdash; you have used FlockOS and it has genuinely blessed
-            your ministry, would you consider
-            <a href="https://buymeacoffee.com/flockos" target="_blank" rel="noopener noreferrer"
-               style="color:var(--accent);font-weight:600;text-decoration:underline;">Supporting Us</a>
-            to help FlockOS continue to grow?
-            <br><br>
-            Not because it is required. Not because there is a paywall waiting around the corner.
-            But because one person built this in the evenings and on weekends,
-            and every contribution &mdash; however small &mdash; is a word of encouragement
-            that says: <em>we want to partner with you!</em>
-          </p>
-        </div>
-
-        <!-- Scripture -->
-        <blockquote style="border-left:3px solid var(--gold,#d4b870);padding:16px 20px;margin:0;background:var(--bg-raised);border-radius:0 8px 8px 0;">
-          <p style="color:var(--ink-muted);font-size:0.88rem;font-style:italic;line-height:1.8;margin:0 0 8px;">
-            &ldquo;The Spirit of the Lord is on me, because he has anointed me to proclaim good news to the poor.
-            He has sent me to proclaim freedom for the prisoners and recovery of sight for the blind,
-            to set the oppressed free.&rdquo;
-          </p>
-          <cite style="color:var(--ink-muted);font-size:0.78rem;font-style:normal;font-weight:600;">Luke 4:18</cite>
-        </blockquote>
-
-      </div>
-    </div>
   </div>
 
 <!-- ═══ SCRIPTS ═══ -->
-<script defer src="FlockOS/Scripts/fine_linen.js"></script>
-<script defer src="FlockOS/Scripts/the_true_vine.js"></script>
+<script defer src="../Scripts/fine_linen.js"></script>
+<script defer src="../Scripts/the_true_vine.js"></script>
 <script defer src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
-<script defer src="FlockOS/Scripts/the_wellspring.js"></script>
-<script defer src="FlockOS/Scripts/the_well.js"></script>
-<script defer src="FlockOS/Scripts/the_tabernacle.js"></script>
-<script defer src="FlockOS/Scripts/the_truth.js"></script>
-<script defer src="FlockOS/Scripts/the_seasons.js"></script>
-<script defer src="FlockOS/Scripts/the_way.js"></script>
-<script defer src="FlockOS/Scripts/the_harvest.js"></script>
-<script defer src="FlockOS/Scripts/the_life.js"></script>
+<script defer src="../Scripts/the_wellspring.js"></script>
+<script defer src="../Scripts/the_well.js"></script>
+<script defer src="../Scripts/the_tabernacle.js"></script>
+<script defer src="../Scripts/the_truth.js"></script>
+<script defer src="../Scripts/the_seasons.js"></script>
+<script defer src="../Scripts/the_way.js"></script>
+<script defer src="../Scripts/the_harvest.js"></script>
+<script defer src="../Scripts/the_life.js"></script>
 <script>
-/* Scroll-leak guard: scrollIntoView() can push body/html on iOS Safari
-   even with overflow:hidden, destroying the fixed-header offset. */
-window.addEventListener('scroll', function() {
-  if (document.documentElement.scrollTop) document.documentElement.scrollTop = 0;
-  if (document.body.scrollTop) document.body.scrollTop = 0;
-}, { passive: false });
-
 document.addEventListener('DOMContentLoaded', function() {
 Adornment.init();
 
@@ -672,12 +538,12 @@ function _showLockdownPage() {
     '<div style="font-size:4rem;margin-bottom:20px;">\uD83D\uDEE1\uFE0F</div>' +
     '<h1 style="font-size:1.8rem;margin:0 0 16px;color:var(--accent,#22d3ee);">Whoa there!</h1>' +
     '<p style="font-size:1.1rem;max-width:480px;line-height:1.7;color:var(--ink-muted,#aaa);">' +
-    'Your heart is not quite ready to bear what you will see in the next version of FlockOS.</p>' +
+    'Your heart is not quite ready to bear what you will see in the next version of The Forest.</p>' +
     '<p style="margin-top:24px;font-size:0.85rem;color:var(--ink-muted,#777);font-style:italic;">' +
     '\u201CFor I know the plans I have for you,\u201D declares the Lord.\u2003\u2014\u2003Jeremiah 29:11</p>' +
     '<p style="margin-top:48px;font-style:italic;font-size:0.85rem;">' +
-    '<a href="FlockOS/Pages/the_good_shepherd.html" style="color:var(--ink-muted,#777);text-decoration:underline;">' +
-    'Administrators and pastoral staff may access FlockOS here.</a></p>' +
+    '<a href="the_good_shepherd.html" style="color:var(--ink-muted,#777);text-decoration:underline;">' +
+    'Administrators and pastoral staff may access The Forest here.</a></p>' +
     '</div>';
 }
 
@@ -721,7 +587,7 @@ function navigate(viewName) {
   // My Profile: redirect to login if not authenticated
   if (viewName === 'my-profile') {
     if (typeof TheVine === 'undefined' || !TheVine.session()) {
-      window.location.href = 'FlockOS/Pages/the_wall.html?returnTo=my-profile';
+      window.location.href = 'the_wall.html?returnTo=my-profile';
       return;
     }
   }
@@ -799,7 +665,7 @@ setTimeout(function() {
 
   splash.classList.add('fade-out');
   setTimeout(function() { splash.remove(); }, 600);
-}, 9500);
+}, 3500);
 
 // ── Auto-navigate to public card if ?m= query param is present ──────────
 (function() {
@@ -812,23 +678,6 @@ setTimeout(function() {
     return;
   }
 
-  // Hash-based deep links: index.html#connect, index.html#card/CUSTOMLINK, etc.
-  var hash = window.location.hash.replace(/^#/, '').trim();
-  if (hash) {
-    if (hash === 'invitation') {
-      window.location.href = 'FlockOS/Pages/the_invitation.html';
-      return;
-    }
-    var cardHashMatch = hash.match(/^(?:card|m)\/(.+)$/);
-    if (cardHashMatch) {
-      window._pendingCardId = cardHashMatch[1];
-      setTimeout(function() { navigate('card'); }, 100);
-      return;
-    }
-    setTimeout(function() { navigate(hash); }, 100);
-    return;
-  }
-
   var cardId = params.get('m') || params.get('card');
   if (cardId) {
     window._pendingCardId = cardId;
@@ -838,38 +687,6 @@ setTimeout(function() {
 
 window.navigate = navigate;
 window.toggleSidebar = toggleSidebar;
-
-// ── Top Progress Bar ───────────────────────────────────────────────────────
-window.TopBar = (function() {
-  var _bar = null;
-  var _pending = 0;
-  var _hideTimer = null;
-  function _el() { return _bar || (_bar = document.getElementById('top-bar')); }
-  function start() {
-    _pending++;
-    clearTimeout(_hideTimer);
-    var b = _el(); if (!b) return;
-    b.style.width = '0';
-    b.classList.add('active');
-    // Animate to 85% while waiting
-    requestAnimationFrame(function() {
-      b.style.transition = 'width 8s cubic-bezier(0.1,0.05,0,1), opacity 0.4s ease';
-      b.style.width = '85%';
-    });
-  }
-  function done() {
-    _pending = Math.max(0, _pending - 1);
-    if (_pending > 0) return;
-    var b = _el(); if (!b) return;
-    b.style.transition = 'width 0.2s ease, opacity 0.4s ease';
-    b.style.width = '100%';
-    _hideTimer = setTimeout(function() {
-      b.classList.remove('active');
-      setTimeout(function() { b.style.width = '0'; }, 400);
-    }, 250);
-  }
-  return { start: start, done: done };
-})();
 }); /* DOMContentLoaded */
 </script>
 </body>
