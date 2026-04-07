@@ -2249,9 +2249,11 @@ const TheLife = (() => {
       h += '<h4 class="flock-section-heading" style="color:var(--danger);">\u26A0\uFE0F Follow-Ups Due <span class="flock-section-ct" style="background:var(--danger);">' + fuRows.length + '</span></h4>';
       h += '<div style="display:grid;gap:8px;">';
       fuRows.forEach(function(f) {
-        h += '<div class="flock-followup-row">'
-          + '<span>' + _e(f.interactionType || f.type || 'Follow-up') + ' \u2014 ' + _e(f.caseId || '') + '</span>'
-          + '<span class="flock-followup-date">' + _e(f.followUpDate || '') + '</span></div>';
+        var fuName = _memberName(f.memberId) || f.memberName || f.email || f.caseId || '';
+        var fuClick = f.caseId ? ' style="cursor:pointer;" onclick="TheLife.openCareCase(\'' + _e(f.caseId) + '\')"' : '';
+        h += '<div class="flock-followup-row"' + fuClick + '>'
+          + '<span><strong>' + _e(fuName) + '</strong> \u2014 ' + _e(f.interactionType || f.type || 'Follow-up') + '</span>'
+          + '<span class="flock-followup-date">' + _e(f.followUpDate || f.dueDate || f.due || '') + '</span></div>';
       });
       h += '</div>';
     }
@@ -2830,9 +2832,11 @@ const TheLife = (() => {
           html += '<h4 class="flock-section-heading" style="color:var(--danger);">\u26A0\uFE0F Follow-Ups Due <span class="flock-section-ct" style="background:var(--danger);">' + fuRows.length + '</span></h4>';
           html += '<div style="display:grid;gap:8px;">';
           fuRows.slice(0, 5).forEach(function(f) {
-            html += '<div class="flock-followup-row">'
-              + '<span>' + _e(f.interactionType || f.type || 'Follow-up') + ' \u2014 ' + _e(f.caseId || '') + '</span>'
-              + '<span class="flock-followup-date">' + _e(f.followUpDate || '') + '</span></div>';
+            var fuName = _memberName(f.memberId) || f.memberName || f.email || f.caseId || '';
+            var fuClick = f.caseId ? ' style="cursor:pointer;" onclick="TheLife.openCareCase(\'' + _e(f.caseId) + '\')"' : '';
+            html += '<div class="flock-followup-row"' + fuClick + '>'
+              + '<span><strong>' + _e(fuName) + '</strong> \u2014 ' + _e(f.interactionType || f.type || 'Follow-up') + '</span>'
+              + '<span class="flock-followup-date">' + _e(f.followUpDate || f.dueDate || f.due || '') + '</span></div>';
           });
           if (fuRows.length > 5) html += '<div style="font-size:0.78rem;color:var(--ink-muted);text-align:center;padding:6px;">+ ' + (fuRows.length - 5) + ' more</div>';
           html += '</div></div>';
