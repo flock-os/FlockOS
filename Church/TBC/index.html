@@ -860,7 +860,9 @@ window.TopBar = (function() {
   var _pending = 0;
   var _hideTimer = null;
   function _el() { return _bar || (_bar = document.getElementById('top-bar')); }
+  function _isFirestore() { return typeof UpperRoom !== 'undefined' && UpperRoom.isReady && UpperRoom.isReady(); }
   function start() {
+    if (_isFirestore()) return;
     _pending++;
     clearTimeout(_hideTimer);
     var b = _el(); if (!b) return;
@@ -873,6 +875,7 @@ window.TopBar = (function() {
     });
   }
   function done() {
+    if (_isFirestore()) return;
     _pending = Math.max(0, _pending - 1);
     if (_pending > 0) return;
     var b = _el(); if (!b) return;
