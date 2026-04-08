@@ -228,6 +228,10 @@ const TheSeason = (() => {
   // TODO — Task Management
   // ═══════════════════════════════════════════════════════════════════════
 
+  function _isFB() {
+    return typeof Modules !== 'undefined' && Modules._isFirebaseComms && Modules._isFirebaseComms();
+  }
+
   // ── Shared constants ───────────────────────────────────────────────────
   const _TODO_PRIORITIES = ['Low', 'Medium', 'High', 'Urgent'];
   const _TODO_STATUSES   = ['Not Started', 'In Progress', 'Done', 'Archived'];
@@ -803,7 +807,7 @@ const TheSeason = (() => {
         ? TheVine.flock.call('calendar.list', {}).catch(function() { return null; })
         : Promise.resolve(null),
       isSignedIn
-        ? TheVine.flock.todo.list({ limit: 200 }).catch(function() { return null; })
+        ? (_isFB() ? UpperRoom.listTodos({ limit: 200 }) : TheVine.flock.todo.list({ limit: 200 })).catch(function() { return null; })
         : Promise.resolve(null),
       isSignedIn
         ? TheVine.flock.care.followUps.due().catch(function() { return null; })
@@ -2038,13 +2042,15 @@ const TheSeason = (() => {
         fields.splice(2, 0, { name: 'assignedTo', label: 'Assign To', type: 'select',
           options: _memberSelectOpts(dir), value: '' });
         _modal('New Task', fields, async function(data) {
-          await TheVine.flock.todo.create(data);
+          if (_isFB()) { await UpperRoom.createTodo(data); }
+          else { await TheVine.flock.todo.create(data); }
           _reload('calendar');
         });
       });
     } else {
       _modal('New Task', fields, async function(data) {
-        await TheVine.flock.todo.create(data);
+        if (_isFB()) { await UpperRoom.createTodo(data); }
+        else { await TheVine.flock.todo.create(data); }
         _reload('calendar');
       });
     }
@@ -2070,7 +2076,8 @@ const TheSeason = (() => {
         { name: 'notes',       label: 'Notes',          type: 'textarea' },
       ];
       _modal('Assign Task', fields, async function(data) {
-        await TheVine.flock.todo.create(data);
+        if (_isFB()) { await UpperRoom.createTodo(data); }
+        else { await TheVine.flock.todo.create(data); }
         _reload('calendar');
       }, 'Assign');
     });
@@ -2097,19 +2104,29 @@ const TheSeason = (() => {
       _ensureMemberDir().then(function(dir) {
         fields.splice(2, 0, { name: 'assignedTo', label: 'Assign To', type: 'select',
           options: _memberSelectOpts(dir) });
-        _edit('todo', 'Edit Task', fields, function(p) { return TheVine.flock.todo.update(p); }, id, null);
+        _edit('todo', 'Edit Task', fields, function(p) {
+          if (_isFB()) { return UpperRoom.updateTodo(p.id, p); }
+          return TheVine.flock.todo.update(p);
+        }, id, null);
       });
     } else {
-      _edit('todo', 'Edit Task', fields, function(p) { return TheVine.flock.todo.update(p); }, id, null);
+      _edit('todo', 'Edit Task', fields, function(p) {
+        if (_isFB()) { return UpperRoom.updateTodo(p.id, p); }
+        return TheVine.flock.todo.update(p);
+      }, id, null);
     }
   }
 
   async function completeTask(id) {
     if (!confirm('Mark this task as Done?')) return;
     try {
-      var res = await TheVine.flock.todo.complete({ id: id });
-      if (res && res.nextOccurrence) {
-        alert('Done! A recurring copy was created for ' + (res.nextOccurrence.dueDate || 'next occurrence') + '.');
+      if (_isFB()) {
+        await UpperRoom.completeTodo(id);
+      } else {
+        var res = await TheVine.flock.todo.complete({ id: id });
+        if (res && res.nextOccurrence) {
+          alert('Done! A recurring copy was created for ' + (res.nextOccurrence.dueDate || 'next occurrence') + '.');
+        }
       }
       _reload('calendar');
     } catch (e) { alert(e.message || 'Failed to complete task.'); }
@@ -2117,14 +2134,16 @@ const TheSeason = (() => {
 
   async function archiveTask(id) {
     try {
-      await TheVine.flock.todo.archive({ id: id });
+      if (_isFB()) { await UpperRoom.archiveTodo(id); }
+      else { await TheVine.flock.todo.archive({ id: id }); }
       _reload('calendar');
     } catch (e) { alert(e.message || 'Failed to archive task.'); }
   }
 
   async function unarchiveTask(id) {
     try {
-      await TheVine.flock.todo.unarchive({ id: id });
+      if (_isFB()) { await UpperRoom.unarchiveTodo(id); }
+      else { await TheVine.flock.todo.unarchive({ id: id }); }
       _reload('calendar');
     } catch (e) { alert(e.message || 'Failed to restore task.'); }
   }
@@ -2132,7 +2151,8 @@ const TheSeason = (() => {
   async function deleteTask(id) {
     if (!confirm('Permanently delete this task? This cannot be undone.')) return;
     try {
-      await TheVine.flock.todo.delete({ id: id });
+      if (_isFB()) { await UpperRoom.deleteTodo(id); }
+      else { await TheVine.flock.todo.delete({ id: id }); }
       _reload('calendar');
     } catch (e) { alert(e.message || 'Failed to delete task.'); }
   }
@@ -2183,13 +2203,20 @@ const TheSeason = (() => {
       }
       _shell(el, 'Calendar', 'Tasks, scheduling & check-in hub.', taskBtns);
       // Pastor+ sees all tasks; everyone else sees only their own
-      var taskFetch = _isPastor()
-        ? TheVine.flock.todo.list({})
-        : TheVine.flock.todo.myTasks({});
+      var taskFetch;
+      if (_isFB()) {
+        taskFetch = _isPastor()
+          ? UpperRoom.listTodos({})
+          : UpperRoom.myTodos();
+      } else {
+        taskFetch = _isPastor()
+          ? TheVine.flock.todo.list({})
+          : TheVine.flock.todo.myTasks({});
+      }
       // Pre-fetch member directory for assignee display
       if (_isPastor()) _ensureMemberDir().catch(function() {});
       taskFetch.then(function(taskRes) {
-        var taskRows = _rows(taskRes);
+        var taskRows = _isFB() ? taskRes : _rows(taskRes);
         _cache['todo'] = taskRows;
         _body(el, _calModeBar() + '<div id="cal-mode-body"></div>');
         var modeBody = document.getElementById('cal-mode-body');

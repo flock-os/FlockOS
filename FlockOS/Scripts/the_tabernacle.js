@@ -6809,6 +6809,7 @@ const Modules = (() => {
     var session = null;
     try { session = (typeof Nehemiah !== 'undefined') ? Nehemiah.getSession() : null; } catch(_) {}
     var myEmail = session && session.email ? session.email : '';
+    var canDeleteAll = session && ((session.roleLevel >= 4) || /^(pastor|admin|seed)$/i.test(session.role || ''));
 
     if (!msgs.length) {
       container.innerHTML = '<div style="text-align:center;padding:40px 0;color:var(--ink-muted);font-size:0.85rem;">'
@@ -6821,11 +6822,19 @@ const Modules = (() => {
       var senderName = m.senderName || m.senderEmail || 'Unknown';
       var time = UpperRoom.timeAgo(m.sentAt);
       var isMine = myEmail && (myEmail === m.senderEmail);
+      var showDel = isMine || canDeleteAll;
       html += '<div style="display:flex;flex-direction:' + (isMine ? 'row-reverse' : 'row') + ';gap:10px;align-items:flex-end;">'
         + _msgInitial(senderName)
         + '<div style="max-width:72%;min-width:0;">'
         + '<div style="font-size:0.7rem;color:var(--ink-muted);margin-bottom:3px;text-align:' + (isMine ? 'right' : 'left') + ';">'
-        + _e(senderName) + ' &middot; ' + time + '</div>'
+        + _e(senderName) + ' &middot; ' + time
+        + (showDel
+          ? ' &middot; <span onclick="Modules._deleteRoomMsg(\'' + _e(roomId) + '\',\'' + _e(m.id) + '\')" '
+            + 'style="color:var(--danger);cursor:pointer;opacity:0.6;" '
+            + 'onmouseenter="this.style.opacity=\'1\'" onmouseleave="this.style.opacity=\'0.6\'"'
+            + ' title="Delete message">&#128465;</span>'
+          : '')
+        + '</div>'
         + '<div style="background:' + (isMine ? 'var(--accent)' : 'var(--bg-sunken)') + ';'
         + 'color:' + (isMine ? 'var(--ink-inverse)' : 'var(--ink)') + ';'
         + 'border:1px solid ' + (isMine ? 'transparent' : 'var(--line)') + ';'
@@ -6855,6 +6864,15 @@ const Modules = (() => {
       _toast('Send failed: ' + e.message, 'danger');
     }
     if (btn) { btn.disabled = false; btn.textContent = 'Send'; }
+  }
+
+  // ── Delete a message in a Firebase room ────────────────────────────────
+  async function _deleteRoomMsg(roomId, msgId) {
+    if (!confirm('Delete this message?')) return;
+    try {
+      await UpperRoom.deleteMessage(roomId, msgId);
+      _toast('Message deleted.');
+    } catch (e) { _toast('Delete failed: ' + e.message, 'danger'); }
   }
 
   // ── Typing indicator — debounced ───────────────────────────────────────
@@ -6902,11 +6920,17 @@ const Modules = (() => {
     }, 'Create Room');
   }
 
+  // ── Delete a Firebase thread/room (pastor/admin or creator) ────────────
+  async function _deleteFirebaseThread(id) {
+    if (!confirm('Delete this conversation and all its messages? This cannot be undone.')) return;
+    try {
+      await UpperRoom.deleteConversation(id);
+      _toast('Conversation deleted.');
+      commsView(_commsTab || 'threads');
+    } catch (e) { _toast('Delete failed: ' + e.message, 'danger'); }
+  }
+
   async function commsView(tab) {
-    _commsTab = tab || 'inbox';
-    _commsOpenMsg    = null;
-    _commsOpenThread = null;
-    _commsOpenRoom   = null;
     // Detach any active Firebase listeners
     if (_roomMsgListener) {
       try { if (typeof UpperRoom !== 'undefined') UpperRoom.detachAll(); } catch(_) {}
@@ -6955,13 +6979,13 @@ const Modules = (() => {
       tabFetcher = _commsTab === 'notifications'
         ? _fetch('comms-notifs',     () => TheVine.flock.comms.notifications.list({ limit: 60 }), _TTL.msg)
         : _commsTab === 'notifPrefs'
-          ? TheVine.flock.comms.notifPrefs.get().catch(() => ({}))
+          ? UpperRoom.getNotifPrefs()
           : _commsTab === 'channels'
-            ? _fetch('comms-channels',   () => TheVine.flock.comms.channels.list(),              _TTL.msg)
+            ? _fetch('comms-channels',   () => UpperRoom.browseChannels(),                       _TTL.msg)
             : _commsTab === 'templates'
-              ? _fetch('comms-templates', () => TheVine.flock.comms.templates.list(),            _TTL.msg)
+              ? _fetch('comms-templates', () => UpperRoom.listTemplates(),                       _TTL.msg)
               : _commsTab === 'broadcasts'
-                ? _fetch('comms-broadcasts', () => TheVine.flock.comms.broadcast.list({ limit: 50 }), _TTL.msg)
+                ? _fetch('comms-broadcasts', () => UpperRoom.listBroadcasts(50),                 _TTL.msg)
                 : Promise.resolve([]); // inbox, sent, threads, rooms all handled inline
     } else {
       tabFetcher = _commsTab === 'inbox'
@@ -7208,6 +7232,8 @@ const Modules = (() => {
           _body(el, html);
           (async function() {
             try {
+              var _tSess = (typeof Nehemiah !== 'undefined' && Nehemiah.getSession) ? Nehemiah.getSession() : {};
+              var _tCanDel = (_tSess.roleLevel >= 4) || /^(pastor|admin|seed)$/i.test(_tSess.role || '');
               UpperRoom.listenConversations('thread', function(threads) {
                 var container = document.getElementById('comms-thread-list');
                 if (!container) return;
@@ -7223,11 +7249,13 @@ const Modules = (() => {
                   var memberCount = t.memberCount || (t.participants || []).length;
                   var time = UpperRoom.timeAgo(t.lastMessageAt);
                   var tid = t.id || '';
+                  var isCreator = t.createdBy === UpperRoom.userEmail();
+                  var showDel = _tCanDel || isCreator;
                   listHtml += '<div class="ct" data-search="' + _e((subject + ' ' + snippet).toLowerCase()) + '" '
-                    + 'onclick="Modules.openRoom(\'' + _e(tid) + '\')" '
                     + 'style="display:flex;gap:12px;padding:14px 16px;cursor:pointer;border-bottom:1px solid var(--line);transition:background .12s;"'
                     + ' onmouseenter="this.style.background=\'rgba(255,255,255,0.06)\'"'
                     + ' onmouseleave="this.style.background=\'transparent\'">'
+                    + '<div onclick="Modules.openRoom(\'' + _e(tid) + '\')" style="display:flex;gap:12px;flex:1;min-width:0;">'
                     + '<div style="width:38px;height:38px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;opacity:0.9;">&#128200;</div>'
                     + '<div style="flex:1;min-width:0;">'
                     + '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;">'
@@ -7235,7 +7263,14 @@ const Modules = (() => {
                     + '<span style="font-size:0.72rem;color:var(--ink-muted);flex-shrink:0;">&#128101; ' + memberCount + ' &middot; ' + time + '</span>'
                     + '</div>'
                     + '<div style="font-size:0.78rem;color:var(--ink-muted);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _e(snippet || 'Tap to open thread') + '</div>'
-                    + '</div></div>';
+                    + '</div></div>'
+                    + (showDel
+                      ? '<div style="display:flex;align-items:center;flex-shrink:0;" onclick="event.stopPropagation();">'
+                        + '<button onclick="Modules._deleteFirebaseThread(\'' + _e(tid) + '\')" title="Delete thread" '
+                        + 'style="background:none;border:1px solid var(--danger);color:var(--danger);border-radius:5px;'
+                        + 'padding:3px 8px;font-size:0.72rem;cursor:pointer;font-family:inherit;">Delete</button></div>'
+                      : '')
+                    + '</div>';
                 });
                 container.innerHTML = listHtml;
               });
@@ -7518,7 +7553,11 @@ const Modules = (() => {
     const audience = (document.getElementById('nb-audience')|| {}).value || 'all';
     if (!subject.trim() || !body.trim()) { _toast('Subject and message are required.', 'warn'); return; }
     try {
-      await TheVine.flock.comms.notifications.broadcast({ subject, body, audience });
+      if (_isFirebaseComms()) {
+        await UpperRoom.createBroadcast({ subject, body, audience });
+      } else {
+        await TheVine.flock.comms.notifications.broadcast({ subject, body, audience });
+      }
       _closeModal();
       _toast('Broadcast sent!');
     } catch (e) { _toast('Error: ' + e.message, 'danger'); }
@@ -7532,7 +7571,8 @@ const Modules = (() => {
       if (el) prefs[k] = el.checked;
     });
     try {
-      await TheVine.flock.comms.notifPrefs.update(prefs);
+      if (_isFirebaseComms()) { await UpperRoom.updateNotifPrefs(prefs); }
+      else { await TheVine.flock.comms.notifPrefs.update(prefs); }
       _toast('Preferences saved.');
     } catch (e) { _toast('Error: ' + e.message, 'danger'); }
   }
@@ -7558,7 +7598,8 @@ const Modules = (() => {
       { name: 'type',        label: 'Type',          type: 'select',
         options: ['Announcement','Discussion','Prayer','Admin'] },
     ], async data => {
-      await TheVine.flock.comms.channels.create(data);
+      if (_isFirebaseComms()) { await UpperRoom.createChannel(data.name, data.description); }
+      else { await TheVine.flock.comms.channels.create(data); }
       _invalidateCache('comms-channels');
       commsView('channels');
     });
@@ -7574,7 +7615,8 @@ const Modules = (() => {
         options: ['Announcement','Discussion','Prayer','Admin'],
         value: ch.type || 'Discussion' },
     ], async data => {
-      await TheVine.flock.comms.channels.update({ id, ...data });
+      if (_isFirebaseComms()) { await UpperRoom.updateConversation(id, data); }
+      else { await TheVine.flock.comms.channels.update({ id, ...data }); }
       _invalidateCache('comms-channels');
       commsView('channels');
     });
@@ -7583,7 +7625,8 @@ const Modules = (() => {
   async function _channelDelete(id) {
     if (!confirm('Delete this channel? This cannot be undone.')) return;
     try {
-      await TheVine.flock.comms.channels.delete({ id });
+      if (_isFirebaseComms()) { await UpperRoom.deleteConversation(id); }
+      else { await TheVine.flock.comms.channels.delete({ id }); }
       _invalidateCache('comms-channels');
       commsView('channels');
     } catch (e) { _toast('Error: ' + e.message, 'danger'); }
@@ -7596,7 +7639,8 @@ const Modules = (() => {
       { name: 'subject', label: 'Subject',  required: true },
       { name: 'body',    label: 'Message',  type: 'textarea', required: true, rows: 6 },
     ], async data => {
-      await TheVine.flock.comms.channels.post({ channelId: id, ...data });
+      if (_isFirebaseComms()) { await UpperRoom.postToChannel(id, data.subject, data.body); }
+      else { await TheVine.flock.comms.channels.post({ channelId: id, ...data }); }
       _toast('Posted to channel!');
     });
   }
@@ -7610,7 +7654,8 @@ const Modules = (() => {
       { name: 'subject',  label: 'Default Subject' },
       { name: 'body',     label: 'Body',          type: 'textarea', required: true, rows: 8 },
     ], async data => {
-      await TheVine.flock.comms.templates.create(data);
+      if (_isFirebaseComms()) { await UpperRoom.createTemplate(data); }
+      else { await TheVine.flock.comms.templates.create(data); }
       _invalidateCache('comms-templates');
       commsView('templates');
     });
@@ -7625,7 +7670,8 @@ const Modules = (() => {
       { name: 'subject',  label: 'Default Subject', value: t.subject || '' },
       { name: 'body',     label: 'Body',          type: 'textarea', required: true, rows: 8, value: t.body || '' },
     ], async data => {
-      await TheVine.flock.comms.templates.update({ id, ...data });
+      if (_isFirebaseComms()) { await UpperRoom.updateTemplate(id, data); }
+      else { await TheVine.flock.comms.templates.update({ id, ...data }); }
       _invalidateCache('comms-templates');
       commsView('templates');
     });
@@ -7634,7 +7680,8 @@ const Modules = (() => {
   async function _templateDelete(id) {
     if (!confirm('Delete this template?')) return;
     try {
-      await TheVine.flock.comms.templates.delete({ id });
+      if (_isFirebaseComms()) { await UpperRoom.deleteTemplate(id); }
+      else { await TheVine.flock.comms.templates.delete({ id }); }
       _invalidateCache('comms-templates');
       commsView('templates');
     } catch (e) { _toast('Error: ' + e.message, 'danger'); }
@@ -7644,7 +7691,10 @@ const Modules = (() => {
     // Fetch full template content and pre-fill a Compose window
     let t = (_dataCache['comms-templates'] || []).find(r => String(r.id) === id);
     if (!t) {
-      try { const res = await TheVine.flock.comms.templates.get({ id }); t = res && res.template ? res.template : res || {}; }
+      try {
+        if (_isFirebaseComms()) { t = await UpperRoom.getTemplate(id) || {}; }
+        else { const res = await TheVine.flock.comms.templates.get({ id }); t = res && res.template ? res.template : res || {}; }
+      }
       catch (_) { t = {}; }
     }
     const dir     = await _ensureMemberDir();
@@ -11643,8 +11693,13 @@ const Modules = (() => {
         + '</form></div>';
 
       // --- My prayer cards ---
-      const res  = await TheVine.flock.call('prayer.listPublic', { limit: 200 }, { skipAuth: true });
-      const rows = _filterClosed(_rows(res), 'Status');
+      let rows;
+      if (_isFirebaseComms()) {
+        rows = await UpperRoom.listPrayers({ limit: 200 });
+      } else {
+        const res  = await TheVine.flock.call('prayer.listPublic', { limit: 200 }, { skipAuth: true });
+        rows = _filterClosed(_rows(res), 'Status');
+      }
 
       const userEmail = isLoggedIn ? session.email.toLowerCase() : '';
       const myPrayers = userEmail
@@ -12410,7 +12465,7 @@ const Modules = (() => {
     var conf = (document.getElementById('ur-pr-conf') || {}).checked;
     var fu   = (document.getElementById('ur-pr-fu')   || {}).checked;
     try {
-      await TheVine.flock.call('prayer.submit', {
+      var prayerData = {
         submitterName: name.trim() || 'Anonymous',
         submitterEmail: email.trim(),
         submitterPhone: phone.trim(),
@@ -12418,7 +12473,9 @@ const Modules = (() => {
         category: cat,
         isConfidential: conf ? 'TRUE' : 'FALSE',
         followUpRequested: fu ? 'TRUE' : 'FALSE'
-      });
+      };
+      if (_isFirebaseComms()) { await UpperRoom.createPrayer(prayerData); }
+      else { await TheVine.flock.call('prayer.submit', prayerData); }
       _toast('Prayer request submitted. We are lifting you up.');
       _reload('upper-room');
     } catch (err) { _toast('Submit failed: ' + (err.message || err), 'danger'); }
@@ -12510,9 +12567,11 @@ const Modules = (() => {
     _shell(el, 'Prayer Requests', 'Manage prayer requests, respond & follow up.',
       _btn('↻ Refresh', "Modules.render('prayer-admin', document.getElementById('view-prayer-admin'))"));
     try {
-      const res  = await TheVine.flock.prayer.list({ limit: 300 });
+      const res  = _isFirebaseComms()
+        ? await UpperRoom.listPrayers({ limit: 300 })
+        : await TheVine.flock.prayer.list({ limit: 300 });
       await _ensureMemberDir();
-      const rows = _filterClosed(_rows(res), 'Status');
+      const rows = _isFirebaseComms() ? res : _filterClosed(_rows(res), 'Status');
       _dataCache['prayer-admin'] = rows;
 
       // ── Card grid layout ──────────────────────────────────────────────
@@ -14622,7 +14681,7 @@ const Modules = (() => {
     const conf = (document.getElementById('db-prConf-' + idx) || {}).checked || false;
     const fu   = (document.getElementById('db-prFu-'   + idx) || {}).checked || false;
     try {
-      await TheVine.flock.call('prayer.submit', {
+      var prayerData = {
         submitterName: name.trim(),
         submitterEmail: email.trim(),
         submitterPhone: phone.trim(),
@@ -14630,7 +14689,9 @@ const Modules = (() => {
         category: cat,
         isConfidential: conf,
         followUpRequested: fu
-      }, { skipAuth: true });
+      };
+      if (_isFirebaseComms()) { await UpperRoom.createPrayer(prayerData); }
+      else { await TheVine.flock.call('prayer.submit', prayerData, { skipAuth: true }); }
       _toast('Your prayer request has been submitted. We are praying with you.');
       _reload('devotionals');
     } catch (e) { _toast('Error submitting prayer: ' + e.message, 'danger'); }
@@ -16229,7 +16290,7 @@ const Modules = (() => {
     } catch (_) {}
 
     try {
-      await TheVine.flock.call('prayer.submit', {
+      var prayerData = {
         submitterName: name.trim(),
         submitterEmail: email.trim(),
         submitterPhone: phone.trim(),
@@ -16237,7 +16298,12 @@ const Modules = (() => {
         category: cat,
         isConfidential: conf,
         followUpRequested: fu
-      }, { skipAuth: true });
+      };
+      if (_isFirebaseComms()) {
+        await UpperRoom.createPrayer(prayerData);
+      } else {
+        await TheVine.flock.call('prayer.submit', prayerData, { skipAuth: true });
+      }
       _toast('Your prayer request has been submitted. We are praying with you.');
       const form = document.getElementById('prayer-form');
       if (form) form.reset();
@@ -16907,7 +16973,10 @@ const Modules = (() => {
     var row = rows.find(r => (r.id || r['ID']) === id);
     if (!row) {
       // Fallback: fetch directly
-      TheVine.flock.prayer.get({ id: id }).then(r => {
+      var fetcher = _isFirebaseComms()
+        ? UpperRoom.getPrayer(id)
+        : TheVine.flock.prayer.get({ id: id });
+      fetcher.then(r => {
         if (!r || r.error) { _toast('Prayer request not found.', 'warn'); return; }
         _showMyPrayerModal(r);
       }).catch(() => _toast('Could not load prayer request.', 'danger'));
@@ -17044,7 +17113,8 @@ const Modules = (() => {
     }
 
     try {
-      await TheVine.flock.prayer.update(data);
+      if (_isFirebaseComms()) { await UpperRoom.updatePrayer(id, data); }
+      else { await TheVine.flock.prayer.update(data); }
       var modal = document.getElementById('fl-my-prayer');
       if (modal) modal.remove();
       _toast('Prayer request updated.');
@@ -17063,7 +17133,8 @@ const Modules = (() => {
   async function _markPrayerAnswered(id) {
     if (!confirm('Mark this prayer as answered? Praise God!')) return;
     try {
-      await TheVine.flock.prayer.update({ id: id, status: 'Answered' });
+      if (_isFirebaseComms()) { await UpperRoom.updatePrayer(id, { status: 'Answered' }); }
+      else { await TheVine.flock.prayer.update({ id: id, status: 'Answered' }); }
       var modal = document.getElementById('fl-my-prayer');
       if (modal) modal.remove();
       _toast('\uD83D\uDE4F Prayer marked as answered!');
@@ -17505,7 +17576,10 @@ const Modules = (() => {
     const assignEl = document.getElementById('pa-' + id);
     if (!statusEl) { _toast('Card not found. Try refreshing.', 'warn'); return; }
     const data = { id, status: statusEl.value, assignedTo: (assignEl || {}).value || '' };
-    TheVine.flock.prayer.update(data).then(() => {
+    var updater = _isFirebaseComms()
+      ? UpperRoom.updatePrayer(id, { status: data.status, assignedTo: data.assignedTo })
+      : TheVine.flock.prayer.update(data);
+    updater.then(() => {
       const card = document.querySelector('[data-prayer-id="' + id + '"]');
       const _ts = ['resolved','closed','archived','cancelled','denied','completed','answered','inactive','deleted'];
       if (_ts.indexOf((data.status || '').toLowerCase()) !== -1 && !_isSeedAdmin()) {
@@ -17521,7 +17595,10 @@ const Modules = (() => {
   function savePrayerNotes(id) {
     const notesEl = document.getElementById('pn-' + id);
     if (!notesEl) return;
-    TheVine.flock.prayer.update({ id, adminNotes: notesEl.value }).then(() => {
+    var updater = _isFirebaseComms()
+      ? UpperRoom.updatePrayer(id, { adminNotes: notesEl.value })
+      : TheVine.flock.prayer.update({ id, adminNotes: notesEl.value });
+    updater.then(() => {
       notesEl.style.borderColor = 'var(--success)';
       setTimeout(() => notesEl.style.borderColor = '', 1500);
     }).catch(e => _toast('Save failed: ' + e.message, 'danger'));
@@ -18894,7 +18971,7 @@ const Modules = (() => {
     openThread, newThread, _sendThreadReply, _renderThreadConversation,
     _threadArchive, _threadMuteToggle, _threadAddParticipant,
     openRoom, newRoom, _sendRoomMessage, _renderRoomConversation, _renderRoomMessages,
-    _roomTypingStart, _roomAddParticipant,
+    _roomTypingStart, _roomAddParticipant, _deleteFirebaseThread, _deleteRoomMsg,
     _toggleInlineReply, _sendInlineReply, _commsFilter,
     _commsSetMode, _isFirebaseComms,
     _notifMarkRead, _notifMarkAllRead, _notifDismiss, _notifBroadcastPanel, _sendBroadcastNotif, _saveNotifPrefs, _sendTestEmail,

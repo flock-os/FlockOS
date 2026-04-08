@@ -44,3 +44,4 @@ node_modules/
 .venv/
 __pycache__/
 *.pyc
+CurrentFBPW.json

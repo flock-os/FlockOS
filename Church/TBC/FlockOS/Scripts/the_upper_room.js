@@ -373,6 +373,11 @@
     return _convosRef().doc(convoId).update({ status: 'archived' });
   }
 
+  /* ── Delete conversation (pastor/admin only) ────────────────────── */
+  function deleteConversation(convoId) {
+    return _convosRef().doc(convoId).delete();
+  }
+
   /* ── Get a single conversation ──────────────────────────────────── */
   function getConversation(convoId) {
     return _convosRef().doc(convoId).get().then(function(doc) {
@@ -459,6 +464,356 @@
           if (d.status !== 'archived') rooms.push(d);
         });
         return rooms;
+      });
+  }
+
+  /* ── Browse all channels (discoverable) ─────────────────────────── */
+  function browseChannels() {
+    return _convosRef()
+      .where('type', '==', 'channel')
+      .orderBy('lastMessageAt', 'desc')
+      .limit(50)
+      .get()
+      .then(function(snap) {
+        var channels = [];
+        snap.forEach(function(doc) {
+          var d = doc.data();
+          d.id = doc.id;
+          d.memberCount = d.subscriberCount || (d.subscribers ? d.subscribers.length : 0);
+          if (d.status !== 'archived') channels.push(d);
+        });
+        return channels;
+      });
+  }
+
+  /* ── Subscribe / unsubscribe channel ────────────────────────────── */
+  function subscribeChannel(channelId) {
+    return _convosRef().doc(channelId).update({
+      subscribers:     firebase.firestore.FieldValue.arrayUnion(_userEmail),
+      subscriberCount: firebase.firestore.FieldValue.increment(1)
+    });
+  }
+
+  function unsubscribeChannel(channelId) {
+    return _convosRef().doc(channelId).update({
+      subscribers:     firebase.firestore.FieldValue.arrayRemove(_userEmail),
+      subscriberCount: firebase.firestore.FieldValue.increment(-1)
+    });
+  }
+
+  /* ── Post to channel (creates a message in the channel convo) ───── */
+  function postToChannel(channelId, subject, body) {
+    var msgBody = subject ? ('**' + subject + '**\n\n' + body) : body;
+    return sendMessage(channelId, msgBody);
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     TEMPLATES — churches/{churchId}/templates
+     ══════════════════════════════════════════════════════════════════ */
+
+  function _templatesRef() {
+    return _churchRef().collection('templates');
+  }
+
+  function listTemplates() {
+    return _templatesRef()
+      .orderBy('createdAt', 'desc')
+      .limit(100)
+      .get()
+      .then(function(snap) {
+        var results = [];
+        snap.forEach(function(doc) {
+          var d = doc.data();
+          d.id = doc.id;
+          results.push(d);
+        });
+        return results;
+      });
+  }
+
+  function getTemplate(id) {
+    return _templatesRef().doc(id).get().then(function(doc) {
+      if (!doc.exists) return null;
+      var d = doc.data();
+      d.id = doc.id;
+      return d;
+    });
+  }
+
+  function createTemplate(data) {
+    var id = _uid();
+    return _templatesRef().doc(id).set({
+      name:      data.name || '',
+      category:  data.category || '',
+      subject:   data.subject || '',
+      body:      data.body || '',
+      createdBy: _userEmail,
+      createdAt: _now(),
+      updatedAt: _now()
+    }).then(function() { return id; });
+  }
+
+  function updateTemplate(id, data) {
+    data.updatedAt = _now();
+    return _templatesRef().doc(id).update(data);
+  }
+
+  function deleteTemplate(id) {
+    return _templatesRef().doc(id).delete();
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     BROADCASTS — churches/{churchId}/broadcasts
+     ══════════════════════════════════════════════════════════════════ */
+
+  function _broadcastsRef() {
+    return _churchRef().collection('broadcasts');
+  }
+
+  function listBroadcasts(limitN) {
+    return _broadcastsRef()
+      .orderBy('createdAt', 'desc')
+      .limit(limitN || 50)
+      .get()
+      .then(function(snap) {
+        var results = [];
+        snap.forEach(function(doc) {
+          var d = doc.data();
+          d.id = doc.id;
+          results.push(d);
+        });
+        return results;
+      });
+  }
+
+  function createBroadcast(data) {
+    var id = _uid();
+    return _broadcastsRef().doc(id).set({
+      subject:        data.subject || '',
+      body:           data.body || data.message || '',
+      audience:       data.audience || 'all',
+      recipientCount: data.recipientCount || 0,
+      openCount:      0,
+      status:         'sent',
+      sentBy:         _userEmail,
+      createdAt:      _now()
+    }).then(function() { return id; });
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     NOTIFICATION PREFERENCES — churches/{churchId}/settings/notifPrefs_{email}
+     ══════════════════════════════════════════════════════════════════ */
+
+  function _notifPrefsDocId() {
+    return 'notifPrefs_' + _userEmail.replace(/[^a-zA-Z0-9]/g, '-');
+  }
+
+  function getNotifPrefs() {
+    return _churchRef().collection('settings').doc(_notifPrefsDocId())
+      .get()
+      .then(function(doc) {
+        if (!doc.exists) return {};
+        return doc.data();
+      })
+      .catch(function() { return {}; });
+  }
+
+  function updateNotifPrefs(prefs) {
+    return _churchRef().collection('settings').doc(_notifPrefsDocId())
+      .set(prefs, { merge: true });
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     PRAYER REQUESTS — churches/{churchId}/prayers
+     ══════════════════════════════════════════════════════════════════ */
+
+  function _prayersRef() {
+    return _churchRef().collection('prayers');
+  }
+
+  function listPrayers(opts) {
+    opts = opts || {};
+    var q = _prayersRef().orderBy('submittedAt', 'desc').limit(opts.limit || 300);
+    return q.get().then(function(snap) {
+      var results = [];
+      snap.forEach(function(doc) {
+        var d = doc.data();
+        d.id = doc.id;
+        results.push(d);
+      });
+      return results;
+    });
+  }
+
+  function getPrayer(id) {
+    return _prayersRef().doc(id).get().then(function(doc) {
+      if (!doc.exists) return null;
+      var d = doc.data();
+      d.id = doc.id;
+      return d;
+    });
+  }
+
+  function createPrayer(data) {
+    var id = _uid();
+    return _prayersRef().doc(id).set({
+      submitterName:     data.submitterName || 'Anonymous',
+      submitterEmail:    data.submitterEmail || _userEmail,
+      submitterPhone:    data.submitterPhone || '',
+      prayerText:        data.prayerText || '',
+      category:          data.category || '',
+      status:            'New',
+      isConfidential:    data.isConfidential || 'FALSE',
+      followUpRequested: data.followUpRequested || 'FALSE',
+      assignedTo:        '',
+      adminNotes:        '',
+      createdBy:         _userEmail,
+      submittedAt:       _now(),
+      lastUpdated:       _now(),
+      updatedBy:         _userEmail
+    }).then(function() { return id; });
+  }
+
+  function updatePrayer(id, data) {
+    data.lastUpdated = _now();
+    data.updatedBy   = _userEmail;
+    return _prayersRef().doc(id).update(data);
+  }
+
+  function deletePrayer(id) {
+    return _prayersRef().doc(id).delete();
+  }
+
+  /* ── Listen to prayers (real-time for public wall) ──────────────── */
+  function listenPrayers(callback) {
+    var key = 'prayers';
+    _unlisten(key);
+
+    _listeners[key] = _prayersRef()
+      .orderBy('submittedAt', 'desc')
+      .limit(100)
+      .onSnapshot(function(snap) {
+        var results = [];
+        snap.forEach(function(doc) {
+          var d = doc.data();
+          d.id = doc.id;
+          results.push(d);
+        });
+        callback(results);
+      }, function(err) {
+        console.error('[UpperRoom] listenPrayers error:', err);
+      });
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     TODOS / TASKS — churches/{churchId}/todos
+     ══════════════════════════════════════════════════════════════════ */
+
+  function _todosRef() {
+    return _churchRef().collection('todos');
+  }
+
+  function listTodos(opts) {
+    opts = opts || {};
+    var q = _todosRef().orderBy('createdAt', 'desc').limit(opts.limit || 200);
+    return q.get().then(function(snap) {
+      var results = [];
+      snap.forEach(function(doc) {
+        var d = doc.data();
+        d.id = doc.id;
+        results.push(d);
+      });
+      return results;
+    });
+  }
+
+  function myTodos() {
+    return _todosRef()
+      .where('assignedTo', '==', _userEmail)
+      .orderBy('createdAt', 'desc')
+      .limit(200)
+      .get()
+      .then(function(snap) {
+        var results = [];
+        snap.forEach(function(doc) {
+          var d = doc.data();
+          d.id = doc.id;
+          results.push(d);
+        });
+        return results;
+      });
+  }
+
+  function createTodo(data) {
+    var id = _uid();
+    return _todosRef().doc(id).set({
+      title:          data.title || '',
+      description:    data.description || '',
+      dueDate:        data.dueDate || '',
+      priority:       data.priority || 'Medium',
+      status:         data.status || 'Not Started',
+      category:       data.category || 'Other',
+      recurring:      data.recurring === 'true' || data.recurring === true,
+      recurrenceRule: data.recurrenceRule || '',
+      assignedTo:     data.assignedTo || _userEmail,
+      entityType:     data.entityType || '',
+      entityId:       data.entityId || '',
+      notes:          data.notes || '',
+      createdBy:      _userEmail,
+      createdAt:      _now(),
+      updatedAt:      _now()
+    }).then(function() { return id; });
+  }
+
+  function updateTodo(id, data) {
+    data.updatedAt = _now();
+    return _todosRef().doc(id).update(data);
+  }
+
+  function completeTodo(id) {
+    return _todosRef().doc(id).update({
+      status:      'Done',
+      completedAt: _now(),
+      updatedAt:   _now()
+    });
+  }
+
+  function archiveTodo(id) {
+    return _todosRef().doc(id).update({
+      status:    'Archived',
+      updatedAt: _now()
+    });
+  }
+
+  function unarchiveTodo(id) {
+    return _todosRef().doc(id).update({
+      status:    'Not Started',
+      updatedAt: _now()
+    });
+  }
+
+  function deleteTodo(id) {
+    return _todosRef().doc(id).delete();
+  }
+
+  /* ── Listen to todos (real-time) ────────────────────────────────── */
+  function listenTodos(callback) {
+    var key = 'todos';
+    _unlisten(key);
+
+    _listeners[key] = _todosRef()
+      .orderBy('createdAt', 'desc')
+      .limit(200)
+      .onSnapshot(function(snap) {
+        var results = [];
+        snap.forEach(function(doc) {
+          var d = doc.data();
+          d.id = doc.id;
+          results.push(d);
+        });
+        callback(results);
+      }, function(err) {
+        console.error('[UpperRoom] listenTodos error:', err);
       });
   }
 
@@ -626,7 +981,46 @@
     getConversation:    getConversation,
     updateConversation: updateConversation,
     archiveConversation: archiveConversation,
+    deleteConversation: deleteConversation,
     browseRooms:        browseRooms,
+    browseChannels:     browseChannels,
+    subscribeChannel:   subscribeChannel,
+    unsubscribeChannel: unsubscribeChannel,
+    postToChannel:      postToChannel,
+
+    // Templates
+    listTemplates:   listTemplates,
+    getTemplate:     getTemplate,
+    createTemplate:  createTemplate,
+    updateTemplate:  updateTemplate,
+    deleteTemplate:  deleteTemplate,
+
+    // Broadcasts
+    listBroadcasts:  listBroadcasts,
+    createBroadcast: createBroadcast,
+
+    // Notification Preferences
+    getNotifPrefs:    getNotifPrefs,
+    updateNotifPrefs: updateNotifPrefs,
+
+    // Prayer Requests
+    listPrayers:    listPrayers,
+    getPrayer:      getPrayer,
+    createPrayer:   createPrayer,
+    updatePrayer:   updatePrayer,
+    deletePrayer:   deletePrayer,
+    listenPrayers:  listenPrayers,
+
+    // Todos / Tasks
+    listTodos:      listTodos,
+    myTodos:        myTodos,
+    createTodo:     createTodo,
+    updateTodo:     updateTodo,
+    completeTodo:   completeTodo,
+    archiveTodo:    archiveTodo,
+    unarchiveTodo:  unarchiveTodo,
+    deleteTodo:     deleteTodo,
+    listenTodos:    listenTodos,
 
     // Settings
     getCommsMode:       getCommsMode,

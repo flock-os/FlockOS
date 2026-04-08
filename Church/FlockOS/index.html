@@ -192,6 +192,10 @@
     .card .card-icon { margin-bottom: 10px; }
     .card .card-title { font-weight: 600; color: var(--ink); }
     .card .card-desc { color: var(--ink-muted); margin-top: 4px; }
+    .card-gold {
+      border: 1px solid var(--gold, #d4b870);
+      background: linear-gradient(135deg, var(--accent-soft, rgba(126,170,204,0.08)), var(--gold-soft, rgba(212,184,112,0.06)));
+    }
 
     /* ── Module Content Placeholder ────────────────────────────────────── */
     .module-view { display: none; }
@@ -419,17 +423,17 @@
         <!-- ── The Gates — encounter & devotion ── -->
         <div class="dash-zone-label">The Gates</div>
         <div class="card-grid" id="dashboardCards">
-          <div class="card" data-view="upper-room" onclick="navigate('upper-room')" style="border:1px solid var(--gold,#d4b870);background:linear-gradient(135deg,var(--accent-soft,rgba(126,170,204,0.08)),var(--gold-soft,rgba(212,184,112,0.06)));">
+          <div class="card card-gold" data-view="upper-room" onclick="navigate('upper-room')">
             <div class="card-icon">&#128367;</div>
             <div class="card-title">The Upper Room</div>
             <div class="card-desc">Your personal place of devotion, prayer &amp; reflection</div>
           </div>
-          <div class="card" data-view="devotionals" onclick="navigate('devotionals')" style="border:1px solid var(--gold,#d4b870);background:linear-gradient(135deg,var(--accent-soft,rgba(126,170,204,0.08)),var(--gold-soft,rgba(212,184,112,0.06)));">
+          <div class="card card-gold" data-view="devotionals" onclick="navigate('devotionals')">
             <div class="card-icon">&#9729;</div>
             <div class="card-title">Daily Devotional</div>
             <div class="card-desc">Scripture, reflection &amp; prayer</div>
           </div>
-          <div class="card" data-view="prayer" onclick="navigate('prayer')" style="border:1px solid var(--gold,#d4b870);background:linear-gradient(135deg,var(--accent-soft,rgba(126,170,204,0.08)),var(--gold-soft,rgba(212,184,112,0.06)));">
+          <div class="card card-gold" data-view="prayer" onclick="navigate('prayer')">
             <div class="card-icon">&#128591;</div>
             <div class="card-title">Prayer Request</div>
             <div class="card-desc">Share &amp; lift up requests</div>
@@ -441,22 +445,22 @@
         <!-- ── The Courts — study & growth ── -->
         <div class="dash-zone-label">The Courts</div>
         <div class="card-grid">
-          <div class="card" data-view="reading" onclick="navigate('reading')" style="border:1px solid var(--gold,#d4b870);background:linear-gradient(135deg,var(--accent-soft,rgba(126,170,204,0.08)),var(--gold-soft,rgba(212,184,112,0.06)));">
+          <div class="card card-gold" data-view="reading" onclick="navigate('reading')">
             <div class="card-icon">&#128214;</div>
             <div class="card-title">Reading Plan</div>
             <div class="card-desc">Through the Bible in a year</div>
           </div>
-          <div class="card" data-view="quiz" onclick="navigate('quiz')" style="border:1px solid var(--gold,#d4b870);background:linear-gradient(135deg,var(--accent-soft,rgba(126,170,204,0.08)),var(--gold-soft,rgba(212,184,112,0.06)));">
+          <div class="card card-gold" data-view="quiz" onclick="navigate('quiz')">
             <div class="card-icon">&#128221;</div>
             <div class="card-title">Bible Quiz</div>
             <div class="card-desc">Test your knowledge</div>
           </div>
-          <div class="card" data-view="library" onclick="navigate('library')" style="border:1px solid var(--gold,#d4b870);background:linear-gradient(135deg,var(--accent-soft,rgba(126,170,204,0.08)),var(--gold-soft,rgba(212,184,112,0.06)));">
+          <div class="card card-gold" data-view="library" onclick="navigate('library')">
             <div class="card-icon">&#10013;</div>
             <div class="card-title">The Word</div>
             <div class="card-desc">66 Books of the Bible</div>
           </div>
-          <div class="card" data-view="learning" onclick="navigate('learning')" style="border:1px solid var(--gold,#d4b870);background:linear-gradient(135deg,var(--accent-soft,rgba(126,170,204,0.08)),var(--gold-soft,rgba(212,184,112,0.06)));">
+          <div class="card card-gold" data-view="learning" onclick="navigate('learning')">
             <div class="card-icon">&#128218;</div>
             <div class="card-title">Learning Hub</div>
             <div class="card-desc">Courses, quizzes, reading plans &amp; more</div>
@@ -468,22 +472,22 @@
         <!-- ── The Holy Place — deeper formation ── -->
         <div class="dash-zone-label">The Holy Place</div>
         <div class="card-grid">
-          <div class="card" data-view="app-theology" onclick="navigate('app-theology')" style="border:1px solid var(--gold,#d4b870);background:linear-gradient(135deg,var(--accent-soft,rgba(126,170,204,0.08)),var(--gold-soft,rgba(212,184,112,0.06)));">
+          <div class="card card-gold" data-view="app-theology" onclick="navigate('app-theology')">
             <div class="card-icon">&#128218;</div>
             <div class="card-title">Doctrine</div>
             <div class="card-desc">Core beliefs &amp; theology</div>
           </div>
-          <div class="card" data-view="words" onclick="navigate('words')" style="border:1px solid var(--gold,#d4b870);background:linear-gradient(135deg,var(--accent-soft,rgba(126,170,204,0.08)),var(--gold-soft,rgba(212,184,112,0.06)));">
+          <div class="card card-gold" data-view="words" onclick="navigate('words')">
             <div class="card-icon">&#128220;</div>
             <div class="card-title">Lexicon</div>
             <div class="card-desc">Greek &amp; Hebrew word study</div>
           </div>
-          <div class="card" data-view="counseling" onclick="navigate('counseling')" style="border:1px solid var(--gold,#d4b870);background:linear-gradient(135deg,var(--accent-soft,rgba(126,170,204,0.08)),var(--gold-soft,rgba(212,184,112,0.06)));">
+          <div class="card card-gold" data-view="counseling" onclick="navigate('counseling')">
             <div class="card-icon">&#9878;</div>
             <div class="card-title">Counseling</div>
             <div class="card-desc">Biblical guidance &amp; help</div>
           </div>
-          <div class="card" data-view="apologetics" onclick="navigate('apologetics')" style="border:1px solid var(--gold,#d4b870);background:linear-gradient(135deg,var(--accent-soft,rgba(126,170,204,0.08)),var(--gold-soft,rgba(212,184,112,0.06)));">
+          <div class="card card-gold" data-view="apologetics" onclick="navigate('apologetics')">
             <div class="card-icon">&#9881;</div>
             <div class="card-title">Apologetics</div>
             <div class="card-desc">Defend the faith</div>

@@ -249,6 +249,10 @@
     .card .card-icon { margin-bottom: 10px; }
     .card .card-title { font-weight: 600; color: var(--ink); }
     .card .card-desc { color: var(--ink-muted); margin-top: 4px; }
+    .card-gold {
+      border: 1px solid var(--gold, #d4b870);
+      background: linear-gradient(135deg, var(--accent-soft, rgba(126,170,204,0.08)), var(--gold-soft, rgba(212,184,112,0.06)));
+    }
 
     /* ── Module Content Placeholder ────────────────────────────────────── */
     .module-view { display: none; }
@@ -888,7 +892,6 @@ if (!PHOTOS_URL) {
 (function() {
   var _photosEl = document.getElementById('view-photos');
   if (!_photosEl) return;
-  var _origRender = typeof Modules !== 'undefined' ? Modules.render.bind(Modules) : null;
   window._renderPhotos = function(el) {
     if (PHOTOS_URL) {
       el.innerHTML =
@@ -1019,8 +1022,7 @@ _collapseNavGroups();
 
     zoneCards.forEach(c => {
       const el = document.createElement('div');
-      el.className = 'card';
-      el.style.cssText = 'border:1px solid var(--gold,#d4b870);background:linear-gradient(135deg,var(--accent-soft,rgba(126,170,204,0.08)),var(--gold-soft,rgba(212,184,112,0.06)))';
+      el.className = 'card card-gold';
       if (c._visitor) {
         el.onclick = () => Modules.onboardMember();
         el.innerHTML = '<div class="card-icon">&#128075;</div>'
@@ -1184,6 +1186,27 @@ let _lastRenderTime = Date.now(); // tracks when the active view was last render
 // Views that should never be silently auto-refreshed (user may be mid-edit)
 const _NO_AUTO_REFRESH = ['dashboard', 'users', 'config', 'my-flock', 'my-profile', 'access', 'directory'];
 
+// Returns true if the user is in the middle of editing — focus on a form field,
+// open modal, full-page editor, or any input/textarea/select that has been touched.
+function _isUserEditing(el) {
+  // Full-page editor or open modal
+  if ((el && el.querySelector('.fp-editor')) || document.querySelector('.modal-overlay.open')) return true;
+  // Active focus on a form control anywhere in the view
+  var ae = document.activeElement;
+  if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.tagName === 'SELECT' || ae.isContentEditable)) return true;
+  // Any form control inside the view that has been changed from its default
+  if (el) {
+    var inputs = el.querySelectorAll('input, textarea, select');
+    for (var i = 0; i < inputs.length; i++) {
+      var ctrl = inputs[i];
+      if (ctrl.type === 'checkbox' || ctrl.type === 'radio') { if (ctrl.checked !== ctrl.defaultChecked) return true; }
+      else if (ctrl.tagName === 'SELECT') { for (var j = 0; j < ctrl.options.length; j++) { if (ctrl.options[j].selected !== ctrl.options[j].defaultSelected) return true; } }
+      else if (ctrl.value !== ctrl.defaultValue) return true;
+    }
+  }
+  return false;
+}
+
 function _scheduleAutoRefresh(viewName) {
   if (_autoRefreshTimer) clearTimeout(_autoRefreshTimer);
   if (_NO_AUTO_REFRESH.indexOf(viewName) !== -1) return; // self-manages or edit-heavy
@@ -1192,8 +1215,8 @@ function _scheduleAutoRefresh(viewName) {
     if (typeof Modules !== 'undefined') {
       const el = document.getElementById('view-' + viewName);
       if (el) {
-        // Don't interrupt an active full-page editor or open modal
-        if (el.querySelector('.fp-editor') || document.querySelector('.modal-overlay.open')) { _scheduleAutoRefresh(viewName); return; }
+        // Don't interrupt if user is editing anything
+        if (_isUserEditing(el)) { _scheduleAutoRefresh(viewName); return; }
         if (typeof TheVine !== 'undefined' && TheVine.cache) TheVine.cache.invalidate('tab:' + viewName);
         delete el.dataset.loaded;
         Modules.render(viewName, el, session);
@@ -1216,8 +1239,8 @@ document.addEventListener('visibilitychange', function() {
   if (typeof Modules !== 'undefined') {
     const el = document.getElementById('view-' + currentView);
     if (el) {
-      // Don't interrupt an active full-page editor or open modal
-      if (el.querySelector('.fp-editor') || document.querySelector('.modal-overlay.open')) return;
+      // Don't interrupt if user is editing anything
+      if (_isUserEditing(el)) return;
       if (typeof TheVine !== 'undefined' && TheVine.cache) TheVine.cache.invalidate('tab:' + currentView);
       delete el.dataset.loaded;
       Modules.render(currentView, el, session);
@@ -1527,6 +1550,16 @@ async function refreshNotifBadge() {
 // Poll for new notifications every 30s
 refreshNotifBadge();
 _notifPollId = setInterval(refreshNotifBadge, 30000);
+// Pause poll when tab is hidden, resume when visible; clear on unload
+document.addEventListener('visibilitychange', function() {
+  if (document.hidden) {
+    clearInterval(_notifPollId); _notifPollId = null;
+  } else if (!_notifPollId) {
+    refreshNotifBadge();
+    _notifPollId = setInterval(refreshNotifBadge, 30000);
+  }
+});
+window.addEventListener('beforeunload', function() { clearInterval(_notifPollId); });
 
 // ── Auto-navigate to public card if ?m= query param is present ──────────
 (function() {
@@ -1586,9 +1619,7 @@ window.TopBar = (function() {
 </script>
 <script>
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('../../the_living_water.js')
-    .then(reg => console.log('ServiceWorker registered:', reg.scope))
-    .catch(err => console.warn('ServiceWorker registration failed:', err));
+  navigator.serviceWorker.register('../../the_living_water.js').catch(function() {});
 }
 </script>
 </body>

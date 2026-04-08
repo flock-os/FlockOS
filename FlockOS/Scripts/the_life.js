@@ -130,7 +130,6 @@ const TheLife = (() => {
       targetId: targetId || '',
       detail: detail || '',
     };
-    console.log('[TheLife Audit]', entry.action, entry);
     // Fire-and-forget: record a statistics snapshot for trending
     try {
       if (typeof TheVine !== 'undefined' && TheVine.luke && TheVine.luke.statistics) {
@@ -364,7 +363,6 @@ const TheLife = (() => {
     }
     if (id) {
       var _raw = _r[1];
-      console.log('[TheLife] care.get raw response:', JSON.stringify(_raw));
       // Unwrap: API returns { ok:true, row:{...} }
       if (_raw && typeof _raw === 'object' && !_raw.error) {
         rec = _raw.row || (_raw.id ? _raw : {});
@@ -893,7 +891,6 @@ const TheLife = (() => {
     if (!confirm('Resolve this care case?')) return;
     try {
       var result = await TheVine.flock.care.resolve({ id: _fpCareId });
-      console.log('[TheLife] care.resolve response:', JSON.stringify(result));
       // Verify the server actually confirmed the resolve
       if (!result || !result.ok) {
         throw new Error(
@@ -3367,10 +3364,6 @@ const TheLife = (() => {
     }
   }
 
-  function _onPermSelChange(sel) {
-    // Legacy stub — no longer used, kept for safety
-  }
-
   async function savePermissions() {
     var hasCritChecked = Array.from(document.querySelectorAll('.fp-perm-chk'))
       .some(function(c) { return c.checked && c.getAttribute('data-risk') === 'critical'; });
@@ -3465,7 +3458,6 @@ const TheLife = (() => {
     _miniModal:         _miniModal,
     savePermissions:    savePermissions,
     _applyPermTemplate: _applyPermTemplate,
-    _onPermSelChange:   _onPermSelChange,
     _onPermChkChange:   _onPermChkChange,
     _onGrpChkChange:    _onGrpChkChange,
   };

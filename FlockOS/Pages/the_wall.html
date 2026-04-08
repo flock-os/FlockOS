@@ -502,9 +502,7 @@ window.handleReset = handleReset;
 </script>
 <script>
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('../../the_living_water.js')
-    .then(reg => console.log('ServiceWorker registered:', reg.scope))
-    .catch(err => console.warn('ServiceWorker registration failed:', err));
+  navigator.serviceWorker.register('../../the_living_water.js').catch(function() {});
 }
 </script>
 
