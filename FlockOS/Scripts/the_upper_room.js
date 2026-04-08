@@ -4592,4 +4592,7 @@
     timeAgo:        _timeAgo
   };
 
+  // ── Auto-initialize on load (Firebase SDK is loaded before this script) ──
+  try { init(); } catch (_) {}
+
 })();
