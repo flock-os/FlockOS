@@ -6,6 +6,8 @@
   'use strict';
 
   /* ── Firebase Config ──────────────────────────────────────────────── */
+  // Firebase API keys are public identifiers (not secrets).
+  // Security is enforced by Firestore security rules, not key secrecy.
   var FIREBASE_CONFIG = {
     apiKey:            'AIzaSyBA-fkxjABbwIHn0i6MPiXbGwahfJmuJeo',
     authDomain:        'flockos-notify.firebaseapp.com',
@@ -59,8 +61,11 @@
   }
 
   /* ── Init ─────────────────────────────────────────────────────────── */
-  function init() {
+  function init(config) {
     if (_ready) return Promise.resolve();
+
+    // Accept optional config override
+    if (config) FIREBASE_CONFIG = config;
 
     // Firebase SDK must be loaded
     if (typeof firebase === 'undefined' || !firebase.firestore) {
