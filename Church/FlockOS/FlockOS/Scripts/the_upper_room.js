@@ -160,7 +160,7 @@
 
   /* ── Mint a fresh custom token from GAS and sign in ────────────── */
   function _mintAndSignIn() {
-    return TheVine.flock.firebase.token()
+    return TheVine.flock.firebase.token({ churchId: _churchId })
       .then(function(res) {
         var token = res && (res.token || res.customToken);
         if (!token) throw new Error('No custom token returned');
