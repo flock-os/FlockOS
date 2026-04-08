@@ -6199,11 +6199,37 @@ const Modules = (() => {
   // ═══════════════════════════════════════════════════════════════════════
   var _commsTab = 'inbox';
   var _commsOpenMsg    = null;   // { id, cache } — currently viewed message
-  var _commsOpenThread = null;   // thread id currently viewed
-  var _commsOpenRoom   = null;   // Firebase room id currently viewed
+  var _commsOpenThread = null;   // thread id currently viewed (Sheets mode)
+  var _commsOpenRoom   = null;   // Firebase conversation id currently viewed
   var _roomMsgListener = null;   // active Firestore listener for room messages
   var _roomTypingListener = null; // active typing listener
   var _roomTypingTimer = null;   // debounce timer for typing indicator
+  var _commsMode       = null;   // 'firebase' | 'sheets' — null = not yet loaded
+  var _commsModeLoading = false; // prevent concurrent loads
+
+  // Load comms mode from Firestore (cached after first load)
+  async function _loadCommsMode() {
+    if (_commsMode !== null) return;
+    if (_commsModeLoading) {
+      // Wait for in-flight load
+      await new Promise(function(res) { setTimeout(res, 800); });
+      return;
+    }
+    _commsModeLoading = true;
+    try {
+      if (typeof UpperRoom === 'undefined') { _commsMode = 'sheets'; return; }
+      await UpperRoom.init();
+      if (!UpperRoom.isReady()) await UpperRoom.authenticate();
+      _commsMode = await UpperRoom.getCommsMode();
+    } catch (_) {
+      _commsMode = 'sheets'; // graceful fallback
+    } finally {
+      _commsModeLoading = false;
+    }
+  }
+
+  // Helper used throughout comms rendering
+  function _isFirebaseComms() { return _commsMode === 'firebase'; }
 
   function _commsTabBtn(label, tab, badge) {
     const active = _commsTab === tab;
@@ -6619,6 +6645,29 @@ const Modules = (() => {
     if (btn) { btn.disabled = false; btn.textContent = 'Send'; }
   }
 
+  // newDM — start a 1-to-1 DM conversation via Firebase
+  async function newDM() {
+    var dir   = await _ensureMemberDir();
+    var mOpts = _memberOpts(dir);
+    _modal('&#9993; New Message', [
+      { name: 'recipient', label: 'To (Member)', type: 'select', options: mOpts, required: true },
+      { name: 'body',      label: 'Message',     type: 'textarea', required: true, rows: 5 },
+    ], async function(data) {
+      try {
+        if (typeof UpperRoom === 'undefined') throw new Error('Firebase not available');
+        await UpperRoom.init();
+        if (!UpperRoom.isReady()) await UpperRoom.authenticate();
+        // Find display name from member dir
+        var allMembers = _dataCache['member-dir'] || [];
+        var member = allMembers.find(function(m) { return m.email === data.recipient || m.id === data.recipient; }) || {};
+        var recipName = member.name || member.displayName || data.recipient;
+        var dmId = await UpperRoom.createDM(data.recipient, recipName);
+        await UpperRoom.sendMessage(dmId, data.body);
+        commsView('inbox');
+      } catch (e) { _toast('Error: ' + e.message, 'danger'); }
+    }, 'Send');
+  }
+
   async function newThread() {
     _modal('&#128172; New Thread', [
       { name: 'subject',   label: 'Subject',  required: true },
@@ -6626,10 +6675,20 @@ const Modules = (() => {
         placeholder: 'e.g. john@church.org, mary@church.org' },
       { name: 'body',      label: 'Opening Message', type: 'textarea', required: true, rows: 5 },
     ], async function(data) {
-      var memberIds = String(data.memberIds || '').split(/[,\n]+/).map(function(s) { return s.trim(); }).filter(Boolean);
-      await TheVine.flock.comms.threads.create({ subject: data.subject, memberIds: memberIds, body: data.body });
-      _invalidateCache('comms-threads');
-      commsView('threads');
+      var memberEmails = String(data.memberIds || '').split(/[,\n]+/).map(function(s) { return s.trim(); }).filter(Boolean);
+      if (_isFirebaseComms()) {
+        try {
+          if (typeof UpperRoom === 'undefined') throw new Error('Firebase not available');
+          await UpperRoom.init();
+          if (!UpperRoom.isReady()) await UpperRoom.authenticate();
+          await UpperRoom.createThread(data.subject, memberEmails, data.body);
+          commsView('threads');
+        } catch (e) { _toast('Error: ' + e.message, 'danger'); }
+      } else {
+        await TheVine.flock.comms.threads.create({ subject: data.subject, memberIds: memberEmails, body: data.body });
+        _invalidateCache('comms-threads');
+        commsView('threads');
+      }
     }, 'Start Thread');
   }
 
@@ -6686,7 +6745,7 @@ const Modules = (() => {
       let headerHtml = '<div style="margin-bottom:16px;display:flex;align-items:center;gap:12px;">'
         + '<button onclick="Modules.commsView(\'rooms\')" '
         + 'style="background:none;border:none;color:var(--accent);cursor:pointer;'
-        + 'font-size:0.82rem;padding:0;font-family:inherit;flex-shrink:0;">&#8592; Rooms</button>'
+        + 'font-size:0.82rem;padding:0;font-family:inherit;flex-shrink:0;">&#8592; ' + (_commsTab || 'Back') + '</button>'
         + '<h3 style="margin:0;font-size:0.95rem;font-weight:700;color:var(--ink);'
         + 'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _e(roomName) + '</h3>'
         + '<span style="font-size:0.72rem;color:var(--ink-muted);flex-shrink:0;">&#128101; ' + memberCount + '</span>'
@@ -6860,24 +6919,29 @@ const Modules = (() => {
   }
 
   _def('comms', async el => {
-    _shell(el, 'Messages', 'Send, receive & manage church communications.',
-      _btn('+ New Message', "Modules.newMessage()") +
-      _btn('\uD83D\uDCF2 SMS', "Modules.sendSms()", false) +
-      _btn('\uD83D\uDCE3 Broadcast', "Modules.newBroadcast()", false));
+    // Determine comms mode (Firebase default, Sheets fallback)
+    await _loadCommsMode();
+    var _fb = _isFirebaseComms();
 
-    // If a Firebase room is open, render it
+    _shell(el, 'Messages', _fb ? 'Real-time communications powered by Firebase.' : 'Church communications via Google Sheets.',
+      (_fb
+        ? _btn('+ New Message', "Modules.newDM()") + _btn('+ New Thread', "Modules.newThread()") + _btn('&#128227; Broadcast', "Modules.newBroadcast()", false)
+        : _btn('+ New Message', "Modules.newMessage()") + _btn('&#128242; SMS', "Modules.sendSms()", false) + _btn('&#128227; Broadcast', "Modules.newBroadcast()", false)
+      ));
+
+    // If a Firebase conversation is open, render it
     if (_commsOpenRoom) {
       await _renderRoomConversation(el, _commsOpenRoom);
       return;
     }
 
-    // If a thread conversation is open, render it
+    // If a Sheets thread conversation is open, render it
     if (_commsOpenThread) {
       await _renderThreadConversation(el, _commsOpenThread);
       return;
     }
 
-    // If a message is open, render detail view
+    // If a Sheets message detail is open, render it
     if (_commsOpenMsg) {
       const rows = _dataCache['comms-' + _commsOpenMsg.cache] || [];
       const msg = rows.find(r => r.id === _commsOpenMsg.id || String(r.id) === _commsOpenMsg.id);
@@ -6885,24 +6949,39 @@ const Modules = (() => {
       _commsOpenMsg = null;
     }
 
-    // Parallel fetch: member directory + both unread counts + tab data
-    const tabFetcher = _commsTab === 'inbox'
-      ? _fetch('comms-inbox',      () => TheVine.flock.comms.messages.inbox({ limit: 60 }),      _TTL.msg)
-      : _commsTab === 'sent'
-        ? _fetch('comms-sent',     () => TheVine.flock.comms.messages.sent({ limit: 60 }),       _TTL.msg)
-        : _commsTab === 'notifications'
-          ? _fetch('comms-notifs', () => TheVine.flock.comms.notifications.list({ limit: 60 }),  _TTL.msg)
-          : _commsTab === 'notifPrefs'
-            ? TheVine.flock.comms.notifPrefs.get().catch(() => ({}))
-            : _commsTab === 'channels'
-              ? _fetch('comms-channels',   () => TheVine.flock.comms.channels.list(),            _TTL.msg)
-              : _commsTab === 'templates'
-                ? _fetch('comms-templates', () => TheVine.flock.comms.templates.list(),          _TTL.msg)
-                : _commsTab === 'broadcasts'
-                  ? _fetch('comms-broadcasts', () => TheVine.flock.comms.broadcast.list({ limit: 50 }), _TTL.msg)
-                  : _commsTab === 'rooms'
-                    ? Promise.resolve([])
-                    : _fetch('comms-threads', () => TheVine.flock.comms.threads.list({ limit: 40 }), _TTL.msg);
+    // Tab-level data fetcher — Firebase mode skips inbox/sent/threads/rooms (handled inline)
+    var tabFetcher;
+    if (_fb) {
+      tabFetcher = _commsTab === 'notifications'
+        ? _fetch('comms-notifs',     () => TheVine.flock.comms.notifications.list({ limit: 60 }), _TTL.msg)
+        : _commsTab === 'notifPrefs'
+          ? TheVine.flock.comms.notifPrefs.get().catch(() => ({}))
+          : _commsTab === 'channels'
+            ? _fetch('comms-channels',   () => TheVine.flock.comms.channels.list(),              _TTL.msg)
+            : _commsTab === 'templates'
+              ? _fetch('comms-templates', () => TheVine.flock.comms.templates.list(),            _TTL.msg)
+              : _commsTab === 'broadcasts'
+                ? _fetch('comms-broadcasts', () => TheVine.flock.comms.broadcast.list({ limit: 50 }), _TTL.msg)
+                : Promise.resolve([]); // inbox, sent, threads, rooms all handled inline
+    } else {
+      tabFetcher = _commsTab === 'inbox'
+        ? _fetch('comms-inbox',       () => TheVine.flock.comms.messages.inbox({ limit: 60 }),   _TTL.msg)
+        : _commsTab === 'sent'
+          ? _fetch('comms-sent',      () => TheVine.flock.comms.messages.sent({ limit: 60 }),    _TTL.msg)
+          : _commsTab === 'notifications'
+            ? _fetch('comms-notifs',  () => TheVine.flock.comms.notifications.list({ limit: 60 }), _TTL.msg)
+            : _commsTab === 'notifPrefs'
+              ? TheVine.flock.comms.notifPrefs.get().catch(() => ({}))
+              : _commsTab === 'channels'
+                ? _fetch('comms-channels',   () => TheVine.flock.comms.channels.list(),          _TTL.msg)
+                : _commsTab === 'templates'
+                  ? _fetch('comms-templates', () => TheVine.flock.comms.templates.list(),        _TTL.msg)
+                  : _commsTab === 'broadcasts'
+                    ? _fetch('comms-broadcasts', () => TheVine.flock.comms.broadcast.list({ limit: 50 }), _TTL.msg)
+                    : _commsTab === 'rooms'
+                      ? Promise.resolve([])
+                      : _fetch('comms-threads', () => TheVine.flock.comms.threads.list({ limit: 40 }), _TTL.msg);
+    }
 
     const [, notifResult, tabResult] = await Promise.all([
       _ensureMemberDir().catch(() => []),
@@ -6938,6 +7017,52 @@ const Modules = (() => {
       const rows = allRows;
 
       if (_commsTab === 'inbox') {
+        if (_fb) {
+          // Firebase DM inbox — real-time
+          html += '<div id="comms-inbox-list" style="background:var(--bg-sunken);border:1px solid var(--line);border-radius:10px;overflow:hidden;">'
+            + _spinner() + '</div>';
+          _body(el, html);
+          (async function() {
+            try {
+              UpperRoom.listenConversations('dm', function(convos) {
+                var container = document.getElementById('comms-inbox-list');
+                if (!container) return;
+                if (!convos.length) {
+                  container.innerHTML = '<div style="text-align:center;padding:40px 0;color:var(--ink-muted);font-size:0.85rem;">'
+                    + '&#128236; No messages yet. Send your first DM!</div>';
+                  return;
+                }
+                var listHtml = '';
+                convos.forEach(function(c) {
+                  var other = (c.participants || []).find(function(e) { return e !== UpperRoom.userEmail(); }) || '';
+                  var name = (c.participantNames && c.participantNames[other]) || other || 'Unknown';
+                  var snippet = c.lastSnippet || '';
+                  var time = UpperRoom.timeAgo(c.lastMessageAt);
+                  var cid = c.id || '';
+                  listHtml += '<div class="ci" data-search="' + _e((name + ' ' + snippet).toLowerCase()) + '" '
+                    + 'onclick="Modules.openRoom(\'' + _e(cid) + '\')" '
+                    + 'style="display:flex;gap:12px;padding:14px 16px;cursor:pointer;border-bottom:1px solid var(--line);transition:background .12s;"'
+                    + ' onmouseenter="this.style.background=\'rgba(255,255,255,0.06)\'"'
+                    + ' onmouseleave="this.style.background=\'transparent\'">'
+                    + _msgInitial(name)
+                    + '<div style="flex:1;min-width:0;">'
+                    + '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;">'
+                    + '<span style="font-weight:600;color:var(--ink);font-size:0.88rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _e(name) + '</span>'
+                    + '<span style="font-size:0.72rem;color:var(--ink-muted);flex-shrink:0;">' + time + '</span>'
+                    + '</div>'
+                    + '<div style="font-size:0.78rem;color:var(--ink-muted);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _e(snippet || 'Tap to chat') + '</div>'
+                    + '</div></div>';
+                });
+                container.innerHTML = listHtml;
+              });
+            } catch (e) {
+              var c = document.getElementById('comms-inbox-list');
+              if (c) c.innerHTML = '<div style="padding:20px;color:var(--danger);font-size:0.85rem;">Could not load inbox: ' + _e(e.message) + '</div>';
+            }
+          })();
+          return;
+        }
+        // Sheets inbox
         _dataCache['comms-inbox'] = rows;
         if (!rows.length) {
           html += _empty('&#128236;', 'Inbox Empty', 'No messages yet. Start a conversation!');
@@ -6949,6 +7074,51 @@ const Modules = (() => {
         }
 
       } else if (_commsTab === 'sent') {
+        if (_fb) {
+          // Firebase sent — conversations I started
+          html += '<div id="comms-sent-list" style="background:var(--bg-sunken);border:1px solid var(--line);border-radius:10px;overflow:hidden;">'
+            + _spinner() + '</div>';
+          _body(el, html);
+          (async function() {
+            try {
+              var sent = await UpperRoom.listSentConversations();
+              var container = document.getElementById('comms-sent-list');
+              if (!container) return;
+              if (!sent.length) {
+                container.innerHTML = '<div style="text-align:center;padding:40px 0;color:var(--ink-muted);font-size:0.85rem;">'
+                  + '&#9993; Nothing sent yet.</div>';
+                return;
+              }
+              var listHtml = '';
+              sent.forEach(function(c) {
+                var typeIcon = c.type === 'room' ? '&#128172;' : c.type === 'thread' ? '&#128200;' : '&#9993;';
+                var name = c.name || c.subject || (c.participants || []).filter(function(e) { return e !== UpperRoom.userEmail(); }).join(', ') || 'Conversation';
+                var snippet = c.lastSnippet || '';
+                var time = UpperRoom.timeAgo(c.lastMessageAt);
+                var cid = c.id || '';
+                listHtml += '<div class="ci" data-search="' + _e((name + ' ' + snippet).toLowerCase()) + '" '
+                  + 'onclick="Modules.openRoom(\'' + _e(cid) + '\')" '
+                  + 'style="display:flex;gap:12px;padding:14px 16px;cursor:pointer;border-bottom:1px solid var(--line);transition:background .12s;"'
+                  + ' onmouseenter="this.style.background=\'rgba(255,255,255,0.06)\'"'
+                  + ' onmouseleave="this.style.background=\'transparent\'">'
+                  + '<div style="width:38px;height:38px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;opacity:0.8;">' + typeIcon + '</div>'
+                  + '<div style="flex:1;min-width:0;">'
+                  + '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;">'
+                  + '<span style="font-weight:600;color:var(--ink);font-size:0.88rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _e(name) + '</span>'
+                  + '<span style="font-size:0.72rem;color:var(--ink-muted);flex-shrink:0;">' + time + '</span>'
+                  + '</div>'
+                  + '<div style="font-size:0.78rem;color:var(--ink-muted);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _e(snippet || 'Tap to open') + '</div>'
+                  + '</div></div>';
+              });
+              container.innerHTML = listHtml;
+            } catch (e) {
+              var c = document.getElementById('comms-sent-list');
+              if (c) c.innerHTML = '<div style="padding:20px;color:var(--danger);font-size:0.85rem;">Could not load sent: ' + _e(e.message) + '</div>';
+            }
+          })();
+          return;
+        }
+        // Sheets sent
         _dataCache['comms-sent'] = rows;
         if (!rows.length) {
           html += _empty('&#9993;', 'No Sent Messages', 'Compose a new message to get started.');
@@ -7028,6 +7198,55 @@ const Modules = (() => {
         return; // early return — _body already called above
 
       } else if (_commsTab === 'threads') {
+        if (_fb) {
+          // Firebase threads — real-time
+          html += '<div style="display:flex;justify-content:flex-end;margin-bottom:10px;">'
+            + '<button onclick="Modules.newThread()" style="background:var(--accent);color:var(--ink-inverse);border:none;border-radius:6px;padding:6px 14px;font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:600;">+ New Thread</button>'
+            + '</div>';
+          html += '<div id="comms-thread-list" style="background:var(--bg-sunken);border:1px solid var(--line);border-radius:10px;overflow:hidden;">'
+            + _spinner() + '</div>';
+          _body(el, html);
+          (async function() {
+            try {
+              UpperRoom.listenConversations('thread', function(threads) {
+                var container = document.getElementById('comms-thread-list');
+                if (!container) return;
+                if (!threads.length) {
+                  container.innerHTML = '<div style="text-align:center;padding:40px 0;color:var(--ink-muted);font-size:0.85rem;">'
+                    + '&#128172; No threads yet. Start one!</div>';
+                  return;
+                }
+                var listHtml = '';
+                threads.forEach(function(t) {
+                  var subject = t.subject || '(No Subject)';
+                  var snippet = t.lastSnippet || '';
+                  var memberCount = t.memberCount || (t.participants || []).length;
+                  var time = UpperRoom.timeAgo(t.lastMessageAt);
+                  var tid = t.id || '';
+                  listHtml += '<div class="ct" data-search="' + _e((subject + ' ' + snippet).toLowerCase()) + '" '
+                    + 'onclick="Modules.openRoom(\'' + _e(tid) + '\')" '
+                    + 'style="display:flex;gap:12px;padding:14px 16px;cursor:pointer;border-bottom:1px solid var(--line);transition:background .12s;"'
+                    + ' onmouseenter="this.style.background=\'rgba(255,255,255,0.06)\'"'
+                    + ' onmouseleave="this.style.background=\'transparent\'">'
+                    + '<div style="width:38px;height:38px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;opacity:0.9;">&#128200;</div>'
+                    + '<div style="flex:1;min-width:0;">'
+                    + '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;">'
+                    + '<span style="font-weight:700;color:var(--ink);font-size:0.88rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _e(subject) + '</span>'
+                    + '<span style="font-size:0.72rem;color:var(--ink-muted);flex-shrink:0;">&#128101; ' + memberCount + ' &middot; ' + time + '</span>'
+                    + '</div>'
+                    + '<div style="font-size:0.78rem;color:var(--ink-muted);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _e(snippet || 'Tap to open thread') + '</div>'
+                    + '</div></div>';
+                });
+                container.innerHTML = listHtml;
+              });
+            } catch (e) {
+              var c = document.getElementById('comms-thread-list');
+              if (c) c.innerHTML = '<div style="padding:20px;color:var(--danger);font-size:0.85rem;">Could not load threads: ' + _e(e.message) + '</div>';
+            }
+          })();
+          return;
+        }
+        // Sheets threads (fallback)
         _dataCache['comms-threads'] = rows;
         html += '<div style="display:flex;justify-content:flex-end;margin-bottom:10px;">'
           + '<button onclick="Modules.newThread()" style="background:var(--accent);color:var(--ink-inverse);border:none;border-radius:6px;padding:6px 14px;font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:600;">+ New Thread</button>'
@@ -11095,9 +11314,63 @@ const Modules = (() => {
       html += '<div id="bulk-export-status" style="margin-top:12px;font-size:0.8rem;color:var(--ink-muted);"></div>';
       html += '</div>';
 
+      // ── Communications Settings (admin only) ─────────────────────────────
+      html += '<div style="background:var(--bg-raised);border:1px solid var(--line);border-radius:10px;padding:24px;">';
+      html += '<h3 style="margin:0 0 6px;font-size:0.95rem;font-weight:700;">&#128172; Communications Settings</h3>';
+      html += '<p style="margin:0 0 16px;font-size:0.82rem;color:var(--ink-muted);line-height:1.55;">Choose where communications are stored. Firebase provides real-time chat and is recommended. Google Sheets is the offline-friendly fallback.</p>';
+      html += '<div id="comms-mode-settings" style="font-size:0.83rem;">' + _spinner() + '</div>';
+      html += '</div>';
+
       _body(el, html);
+
+      // Load and render current comms mode
+      (async function() {
+        var container = document.getElementById('comms-mode-settings');
+        if (!container) return;
+        try {
+          if (typeof UpperRoom === 'undefined') throw new Error('Firebase not loaded');
+          await UpperRoom.init();
+          if (!UpperRoom.isReady()) await UpperRoom.authenticate();
+          var mode = await UpperRoom.getCommsMode();
+          container.innerHTML =
+            '<div style="display:flex;align-items:stretch;gap:12px;flex-wrap:wrap;">'
+            + '<label style="display:flex;align-items:center;gap:10px;cursor:pointer;background:var(--bg-sunken);'
+            + 'border:1px solid var(--line);border-radius:8px;padding:12px 16px;flex:1;min-width:200px;">'
+            + '<input type="radio" name="commsMode" value="firebase" ' + (mode !== 'sheets' ? 'checked' : '') + ' '
+            + 'onchange="Modules._commsSetMode(\'firebase\')" style="accent-color:var(--accent);width:16px;height:16px;flex-shrink:0;">'
+            + '<div><div style="font-weight:600;color:var(--ink);">&#9889; Firebase (Real-time)</div>'
+            + '<div style="font-size:0.75rem;color:var(--ink-muted);margin-top:2px;">Live chat, typing indicators, instant delivery</div></div>'
+            + '</label>'
+            + '<label style="display:flex;align-items:center;gap:10px;cursor:pointer;background:var(--bg-sunken);'
+            + 'border:1px solid var(--line);border-radius:8px;padding:12px 16px;flex:1;min-width:200px;">'
+            + '<input type="radio" name="commsMode" value="sheets" ' + (mode === 'sheets' ? 'checked' : '') + ' '
+            + 'onchange="Modules._commsSetMode(\'sheets\')" style="accent-color:var(--accent);width:16px;height:16px;flex-shrink:0;">'
+            + '<div><div style="font-weight:600;color:var(--ink);">&#128202; Google Sheets (Offline-friendly)</div>'
+            + '<div style="font-size:0.75rem;color:var(--ink-muted);margin-top:2px;">Works without strong internet, backed by spreadsheet</div></div>'
+            + '</label>'
+            + '</div>'
+            + '<div id="comms-mode-status" style="margin-top:10px;font-size:0.78rem;color:var(--ink-muted);min-height:18px;"></div>';
+        } catch (e) {
+          container.innerHTML = '<div style="color:var(--danger);font-size:0.83rem;">Could not load setting: ' + _e(e.message) + '</div>';
+        }
+      })();
+      return; // _body already called above
+
     } catch (e) { _body(el, _errHtml(e.message)); }
   });
+
+  // Save comms mode to Firestore and invalidate the cached mode
+  async function _commsSetMode(mode) {
+    var statusEl = document.getElementById('comms-mode-status');
+    if (statusEl) statusEl.textContent = 'Saving…';
+    try {
+      await UpperRoom.setCommsMode(mode);
+      _commsMode = mode; // update cached value immediately
+      if (statusEl) statusEl.textContent = 'Saved! Reload the Messages tab to apply.';
+    } catch (e) {
+      if (statusEl) statusEl.textContent = 'Error: ' + e.message;
+    }
+  }
 
   function _bulkPreview(input) {
     const file    = input.files && input.files[0];
@@ -18601,12 +18874,14 @@ const Modules = (() => {
     newTheologyCategory,
     startQuiz, scoreQuiz, downloadQuizPDF,
     newMessage, replyMessage, forwardMessage, sendSms, newBroadcast, commsView,
+    newDM,
     openMessage, deleteMessage, archiveMessage, markMessageUnread,
     openThread, newThread, _sendThreadReply, _renderThreadConversation,
     _threadArchive, _threadMuteToggle, _threadAddParticipant,
     openRoom, newRoom, _sendRoomMessage, _renderRoomConversation, _renderRoomMessages,
     _roomTypingStart, _roomAddParticipant,
     _toggleInlineReply, _sendInlineReply, _commsFilter,
+    _commsSetMode, _isFirebaseComms,
     _notifMarkRead, _notifMarkAllRead, _notifDismiss, _notifBroadcastPanel, _sendBroadcastNotif, _saveNotifPrefs,
     _channelNew, _channelEdit, _channelDelete, _channelPost,
     _templateNew, _templateEdit, _templateDelete, _templateUse,

@@ -380,6 +380,67 @@
     });
   }
 
+  /* ── Create a Group Thread ─────────────────────────────────────────── */
+  function createThread(subject, memberEmails, firstMessage) {
+    var threadId = _uid();
+    var allMembers = [_userEmail].concat(memberEmails || []);
+    var seen = {};
+    allMembers = allMembers.filter(function(e) {
+      if (!e || seen[e]) return false;
+      seen[e] = true;
+      return true;
+    });
+    var snippet = firstMessage
+      ? (firstMessage.length > 80 ? firstMessage.substring(0, 80) + '…' : firstMessage)
+      : '';
+    return _convosRef().doc(threadId).set({
+      type:          'thread',
+      subject:       subject || 'New Thread',
+      participants:  allMembers,
+      createdBy:     _userEmail,
+      createdAt:     _now(),
+      lastMessageAt: _now(),
+      lastSnippet:   snippet,
+      memberCount:   allMembers.length,
+      unreadBy:      []
+    }).then(function() {
+      if (!firstMessage) return threadId;
+      return sendMessage(threadId, firstMessage).then(function() { return threadId; });
+    });
+  }
+
+  /* ── Conversations I started (Sent view) ────────────────────────────── */
+  function listSentConversations() {
+    return _convosRef()
+      .where('createdBy', '==', _userEmail)
+      .orderBy('lastMessageAt', 'desc')
+      .limit(50)
+      .get()
+      .then(function(snap) {
+        var results = [];
+        snap.forEach(function(doc) {
+          var d = doc.data(); d.id = doc.id; results.push(d);
+        });
+        return results;
+      });
+  }
+
+  /* ── App-level settings (comms mode per church) ─────────────────────── */
+  function getCommsMode() {
+    return _churchRef().collection('settings').doc('app')
+      .get()
+      .then(function(doc) {
+        if (!doc.exists) return 'firebase';
+        return doc.data().commsMode || 'firebase';
+      })
+      .catch(function() { return 'firebase'; });
+  }
+
+  function setCommsMode(mode) {
+    return _churchRef().collection('settings').doc('app')
+      .set({ commsMode: mode }, { merge: true });
+  }
+
   /* ── Browse available rooms (discoverable) ──────────────────────── */
   function browseRooms() {
     return _convosRef()
@@ -556,13 +617,19 @@
     // Conversations
     createDM:           createDM,
     createRoom:         createRoom,
+    createThread:       createThread,
     createChannel:      createChannel,
     listConversations:  listConversations,
+    listSentConversations: listSentConversations,
     listenConversations: listenConversations,
     getConversation:    getConversation,
     updateConversation: updateConversation,
     archiveConversation: archiveConversation,
     browseRooms:        browseRooms,
+
+    // Settings
+    getCommsMode:       getCommsMode,
+    setCommsMode:       setCommsMode,
 
     // Membership
     joinRoom:       joinRoom,
