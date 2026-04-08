@@ -6200,6 +6200,10 @@ const Modules = (() => {
   var _commsTab = 'inbox';
   var _commsOpenMsg    = null;   // { id, cache } — currently viewed message
   var _commsOpenThread = null;   // thread id currently viewed
+  var _commsOpenRoom   = null;   // Firebase room id currently viewed
+  var _roomMsgListener = null;   // active Firestore listener for room messages
+  var _roomTypingListener = null; // active typing listener
+  var _roomTypingTimer = null;   // debounce timer for typing indicator
 
   function _commsTabBtn(label, tab, badge) {
     const active = _commsTab === tab;
@@ -6533,119 +6537,202 @@ const Modules = (() => {
     await _renderThreadConversation(el, id);
   }
 
-  // Render thread conversation — fetches messages and shows them in order
-  async function _renderThreadConversation(el, threadId) {
+  // ── Firebase Room: open ───────────────────────────────────────────────
+  async function openRoom(id) {
+    _commsOpenRoom = id;
+    _commsOpenThread = null;
+    const el = document.getElementById('view-comms');
+    if (!el) return;
+    const b = el.querySelector('#ml-body');
+    if (b) b.innerHTML = _spinner();
+    await _renderRoomConversation(el, id);
+  }
+
+  // ── Firebase Room: render real-time conversation ──────────────────────
+  async function _renderRoomConversation(el, roomId) {
     try {
-      // Get thread metadata from cache
-      const threads = _dataCache['comms-threads'] || [];
-      const thread  = threads.find(r => r.id === threadId || String(r.id) === threadId) || {};
-      const subject = thread.subject || thread.title || 'Thread';
+      // Ensure UpperRoom is initialized and authenticated
+      if (typeof UpperRoom === 'undefined') { _body(el, _errHtml('Firebase not available')); return; }
+      await UpperRoom.init();
+      if (!UpperRoom.isReady()) await UpperRoom.authenticate();
 
-      // Fetch thread messages
-      const res  = await TheVine.flock.comms.threads.messages({ id: threadId });
-      const msgs = _rows(res);
+      const room = await UpperRoom.getConversation(roomId);
+      const roomName = (room && (room.name || room.subject)) || 'Room';
+      const memberCount = (room && room.participants) ? room.participants.length : 0;
 
-      let html = '<div style="margin-bottom:16px;display:flex;align-items:center;gap:12px;">'
-        + '<button onclick="Modules.commsView(\'threads\')" '
+      // Header
+      let headerHtml = '<div style="margin-bottom:16px;display:flex;align-items:center;gap:12px;">'
+        + '<button onclick="Modules.commsView(\'rooms\')" '
         + 'style="background:none;border:none;color:var(--accent);cursor:pointer;'
-        + 'font-size:0.82rem;padding:0;font-family:inherit;flex-shrink:0;">&#8592; Threads</button>'
+        + 'font-size:0.82rem;padding:0;font-family:inherit;flex-shrink:0;">&#8592; Rooms</button>'
         + '<h3 style="margin:0;font-size:0.95rem;font-weight:700;color:var(--ink);'
-        + 'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _e(subject) + '</h3>'
+        + 'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _e(roomName) + '</h3>'
+        + '<span style="font-size:0.72rem;color:var(--ink-muted);flex-shrink:0;">&#128101; ' + memberCount + '</span>'
         + '</div>';
 
-      // Conversation list
-      if (!msgs.length) {
-        html += _empty('&#128172;', 'No Messages Yet', 'Start the conversation below.');
-      } else {
-        html += '<div style="display:flex;flex-direction:column;gap:12px;margin-bottom:20px;">';
-        msgs.forEach(function(m) {
-          const senderName = m.senderName || _memberName(m.senderEmail) || m.senderEmail || 'Unknown';
-          const time = _msgTimeAgo(m.sentAt || m.createdAt);
-          const isMine = (function() {
-            try {
-              var s = (typeof Nehemiah !== 'undefined') ? Nehemiah.getSession() : null;
-              return s && s.email && (s.email === m.senderEmail || s.email === m.senderId);
-            } catch(_) { return false; }
-          })();
-          html += '<div style="display:flex;flex-direction:' + (isMine ? 'row-reverse' : 'row') + ';gap:10px;align-items:flex-end;">'
-            + _msgInitial(senderName)
-            + '<div style="max-width:72%;min-width:0;">'
-            + '<div style="font-size:0.7rem;color:var(--ink-muted);margin-bottom:3px;text-align:' + (isMine ? 'right' : 'left') + ';">'
-            + _e(senderName) + ' &middot; ' + time + '</div>'
-            + '<div style="background:' + (isMine ? 'var(--accent)' : 'var(--bg-sunken)') + ';'
-            + 'color:' + (isMine ? 'var(--ink-inverse)' : 'var(--ink)') + ';'
-            + 'border:1px solid ' + (isMine ? 'transparent' : 'var(--line)') + ';'
-            + 'border-radius:' + (isMine ? '12px 12px 4px 12px' : '12px 12px 12px 4px') + ';'
-            + 'padding:10px 14px;font-size:0.88rem;line-height:1.6;white-space:pre-wrap;word-break:break-word;">'
-            + _e(m.body || '') + '</div>'
-            + '</div>'
-            + '</div>';
-        });
-        html += '</div>';
-      }
+      // Messages container (will be populated by listener)
+      let bodyHtml = headerHtml
+        + '<div id="room-messages-' + _e(roomId) + '" style="display:flex;flex-direction:column;gap:12px;margin-bottom:8px;'
+        + 'max-height:calc(100vh - 340px);overflow-y:auto;padding-right:4px;">'
+        + _spinner()
+        + '</div>';
 
-      // Inline compose for this thread
-      html += '<div style="background:var(--bg-sunken);border:1px solid var(--line);border-radius:10px;padding:14px;">'
-        + '<textarea id="thread-reply-' + _e(String(threadId)) + '" rows="3" placeholder="Reply to this thread…" '
-        + 'style="padding:9px 12px;border:1px solid var(--line);border-radius:7px;background:var(--bg-raised);color:var(--ink);font-size:0.9rem;font-family:inherit;width:100%;box-sizing:border-box;resize:none;min-height:72px;"></textarea>'
-        + '<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:10px;">'
-        + '<button onclick="Modules._threadAddParticipant(\'' + _e(String(threadId)) + '\')" '
+      // Typing indicator
+      bodyHtml += '<div id="room-typing-' + _e(roomId) + '" style="font-size:0.72rem;color:var(--ink-muted);'
+        + 'min-height:18px;margin-bottom:6px;font-style:italic;"></div>';
+
+      // Compose bar (always visible at bottom)
+      bodyHtml += '<div style="background:var(--bg-sunken);border:1px solid var(--line);border-radius:10px;padding:12px;">'
+        + '<textarea id="room-reply-' + _e(roomId) + '" rows="2" placeholder="Type a message…" '
+        + 'oninput="Modules._roomTypingStart(\'' + _e(roomId) + '\')" '
+        + 'onkeydown="if(event.key===\'Enter\'&&!event.shiftKey){event.preventDefault();Modules._sendRoomMessage(\'' + _e(roomId) + '\');}" '
+        + 'style="padding:9px 12px;border:1px solid var(--line);border-radius:7px;background:var(--bg-raised);color:var(--ink);'
+        + 'font-size:0.9rem;font-family:inherit;width:100%;box-sizing:border-box;resize:none;min-height:52px;"></textarea>'
+        + '<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px;">'
+        + '<button onclick="Modules._roomAddParticipant(\'' + _e(roomId) + '\')" '
         + 'style="background:none;border:1px solid var(--line);color:var(--ink-muted);border-radius:6px;'
         + 'padding:7px 12px;font-size:0.78rem;cursor:pointer;font-family:inherit;">+ Person</button>'
-        + '<button onclick="Modules._sendThreadReply(\'' + _e(String(threadId)) + '\')" '
+        + '<button onclick="Modules._sendRoomMessage(\'' + _e(roomId) + '\')" '
         + 'style="background:var(--accent);color:var(--ink-inverse);border:none;border-radius:6px;'
         + 'padding:7px 18px;font-weight:600;font-size:0.83rem;cursor:pointer;font-family:inherit;">Send</button>'
         + '</div>'
         + '</div>';
 
-      _body(el, html);
+      _body(el, bodyHtml);
+
+      // Start real-time message listener
+      if (_roomMsgListener) { UpperRoom.detachAll(); _roomMsgListener = null; }
+      _roomMsgListener = true;
+      UpperRoom.listenMessages(roomId, function(msgs) {
+        _renderRoomMessages(roomId, msgs);
+      });
+
+      // Start typing listener
+      UpperRoom.listenTyping(roomId, function(typers) {
+        var el = document.getElementById('room-typing-' + roomId);
+        if (!el) return;
+        if (!typers.length) { el.textContent = ''; return; }
+        if (typers.length === 1) el.textContent = typers[0] + ' is typing…';
+        else if (typers.length === 2) el.textContent = typers[0] + ' and ' + typers[1] + ' are typing…';
+        else el.textContent = typers.length + ' people are typing…';
+      });
     } catch (e) {
-      _body(el, _errHtml('Could not load thread: ' + e.message));
+      _body(el, _errHtml('Could not load room: ' + e.message));
     }
   }
 
-  // Send a reply within a thread conversation
-  async function _sendThreadReply(threadId) {
-    const ta = document.getElementById('thread-reply-' + threadId);
-    const body = ta ? ta.value.trim() : '';
+  // ── Render messages into the room container ────────────────────────────
+  function _renderRoomMessages(roomId, msgs) {
+    var container = document.getElementById('room-messages-' + roomId);
+    if (!container) return;
+    var session = null;
+    try { session = (typeof Nehemiah !== 'undefined') ? Nehemiah.getSession() : null; } catch(_) {}
+    var myEmail = session && session.email ? session.email : '';
+
+    if (!msgs.length) {
+      container.innerHTML = '<div style="text-align:center;padding:40px 0;color:var(--ink-muted);font-size:0.85rem;">'
+        + '&#128172; No messages yet. Start the conversation!</div>';
+      return;
+    }
+
+    var html = '';
+    msgs.forEach(function(m) {
+      var senderName = m.senderName || m.senderEmail || 'Unknown';
+      var time = UpperRoom.timeAgo(m.sentAt);
+      var isMine = myEmail && (myEmail === m.senderEmail);
+      html += '<div style="display:flex;flex-direction:' + (isMine ? 'row-reverse' : 'row') + ';gap:10px;align-items:flex-end;">'
+        + _msgInitial(senderName)
+        + '<div style="max-width:72%;min-width:0;">'
+        + '<div style="font-size:0.7rem;color:var(--ink-muted);margin-bottom:3px;text-align:' + (isMine ? 'right' : 'left') + ';">'
+        + _e(senderName) + ' &middot; ' + time + '</div>'
+        + '<div style="background:' + (isMine ? 'var(--accent)' : 'var(--bg-sunken)') + ';'
+        + 'color:' + (isMine ? 'var(--ink-inverse)' : 'var(--ink)') + ';'
+        + 'border:1px solid ' + (isMine ? 'transparent' : 'var(--line)') + ';'
+        + 'border-radius:' + (isMine ? '12px 12px 4px 12px' : '12px 12px 12px 4px') + ';'
+        + 'padding:10px 14px;font-size:0.88rem;line-height:1.6;white-space:pre-wrap;word-break:break-word;">'
+        + _e(m.body || '') + '</div>'
+        + '</div>'
+        + '</div>';
+    });
+    container.innerHTML = html;
+    // Auto-scroll to bottom
+    container.scrollTop = container.scrollHeight;
+  }
+
+  // ── Send message in a Firebase room ────────────────────────────────────
+  async function _sendRoomMessage(roomId) {
+    var ta = document.getElementById('room-reply-' + roomId);
+    var body = ta ? ta.value.trim() : '';
     if (!body) { _toast('Write something before sending.', 'warn'); return; }
-    const btn = ta && ta.parentElement ? ta.parentElement.querySelector('button:last-child') : null;
+    var btn = ta && ta.parentElement ? ta.parentElement.querySelector('button:last-child') : null;
     if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
     try {
-      await TheVine.flock.comms.threads.reply({ id: threadId, body });
+      await UpperRoom.sendMessage(roomId, body);
       if (ta) ta.value = '';
-      _toast('Reply sent!');
-      // Refresh the conversation view
-      const el = document.getElementById('view-comms');
-      if (el) await _renderThreadConversation(el, threadId);
+      UpperRoom.setTyping(roomId, false);
     } catch (e) {
       _toast('Send failed: ' + e.message, 'danger');
-      if (btn) { btn.disabled = false; btn.textContent = 'Send'; }
     }
+    if (btn) { btn.disabled = false; btn.textContent = 'Send'; }
   }
 
-  // Compose new thread (group conversation)
-  async function newThread() {
-    const dir   = await _ensureMemberDir();
-    const mOpts = _memberOpts(dir);
-    _modal('&#128172; New Thread', [
-      { name: 'subject',    label: 'Subject',     required: true },
-      { name: 'memberIds',  label: 'Participants (comma-separated emails)',
+  // ── Typing indicator — debounced ───────────────────────────────────────
+  function _roomTypingStart(roomId) {
+    if (typeof UpperRoom === 'undefined' || !UpperRoom.isReady()) return;
+    UpperRoom.setTyping(roomId, true);
+    clearTimeout(_roomTypingTimer);
+    _roomTypingTimer = setTimeout(function() {
+      UpperRoom.setTyping(roomId, false);
+    }, 5000);
+  }
+
+  // ── Add participant to a Firebase room ─────────────────────────────────
+  async function _roomAddParticipant(roomId) {
+    var dir   = await _ensureMemberDir();
+    var mOpts = _memberOpts(dir);
+    _modal('Add Participant to Room', [
+      { name: 'memberId', label: 'Member', type: 'select', options: mOpts, required: true },
+    ], async function(data) {
+      try {
+        await UpperRoom.addParticipant(roomId, data.memberId);
+        _toast('Participant added.');
+      } catch (e) { _toast('Error: ' + e.message, 'danger'); }
+    });
+  }
+
+  // ── Create a new Firebase room ─────────────────────────────────────────
+  async function newRoom() {
+    _modal('&#128172; New Room', [
+      { name: 'name',        label: 'Room Name',   required: true },
+      { name: 'description', label: 'Description', type: 'textarea', rows: 2 },
+      { name: 'memberIds',   label: 'Invite Members (comma-separated emails)',
         type: 'textarea', rows: 2,
         placeholder: 'e.g. john@church.org, mary@church.org' },
-      { name: 'body',       label: 'Opening Message', type: 'textarea', required: true, rows: 5 },
-    ], async data => {
-      const memberIds = String(data.memberIds || '').split(/[,\n]+/).map(s => s.trim()).filter(Boolean);
-      await TheVine.flock.comms.threads.create({ subject: data.subject, memberIds, body: data.body });
-      _invalidateCache('comms-threads');
-      commsView('threads');
-    }, 'Start Thread');
+    ], async function(data) {
+      try {
+        if (typeof UpperRoom === 'undefined') throw new Error('Firebase not available');
+        await UpperRoom.init();
+        if (!UpperRoom.isReady()) await UpperRoom.authenticate();
+        var memberEmails = String(data.memberIds || '').split(/[,\n]+/).map(function(s) { return s.trim(); }).filter(Boolean);
+        var roomId = await UpperRoom.createRoom(data.name, data.description || '', memberEmails);
+        if (data.body) await UpperRoom.sendMessage(roomId, data.body);
+        commsView('rooms');
+      } catch (e) { _toast('Error: ' + e.message, 'danger'); }
+    }, 'Create Room');
   }
 
   async function commsView(tab) {
     _commsTab = tab || 'inbox';
     _commsOpenMsg    = null;
     _commsOpenThread = null;
+    _commsOpenRoom   = null;
+    // Detach any active Firebase listeners
+    if (_roomMsgListener) {
+      try { if (typeof UpperRoom !== 'undefined') UpperRoom.detachAll(); } catch(_) {}
+      _roomMsgListener = null;
+    }
+    if (_roomTypingListener) { _roomTypingListener = null; }
+    clearTimeout(_roomTypingTimer);
     const el = document.getElementById('view-comms');
     if (el) { el.dataset.loaded = ''; _reg['comms'](el); }
   }
@@ -6655,6 +6742,12 @@ const Modules = (() => {
       _btn('+ New Message', "Modules.newMessage()") +
       _btn('\uD83D\uDCF2 SMS', "Modules.sendSms()", false) +
       _btn('\uD83D\uDCE3 Broadcast', "Modules.newBroadcast()", false));
+
+    // If a Firebase room is open, render it
+    if (_commsOpenRoom) {
+      await _renderRoomConversation(el, _commsOpenRoom);
+      return;
+    }
 
     // If a thread conversation is open, render it
     if (_commsOpenThread) {
@@ -6685,7 +6778,9 @@ const Modules = (() => {
                 ? _fetch('comms-templates', () => TheVine.flock.comms.templates.list(),          _TTL.msg)
                 : _commsTab === 'broadcasts'
                   ? _fetch('comms-broadcasts', () => TheVine.flock.comms.broadcast.list({ limit: 50 }), _TTL.msg)
-                  : _fetch('comms-threads', () => TheVine.flock.comms.threads.list({ limit: 40 }), _TTL.msg);
+                  : _commsTab === 'rooms'
+                    ? Promise.resolve([])
+                    : _fetch('comms-threads', () => TheVine.flock.comms.threads.list({ limit: 40 }), _TTL.msg);
 
     const [, notifResult, tabResult] = await Promise.all([
       _ensureMemberDir().catch(() => []),
@@ -6707,7 +6802,7 @@ const Modules = (() => {
     const tabBar = '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;">'
       + _commsTabBtn('Inbox',           'inbox',      inboxUnread  || null)
       + _commsTabBtn('Sent',            'sent')
-      + _commsTabBtn('Threads',         'threads')
+      + _commsTabBtn('Rooms',            'rooms')
       + _commsTabBtn('Channels',        'channels')
       + _commsTabBtn('Templates',       'templates')
       + _commsTabBtn('Broadcasts',      'broadcasts')
@@ -6741,61 +6836,73 @@ const Modules = (() => {
           html += '</div>';
         }
 
-      } else if (_commsTab === 'threads') {
-        _dataCache['comms-threads'] = rows;
+      } else if (_commsTab === 'rooms') {
+        // Firebase-powered Rooms tab — real-time via UpperRoom
         html += '<div style="display:flex;justify-content:flex-end;margin-bottom:10px;">'
-          + '<button onclick="Modules.newThread()" style="background:var(--accent);color:var(--ink-inverse);border:none;border-radius:6px;padding:6px 14px;font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:600;">+ New Thread</button>'
+          + '<button onclick="Modules.newRoom()" style="background:var(--accent);color:var(--ink-inverse);border:none;border-radius:6px;padding:6px 14px;font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:600;">+ New Room</button>'
           + '</div>';
-        if (!rows.length) {
-          html += _empty('&#128172;', 'No Threads', 'Start a thread to have a group conversation.');
-        } else {
-          html += _commsSearchBox('comms-thread-search', '#comms-thread-list .ct', 'Search threads…');
-          html += '<div id="comms-thread-list" style="background:var(--bg-sunken);border:1px solid var(--line);border-radius:10px;overflow:hidden;">';
-          rows.forEach(r => {
-            const subject      = r.subject || r.title || '(No Subject)';
-            const snippet      = (r.lastSnippet || r.lastMessage || r.lastBody || '').replace(/\n+/g, ' ').substring(0, 100);
-            const participants = r.participantCount != null ? r.participantCount : r.participants || '';
-            const unread       = r.unreadCount || 0;
-            const rid          = _e(String(r.id || ''));
-            const isMuted      = r.muted === true || r.muted === 'true';
-            const isArchived   = String(r.status || '').toLowerCase() === 'archived';
-            const searchText   = [subject, snippet].join(' ').toLowerCase();
-            html += '<div class="ct" data-search="' + _e(searchText) + '" '
-              + 'onclick="Modules.openThread(\'' + rid + '\')" '
-              + 'style="display:flex;gap:12px;padding:14px 16px;cursor:pointer;'
-              + 'border-bottom:1px solid var(--line);transition:background .12s;'
-              + (isArchived ? 'opacity:0.55;' : '')
-              + '" onmouseenter="this.style.background=\'rgba(255,255,255,0.06)\'" '
-              + 'onmouseleave="this.style.background=\'transparent\'">'
-              // Icon
-              + '<div style="width:38px;height:38px;border-radius:50%;background:var(--accent);'
-              + 'display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;'
-              + 'opacity:' + (unread ? '0.9' : '0.3') + ';">&#128172;</div>'
-              // Content
-              + '<div style="flex:1;min-width:0;">'
-              + '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;">'
-              + '<span style="font-weight:' + (unread ? '700' : '500') + ';color:var(--ink);font-size:0.88rem;'
-              + 'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _e(subject) + '</span>'
-              + (participants ? '<span style="font-size:0.72rem;color:var(--ink-muted);flex-shrink:0;">&#128101; ' + _e(String(participants)) + '</span>' : '')
-              + '</div>'
-              + '<div style="font-size:0.78rem;color:var(--ink-muted);margin-top:3px;'
-              + 'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _e(snippet || 'Tap to open conversation') + '</div>'
-              // Context action buttons — compact and not overwhelming
-              + '<div style="display:flex;gap:5px;margin-top:7px;" onclick="event.stopPropagation();">'
-              + '<button onclick="Modules._threadAddParticipant(\'' + rid + '\')" style="font-size:0.7rem;padding:2px 8px;border:1px solid var(--line);border-radius:5px;background:none;color:var(--ink-muted);cursor:pointer;font-family:inherit;">+ Person</button>'
-              + '<button onclick="Modules._threadMuteToggle(\'' + rid + '\',' + isMuted + ')" style="font-size:0.7rem;padding:2px 8px;border:1px solid var(--line);border-radius:5px;background:none;color:var(--ink-muted);cursor:pointer;font-family:inherit;">'
-              + (isMuted ? '🔔' : '🔕') + '</button>'
-              + (!isArchived ? '<button onclick="Modules._threadArchive(\'' + rid + '\')" style="font-size:0.7rem;padding:2px 8px;border:1px solid var(--danger);border-radius:5px;background:none;color:var(--danger);cursor:pointer;font-family:inherit;">Archive</button>' : '')
-              + '</div>'
-              + '</div>'
-              // Unread badge
-              + (unread ? '<div style="display:flex;align-items:center;flex-shrink:0;"><span style="min-width:20px;height:20px;line-height:20px;'
-                + 'text-align:center;border-radius:10px;font-size:0.7rem;font-weight:700;background:var(--danger);'
-                + 'color:#fff;padding:0 6px;">' + unread + '</span></div>' : '')
-              + '</div>';
-          });
-          html += '</div>';
-        }
+
+        // Container for rooms — will be populated by UpperRoom.listenConversations
+        html += '<div id="comms-rooms-list" style="background:var(--bg-sunken);border:1px solid var(--line);border-radius:10px;overflow:hidden;">'
+          + _spinner()
+          + '</div>';
+
+        _body(el, html);
+
+        // Async: init UpperRoom and start listening for rooms
+        (async function() {
+          try {
+            if (typeof UpperRoom === 'undefined') throw new Error('Firebase not available');
+            await UpperRoom.init();
+            if (!UpperRoom.isReady()) await UpperRoom.authenticate();
+
+            // Browse all rooms for this church
+            var rooms = await UpperRoom.browseRooms();
+            var container = document.getElementById('comms-rooms-list');
+            if (!container) return;
+
+            if (!rooms || !rooms.length) {
+              container.innerHTML = '<div style="text-align:center;padding:40px 0;color:var(--ink-muted);font-size:0.85rem;">'
+                + '&#128172; No Rooms Yet<br><span style="font-size:0.78rem;opacity:0.7;">Create a room to start a group conversation.</span></div>';
+              return;
+            }
+
+            var listHtml = '';
+            rooms.forEach(function(r) {
+              var name = r.name || r.subject || '(Unnamed Room)';
+              var desc = r.description || '';
+              var memberCount = (r.participants) ? r.participants.length : 0;
+              var lastMsg = r.lastMessage || '';
+              var rid = r.id || '';
+              listHtml += '<div class="cr" data-search="' + _e((name + ' ' + desc).toLowerCase()) + '" '
+                + 'onclick="Modules.openRoom(\'' + _e(rid) + '\')" '
+                + 'style="display:flex;gap:12px;padding:14px 16px;cursor:pointer;'
+                + 'border-bottom:1px solid var(--line);transition:background .12s;"'
+                + ' onmouseenter="this.style.background=\'rgba(255,255,255,0.06)\'"'
+                + ' onmouseleave="this.style.background=\'transparent\'">'
+                + '<div style="width:38px;height:38px;border-radius:50%;background:var(--accent);'
+                + 'display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;'
+                + 'opacity:0.9;">&#128172;</div>'
+                + '<div style="flex:1;min-width:0;">'
+                + '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;">'
+                + '<span style="font-weight:700;color:var(--ink);font-size:0.88rem;'
+                + 'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _e(name) + '</span>'
+                + '<span style="font-size:0.72rem;color:var(--ink-muted);flex-shrink:0;">&#128101; ' + memberCount + '</span>'
+                + '</div>'
+                + '<div style="font-size:0.78rem;color:var(--ink-muted);margin-top:3px;'
+                + 'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'
+                + _e(desc || lastMsg || 'Tap to open room') + '</div>'
+                + '</div>'
+                + '</div>';
+            });
+            container.innerHTML = listHtml;
+          } catch (e) {
+            var container = document.getElementById('comms-rooms-list');
+            if (container) container.innerHTML = '<div style="padding:20px;color:var(--danger);font-size:0.85rem;">'
+              + 'Could not load rooms: ' + _e(e.message) + '</div>';
+          }
+        })();
+        return; // early return — _body already called above
 
       } else if (_commsTab === 'channels') {
         _dataCache['comms-channels'] = rows;
@@ -18321,6 +18428,8 @@ const Modules = (() => {
     newMessage, replyMessage, forwardMessage, sendSms, newBroadcast, commsView,
     openMessage, deleteMessage, archiveMessage, markMessageUnread,
     openThread, newThread, _sendThreadReply, _renderThreadConversation,
+    openRoom, newRoom, _sendRoomMessage, _renderRoomConversation, _renderRoomMessages,
+    _roomTypingStart, _roomAddParticipant,
     _toggleInlineReply, _sendInlineReply, _commsFilter,
     _notifMarkRead, _notifMarkAllRead, _notifDismiss, _notifBroadcastPanel, _sendBroadcastNotif, _saveNotifPrefs,
     _channelNew, _channelEdit, _channelDelete, _channelPost,
