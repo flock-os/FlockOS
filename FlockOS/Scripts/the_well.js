@@ -26,6 +26,10 @@
 const TheWell = (() => {
   'use strict';
 
+  function _isFB() {
+    return typeof Modules !== 'undefined' && Modules._isFirebaseComms && Modules._isFirebaseComms();
+  }
+
   // ═══════════════════════════════════════════════════════════════════════════
   // 1. SCHEMA — Complete tab definitions for the unified FlockOS database
   //    Format: [TabName, [header1, header2, ...]]
@@ -214,33 +218,33 @@ const TheWell = (() => {
     flock: [
       { tab: 'Members',                 call: () => TheVine.flock.members.list({ limit: _BACKUP_LIMIT }) },
       { tab: 'PrayerRequests',          call: () => TheVine.flock.prayer.list({ limit: _BACKUP_LIMIT }) },
-      { tab: 'JournalEntries',          call: () => TheVine.flock.journal.list({ limit: _BACKUP_LIMIT }) },
+      { tab: 'JournalEntries',          call: () => _isFB() ? UpperRoom.listJournal({ limit: _BACKUP_LIMIT }) : TheVine.flock.journal.list({ limit: _BACKUP_LIMIT }) },
       { tab: 'ContactLog',              call: () => TheVine.flock.contacts.list({ limit: _BACKUP_LIMIT }) },
       { tab: 'PastoralNotes',           call: () => TheVine.flock.notes.list({ limit: _BACKUP_LIMIT }) },
       { tab: 'Milestones',              call: () => TheVine.flock.milestones.list({ limit: _BACKUP_LIMIT }) },
       { tab: 'Households',              call: () => TheVine.flock.households.list({ limit: _BACKUP_LIMIT }) },
       { tab: 'ToDo',                    call: () => TheVine.flock.todo.list({ limit: _BACKUP_LIMIT }) },
-      { tab: 'Attendance',              call: () => TheVine.flock.attendance.list({ limit: _BACKUP_LIMIT }) },
-      { tab: 'Events',                  call: () => TheVine.flock.events.list({ limit: _BACKUP_LIMIT }) },
-      { tab: 'SmallGroups',             call: () => TheVine.flock.groups.list({ limit: _BACKUP_LIMIT }) },
-      { tab: 'Giving',                  call: () => TheVine.flock.giving.list({ limit: _BACKUP_LIMIT }) },
-      { tab: 'VolunteerSchedule',       call: () => TheVine.flock.volunteers.list({ limit: _BACKUP_LIMIT }) },
+      { tab: 'Attendance',              call: () => _isFB() ? UpperRoom.listAttendance({ limit: _BACKUP_LIMIT }) : TheVine.flock.attendance.list({ limit: _BACKUP_LIMIT }) },
+      { tab: 'Events',                  call: () => _isFB() ? UpperRoom.listEvents({ limit: _BACKUP_LIMIT }) : TheVine.flock.events.list({ limit: _BACKUP_LIMIT }) },
+      { tab: 'SmallGroups',             call: () => _isFB() ? UpperRoom.listGroups({ limit: _BACKUP_LIMIT }) : TheVine.flock.groups.list({ limit: _BACKUP_LIMIT }) },
+      { tab: 'Giving',                  call: () => _isFB() ? UpperRoom.listGiving({ limit: _BACKUP_LIMIT }) : TheVine.flock.giving.list({ limit: _BACKUP_LIMIT }) },
+      { tab: 'VolunteerSchedule',       call: () => _isFB() ? UpperRoom.listVolunteers({ limit: _BACKUP_LIMIT }) : TheVine.flock.volunteers.list({ limit: _BACKUP_LIMIT }) },
       { tab: 'CommsMessages',           call: () => TheVine.flock.comms.messages.list({ limit: _BACKUP_LIMIT }) },
       { tab: 'CommsThreads',            call: () => TheVine.flock.comms.threads.list({ limit: _BACKUP_LIMIT }) },
-      { tab: 'Ministries',              call: () => TheVine.flock.ministries.list({ limit: _BACKUP_LIMIT }) },
-      { tab: 'ServicePlans',            call: () => TheVine.flock.servicePlans.list({ limit: _BACKUP_LIMIT }) },
-      { tab: 'Songs',                   call: () => TheVine.flock.songs.list({ limit: _BACKUP_LIMIT }) },
+      { tab: 'Ministries',              call: () => _isFB() ? UpperRoom.listMinistries({ limit: _BACKUP_LIMIT }) : TheVine.flock.ministries.list({ limit: _BACKUP_LIMIT }) },
+      { tab: 'ServicePlans',            call: () => _isFB() ? UpperRoom.listServicePlans({ limit: _BACKUP_LIMIT }) : TheVine.flock.servicePlans.list({ limit: _BACKUP_LIMIT }) },
+      { tab: 'Songs',                    call: () => _isFB() ? UpperRoom.listSongs({ limit: _BACKUP_LIMIT }) : TheVine.flock.songs.list({ limit: _BACKUP_LIMIT }) },
       { tab: 'SpiritualCareCases',      call: () => TheVine.flock.care.list({ limit: _BACKUP_LIMIT }) },
       { tab: 'OutreachContacts',        call: () => TheVine.flock.outreach.contacts.list({ limit: _BACKUP_LIMIT }) },
       { tab: 'OutreachCampaigns',       call: () => TheVine.flock.outreach.campaigns.list({ limit: _BACKUP_LIMIT }) },
-      { tab: 'Sermons',                 call: () => TheVine.flock.sermons.list({ limit: _BACKUP_LIMIT }) },
-      { tab: 'SermonSeries',            call: () => TheVine.flock.sermonSeries.list({ limit: _BACKUP_LIMIT }) },
+      { tab: 'Sermons',                 call: () => _isFB() ? UpperRoom.listSermons({ limit: _BACKUP_LIMIT }) : TheVine.flock.sermons.list({ limit: _BACKUP_LIMIT }) },
+      { tab: 'SermonSeries',            call: () => _isFB() ? UpperRoom.listSermonSeries({ limit: _BACKUP_LIMIT }) : TheVine.flock.sermonSeries.list({ limit: _BACKUP_LIMIT }) },
       { tab: 'CompassionRequests',      call: () => TheVine.flock.compassion.list({ limit: _BACKUP_LIMIT }) },
-      { tab: 'DiscipleshipPaths',       call: () => TheVine.flock.discipleship.paths.list({ limit: _BACKUP_LIMIT }) },
-      { tab: 'DiscipleshipEnrollments', call: () => TheVine.flock.discipleship.enrollments.list({ limit: _BACKUP_LIMIT }) },
-      { tab: 'LearningPlaylists',       call: () => TheVine.flock.learning.playlists.list({ limit: _BACKUP_LIMIT }) },
-      { tab: 'TheologyCategories',      call: () => TheVine.flock.theology.categories.list({ limit: _BACKUP_LIMIT }) },
-      { tab: 'TheologySections',        call: () => TheVine.flock.theology.sections.list({ limit: _BACKUP_LIMIT }) },
+      { tab: 'DiscipleshipPaths',       call: () => _isFB() ? UpperRoom.listDiscPaths({ limit: _BACKUP_LIMIT }) : TheVine.flock.discipleship.paths.list({ limit: _BACKUP_LIMIT }) },
+      { tab: 'DiscipleshipEnrollments', call: () => _isFB() ? UpperRoom.listDiscEnrollments({ limit: _BACKUP_LIMIT }) : TheVine.flock.discipleship.enrollments.list({ limit: _BACKUP_LIMIT }) },
+      { tab: 'LearningPlaylists',       call: () => _isFB() ? UpperRoom.listLrnPlaylists({ limit: _BACKUP_LIMIT }) : TheVine.flock.learning.playlists.list({ limit: _BACKUP_LIMIT }) },
+      { tab: 'TheologyCategories',      call: () => _isFB() ? UpperRoom.listTheologyCategories({ limit: _BACKUP_LIMIT }) : TheVine.flock.theology.categories.list({ limit: _BACKUP_LIMIT }) },
+      { tab: 'TheologySections',        call: () => _isFB() ? UpperRoom.listTheologySections({ limit: _BACKUP_LIMIT }) : TheVine.flock.theology.sections.list({ limit: _BACKUP_LIMIT }) },
       { tab: 'MemberCards',             call: () => TheVine.flock.memberCards.list({ limit: _BACKUP_LIMIT }) },
       { tab: 'AppConfig',               call: () => TheVine.flock.config.list() },
       { tab: 'AuditLog',                call: () => TheVine.flock.audit.list({ limit: _BACKUP_LIMIT }) },

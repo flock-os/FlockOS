@@ -28,6 +28,8 @@ const TheWay = (() => {
          + 'Loading\u2026</div>';
   }
 
+  function _isFB() { return typeof Modules !== 'undefined' && Modules._isFirebaseComms && Modules._isFirebaseComms(); }
+
   function _errHtml(msg) {
     return '<div style="padding:24px;text-align:center;color:var(--danger);">'
          + '<p style="font-size:1rem;font-weight:600;">Error</p>'
@@ -546,11 +548,11 @@ const TheWay = (() => {
     _panel(_spinner());
     try {
       if (!_cache.playlists) {
-        var res = await TheVine.flock.call('learning.playlists.list', { status: 'Active' }, { skipAuth: true });
+        var res = await (_isFB() ? UpperRoom.listLrnPlaylists({ status: 'Active' }) : TheVine.flock.call('learning.playlists.list', { status: 'Active' }, { skipAuth: true }));
         _cache.playlists = _rows(res);
       }
       if (!_cache.topics) {
-        var tres = await TheVine.flock.call('learning.topics.list', { status: 'Active' }, { skipAuth: true });
+        var tres = await (_isFB() ? UpperRoom.listLrnTopics({ status: 'Active' }) : TheVine.flock.call('learning.topics.list', { status: 'Active' }, { skipAuth: true }));
         _cache.topics = _rows(tres);
       }
       var s = _getSession();
@@ -724,13 +726,13 @@ const TheWay = (() => {
     if (!playlistId) return;
     _panel(_spinner());
     try {
-      var res = await TheVine.flock.call('learning.playlists.get', { id: playlistId });
+      var res = await (_isFB() ? UpperRoom.getLrnPlaylist({ id: playlistId }) : TheVine.flock.call('learning.playlists.get', { id: playlistId }));
       _currentCourse = (res && !res.error) ? res : null;
       if (!_currentCourse) { _panel(_errHtml('Course not found')); return; }
 
       // Fetch user's notes for this course
       try {
-        var nres = await TheVine.flock.call('learning.notes.list', { playlistId: playlistId });
+        var nres = await (_isFB() ? UpperRoom.listLrnNotes({ playlistId: playlistId }) : TheVine.flock.call('learning.notes.list', { playlistId: playlistId }));
         _courseNotes = _rows(nres);
       } catch (_) { _courseNotes = []; }
 
@@ -951,12 +953,17 @@ const TheWay = (() => {
     var lesson = items[_currentLessonIdx];
     if (!lesson) return;
     try {
-      await TheVine.flock.call('learning.progress.complete', {
+      await (_isFB() ? UpperRoom.completeLrnProgress({
         sermonId: lesson.sermonId,
         sermonTitle: lesson.sermonTitle,
         playlistId: c.id,
         playlistTitle: c.title,
-      });
+      }) : TheVine.flock.call('learning.progress.complete', {
+        sermonId: lesson.sermonId,
+        sermonTitle: lesson.sermonTitle,
+        playlistId: c.id,
+        playlistTitle: c.title,
+      }));
       _toast('Lesson marked complete!', 'success');
 
       // Check if whole course is done
@@ -975,13 +982,19 @@ const TheWay = (() => {
         if (_isAdmin() || true) { // members can earn certs
           try {
             var s = _getSession();
-            await TheVine.flock.call('learning.certificates.issue', {
+            await (_isFB() ? UpperRoom.issueLrnCertificate({
               memberId: s.memberId || '',
               memberName: s.displayName || s.email || '',
               certificateType: 'Playlist Completion',
               playlistId: c.id,
               playlistTitle: c.title,
-            });
+            }) : TheVine.flock.call('learning.certificates.issue', {
+              memberId: s.memberId || '',
+              memberName: s.displayName || s.email || '',
+              certificateType: 'Playlist Completion',
+              playlistId: c.id,
+              playlistTitle: c.title,
+            }));
           } catch (_) { /* non-fatal */ }
         }
       }
@@ -1021,16 +1034,22 @@ const TheWay = (() => {
     var content = input ? input.value.trim() : '';
     if (!content) { _toast('Please enter a note', 'danger'); return; }
     try {
-      await TheVine.flock.call('learning.notes.create', {
+      await (_isFB() ? UpperRoom.createLrnNote({
         sermonId: lesson.sermonId,
         sermonTitle: lesson.sermonTitle,
         playlistId: c.id,
         noteType: 'General',
         content: content,
-      });
+      }) : TheVine.flock.call('learning.notes.create', {
+        sermonId: lesson.sermonId,
+        sermonTitle: lesson.sermonTitle,
+        playlistId: c.id,
+        noteType: 'General',
+        content: content,
+      }));
       _toast('Note saved!', 'success');
       // Refresh notes
-      var nres = await TheVine.flock.call('learning.notes.list', { playlistId: c.id });
+      var nres = await (_isFB() ? UpperRoom.listLrnNotes({ playlistId: c.id }) : TheVine.flock.call('learning.notes.list', { playlistId: c.id }));
       _courseNotes = _rows(nres);
       _renderCoursePlayer();
     } catch (e) {
@@ -1058,7 +1077,7 @@ const TheWay = (() => {
     ];
     if (typeof Modules !== 'undefined' && Modules._modal) {
       Modules._modal('New Course', fields, async function(data) {
-        await TheVine.flock.call('learning.playlists.create', data);
+        await (_isFB() ? UpperRoom.createLrnPlaylist(data) : TheVine.flock.call('learning.playlists.create', data));
         _cache.playlists = null;
         _toast('Course created!', 'success');
         _renderCourses();
@@ -1070,13 +1089,7 @@ const TheWay = (() => {
     var c = (_currentCourse && _currentCourse.id === id) ? _currentCourse : null;
     if (!c) {
       try {
-        var res = await TheVine.flock.call('learning.playlists.get', { id: id });
-        c = (res && !res.error) ? res : null;
-      } catch (e) { _toast(e.message || 'Failed to load course', 'danger'); return; }
-    }
-    if (!c) { _toast('Course not found', 'danger'); return; }
-    var fields = [
-      { name: 'title',           label: 'Course Title',                       required: true,  value: c.title },
+        var res = await (_isFB() ? UpperRoom.getLrnPlaylist({ id: id }) : TheVine.flock.call('learning.playlists.get', { id: id }));
       { name: 'description',     label: 'Description',       type: 'textarea',                 value: c.description },
       { name: 'coverImageUrl',   label: 'Cover Image URL',                                     value: c.coverImageUrl },
       { name: 'difficultyLevel', label: 'Difficulty',         type: 'select',
@@ -1097,10 +1110,10 @@ const TheWay = (() => {
     if (typeof Modules !== 'undefined' && Modules._modal) {
       Modules._modal('Edit Course', fields, async function(data) {
         data.id = id;
-        await TheVine.flock.call('learning.playlists.update', data);
+        await (_isFB() ? UpperRoom.updateLrnPlaylist(data) : TheVine.flock.call('learning.playlists.update', data));
         _cache.playlists = null;
         try {
-          var upd = await TheVine.flock.call('learning.playlists.get', { id: id });
+          var upd = await (_isFB() ? UpperRoom.getLrnPlaylist({ id: id }) : TheVine.flock.call('learning.playlists.get', { id: id }));
           if (upd && !upd.error) _currentCourse = upd;
         } catch (_) {}
         _toast('Course updated!', 'success');
@@ -1220,7 +1233,7 @@ const TheWay = (() => {
     var sermonTitle = ((document.getElementById('tw-al-sermonTitle') || {}).value || '').trim();
     if (!sermonTitle) { _toast('Sermon title is required', 'danger'); return; }
     try {
-      await TheVine.flock.call('learning.playlistItems.create', {
+      await (_isFB() ? UpperRoom.createLrnPlaylistItem({
         playlistId:          playlistId,
         sermonId:            ((document.getElementById('tw-al-sermonId') || {}).value || '').trim(),
         sermonTitle:         sermonTitle,
@@ -1233,9 +1246,22 @@ const TheWay = (() => {
         required:            ((document.getElementById('tw-al-required') || {}).value || 'TRUE'),
         bonus:               ((document.getElementById('tw-al-bonus') || {}).value || 'FALSE'),
         sortOrder:           ((_currentCourse && _currentCourse.items) || []).length + 1,
-      });
+      }) : TheVine.flock.call('learning.playlistItems.create', {
+        playlistId:          playlistId,
+        sermonId:            ((document.getElementById('tw-al-sermonId') || {}).value || '').trim(),
+        sermonTitle:         sermonTitle,
+        preacherName:        ((document.getElementById('tw-al-preacherName') || {}).value || '').trim(),
+        scriptureRefs:       ((document.getElementById('tw-al-scriptureRefs') || {}).value || '').trim(),
+        sectionLabel:        ((document.getElementById('tw-al-sectionLabel') || {}).value || '').trim(),
+        notesForLearner:     ((document.getElementById('tw-al-notesForLearner') || {}).value || '').trim(),
+        discussionQuestions: ((document.getElementById('tw-al-discussionQuestions') || {}).value || '').trim(),
+        durationMins:        Number((document.getElementById('tw-al-durationMins') || {}).value || 0),
+        required:            ((document.getElementById('tw-al-required') || {}).value || 'TRUE'),
+        bonus:               ((document.getElementById('tw-al-bonus') || {}).value || 'FALSE'),
+        sortOrder:           ((_currentCourse && _currentCourse.items) || []).length + 1,
+      }));
       _toast('Lesson added!', 'success');
-      var res = await TheVine.flock.call('learning.playlists.get', { id: playlistId });
+      var res = await (_isFB() ? UpperRoom.getLrnPlaylist({ id: playlistId }) : TheVine.flock.call('learning.playlists.get', { id: playlistId }));
       if (res && !res.error) _currentCourse = res;
       _manageLessons();
     } catch (e) { _toast(e.message || 'Failed to add lesson', 'danger'); }
@@ -1264,8 +1290,8 @@ const TheWay = (() => {
     if (typeof Modules !== 'undefined' && Modules._modal) {
       Modules._modal('Edit Lesson', fields, async function(data) {
         data.id = itemId;
-        await TheVine.flock.call('learning.playlistItems.update', data);
-        var res = await TheVine.flock.call('learning.playlists.get', { id: c.id });
+        await (_isFB() ? UpperRoom.updateLrnPlaylistItem(data) : TheVine.flock.call('learning.playlistItems.update', data));
+        var res = await (_isFB() ? UpperRoom.getLrnPlaylist({ id: c.id }) : TheVine.flock.call('learning.playlists.get', { id: c.id }));
         if (res && !res.error) _currentCourse = res;
         _toast('Lesson updated!', 'success');
         _manageLessons();
@@ -1278,8 +1304,8 @@ const TheWay = (() => {
     var c = _currentCourse;
     if (!c) return;
     try {
-      await TheVine.flock.call('learning.playlistItems.delete', { id: itemId });
-      var res = await TheVine.flock.call('learning.playlists.get', { id: c.id });
+      await (_isFB() ? UpperRoom.deleteLrnPlaylistItem({ id: itemId }) : TheVine.flock.call('learning.playlistItems.delete', { id: itemId }));
+      var res = await (_isFB() ? UpperRoom.getLrnPlaylist({ id: c.id }) : TheVine.flock.call('learning.playlists.get', { id: c.id }));
       if (res && !res.error) _currentCourse = res;
       _toast('Lesson removed', 'success');
       _manageLessons();
@@ -1294,11 +1320,14 @@ const TheWay = (() => {
     if (idx <= 0) return;
     var tmp = items[idx]; items[idx] = items[idx - 1]; items[idx - 1] = tmp;
     try {
-      await TheVine.flock.call('learning.playlistItems.reorder', {
+      await (_isFB() ? UpperRoom.reorderLrnPlaylistItem({
         playlistId: c.id,
         orderedIds: items.map(function(i) { return i.id; }),
-      });
-      var res = await TheVine.flock.call('learning.playlists.get', { id: c.id });
+      }) : TheVine.flock.call('learning.playlistItems.reorder', {
+        playlistId: c.id,
+        orderedIds: items.map(function(i) { return i.id; }),
+      }));
+      var res = await (_isFB() ? UpperRoom.getLrnPlaylist({ id: c.id }) : TheVine.flock.call('learning.playlists.get', { id: c.id }));
       if (res && !res.error) _currentCourse = res;
       _manageLessons();
     } catch (e) { _toast(e.message || 'Failed to reorder', 'danger'); }
@@ -1312,11 +1341,14 @@ const TheWay = (() => {
     if (idx < 0 || idx >= items.length - 1) return;
     var tmp = items[idx]; items[idx] = items[idx + 1]; items[idx + 1] = tmp;
     try {
-      await TheVine.flock.call('learning.playlistItems.reorder', {
+      await (_isFB() ? UpperRoom.reorderLrnPlaylistItem({
         playlistId: c.id,
         orderedIds: items.map(function(i) { return i.id; }),
-      });
-      var res = await TheVine.flock.call('learning.playlists.get', { id: c.id });
+      }) : TheVine.flock.call('learning.playlistItems.reorder', {
+        playlistId: c.id,
+        orderedIds: items.map(function(i) { return i.id; }),
+      }));
+      var res = await (_isFB() ? UpperRoom.getLrnPlaylist({ id: c.id }) : TheVine.flock.call('learning.playlists.get', { id: c.id }));
       if (res && !res.error) _currentCourse = res;
       _manageLessons();
     } catch (e) { _toast(e.message || 'Failed to reorder', 'danger'); }
@@ -1336,7 +1368,7 @@ const TheWay = (() => {
       // Try APP quiz endpoint first (existing quiz module from tabernacle)
       var quizzes = [];
       try {
-        var res = await TheVine.flock.call('learning.quizzes.list', { status: 'Published' });
+        var res = await (_isFB() ? UpperRoom.listLrnQuizzes({ status: 'Published' }) : TheVine.flock.call('learning.quizzes.list', { status: 'Published' }));
         quizzes = _rows(res);
       } catch (_) {}
 
@@ -1540,7 +1572,7 @@ const TheWay = (() => {
   async function _startCourseQuiz(quizId) {
     _panel(_spinner());
     try {
-      var res = await TheVine.flock.call('learning.quizzes.get', { id: quizId });
+      var res = await (_isFB() ? UpperRoom.getLrnQuiz({ id: quizId }) : TheVine.flock.call('learning.quizzes.get', { id: quizId }));
       if (!res || res.error) { _panel(_errHtml('Quiz not found')); return; }
       var quiz = res;
       var allQuestions = [];
@@ -1610,12 +1642,17 @@ const TheWay = (() => {
     }
     var elapsed = _quizStartTime ? Math.floor((Date.now() - _quizStartTime) / 1000) : 0;
     try {
-      var res = await TheVine.flock.call('learning.quizResults.submit', {
+      var res = await (_isFB() ? UpperRoom.submitLrnQuizResult({
         quizId: quizId,
         answers: answers,
         timeTakenSecs: elapsed,
         startedAt: new Date(_quizStartTime).toISOString(),
-      });
+      }) : TheVine.flock.call('learning.quizResults.submit', {
+        quizId: quizId,
+        answers: answers,
+        timeTakenSecs: elapsed,
+        startedAt: new Date(_quizStartTime).toISOString(),
+      }));
       _cache.quizResults = null;
 
       // Silently log course quiz score
@@ -1807,8 +1844,8 @@ const TheWay = (() => {
       var stats = null;
       try {
         var results = await Promise.all([
-          TheVine.flock.theology.full(),
-          TheVine.flock.theology.dashboard()
+          _isFB() ? UpperRoom.theologyFull() : TheVine.flock.theology.full(),
+          _isFB() ? UpperRoom.theologyDashboard() : TheVine.flock.theology.dashboard()
         ]);
         tree  = _rows(results[0]);
         stats = results[1];
@@ -2993,7 +3030,7 @@ const TheWay = (() => {
   async function _renderJournal() {
     _panel(_spinner());
     try {
-      var res = await TheVine.flock.journal.list({ limit: 200 });
+      var res = await (_isFB() ? UpperRoom.listJournal({ limit: 200 }) : TheVine.flock.journal.list({ limit: 200 }));
       var rows = _rows(res);
 
       var html = '';
@@ -3279,19 +3316,19 @@ const TheWay = (() => {
   // ══════════════════════════════════════════════════════════════════════════
 
   function _fetchStats() {
-    return TheVine.flock.call('learning.progress.stats', {});
+    return _isFB() ? UpperRoom.lrnProgressStats() : TheVine.flock.call('learning.progress.stats', {});
   }
   function _fetchProgress(params) {
-    return TheVine.flock.call('learning.progress.list', params || {});
+    return _isFB() ? UpperRoom.listLrnProgress(params || {}) : TheVine.flock.call('learning.progress.list', params || {});
   }
   function _fetchRecommendations() {
-    return TheVine.flock.call('learning.recommendations.list', { status: 'Active' });
+    return _isFB() ? UpperRoom.listLrnRecommendations({ status: 'Active' }) : TheVine.flock.call('learning.recommendations.list', { status: 'Active' });
   }
   function _fetchCertificates() {
-    return TheVine.flock.call('learning.certificates.list', {});
+    return _isFB() ? UpperRoom.listLrnCertificates({}) : TheVine.flock.call('learning.certificates.list', {});
   }
   function _fetchQuizResults() {
-    return TheVine.flock.call('learning.quizResults.list', {});
+    return _isFB() ? UpperRoom.listLrnQuizResults({}) : TheVine.flock.call('learning.quizResults.list', {});
   }
 
   // ══════════════════════════════════════════════════════════════════════════

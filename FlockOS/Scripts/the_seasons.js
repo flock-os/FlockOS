@@ -795,16 +795,16 @@ const TheSeason = (() => {
     var isSignedIn = !!(typeof TheVine !== 'undefined' && TheVine.session && TheVine.session());
     var promises = [
       isSignedIn
-        ? TheVine.flock.call('delegation.calendars', {}).catch(function() { return null; })
+        ? (_isFB() ? UpperRoom.listDelegatedCalendars() : TheVine.flock.call('delegation.calendars', {})).catch(function() { return null; })
         : Promise.resolve(null),
       isSignedIn
-        ? TheVine.flock.events.list({ limit: 200 }).catch(function() { return null; })
-        : TheVine.flock.events.public({ limit: 200 }).catch(function() { return null; }),
+        ? (_isFB() ? UpperRoom.listEvents({ limit: 200 }) : TheVine.flock.events.list({ limit: 200 })).catch(function() { return null; })
+        : (_isFB() ? UpperRoom.publicEvents({ limit: 200 }) : TheVine.flock.events.public({ limit: 200 })).catch(function() { return null; }),
       isSignedIn && s.showServices !== false
-        ? TheVine.flock.servicePlans.list({ limit: 100 }).catch(function() { return null; })
+        ? (_isFB() ? UpperRoom.listServicePlans({ limit: 100 }) : TheVine.flock.servicePlans.list({ limit: 100 })).catch(function() { return null; })
         : Promise.resolve(null),
       isSignedIn
-        ? TheVine.flock.call('calendar.list', {}).catch(function() { return null; })
+        ? (_isFB() ? UpperRoom.listCalendarEvents({}) : TheVine.flock.call('calendar.list', {})).catch(function() { return null; })
         : Promise.resolve(null),
       isSignedIn
         ? (_isFB() ? UpperRoom.listTodos({ limit: 200 }) : TheVine.flock.todo.list({ limit: 200 })).catch(function() { return null; })
@@ -1345,7 +1345,7 @@ const TheSeason = (() => {
         options: _visibilityOpts() },
       { name: 'description', label: 'Description', type: 'textarea' },
     ], async function(data) {
-      await TheVine.flock.events.create(data);
+      if (_isFB()) { await UpperRoom.createEvent(data); } else { await TheVine.flock.events.create(data); }
       await _calLoad(true);
       _calRender(document.getElementById('cal-body'));
     });
@@ -1368,12 +1368,14 @@ const TheSeason = (() => {
     ], async function(data) {
       var start = data.startDate + (data.startTime ? 'T' + data.startTime : '');
       var end   = data.startDate + (data.endTime   ? 'T' + data.endTime   : '');
-      await TheVine.flock.call('calendar.create', {
+      var calData = {
         Title: data.Title, StartDateTime: start, EndDateTime: end,
         Location: data.Location, Description: data.Description,
         Color: data.Color, IsAllDay: data.IsAllDay === 'true',
         RecurrenceRule: data.RecurrenceRule, Visibility: data.Visibility,
-      });
+      };
+      if (_isFB()) { await UpperRoom.createCalendarEvent(calData); }
+      else { await TheVine.flock.call('calendar.create', calData); }
       await _calLoad(true);
       _calRender(document.getElementById('cal-body'));
     });
@@ -1385,7 +1387,9 @@ const TheSeason = (() => {
 
     var res;
     try {
-      res = await TheVine.flock.call('calendar.get', { eventId: eventId });
+      res = _isFB()
+        ? await UpperRoom.getCalendarEvent(eventId)
+        : await TheVine.flock.call('calendar.get', { eventId: eventId });
     } catch (err) {
       alert('Could not load event: ' + (err.message || 'Unknown error'));
       return;
@@ -1410,13 +1414,15 @@ const TheSeason = (() => {
     ], async function(data) {
       var start = data.startDate + (data.startTime ? 'T' + data.startTime : '');
       var end   = data.startDate + (data.endTime   ? 'T' + data.endTime   : '');
-      await TheVine.flock.call('calendar.update', {
+      var calUpdate = {
         EventID: eventId,
         Title: data.Title, StartDateTime: start, EndDateTime: end,
         Location: data.Location, Description: data.Description,
         Color: data.Color, IsAllDay: data.IsAllDay === 'true',
         RecurrenceRule: data.RecurrenceRule, Visibility: data.Visibility,
-      });
+      };
+      if (_isFB()) { await UpperRoom.updateCalendarEvent(calUpdate); }
+      else { await TheVine.flock.call('calendar.update', calUpdate); }
       await _calLoad(true);
       _calRender(document.getElementById('cal-body'));
     }, 'Save');
@@ -1426,7 +1432,8 @@ const TheSeason = (() => {
     var overlay = document.getElementById('fl-modal');
     if (overlay) overlay.remove();
     if (!confirm('Delete this event? This cannot be undone.')) return;
-    await TheVine.flock.call('calendar.delete', { EventID: eventId });
+    if (_isFB()) { await UpperRoom.deleteCalendarEvent(eventId); }
+    else { await TheVine.flock.call('calendar.delete', { EventID: eventId }); }
     await _calLoad(true);
     _calRender(document.getElementById('cal-body'));
   }
@@ -1440,7 +1447,9 @@ const TheSeason = (() => {
 
     var res;
     try {
-      res = await TheVine.flock.events.get({ id: eventId });
+      res = _isFB()
+        ? await UpperRoom.getEvent(eventId)
+        : await TheVine.flock.events.get({ id: eventId });
     } catch (err) {
       alert('Could not load event: ' + (err.message || 'Unknown error'));
       return;
@@ -1474,7 +1483,7 @@ const TheSeason = (() => {
       data.id = eventId;
       if (data.rsvpRequired) data.rsvpRequired = data.rsvpRequired === 'true';
       if (data.capacity) data.capacity = parseInt(data.capacity, 10) || 0;
-      await TheVine.flock.events.update(data);
+      if (_isFB()) { await UpperRoom.updateEvent(data); } else { await TheVine.flock.events.update(data); }
       _toast('Event updated');
       await _calLoad(true);
       _calRender(document.getElementById('cal-body'));
@@ -1485,7 +1494,8 @@ const TheSeason = (() => {
     var overlay = document.getElementById('fl-modal');
     if (overlay) overlay.remove();
     if (!confirm('Archive this event? It will be hidden from the calendar.')) return;
-    await TheVine.flock.events.update({ id: eventId, status: 'Archived' });
+    if (_isFB()) { await UpperRoom.updateEvent({ id: eventId, status: 'Archived' }); }
+    else { await TheVine.flock.events.update({ id: eventId, status: 'Archived' }); }
     _toast('Event archived');
     await _calLoad(true);
     _calRender(document.getElementById('cal-body'));
@@ -1495,7 +1505,7 @@ const TheSeason = (() => {
     var overlay = document.getElementById('fl-modal');
     if (overlay) overlay.remove();
     if (!confirm('Cancel this event? Attendees will see it marked as cancelled.')) return;
-    await TheVine.flock.events.cancel({ id: eventId });
+    if (_isFB()) { await UpperRoom.cancelEvent(eventId); } else { await TheVine.flock.events.cancel({ id: eventId }); }
     _toast('Event cancelled');
     await _calLoad(true);
     _calRender(document.getElementById('cal-body'));
@@ -1515,14 +1525,16 @@ const TheSeason = (() => {
     ], async function(data) {
       data.eventId = eventId;
       if (data.guestCount) data.guestCount = parseInt(data.guestCount, 10) || 0;
-      await TheVine.flock.events.rsvp(data);
+      if (_isFB()) { await UpperRoom.rsvpEvent(data); } else { await TheVine.flock.events.rsvp(data); }
       _toast('RSVP submitted!');
     }, 'Submit RSVP');
   }
 
   async function viewEventRsvps(eventId) {
     try {
-      var res = await TheVine.flock.events.rsvpList({ eventId: eventId });
+      var res = _isFB()
+        ? await UpperRoom.listRsvps({ eventId: eventId })
+        : await TheVine.flock.events.rsvpList({ eventId: eventId });
       var rows = _rows(res);
 
       var attending = rows.filter(function(r) { return r.response === 'Attending'; });
@@ -2170,7 +2182,8 @@ const TheSeason = (() => {
       { name: 'date', label: 'Date', type: 'date',
         required: true, value: new Date().toISOString().substring(0, 10) },
     ], async function(data) {
-      await TheVine.flock.checkin.open(data);
+      if (_isFB()) { await UpperRoom.checkinOpen(data); }
+      else { await TheVine.flock.checkin.open(data); }
       _reload('checkin');
     });
   }
@@ -2179,7 +2192,8 @@ const TheSeason = (() => {
     var name = prompt('Enter the session name to close:');
     if (!name) return;
     try {
-      await TheVine.flock.checkin.close({ name: name });
+      if (_isFB()) { await UpperRoom.checkinClose(name); }
+      else { await TheVine.flock.checkin.close({ name: name }); }
       _reload('checkin');
     } catch (e) { alert(e.message); }
   }
@@ -2234,7 +2248,8 @@ const TheSeason = (() => {
         _btn('Close Session', "Modules.closeCheckinSession()", false) +
         ' <button onclick="Modules.geoCheckin()" style="background:none;border:1px solid var(--accent);color:var(--accent);border-radius:6px;padding:6px 14px;cursor:pointer;font-size:0.82rem;margin-left:6px;">\uD83D\uDCCD Geo Check-In</button>' +
         ' <button onclick="Modules.toggleFullscreen()" style="background:none;border:1px solid var(--line);color:var(--ink-muted);border-radius:6px;padding:6px 14px;cursor:pointer;font-size:0.82rem;margin-left:6px;">\u26F6 Fullscreen</button>');
-      TheVine.flock.checkin.sessions({}).then(function(ciRes) {
+      var ciPromise = _isFB() ? UpperRoom.checkinSessions() : TheVine.flock.checkin.sessions({});
+      ciPromise.then(function(ciRes) {
         var ciRows = _rows(ciRes);
         _body(el, _calModeBar() + _table(
           ['Date', 'Session', 'Checked In', 'Opened By', 'Status'],
