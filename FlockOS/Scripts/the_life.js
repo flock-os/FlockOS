@@ -156,15 +156,19 @@ const TheLife = (() => {
     return [];
   }
 
+  function _isFB() {
+    return typeof Modules !== 'undefined' && typeof Modules._isFirebaseComms === 'function' && Modules._isFirebaseComms();
+  }
+
   async function _ensureDir() {
     if (_cache.memberDir && _cache.memberDir.length) return _cache.memberDir;
     if (!_memberDirPromise) {
       // All My Flock users have care+ role → use members.list (full roster).
       // Admins also pull users.list (AuthUsers) to catch staff not in Members.
       _memberDirPromise = (async function() {
-        var fetches = [TheVine.flock.call('members.list', { limit: 500 })];
+        var fetches = [_isFB() ? UpperRoom.listMembers({ limit: 500 }) : TheVine.flock.call('members.list', { limit: 500 })];
         if (Nehemiah.hasRole('admin')) {
-          fetches.push(TheVine.flock.call('users.list', {}));
+          fetches.push(_isFB() ? UpperRoom.listUsers() : TheVine.flock.call('users.list', {}));
         }
         var res = await Promise.allSettled(fetches);
         var members = _rows(res[0].status === 'fulfilled' ? res[0].value : []);
@@ -1804,7 +1808,7 @@ const TheLife = (() => {
     var rec = {};
     if (isEdit) {
       try {
-        var res = await TheVine.flock.call('members.get', { id: emailOrId });
+        var res = await (_isFB() ? UpperRoom.getMember(emailOrId) : TheVine.flock.call('members.get', { id: emailOrId }));
         rec = (res && !res.error) ? res : {};
       } catch (_) {
         // Try directory cache
@@ -2050,11 +2054,11 @@ const TheLife = (() => {
       if (_fpMemberId) {
         data.id = _fpMemberId;
         _stat('Updating member\u2026');
-        await TheVine.flock.call('members.update', data);
+        await (_isFB() ? UpperRoom.updateMember(data) : TheVine.flock.call('members.update', data));
         _audit('member.update', 'Members', _fpMemberId, 'Updated member record');
       } else {
         _stat('Creating member\u2026');
-        var res = await TheVine.flock.call('members.create', data);
+        var res = await (_isFB() ? UpperRoom.createMember(data) : TheVine.flock.call('members.create', data));
         if (res && res.id) _fpMemberId = res.id;
         _audit('member.create', 'Members', _fpMemberId || data.primaryEmail || '',
           (data.firstName || '') + ' ' + (data.lastName || ''));
@@ -2081,13 +2085,19 @@ const TheLife = (() => {
         if (createAcct) {
           try {
             _stat('Creating login account\u2026');
-            await TheVine.flock.call('users.create', {
+            await (_isFB() ? UpperRoom.createUser({
               email: data.primaryEmail,
               firstName: data.firstName || '',
               lastName: data.lastName || '',
               passcode: acctPassword,
               role: acctRole,
-            });
+            }) : TheVine.flock.call('users.create', {
+              email: data.primaryEmail,
+              firstName: data.firstName || '',
+              lastName: data.lastName || '',
+              passcode: acctPassword,
+              role: acctRole,
+            }));
             _audit('user.create', 'AuthUsers', data.primaryEmail,
               'Account created with role: ' + acctRole);
           } catch (acctErr) {
@@ -2605,10 +2615,10 @@ const TheLife = (() => {
       // ── Light data fetch for KPI ribbon ──
       var fetches = [
         isPastorPlus
-          ? _fetch('members', () => TheVine.flock.call('members.list', { limit: 500 }))
+          ? _fetch('members', () => _isFB() ? UpperRoom.listMembers({ limit: 500 }) : TheVine.flock.call('members.list', { limit: 500 }))
           : isCareRole
             ? _fetch('myFlock', () => TheVine.flock.care.assignments.myFlock({ caregiverId: email }))
-            : _fetch('directory', () => TheVine.flock.memberCards.directory()),
+            : _fetch('directory', () => _isFB() ? UpperRoom.listMemberCards() : TheVine.flock.memberCards.directory()),
         _fetch('care', () => TheVine.flock.care.list({ limit: 100 })),
         _fetch('followUps', () => TheVine.flock.care.followUps.due({})),
         _fetch('prayer', () => TheVine.flock.prayer.list({ limit: 100 })),

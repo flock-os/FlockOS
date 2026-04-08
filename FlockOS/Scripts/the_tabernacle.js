@@ -971,7 +971,7 @@ const Modules = (() => {
   async function _ensureMemberDir() {
     if (_dataCache['memberDir'] && _dataCache['memberDir'].length) return _dataCache['memberDir'];
     if (!TheVine.session()) return [];
-    const raw = await _fetch('memberDir', () => TheVine.flock.memberCards.directory());
+    const raw = await _fetch('memberDir', () => _isFirebaseComms() ? UpperRoom.listMemberCards() : TheVine.flock.memberCards.directory());
     const d = _rows(raw);
     if (d.length) _dataCache['memberDir'] = d;
     return d;
@@ -1168,7 +1168,7 @@ const Modules = (() => {
     }
     el.innerHTML = '<div style="display:flex;justify-content:center;padding:60px 20px;">' + _spinner() + '</div>';
     try {
-      var card = await TheVine.flock.memberCards.publicFull({ memberNumber: cardId, id: cardId });
+      var card = await (_isFirebaseComms() ? UpperRoom.getMemberCard(cardId) : TheVine.flock.memberCards.publicFull({ memberNumber: cardId, id: cardId }));
       if (!card || card.error) throw new Error(card ? card.error : 'Card not found');
       _renderPublicCard(el, card);
     } catch (e) {
@@ -9290,9 +9290,9 @@ const Modules = (() => {
   async function _ppLoadList(el) {
     try {
       var res = await Promise.all([
-        TheVine.flock.users.list(),
-        TheVine.flock.members.list(),
-        TheVine.flock.memberCards.directory()
+        _isFirebaseComms() ? UpperRoom.listUsers()      : TheVine.flock.users.list(),
+        _isFirebaseComms() ? UpperRoom.listMembers()     : TheVine.flock.members.list(),
+        _isFirebaseComms() ? UpperRoom.listMemberCards()  : TheVine.flock.memberCards.directory()
       ]);
       var users = _rows(res[0]), members = _rows(res[1]), cards = _rows(res[2]);
       _dataCache['users'] = users;
@@ -9409,7 +9409,7 @@ const Modules = (() => {
   async function _ppApprove(email) {
     if (!confirm('Approve ' + email + ' for membership?')) return;
     try {
-      await TheVine.flock.users.approve({ email: email });
+      await (_isFirebaseComms() ? UpperRoom.approveUser(email) : TheVine.flock.users.approve({ email: email }));
       _toast('Approved!', 'success');
       _reload('users');
     } catch (e) { _toast('Failed: ' + (e.message || e), 'danger'); }
@@ -9417,7 +9417,7 @@ const Modules = (() => {
   async function _ppDeny(email) {
     if (!confirm('Deny registration for ' + email + '?')) return;
     try {
-      await TheVine.flock.users.deny({ email: email });
+      await (_isFirebaseComms() ? UpperRoom.denyUser(email) : TheVine.flock.users.deny({ email: email }));
       _toast('Denied.', 'warn');
       _reload('users');
     } catch (e) { _toast('Failed: ' + (e.message || e), 'danger'); }
@@ -9472,10 +9472,10 @@ const Modules = (() => {
     var memberRec = null, cardRec = null, volRows = [];
     try {
       var f = await Promise.allSettled([
-        canEditPerms ? TheVine.flock.call('permissions.get', { targetEmail: email }) : Promise.resolve(null),
-        canEditPerms ? TheVine.flock.call('permissions.list', {}) : Promise.resolve(null),
-        TheVine.flock.call('members.get', { email: email }),
-        TheVine.flock.memberCards.search({ q: email }),
+        canEditPerms ? (_isFirebaseComms() ? UpperRoom.getPermissions(email)       : TheVine.flock.call('permissions.get', { targetEmail: email })) : Promise.resolve(null),
+        canEditPerms ? (_isFirebaseComms() ? UpperRoom.listPermissionModules()     : TheVine.flock.call('permissions.list', {})) : Promise.resolve(null),
+        _isFirebaseComms() ? UpperRoom.getMember(email)                            : TheVine.flock.call('members.get', { email: email }),
+        _isFirebaseComms() ? UpperRoom.searchMemberCards(email)                    : TheVine.flock.memberCards.search({ q: email }),
         TheVine.flock.call('volunteers.list', {}),
       ]);
       permData  = (f[0].status === 'fulfilled' && f[0].value) || permData;
@@ -10221,7 +10221,7 @@ const Modules = (() => {
         if (f.indexOf('acct_') === 0) acct[f.substring(5)] = el.value;
       });
       _stat('Saving account\u2026');
-      await TheVine.flock.users.update(acct);
+      await (_isFirebaseComms() ? UpperRoom.updateUser(acct) : TheVine.flock.users.update(acct));
     } catch (e) { errors.push('Account: ' + (e.message || e)); }
 
     // 2. Member record — fan in shared fields
@@ -10240,7 +10240,7 @@ const Modules = (() => {
         if (memId) {
           mem.id = memId;
           _stat('Saving member record\u2026');
-          await TheVine.flock.call('members.update', mem);
+          await (_isFirebaseComms() ? UpperRoom.updateMember(mem) : TheVine.flock.call('members.update', mem));
         }
       } catch (e) { errors.push('Member: ' + (e.message || e)); }
     }
@@ -10260,7 +10260,7 @@ const Modules = (() => {
         if (cardId) {
           card.id = cardId;
           _stat('Saving contact card\u2026');
-          await TheVine.flock.memberCards.update(card);
+          await (_isFirebaseComms() ? UpperRoom.updateMemberCard(card) : TheVine.flock.memberCards.update(card));
         }
       } catch (e) { errors.push('Card: ' + (e.message || e)); }
     }
@@ -15209,7 +15209,7 @@ const Modules = (() => {
         var email = _ov('email');
 
         // 1. Create the member record
-        var res = await TheVine.flock.members.create({
+        var _obMem = {
           firstName:        firstName,
           lastName:         lastName,
           primaryEmail:     email,
@@ -15229,7 +15229,8 @@ const Modules = (() => {
           emergencyContact: _ov('emergencyContact'),
           emergencyPhone:   _ov('emergencyPhone'),
           pastoralNotes:    _ov('pastoralNotes'),
-        });
+        };
+        var res = await (_isFirebaseComms() ? UpperRoom.createMember(_obMem) : TheVine.flock.members.create(_obMem));
 
         // 2. Auto-assign to current user's care list
         var newId = (res && res.id) || '';
@@ -15381,10 +15382,8 @@ const Modules = (() => {
       var prefName = (document.getElementById('wiz-wc-preferred') || {}).value;
       if (prefName && prefName.trim()) {
         try {
-          await TheVine.flock.call('members.update', {
-            email: session.email,
-            preferredName: prefName.trim()
-          });
+          var _prefData = { email: session.email, preferredName: prefName.trim() };
+          await (_isFirebaseComms() ? UpperRoom.updateMember(_prefData) : TheVine.flock.call('members.update', _prefData));
         } catch (_) { /* non-critical */ }
       }
 
@@ -15540,7 +15539,7 @@ const Modules = (() => {
         var email = _wv('email');
         var firstName = _wv('firstName');
         var lastName = _wv('lastName');
-        await TheVine.flock.users.create({
+        var _newUser = {
           email: email,
           displayName: firstName + ' ' + lastName,
           firstName: firstName,
@@ -15548,11 +15547,12 @@ const Modules = (() => {
           phone: _wv('phone'),
           role: _wv('role'),
           passcode: _wv('passcode')
-        });
+        };
+        await (_isFirebaseComms() ? UpperRoom.createUser(_newUser) : TheVine.flock.users.create(_newUser));
 
         // Step 2: Create member record (if toggled on)
         if (document.getElementById('wiz-createMember').checked) {
-          await TheVine.flock.members.create({
+          var _newMem = {
             firstName: firstName, lastName: lastName,
             primaryEmail: email, cellPhone: _wv('phone'),
             preferredName: _wv('preferredName'),
@@ -15564,12 +15564,13 @@ const Modules = (() => {
             city: _wv('city'), state: _wv('state'), zip: _wv('zip'),
             emergencyContact: _wv('emergencyContact'),
             emergencyPhone: _wv('emergencyPhone')
-          });
+          };
+          await (_isFirebaseComms() ? UpperRoom.createMember(_newMem) : TheVine.flock.members.create(_newMem));
         }
 
         // Step 3: Create contact card (if toggled on)
         if (document.getElementById('wiz-createCard').checked) {
-          await TheVine.flock.memberCards.create({
+          var _newCard = {
             email: email,
             firstName: firstName, lastName: lastName,
             cardTitle: _wv('cardTitle'),
@@ -15578,7 +15579,8 @@ const Modules = (() => {
             phone: _wv('phone'),
             visibility: _wv('visibility') || 'public',
             colorScheme: _wv('colorScheme')
-          });
+          };
+          await (_isFirebaseComms() ? UpperRoom.createMemberCard(_newCard) : TheVine.flock.memberCards.create(_newCard));
         }
 
         overlay.remove();
@@ -16725,13 +16727,14 @@ const Modules = (() => {
   async function _euCreateMember(email) {
     var r = (_dataCache['users'] || []).find(function(x) { return (x.email || x.id) === email; }) || {};
     try {
-      await TheVine.flock.call('members.create', {
+      var _memData = {
         primaryEmail: email,
         firstName: r.firstName || '',
         lastName: r.lastName || '',
         cellPhone: r.phone || '',
         photoUrl: r.photoUrl || ''
-      });
+      };
+      await (_isFirebaseComms() ? UpperRoom.createMember(_memData) : TheVine.flock.call('members.create', _memData));
       _toast('Member record created!');
       var modal = document.getElementById('eu-modal');
       if (modal) modal.remove();
@@ -16743,14 +16746,15 @@ const Modules = (() => {
   async function _euCreateCard(email) {
     var r = (_dataCache['users'] || []).find(function(x) { return (x.email || x.id) === email; }) || {};
     try {
-      await TheVine.flock.memberCards.create({
+      var _cardData = {
         email: email,
         firstName: r.firstName || '',
         lastName: r.lastName || '',
         phone: r.phone || '',
         photoUrl: r.photoUrl || '',
         status: 'Active'
-      });
+      };
+      await (_isFirebaseComms() ? UpperRoom.createMemberCard(_cardData) : TheVine.flock.memberCards.create(_cardData));
       _toast('Contact card created!');
       var modal = document.getElementById('eu-modal');
       if (modal) modal.remove();
@@ -16844,7 +16848,7 @@ const Modules = (() => {
       if (chk.checked) grants.push(key);
     });
     try {
-      await TheVine.flock.call('permissions.setAll', { targetEmail: targetEmail, grants: grants, denies: denies });
+      await (_isFirebaseComms() ? UpperRoom.setPermissions(targetEmail, grants, denies) : TheVine.flock.call('permissions.setAll', { targetEmail: targetEmail, grants: grants, denies: denies }));
       if (st) { st.textContent = '\u2713 Saved'; setTimeout(function() { if (st) st.textContent = ''; }, 2000); }
     } catch (e) {
       if (st) st.textContent = 'Error: ' + (e.message || e);
@@ -16950,7 +16954,7 @@ const Modules = (() => {
       if (c.checked) groups.push(c.getAttribute('data-group'));
     });
     try {
-      await TheVine.flock.users.update({ targetEmail: targetEmail, groups: groups.join(', ') });
+      await (_isFirebaseComms() ? UpperRoom.updateUser({ targetEmail: targetEmail, groups: groups.join(', ') }) : TheVine.flock.users.update({ targetEmail: targetEmail, groups: groups.join(', ') }));
       if (st) { st.textContent = '\u2713 Saved'; setTimeout(function() { if (st) st.textContent = ''; }, 2000); }
     } catch (e) {
       if (st) st.textContent = 'Error: ' + (e.message || e);

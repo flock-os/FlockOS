@@ -955,6 +955,248 @@
   }
 
   /* ══════════════════════════════════════════════════════════════════
+     USERS — churches/{churchId}/users
+     ══════════════════════════════════════════════════════════════════ */
+
+  function _usersRef() {
+    return _churchRef().collection('users');
+  }
+
+  function listUsers(opts) {
+    opts = opts || {};
+    var q = _usersRef().orderBy('lastName').limit(opts.limit || 500);
+    if (opts.status) q = q.where('status', '==', opts.status);
+    return q.get().then(function(snap) {
+      var results = [];
+      snap.forEach(function(doc) {
+        var d = doc.data(); d.id = doc.id; results.push(d);
+      });
+      return results;
+    });
+  }
+
+  function getUser(email) {
+    return _usersRef().doc(email.toLowerCase()).get().then(function(doc) {
+      if (!doc.exists) return null;
+      var d = doc.data(); d.id = doc.id; return d;
+    });
+  }
+
+  function createUser(data) {
+    var email = (data.email || '').toLowerCase();
+    if (!email) return Promise.reject('email required');
+    data.email = email;
+    data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+    data.createdBy = _userEmail;
+    return _usersRef().doc(email).set(data).then(function() {
+      data.id = email; return data;
+    });
+  }
+
+  function updateUser(data) {
+    var email = (data.targetEmail || data.email || '').toLowerCase();
+    if (!email) return Promise.reject('email required');
+    var payload = Object.assign({}, data);
+    delete payload.targetEmail;
+    payload.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+    payload.updatedBy = _userEmail;
+    return _usersRef().doc(email).update(payload).then(function() {
+      return payload;
+    });
+  }
+
+  function approveUser(email) {
+    return _usersRef().doc(email.toLowerCase()).update({
+      status: 'active',
+      approvedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      approvedBy: _userEmail
+    });
+  }
+
+  function denyUser(email) {
+    return _usersRef().doc(email.toLowerCase()).update({
+      status: 'denied',
+      deniedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      deniedBy: _userEmail
+    });
+  }
+
+  function resetPasscode(email, newPasscode) {
+    return _usersRef().doc(email.toLowerCase()).update({
+      passcode: newPasscode,
+      passcodeResetAt: firebase.firestore.FieldValue.serverTimestamp(),
+      passcodeResetBy: _userEmail
+    });
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     MEMBERS — churches/{churchId}/members
+     ══════════════════════════════════════════════════════════════════ */
+
+  function _membersRef() {
+    return _churchRef().collection('members');
+  }
+
+  function listMembers(opts) {
+    opts = opts || {};
+    var q = _membersRef().orderBy('lastName').limit(opts.limit || 500);
+    if (opts.membershipStatus) q = q.where('membershipStatus', '==', opts.membershipStatus);
+    return q.get().then(function(snap) {
+      var results = [];
+      snap.forEach(function(doc) {
+        var d = doc.data(); d.id = doc.id; results.push(d);
+      });
+      return results;
+    });
+  }
+
+  function getMember(idOrEmail) {
+    // Try by doc ID first, fall back to email query
+    return _membersRef().doc(idOrEmail).get().then(function(doc) {
+      if (doc.exists) { var d = doc.data(); d.id = doc.id; return d; }
+      // Fall back: query by primaryEmail
+      return _membersRef().where('primaryEmail', '==', idOrEmail.toLowerCase())
+        .limit(1).get().then(function(snap) {
+          if (snap.empty) return null;
+          var d2 = snap.docs[0].data(); d2.id = snap.docs[0].id; return d2;
+        });
+    });
+  }
+
+  function createMember(data) {
+    data.primaryEmail = (data.primaryEmail || data.email || '').toLowerCase();
+    data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+    data.createdBy = _userEmail;
+    return _membersRef().add(data).then(function(ref) {
+      data.id = ref.id; return data;
+    });
+  }
+
+  function updateMember(data) {
+    var id = data.id;
+    if (!id) return Promise.reject('member id required');
+    var payload = Object.assign({}, data);
+    delete payload.id;
+    payload.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+    payload.updatedBy = _userEmail;
+    return _membersRef().doc(id).update(payload).then(function() {
+      payload.id = id; return payload;
+    });
+  }
+
+  function deleteMember(id) {
+    return _membersRef().doc(id).delete();
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     MEMBER CARDS — churches/{churchId}/memberCards
+     ══════════════════════════════════════════════════════════════════ */
+
+  function _memberCardsRef() {
+    return _churchRef().collection('memberCards');
+  }
+
+  function listMemberCards(opts) {
+    opts = opts || {};
+    var q = _memberCardsRef().orderBy('lastName').limit(opts.limit || 500);
+    if (opts.status) q = q.where('status', '==', opts.status);
+    if (opts.visibility) q = q.where('visibility', '==', opts.visibility);
+    return q.get().then(function(snap) {
+      var results = [];
+      snap.forEach(function(doc) {
+        var d = doc.data(); d.id = doc.id; results.push(d);
+      });
+      return results;
+    });
+  }
+
+  function getMemberCard(idOrNumber) {
+    return _memberCardsRef().doc(idOrNumber).get().then(function(doc) {
+      if (doc.exists) { var d = doc.data(); d.id = doc.id; return d; }
+      // Fall back: query by memberNumber
+      return _memberCardsRef().where('memberNumber', '==', idOrNumber)
+        .limit(1).get().then(function(snap) {
+          if (snap.empty) return null;
+          var d2 = snap.docs[0].data(); d2.id = snap.docs[0].id; return d2;
+        });
+    });
+  }
+
+  function searchMemberCards(query) {
+    // Client-side filter — Firestore doesn't support LIKE queries
+    return listMemberCards({ limit: 500 }).then(function(cards) {
+      var q = (query || '').toLowerCase();
+      if (!q) return cards;
+      return cards.filter(function(c) {
+        return (c.firstName || '').toLowerCase().indexOf(q) >= 0 ||
+               (c.lastName || '').toLowerCase().indexOf(q) >= 0 ||
+               (c.email || '').toLowerCase().indexOf(q) >= 0 ||
+               (c.cardTitle || '').toLowerCase().indexOf(q) >= 0;
+      });
+    });
+  }
+
+  function createMemberCard(data) {
+    data.email = (data.email || '').toLowerCase();
+    data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+    data.createdBy = _userEmail;
+    return _memberCardsRef().add(data).then(function(ref) {
+      data.id = ref.id; return data;
+    });
+  }
+
+  function updateMemberCard(data) {
+    var id = data.id;
+    if (!id) return Promise.reject('card id required');
+    var payload = Object.assign({}, data);
+    delete payload.id;
+    payload.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+    payload.updatedBy = _userEmail;
+    return _memberCardsRef().doc(id).update(payload).then(function() {
+      payload.id = id; return payload;
+    });
+  }
+
+  function deleteMemberCard(id) {
+    return _memberCardsRef().doc(id).delete();
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     PERMISSIONS — churches/{churchId}/permissions
+     ══════════════════════════════════════════════════════════════════ */
+
+  function _permissionsRef() {
+    return _churchRef().collection('permissions');
+  }
+
+  function getPermissions(email) {
+    return _permissionsRef().doc(email.toLowerCase()).get().then(function(doc) {
+      if (!doc.exists) return { overrides: [], permissions: {} };
+      return doc.data();
+    });
+  }
+
+  function listPermissionModules() {
+    // Static config — stored as a single doc
+    return _churchRef().collection('settings').doc('permissionModules').get()
+      .then(function(doc) {
+        if (!doc.exists) return { modules: {} };
+        return doc.data();
+      });
+  }
+
+  function setPermissions(email, grants, denies) {
+    var payload = {
+      targetEmail: email.toLowerCase(),
+      grants: grants || [],
+      denies: denies || [],
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      updatedBy: _userEmail
+    };
+    return _permissionsRef().doc(email.toLowerCase()).set(payload, { merge: true });
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
      PUBLIC API — window.UpperRoom
      ══════════════════════════════════════════════════════════════════ */
 
@@ -1047,6 +1289,35 @@
     // Typing
     setTyping:      setTyping,
     listenTyping:   listenTyping,
+
+    // Users
+    listUsers:       listUsers,
+    getUser:         getUser,
+    createUser:      createUser,
+    updateUser:      updateUser,
+    approveUser:     approveUser,
+    denyUser:        denyUser,
+    resetPasscode:   resetPasscode,
+
+    // Members
+    listMembers:     listMembers,
+    getMember:       getMember,
+    createMember:    createMember,
+    updateMember:    updateMember,
+    deleteMember:    deleteMember,
+
+    // Member Cards
+    listMemberCards:   listMemberCards,
+    getMemberCard:     getMemberCard,
+    searchMemberCards: searchMemberCards,
+    createMemberCard:  createMemberCard,
+    updateMemberCard:  updateMemberCard,
+    deleteMemberCard:  deleteMemberCard,
+
+    // Permissions
+    getPermissions:        getPermissions,
+    listPermissionModules: listPermissionModules,
+    setPermissions:        setPermissions,
 
     // Utility
     timeAgo:        _timeAgo
