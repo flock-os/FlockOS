@@ -275,6 +275,9 @@ const Temple = (() => {
     'comms.broadcast.send':            { api: APIS.FLOCK, minRole: RBAC.pastor },
     'comms.dashboard':                 { api: APIS.FLOCK, minRole: RBAC.readonly },
 
+    /* ── FIREBASE (The Upper Room) ─── */
+    'firebase.token':                  { api: APIS.FLOCK, minRole: RBAC.readonly },
+
     /* ── USER PREFERENCES ─── */
     'user.preferences.get':    { api: APIS.FLOCK, minRole: RBAC.readonly },
     'user.preferences.update': { api: APIS.FLOCK, minRole: RBAC.readonly },
