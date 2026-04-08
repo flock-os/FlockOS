@@ -117,13 +117,28 @@
     // Determine churchId from page context
     _churchId = _resolveChurchId();
 
-    // Already signed in?
+    // If already signed in, verify custom claims are still present.
+    // Custom token claims (churchId, role) are NOT persisted through
+    // ID token refresh — after ~1 hour the refreshed token loses them,
+    // causing Firestore rules to reject with "missing permissions."
     if (_auth.currentUser) {
-      _ready = true;
-      return Promise.resolve();
+      return _auth.currentUser.getIdTokenResult()
+        .then(function(result) {
+          if (result.claims && result.claims.churchId) {
+            _ready = true;
+            return;  // claims intact — no re-auth needed
+          }
+          // Claims lost after token refresh — get a fresh custom token
+          return _mintAndSignIn();
+        });
     }
 
-    // Request a Firebase Custom Token from Apps Script
+    // Not signed in at all — get a custom token
+    return _mintAndSignIn();
+  }
+
+  /* ── Mint a fresh custom token from GAS and sign in ────────────── */
+  function _mintAndSignIn() {
     return TheVine.flock.firebase.token()
       .then(function(res) {
         var token = res && (res.token || res.customToken);
