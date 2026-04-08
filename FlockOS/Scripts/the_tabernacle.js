@@ -1310,13 +1310,13 @@ const Modules = (() => {
     }
   }
 
-  Modules._vcardOpen = function(memberNumber) {
+  function _vcardOpen(memberNumber) {
     var result = _isFirebaseComms() ? UpperRoom.memberCardsVcard({ memberNumber: memberNumber }) : TheVine.flock.memberCards.vcard({ memberNumber: memberNumber });
     if (typeof result === 'string') { window.open(result); }
     else if (result && typeof result.then === 'function') {
       result.then(function(u) { if (u) window.open(u); }).catch(function() { _toast('vCard not available.', 'warn'); });
     }
-  };
+  }
 
   function _cardShare() {
     var url = window.location.href;
@@ -19087,7 +19087,7 @@ const Modules = (() => {
     _outCampaignNew, _outCampaignEdit, _outContactConvert, _outContactArchive,
     _outCampaignArchive, _outFollowUpDone, _outFollowUpNew,
     memberCardsView, _mcBulkProvision, _mcArchive,
-    _mcLinkNew, _mcLinkDelete, _mcLookup,
+    _mcLinkNew, _mcLinkDelete, _mcLookup, _vcardOpen,
     newPlaylist, learningView, learningTopics,
     _lrnTopicNew, _lrnTopicEdit, _lrnTopicDelete,
     _lrnPlaylistDelete, _lrnPlaylistSubscribe,

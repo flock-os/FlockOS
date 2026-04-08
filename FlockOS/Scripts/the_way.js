@@ -1090,6 +1090,12 @@ const TheWay = (() => {
     if (!c) {
       try {
         var res = await (_isFB() ? UpperRoom.getLrnPlaylist({ id: id }) : TheVine.flock.call('learning.playlists.get', { id: id }));
+        c = (res && !res.error) ? res : null;
+      } catch (e) { _toast(e.message || 'Failed to load course', 'danger'); return; }
+    }
+    if (!c) { _toast('Course not found', 'danger'); return; }
+    var fields = [
+      { name: 'title',           label: 'Course Title',                       required: true,  value: c.title },
       { name: 'description',     label: 'Description',       type: 'textarea',                 value: c.description },
       { name: 'coverImageUrl',   label: 'Cover Image URL',                                     value: c.coverImageUrl },
       { name: 'difficultyLevel', label: 'Difficulty',         type: 'select',
