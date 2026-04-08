@@ -23,6 +23,7 @@
   var _churchId   = null;   // e.g. 'FlockOS', 'TheForest'
   var _userEmail  = null;   // logged-in user email
   var _userName   = null;   // logged-in display name
+  var _initialized = false; // true once Firebase app + Firestore initialized
   var _ready      = false;  // true once Firebase auth + Firestore ready
   var _listeners  = {};     // active snapshot listeners (keyed by path)
   var _unreadDM   = 0;      // unread DM count
@@ -62,7 +63,8 @@
 
   /* ── Init ─────────────────────────────────────────────────────────── */
   function init(config) {
-    if (_ready) return Promise.resolve();
+    if (_initialized) return Promise.resolve();
+    _initialized = true;
 
     // Accept optional config override
     if (config) FIREBASE_CONFIG = config;
@@ -70,6 +72,7 @@
     // Firebase SDK must be loaded
     if (typeof firebase === 'undefined' || !firebase.firestore) {
       console.warn('[UpperRoom] Firebase SDK not loaded');
+      _initialized = false;
       return Promise.reject(new Error('Firebase SDK not available'));
     }
 
@@ -80,7 +83,7 @@
     _db   = firebase.firestore();
     _auth = firebase.auth();
 
-    // Enable offline persistence
+    // Enable offline persistence (only runs once)
     _db.enablePersistence({ synchronizeTabs: true }).catch(function(err) {
       if (err.code !== 'failed-precondition' && err.code !== 'unimplemented') {
         console.warn('[UpperRoom] Persistence error:', err.code);
