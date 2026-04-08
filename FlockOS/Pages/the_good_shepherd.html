@@ -854,6 +854,9 @@ if (!session) throw new Error('Not authenticated');
 
   // Maintenance check — Firestore-first
   if (typeof firebase !== 'undefined' && firebase.firestore) {
+    try {
+      if (!firebase.apps.length) firebase.initializeApp(typeof window.FLOCK_FIREBASE_CONFIG === 'object' && window.FLOCK_FIREBASE_CONFIG || { apiKey: 'AIzaSyBA-fkxjABbwIHn0i6MPiXbGwahfJmuJeo', authDomain: 'flockos-notify.firebaseapp.com', projectId: 'flockos-notify' });
+    } catch (_) {}
     firebase.firestore().doc('appConfig/system').get()
       .then(function(snap) { if (snap.exists && snap.data().maintenance) _blockAdmin(); })
       .catch(function() {}); // fail open

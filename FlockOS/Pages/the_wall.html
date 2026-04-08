@@ -359,16 +359,23 @@ document.addEventListener('DOMContentLoaded', function() {
   Nehemiah.guardLogin();
 
   // ── Maintenance banner — warn users before they try to log in ──
-  if (typeof firebase !== 'undefined' && firebase.firestore) {
-    firebase.firestore().doc('appConfig/system').get()
-      .then(function(snap) {
-        if (snap.exists && snap.data().maintenance) {
-          var b = document.getElementById('lockdownBanner');
-          if (b) b.style.display = '';
-        }
-      })
-      .catch(function() { /* silent */ });
-  }
+  try {
+    if (typeof firebase !== 'undefined' && firebase.firestore) {
+      if (!firebase.apps.length) firebase.initializeApp(typeof window.FLOCK_FIREBASE_CONFIG === 'object' && window.FLOCK_FIREBASE_CONFIG || {
+        apiKey: 'AIzaSyBA-fkxjABbwIHn0i6MPiXbGwahfJmuJeo',
+        authDomain: 'flockos-notify.firebaseapp.com',
+        projectId: 'flockos-notify'
+      });
+      firebase.firestore().doc('appConfig/system').get()
+        .then(function(snap) {
+          if (snap.exists && snap.data().maintenance) {
+            var b = document.getElementById('lockdownBanner');
+            if (b) b.style.display = '';
+          }
+        })
+        .catch(function() { /* silent */ });
+    }
+  } catch (_) { /* Firebase not ready — skip banner */ }
 
   // ── View Management ──
   function showView(name) {

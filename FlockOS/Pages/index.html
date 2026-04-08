@@ -536,6 +536,9 @@ var _isLockedDown = false;
 (function() {
   // Firestore path: appConfig/system → { maintenance: true/false }
   if (typeof firebase !== 'undefined' && firebase.firestore) {
+    try {
+      if (!firebase.apps.length) firebase.initializeApp(typeof window.FLOCK_FIREBASE_CONFIG === 'object' && window.FLOCK_FIREBASE_CONFIG || { apiKey: 'AIzaSyBA-fkxjABbwIHn0i6MPiXbGwahfJmuJeo', authDomain: 'flockos-notify.firebaseapp.com', projectId: 'flockos-notify' });
+    } catch (_) { _lockdownResolved = true; return; }
     firebase.firestore().doc('appConfig/system').get()
       .then(function(snap) {
         var data = snap.exists ? snap.data() : {};
