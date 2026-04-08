@@ -7469,7 +7469,10 @@ const Modules = (() => {
       + ch('emailEnabled',  'Email')
       + ch('inAppEnabled',  'In-app / bell')
       + '</div>'
-      + '<button onclick="Modules._saveNotifPrefs()" style="margin-top:18px;background:var(--accent);color:var(--ink-inverse);border:none;border-radius:7px;padding:9px 22px;font-size:0.9rem;cursor:pointer;font-family:inherit;font-weight:600;">Save Preferences</button>'
+      + '<div style="display:flex;gap:10px;margin-top:18px;flex-wrap:wrap;">'
+      + '<button onclick="Modules._saveNotifPrefs()" style="background:var(--accent);color:var(--ink-inverse);border:none;border-radius:7px;padding:9px 22px;font-size:0.9rem;cursor:pointer;font-family:inherit;font-weight:600;">Save Preferences</button>'
+      + '<button onclick="Modules._sendTestEmail()" style="background:none;color:var(--accent);border:1px solid var(--accent);border-radius:7px;padding:9px 22px;font-size:0.9rem;cursor:pointer;font-family:inherit;font-weight:600;">Send Test Email</button>'
+      + '</div>'
       + '</div>';
   }
 
@@ -7531,6 +7534,18 @@ const Modules = (() => {
     try {
       await TheVine.flock.comms.notifPrefs.update(prefs);
       _toast('Preferences saved.');
+    } catch (e) { _toast('Error: ' + e.message, 'danger'); }
+  }
+
+  async function _sendTestEmail() {
+    _toast('Sending test email…', 'info');
+    try {
+      const res = await TheVine.flock.comms.notifications.testEmail();
+      if (res && res.sent) {
+        _toast('Test email sent! Check your inbox.');
+      } else {
+        _toast('Error: ' + (res && res.error ? res.error : 'Unknown error'), 'danger');
+      }
     } catch (e) { _toast('Error: ' + e.message, 'danger'); }
   }
 
@@ -18882,7 +18897,7 @@ const Modules = (() => {
     _roomTypingStart, _roomAddParticipant,
     _toggleInlineReply, _sendInlineReply, _commsFilter,
     _commsSetMode, _isFirebaseComms,
-    _notifMarkRead, _notifMarkAllRead, _notifDismiss, _notifBroadcastPanel, _sendBroadcastNotif, _saveNotifPrefs,
+    _notifMarkRead, _notifMarkAllRead, _notifDismiss, _notifBroadcastPanel, _sendBroadcastNotif, _saveNotifPrefs, _sendTestEmail,
     _channelNew, _channelEdit, _channelDelete, _channelPost,
     _templateNew, _templateEdit, _templateDelete, _templateUse,
     _viewReadReceipts,
