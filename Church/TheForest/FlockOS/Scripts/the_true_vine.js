@@ -463,6 +463,9 @@ const TheVine = (() => {
       return c;
     })(),
 
+    // ── Firebase ─────────────────────────────────────────────────────────
+    firebase:      _f('firebase', ['token']),
+
     // ── SMS Gateway (Twilio) ─────────────────────────────────────────────
     sms:           _f('sms', ['send']),
 
