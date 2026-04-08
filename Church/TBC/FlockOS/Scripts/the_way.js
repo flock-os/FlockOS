@@ -1878,7 +1878,6 @@ const TheWay = (() => {
               });
               tree = Object.keys(catMap).map(function(k) { return catMap[k]; });
             }
-          }
         } catch (_) {}
       }
 
