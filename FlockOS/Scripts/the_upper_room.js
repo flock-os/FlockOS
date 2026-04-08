@@ -445,8 +445,6 @@
   function browseRooms() {
     return _convosRef()
       .where('type', '==', 'room')
-      .where('status', '!=', 'archived')
-      .orderBy('status')
       .orderBy('lastMessageAt', 'desc')
       .limit(50)
       .get()
@@ -455,7 +453,7 @@
         snap.forEach(function(doc) {
           var d = doc.data();
           d.id = doc.id;
-          rooms.push(d);
+          if (d.status !== 'archived') rooms.push(d);
         });
         return rooms;
       });
