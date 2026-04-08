@@ -4070,10 +4070,10 @@
   }
 
   /* ══════════════════════════════════════════════════════════════════
-     APP CONTENT (read-only reference data — global, not per-church)
+     APP CONTENT (read-only reference data — per-church Truth content)
      ══════════════════════════════════════════════════════════════════ */
 
-  function _appContentRef(type) { return _db.collection('appContent').doc(type).collection('items'); }
+  function _appContentRef(type) { return _churchRef().collection(type); }
 
   function listAppContent(type, opts) {
     opts = opts || {};
