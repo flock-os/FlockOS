@@ -88,6 +88,9 @@
     _db   = firebase.firestore();
     _auth = firebase.auth();
 
+    // Resolve churchId early so _churchRef() works even before authenticate()
+    _churchId = _resolveChurchId();
+
     // Enable offline persistence (only runs once)
     _db.enablePersistence({ synchronizeTabs: true }).catch(function(err) {
       if (err.code !== 'failed-precondition' && err.code !== 'unimplemented') {
