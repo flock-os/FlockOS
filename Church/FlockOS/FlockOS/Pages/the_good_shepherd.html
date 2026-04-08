@@ -384,7 +384,7 @@
       background: linear-gradient(90deg, #c47a0a, #e8a838 30%, #f5c26b 50%, #e8a838 70%, #c47a0a);
       background-size: 300% 100%;
       border-radius: 4px;
-      animation: splash-progress 9s ease-in-out forwards, splash-wash 2s ease-in-out infinite;
+      animation: splash-progress 3.5s ease-in-out forwards, splash-wash 2s ease-in-out infinite;
     }
     @keyframes splash-progress {
       0%   { width: 0; }
@@ -823,12 +823,26 @@ if (typeof TheVine !== 'undefined' && TheVine.lifecycle) TheVine.lifecycle.start
 })();
 
 // ── Splash dismiss ─────────────────────────────────────────────────────────
-setTimeout(function() {
+var _splashDismissed = false;
+function _dismissSplash() {
+  if (_splashDismissed) return;
+  _splashDismissed = true;
   var splash = document.getElementById('splash');
   if (!splash) return;
   splash.classList.add('fade-out');
   setTimeout(function() { splash.remove(); }, 600);
-}, 9500);
+}
+
+// Poll until key modules are ready (Firestore + scripts ≈ 1-2s)
+var _splashPoll = setInterval(function() {
+  if (typeof Modules !== 'undefined') { clearInterval(_splashPoll); _dismissSplash(); }
+}, 150);
+
+// Safety net: dismiss after 4s even if scripts stall
+setTimeout(function() {
+  clearInterval(_splashPoll);
+  _dismissSplash();
+}, 4000);
 
 // ── Auth Gate ──────────────────────────────────────────────────────────────
 const session = Nehemiah.guard();
@@ -852,9 +866,15 @@ if (!session) throw new Error('Not authenticated');
       '</div>';
   }
 
-  TheVine.flock.call('system.lockdown', {}, { skipAuth: true })
-    .then(function(res) { if (res && res.locked) _blockAdmin(); })
-    .catch(function() {}); // fail open — lockdown disabled by default
+  // Maintenance check — Firestore-first
+  if (typeof firebase !== 'undefined' && firebase.firestore) {
+    try {
+      if (!firebase.apps.length) firebase.initializeApp(typeof window.FLOCK_FIREBASE_CONFIG === 'object' && window.FLOCK_FIREBASE_CONFIG || { apiKey: 'AIzaSyBA-fkxjABbwIHn0i6MPiXbGwahfJmuJeo', authDomain: 'flockos-notify.firebaseapp.com', projectId: 'flockos-notify' });
+    } catch (_) {}
+    firebase.firestore().doc('appConfig/system').get()
+      .then(function(snap) { if (snap.exists && snap.data().maintenance) _blockAdmin(); })
+      .catch(function() {}); // fail open
+  }
 })();
 
 // ── Populate Top Bar ───────────────────────────────────────────────────────

@@ -41,6 +41,7 @@
   function _churchRef() {
     return _db.collection('churches').doc(_churchId);
   }
+  var _churchDoc = _churchRef;
   function _convosRef() {
     return _churchRef().collection('conversations');
   }
@@ -892,6 +893,26 @@
       .then(function(snap) { return snap.size; });
   }
 
+  /* ── List notifications (one-shot) ──────────────────────────────── */
+  function listNotifications(opts) {
+    opts = opts || {};
+    return _notifsRef()
+      .where('recipientEmail', '==', _userEmail)
+      .orderBy('createdAt', 'desc')
+      .limit(opts.limit || 60)
+      .get()
+      .then(function(snap) {
+        var out = [];
+        snap.forEach(function(d) { var o = d.data(); o.id = d.id; out.push(o); });
+        return out;
+      });
+  }
+
+  /* ── Dismiss (delete) a notification ────────────────────────────── */
+  function dismissNotification(notifId) {
+    return _notifsRef().doc(notifId).delete();
+  }
+
   /* ══════════════════════════════════════════════════════════════════
      TYPING INDICATORS (ephemeral — auto-expire)
      ══════════════════════════════════════════════════════════════════ */
@@ -1721,6 +1742,2337 @@
   }
 
   /* ══════════════════════════════════════════════════════════════════
+     EVENTS — churches/{churchId}/events
+     ══════════════════════════════════════════════════════════════════ */
+
+  function _eventsRef() {
+    return _churchRef().collection('events');
+  }
+
+  function listEvents(opts) {
+    opts = opts || {};
+    var q = _eventsRef().orderBy('startDate', 'desc').limit(opts.limit || 200);
+    if (opts.status) q = q.where('status', '==', opts.status);
+    return q.get().then(function(snap) {
+      var results = [];
+      snap.forEach(function(doc) {
+        var d = doc.data();
+        d.id = doc.id;
+        results.push(d);
+      });
+      return results;
+    });
+  }
+
+  function getEvent(id) {
+    return _eventsRef().doc(id).get().then(function(doc) {
+      if (!doc.exists) return null;
+      var d = doc.data();
+      d.id = doc.id;
+      return d;
+    });
+  }
+
+  function createEvent(data) {
+    var id = _uid();
+    return _eventsRef().doc(id).set({
+      title:           data.title || '',
+      description:     data.description || '',
+      eventType:       data.eventType || 'Other',
+      location:        data.location || '',
+      startDate:       data.startDate || '',
+      endDate:         data.endDate || data.startDate || '',
+      startTime:       data.startTime || '',
+      endTime:         data.endTime || '',
+      recurring:       data.recurring || 'None',
+      recurringUntil:  data.recurringUntil || '',
+      capacity:        data.capacity || 0,
+      rsvpRequired:    data.rsvpRequired || false,
+      ministryTeam:    data.ministryTeam || '',
+      contactPerson:   data.contactPerson || '',
+      visibility:      data.visibility || 'public',
+      status:          data.status || 'Planned',
+      notes:           data.notes || '',
+      createdBy:       _userEmail,
+      createdAt:       _now(),
+      updatedBy:       _userEmail,
+      updatedAt:       _now()
+    }).then(function() { return id; });
+  }
+
+  function updateEvent(id, data) {
+    if (typeof id === 'object') { data = id; id = data.id; }
+    data.updatedAt = _now();
+    data.updatedBy = _userEmail;
+    delete data.id;
+    return _eventsRef().doc(id).update(data);
+  }
+
+  function cancelEvent(id) {
+    if (typeof id === 'object') id = id.id;
+    return _eventsRef().doc(id).update({
+      status:    'Cancelled',
+      updatedAt: _now(),
+      updatedBy: _userEmail
+    });
+  }
+
+  function publicEvents(opts) {
+    opts = opts || {};
+    return _eventsRef()
+      .where('visibility', '==', 'public')
+      .orderBy('startDate', 'desc')
+      .limit(opts.limit || 200)
+      .get().then(function(snap) {
+        var results = [];
+        snap.forEach(function(doc) {
+          var d = doc.data();
+          d.id = doc.id;
+          results.push(d);
+        });
+        return results;
+      });
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     EVENT RSVPs — churches/{churchId}/rsvps
+     ══════════════════════════════════════════════════════════════════ */
+
+  function _rsvpsRef() {
+    return _churchRef().collection('rsvps');
+  }
+
+  function rsvpEvent(data) {
+    var id = _uid();
+    return _rsvpsRef().doc(id).set({
+      eventId:     data.eventId || '',
+      memberId:    data.memberId || _userEmail,
+      response:    data.response || 'Attending',
+      guestCount:  data.guestCount || 0,
+      notes:       data.notes || '',
+      respondedAt: _now(),
+      updatedAt:   _now()
+    }).then(function() { return id; });
+  }
+
+  function listRsvps(opts) {
+    opts = opts || {};
+    var q = _rsvpsRef();
+    if (opts.eventId) q = q.where('eventId', '==', opts.eventId);
+    q = q.orderBy('respondedAt', 'desc').limit(opts.limit || 500);
+    return q.get().then(function(snap) {
+      var results = [];
+      snap.forEach(function(doc) {
+        var d = doc.data();
+        d.id = doc.id;
+        results.push(d);
+      });
+      return results;
+    });
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     PERSONAL CALENDAR — churches/{churchId}/calendarEvents
+     ══════════════════════════════════════════════════════════════════ */
+
+  function _calendarEventsRef() {
+    return _churchRef().collection('calendarEvents');
+  }
+
+  function listCalendarEvents(opts) {
+    opts = opts || {};
+    return _calendarEventsRef()
+      .where('email', '==', opts.email || _userEmail)
+      .orderBy('startDateTime', 'desc')
+      .limit(opts.limit || 200)
+      .get().then(function(snap) {
+        var results = [];
+        snap.forEach(function(doc) {
+          var d = doc.data();
+          d.EventID = doc.id;
+          d.id = doc.id;
+          results.push(d);
+        });
+        return results;
+      });
+  }
+
+  function getCalendarEvent(eventId) {
+    return _calendarEventsRef().doc(eventId).get().then(function(doc) {
+      if (!doc.exists) return null;
+      var d = doc.data();
+      d.EventID = doc.id;
+      d.id = doc.id;
+      return d;
+    });
+  }
+
+  function createCalendarEvent(data) {
+    var id = _uid();
+    return _calendarEventsRef().doc(id).set({
+      email:           _userEmail,
+      Title:           data.Title || '',
+      Description:     data.Description || '',
+      StartDateTime:   data.StartDateTime || '',
+      EndDateTime:     data.EndDateTime || '',
+      Location:        data.Location || '',
+      Attendees:       data.Attendees || '',
+      Color:           data.Color || '#6366f1',
+      IsAllDay:        data.IsAllDay || false,
+      RecurrenceRule:  data.RecurrenceRule || 'None',
+      Visibility:      data.Visibility || 'public',
+      SharedWith:      data.SharedWith || '',
+      DelegatedTo:     data.DelegatedTo || '',
+      CreatedBy:       _userEmail,
+      CreatedAt:       _now(),
+      UpdatedBy:       _userEmail,
+      UpdatedAt:       _now()
+    }).then(function() { return id; });
+  }
+
+  function updateCalendarEvent(eventId, data) {
+    if (typeof eventId === 'object') { data = eventId; eventId = data.EventID || data.id; }
+    data.UpdatedBy = _userEmail;
+    data.UpdatedAt = _now();
+    delete data.EventID;
+    delete data.id;
+    return _calendarEventsRef().doc(eventId).update(data);
+  }
+
+  function deleteCalendarEvent(eventId) {
+    if (typeof eventId === 'object') eventId = eventId.EventID || eventId.id;
+    return _calendarEventsRef().doc(eventId).delete();
+  }
+
+  function listDelegatedCalendars() {
+    return _calendarEventsRef()
+      .where('DelegatedTo', 'array-contains', _userEmail)
+      .orderBy('startDateTime', 'desc')
+      .limit(200)
+      .get().then(function(snap) {
+        var results = [];
+        snap.forEach(function(doc) {
+          var d = doc.data();
+          d.EventID = doc.id;
+          results.push(d);
+        });
+        var owners = {};
+        results.forEach(function(r) {
+          if (!owners[r.email]) owners[r.email] = [];
+          owners[r.email].push(r);
+        });
+        return Object.keys(owners).map(function(email) {
+          return { ownerEmail: email, events: owners[email] };
+        });
+      });
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     GROUPS — churches/{churchId}/groups
+     ══════════════════════════════════════════════════════════════════ */
+
+  function _groupsRef() {
+    return _churchRef().collection('groups');
+  }
+
+  function listGroups(opts) {
+    opts = opts || {};
+    var q = _groupsRef().orderBy('groupName').limit(opts.limit || 500);
+    if (opts.status) q = q.where('status', '==', opts.status);
+    return q.get().then(function(snap) {
+      var results = [];
+      snap.forEach(function(doc) {
+        var d = doc.data(); d.id = doc.id; results.push(d);
+      });
+      return results;
+    });
+  }
+
+  function getGroup(id) {
+    if (typeof id === 'object') id = id.id;
+    return _groupsRef().doc(id).get().then(function(doc) {
+      if (!doc.exists) return null;
+      var d = doc.data(); d.id = doc.id; return d;
+    });
+  }
+
+  function createGroup(data) {
+    var id = _uid();
+    return _groupsRef().doc(id).set({
+      groupName:      data.groupName || data.name || '',
+      groupType:      data.groupType || data.type || '',
+      description:    data.description || '',
+      leaderId:       data.leaderId || '',
+      coLeaderId:     data.coLeaderId || '',
+      meetingDay:     data.meetingDay || '',
+      meetingTime:    data.meetingTime || '',
+      location:       data.location || data.meetingLocation || '',
+      capacity:       data.capacity || 0,
+      status:         data.status || 'Active',
+      semester:       data.semester || '',
+      notes:          data.notes || '',
+      memberCount:    0,
+      createdBy:      _userEmail,
+      createdAt:      _now(),
+      updatedAt:      _now()
+    }).then(function() { return id; });
+  }
+
+  function updateGroup(id, data) {
+    if (typeof id === 'object') { data = id; id = data.id; }
+    data.updatedAt = _now();
+    delete data.id;
+    return _groupsRef().doc(id).update(data);
+  }
+
+  /* ── Group Members sub-collection: groups/{groupId}/members ──── */
+
+  function _groupMembersRef(groupId) {
+    return _groupsRef().doc(groupId).collection('members');
+  }
+
+  function listGroupMembers(opts) {
+    opts = opts || {};
+    var gid = opts.groupId || opts.id;
+    return _groupMembersRef(gid).get().then(function(snap) {
+      var results = [];
+      snap.forEach(function(doc) {
+        var d = doc.data(); d.id = doc.id; results.push(d);
+      });
+      return results;
+    });
+  }
+
+  function addGroupMember(data) {
+    var gid = data.groupId;
+    var mid = data.memberId;
+    return _groupMembersRef(gid).doc(mid).set({
+      memberId:   mid,
+      role:       data.role || 'member',
+      joinedDate: data.joinedDate || new Date().toISOString().split('T')[0],
+      status:     data.status || 'Active',
+      addedBy:    _userEmail,
+      addedAt:    _now()
+    }).then(function() {
+      // increment memberCount on group doc
+      return _groupsRef().doc(gid).update({
+        memberCount: firebase.firestore.FieldValue.increment(1)
+      });
+    });
+  }
+
+  function removeGroupMember(data) {
+    var gid = data.groupId;
+    var mid = data.memberId;
+    return _groupMembersRef(gid).doc(mid).delete().then(function() {
+      return _groupsRef().doc(gid).update({
+        memberCount: firebase.firestore.FieldValue.increment(-1)
+      });
+    });
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     ATTENDANCE — churches/{churchId}/attendance
+     ══════════════════════════════════════════════════════════════════ */
+
+  function _attendanceRef() {
+    return _churchRef().collection('attendance');
+  }
+
+  function listAttendance(opts) {
+    opts = opts || {};
+    var q = _attendanceRef().orderBy('date', 'desc').limit(opts.limit || 500);
+    return q.get().then(function(snap) {
+      var results = [];
+      snap.forEach(function(doc) {
+        var d = doc.data(); d.id = doc.id; results.push(d);
+      });
+      return results;
+    });
+  }
+
+  function getAttendance(id) {
+    if (typeof id === 'object') id = id.id;
+    return _attendanceRef().doc(id).get().then(function(doc) {
+      if (!doc.exists) return null;
+      var d = doc.data(); d.id = doc.id; return d;
+    });
+  }
+
+  function createAttendance(data) {
+    var id = _uid();
+    var adults   = parseInt(data.adults, 10) || 0;
+    var children = parseInt(data.children, 10) || 0;
+    return _attendanceRef().doc(id).set({
+      date:        data.date || '',
+      serviceType: data.serviceType || '',
+      adults:      adults,
+      children:    children,
+      total:       adults + children,
+      notes:       data.notes || '',
+      recordedBy:  _userEmail,
+      createdAt:   _now()
+    }).then(function() { return id; });
+  }
+
+  function updateAttendance(id, data) {
+    if (typeof id === 'object') { data = id; id = data.id; }
+    if (data.adults != null || data.children != null) {
+      data.total = (parseInt(data.adults, 10) || 0) + (parseInt(data.children, 10) || 0);
+    }
+    delete data.id;
+    return _attendanceRef().doc(id).update(data);
+  }
+
+  function attendanceSummary() {
+    return _attendanceRef().orderBy('date', 'desc').limit(1000).get().then(function(snap) {
+      var records = [];
+      snap.forEach(function(doc) {
+        var d = doc.data(); d.id = doc.id; records.push(d);
+      });
+      // Build monthly summary
+      var monthly = {};
+      var totals = { services: 0, adults: 0, children: 0, total: 0 };
+      records.forEach(function(r) {
+        var m = (r.date || '').substring(0, 7); // YYYY-MM
+        if (!m) return;
+        if (!monthly[m]) monthly[m] = { month: m, services: 0, adults: 0, children: 0, total: 0 };
+        monthly[m].services++;
+        monthly[m].adults   += parseInt(r.adults, 10) || 0;
+        monthly[m].children += parseInt(r.children, 10) || 0;
+        monthly[m].total    += parseInt(r.total, 10) || 0;
+        totals.services++;
+        totals.adults   += parseInt(r.adults, 10) || 0;
+        totals.children += parseInt(r.children, 10) || 0;
+        totals.total    += parseInt(r.total, 10) || 0;
+      });
+      totals.avgPerService = totals.services ? Math.round(totals.total / totals.services) : 0;
+      var summary = Object.values(monthly).sort(function(a, b) { return a.month.localeCompare(b.month); });
+      summary.forEach(function(m) {
+        m.avgPerService = m.services ? Math.round(m.total / m.services) : 0;
+      });
+      return { summary: summary, totals: totals };
+    });
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     CHECK-IN SESSIONS — churches/{churchId}/checkinSessions
+     ══════════════════════════════════════════════════════════════════ */
+
+  function _checkinRef() {
+    return _churchRef().collection('checkinSessions');
+  }
+
+  function checkinOpen(data) {
+    var id = _uid();
+    return _checkinRef().doc(id).set({
+      name:           data.name || '',
+      date:           data.date || new Date().toISOString().split('T')[0],
+      status:         'Open',
+      checkedInCount: 0,
+      openedBy:       _userEmail,
+      openedAt:       _now(),
+      closedAt:       null,
+      notes:          data.notes || '',
+      createdAt:      _now()
+    }).then(function() { return id; });
+  }
+
+  function checkinClose(data) {
+    // Find open session by name
+    return _checkinRef()
+      .where('name', '==', data.name)
+      .where('status', '==', 'Open')
+      .limit(1)
+      .get().then(function(snap) {
+        if (snap.empty) throw new Error('No open session found with that name.');
+        var doc = snap.docs[0];
+        return doc.ref.update({
+          status:   'Closed',
+          closedAt: _now()
+        });
+      });
+  }
+
+  function checkinSessions(opts) {
+    opts = opts || {};
+    return _checkinRef().orderBy('createdAt', 'desc').limit(opts.limit || 100).get().then(function(snap) {
+      var results = [];
+      snap.forEach(function(doc) {
+        var d = doc.data(); d.id = doc.id; results.push(d);
+      });
+      return results;
+    });
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     VOLUNTEERS
+     ══════════════════════════════════════════════════════════════════ */
+
+  function _volunteersRef() { return _churchDoc().collection('volunteers'); }
+
+  function listVolunteers(opts) {
+    opts = opts || {};
+    var q = _volunteersRef();
+    if (opts.serviceDate) q = q.where('serviceDate', '==', opts.serviceDate);
+    if (opts.ministryId)  q = q.where('ministryId', '==', opts.ministryId);
+    if (opts.memberId)    q = q.where('memberId', '==', opts.memberId);
+    q = q.orderBy('serviceDate', 'desc').limit(opts.limit || 200);
+    return q.get().then(function(snap) {
+      var out = [];
+      snap.forEach(function(d) { var o = d.data(); o.id = d.id; out.push(o); });
+      return out;
+    });
+  }
+
+  function getVolunteer(id) {
+    return _volunteersRef().doc(id).get().then(function(d) {
+      if (!d.exists) throw new Error('Volunteer record not found');
+      var o = d.data(); o.id = d.id; return o;
+    });
+  }
+
+  function createVolunteer(data) {
+    data.createdAt = _now();
+    data.createdBy = _userEmail;
+    return _volunteersRef().add(data).then(function(ref) {
+      return { id: ref.id, success: true };
+    });
+  }
+
+  function updateVolunteer(data) {
+    var id = data.id; if (!id) throw new Error('id required');
+    delete data.id;
+    data.updatedAt = _now();
+    data.updatedBy = _userEmail;
+    return _volunteersRef().doc(id).update(data).then(function() {
+      return { id: id, success: true };
+    });
+  }
+
+  function swapVolunteer(data) {
+    var id = data.id; if (!id) throw new Error('id required');
+    var swapWith = data.swapWith; if (!swapWith) throw new Error('swapWith required');
+    var db = _db();
+    var batch = db.batch();
+    var ref1 = _volunteersRef().doc(id);
+    var ref2 = _volunteersRef().doc(swapWith);
+    return Promise.all([ref1.get(), ref2.get()]).then(function(snaps) {
+      var d1 = snaps[0].data(), d2 = snaps[1].data();
+      if (!d1 || !d2) throw new Error('One or both volunteer records not found');
+      batch.update(ref1, { memberId: d2.memberId, memberName: d2.memberName || '', updatedAt: _now() });
+      batch.update(ref2, { memberId: d1.memberId, memberName: d1.memberName || '', updatedAt: _now() });
+      return batch.commit();
+    }).then(function() { return { success: true }; });
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     MINISTRIES
+     ══════════════════════════════════════════════════════════════════ */
+
+  function _ministriesRef() { return _churchDoc().collection('ministries'); }
+
+  function listMinistries(opts) {
+    opts = opts || {};
+    var q = _ministriesRef();
+    if (opts.status) q = q.where('status', '==', opts.status);
+    q = q.orderBy('name', 'asc').limit(opts.limit || 200);
+    return q.get().then(function(snap) {
+      var out = [];
+      snap.forEach(function(d) { var o = d.data(); o.id = d.id; out.push(o); });
+      return out;
+    });
+  }
+
+  function getMinistry(id) {
+    return _ministriesRef().doc(id).get().then(function(d) {
+      if (!d.exists) throw new Error('Ministry not found');
+      var o = d.data(); o.id = d.id; return o;
+    });
+  }
+
+  function createMinistry(data) {
+    data.createdAt = _now();
+    data.createdBy = _userEmail;
+    return _ministriesRef().add(data).then(function(ref) {
+      return { id: ref.id, success: true };
+    });
+  }
+
+  function updateMinistry(data) {
+    var id = data.id; if (!id) throw new Error('id required');
+    delete data.id;
+    data.updatedAt = _now();
+    data.updatedBy = _userEmail;
+    return _ministriesRef().doc(id).update(data).then(function() {
+      return { id: id, success: true };
+    });
+  }
+
+  function ministrySummary() {
+    return listMinistries({ limit: 500 }).then(function(rows) {
+      var byStatus = {}, byType = {}, totalMembers = 0;
+      rows.forEach(function(r) {
+        var s = r.status || 'Active';
+        var t = r.type || r.ministryType || 'General';
+        byStatus[s] = (byStatus[s] || 0) + 1;
+        byType[t]   = (byType[t] || 0) + 1;
+        totalMembers += Number(r.memberCount || 0);
+      });
+      return { total: rows.length, byStatus: byStatus, byType: byType, totalMembers: totalMembers };
+    });
+  }
+
+  function ministryTree() {
+    return listMinistries({ limit: 500 }).then(function(rows) {
+      var tree = {};
+      rows.forEach(function(r) {
+        var parent = r.parentMinistry || r.department || 'Uncategorized';
+        if (!tree[parent]) tree[parent] = [];
+        tree[parent].push(r);
+      });
+      return tree;
+    });
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     SERVICE PLANS
+     ══════════════════════════════════════════════════════════════════ */
+
+  function _servicePlansRef() { return _churchDoc().collection('servicePlans'); }
+
+  function listServicePlans(opts) {
+    opts = opts || {};
+    var q = _servicePlansRef();
+    if (opts.id) return getServicePlan(opts.id).then(function(r) { return [r]; });
+    if (opts.status) q = q.where('status', '==', opts.status);
+    q = q.orderBy('serviceDate', 'desc').limit(opts.limit || 100);
+    return q.get().then(function(snap) {
+      var out = [];
+      snap.forEach(function(d) { var o = d.data(); o.id = d.id; out.push(o); });
+      return out;
+    });
+  }
+
+  function getServicePlan(id) {
+    return _servicePlansRef().doc(id).get().then(function(d) {
+      if (!d.exists) throw new Error('Service plan not found');
+      var o = d.data(); o.id = d.id; return o;
+    });
+  }
+
+  function createServicePlan(data) {
+    data.createdAt = _now();
+    data.createdBy = _userEmail;
+    return _servicePlansRef().add(data).then(function(ref) {
+      return { id: ref.id, success: true };
+    });
+  }
+
+  function updateServicePlan(data) {
+    var id = data.id; if (!id) throw new Error('id required');
+    delete data.id;
+    data.updatedAt = _now();
+    data.updatedBy = _userEmail;
+    return _servicePlansRef().doc(id).update(data).then(function() {
+      return { id: id, success: true };
+    });
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     SONGS
+     ══════════════════════════════════════════════════════════════════ */
+
+  function _songsRef() { return _churchDoc().collection('songs'); }
+
+  function listSongs(opts) {
+    opts = opts || {};
+    var q = _songsRef();
+    if (opts.genre) q = q.where('genre', '==', opts.genre);
+    q = q.orderBy('title', 'asc').limit(opts.limit || 200);
+    return q.get().then(function(snap) {
+      var out = [];
+      snap.forEach(function(d) { var o = d.data(); o.id = d.id; out.push(o); });
+      return out;
+    });
+  }
+
+  function getSong(id) {
+    return _songsRef().doc(id).get().then(function(d) {
+      if (!d.exists) throw new Error('Song not found');
+      var o = d.data(); o.id = d.id; return o;
+    });
+  }
+
+  function createSong(data) {
+    data.createdAt = _now();
+    data.createdBy = _userEmail;
+    return _songsRef().add(data).then(function(ref) {
+      return { id: ref.id, success: true };
+    });
+  }
+
+  function updateSong(data) {
+    var id = data.id; if (!id) throw new Error('id required');
+    delete data.id;
+    data.updatedAt = _now();
+    data.updatedBy = _userEmail;
+    return _songsRef().doc(id).update(data).then(function() {
+      return { id: id, success: true };
+    });
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     SERMONS
+     ══════════════════════════════════════════════════════════════════ */
+
+  function _sermonsRef() { return _churchDoc().collection('sermons'); }
+
+  function listSermons(opts) {
+    opts = opts || {};
+    var q = _sermonsRef();
+    if (opts.status) q = q.where('status', '==', opts.status);
+    if (opts.preacher) q = q.where('preacher', '==', opts.preacher);
+    q = q.orderBy('date', 'desc').limit(opts.limit || 100);
+    return q.get().then(function(snap) {
+      var out = [];
+      snap.forEach(function(d) { var o = d.data(); o.id = d.id; out.push(o); });
+      return out;
+    });
+  }
+
+  function getSermon(id) {
+    if (typeof id === 'object') id = id.id || id;
+    return _sermonsRef().doc(id).get().then(function(d) {
+      if (!d.exists) throw new Error('Sermon not found');
+      var o = d.data(); o.id = d.id; return o;
+    });
+  }
+
+  function createSermon(data) {
+    data.createdAt = _now();
+    data.createdBy = _userEmail;
+    data.status    = data.status || 'draft';
+    return _sermonsRef().add(data).then(function(ref) {
+      return { id: ref.id, success: true };
+    });
+  }
+
+  function updateSermon(data) {
+    var id = data.id; if (!id) throw new Error('id required');
+    delete data.id;
+    data.updatedAt = _now();
+    data.updatedBy = _userEmail;
+    return _sermonsRef().doc(id).update(data).then(function() {
+      return { id: id, success: true };
+    });
+  }
+
+  function deleteSermon(data) {
+    var id = (typeof data === 'string') ? data : (data.id || data);
+    return _sermonsRef().doc(id).delete().then(function() {
+      return { success: true };
+    });
+  }
+
+  function submitSermon(data) {
+    var id = (typeof data === 'string') ? data : (data.id || data);
+    return _sermonsRef().doc(id).update({ status: 'submitted', submittedAt: _now() }).then(function() {
+      return { success: true };
+    });
+  }
+
+  function approveSermon(data) {
+    var id = (typeof data === 'string') ? data : (data.id || data);
+    return _sermonsRef().doc(id).update({ status: 'approved', approvedAt: _now(), approvedBy: _userEmail }).then(function() {
+      return { success: true };
+    });
+  }
+
+  function deliverSermon(data) {
+    var id = data.id; if (!id) throw new Error('id required');
+    return _sermonsRef().doc(id).update({
+      status: 'delivered',
+      deliveredAt: data.deliveredAt || _now(),
+      deliveryNotes: data.deliveryNotes || data.notes || ''
+    }).then(function() { return { success: true }; });
+  }
+
+  function uploadSermonMedia(data) {
+    var id = data.id; if (!id) throw new Error('id required');
+    return _sermonsRef().doc(id).update({
+      mediaUrl:  data.mediaUrl  || data.url || '',
+      mediaType: data.mediaType || data.type || '',
+      updatedAt: _now()
+    }).then(function() { return { success: true }; });
+  }
+
+  function sermonDashboard() {
+    return listSermons({ limit: 500 }).then(function(rows) {
+      var byStatus = {}, total = rows.length, thisMonth = 0;
+      var now = new Date(), y = now.getFullYear(), m = now.getMonth();
+      rows.forEach(function(r) {
+        var s = r.status || 'draft';
+        byStatus[s] = (byStatus[s] || 0) + 1;
+        var d = new Date(r.date || r.createdAt || 0);
+        if (d.getFullYear() === y && d.getMonth() === m) thisMonth++;
+      });
+      return { total: total, byStatus: byStatus, thisMonth: thisMonth };
+    });
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     SERMON SERIES
+     ══════════════════════════════════════════════════════════════════ */
+
+  function _sermonSeriesRef() { return _churchDoc().collection('sermonSeries'); }
+
+  function listSermonSeries(opts) {
+    opts = opts || {};
+    var q = _sermonSeriesRef();
+    q = q.orderBy('startDate', 'desc').limit(opts.limit || 100);
+    return q.get().then(function(snap) {
+      var out = [];
+      snap.forEach(function(d) { var o = d.data(); o.id = d.id; out.push(o); });
+      return out;
+    });
+  }
+
+  function getSermonSeries(data) {
+    var id = (typeof data === 'string') ? data : (data.id || data);
+    return _sermonSeriesRef().doc(id).get().then(function(d) {
+      if (!d.exists) throw new Error('Sermon series not found');
+      var o = d.data(); o.id = d.id; return o;
+    });
+  }
+
+  function createSermonSeries(data) {
+    data.createdAt = _now();
+    data.createdBy = _userEmail;
+    return _sermonSeriesRef().add(data).then(function(ref) {
+      return { id: ref.id, success: true };
+    });
+  }
+
+  function updateSermonSeries(data) {
+    var id = data.id; if (!id) throw new Error('id required');
+    delete data.id;
+    data.updatedAt = _now();
+    return _sermonSeriesRef().doc(id).update(data).then(function() {
+      return { id: id, success: true };
+    });
+  }
+
+  function deleteSermonSeries(data) {
+    var id = (typeof data === 'string') ? data : (data.id || data);
+    return _sermonSeriesRef().doc(id).delete().then(function() {
+      return { success: true };
+    });
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     SERMON REVIEWS
+     ══════════════════════════════════════════════════════════════════ */
+
+  function _sermonReviewsRef() { return _churchDoc().collection('sermonReviews'); }
+
+  function listSermonReviews(opts) {
+    opts = opts || {};
+    var q = _sermonReviewsRef();
+    if (opts.sermonId) q = q.where('sermonId', '==', opts.sermonId);
+    q = q.orderBy('createdAt', 'desc').limit(opts.limit || 100);
+    return q.get().then(function(snap) {
+      var out = [];
+      snap.forEach(function(d) { var o = d.data(); o.id = d.id; out.push(o); });
+      return out;
+    });
+  }
+
+  function createSermonReview(data) {
+    data.createdAt = _now();
+    data.reviewerEmail = _userEmail;
+    return _sermonReviewsRef().add(data).then(function(ref) {
+      return { id: ref.id, success: true };
+    });
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     GIVING
+     ══════════════════════════════════════════════════════════════════ */
+
+  function _givingRef() { return _churchDoc().collection('giving'); }
+
+  function listGiving(opts) {
+    opts = opts || {};
+    var q = _givingRef();
+    if (opts.memberId) q = q.where('memberId', '==', opts.memberId);
+    if (opts.fund)     q = q.where('fund', '==', opts.fund);
+    q = q.orderBy('date', 'desc').limit(opts.limit || 200);
+    return q.get().then(function(snap) {
+      var out = [];
+      snap.forEach(function(d) { var o = d.data(); o.id = d.id; out.push(o); });
+      return out;
+    });
+  }
+
+  function createGiving(data) {
+    data.createdAt = _now();
+    data.createdBy = _userEmail;
+    return _givingRef().add(data).then(function(ref) {
+      return { id: ref.id, success: true };
+    });
+  }
+
+  function updateGiving(data) {
+    var id = data.id; if (!id) throw new Error('id required');
+    delete data.id;
+    data.updatedAt = _now();
+    return _givingRef().doc(id).update(data).then(function() {
+      return { id: id, success: true };
+    });
+  }
+
+  function givingSummary() {
+    return listGiving({ limit: 2000 }).then(function(rows) {
+      var total = 0, byFund = {}, byMonth = {}, count = rows.length;
+      rows.forEach(function(r) {
+        var amt = Number(r.amount || 0);
+        total += amt;
+        var f = r.fund || r.category || 'General';
+        byFund[f] = (byFund[f] || 0) + amt;
+        var m = (r.date || '').substring(0, 7);
+        if (m) byMonth[m] = (byMonth[m] || 0) + amt;
+      });
+      return { total: total, count: count, byFund: byFund, byMonth: byMonth };
+    });
+  }
+
+  function memberGivingStatement(opts) {
+    opts = opts || {};
+    var memberId = opts.memberId; if (!memberId) throw new Error('memberId required');
+    var year = opts.year || new Date().getFullYear();
+    var start = year + '-01-01', end = year + '-12-31';
+    return _givingRef()
+      .where('memberId', '==', memberId)
+      .where('date', '>=', start)
+      .where('date', '<=', end)
+      .orderBy('date', 'asc')
+      .get().then(function(snap) {
+        var out = [], total = 0;
+        snap.forEach(function(d) { var o = d.data(); o.id = d.id; out.push(o); total += Number(o.amount || 0); });
+        return { records: out, total: total, year: year, memberId: memberId };
+      });
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     PLEDGES
+     ══════════════════════════════════════════════════════════════════ */
+
+  function _pledgesRef() { return _churchDoc().collection('pledges'); }
+
+  function listPledges(opts) {
+    opts = opts || {};
+    var q = _pledgesRef();
+    q = q.orderBy('createdAt', 'desc').limit(opts.limit || 200);
+    return q.get().then(function(snap) {
+      var out = [];
+      snap.forEach(function(d) { var o = d.data(); o.id = d.id; out.push(o); });
+      return out;
+    });
+  }
+
+  function createPledge(data) {
+    data.createdAt = _now();
+    data.createdBy = _userEmail;
+    return _pledgesRef().add(data).then(function(ref) {
+      return { id: ref.id, success: true };
+    });
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     JOURNAL
+     ══════════════════════════════════════════════════════════════════ */
+
+  function _journalRef() { return _churchDoc().collection('journal'); }
+
+  function listJournal(opts) {
+    opts = opts || {};
+    var q = _journalRef();
+    q = q.orderBy('createdAt', 'desc').limit(opts.limit || 200);
+    return q.get().then(function(snap) {
+      var out = [];
+      snap.forEach(function(d) { var o = d.data(); o.id = d.id; out.push(o); });
+      return out;
+    });
+  }
+
+  function createJournal(data) {
+    data.createdAt = _now();
+    data.createdBy = _userEmail;
+    return _journalRef().add(data).then(function(ref) {
+      return { id: ref.id, success: true };
+    });
+  }
+
+  function updateJournal(data) {
+    var id = data.id; if (!id) throw new Error('id required');
+    delete data.id;
+    data.updatedAt = _now();
+    return _journalRef().doc(id).update(data).then(function() {
+      return { id: id, success: true };
+    });
+  }
+
+  function deleteJournal(opts) {
+    var id = opts && opts.id; if (!id) throw new Error('id required');
+    return _journalRef().doc(id).delete().then(function() {
+      return { id: id, success: true };
+    });
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     DISCIPLESHIP — Paths
+     ══════════════════════════════════════════════════════════════════ */
+
+  function _discPathsRef() { return _churchDoc().collection('discipleshipPaths'); }
+
+  function listDiscPaths(opts) {
+    opts = opts || {};
+    var q = _discPathsRef().orderBy('createdAt', 'desc').limit(opts.limit || 200);
+    return q.get().then(function(snap) {
+      var out = [];
+      snap.forEach(function(d) { var o = d.data(); o.id = d.id; out.push(o); });
+      return out;
+    });
+  }
+
+  function getDiscPath(opts) {
+    var id = opts && opts.id; if (!id) throw new Error('id required');
+    return _discPathsRef().doc(id).get().then(function(d) {
+      if (!d.exists) return null;
+      var o = d.data(); o.id = d.id; return o;
+    });
+  }
+
+  function createDiscPath(data) {
+    data.createdAt = _now();
+    data.createdBy = _userEmail;
+    data.status = data.status || 'draft';
+    return _discPathsRef().add(data).then(function(ref) {
+      return { id: ref.id, success: true };
+    });
+  }
+
+  function updateDiscPath(data) {
+    var id = data.id; if (!id) throw new Error('id required');
+    delete data.id;
+    data.updatedAt = _now();
+    return _discPathsRef().doc(id).update(data).then(function() {
+      return { id: id, success: true };
+    });
+  }
+
+  function publishDiscPath(opts) {
+    var id = opts && opts.id; if (!id) throw new Error('id required');
+    return _discPathsRef().doc(id).update({ status: 'published', publishedAt: _now() }).then(function() {
+      return { id: id, success: true };
+    });
+  }
+
+  function archiveDiscPath(opts) {
+    var id = opts && opts.id; if (!id) throw new Error('id required');
+    return _discPathsRef().doc(id).update({ status: 'archived', archivedAt: _now() }).then(function() {
+      return { id: id, success: true };
+    });
+  }
+
+  /* ── Discipleship — Steps ─────────────────────────────────────── */
+
+  function _discStepsRef() { return _churchDoc().collection('discipleshipSteps'); }
+
+  function listDiscSteps(opts) {
+    opts = opts || {};
+    var q = _discStepsRef();
+    if (opts.pathId) q = q.where('pathId', '==', opts.pathId);
+    q = q.orderBy('order', 'asc').limit(opts.limit || 200);
+    return q.get().then(function(snap) {
+      var out = [];
+      snap.forEach(function(d) { var o = d.data(); o.id = d.id; out.push(o); });
+      return out;
+    });
+  }
+
+  function getDiscStep(opts) {
+    var id = opts && opts.id; if (!id) throw new Error('id required');
+    return _discStepsRef().doc(id).get().then(function(d) {
+      if (!d.exists) return null;
+      var o = d.data(); o.id = d.id; return o;
+    });
+  }
+
+  function createDiscStep(data) {
+    data.createdAt = _now();
+    return _discStepsRef().add(data).then(function(ref) {
+      return { id: ref.id, success: true };
+    });
+  }
+
+  function updateDiscStep(data) {
+    var id = data.id; if (!id) throw new Error('id required');
+    delete data.id;
+    data.updatedAt = _now();
+    return _discStepsRef().doc(id).update(data).then(function() {
+      return { id: id, success: true };
+    });
+  }
+
+  function deleteDiscStep(opts) {
+    var id = opts && opts.id; if (!id) throw new Error('id required');
+    return _discStepsRef().doc(id).delete().then(function() {
+      return { id: id, success: true };
+    });
+  }
+
+  /* ── Discipleship — Enrollments ───────────────────────────────── */
+
+  function _discEnrollRef() { return _churchDoc().collection('discipleshipEnrollments'); }
+
+  function listDiscEnrollments(opts) {
+    opts = opts || {};
+    var q = _discEnrollRef().orderBy('createdAt', 'desc').limit(opts.limit || 200);
+    return q.get().then(function(snap) {
+      var out = [];
+      snap.forEach(function(d) { var o = d.data(); o.id = d.id; out.push(o); });
+      return out;
+    });
+  }
+
+  function getDiscEnrollment(opts) {
+    var id = opts && opts.id; if (!id) throw new Error('id required');
+    return _discEnrollRef().doc(id).get().then(function(d) {
+      if (!d.exists) return null;
+      var o = d.data(); o.id = d.id; return o;
+    });
+  }
+
+  function createDiscEnrollment(data) {
+    data.createdAt = _now();
+    data.createdBy = _userEmail;
+    data.status = data.status || 'active';
+    return _discEnrollRef().add(data).then(function(ref) {
+      return { id: ref.id, success: true };
+    });
+  }
+
+  function updateDiscEnrollment(data) {
+    var id = data.id; if (!id) throw new Error('id required');
+    delete data.id;
+    data.updatedAt = _now();
+    return _discEnrollRef().doc(id).update(data).then(function() {
+      return { id: id, success: true };
+    });
+  }
+
+  function advanceDiscEnrollment(opts) {
+    var id = opts && opts.id; if (!id) throw new Error('id required');
+    return _discEnrollRef().doc(id).get().then(function(d) {
+      if (!d.exists) throw new Error('Enrollment not found');
+      var cur = d.data();
+      var step = (cur.currentStep || 0) + 1;
+      return _discEnrollRef().doc(id).update({ currentStep: step, updatedAt: _now() });
+    }).then(function() { return { id: id, success: true }; });
+  }
+
+  /* ── Discipleship — Mentoring ─────────────────────────────────── */
+
+  function _discMentoringRef() { return _churchDoc().collection('discipleshipMentoring'); }
+
+  function listDiscMentoring(opts) {
+    opts = opts || {};
+    var q = _discMentoringRef().orderBy('createdAt', 'desc').limit(opts.limit || 200);
+    return q.get().then(function(snap) {
+      var out = [];
+      snap.forEach(function(d) { var o = d.data(); o.id = d.id; out.push(o); });
+      return out;
+    });
+  }
+
+  function getDiscMentoring(opts) {
+    var id = opts && opts.id; if (!id) throw new Error('id required');
+    return _discMentoringRef().doc(id).get().then(function(d) {
+      if (!d.exists) return null;
+      var o = d.data(); o.id = d.id; return o;
+    });
+  }
+
+  function createDiscMentoring(data) {
+    data.createdAt = _now();
+    data.createdBy = _userEmail;
+    return _discMentoringRef().add(data).then(function(ref) {
+      return { id: ref.id, success: true };
+    });
+  }
+
+  function updateDiscMentoring(data) {
+    var id = data.id; if (!id) throw new Error('id required');
+    delete data.id;
+    data.updatedAt = _now();
+    return _discMentoringRef().doc(id).update(data).then(function() {
+      return { id: id, success: true };
+    });
+  }
+
+  /* ── Discipleship — Meetings ──────────────────────────────────── */
+
+  function _discMeetingsRef() { return _churchDoc().collection('discipleshipMeetings'); }
+
+  function createDiscMeeting(data) {
+    data.createdAt = _now();
+    data.createdBy = _userEmail;
+    return _discMeetingsRef().add(data).then(function(ref) {
+      return { id: ref.id, success: true };
+    });
+  }
+
+  /* ── Discipleship — Goals ─────────────────────────────────────── */
+
+  function _discGoalsRef() { return _churchDoc().collection('discipleshipGoals'); }
+
+  function listDiscGoals(opts) {
+    opts = opts || {};
+    var q = _discGoalsRef().orderBy('createdAt', 'desc').limit(opts.limit || 200);
+    return q.get().then(function(snap) {
+      var out = [];
+      snap.forEach(function(d) { var o = d.data(); o.id = d.id; out.push(o); });
+      return out;
+    });
+  }
+
+  function createDiscGoal(data) {
+    data.createdAt = _now();
+    data.createdBy = _userEmail;
+    return _discGoalsRef().add(data).then(function(ref) {
+      return { id: ref.id, success: true };
+    });
+  }
+
+  function updateDiscGoal(data) {
+    var id = data.id; if (!id) throw new Error('id required');
+    delete data.id;
+    data.updatedAt = _now();
+    return _discGoalsRef().doc(id).update(data).then(function() {
+      return { id: id, success: true };
+    });
+  }
+
+  /* ── Discipleship — Assessments ───────────────────────────────── */
+
+  function _discAssessRef() { return _churchDoc().collection('discipleshipAssessments'); }
+
+  function listDiscAssessments(opts) {
+    opts = opts || {};
+    var q = _discAssessRef().orderBy('createdAt', 'desc').limit(opts.limit || 200);
+    return q.get().then(function(snap) {
+      var out = [];
+      snap.forEach(function(d) { var o = d.data(); o.id = d.id; out.push(o); });
+      return out;
+    });
+  }
+
+  function getDiscAssessment(opts) {
+    var id = opts && opts.id; if (!id) throw new Error('id required');
+    return _discAssessRef().doc(id).get().then(function(d) {
+      if (!d.exists) return null;
+      var o = d.data(); o.id = d.id; return o;
+    });
+  }
+
+  function createDiscAssessment(data) {
+    data.createdAt = _now();
+    data.createdBy = _userEmail;
+    return _discAssessRef().add(data).then(function(ref) {
+      return { id: ref.id, success: true };
+    });
+  }
+
+  /* ── Discipleship — Milestones ────────────────────────────────── */
+
+  function _discMilestonesRef() { return _churchDoc().collection('discipleshipMilestones'); }
+
+  function listDiscMilestones(opts) {
+    opts = opts || {};
+    var q = _discMilestonesRef().orderBy('createdAt', 'desc').limit(opts.limit || 200);
+    return q.get().then(function(snap) {
+      var out = [];
+      snap.forEach(function(d) { var o = d.data(); o.id = d.id; out.push(o); });
+      return out;
+    });
+  }
+
+  function createDiscMilestone(data) {
+    data.createdAt = _now();
+    data.createdBy = _userEmail;
+    data.earnedAt = data.earnedAt || _now();
+    return _discMilestonesRef().add(data).then(function(ref) {
+      return { id: ref.id, success: true };
+    });
+  }
+
+  /* ── Discipleship — Certificates ──────────────────────────────── */
+
+  function _discCertsRef() { return _churchDoc().collection('discipleshipCertificates'); }
+
+  function listDiscCertificates(opts) {
+    opts = opts || {};
+    var q = _discCertsRef().orderBy('issuedAt', 'desc').limit(opts.limit || 200);
+    return q.get().then(function(snap) {
+      var out = [];
+      snap.forEach(function(d) { var o = d.data(); o.id = d.id; out.push(o); });
+      return out;
+    });
+  }
+
+  function issueDiscCertificate(data) {
+    data.issuedAt = _now();
+    data.issuedBy = _userEmail;
+    data.status = 'active';
+    return _discCertsRef().add(data).then(function(ref) {
+      return { id: ref.id, success: true };
+    });
+  }
+
+  function revokeDiscCertificate(opts) {
+    var id = opts && opts.id; if (!id) throw new Error('id required');
+    return _discCertsRef().doc(id).update({ status: 'revoked', revokedAt: _now() }).then(function() {
+      return { id: id, success: true };
+    });
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     LEARNING — Topics
+     ══════════════════════════════════════════════════════════════════ */
+
+  function _lrnTopicsRef() { return _churchDoc().collection('learningTopics'); }
+
+  function listLrnTopics(opts) {
+    opts = opts || {};
+    var q = _lrnTopicsRef();
+    if (opts.status) q = q.where('status', '==', opts.status);
+    q = q.orderBy('createdAt', 'desc').limit(opts.limit || 200);
+    return q.get().then(function(snap) {
+      var out = [];
+      snap.forEach(function(d) { var o = d.data(); o.id = d.id; out.push(o); });
+      return out;
+    });
+  }
+
+  function createLrnTopic(data) {
+    data.createdAt = _now();
+    data.createdBy = _userEmail;
+    return _lrnTopicsRef().add(data).then(function(ref) {
+      return { id: ref.id, success: true };
+    });
+  }
+
+  function updateLrnTopic(data) {
+    var id = data.id; if (!id) throw new Error('id required');
+    delete data.id;
+    data.updatedAt = _now();
+    return _lrnTopicsRef().doc(id).update(data).then(function() {
+      return { id: id, success: true };
+    });
+  }
+
+  function deleteLrnTopic(opts) {
+    var id = opts && opts.id; if (!id) throw new Error('id required');
+    return _lrnTopicsRef().doc(id).delete().then(function() {
+      return { id: id, success: true };
+    });
+  }
+
+  /* ── Learning — Playlists ─────────────────────────────────────── */
+
+  function _lrnPlaylistsRef() { return _churchDoc().collection('learningPlaylists'); }
+
+  function listLrnPlaylists(opts) {
+    opts = opts || {};
+    var q = _lrnPlaylistsRef();
+    if (opts.status) q = q.where('status', '==', opts.status);
+    if (opts.sort === 'recent') q = q.orderBy('updatedAt', 'desc');
+    else q = q.orderBy('createdAt', 'desc');
+    q = q.limit(opts.limit || 200);
+    return q.get().then(function(snap) {
+      var out = [];
+      snap.forEach(function(d) { var o = d.data(); o.id = d.id; out.push(o); });
+      return out;
+    });
+  }
+
+  function getLrnPlaylist(opts) {
+    var id = (opts && opts.id) || opts; if (!id) throw new Error('id required');
+    return _lrnPlaylistsRef().doc(id).get().then(function(d) {
+      if (!d.exists) return null;
+      var o = d.data(); o.id = d.id; return o;
+    });
+  }
+
+  function createLrnPlaylist(data) {
+    data.createdAt = _now();
+    data.updatedAt = _now();
+    data.createdBy = _userEmail;
+    data.status = data.status || 'Active';
+    return _lrnPlaylistsRef().add(data).then(function(ref) {
+      return { id: ref.id, success: true };
+    });
+  }
+
+  function updateLrnPlaylist(data) {
+    var id = data.id; if (!id) throw new Error('id required');
+    delete data.id;
+    data.updatedAt = _now();
+    return _lrnPlaylistsRef().doc(id).update(data).then(function() {
+      return { id: id, success: true };
+    });
+  }
+
+  function deleteLrnPlaylist(opts) {
+    var id = opts && opts.id; if (!id) throw new Error('id required');
+    return _lrnPlaylistsRef().doc(id).delete().then(function() {
+      return { id: id, success: true };
+    });
+  }
+
+  function subscribeLrnPlaylist(data) {
+    data.subscribedAt = _now();
+    data.subscribedBy = _userEmail;
+    return _lrnPlaylistsRef().doc(data.playlistId).collection('subscribers').add(data).then(function(ref) {
+      return { id: ref.id, success: true };
+    });
+  }
+
+  /* ── Learning — Playlist Items ────────────────────────────────── */
+
+  function _lrnItemsRef() { return _churchDoc().collection('learningPlaylistItems'); }
+
+  function createLrnPlaylistItem(data) {
+    data.createdAt = _now();
+    return _lrnItemsRef().add(data).then(function(ref) {
+      return { id: ref.id, success: true };
+    });
+  }
+
+  function updateLrnPlaylistItem(data) {
+    var id = data.id; if (!id) throw new Error('id required');
+    delete data.id;
+    data.updatedAt = _now();
+    return _lrnItemsRef().doc(id).update(data).then(function() {
+      return { id: id, success: true };
+    });
+  }
+
+  function deleteLrnPlaylistItem(opts) {
+    var id = opts && opts.id; if (!id) throw new Error('id required');
+    return _lrnItemsRef().doc(id).delete().then(function() {
+      return { id: id, success: true };
+    });
+  }
+
+  function reorderLrnPlaylistItem(data) {
+    var id = data.id; if (!id) throw new Error('id required');
+    delete data.id;
+    return _lrnItemsRef().doc(id).update({ order: data.order || data.newOrder, updatedAt: _now() }).then(function() {
+      return { id: id, success: true };
+    });
+  }
+
+  /* ── Learning — Quizzes ───────────────────────────────────────── */
+
+  function _lrnQuizzesRef() { return _churchDoc().collection('learningQuizzes'); }
+
+  function listLrnQuizzes(opts) {
+    opts = opts || {};
+    var q = _lrnQuizzesRef();
+    if (opts.status) q = q.where('status', '==', opts.status);
+    q = q.orderBy('createdAt', 'desc').limit(opts.limit || 200);
+    return q.get().then(function(snap) {
+      var out = [];
+      snap.forEach(function(d) { var o = d.data(); o.id = d.id; out.push(o); });
+      return out;
+    });
+  }
+
+  function getLrnQuiz(opts) {
+    var id = (opts && opts.id) || opts; if (!id) throw new Error('id required');
+    return _lrnQuizzesRef().doc(id).get().then(function(d) {
+      if (!d.exists) return null;
+      var o = d.data(); o.id = d.id; return o;
+    });
+  }
+
+  function createLrnQuiz(data) {
+    data.createdAt = _now();
+    data.createdBy = _userEmail;
+    data.status = data.status || 'Draft';
+    return _lrnQuizzesRef().add(data).then(function(ref) {
+      return { id: ref.id, success: true };
+    });
+  }
+
+  function updateLrnQuiz(data) {
+    var id = data.id; if (!id) throw new Error('id required');
+    delete data.id;
+    data.updatedAt = _now();
+    return _lrnQuizzesRef().doc(id).update(data).then(function() {
+      return { id: id, success: true };
+    });
+  }
+
+  function publishLrnQuiz(opts) {
+    var id = opts && opts.id; if (!id) throw new Error('id required');
+    return _lrnQuizzesRef().doc(id).update({ status: 'Published', publishedAt: _now() }).then(function() {
+      return { id: id, success: true };
+    });
+  }
+
+  function deleteLrnQuiz(opts) {
+    var id = opts && opts.id; if (!id) throw new Error('id required');
+    return _lrnQuizzesRef().doc(id).delete().then(function() {
+      return { id: id, success: true };
+    });
+  }
+
+  /* ── Learning — Quiz Results ──────────────────────────────────── */
+
+  function _lrnQuizResultsRef() { return _churchDoc().collection('learningQuizResults'); }
+
+  function listLrnQuizResults(opts) {
+    opts = opts || {};
+    var q = _lrnQuizResultsRef().orderBy('completedAt', 'desc').limit(opts.limit || 200);
+    return q.get().then(function(snap) {
+      var out = [];
+      snap.forEach(function(d) { var o = d.data(); o.id = d.id; out.push(o); });
+      return out;
+    });
+  }
+
+  function submitLrnQuizResult(data) {
+    data.completedAt = _now();
+    data.submittedBy = _userEmail;
+    return _lrnQuizResultsRef().add(data).then(function(ref) {
+      return { id: ref.id, success: true };
+    });
+  }
+
+  /* ── Learning — Recommendations ───────────────────────────────── */
+
+  function _lrnRecsRef() { return _churchDoc().collection('learningRecommendations'); }
+
+  function listLrnRecommendations(opts) {
+    opts = opts || {};
+    var q = _lrnRecsRef();
+    if (opts.status) q = q.where('status', '==', opts.status);
+    q = q.orderBy('createdAt', 'desc').limit(opts.limit || 200);
+    return q.get().then(function(snap) {
+      var out = [];
+      snap.forEach(function(d) { var o = d.data(); o.id = d.id; out.push(o); });
+      return out;
+    });
+  }
+
+  function createLrnRecommendation(data) {
+    data.createdAt = _now();
+    data.createdBy = _userEmail;
+    return _lrnRecsRef().add(data).then(function(ref) {
+      return { id: ref.id, success: true };
+    });
+  }
+
+  function generateLrnRecommendations() {
+    // Stub — in Firestore mode, recommendations are generated client-side or via Cloud Function
+    return listLrnRecommendations({ status: 'Active' });
+  }
+
+  function acceptLrnRecommendation(opts) {
+    var id = opts && opts.id; if (!id) throw new Error('id required');
+    return _lrnRecsRef().doc(id).update({ status: 'Accepted', acceptedAt: _now() }).then(function() {
+      return { id: id, success: true };
+    });
+  }
+
+  function dismissLrnRecommendation(opts) {
+    var id = opts && opts.id; if (!id) throw new Error('id required');
+    return _lrnRecsRef().doc(id).update({ status: 'Dismissed', dismissedAt: _now() }).then(function() {
+      return { id: id, success: true };
+    });
+  }
+
+  /* ── Learning — Progress ──────────────────────────────────────── */
+
+  function _lrnProgressRef() { return _churchDoc().collection('learningProgress'); }
+
+  function listLrnProgress(opts) {
+    opts = opts || {};
+    var q = _lrnProgressRef();
+    if (opts.memberId) q = q.where('memberId', '==', opts.memberId);
+    q = q.orderBy('updatedAt', 'desc').limit(opts.limit || 200);
+    return q.get().then(function(snap) {
+      var out = [];
+      snap.forEach(function(d) { var o = d.data(); o.id = d.id; out.push(o); });
+      return out;
+    });
+  }
+
+  function completeLrnProgress(data) {
+    data.completedAt = _now();
+    data.completedBy = _userEmail;
+    data.updatedAt = _now();
+    return _lrnProgressRef().add(data).then(function(ref) {
+      return { id: ref.id, success: true };
+    });
+  }
+
+  function lrnProgressStats() {
+    return _lrnProgressRef().where('completedBy', '==', _userEmail).get().then(function(snap) {
+      var total = 0, complete = 0;
+      snap.forEach(function(d) { total++; if (d.data().completedAt) complete++; });
+      return { total: total, completed: complete };
+    });
+  }
+
+  /* ── Learning — Notes ─────────────────────────────────────────── */
+
+  function _lrnNotesRef() { return _churchDoc().collection('learningNotes'); }
+
+  function listLrnNotes(opts) {
+    opts = opts || {};
+    var q = _lrnNotesRef();
+    if (opts.playlistId) q = q.where('playlistId', '==', opts.playlistId);
+    q = q.where('createdBy', '==', _userEmail).orderBy('createdAt', 'desc').limit(opts.limit || 200);
+    return q.get().then(function(snap) {
+      var out = [];
+      snap.forEach(function(d) { var o = d.data(); o.id = d.id; out.push(o); });
+      return out;
+    });
+  }
+
+  function createLrnNote(data) {
+    data.createdAt = _now();
+    data.createdBy = _userEmail;
+    return _lrnNotesRef().add(data).then(function(ref) {
+      return { id: ref.id, success: true };
+    });
+  }
+
+  /* ── Learning — Certificates ──────────────────────────────────── */
+
+  function _lrnCertsRef() { return _churchDoc().collection('learningCertificates'); }
+
+  function listLrnCertificates(opts) {
+    opts = opts || {};
+    var q = _lrnCertsRef().orderBy('issuedAt', 'desc').limit(opts.limit || 200);
+    return q.get().then(function(snap) {
+      var out = [];
+      snap.forEach(function(d) { var o = d.data(); o.id = d.id; out.push(o); });
+      return out;
+    });
+  }
+
+  function issueLrnCertificate(data) {
+    data.issuedAt = _now();
+    data.issuedBy = _userEmail;
+    return _lrnCertsRef().add(data).then(function(ref) {
+      return { id: ref.id, success: true };
+    });
+  }
+
+  /* ── Learning — Dashboard ─────────────────────────────────────── */
+
+  function lrnDashboard() {
+    return Promise.all([
+      listLrnPlaylists({ limit: 200 }),
+      listLrnTopics({ limit: 100 }),
+      listLrnQuizzes({ limit: 100 })
+    ]).then(function(res) {
+      var playlists = res[0], topics = res[1], quizzes = res[2];
+      return {
+        totalPlaylists: playlists.length,
+        totalTopics: topics.length,
+        totalQuizzes: quizzes.length,
+        activePlaylists: playlists.filter(function(p) { return p.status === 'Active'; }).length,
+        publishedQuizzes: quizzes.filter(function(q) { return q.status === 'Published'; }).length
+      };
+    });
+  }
+
+  /* ── Learning — Sermon Search ─────────────────────────────────── */
+
+  function searchLrnSermons(query) {
+    // Search sermons collection by title/tags for learning integration
+    return _churchDoc().collection('sermons').orderBy('date', 'desc').limit(200).get().then(function(snap) {
+      var out = [];
+      var q = (query || '').toLowerCase();
+      snap.forEach(function(d) {
+        var o = d.data(); o.id = d.id;
+        var text = ((o.title || '') + ' ' + (o.tags || '') + ' ' + (o.speaker || '')).toLowerCase();
+        if (!q || text.indexOf(q) >= 0) out.push(o);
+      });
+      return out;
+    });
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     THEOLOGY
+     ══════════════════════════════════════════════════════════════════ */
+
+  function _theoCatsRef() { return _churchDoc().collection('theologyCategories'); }
+  function _theoSecsRef() { return _churchDoc().collection('theologySections'); }
+
+  function listTheologyCategories(opts) {
+    opts = opts || {};
+    var q = _theoCatsRef().orderBy('order', 'asc').limit(opts.limit || 200);
+    return q.get().then(function(snap) {
+      var out = [];
+      snap.forEach(function(d) { var o = d.data(); o.id = d.id; out.push(o); });
+      return out;
+    });
+  }
+
+  function getTheologyCategory(opts) {
+    var id = (opts && opts.id) || opts; if (!id) throw new Error('id required');
+    return _theoCatsRef().doc(id).get().then(function(d) {
+      if (!d.exists) return null;
+      var o = d.data(); o.id = d.id; return o;
+    });
+  }
+
+  function createTheologyCategory(data) {
+    data.createdAt = _now();
+    data.createdBy = _userEmail;
+    return _theoCatsRef().add(data).then(function(ref) {
+      return { id: ref.id, success: true };
+    });
+  }
+
+  function updateTheologyCategory(data) {
+    var id = data.id; if (!id) throw new Error('id required');
+    delete data.id;
+    data.updatedAt = _now();
+    return _theoCatsRef().doc(id).update(data).then(function() {
+      return { id: id, success: true };
+    });
+  }
+
+  function listTheologySections(opts) {
+    opts = opts || {};
+    var q = _theoSecsRef().orderBy('order', 'asc').limit(opts.limit || 200);
+    return q.get().then(function(snap) {
+      var out = [];
+      snap.forEach(function(d) { var o = d.data(); o.id = d.id; out.push(o); });
+      return out;
+    });
+  }
+
+  function theologyFlat() {
+    return Promise.all([listTheologyCategories(), listTheologySections()]).then(function(res) {
+      var cats = res[0], secs = res[1];
+      var flat = [];
+      cats.forEach(function(c) {
+        flat.push(c);
+        secs.filter(function(s) { return s.categoryId === c.id; }).forEach(function(s) { flat.push(s); });
+      });
+      return flat;
+    });
+  }
+
+  function theologyFull() {
+    return Promise.all([listTheologyCategories(), listTheologySections()]).then(function(res) {
+      var cats = res[0], secs = res[1];
+      return cats.map(function(c) {
+        c.sections = secs.filter(function(s) { return s.categoryId === c.id; });
+        return c;
+      });
+    });
+  }
+
+  function theologyDashboard() {
+    return Promise.all([listTheologyCategories(), listTheologySections()]).then(function(res) {
+      return { totalCategories: res[0].length, totalSections: res[1].length };
+    });
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     ALBUMS — photo & media galleries
+     ══════════════════════════════════════════════════════════════════ */
+
+  function _albumsRef() { return _churchDoc().collection('albums'); }
+
+  function listAlbums(opts) {
+    opts = opts || {};
+    var q = _albumsRef().orderBy('createdAt', 'desc');
+    q = q.limit(opts.limit || 100);
+    return q.get().then(function(snap) {
+      var out = [];
+      snap.forEach(function(d) { var o = d.data(); o.id = d.id; out.push(o); });
+      return out;
+    });
+  }
+
+  function createAlbum(data) {
+    data.createdAt = _ts();
+    data.createdBy = _userEmail();
+    return _albumsRef().add(data).then(function(ref) { data.id = ref.id; return data; });
+  }
+
+  function updateAlbum(data) {
+    var id = data.id; delete data.id;
+    data.updatedAt = _ts();
+    data.updatedBy = _userEmail();
+    return _albumsRef().doc(id).update(data);
+  }
+
+  function deleteAlbum(id) {
+    return _albumsRef().doc(id).delete();
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     STATISTICS & ANALYTICS
+     ══════════════════════════════════════════════════════════════════ */
+
+  function _statsConfigRef()    { return _churchDoc().collection('statisticsConfig'); }
+  function _statsSnapshotsRef() { return _churchDoc().collection('statisticsSnapshots'); }
+  function _statsViewsRef()     { return _churchDoc().collection('statisticsViews'); }
+
+  // ── Dashboard: aggregate key metrics from latest snapshot ───────
+  function statsDashboard() {
+    return _statsSnapshotsRef().orderBy('createdAt', 'desc').limit(1)
+      .get().then(function(snap) {
+        if (snap.empty) return { stats: [] };
+        var d = snap.docs[0].data();
+        return { stats: d.metrics || d.stats || d.data || [] };
+      });
+  }
+
+  // ── Trends: gather snapshots within period, group by metric ─────
+  function statsTrends(opts) {
+    opts = opts || {};
+    var days = opts.period || 90;
+    var since = new Date(); since.setDate(since.getDate() - days);
+    return _statsSnapshotsRef()
+      .where('createdAt', '>=', firebase.firestore.Timestamp.fromDate(since))
+      .orderBy('createdAt', 'asc')
+      .get().then(function(snap) {
+        var byMetric = {};
+        snap.forEach(function(d) {
+          var o = d.data();
+          var metrics = o.metrics || o.data || [];
+          if (!Array.isArray(metrics)) {
+            metrics = Object.entries(metrics).map(function(e) { return { label: e[0], value: e[1] }; });
+          }
+          metrics.forEach(function(m) {
+            var key = m.label || m.name || m.metric || 'unknown';
+            if (!byMetric[key]) byMetric[key] = { metric: key, data: [] };
+            byMetric[key].data.push(m.value != null ? m.value : m.count != null ? m.count : 0);
+          });
+        });
+        return { trends: Object.values(byMetric) };
+      });
+  }
+
+  // ── Compute: take a fresh snapshot now ──────────────────────────
+  function statsCompute() {
+    // In Firebase mode compute = create a new snapshot from current config
+    return _statsConfigRef().get().then(function(snap) {
+      var metricKeys = [];
+      snap.forEach(function(d) { var c = d.data(); metricKeys.push(c.key || c.metricKey || d.id); });
+      var snapData = { createdAt: _ts(), createdBy: _userEmail(), label: 'Auto-compute', metrics: {} };
+      metricKeys.forEach(function(k) { snapData.metrics[k] = 0; }); // placeholder for real values
+      return _statsSnapshotsRef().add(snapData);
+    });
+  }
+
+  // ── Export: build CSV from latest dashboard ─────────────────────
+  function statsExport() {
+    return statsDashboard().then(function(res) {
+      return { stats: res.stats }; // caller builds CSV in the_tabernacle.js
+    });
+  }
+
+  // ── Config CRUD ─────────────────────────────────────────────────
+  function listStatsConfig()   { return _statsConfigRef().get().then(_snapToArr); }
+  function getStatsConfig(id)  { return _statsConfigRef().doc(id).get().then(function(d) { var o = d.data() || {}; o.id = d.id; return { config: o }; }); }
+  function createStatsConfig(data) {
+    data.createdAt = _ts(); data.createdBy = _userEmail();
+    return _statsConfigRef().add(data);
+  }
+  function updateStatsConfig(data) {
+    var id = data.id; delete data.id;
+    data.updatedAt = _ts(); data.updatedBy = _userEmail();
+    return _statsConfigRef().doc(id).update(data);
+  }
+  function deleteStatsConfig(id) { return _statsConfigRef().doc(id).delete(); }
+
+  // ── Snapshots CRUD ──────────────────────────────────────────────
+  function listStatsSnapshots(opts) {
+    opts = opts || {};
+    return _statsSnapshotsRef().orderBy('createdAt', 'desc').limit(opts.limit || 100).get().then(_snapToArr);
+  }
+  function getStatsSnapshot(id) {
+    return _statsSnapshotsRef().doc(id).get().then(function(d) { var o = d.data() || {}; o.id = d.id; return { snapshot: o }; });
+  }
+  function createStatsSnapshot(data) {
+    data.createdAt = _ts(); data.createdBy = _userEmail();
+    return _statsSnapshotsRef().add(data).then(function(ref) { data.id = ref.id; return data; });
+  }
+  function deleteStatsSnapshot(id) { return _statsSnapshotsRef().doc(id).delete(); }
+
+  // ── Views CRUD ──────────────────────────────────────────────────
+  function listStatsViews()    { return _statsViewsRef().get().then(_snapToArr); }
+  function createStatsView(data) {
+    data.createdAt = _ts(); data.createdBy = _userEmail();
+    return _statsViewsRef().add(data);
+  }
+  function updateStatsView(data) {
+    var id = data.id; delete data.id;
+    data.updatedAt = _ts(); data.updatedBy = _userEmail();
+    return _statsViewsRef().doc(id).update(data);
+  }
+  function deleteStatsView(id) { return _statsViewsRef().doc(id).delete(); }
+
+  // ── helper: snapshot array conversion ───────────────────────────
+  function _snapToArr(snap) {
+    var out = [];
+    snap.forEach(function(d) { var o = d.data(); o.id = d.id; out.push(o); });
+    return out;
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     MISSIONS
+     ══════════════════════════════════════════════════════════════════ */
+
+  function _missionsRef(sub) { return _churchDoc().collection(sub); }
+
+  // generic CRUD factory for each missions sub-collection
+  function _mList(col, opts) {
+    opts = opts || {};
+    var q = _missionsRef(col);
+    if (opts.id) return q.doc(opts.id).get().then(function(d) { var o = d.data() || {}; o.id = d.id; return [o]; });
+    q = q.orderBy('createdAt', 'desc').limit(opts.limit || 200);
+    return q.get().then(_snapToArr);
+  }
+  function _mGet(col, p) {
+    var id = (typeof p === 'string') ? p : p.id;
+    return _missionsRef(col).doc(id).get().then(function(d) { var o = d.data() || {}; o.id = d.id; return o; });
+  }
+  function _mCreate(col, data) {
+    data.createdAt = _ts(); data.createdBy = _userEmail();
+    return _missionsRef(col).add(data).then(function(ref) { data.id = ref.id; return data; });
+  }
+  function _mUpdate(col, data) {
+    var id = data.id; delete data.id;
+    data.updatedAt = _ts(); data.updatedBy = _userEmail();
+    return _missionsRef(col).doc(id).update(data);
+  }
+
+  // ── Registry (countries) ────────────────────────────────────────
+  function listMissionsRegistry(opts) { return _mList('missionsRegistry', opts); }
+  function getMissionsRegistry(p)     { return _mGet('missionsRegistry', p); }
+  function createMissionsRegistry(d)  { return _mCreate('missionsRegistry', d); }
+  function updateMissionsRegistry(d)  { return _mUpdate('missionsRegistry', d); }
+
+  // ── Partners ────────────────────────────────────────────────────
+  function listMissionsPartners(opts) { return _mList('missionsPartners', opts); }
+  function getMissionsPartners(p)     { return _mGet('missionsPartners', p); }
+  function createMissionsPartners(d)  { return _mCreate('missionsPartners', d); }
+  function updateMissionsPartners(d)  { return _mUpdate('missionsPartners', d); }
+
+  // ── Prayer Focus ────────────────────────────────────────────────
+  function listMissionsPrayerFocus(opts) { return _mList('missionsPrayerFocus', opts); }
+  function createMissionsPrayerFocus(d)  { return _mCreate('missionsPrayerFocus', d); }
+  function updateMissionsPrayerFocus(d)  { return _mUpdate('missionsPrayerFocus', d); }
+  function respondMissionsPrayerFocus(p) {
+    return _missionsRef('missionsPrayerFocus').doc(p.id).update({
+      lastPrayedAt: _ts(),
+      prayerCount: firebase.firestore.FieldValue.increment(1),
+      updatedBy: _userEmail()
+    });
+  }
+
+  // ── Updates (field reports) ─────────────────────────────────────
+  function listMissionsUpdates(opts) { return _mList('missionsUpdates', opts); }
+  function getMissionsUpdates(p)     { return _mGet('missionsUpdates', p); }
+  function createMissionsUpdates(d)  { return _mCreate('missionsUpdates', d); }
+  function updateMissionsUpdates(d)  { return _mUpdate('missionsUpdates', d); }
+
+  // ── Teams ───────────────────────────────────────────────────────
+  function listMissionsTeams(opts) { return _mList('missionsTeams', opts); }
+  function getMissionsTeams(p)     { return _mGet('missionsTeams', p); }
+  function createMissionsTeams(d)  { return _mCreate('missionsTeams', d); }
+  function updateMissionsTeams(d)  { return _mUpdate('missionsTeams', d); }
+
+  // ── Bulk create (for restore) ───────────────────────────────────
+  function missionsBulkCreate(p) {
+    var col = 'missionsRegistry';
+    if (p.tab === 'MissionsPartners') col = 'missionsPartners';
+    else if (p.tab === 'MissionsPrayerFocus') col = 'missionsPrayerFocus';
+    else if (p.tab === 'MissionsUpdates') col = 'missionsUpdates';
+    else if (p.tab === 'MissionsTeams') col = 'missionsTeams';
+    var batch = _db.batch();
+    var ref = _missionsRef(col);
+    (p.rows || []).forEach(function(r) { batch.set(ref.doc(), r); });
+    return batch.commit();
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     APP CONFIG — key/value configuration pairs
+     ══════════════════════════════════════════════════════════════════ */
+
+  function _appConfigRef() { return _churchDoc().collection('appConfig'); }
+
+  function listAppConfig() {
+    return _appConfigRef().get().then(function(snap) {
+      var out = [];
+      snap.forEach(function(d) { var o = d.data(); o.id = d.id; o.key = o.key || d.id; out.push(o); });
+      return out;
+    });
+  }
+
+  function getAppConfig(opts) {
+    var key = opts.key || opts.id;
+    return _appConfigRef().doc(key).get().then(function(d) {
+      if (!d.exists) return { key: key, value: '' };
+      var o = d.data(); o.id = d.id; o.key = o.key || d.id;
+      return o;
+    });
+  }
+
+  function setAppConfig(data) {
+    var key = data.key;
+    return _appConfigRef().doc(key).set({
+      key: key,
+      value: data.value != null ? data.value : '',
+      updatedAt: _ts(),
+      updatedBy: _userEmail()
+    }, { merge: true });
+  }
+
+  function updateAppConfig(data) {
+    return setAppConfig(data);
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     MAINTENANCE MODE — global (not church-scoped) appConfig/system
+     ══════════════════════════════════════════════════════════════════ */
+
+  function _globalAppConfigRef() { return _db.collection('appConfig'); }
+
+  function getMaintenanceStatus() {
+    return _globalAppConfigRef().doc('system').get().then(function(d) {
+      if (!d.exists) return { maintenance: false };
+      return d.data();
+    });
+  }
+
+  function setMaintenanceMode(data) {
+    var enabled = !!(data && data.maintenance);
+    return _globalAppConfigRef().doc('system').set({
+      maintenance: enabled,
+      updatedAt: _ts(),
+      updatedBy: _userEmail()
+    }, { merge: true });
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     USER PREFERENCES — per-user preferences
+     ══════════════════════════════════════════════════════════════════ */
+
+  function _prefsRef() { return _churchDoc().collection('preferences'); }
+  function _prefsDocId() { return (_userEmail() || 'anon').replace(/[^a-zA-Z0-9@._-]/g, '_'); }
+
+  function getUserPreferences() {
+    return _prefsRef().doc(_prefsDocId()).get().then(function(d) {
+      return d.exists ? d.data() : {};
+    });
+  }
+
+  function updateUserPreferences(data) {
+    data.updatedAt = _ts();
+    return _prefsRef().doc(_prefsDocId()).set(data, { merge: true });
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     CONTACTS / PASTORAL NOTES / MILESTONES / HOUSEHOLDS
+     ══════════════════════════════════════════════════════════════════ */
+
+  function _contactsRef()   { return _churchDoc().collection('contactLog'); }
+  function _notesRef()      { return _churchDoc().collection('pastoralNotes'); }
+  function _milestonesRef() { return _churchDoc().collection('milestones'); }
+  function _householdsRef() { return _churchDoc().collection('households'); }
+
+  function listContacts(opts) {
+    opts = opts || {};
+    var q = _contactsRef().orderBy('createdAt', 'desc').limit(opts.limit || 500);
+    return q.get().then(_snapToArr);
+  }
+  function createContact(data) {
+    data.createdAt = _ts(); data.createdBy = _userEmail();
+    return _contactsRef().add(data).then(function(ref) { data.id = ref.id; return data; });
+  }
+
+  function listPastoralNotes(opts) {
+    opts = opts || {};
+    var q = _notesRef().orderBy('createdAt', 'desc').limit(opts.limit || 500);
+    return q.get().then(_snapToArr);
+  }
+  function createPastoralNote(data) {
+    data.createdAt = _ts(); data.createdBy = _userEmail();
+    return _notesRef().add(data).then(function(ref) { data.id = ref.id; return data; });
+  }
+
+  function listMilestones(opts) {
+    opts = opts || {};
+    var q = _milestonesRef().orderBy('createdAt', 'desc').limit(opts.limit || 500);
+    return q.get().then(_snapToArr);
+  }
+
+  function listHouseholds(opts) {
+    opts = opts || {};
+    var q = _householdsRef().orderBy('name', 'asc').limit(opts.limit || 500);
+    return q.get().then(_snapToArr);
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     AUDIT LOG
+     ══════════════════════════════════════════════════════════════════ */
+
+  function _auditRef() { return _churchDoc().collection('auditLog'); }
+
+  function listAudit(opts) {
+    opts = opts || {};
+    var q = _auditRef().orderBy('ts', 'desc').limit(opts.limit || 500);
+    return q.get().then(_snapToArr);
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     ACCESS CONTROL
+     ══════════════════════════════════════════════════════════════════ */
+
+  function _accessRef() { return _churchDoc().collection('accessControl'); }
+
+  function listAccess() {
+    return _accessRef().get().then(_snapToArr);
+  }
+  function setAccess(data) {
+    var email = (data.email || '').toLowerCase();
+    return _accessRef().doc(email).set({
+      email: email,
+      role: data.role || 'member',
+      displayName: data.displayName || '',
+      updatedAt: _ts(),
+      updatedBy: _userEmail()
+    }, { merge: true });
+  }
+  function removeAccess(data) {
+    var email = (data.email || '').toLowerCase();
+    return _accessRef().doc(email).delete();
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     MEMBER CARDS — extended methods
+     ══════════════════════════════════════════════════════════════════ */
+
+  function memberCardsDashboard() {
+    return listMemberCards({ limit: 500 }).then(function(cards) {
+      var active = cards.filter(function(c) { return c.status !== 'archived'; });
+      return {
+        totalCards: cards.length,
+        activeCards: active.length,
+        archivedCards: cards.length - active.length
+      };
+    });
+  }
+
+  function memberCardsMine() {
+    return _memberCardsRef().where('email', '==', _userEmail())
+      .limit(1).get().then(function(snap) {
+        if (snap.empty) return null;
+        var d = snap.docs[0].data(); d.id = snap.docs[0].id; return d;
+      });
+  }
+
+  function memberCardsByNumber(opts) {
+    var num = opts.cardNumber || opts.memberNumber || '';
+    return _memberCardsRef().where('memberNumber', '==', num)
+      .limit(1).get().then(function(snap) {
+        if (snap.empty) return null;
+        var d = snap.docs[0].data(); d.id = snap.docs[0].id; return d;
+      });
+  }
+
+  function memberCardsArchive(opts) {
+    return _memberCardsRef().doc(opts.id).update({ status: 'archived', archivedAt: _ts(), archivedBy: _userEmail() });
+  }
+
+  function memberCardsBulkProvision(opts) {
+    var count = opts.count || 1;
+    var prefix = opts.prefix || 'MC';
+    var batch = _db.batch();
+    for (var i = 0; i < count; i++) {
+      var num = prefix + '-' + String(Date.now()).slice(-6) + String(i).padStart(3, '0');
+      batch.set(_memberCardsRef().doc(), { memberNumber: num, status: 'unassigned', createdAt: _ts(), createdBy: _userEmail() });
+    }
+    return batch.commit();
+  }
+
+  function memberCardsVcard(opts) {
+    // In Firebase mode, build a vCard URL from the card data
+    var id = opts.memberNumber || opts.id;
+    return getMemberCard(id).then(function(card) {
+      if (!card) return null;
+      var lines = ['BEGIN:VCARD','VERSION:3.0'];
+      if (card.firstName || card.lastName) lines.push('N:' + (card.lastName || '') + ';' + (card.firstName || ''));
+      if (card.firstName || card.lastName) lines.push('FN:' + ((card.firstName || '') + ' ' + (card.lastName || '')).trim());
+      if (card.email) lines.push('EMAIL:' + card.email);
+      if (card.phone) lines.push('TEL:' + card.phone);
+      lines.push('END:VCARD');
+      var blob = new Blob([lines.join('\r\n')], { type: 'text/vcard' });
+      return URL.createObjectURL(blob);
+    });
+  }
+
+  function memberCardsDirectory() {
+    return listMemberCards({ limit: 500 }).then(function(cards) {
+      return cards.filter(function(c) { return c.status !== 'archived' && c.visibility !== 'hidden'; });
+    });
+  }
+
+  // ── Member Card Links — subcollection ──────────────────────────
+  function _cardLinksRef(cardId) { return _memberCardsRef().doc(cardId).collection('links'); }
+
+  function listCardLinks(opts) {
+    return _cardLinksRef(opts.cardId).get().then(_snapToArr);
+  }
+  function createCardLink(data) {
+    var cardId = data.cardId; delete data.cardId;
+    data.createdAt = _ts();
+    return _cardLinksRef(cardId).add(data).then(function(ref) { data.id = ref.id; return data; });
+  }
+  function deleteCardLink(opts) {
+    // Requires knowing which card the link belongs to; search if needed
+    if (opts.cardId) return _cardLinksRef(opts.cardId).doc(opts.id).delete();
+    // Fallback: try to find by iterating (not ideal but functional)
+    return listMemberCards({ limit: 500 }).then(function(cards) {
+      var promises = cards.map(function(c) {
+        return _cardLinksRef(c.id).doc(opts.id).delete().catch(function() {});
+      });
+      return Promise.all(promises);
+    });
+  }
+
+  // ── Member Card Views — subcollection ──────────────────────────
+  function _cardViewsRef() { return _churchDoc().collection('memberCardViews'); }
+
+  function listCardViews(opts) {
+    opts = opts || {};
+    return _cardViewsRef().orderBy('viewedAt', 'desc').limit(opts.limit || 80).get().then(_snapToArr);
+  }
+  function myCardViews() {
+    return _cardViewsRef().where('viewerEmail', '==', _userEmail())
+      .orderBy('viewedAt', 'desc').limit(30).get().then(_snapToArr);
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     BULK OPERATIONS & DATA TOOLS
+     ══════════════════════════════════════════════════════════════════ */
+
+  function bulkCreate(p) {
+    var colMap = {
+      Members:             'members',
+      Events:              'events',
+      SmallGroups:         'groups',
+      Giving:              'giving',
+      Ministries:          'ministries',
+      Songs:               'songs',
+      Sermons:             'sermons',
+      SermonSeries:        'sermonSeries',
+      DiscipleshipPaths:   'discipleshipPaths',
+      TheologyCategories:  'theologyCategories',
+      TheologySections:    'theologySections',
+      LearningPlaylists:   'learningPlaylists',
+      MemberCards:         'memberCards',
+      AppConfig:           'appConfig'
+    };
+    var col = colMap[p.tab] || p.tab;
+    var batch = _db.batch();
+    var ref = _churchDoc().collection(col);
+    (p.rows || []).forEach(function(r) {
+      r.createdAt = _ts(); r.createdBy = _userEmail();
+      batch.set(ref.doc(), r);
+    });
+    return batch.commit();
+  }
+
+  function bulkMembersImport(opts) {
+    var records = typeof opts.records === 'string' ? JSON.parse(opts.records) : (opts.records || []);
+    var batch = _db.batch();
+    var ref = _churchDoc().collection('members');
+    records.forEach(function(r) {
+      r.createdAt = _ts(); r.createdBy = _userEmail();
+      batch.set(ref.doc(), r);
+    });
+    return batch.commit().then(function() { return { imported: records.length }; });
+  }
+
+  function bulkDataExport(opts) {
+    var col = opts.tab || 'members';
+    return _churchDoc().collection(col).get().then(function(snap) {
+      var out = [];
+      snap.forEach(function(d) { var o = d.data(); o.id = d.id; out.push(o); });
+      return out;
+    });
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     REPORTS
+     ══════════════════════════════════════════════════════════════════ */
+
+  function reportsDashboard() {
+    // Aggregation from existing data — return counts per domain
+    return Promise.all([
+      _churchDoc().collection('members').get().then(function(s) { return s.size; }),
+      _churchDoc().collection('events').get().then(function(s) { return s.size; }),
+      _churchDoc().collection('giving').get().then(function(s) { return s.size; }),
+      _churchDoc().collection('attendance').get().then(function(s) { return s.size; }),
+      _churchDoc().collection('groups').get().then(function(s) { return s.size; }),
+    ]).then(function(counts) {
+      return {
+        members: counts[0],
+        events: counts[1],
+        giving: counts[2],
+        attendance: counts[3],
+        groups: counts[4]
+      };
+    });
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     APP CONTENT (read-only reference data — global, not per-church)
+     ══════════════════════════════════════════════════════════════════ */
+
+  function _appContentRef(type) { return _db.collection('appContent').doc(type).collection('items'); }
+
+  function listAppContent(type, opts) {
+    opts = opts || {};
+    var q = _appContentRef(type);
+    if (opts.orderBy) q = q.orderBy(opts.orderBy, opts.dir || 'asc');
+    q = q.limit(opts.limit || 1000);
+    return q.get().then(function(snap) {
+      var out = [];
+      snap.forEach(function(d) { var o = d.data(); o.id = d.id; out.push(o); });
+      return out;
+    });
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
      PUBLIC API — window.UpperRoom
      ══════════════════════════════════════════════════════════════════ */
 
@@ -1806,9 +4158,11 @@
     // Notifications
     createNotification:  createNotification,
     listenNotifications: listenNotifications,
+    listNotifications:   listNotifications,
     markNotifRead:       markNotifRead,
     markAllNotifsRead:   markAllNotifsRead,
     getUnreadCount:      getUnreadCount,
+    dismissNotification: dismissNotification,
 
     // Typing
     setTyping:      setTyping,
@@ -1908,8 +4262,338 @@
     outreachFollowUpsDue:      outreachFollowUpsDue,
     outreachDashboard:         outreachDashboard,
 
+    // Events
+    listEvents:         listEvents,
+    getEvent:           getEvent,
+    createEvent:        createEvent,
+    updateEvent:        updateEvent,
+    cancelEvent:        cancelEvent,
+    publicEvents:       publicEvents,
+
+    // RSVPs
+    rsvpEvent:          rsvpEvent,
+    listRsvps:          listRsvps,
+
+    // Personal Calendar
+    listCalendarEvents:       listCalendarEvents,
+    getCalendarEvent:         getCalendarEvent,
+    createCalendarEvent:      createCalendarEvent,
+    updateCalendarEvent:      updateCalendarEvent,
+    deleteCalendarEvent:      deleteCalendarEvent,
+    listDelegatedCalendars:   listDelegatedCalendars,
+
+    // Groups
+    listGroups:         listGroups,
+    getGroup:           getGroup,
+    createGroup:        createGroup,
+    updateGroup:        updateGroup,
+    listGroupMembers:   listGroupMembers,
+    addGroupMember:     addGroupMember,
+    removeGroupMember:  removeGroupMember,
+
+    // Attendance
+    listAttendance:     listAttendance,
+    getAttendance:      getAttendance,
+    createAttendance:   createAttendance,
+    updateAttendance:   updateAttendance,
+    attendanceSummary:  attendanceSummary,
+
+    // Check-In
+    checkinOpen:        checkinOpen,
+    checkinClose:       checkinClose,
+    checkinSessions:    checkinSessions,
+
+    // Volunteers
+    listVolunteers:     listVolunteers,
+    getVolunteer:       getVolunteer,
+    createVolunteer:    createVolunteer,
+    updateVolunteer:    updateVolunteer,
+    swapVolunteer:      swapVolunteer,
+
+    // Ministries
+    listMinistries:     listMinistries,
+    getMinistry:        getMinistry,
+    createMinistry:     createMinistry,
+    updateMinistry:     updateMinistry,
+    ministrySummary:    ministrySummary,
+    ministryTree:       ministryTree,
+
+    // Service Plans
+    listServicePlans:   listServicePlans,
+    getServicePlan:     getServicePlan,
+    createServicePlan:  createServicePlan,
+    updateServicePlan:  updateServicePlan,
+
+    // Songs
+    listSongs:          listSongs,
+    getSong:            getSong,
+    createSong:         createSong,
+    updateSong:         updateSong,
+
+    // Sermons
+    listSermons:        listSermons,
+    getSermon:          getSermon,
+    createSermon:       createSermon,
+    updateSermon:       updateSermon,
+    deleteSermon:       deleteSermon,
+    submitSermon:       submitSermon,
+    approveSermon:      approveSermon,
+    deliverSermon:      deliverSermon,
+    uploadSermonMedia:  uploadSermonMedia,
+    sermonDashboard:    sermonDashboard,
+
+    // Sermon Series
+    listSermonSeries:   listSermonSeries,
+    getSermonSeries:    getSermonSeries,
+    createSermonSeries: createSermonSeries,
+    updateSermonSeries: updateSermonSeries,
+    deleteSermonSeries: deleteSermonSeries,
+
+    // Sermon Reviews
+    listSermonReviews:  listSermonReviews,
+    createSermonReview: createSermonReview,
+
+    // Giving
+    listGiving:            listGiving,
+    createGiving:          createGiving,
+    updateGiving:          updateGiving,
+    givingSummary:         givingSummary,
+    memberGivingStatement: memberGivingStatement,
+
+    // Pledges
+    listPledges:  listPledges,
+    createPledge: createPledge,
+
+    // Journal
+    listJournal:   listJournal,
+    createJournal: createJournal,
+    updateJournal: updateJournal,
+    deleteJournal: deleteJournal,
+
+    // Discipleship — Paths
+    listDiscPaths:    listDiscPaths,
+    getDiscPath:      getDiscPath,
+    createDiscPath:   createDiscPath,
+    updateDiscPath:   updateDiscPath,
+    publishDiscPath:  publishDiscPath,
+    archiveDiscPath:  archiveDiscPath,
+
+    // Discipleship — Steps
+    listDiscSteps:    listDiscSteps,
+    getDiscStep:      getDiscStep,
+    createDiscStep:   createDiscStep,
+    updateDiscStep:   updateDiscStep,
+    deleteDiscStep:   deleteDiscStep,
+
+    // Discipleship — Enrollments
+    listDiscEnrollments:    listDiscEnrollments,
+    getDiscEnrollment:      getDiscEnrollment,
+    createDiscEnrollment:   createDiscEnrollment,
+    updateDiscEnrollment:   updateDiscEnrollment,
+    advanceDiscEnrollment:  advanceDiscEnrollment,
+
+    // Discipleship — Mentoring
+    listDiscMentoring:    listDiscMentoring,
+    getDiscMentoring:     getDiscMentoring,
+    createDiscMentoring:  createDiscMentoring,
+    updateDiscMentoring:  updateDiscMentoring,
+
+    // Discipleship — Meetings
+    createDiscMeeting: createDiscMeeting,
+
+    // Discipleship — Goals
+    listDiscGoals:    listDiscGoals,
+    createDiscGoal:   createDiscGoal,
+    updateDiscGoal:   updateDiscGoal,
+
+    // Discipleship — Assessments
+    listDiscAssessments:  listDiscAssessments,
+    getDiscAssessment:    getDiscAssessment,
+    createDiscAssessment: createDiscAssessment,
+
+    // Discipleship — Milestones
+    listDiscMilestones:   listDiscMilestones,
+    createDiscMilestone:  createDiscMilestone,
+
+    // Discipleship — Certificates
+    listDiscCertificates:   listDiscCertificates,
+    issueDiscCertificate:   issueDiscCertificate,
+    revokeDiscCertificate:  revokeDiscCertificate,
+
+    // Learning — Topics
+    listLrnTopics:       listLrnTopics,
+    createLrnTopic:      createLrnTopic,
+    updateLrnTopic:      updateLrnTopic,
+    deleteLrnTopic:      deleteLrnTopic,
+
+    // Learning — Playlists
+    listLrnPlaylists:      listLrnPlaylists,
+    getLrnPlaylist:         getLrnPlaylist,
+    createLrnPlaylist:     createLrnPlaylist,
+    updateLrnPlaylist:     updateLrnPlaylist,
+    deleteLrnPlaylist:     deleteLrnPlaylist,
+    subscribeLrnPlaylist:  subscribeLrnPlaylist,
+
+    // Learning — Playlist Items
+    createLrnPlaylistItem:  createLrnPlaylistItem,
+    updateLrnPlaylistItem:  updateLrnPlaylistItem,
+    deleteLrnPlaylistItem:  deleteLrnPlaylistItem,
+    reorderLrnPlaylistItem: reorderLrnPlaylistItem,
+
+    // Learning — Quizzes
+    listLrnQuizzes:   listLrnQuizzes,
+    getLrnQuiz:        getLrnQuiz,
+    createLrnQuiz:     createLrnQuiz,
+    updateLrnQuiz:     updateLrnQuiz,
+    publishLrnQuiz:    publishLrnQuiz,
+    deleteLrnQuiz:     deleteLrnQuiz,
+
+    // Learning — Quiz Results
+    listLrnQuizResults:   listLrnQuizResults,
+    submitLrnQuizResult:  submitLrnQuizResult,
+
+    // Learning — Recommendations
+    listLrnRecommendations:      listLrnRecommendations,
+    createLrnRecommendation:     createLrnRecommendation,
+    generateLrnRecommendations:  generateLrnRecommendations,
+    acceptLrnRecommendation:     acceptLrnRecommendation,
+    dismissLrnRecommendation:    dismissLrnRecommendation,
+
+    // Learning — Progress
+    listLrnProgress:      listLrnProgress,
+    completeLrnProgress:  completeLrnProgress,
+    lrnProgressStats:     lrnProgressStats,
+
+    // Learning — Notes
+    listLrnNotes:    listLrnNotes,
+    createLrnNote:   createLrnNote,
+
+    // Learning — Certificates
+    listLrnCertificates:  listLrnCertificates,
+    issueLrnCertificate:  issueLrnCertificate,
+
+    // Learning — Dashboard & Search
+    lrnDashboard:      lrnDashboard,
+    searchLrnSermons:  searchLrnSermons,
+
+    // Theology
+    listTheologyCategories:  listTheologyCategories,
+    getTheologyCategory:     getTheologyCategory,
+    createTheologyCategory:  createTheologyCategory,
+    updateTheologyCategory:  updateTheologyCategory,
+    listTheologySections:    listTheologySections,
+    theologyFlat:            theologyFlat,
+    theologyFull:            theologyFull,
+    theologyDashboard:       theologyDashboard,
+
+    // App Content (global reference data)
+    listAppContent:  listAppContent,
+
+    // Albums
+    listAlbums:    listAlbums,
+    createAlbum:   createAlbum,
+    updateAlbum:   updateAlbum,
+    deleteAlbum:   deleteAlbum,
+
+    // Statistics & Analytics
+    statsDashboard:       statsDashboard,
+    statsTrends:          statsTrends,
+    statsCompute:         statsCompute,
+    statsExport:          statsExport,
+    listStatsConfig:      listStatsConfig,
+    getStatsConfig:       getStatsConfig,
+    createStatsConfig:    createStatsConfig,
+    updateStatsConfig:    updateStatsConfig,
+    deleteStatsConfig:    deleteStatsConfig,
+    listStatsSnapshots:   listStatsSnapshots,
+    getStatsSnapshot:     getStatsSnapshot,
+    createStatsSnapshot:  createStatsSnapshot,
+    deleteStatsSnapshot:  deleteStatsSnapshot,
+    listStatsViews:       listStatsViews,
+    createStatsView:      createStatsView,
+    updateStatsView:      updateStatsView,
+    deleteStatsView:      deleteStatsView,
+
+    // Missions
+    listMissionsRegistry:     listMissionsRegistry,
+    getMissionsRegistry:      getMissionsRegistry,
+    createMissionsRegistry:   createMissionsRegistry,
+    updateMissionsRegistry:   updateMissionsRegistry,
+    listMissionsPartners:     listMissionsPartners,
+    getMissionsPartners:      getMissionsPartners,
+    createMissionsPartners:   createMissionsPartners,
+    updateMissionsPartners:   updateMissionsPartners,
+    listMissionsPrayerFocus:  listMissionsPrayerFocus,
+    createMissionsPrayerFocus: createMissionsPrayerFocus,
+    updateMissionsPrayerFocus: updateMissionsPrayerFocus,
+    respondMissionsPrayerFocus: respondMissionsPrayerFocus,
+    listMissionsUpdates:      listMissionsUpdates,
+    getMissionsUpdates:       getMissionsUpdates,
+    createMissionsUpdates:    createMissionsUpdates,
+    updateMissionsUpdates:    updateMissionsUpdates,
+    listMissionsTeams:        listMissionsTeams,
+    getMissionsTeams:         getMissionsTeams,
+    createMissionsTeams:      createMissionsTeams,
+    updateMissionsTeams:      updateMissionsTeams,
+    missionsBulkCreate:       missionsBulkCreate,
+
+    // App Config
+    listAppConfig:         listAppConfig,
+    getAppConfig:          getAppConfig,
+    setAppConfig:          setAppConfig,
+    updateAppConfig:       updateAppConfig,
+
+    // Maintenance Mode (global)
+    getMaintenanceStatus:  getMaintenanceStatus,
+    setMaintenanceMode:    setMaintenanceMode,
+
+    // User Preferences
+    getUserPreferences:    getUserPreferences,
+    updateUserPreferences: updateUserPreferences,
+
+    // Contacts / Notes / Milestones / Households
+    listContacts:          listContacts,
+    createContact:         createContact,
+    listPastoralNotes:     listPastoralNotes,
+    createPastoralNote:    createPastoralNote,
+    listMilestones:        listMilestones,
+    listHouseholds:        listHouseholds,
+
+    // Audit
+    listAudit:             listAudit,
+
+    // Access Control
+    listAccess:            listAccess,
+    setAccess:             setAccess,
+    removeAccess:          removeAccess,
+
+    // Member Cards — extended
+    memberCardsDashboard:   memberCardsDashboard,
+    memberCardsMine:        memberCardsMine,
+    memberCardsByNumber:    memberCardsByNumber,
+    memberCardsArchive:     memberCardsArchive,
+    memberCardsBulkProvision: memberCardsBulkProvision,
+    memberCardsVcard:       memberCardsVcard,
+    memberCardsDirectory:   memberCardsDirectory,
+    listCardLinks:          listCardLinks,
+    createCardLink:         createCardLink,
+    deleteCardLink:         deleteCardLink,
+    listCardViews:          listCardViews,
+    myCardViews:            myCardViews,
+
+    // Bulk Operations & Data Tools
+    bulkCreate:             bulkCreate,
+    bulkMembersImport:      bulkMembersImport,
+    bulkDataExport:         bulkDataExport,
+
+    // Reports
+    reportsDashboard:       reportsDashboard,
+
     // Utility
     timeAgo:        _timeAgo
   };
+
+  // ── Auto-initialize on load (Firebase SDK is loaded before this script) ──
+  try { init(); } catch (_) {}
 
 })();

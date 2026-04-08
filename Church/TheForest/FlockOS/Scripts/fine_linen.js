@@ -5300,26 +5300,37 @@ details.settings-section.settings-accordion > .settings-accordion-trigger {
     }
 
     // Fetch admin global theme + ALLOW_CUSTOM_THEMES + user preference asynchronously
-    if (typeof TheVine !== 'undefined' && TheVine.flock) {
+    var _fbMode = typeof UpperRoom !== 'undefined' && typeof Modules !== 'undefined' && Modules._isFirebaseComms && Modules._isFirebaseComms();
+    if (_fbMode) {
+      UpperRoom.getAppConfig({ key: 'GLOBAL_THEME' }).then(res => {
+        const val = (res && res.value) || 'default';
+        localStorage.setItem(GLOBAL_THEME_KEY, val);
+        if (val && val !== 'default' && THEMES.includes(val)) {
+          _apply(val);
+        }
+        return UpperRoom.getAppConfig({ key: 'ALLOW_CUSTOM_THEMES' }).then(acRes => {
+          const acVal = (acRes && acRes.value) || 'FALSE';
+          localStorage.setItem('flock_allow_custom_themes', acVal.toUpperCase());
+          if (acVal.toUpperCase() === 'TRUE') {
+            _syncUserPref();
+          }
+        }).catch(() => {});
+      }).catch(() => {});
+    } else if (typeof TheVine !== 'undefined' && TheVine.flock) {
       if (TheVine.flock.config) {
         TheVine.flock.config.get({ key: 'GLOBAL_THEME' }).then(res => {
           const val = (res && (res.value || (res.data && res.data.value))) || 'default';
           localStorage.setItem(GLOBAL_THEME_KEY, val);
-          // Global theme is the base — apply it first
           if (val && val !== 'default' && THEMES.includes(val)) {
             _apply(val);
           }
-          // Check if custom themes are allowed before syncing user pref
           return TheVine.flock.config.get({ key: 'ALLOW_CUSTOM_THEMES' }).then(acRes => {
             const acVal = (acRes && (acRes.value || (acRes.data && acRes.data.value))) || 'FALSE';
             localStorage.setItem('flock_allow_custom_themes', acVal.toUpperCase());
             if (acVal.toUpperCase() === 'TRUE') {
               _syncUserPref();
             }
-            // If custom themes disabled, enforce global/default — don't load user pref
-          }).catch(() => {
-            // Config unavailable — custom themes stay off by default
-          });
+          }).catch(() => {});
         }).catch(() => {});
       }
     }
@@ -5327,7 +5338,15 @@ details.settings-section.settings-accordion > .settings-accordion-trigger {
 
   /** Sync theme from user's saved preferences (only called when custom themes are allowed). */
   function _syncUserPref() {
-    if (typeof TheVine !== 'undefined' && TheVine.flock && TheVine.flock.preferences) {
+    var _fbMode = typeof UpperRoom !== 'undefined' && typeof Modules !== 'undefined' && Modules._isFirebaseComms && Modules._isFirebaseComms();
+    if (_fbMode) {
+      UpperRoom.getUserPreferences().then(prefs => {
+        if (prefs && THEMES.includes(prefs.theme)) {
+          _apply(prefs.theme);
+          localStorage.setItem(STORAGE_KEY, prefs.theme);
+        }
+      }).catch(() => {});
+    } else if (typeof TheVine !== 'undefined' && TheVine.flock && TheVine.flock.preferences) {
       TheVine.flock.preferences.get().then(prefs => {
         if (prefs && THEMES.includes(prefs.theme)) {
           _apply(prefs.theme);
@@ -5350,7 +5369,10 @@ details.settings-section.settings-accordion > .settings-accordion-trigger {
     _apply(name);
     localStorage.setItem(STORAGE_KEY, name);
 
-    if (typeof TheVine !== 'undefined' && TheVine.flock && TheVine.flock.preferences) {
+    var _fbMode = typeof UpperRoom !== 'undefined' && typeof Modules !== 'undefined' && Modules._isFirebaseComms && Modules._isFirebaseComms();
+    if (_fbMode) {
+      UpperRoom.updateUserPreferences({ theme: name }).catch(() => {});
+    } else if (typeof TheVine !== 'undefined' && TheVine.flock && TheVine.flock.preferences) {
       TheVine.flock.preferences.update({ theme: name }).catch(() => {});
     }
   }

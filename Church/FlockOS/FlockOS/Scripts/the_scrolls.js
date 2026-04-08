@@ -149,7 +149,16 @@ const TheScrolls = (() => {
   // ── Fire-and-forget backend sync ────────────────────────────────────────
   function _syncBackend(entry) {
     try {
-      if (typeof TheVine !== 'undefined' && TheVine.luke && TheVine.luke.statistics) {
+      if (typeof UpperRoom !== 'undefined' && typeof Modules !== 'undefined' && Modules._isFirebaseComms && Modules._isFirebaseComms()) {
+        UpperRoom.createStatsSnapshot({
+          metricName: 'flock.scroll.' + entry.type,
+          h1: entry.user,
+          h2: entry.personId,
+          h3: entry.detail,
+          h4: entry.personName,
+          h5: entry.ts,
+        }).catch(function() {});
+      } else if (typeof TheVine !== 'undefined' && TheVine.luke && TheVine.luke.statistics) {
         TheVine.luke.statistics.createSnapshot({
           metricName: 'flock.scroll.' + entry.type,
           h1: entry.user,

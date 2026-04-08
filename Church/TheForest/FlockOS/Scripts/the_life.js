@@ -132,7 +132,17 @@ const TheLife = (() => {
     };
     // Fire-and-forget: record a statistics snapshot for trending
     try {
-      if (typeof TheVine !== 'undefined' && TheVine.luke && TheVine.luke.statistics) {
+      if (_isFB() && typeof UpperRoom !== 'undefined') {
+        UpperRoom.createStatsSnapshot({
+          metricName: 'flock.audit.' + action,
+          h1: entry.user,
+          h2: entry.role,
+          h3: entry.target,
+          h4: entry.targetId,
+          h5: entry.detail,
+          h6: entry.ts,
+        }).catch(function() { /* non-fatal */ });
+      } else if (typeof TheVine !== 'undefined' && TheVine.luke && TheVine.luke.statistics) {
         TheVine.luke.statistics.createSnapshot({
           metricName: 'flock.audit.' + action,
           h1: entry.user,
@@ -2887,7 +2897,7 @@ const TheLife = (() => {
 
       // ── Background: secondary fetches ──
       Promise.allSettled([
-        TheVine.flock.comms.notifications.unreadCount().catch(function() { return { count: 0 }; }),
+        (_isFB() ? UpperRoom.getUnreadCount().then(function(c) { return { count: c }; }) : TheVine.flock.comms.notifications.unreadCount()).catch(function() { return { count: 0 }; }),
         (_isFB() ? UpperRoom.careDashboard() : TheVine.flock.care.dashboard({})).catch(function() { return null; }),
       ]).then(function(sec) {
         var unreadCt = (sec[0].status === 'fulfilled' && sec[0].value) ? (sec[0].value.count || 0) : 0;

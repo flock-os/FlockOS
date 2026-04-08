@@ -12,6 +12,10 @@
 const TheHarvest = (() => {
   'use strict';
 
+  function _isFB() {
+    return typeof Modules !== 'undefined' && Modules._isFirebaseComms && Modules._isFirebaseComms();
+  }
+
   // ── HTML-escape ─────────────────────────────────────────────────────────
   function _e(s) {
     if (s == null) return '';
@@ -389,12 +393,12 @@ const TheHarvest = (() => {
     // Fetch KPIs in background
     try {
       var results = await Promise.allSettled([
-        TheVine.flock.events.list({ limit: 100 }),
-        TheVine.flock.sermons.list({ limit: 100 }),
-        TheVine.flock.servicePlans.list({ limit: 50 }),
-        TheVine.flock.call('songs.list', {}),
-        TheVine.flock.ministries.list(),
-        TheVine.flock.volunteers.list({ limit: 100 }),
+        _isFB() ? UpperRoom.listEvents({ limit: 100 }) : TheVine.flock.events.list({ limit: 100 }),
+        _isFB() ? UpperRoom.listSermons({ limit: 100 }) : TheVine.flock.sermons.list({ limit: 100 }),
+        _isFB() ? UpperRoom.listServicePlans({ limit: 50 }) : TheVine.flock.servicePlans.list({ limit: 50 }),
+        _isFB() ? UpperRoom.listSongs() : TheVine.flock.call('songs.list', {}),
+        _isFB() ? UpperRoom.listMinistries() : TheVine.flock.ministries.list(),
+        _isFB() ? UpperRoom.listVolunteers({ limit: 100 }) : TheVine.flock.volunteers.list({ limit: 100 }),
       ]);
 
       var events     = results[0].status === 'fulfilled' ? _rows(results[0].value) : [];
@@ -444,7 +448,9 @@ const TheHarvest = (() => {
   async function _renderEvents() {
     _panel(_spinner());
     try {
-      var res = await TheVine.flock.events.list({ limit: 60 });
+      var res = _isFB()
+        ? await UpperRoom.listEvents({ limit: 60 })
+        : await TheVine.flock.events.list({ limit: 60 });
       var rows = _rows(res);
       _cache.events = rows;
 
@@ -481,7 +487,7 @@ const TheHarvest = (() => {
   async function _renderSermons() {
     _panel(_spinner());
     try {
-      var res = await TheVine.flock.sermons.list({ limit: 60 });
+      var res = _isFB() ? await UpperRoom.listSermons({ limit: 60 }) : await TheVine.flock.sermons.list({ limit: 60 });
       var rows = _rows(res);
       _cache.sermons = rows;
 
@@ -516,7 +522,7 @@ const TheHarvest = (() => {
   async function _renderServices() {
     _panel(_spinner());
     try {
-      var res = await TheVine.flock.servicePlans.list({ limit: 40 });
+      var res = _isFB() ? await UpperRoom.listServicePlans({ limit: 40 }) : await TheVine.flock.servicePlans.list({ limit: 40 });
       var rows = _rows(res);
       _cache.services = rows;
 
@@ -549,7 +555,7 @@ const TheHarvest = (() => {
   async function _renderSongs() {
     _panel(_spinner());
     try {
-      var res = await TheVine.flock.call('songs.list', {});
+      var res = _isFB() ? await UpperRoom.listSongs() : await TheVine.flock.call('songs.list', {});
       var rows = _rows(res);
       _cache.songs = rows;
 
@@ -586,7 +592,7 @@ const TheHarvest = (() => {
   async function _renderMinistries() {
     _panel(_spinner());
     try {
-      var res = await TheVine.flock.ministries.list();
+      var res = _isFB() ? await UpperRoom.listMinistries() : await TheVine.flock.ministries.list();
       var rows = _rows(res);
       _cache.ministries = rows;
 
@@ -620,8 +626,8 @@ const TheHarvest = (() => {
     _panel(_spinner());
     try {
       var results = await Promise.all([
-        TheVine.flock.volunteers.list({ limit: 60 }),
-        TheVine.flock.memberCards.directory(),
+        _isFB() ? UpperRoom.listVolunteers({ limit: 60 }) : TheVine.flock.volunteers.list({ limit: 60 }),
+        _isFB() ? UpperRoom.memberCardsDirectory() : TheVine.flock.memberCards.directory(),
       ]);
       var rows = _rows(results[0]);
       var dir  = _rows(results[1]);
@@ -646,7 +652,7 @@ const TheHarvest = (() => {
           var mName = mLookup[r.memberId] || r.memberName || r.name || r.email || r.memberId || '';
           var mNum = dir.find(function(d) { return d.id === r.memberId; });
           var cardLinks = mNum
-            ? '<a href="javascript:void(0)" onclick="event.stopPropagation();window.open(TheVine.flock.memberCards.vcard({memberNumber:\'' + _e(mNum.memberNumber) + '\'}))" '
+            ? '<a href="javascript:void(0)" onclick="event.stopPropagation();TheHarvest._vcardOpen(\'' + _e(mNum.memberNumber) + '\')" '
               + 'style="color:var(--accent);font-size:0.75rem;margin-right:8px;" title="Download vCard">\u2B07 vCard</a>'
             : '';
           return [
@@ -683,7 +689,7 @@ const TheHarvest = (() => {
         options: _visibilityOpts() },
       { name: 'description', label: 'Description', type: 'textarea' },
     ], async function(data) {
-      await TheVine.flock.events.create(data);
+      if (_isFB()) { await UpperRoom.createEvent(data); } else { await TheVine.flock.events.create(data); }
       _toast('Event created', 'success');
       _renderEvents();
     });
@@ -698,7 +704,8 @@ const TheHarvest = (() => {
       { name: 'date',       label: 'Delivery Date',      type: 'date' },
       { name: 'notes',      label: 'Notes',              type: 'textarea' },
     ], async function(data) {
-      await TheVine.flock.sermons.create(data);
+      if (_isFB()) { await UpperRoom.createSermon(data); }
+      else { await TheVine.flock.sermons.create(data); }
       _toast('Sermon created', 'success');
       _renderSermons();
     });
@@ -716,7 +723,8 @@ const TheHarvest = (() => {
       { name: 'worshipLeaderId',  label: 'Worship Leader (Member ID or Name)' },
       { name: 'notes',            label: 'Notes',            type: 'textarea' },
     ], async function(data) {
-      await TheVine.flock.servicePlans.create(data);
+      if (_isFB()) { await UpperRoom.createServicePlan(data); }
+      else { await TheVine.flock.servicePlans.create(data); }
       _toast('Service plan created', 'success');
       _renderServices();
     });
@@ -734,7 +742,8 @@ const TheHarvest = (() => {
       { name: 'tags',        label: 'Tags (comma-separated)' },
       { name: 'lyrics',      label: 'Lyrics',       type: 'textarea' },
     ], async function(data) {
-      await TheVine.flock.call('songs.create', data);
+      if (_isFB()) { await UpperRoom.createSong(data); }
+      else { await TheVine.flock.call('songs.create', data); }
       _toast('Song added', 'success');
       _renderSongs();
     });
@@ -749,7 +758,8 @@ const TheHarvest = (() => {
       { name: 'email',       label: 'Ministry Email', type: 'email' },
       { name: 'description', label: 'Description',    type: 'textarea' },
     ], async function(data) {
-      await TheVine.flock.ministries.create(data);
+      if (_isFB()) { await UpperRoom.createMinistry(data); }
+      else { await TheVine.flock.ministries.create(data); }
       _toast('Ministry created', 'success');
       _renderMinistries();
     });
@@ -772,7 +782,8 @@ const TheHarvest = (() => {
         options: ['Sunday AM','Sunday PM','Wednesday','Special','Other'] },
       { name: 'notes',       label: 'Notes',         type: 'textarea' },
     ], async function(data) {
-      await TheVine.flock.volunteers.create(data);
+      if (_isFB()) { await UpperRoom.createVolunteer(data); }
+      else { await TheVine.flock.volunteers.create(data); }
       _toast('Volunteer scheduled', 'success');
       _renderVolunteers();
     });
@@ -797,8 +808,8 @@ const TheHarvest = (() => {
       { name: 'visibility',  label: 'Visibility', type: 'select',
         options: _visibilityOpts() },
       { name: 'description', label: 'Description', type: 'textarea' },
-    ], function(p) { return TheVine.flock.events.update(p); }, id,
-       function(p) { return TheVine.flock.events.get(p); });
+    ], function(p) { return _isFB() ? UpperRoom.updateEvent(p) : TheVine.flock.events.update(p); }, id,
+       function(p) { return _isFB() ? UpperRoom.getEvent(p.id || p) : TheVine.flock.events.get(p); });
   }
 
   function _editSermon(id) {
@@ -811,8 +822,8 @@ const TheHarvest = (() => {
       { name: 'status',     label: 'Status', type: 'select',
         options: ['draft','submitted','approved','delivered'] },
       { name: 'notes',      label: 'Notes',              type: 'textarea' },
-    ], function(p) { return TheVine.flock.sermons.update(p); }, id,
-       function(p) { return TheVine.flock.sermons.get(p); });
+    ], function(p) { return _isFB() ? UpperRoom.updateSermon(p) : TheVine.flock.sermons.update(p); }, id,
+       function(p) { return _isFB() ? UpperRoom.getSermon(p.id || p) : TheVine.flock.sermons.get(p); });
   }
 
   function _editServicePlan(id) {
@@ -828,8 +839,8 @@ const TheHarvest = (() => {
       { name: 'status',           label: 'Status',           type: 'select',
         options: ['Draft','Confirmed','In Progress','Completed'] },
       { name: 'notes',            label: 'Notes',            type: 'textarea' },
-    ], function(p) { return TheVine.flock.servicePlans.update(p); }, id,
-       function(p) { return TheVine.flock.servicePlans.get(p); });
+    ], function(p) { return _isFB() ? UpperRoom.updateServicePlan(p) : TheVine.flock.servicePlans.update(p); }, id,
+       function(p) { return _isFB() ? UpperRoom.getServicePlan(p.id || p) : TheVine.flock.servicePlans.get(p); });
   }
 
   function _editSong(id) {
@@ -843,7 +854,7 @@ const TheHarvest = (() => {
       { name: 'genre',      label: 'Genre' },
       { name: 'tags',       label: 'Tags (comma-separated)' },
       { name: 'lyrics',     label: 'Lyrics',       type: 'textarea' },
-    ], function(p) { return TheVine.flock.call('songs.update', p); }, id, null);
+    ], function(p) { return _isFB() ? UpperRoom.updateSong(p) : TheVine.flock.call('songs.update', p); }, id, null);
   }
 
   function _editMinistry(id) {
@@ -854,8 +865,8 @@ const TheHarvest = (() => {
       { name: 'leader',      label: 'Leader' },
       { name: 'email',       label: 'Ministry Email', type: 'email' },
       { name: 'description', label: 'Description',    type: 'textarea' },
-    ], function(p) { return TheVine.flock.ministries.update(p); }, id,
-       function(p) { return TheVine.flock.ministries.get(p); });
+    ], function(p) { return _isFB() ? UpperRoom.updateMinistry(p) : TheVine.flock.ministries.update(p); }, id,
+       function(p) { return _isFB() ? UpperRoom.getMinistry(p.id || p) : TheVine.flock.ministries.get(p); });
   }
 
   function _editVolunteer(id) {
@@ -869,14 +880,14 @@ const TheHarvest = (() => {
       { name: 'status',      label: 'Status',        type: 'select',
         options: ['Scheduled','Confirmed','Declined','No-Show','Completed'] },
       { name: 'notes',       label: 'Notes',         type: 'textarea' },
-    ], function(p) { return TheVine.flock.volunteers.update(p); }, id, null);
+    ], function(p) { return _isFB() ? UpperRoom.updateVolunteer(p) : TheVine.flock.volunteers.update(p); }, id, null);
   }
 
   // ── Sermon series helper ────────────────────────────────────────────────
   async function _sermonSeries() {
     _panel(_spinner());
     try {
-      var res = await TheVine.flock.sermonSeries.list();
+      var res = _isFB() ? await UpperRoom.listSermonSeries() : await TheVine.flock.sermonSeries.list();
       var rows = _rows(res);
 
       var header = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">'
@@ -927,6 +938,11 @@ const TheHarvest = (() => {
 
     // Extras
     _sermonSeries:     _sermonSeries,
+    _vcardOpen:        function(memberNumber) {
+      var result = _isFB() ? UpperRoom.memberCardsVcard({ memberNumber: memberNumber }) : TheVine.flock.memberCards.vcard({ memberNumber: memberNumber });
+      if (typeof result === 'string') { window.open(result); }
+      else if (result && typeof result.then === 'function') { result.then(function(u) { if (u) window.open(u); }); }
+    },
     resetHome:         function() { _activeTab = 'overview'; },
   };
 

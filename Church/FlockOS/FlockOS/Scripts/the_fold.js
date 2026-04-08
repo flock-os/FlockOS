@@ -55,6 +55,10 @@ const TheFold = (() => {
   var _activeTab = 'groups';
   var _cache     = { groups: [], attendance: [] };
 
+  function _isFB() {
+    return typeof Modules !== 'undefined' && Modules._isFirebaseComms && Modules._isFirebaseComms();
+  }
+
   // ══════════════════════════════════════════════════════════════════════════
   // MAIN APP — two tabs: Groups | Attendance
   // ══════════════════════════════════════════════════════════════════════════
@@ -66,8 +70,8 @@ const TheFold = (() => {
 
     try {
       var res = await Promise.allSettled([
-        TheVine.flock.groups.list(),
-        TheVine.flock.attendance.list({ limit: 60 }),
+        _isFB() ? UpperRoom.listGroups() : TheVine.flock.groups.list(),
+        _isFB() ? UpperRoom.listAttendance({ limit: 60 }) : TheVine.flock.attendance.list({ limit: 60 }),
       ]);
       _cache.groups     = _rows(res[0].status === 'fulfilled' ? res[0].value : []);
       _cache.attendance = _rows(res[1].status === 'fulfilled' ? res[1].value : []);
@@ -255,7 +259,7 @@ const TheFold = (() => {
           options: ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'] },
         { name: 'location',    label: 'Location' },
         { name: 'description', label: 'Description', type: 'textarea' },
-      ], function(p) { return TheVine.flock.groups.update(p); }, id, function(p) { return TheVine.flock.groups.get(p); });
+      ], function(p) { return _isFB() ? UpperRoom.updateGroup(p) : TheVine.flock.groups.update(p); }, id, function(p) { return _isFB() ? UpperRoom.getGroup(p.id || p) : TheVine.flock.groups.get(p); });
     }
   }
 
@@ -271,7 +275,7 @@ const TheFold = (() => {
         { name: 'adults',      label: 'Adults',          type: 'number' },
         { name: 'children',    label: 'Children',        type: 'number' },
         { name: 'notes',       label: 'Notes',           type: 'textarea' },
-      ], function(p) { return TheVine.flock.attendance.update(p); }, id, function(p) { return TheVine.flock.attendance.get(p); });
+      ], function(p) { return _isFB() ? UpperRoom.updateAttendance(p) : TheVine.flock.attendance.update(p); }, id, function(p) { return _isFB() ? UpperRoom.getAttendance(p.id || p) : TheVine.flock.attendance.get(p); });
     }
   }
 

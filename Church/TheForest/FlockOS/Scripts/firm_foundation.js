@@ -161,7 +161,10 @@ const Nehemiah = (() => {
   /** Returns true if a valid, non-expired session exists client-side. */
   function isAuthenticated() {
     if (_isLocalBypass()) return true;
-    return TheVine.session() !== null;
+    if (TheVine.session() !== null) return true;
+    // Firebase Auth persists across page loads
+    if (typeof firebase !== 'undefined' && firebase.auth && firebase.auth().currentUser) return true;
+    return false;
   }
 
   /** Returns the current session object or null. */
@@ -190,6 +193,21 @@ const Nehemiah = (() => {
     if (_isLocalBypass()) { _ensureBypassSession(); }
     const session = getSession();
     if (!session) {
+      // Check Firebase Auth as a fallback — the session may have been cleared
+      // but Firebase Auth persists across tabs/refreshes automatically
+      if (typeof firebase !== 'undefined' && firebase.auth && firebase.auth().currentUser) {
+        // Firebase Auth is valid — restore a minimal session so the app works
+        var fbUser = firebase.auth().currentUser;
+        var restored = {
+          token:       'fb-auth-' + Date.now(),
+          email:       fbUser.email || '',
+          role:        (fbUser.customClaims && fbUser.customClaims.role) || 'readonly',
+          displayName: fbUser.displayName || fbUser.email || '',
+          expiresAt:   Date.now() + 6 * 60 * 60 * 1000
+        };
+        try { sessionStorage.setItem('flock_auth_session', JSON.stringify(restored)); } catch (_) {}
+        return restored;
+      }
       window.location.replace(LOGIN_PAGE);
       return null;
     }
@@ -339,6 +357,15 @@ const Nehemiah = (() => {
       try { sessionStorage.setItem('flock_auth_profile', JSON.stringify(result.profile)); } catch (_) {}
     }
 
+    // Authenticate with Firebase Auth immediately so subsequent pages
+    // can verify auth via firebase.auth().currentUser (instant, no GAS).
+    try {
+      if (typeof UpperRoom !== 'undefined' && UpperRoom.init) {
+        await UpperRoom.init();
+        await UpperRoom.authenticate();
+      }
+    } catch (_) { /* Firebase auth is best-effort — GAS session still works */ }
+
     return result.session || result;
   }
 
@@ -355,6 +382,15 @@ const Nehemiah = (() => {
     } catch (_) {
       // Server call is best-effort — clear local state regardless
     }
+    // Sign out of Firebase Auth as well
+    try {
+      if (typeof firebase !== 'undefined' && firebase.auth) {
+        await firebase.auth().signOut();
+      }
+      if (typeof UpperRoom !== 'undefined' && UpperRoom.signOut) {
+        UpperRoom.signOut();
+      }
+    } catch (_) {}
     // TheVine.john.auth.logout already clears the session internally.
     window.location.replace(LOGIN_PAGE);
   }

@@ -1299,7 +1299,7 @@ const Modules = (() => {
   function _cardSaveContact() {
     var cardId = window._pendingCardId || new URLSearchParams(window.location.search).get('m') || '';
     if (!cardId) return;
-    var url = TheVine.flock.memberCards.vcard({ memberNumber: cardId, id: cardId });
+    var url = _isFirebaseComms() ? UpperRoom.memberCardsVcard({ memberNumber: cardId, id: cardId }) : TheVine.flock.memberCards.vcard({ memberNumber: cardId, id: cardId });
     if (typeof url === 'string') {
       window.open(url, '_blank');
     } else if (url && typeof url.then === 'function') {
@@ -1307,6 +1307,14 @@ const Modules = (() => {
         if (res && typeof res === 'string') window.open(res, '_blank');
         else _toast('vCard download is not available for this card.', 'warn');
       }).catch(function() { _toast('Could not download contact.', 'danger'); });
+    }
+  }
+
+  function _vcardOpen(memberNumber) {
+    var result = _isFirebaseComms() ? UpperRoom.memberCardsVcard({ memberNumber: memberNumber }) : TheVine.flock.memberCards.vcard({ memberNumber: memberNumber });
+    if (typeof result === 'string') { window.open(result); }
+    else if (result && typeof result.then === 'function') {
+      result.then(function(u) { if (u) window.open(u); }).catch(function() { _toast('vCard not available.', 'warn'); });
     }
   }
 
@@ -1380,7 +1388,7 @@ const Modules = (() => {
     _shell(el, 'Small Groups', 'Community groups, life groups & Bible studies.',
       _btn('+ New Group', "Modules.newGroup()"));
     try {
-      const res  = await _fetch('groups', () => TheVine.flock.groups.list());
+      const res  = await _fetch('groups', () => _isFirebaseComms() ? UpperRoom.listGroups() : TheVine.flock.groups.list());
       const rows = _rows(res);
       _dataCache['groups'] = rows;
       var mLookup = _memberLookup();
@@ -1430,8 +1438,8 @@ const Modules = (() => {
       _btn('Export Summary', "Modules.attendanceSummary()", false));
     try {
       const [listRes, sumRes] = await Promise.all([
-        _fetch('attendance', () => TheVine.flock.attendance.list({ limit: 500 })),
-        _fetch('attendance-summary', () => TheVine.flock.attendance.summary({}), _TTL.ref).catch(() => null),
+        _fetch('attendance', () => _isFirebaseComms() ? UpperRoom.listAttendance({ limit: 500 }) : TheVine.flock.attendance.list({ limit: 500 })),
+        _fetch('attendance-summary', () => _isFirebaseComms() ? UpperRoom.attendanceSummary() : TheVine.flock.attendance.summary({}), _TTL.ref).catch(() => null),
       ]);
       const rows = _rows(listRes);
       _dataCache['attendance'] = rows;
@@ -1514,7 +1522,7 @@ const Modules = (() => {
     _shell(el, 'Events', 'Upcoming services, activities & special events.',
       _btn('+ New Event', "Modules.newEvent()"));
     try {
-      const res  = await _fetch('events', () => TheVine.flock.events.list({ limit: 60 }));
+      const res  = await _fetch('events', () => _isFirebaseComms() ? UpperRoom.listEvents({ limit: 60 }) : TheVine.flock.events.list({ limit: 60 }));
       const rows = _rows(res);
       _dataCache['events'] = rows;
       _body(el, _table(
@@ -1568,7 +1576,7 @@ const Modules = (() => {
       + '</div>';
     try {
       if (_sermonTab === 'dashboard') {
-        const res  = await _fetch('sermons-dashboard', () => TheVine.flock.sermons.dashboard(), _TTL.crm).catch(() => ({}));
+        const res  = await _fetch('sermons-dashboard', () => _isFirebaseComms() ? UpperRoom.sermonDashboard() : TheVine.flock.sermons.dashboard(), _TTL.crm).catch(() => ({}));
         const d    = (res && res.dashboard) ? res.dashboard : (res || {});
         let html   = tabBar;
         html += '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;">';
@@ -1579,7 +1587,7 @@ const Modules = (() => {
         html += _mStat('This Month',       d.thisMonth      ?? '—',                  'var(--info)');
         html += '</div>';
         // Recent sermons mini-list
-        const recentRes  = await _fetch('sermons', () => TheVine.flock.sermons.list({ limit: 10 }));
+        const recentRes  = await _fetch('sermons', () => _isFirebaseComms() ? UpperRoom.listSermons({ limit: 10 }) : TheVine.flock.sermons.list({ limit: 10 }));
         const recentRows = _rows(recentRes);
         if (recentRows.length) {
           html += '<div style="font-weight:700;font-size:0.88rem;margin-bottom:10px;">Recent Sermons</div>';
@@ -1598,7 +1606,7 @@ const Modules = (() => {
         _body(el, html);
 
       } else if (_sermonTab === 'series') {
-        const res  = await _fetch('sermon-series', () => TheVine.flock.sermonSeries.list({ limit: 60 }));
+        const res  = await _fetch('sermon-series', () => _isFirebaseComms() ? UpperRoom.listSermonSeries({ limit: 60 }) : TheVine.flock.sermonSeries.list({ limit: 60 }));
         const rows = _filterClosed(_rows(res));
         _dataCache['sermon-series'] = rows;
         let html = tabBar;
@@ -1631,7 +1639,7 @@ const Modules = (() => {
 
       } else if (_sermonTab === 'reviews') {
         // sermonReviews.list REQUIRES sermonId — load sermon list for the picker
-        const serRes  = await _fetch('sermons', () => TheVine.flock.sermons.list({ limit: 60 }));
+        const serRes  = await _fetch('sermons', () => _isFirebaseComms() ? UpperRoom.listSermons({ limit: 60 }) : TheVine.flock.sermons.list({ limit: 60 }));
         const sermons = _rows(serRes);
         _dataCache['sermons'] = sermons;
         const session  = Nehemiah.getSession ? Nehemiah.getSession() : {};
@@ -1660,7 +1668,9 @@ const Modules = (() => {
           html += _empty('&#9733;', 'Select a Sermon', 'Choose a sermon above to view or write reviews.');
           _body(el, html);
         } else {
-          const revRes = await TheVine.flock.sermonReviews.list({ sermonId: _reviewSermonId }).catch(() => ({}));
+          const revRes = _isFirebaseComms()
+            ? await UpperRoom.listSermonReviews({ sermonId: _reviewSermonId }).catch(() => ({}))
+            : await TheVine.flock.sermonReviews.list({ sermonId: _reviewSermonId }).catch(() => ({}));
           const rows   = _rows(revRes);
           if (!rows.length) {
             html += _empty('&#9733;', 'No Reviews Yet', 'No reviews have been written for this sermon.');
@@ -1689,7 +1699,7 @@ const Modules = (() => {
 
       } else {
         // list tab
-        const res  = await _fetch('sermons', () => TheVine.flock.sermons.list({ limit: 60 }));
+        const res  = await _fetch('sermons', () => _isFirebaseComms() ? UpperRoom.listSermons({ limit: 60 }) : TheVine.flock.sermons.list({ limit: 60 }));
         const rows = _filterClosed(_rows(res));
         _dataCache['sermons'] = rows;
         let html = tabBar;
@@ -1748,7 +1758,7 @@ const Modules = (() => {
     _shell(el, 'Albums', 'Photo & media galleries.',
       _btn('+ New Album', "Modules._albumCreate()"));
     try {
-      const res  = await _fetch('albums', () => TheVine.flock.albums.list({ limit: 60 }), _TTL.ref);
+      const res  = await _fetch('albums', () => _isFirebaseComms() ? UpperRoom.listAlbums({ limit: 60 }) : TheVine.flock.albums.list({ limit: 60 }), _TTL.ref);
       const rows = _rows(res);
       _dataCache['albums'] = rows;
       if (!rows.length) {
@@ -1791,7 +1801,7 @@ const Modules = (() => {
       { name: 'coverUrl', label: 'Cover URL',    type: 'text',     placeholder: 'https://...' },
       { name: 'notes',    label: 'Description',  type: 'textarea' },
     ], async data => {
-      await TheVine.flock.albums.create(data);
+      await (_isFirebaseComms() ? UpperRoom.createAlbum(data) : TheVine.flock.albums.create(data));
       _invalidateCache('albums');
       const el = document.getElementById('view-albums');
       if (el) { el.dataset.loaded = ''; _reg['albums'](el); }
@@ -1808,7 +1818,7 @@ const Modules = (() => {
       { name: 'notes',    label: 'Description',  type: 'textarea', value: r.notes || r.description || '' },
     ], async data => {
       data.id = id;
-      await TheVine.flock.albums.update(data);
+      await (_isFirebaseComms() ? UpperRoom.updateAlbum(data) : TheVine.flock.albums.update(data));
       _invalidateCache('albums');
       const el = document.getElementById('view-albums');
       if (el) { el.dataset.loaded = ''; _reg['albums'](el); }
@@ -1818,7 +1828,7 @@ const Modules = (() => {
   async function _albumDelete(id) {
     if (!confirm('Delete this album? This cannot be undone.')) return;
     try {
-      await TheVine.flock.albums.delete({ id });
+      await (_isFirebaseComms() ? UpperRoom.deleteAlbum(id) : TheVine.flock.albums.delete({ id }));
       _invalidateCache('albums');
       const el = document.getElementById('view-albums');
       if (el) { el.dataset.loaded = ''; _reg['albums'](el); }
@@ -1854,7 +1864,7 @@ const Modules = (() => {
     _shell(el, 'Services', 'Plan, build & schedule your worship services.', _btn('+ New Service', 'Modules.newServicePlan()'));
     var rows = [];
     try {
-      var res = await _fetch('services', () => TheVine.flock.servicePlans.list({ limit: 100 }));
+      var res = await _fetch('services', () => _isFirebaseComms() ? UpperRoom.listServicePlans({ limit: 100 }) : TheVine.flock.servicePlans.list({ limit: 100 }));
       rows = _filterClosed(_rows(res));
     } catch(e) { _body(el, _errHtml(e.message)); return; }
 
@@ -1931,7 +1941,9 @@ const Modules = (() => {
     var planData, items, setlistRows;
     try {
       if (!_svcViewPlanData) {
-        var pr = await TheVine.flock.servicePlans.list({ id: planId, limit: 1 }).catch(() => null);
+        var pr = _isFirebaseComms()
+          ? await UpperRoom.listServicePlans({ id: planId, limit: 1 }).catch(() => null)
+          : await TheVine.flock.servicePlans.list({ id: planId, limit: 1 }).catch(() => null);
         _svcViewPlanData = pr ? (_rows(pr)[0] || {}) : {};
       }
       planData = _svcViewPlanData;
@@ -2088,7 +2100,7 @@ const Modules = (() => {
       // Team tab — volunteers for this service date
       var volRows = [];
       try {
-        var vr = await TheVine.flock.volunteers.list({ limit: 100, serviceDate: planData.serviceDate||'' }).catch(() => null);
+        var vr = _isFirebaseComms() ? await UpperRoom.listVolunteers({ limit: 100, serviceDate: planData.serviceDate||'' }).catch(() => null) : await TheVine.flock.volunteers.list({ limit: 100, serviceDate: planData.serviceDate||'' }).catch(() => null);
         volRows = vr ? _rows(vr) : [];
       } catch(_) {}
       tabContent += '<div style="display:flex;gap:7px;justify-content:flex-end;margin-bottom:12px;">'
@@ -2233,7 +2245,7 @@ const Modules = (() => {
     var pid = _svcViewPlanId || _svcActivePlanId;
     var songOpts = [{ value:'', label:'(choose song)' }];
     try {
-      var sr = await TheVine.flock.call('songs.list', { limit: 200 });
+      var sr = _isFirebaseComms() ? await UpperRoom.listSongs({ limit: 200 }) : await TheVine.flock.call('songs.list', { limit: 200 });
       _rows(sr).forEach(function(s) {
         songOpts.push({ value: String(s.id), label: (s.title||'') + (s.defaultKey ? ' ['+s.defaultKey+']' : '') });
       });
@@ -2637,7 +2649,7 @@ const Modules = (() => {
     const body = document.getElementById('stand-body');
     if (body) body.innerHTML = '<div style="color:rgba(255,255,255,0.35);text-align:center;padding:40px;">Loading&#8230;</div>';
     try {
-      const res  = await TheVine.flock.call('songs.get', { songId });
+      const res  = _isFirebaseComms() ? await UpperRoom.getSong(songId) : await TheVine.flock.call('songs.get', { songId });
       const song = (res && res.row) ? res.row : null;
       if (!song) throw new Error('Song not found.');
       const arrs = Array.isArray(song.arrangements) ? song.arrangements : [];
@@ -2736,7 +2748,7 @@ const Modules = (() => {
     _shell(el, 'Songs', 'Worship music catalog \u2014 browse, search & preview chord charts.', _btn('+ Add Song', 'Modules.newSong()'));
     var rows = [];
     try {
-      var res = await _fetch('songs', () => TheVine.flock.call('songs.list', {}));
+      var res = await _fetch('songs', () => _isFirebaseComms() ? UpperRoom.listSongs() : TheVine.flock.call('songs.list', {}));
       rows = _rows(res);
       _dataCache['songs'] = rows;
     } catch(e) { _body(el, _errHtml(e.message)); return; }
@@ -2989,8 +3001,8 @@ const Modules = (() => {
 
       } else if (_ministryTab === 'summary') {
         const [sumRes, treeRes] = await Promise.all([
-          TheVine.flock.ministries.summary({}).catch(() => ({})),
-          TheVine.flock.ministries.tree({}).catch(() => ({}))
+          (_isFirebaseComms() ? UpperRoom.ministrySummary() : TheVine.flock.ministries.summary({})).catch(() => ({})),
+          (_isFirebaseComms() ? UpperRoom.ministryTree() : TheVine.flock.ministries.tree({})).catch(() => ({}))
         ]);
         const stats = (sumRes && sumRes.summary) ? sumRes.summary : (sumRes || {});
         const tree  = _rows(treeRes);
@@ -3027,7 +3039,7 @@ const Modules = (() => {
 
       } else {
         // list tab
-        const res  = await _fetch('ministries', () => TheVine.flock.ministries.list());
+        const res  = await _fetch('ministries', () => _isFirebaseComms() ? UpperRoom.listMinistries() : TheVine.flock.ministries.list());
         const rows = _rows(res);
         _dataCache['ministries'] = rows;
         let html = tabBar;
@@ -3068,7 +3080,7 @@ const Modules = (() => {
   }
 
   async function _minAddMember() {
-    const [dirRes, minRes] = await Promise.all([_ensureMemberDir(), _fetch('ministries', () => TheVine.flock.ministries.list())]);
+    const [dirRes, minRes] = await Promise.all([_ensureMemberDir(), _fetch('ministries', () => _isFirebaseComms() ? UpperRoom.listMinistries() : TheVine.flock.ministries.list())]);
     const mOpts = _memberOpts(_rows(dirRes));
     const mins  = _rows(minRes);
     const minOpts = mins.map(m => m.name || '');
@@ -3144,7 +3156,7 @@ const Modules = (() => {
       _btn('+ Schedule Volunteer', "Modules.newVolunteer()"));
     try {
       const [volRes, dirRes] = await Promise.all([
-        _fetch('volunteers', () => TheVine.flock.volunteers.list({ limit: 60 })),
+        _fetch('volunteers', () => _isFirebaseComms() ? UpperRoom.listVolunteers({ limit: 60 }) : TheVine.flock.volunteers.list({ limit: 60 })),
         _ensureMemberDir()
       ]);
       const rows = _rows(volRes);
@@ -3164,7 +3176,7 @@ const Modules = (() => {
           const mName = _mLookup[r.memberId] || r.memberName || r.name || r.email || r.memberId || '';
           const mNum  = dir.find(d => d.id === r.memberId);
           const cardLink = mNum
-            ? '<a href="javascript:void(0)" onclick="event.stopPropagation();window.open(TheVine.flock.memberCards.vcard({memberNumber:\'' + _e(mNum.memberNumber) + '\'}))" style="color:var(--accent);font-size:0.75rem;margin-right:8px;" title="Download vCard">\u2B07 vCard</a>'
+            ? '<a href="javascript:void(0)" onclick="event.stopPropagation();Modules._vcardOpen(\'' + _e(mNum.memberNumber) + '\')" style="color:var(--accent);font-size:0.75rem;margin-right:8px;" title="Download vCard">\u2B07 vCard</a>'
             : '';
           const schedBtn = '<button onclick="Modules._volSchedule(\'' + rid + '\')" style="font-size:0.72rem;padding:3px 8px;border:1px solid var(--line);border-radius:5px;background:none;color:var(--ink-muted);cursor:pointer;margin-right:4px;font-family:inherit;">&#128197; Schedule</button>'
             + '<button onclick="Modules._volSwap(\'' + rid + '\')" style="font-size:0.72rem;padding:3px 8px;border:1px solid var(--line);border-radius:5px;background:none;color:var(--ink-muted);cursor:pointer;font-family:inherit;">⇌ Swap</button>';
@@ -3205,7 +3217,8 @@ const Modules = (() => {
       { name: 'notes',        label: 'Notes',           type: 'textarea', value: r.notes || '' },
     ], async data => {
       data.id = volId;
-      await TheVine.flock.volunteers.update(data);
+      if (_isFirebaseComms()) { await UpperRoom.updateVolunteer(data); }
+      else { await TheVine.flock.volunteers.update(data); }
       _invalidateCache('volunteers');
       const el = document.getElementById('view-volunteers');
       if (el) { el.dataset.loaded = ''; _reg['volunteers'](el); }
@@ -3221,7 +3234,8 @@ const Modules = (() => {
       { name: 'swapWith', label: 'Replace With (member)', type: 'select', options: mOpts, required: true },
     ], async data => {
       if (!data.swapWith) { _toast('Please select a replacement member.', 'warn'); return; }
-      await TheVine.flock.volunteers.swap({ id: volId, swapWith: data.swapWith });
+      if (_isFirebaseComms()) { await UpperRoom.swapVolunteer({ id: volId, swapWith: data.swapWith }); }
+      else { await TheVine.flock.volunteers.swap({ id: volId, swapWith: data.swapWith }); }
       _invalidateCache('volunteers');
       const el = document.getElementById('view-volunteers');
       if (el) { el.dataset.loaded = ''; _reg['volunteers'](el); }
@@ -3428,10 +3442,10 @@ const Modules = (() => {
       // ─── DASHBOARD ───────────────────────────────────────────────────────
       if (_discTab === 'dashboard') {
         const [enrollRes, mentRes, goalRes, certRes] = await Promise.all([
-          TheVine.flock.discipleship.enrollments.list({ limit: 200 }),
-          TheVine.flock.discipleship.mentoring.list({ limit: 200 }),
-          TheVine.flock.discipleship.goals.list({ limit: 200 }),
-          TheVine.flock.discipleship.certificates.list({ limit: 100 }),
+          _isFirebaseComms() ? UpperRoom.listDiscEnrollments({ limit: 200 }) : TheVine.flock.discipleship.enrollments.list({ limit: 200 }),
+          _isFirebaseComms() ? UpperRoom.listDiscMentoring({ limit: 200 }) : TheVine.flock.discipleship.mentoring.list({ limit: 200 }),
+          _isFirebaseComms() ? UpperRoom.listDiscGoals({ limit: 200 }) : TheVine.flock.discipleship.goals.list({ limit: 200 }),
+          _isFirebaseComms() ? UpperRoom.listDiscCertificates({ limit: 100 }) : TheVine.flock.discipleship.certificates.list({ limit: 100 }),
         ]);
         const enrollments = _rows(enrollRes);
         const mentoring   = _rows(mentRes);
@@ -3490,7 +3504,7 @@ const Modules = (() => {
 
       // ─── PATHS ───────────────────────────────────────────────────────────
       } else if (_discTab === 'paths') {
-        const res  = await _fetch('disc-paths', () => TheVine.flock.discipleship.paths.list());
+        const res  = await _fetch('disc-paths', () => _isFirebaseComms() ? UpperRoom.listDiscPaths() : TheVine.flock.discipleship.paths.list());
         const rows = _rows(res);
         _dataCache['disc-paths'] = rows;
 
@@ -3521,7 +3535,7 @@ const Modules = (() => {
       // ─── ENROLLMENTS ─────────────────────────────────────────────────────
       } else if (_discTab === 'enrollments') {
         await _ensureMemberDir();
-        const res  = await _fetch('disc-enrollments', () => TheVine.flock.discipleship.enrollments.list({ limit: 100 }));
+        const res  = await _fetch('disc-enrollments', () => _isFirebaseComms() ? UpperRoom.listDiscEnrollments({ limit: 100 }) : TheVine.flock.discipleship.enrollments.list({ limit: 100 }));
         const rows = _rows(res);
         _dataCache['disc-enrollments'] = rows;
 
@@ -3553,7 +3567,7 @@ const Modules = (() => {
       // ─── MENTORING ───────────────────────────────────────────────────────
       } else if (_discTab === 'mentoring') {
         await _ensureMemberDir();
-        const res  = await _fetch('disc-mentoring', () => TheVine.flock.discipleship.mentoring.list({ limit: 100 }));
+        const res  = await _fetch('disc-mentoring', () => _isFirebaseComms() ? UpperRoom.listDiscMentoring({ limit: 100 }) : TheVine.flock.discipleship.mentoring.list({ limit: 100 }));
         const rows = _rows(res);
         _dataCache['disc-mentoring'] = rows;
 
@@ -3571,7 +3585,7 @@ const Modules = (() => {
       // ─── GOALS ───────────────────────────────────────────────────────────
       } else if (_discTab === 'goals') {
         await _ensureMemberDir();
-        const res  = await _fetch('disc-goals', () => TheVine.flock.discipleship.goals.list({ limit: 100 }));
+        const res  = await _fetch('disc-goals', () => _isFirebaseComms() ? UpperRoom.listDiscGoals({ limit: 100 }) : TheVine.flock.discipleship.goals.list({ limit: 100 }));
         const rows = _rows(res);
         _dataCache['disc-goals'] = rows;
 
@@ -3588,7 +3602,7 @@ const Modules = (() => {
 
       // ─── ASSESSMENTS ─────────────────────────────────────────────────────
       } else if (_discTab === 'assessments') {
-        const res  = await _fetch('disc-assessments', () => TheVine.flock.discipleship.assessments.list({ limit: 100 }));
+        const res  = await _fetch('disc-assessments', () => _isFirebaseComms() ? UpperRoom.listDiscAssessments({ limit: 100 }) : TheVine.flock.discipleship.assessments.list({ limit: 100 }));
         const rows = _rows(res);
         _dataCache['disc-assessments'] = rows;
 
@@ -3605,7 +3619,7 @@ const Modules = (() => {
 
       // ─── MILESTONES ──────────────────────────────────────────────────────
       } else if (_discTab === 'milestones') {
-        const res  = await _fetch('disc-milestones', () => TheVine.flock.discipleship.milestones.list({ limit: 100 }));
+        const res  = await _fetch('disc-milestones', () => _isFirebaseComms() ? UpperRoom.listDiscMilestones({ limit: 100 }) : TheVine.flock.discipleship.milestones.list({ limit: 100 }));
         const rows = _rows(res);
         _dataCache['disc-milestones'] = rows;
 
@@ -3636,7 +3650,7 @@ const Modules = (() => {
 
       // ─── CERTIFICATES ────────────────────────────────────────────────────
       } else if (_discTab === 'certificates') {
-        const res  = await _fetch('disc-certs', () => TheVine.flock.discipleship.certificates.list({ limit: 100 }));
+        const res  = await _fetch('disc-certs', () => _isFirebaseComms() ? UpperRoom.listDiscCertificates({ limit: 100 }) : TheVine.flock.discipleship.certificates.list({ limit: 100 }));
         const rows = _rows(res);
         _dataCache['disc-certs'] = rows;
 
@@ -3863,7 +3877,7 @@ const Modules = (() => {
       + '</div>';
     try {
       if (_lrnTab === 'dashboard') {
-        const dashRes = await TheVine.flock.learning.dashboard({}).catch(() => ({}));
+        const dashRes = await (_isFirebaseComms() ? UpperRoom.lrnDashboard() : TheVine.flock.learning.dashboard({})).catch(() => ({}));
         const d = (dashRes && dashRes.dashboard) ? dashRes.dashboard
                 : (dashRes && dashRes.data)       ? dashRes.data : dashRes || {};
         let html = tabBar;
@@ -3874,7 +3888,7 @@ const Modules = (() => {
         html += _mStat('Quizzes',      d.totalQuizzes     ?? d.quizzes    ?? '—', 'var(--gold)');
         html += _mStat('Completions',  d.completions      ?? '—',                 'var(--accent-cyan, var(--accent))');
         html += '</div>';
-        const recentRes = await TheVine.flock.learning.playlists.list({ limit: 5, sort: 'recent' }).catch(() => ({}));
+        const recentRes = await (_isFirebaseComms() ? UpperRoom.listLrnPlaylists({ limit: 5, sort: 'recent' }) : TheVine.flock.learning.playlists.list({ limit: 5, sort: 'recent' })).catch(() => ({}));
         const recent    = _rows(recentRes);
         if (recent.length) {
           html += '<h4 style="margin:0 0 10px;font-size:0.88rem;">Recent Playlists</h4>';
@@ -3891,7 +3905,7 @@ const Modules = (() => {
         _body(el, html);
 
       } else if (_lrnTab === 'playlists') {
-        const res  = await TheVine.flock.learning.playlists.list({ limit: 80 });
+        const res  = await (_isFirebaseComms() ? UpperRoom.listLrnPlaylists({ limit: 80 }) : TheVine.flock.learning.playlists.list({ limit: 80 }));
         const rows = _filterClosed(_rows(res));
         _dataCache['learning.playlists'] = rows;
         let html = tabBar;
@@ -3924,7 +3938,7 @@ const Modules = (() => {
         _body(el, html);
 
       } else if (_lrnTab === 'topics') {
-        const res  = await TheVine.flock.learning.topics.list({ limit: 100 });
+        const res  = await (_isFirebaseComms() ? UpperRoom.listLrnTopics({ limit: 100 }) : TheVine.flock.learning.topics.list({ limit: 100 }));
         const rows = _filterClosed(_rows(res));
         _dataCache['learning.topics'] = rows;
         let html = tabBar;
@@ -3955,7 +3969,7 @@ const Modules = (() => {
         _body(el, html);
 
       } else if (_lrnTab === 'quizzes') {
-        const res  = await TheVine.flock.learning.quizzes.list({ limit: 60 });
+        const res  = await (_isFirebaseComms() ? UpperRoom.listLrnQuizzes({ limit: 60 }) : TheVine.flock.learning.quizzes.list({ limit: 60 }));
         const rows = _filterClosed(_rows(res));
         _dataCache['learning.quizzes'] = rows;
         let html = tabBar;
@@ -3990,7 +4004,7 @@ const Modules = (() => {
         _body(el, html);
 
       } else if (_lrnTab === 'recs') {
-        const res  = await TheVine.flock.learning.recommendations.list({ limit: 80 });
+        const res  = await (_isFirebaseComms() ? UpperRoom.listLrnRecommendations({ limit: 80 }) : TheVine.flock.learning.recommendations.list({ limit: 80 }));
         const rows = _rows(res);
         _dataCache['learning.recs'] = rows;
         let html = tabBar;
@@ -4051,7 +4065,7 @@ const Modules = (() => {
         html += '<div id="lrn-sermon-results">';
         if (_lrnSermonQuery.q || _lrnSermonQuery.preacher || _lrnSermonQuery.scripture || _lrnSermonQuery.topic) {
           try {
-            const res  = await TheVine.flock.learning.sermons.search(_lrnSermonQuery);
+            const res  = await (_isFirebaseComms() ? UpperRoom.searchLrnSermons(_lrnSermonQuery) : TheVine.flock.learning.sermons.search(_lrnSermonQuery));
             const hits = _rows(res);
             if (!hits.length) {
               html = html.replace('<div id="lrn-sermon-results">', '')
@@ -4101,7 +4115,7 @@ const Modules = (() => {
     _shell(el, 'Theology', "Church doctrinal statements & beliefs.",
       _btn('+ New Category', "Modules.newTheologyCategory()"));
     try {
-      const res  = await _fetch('theology', () => TheVine.flock.theology.categories.list(), _TTL.ref);
+      const res  = await _fetch('theology', () => _isFirebaseComms() ? UpperRoom.listTheologyCategories() : TheVine.flock.theology.categories.list(), _TTL.ref);
       const rows = _rows(res);
       _dataCache['theology'] = rows;
       _body(el, _table(
@@ -4125,7 +4139,7 @@ const Modules = (() => {
   _def('library', async el => {
     _shell(el, 'The Word of God', '66 Books of the Bible \u2014 encyclopedic reference.', '');
     try {
-      const raw  = await _fetch('library', () => TheVine.app.books(), _TTL.ref);
+      const raw  = await _fetch('library', () => _isFirebaseComms() ? UpperRoom.listAppContent('books') : TheVine.app.books(), _TTL.ref);
       const rows = Array.isArray(raw) ? raw : _rows(raw);
       if (!rows.length) { _body(el, _empty('&#128214;', 'No books yet', 'Add book entries in the Truth spreadsheet.')); return; }
 
@@ -4223,7 +4237,7 @@ const Modules = (() => {
   _def('genealogy', async el => {
     _shell(el, 'Genealogy', 'Biblical characters \u2014 names, roles & lineages.', '');
     try {
-      const raw  = await _fetch('genealogy', () => TheVine.app.genealogy(), _TTL.ref);
+      const raw  = await _fetch('genealogy', () => _isFirebaseComms() ? UpperRoom.listAppContent('genealogy') : TheVine.app.genealogy(), _TTL.ref);
       const rows = Array.isArray(raw) ? raw : _rows(raw);
       if (!rows.length) { _body(el, _empty('&#128101;', 'No genealogy data yet', 'Add entries in the Matthew spreadsheet.')); return; }
 
@@ -4392,7 +4406,7 @@ const Modules = (() => {
   _def('counseling', async el => {
     _shell(el, 'Biblical Counseling', 'Compassionate, Scripture-centered guidance for every season of life.', '');
     try {
-      const raw  = await _fetch('counseling', () => TheVine.app.counseling(), _TTL.ref);
+      const raw  = await _fetch('counseling', () => _isFirebaseComms() ? UpperRoom.listAppContent('counseling') : TheVine.app.counseling(), _TTL.ref);
       const rows = Array.isArray(raw) ? raw : _rows(raw);
       if (!rows.length) { _body(el, _empty('&#9878;', 'No protocols yet', 'Add counseling protocols in the Matthew spreadsheet.')); return; }
 
@@ -4492,11 +4506,11 @@ const Modules = (() => {
 
       // Fetch devotionals + reading + (if logged in) journal & prayer data
       const fetches = [
-        _fetch('devotionals', () => TheVine.app.devotionals(), _TTL.ref),
-        _fetch('reading', () => TheVine.app.reading(), _TTL.ref).catch(() => [])
+        _fetch('devotionals', () => _isFirebaseComms() ? UpperRoom.listAppContent('devotionals') : TheVine.app.devotionals(), _TTL.ref),
+        _fetch('reading', () => _isFirebaseComms() ? UpperRoom.listAppContent('reading') : TheVine.app.reading(), _TTL.ref).catch(() => [])
       ];
       if (isLoggedIn) {
-        fetches.push(_fetch('journal', () => TheVine.flock.journal.list({ limit: 200 })).catch(() => []));
+        fetches.push(_fetch('journal', () => _isFirebaseComms() ? UpperRoom.listJournal({ limit: 200 }) : TheVine.flock.journal.list({ limit: 200 })).catch(() => []));
         fetches.push(_fetch('prayer-public', () => TheVine.flock.call('prayer.listPublic', { limit: 200 }, { skipAuth: true })).catch(() => []));
       }
       const results = await Promise.all(fetches);
@@ -4946,7 +4960,7 @@ const Modules = (() => {
   function _rpWarmRefresh() {
     if (_rpWarmDone) return;
     _rpWarmDone = true;
-    TheVine.app.reading().then(function(raw) {
+    (_isFirebaseComms() ? UpperRoom.listAppContent('reading') : TheVine.app.reading()).then(function(raw) {
       var rows = Array.isArray(raw) ? raw : _rows(raw);
       if (rows.length) _readingRows = rows;
     }).catch(function() {});
@@ -4955,7 +4969,7 @@ const Modules = (() => {
   _def('reading', async el => {
     _shell(el, 'Reading Plan', 'Daily Bible reading \u2014 OT, NT, Psalms & Proverbs.', '');
     try {
-      var raw  = await TheVine.app.reading();
+      var raw  = await (_isFirebaseComms() ? UpperRoom.listAppContent('reading') : TheVine.app.reading());
       var rows = Array.isArray(raw) ? raw : _rows(raw);
       _readingRows = rows;
       _rpShown = _rpPageSize;
@@ -5037,7 +5051,7 @@ const Modules = (() => {
   _def('words', async el => {
     _shell(el, 'Lexicon', "Strong\u2019s Concordance \u2014 Hebrew & Greek word studies.", '');
     try {
-      const raw  = await TheVine.app.words();
+      const raw  = await (_isFirebaseComms() ? UpperRoom.listAppContent('words') : TheVine.app.words());
       const rows = Array.isArray(raw) ? raw : _rows(raw);
       if (!rows.length) { _body(el, _empty('&#10017;', 'No lexicon data yet', 'Add word entries in the Matthew spreadsheet.')); return; }
 
@@ -5294,7 +5308,7 @@ const Modules = (() => {
       + 'padding:10px 18px;font-weight:700;cursor:pointer;font-size:0.82rem;font-family:inherit;letter-spacing:0.03em;">'
       + '\uD83D\uDE4F Request Prayer</button>');
     try {
-      const raw  = await TheVine.app.heart();
+      const raw  = await (_isFirebaseComms() ? UpperRoom.listAppContent('heart') : TheVine.app.heart());
       const rows = Array.isArray(raw) ? raw : _rows(raw);
       if (!rows.length) { _body(el, _empty('&#10084;', 'No questions yet', 'Add diagnostic questions in the Matthew spreadsheet.')); return; }
 
@@ -5571,7 +5585,7 @@ const Modules = (() => {
     });
     var noteBody = lines.join('\n');
     try {
-      await TheVine.flock.notes.create({
+      await (_isFirebaseComms() ? UpperRoom.createPastoralNote : TheVine.flock.notes.create)({
         noteType:  'soul-care',
         title:     'Mirror Triage \u2014 ' + new Date().toLocaleDateString(),
         body:      noteBody,
@@ -5595,7 +5609,7 @@ const Modules = (() => {
       + 'padding:10px 18px;font-weight:700;cursor:pointer;font-size:0.82rem;font-family:inherit;letter-spacing:0.03em;">'
       + '\uD83D\uDCCB Send Triage Report</button>');
     try {
-      const raw  = await TheVine.app.mirror();
+      const raw  = await (_isFirebaseComms() ? UpperRoom.listAppContent('mirror') : TheVine.app.mirror());
       const rows = Array.isArray(raw) ? raw : _rows(raw);
       if (!rows.length) { _body(el, _empty('&#128270;', 'No triage data yet', 'Add Mirror questions in the Matthew spreadsheet.')); return; }
 
@@ -5702,7 +5716,7 @@ const Modules = (() => {
   _def('app-theology', async el => {
     _shell(el, 'Doctrine', 'Our statement of faith & systematic theology.', '');
     try {
-      const raw  = await _fetch('theology-flat', () => TheVine.flock.theology.flat(), _TTL.ref);
+      const raw  = await _fetch('theology-flat', () => _isFirebaseComms() ? UpperRoom.theologyFlat() : TheVine.flock.theology.flat(), _TTL.ref);
       const rows = Array.isArray(raw) ? raw : _rows(raw);
       if (!rows.length) { _body(el, _empty('&#9768;', 'No doctrine yet', 'Add theology categories & sections in the admin portal.')); return; }
 
@@ -5777,7 +5791,7 @@ const Modules = (() => {
     _shell(el, 'Bible Quiz', 'Test your Bible knowledge',
       _btn('↻ New Quiz', "Modules.startQuiz()"));
     try {
-      const raw  = await TheVine.app.quiz();
+      const raw  = await (_isFirebaseComms() ? UpperRoom.listAppContent('quiz') : TheVine.app.quiz());
       const rows = Array.isArray(raw) ? raw : _rows(raw);
       if (!rows.length) { _body(el, _empty('&#10068;', 'No quiz questions yet', 'Add quiz data in the Matthew spreadsheet.')); return; }
       // Show as interactive quiz — pick 10 random questions
@@ -6113,7 +6127,7 @@ const Modules = (() => {
   _def('apologetics', async el => {
     _shell(el, 'Apologetics', 'Defending the faith — common questions & biblical answers.', '');
     try {
-      const raw  = await _fetch('apologetics', () => TheVine.app.apologetics(), _TTL.ref);
+      const raw  = await _fetch('apologetics', () => _isFirebaseComms() ? UpperRoom.listAppContent('apologetics') : TheVine.app.apologetics(), _TTL.ref);
       const rows = Array.isArray(raw) ? raw : _rows(raw);
       if (!rows.length) { _body(el, _empty('&#9878;', 'No apologetics data yet', 'Add entries in the Matthew spreadsheet.')); return; }
 
@@ -6476,15 +6490,19 @@ const Modules = (() => {
     if (!msg) { _toast('Original message not found.', 'danger'); return; }
     const quoted = (msg.body || '').split('\n').map(l => '> ' + l).join('\n');
     try {
-      await TheVine.flock.comms.messages.send({
-        threadId:      msg.threadId,
-        recipientId:   msg.senderEmail || msg.senderId,
-        recipientName: msg.senderName || '',
-        recipientType: 'Member',
-        subject:       'Re: ' + (msg.subject || '').replace(/^Re:\s*/i, ''),
-        body:          body + '\n\n' + quoted,
-        replyToId:     msg.id,
-      });
+      if (_isFirebaseComms() && msg.threadId) {
+        await UpperRoom.sendMessage(msg.threadId, body + '\n\n' + quoted);
+      } else {
+        await TheVine.flock.comms.messages.send({
+          threadId:      msg.threadId,
+          recipientId:   msg.senderEmail || msg.senderId,
+          recipientName: msg.senderName || '',
+          recipientType: 'Member',
+          subject:       'Re: ' + (msg.subject || '').replace(/^Re:\s*/i, ''),
+          body:          body + '\n\n' + quoted,
+          replyToId:     msg.id,
+        });
+      }
       _toast('Reply sent!');
       _commsOpenMsg = null;
       _invalidateCache('comms-inbox');
@@ -6506,7 +6524,7 @@ const Modules = (() => {
     if (!msg) { _toast('Message not found.', 'warn'); return; }
     // Mark read
     if (cache === 'inbox' && !msg.read && !msg.isRead) {
-      try { await TheVine.flock.comms.readReceipts.create({ messageId: id }); } catch (_) {}
+      try { if (!_isFirebaseComms()) await TheVine.flock.comms.readReceipts.create({ messageId: id }); } catch (_) {}
       msg.read = true;
     }
     const b = el.querySelector('#ml-body');
@@ -6518,7 +6536,8 @@ const Modules = (() => {
     var b = document.querySelector('#view-comms #ml-body');
     if (b) b.innerHTML = _spinner();
     try {
-      await TheVine.flock.comms.messages.delete({ id });
+      if (_isFirebaseComms()) { await UpperRoom.deleteConversation(id); }
+      else { await TheVine.flock.comms.messages.delete({ id }); }
       _commsOpenMsg = null;
       _reload('comms');
     } catch (e) { _toast(e.message || 'Delete failed.', 'danger'); }
@@ -6527,7 +6546,8 @@ const Modules = (() => {
   // Archive an inbox message (move to archived state)
   async function archiveMessage(id, cache) {
     try {
-      await TheVine.flock.comms.messages.archive({ id });
+      if (_isFirebaseComms()) { await UpperRoom.archiveConversation(id); }
+      else { await TheVine.flock.comms.messages.archive({ id }); }
       _commsOpenMsg = null;
       _invalidateCache('comms-inbox');
       _toast('Message archived.');
@@ -6540,7 +6560,7 @@ const Modules = (() => {
     const rows = _dataCache['comms-' + cache] || [];
     const msg  = rows.find(r => r.id === id || String(r.id) === id);
     try {
-      await TheVine.flock.comms.readReceipts.delete({ messageId: id });
+      if (!_isFirebaseComms()) await TheVine.flock.comms.readReceipts.delete({ messageId: id });
       if (msg) { msg.read = false; msg.isRead = false; }
       _commsOpenMsg = null;
       _toast('Marked as unread.');
@@ -6570,7 +6590,7 @@ const Modules = (() => {
       const thread  = threads.find(function(r) { return r.id === threadId || String(r.id) === threadId; }) || {};
       const subject = thread.subject || thread.title || 'Thread';
 
-      const res  = await TheVine.flock.comms.threads.messages({ id: threadId });
+      const res  = await (_isFirebaseComms() ? UpperRoom.getMessages(threadId) : TheVine.flock.comms.threads.messages({ id: threadId }));
       const msgs = _rows(res);
 
       var html = '<div style="margin-bottom:16px;display:flex;align-items:center;gap:12px;">'
@@ -6634,7 +6654,8 @@ const Modules = (() => {
     var btn = ta && ta.parentElement ? ta.parentElement.querySelector('button:last-child') : null;
     if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
     try {
-      await TheVine.flock.comms.threads.reply({ id: threadId, body: body });
+      if (_isFirebaseComms()) { await UpperRoom.sendMessage(threadId, body); }
+      else { await TheVine.flock.comms.threads.reply({ id: threadId, body: body }); }
       if (ta) ta.value = '';
       _toast('Reply sent!');
       var el = document.getElementById('view-comms');
@@ -6694,13 +6715,18 @@ const Modules = (() => {
 
   async function _threadArchive(id) {
     if (!confirm('Archive this thread?')) return;
-    await TheVine.flock.comms.threads.archive({ id: id });
+    if (_isFirebaseComms()) { await UpperRoom.archiveConversation(id); }
+    else { await TheVine.flock.comms.threads.archive({ id: id }); }
     _invalidateCache('comms-threads');
     commsView('threads');
   }
 
   async function _threadMuteToggle(id, isMuted) {
-    await TheVine.flock.comms.threads[isMuted ? 'unmute' : 'mute']({ id: id });
+    if (_isFirebaseComms()) {
+      await UpperRoom.updateConversation(id, { muted: !isMuted });
+    } else {
+      await TheVine.flock.comms.threads[isMuted ? 'unmute' : 'mute']({ id: id });
+    }
     _invalidateCache('comms-threads');
     commsView('threads');
   }
@@ -6712,7 +6738,8 @@ const Modules = (() => {
       { name: 'memberId', label: 'Member', type: 'select', options: mOpts, required: true },
     ], async function(data) {
       try {
-        await TheVine.flock.comms.threads.addParticipant({ id: id, memberId: data.memberId });
+        if (_isFirebaseComms()) { await UpperRoom.addParticipant(id, data.memberId); }
+        else { await TheVine.flock.comms.threads.addParticipant({ id: id, memberId: data.memberId }); }
         _toast('Participant added.');
       } catch (e) { _toast('Error: ' + e.message, 'danger'); }
     });
@@ -6977,7 +7004,7 @@ const Modules = (() => {
     var tabFetcher;
     if (_fb) {
       tabFetcher = _commsTab === 'notifications'
-        ? _fetch('comms-notifs',     () => TheVine.flock.comms.notifications.list({ limit: 60 }), _TTL.msg)
+        ? _fetch('comms-notifs',     () => UpperRoom.listNotifications({ limit: 60 }), _TTL.msg)
         : _commsTab === 'notifPrefs'
           ? UpperRoom.getNotifPrefs()
           : _commsTab === 'channels'
@@ -7009,7 +7036,7 @@ const Modules = (() => {
 
     const [, notifResult, tabResult] = await Promise.all([
       _ensureMemberDir().catch(() => []),
-      TheVine.flock.comms.notifications.unreadCount().catch(() => ({})),
+      (_isFirebaseComms() ? UpperRoom.getUnreadCount().then(function(c) { return { unreadCount: c }; }) : TheVine.flock.comms.notifications.unreadCount()).catch(() => ({})),
       tabFetcher
     ]);
 
@@ -7514,12 +7541,12 @@ const Modules = (() => {
   async function _notifMarkRead(id) {
     const row = document.getElementById('notif-row-' + id);
     if (row) { row.style.background = 'transparent'; }
-    try { await TheVine.flock.comms.notifications.markRead({ id }); } catch (_) {}
+    try { await (_isFirebaseComms() ? UpperRoom.markNotifRead(id) : TheVine.flock.comms.notifications.markRead({ id })); } catch (_) {}
   }
 
   async function _notifMarkAllRead() {
     try {
-      await TheVine.flock.comms.notifications.markRead({ all: true });
+      await (_isFirebaseComms() ? UpperRoom.markAllNotifsRead() : TheVine.flock.comms.notifications.markRead({ all: true }));
       _invalidateCache('comms-notifs');
       commsView('notifications');
     } catch (e) { _toast('Error: ' + e.message, 'danger'); }
@@ -7528,7 +7555,7 @@ const Modules = (() => {
   async function _notifDismiss(id) {
     const row = document.getElementById('notif-row-' + id);
     if (row) { row.style.opacity = '0'; row.style.transition = 'opacity .25s'; setTimeout(() => row.remove(), 260); }
-    try { await TheVine.flock.comms.notifications.dismiss({ id }); } catch (_) {}
+    try { await (_isFirebaseComms() ? UpperRoom.dismissNotification(id) : TheVine.flock.comms.notifications.dismiss({ id })); } catch (_) {}
   }
 
   function _notifBroadcastPanel() {
@@ -7578,6 +7605,7 @@ const Modules = (() => {
   }
 
   async function _sendTestEmail() {
+    if (_isFirebaseComms()) { _toast('Test email not available in Firebase mode — emails use GAS.', 'info'); return; }
     _toast('Sending test email…', 'info');
     try {
       const res = await TheVine.flock.comms.notifications.testEmail();
@@ -7706,7 +7734,8 @@ const Modules = (() => {
     ], async data => {
       data.recipientType = 'Member';
       data.templateId    = id;
-      await TheVine.flock.comms.messages.send(data);
+      if (_isFirebaseComms()) { await UpperRoom.createThread(data.subject, [data.recipientId], data.body); }
+      else { await TheVine.flock.comms.messages.send(data); }
       _reload('comms');
     }, 'Send');
   }
@@ -7716,7 +7745,8 @@ const Modules = (() => {
   async function _threadArchive(id) {
     if (!confirm('Archive this thread?')) return;
     try {
-      await TheVine.flock.comms.threads.archive({ id });
+      if (_isFirebaseComms()) { await UpperRoom.archiveConversation(id); }
+      else { await TheVine.flock.comms.threads.archive({ id }); }
       _invalidateCache('comms-threads');
       commsView('threads');
     } catch (e) { _toast('Error: ' + e.message, 'danger'); }
@@ -7724,8 +7754,13 @@ const Modules = (() => {
 
   async function _threadMuteToggle(id, isMuted) {
     try {
-      if (isMuted) { await TheVine.flock.comms.threads.unmute({ id }); _toast('Thread unmuted.'); }
-      else         { await TheVine.flock.comms.threads.mute({ id });   _toast('Thread muted.'); }
+      if (_isFirebaseComms()) {
+        await UpperRoom.updateConversation(id, { muted: !isMuted });
+        _toast(isMuted ? 'Thread unmuted.' : 'Thread muted.');
+      } else {
+        if (isMuted) { await TheVine.flock.comms.threads.unmute({ id }); _toast('Thread unmuted.'); }
+        else         { await TheVine.flock.comms.threads.mute({ id });   _toast('Thread muted.'); }
+      }
       _invalidateCache('comms-threads');
       commsView('threads');
     } catch (e) { _toast('Error: ' + e.message, 'danger'); }
@@ -7736,8 +7771,9 @@ const Modules = (() => {
     const mOpts = _memberOpts(dir);
     _modal('Add Participant to Thread', [
       { name: 'memberId', label: 'Member', type: 'select', options: mOpts, required: true },
-    ], async data => {
-      await TheVine.flock.comms.threads.addParticipant({ id, memberId: data.memberId });
+    ], async function(data) {
+      if (_isFirebaseComms()) { await UpperRoom.addParticipant(id, data.memberId); }
+      else { await TheVine.flock.comms.threads.addParticipant({ id, memberId: data.memberId }); }
       _toast('Participant added.');
     });
   }
@@ -7745,6 +7781,7 @@ const Modules = (() => {
   // ── Read Receipts ─────────────────────────────────────────────────────────
 
   async function _viewReadReceipts(msgId) {
+    if (_isFirebaseComms()) { _toast('Read receipts not available in Firebase mode.', 'info'); return; }
     try {
       const res  = await TheVine.flock.comms.readReceipts.forMessage({ messageId: msgId });
       const rows = _rows(res);
@@ -8060,7 +8097,7 @@ const Modules = (() => {
       //  WORLD MISSIONS — country grid with persecution/access data
       // ══════════════════════════════════════════════════════════════════
       if (_missionsTab === 'world') {
-        const raw  = await TheVine.missions.registry.list({ limit: 200 });
+        const raw  = await (_isFirebaseComms() ? UpperRoom.listMissionsRegistry({ limit: 200 }) : TheVine.missions.registry.list({ limit: 200 }));
         const rows = _rows(raw);
         _dataCache['missions-world'] = rows;
 
@@ -8132,9 +8169,9 @@ const Modules = (() => {
       // ══════════════════════════════════════════════════════════════════
       } else if (_missionsTab === 'local') {
         const [rawPartners, rawTeams, rawUpdates] = await Promise.all([
-          TheVine.missions.partners.list({ limit: 100 }),
-          TheVine.missions.teams.list({ limit: 60 }),
-          TheVine.missions.updates.list({ limit: 30 }),
+          _isFirebaseComms() ? UpperRoom.listMissionsPartners({ limit: 100 }) : TheVine.missions.partners.list({ limit: 100 }),
+          _isFirebaseComms() ? UpperRoom.listMissionsTeams({ limit: 60 }) : TheVine.missions.teams.list({ limit: 60 }),
+          _isFirebaseComms() ? UpperRoom.listMissionsUpdates({ limit: 30 }) : TheVine.missions.updates.list({ limit: 30 }),
         ]);
         const partners = _rows(rawPartners).filter(r => {
           const type = String(r.partnerType || r.type || '').toLowerCase();
@@ -8192,7 +8229,7 @@ const Modules = (() => {
       //  PRAYER FOCUS — urgent prayer needs by country / people group
       // ══════════════════════════════════════════════════════════════════
       } else if (_missionsTab === 'prayer') {
-        const raw   = await TheVine.missions.prayerFocus.list({ limit: 80 });
+        const raw   = await (_isFirebaseComms() ? UpperRoom.listMissionsPrayerFocus({ limit: 80 }) : TheVine.missions.prayerFocus.list({ limit: 80 }));
         const rows  = _rows(raw);
         _dataCache['missions-prayer'] = rows;
 
@@ -8284,7 +8321,7 @@ const Modules = (() => {
       //  TEAMS — mission trip teams (short/long term)
       // ══════════════════════════════════════════════════════════════════
       } else if (_missionsTab === 'teams') {
-        const raw  = await TheVine.missions.teams.list({ limit: 60 });
+        const raw  = await (_isFirebaseComms() ? UpperRoom.listMissionsTeams({ limit: 60 }) : TheVine.missions.teams.list({ limit: 60 }));
         const rows = _rows(raw);
         _dataCache['missions-teams'] = rows;
 
@@ -8320,7 +8357,7 @@ const Modules = (() => {
       //  PARTNERS — sending agencies, NGOs, partner organizations
       // ══════════════════════════════════════════════════════════════════
       } else if (_missionsTab === 'partners') {
-        const raw  = await TheVine.missions.partners.list({ limit: 100 });
+        const raw  = await (_isFirebaseComms() ? UpperRoom.listMissionsPartners({ limit: 100 }) : TheVine.missions.partners.list({ limit: 100 }));
         const rows = _rows(raw);
         _dataCache['missions-partners'] = rows;
 
@@ -8362,7 +8399,7 @@ const Modules = (() => {
       //  UPDATES — field reports, prayer alerts, situation reports
       // ══════════════════════════════════════════════════════════════════
       } else if (_missionsTab === 'updates') {
-        const raw  = await TheVine.missions.updates.list({ limit: 60 });
+        const raw  = await (_isFirebaseComms() ? UpperRoom.listMissionsUpdates({ limit: 60 }) : TheVine.missions.updates.list({ limit: 60 }));
         const rows = _rows(raw);
         _dataCache['missions-updates'] = rows;
 
@@ -8435,7 +8472,7 @@ const Modules = (() => {
     try {
       if (_givingTab === 'pledges') {
         const [pledgeRes, dirRes] = await Promise.all([
-          _fetch('giving-pledges', () => TheVine.flock.giving.pledges.list({ limit: 100 }), _TTL.crm),
+          _fetch('giving-pledges', () => _isFirebaseComms() ? UpperRoom.listPledges({ limit: 100 }) : TheVine.flock.giving.pledges.list({ limit: 100 }), _TTL.crm),
           _ensureMemberDir()
         ]);
         const rows    = _rows(pledgeRes);
@@ -8496,7 +8533,7 @@ const Modules = (() => {
 
       } else {
         // gifts tab — API fields: memberId, donorName, amount, currency, date, fund, method, checkNumber, transactionRef, isTaxDeductible, notes
-        const res  = await TheVine.flock.giving.list({ limit: 60 });
+        const res  = await (_isFirebaseComms() ? UpperRoom.listGiving({ limit: 60 }) : TheVine.flock.giving.list({ limit: 60 }));
         const rows = _rows(res);
         _dataCache['giving'] = rows;
         let html = tabBar;
@@ -8563,7 +8600,7 @@ const Modules = (() => {
 
     try {
       if (_statsTab === 'dashboard') {
-        const res   = await TheVine.extra.statistics.dashboard().catch(() => ({}));
+        const res   = await (_isFirebaseComms() ? UpperRoom.statsDashboard() : TheVine.extra.statistics.dashboard()).catch(() => ({}));
         const raw   = (res && res.stats) ? res.stats : (res && res.data) ? res.data : res;
         const items = Array.isArray(raw)
           ? raw
@@ -8604,7 +8641,7 @@ const Modules = (() => {
         _body(el, html);
 
       } else if (_statsTab === 'trends') {
-        const res  = await TheVine.extra.statistics.trends({ period: 90 }).catch(() => ({}));
+        const res  = await (_isFirebaseComms() ? UpperRoom.statsTrends({ period: 90 }) : TheVine.extra.statistics.trends({ period: 90 })).catch(() => ({}));
         const raw  = (res && res.trends) ? res.trends : (res && res.data) ? res.data : res;
         const items = Array.isArray(raw) ? raw : Object.entries(raw || {}).map(([k, v]) => ({ metric: k, data: v }));
 
@@ -8648,7 +8685,7 @@ const Modules = (() => {
         _body(el, html);
 
       } else if (_statsTab === 'snapshots') {
-        const res  = await TheVine.extra.statistics.snapshots.list({ limit: 30 }).catch(() => ({}));
+        const res  = await (_isFirebaseComms() ? UpperRoom.listStatsSnapshots({ limit: 30 }) : TheVine.extra.statistics.snapshots.list({ limit: 30 })).catch(() => ({}));
         const rows = _rows(res);
         _dataCache['stat-snapshots'] = rows;
 
@@ -8680,7 +8717,7 @@ const Modules = (() => {
         _body(el, html);
 
       } else if (_statsTab === 'views') {
-        const res  = await TheVine.extra.statistics.views.list().catch(() => ({}));
+        const res  = await (_isFirebaseComms() ? UpperRoom.listStatsViews() : TheVine.extra.statistics.views.list()).catch(() => ({}));
         const rows = _rows(res);
         _dataCache['stat-views'] = rows;
 
@@ -8710,7 +8747,7 @@ const Modules = (() => {
 
       } else {
         // config
-        const res  = await TheVine.extra.statistics.config.list().catch(() => ({}));
+        const res  = await (_isFirebaseComms() ? UpperRoom.listStatsConfig() : TheVine.extra.statistics.config.list()).catch(() => ({}));
         const rows = _rows(res);
         _dataCache['stat-config'] = rows;
 
@@ -8751,7 +8788,7 @@ const Modules = (() => {
   async function _statsCompute() {
     if (!confirm('Run statistics computation now? This may take a moment.')) return;
     try {
-      await TheVine.extra.statistics.compute({});
+      await (_isFirebaseComms() ? UpperRoom.statsCompute() : TheVine.extra.statistics.compute({}));
       _toast('Statistics computed!');
       _invalidateCache('stat-snapshots');
       statsView('dashboard');
@@ -8760,11 +8797,11 @@ const Modules = (() => {
 
   async function _statsExport() {
     try {
-      const res = await TheVine.extra.statistics.export({ format: 'csv' });
+      const res = await (_isFirebaseComms() ? UpperRoom.statsExport() : TheVine.extra.statistics.export({ format: 'csv' }));
       const url = (res && res.url) ? res.url : (res && res.downloadUrl) ? res.downloadUrl : null;
       if (url) { window.open(url, '_blank'); return; }
       // Fallback: build CSV from dashboard data
-      const dash = await TheVine.extra.statistics.dashboard().catch(() => ({}));
+      const dash = await (_isFirebaseComms() ? UpperRoom.statsDashboard() : TheVine.extra.statistics.dashboard()).catch(() => ({}));;
       const raw  = (dash && dash.stats) ? dash.stats : (dash && dash.data) ? dash.data : dash;
       const items = Array.isArray(raw) ? raw : Object.entries(raw || {}).map(([k, v]) => ({ label: k, value: v }));
       if (!items.length) { _toast('No data to export.', 'warn'); return; }
@@ -8783,7 +8820,7 @@ const Modules = (() => {
   async function _statsTrendPeriod(days) {
     try {
       const el  = document.getElementById('view-statistics');
-      const res = await TheVine.extra.statistics.trends({ period: days }).catch(() => ({}));
+      const res = await (_isFirebaseComms() ? UpperRoom.statsTrends({ period: days }) : TheVine.extra.statistics.trends({ period: days })).catch(() => ({}));
       const raw = (res && res.trends) ? res.trends : (res && res.data) ? res.data : res;
       const items = Array.isArray(raw) ? raw : Object.entries(raw || {}).map(([k, v]) => ({ metric: k, data: v }));
       // Re-render trends section — simplest approach: reload tab
@@ -8795,7 +8832,7 @@ const Modules = (() => {
     _modal('Take Statistics Snapshot', [
       { name: 'label', label: 'Label / Description', placeholder: 'e.g. End of Q1 2026' },
     ], async data => {
-      await TheVine.extra.statistics.snapshots.create(data);
+      await (_isFirebaseComms() ? UpperRoom.createStatsSnapshot(data) : TheVine.extra.statistics.snapshots.create(data));
       _toast('Snapshot taken!');
       _invalidateCache('stat-snapshots');
       statsView('snapshots');
@@ -8804,7 +8841,7 @@ const Modules = (() => {
 
   async function _statsSnapshotView(id) {
     try {
-      const res  = await TheVine.extra.statistics.snapshots.get({ id });
+      const res  = await (_isFirebaseComms() ? UpperRoom.getStatsSnapshot(id) : TheVine.extra.statistics.snapshots.get({ id }));
       const snap = (res && res.snapshot) ? res.snapshot : (res || {});
       const metrics = snap.metrics || snap.data || snap;
       const items = Array.isArray(metrics) ? metrics
@@ -8825,7 +8862,7 @@ const Modules = (() => {
   async function _statsSnapshotDelete(id) {
     if (!confirm('Delete this snapshot?')) return;
     try {
-      await TheVine.extra.statistics.snapshots.delete({ id });
+      await (_isFirebaseComms() ? UpperRoom.deleteStatsSnapshot(id) : TheVine.extra.statistics.snapshots.delete({ id }));
       _invalidateCache('stat-snapshots');
       statsView('snapshots');
     } catch (e) { _toast('Error: ' + e.message, 'danger'); }
@@ -8838,7 +8875,7 @@ const Modules = (() => {
       { name: 'metrics',     label: 'Metric Keys (comma-separated)', placeholder: 'e.g. memberCount,attendance,giving' },
     ], async data => {
       if (data.metrics) data.metrics = data.metrics.split(',').map(s => s.trim()).filter(Boolean);
-      await TheVine.extra.statistics.views.create(data);
+      await (_isFirebaseComms() ? UpperRoom.createStatsView(data) : TheVine.extra.statistics.views.create(data));
       _invalidateCache('stat-views');
       statsView('views');
     });
@@ -8854,7 +8891,7 @@ const Modules = (() => {
       { name: 'metrics',     label: 'Metric Keys (comma-separated)', value: metricStr },
     ], async data => {
       if (data.metrics) data.metrics = data.metrics.split(',').map(s => s.trim()).filter(Boolean);
-      await TheVine.extra.statistics.views.update({ id, ...data });
+      await (_isFirebaseComms() ? UpperRoom.updateStatsView({ id, ...data }) : TheVine.extra.statistics.views.update({ id, ...data }));
       _invalidateCache('stat-views');
       statsView('views');
     });
@@ -8863,7 +8900,7 @@ const Modules = (() => {
   async function _statsViewDelete(id) {
     if (!confirm('Delete this view?')) return;
     try {
-      await TheVine.extra.statistics.views.delete({ id });
+      await (_isFirebaseComms() ? UpperRoom.deleteStatsView(id) : TheVine.extra.statistics.views.delete({ id }));
       _invalidateCache('stat-views');
       statsView('views');
     } catch (e) { _toast('Error: ' + e.message, 'danger'); }
@@ -8878,7 +8915,7 @@ const Modules = (() => {
         options: ['daily','weekly','monthly','manual'] },
       { name: 'formula',   label: 'Formula / Notes', type: 'textarea' },
     ], async data => {
-      await TheVine.extra.statistics.config.create(data);
+      await (_isFirebaseComms() ? UpperRoom.createStatsConfig(data) : TheVine.extra.statistics.config.create(data));
       _invalidateCache('stat-config');
       statsView('config');
     });
@@ -8887,7 +8924,7 @@ const Modules = (() => {
   async function _statsConfigEdit(id) {
     let c = (_dataCache['stat-config'] || []).find(r => String(r.id) === id);
     if (!c) {
-      try { const res = await TheVine.extra.statistics.config.get({ id }); c = (res && res.config) ? res.config : (res || {}); }
+      try { const res = await (_isFirebaseComms() ? UpperRoom.getStatsConfig(id) : TheVine.extra.statistics.config.get({ id })); c = (res && res.config) ? res.config : (res || {}); }
       catch (_) { c = {}; }
     }
     _modal('Edit Metric', [
@@ -8899,7 +8936,7 @@ const Modules = (() => {
         value: c.frequency || c.computeFrequency || 'manual' },
       { name: 'formula',   label: 'Formula / Notes', type: 'textarea', value: c.formula || '' },
     ], async data => {
-      await TheVine.extra.statistics.config.update({ id, ...data });
+      await (_isFirebaseComms() ? UpperRoom.updateStatsConfig({ id, ...data }) : TheVine.extra.statistics.config.update({ id, ...data }));
       _invalidateCache('stat-config');
       statsView('config');
     });
@@ -8908,7 +8945,7 @@ const Modules = (() => {
   async function _statsConfigDelete(id) {
     if (!confirm('Delete this metric definition?')) return;
     try {
-      await TheVine.extra.statistics.config.delete({ id });
+      await (_isFirebaseComms() ? UpperRoom.deleteStatsConfig(id) : TheVine.extra.statistics.config.delete({ id }));
       _invalidateCache('stat-config');
       statsView('config');
     } catch (e) { _toast('Error: ' + e.message, 'danger'); }
@@ -8944,7 +8981,7 @@ const Modules = (() => {
       + '</div>';
     try {
       if (_mcTab === 'dashboard') {
-        const dashRes = await TheVine.flock.memberCards.dashboard({}).catch(() => ({}));
+        const dashRes = await (_isFirebaseComms() ? UpperRoom.memberCardsDashboard() : TheVine.flock.memberCards.dashboard({})).catch(() => ({}));
         const d = (dashRes && dashRes.dashboard) ? dashRes.dashboard
                 : (dashRes && dashRes.data)       ? dashRes.data : dashRes || {};
         let html = tabBar;
@@ -8957,7 +8994,7 @@ const Modules = (() => {
         _body(el, html);
 
       } else if (_mcTab === 'mycard') {
-        const res = await TheVine.flock.memberCards.mine({}).catch(() => null);
+        const res = await (_isFirebaseComms() ? UpperRoom.memberCardsMine() : TheVine.flock.memberCards.mine({})).catch(() => null);
         const c   = res && (res.card || res.data || res);
         let html  = tabBar;
         if (!c || !c.id) {
@@ -8983,7 +9020,7 @@ const Modules = (() => {
         _body(el, html);
 
       } else if (_mcTab === 'cards') {
-        const res  = await TheVine.flock.memberCards.list({ limit: 80 });
+        const res  = await (_isFirebaseComms() ? UpperRoom.listMemberCards({ limit: 80 }) : TheVine.flock.memberCards.list({ limit: 80 }));
         const rows = _filterClosed(_rows(res));
         _dataCache['memberCards.list'] = rows;
         let html = tabBar;
@@ -9025,8 +9062,8 @@ const Modules = (() => {
 
       } else { // analytics
         const [listRes, mineRes] = await Promise.all([
-          TheVine.flock.memberCards.views.list({ limit: 80 }).catch(() => ({})),
-          TheVine.flock.memberCards.views.mine({}).catch(() => ({})),
+          (_isFirebaseComms() ? UpperRoom.listCardViews({ limit: 80 }) : TheVine.flock.memberCards.views.list({ limit: 80 })).catch(() => ({})),
+          (_isFirebaseComms() ? UpperRoom.myCardViews() : TheVine.flock.memberCards.views.mine({})).catch(() => ({})),
         ]);
         const all  = _rows(listRes);
         const mine = _rows(mineRes);
@@ -9073,7 +9110,7 @@ const Modules = (() => {
     const el = document.getElementById('mc-links-' + String(cardId));
     if (!el) return;
     try {
-      const res  = await TheVine.flock.memberCards.links.list({ cardId }).catch(() => ({}));
+      const res  = await (_isFirebaseComms() ? UpperRoom.listCardLinks({ cardId }) : TheVine.flock.memberCards.links.list({ cardId })).catch(() => ({}));
       const rows = _rows(res);
       if (!rows.length) { el.innerHTML = '<div style="font-size:0.78rem;color:var(--ink-muted);">No links yet.</div>'; return; }
       el.innerHTML = rows.map(r => {
@@ -9098,7 +9135,7 @@ const Modules = (() => {
         const url   = (document.getElementById('mcl-url')   || {}).value || '';
         if (!url) return _toast('URL is required.');
         try {
-          await TheVine.flock.memberCards.links.create({ cardId, label, url });
+          await (_isFirebaseComms() ? UpperRoom.createCardLink({ cardId, label, url }) : TheVine.flock.memberCards.links.create({ cardId, label, url }));
           _toast('Link added!');
           memberCardsView('mycard');
         } catch(e) { _toast('Error: ' + e.message); }
@@ -9108,14 +9145,14 @@ const Modules = (() => {
 
   function _mcLinkDelete(id) {
     if (!confirm('Delete this link?')) return;
-    TheVine.flock.memberCards.links.delete({ id })
+    (_isFirebaseComms() ? UpperRoom.deleteCardLink({ id }) : TheVine.flock.memberCards.links.delete({ id }))
       .then(() => { _toast('Link deleted.'); memberCardsView('mycard'); })
       .catch(e  => _toast('Error: ' + e.message));
   }
 
   function _mcArchive(id) {
     if (!confirm('Archive this member card?')) return;
-    TheVine.flock.memberCards.archive({ id })
+    (_isFirebaseComms() ? UpperRoom.memberCardsArchive({ id }) : TheVine.flock.memberCards.archive({ id }))
       .then(() => { _toast('Card archived.'); _invalidateCache('memberCards.list'); memberCardsView('cards'); })
       .catch(e  => _toast('Error: ' + e.message));
   }
@@ -9131,7 +9168,7 @@ const Modules = (() => {
         const prefix = (document.getElementById('mbp-prefix') || {}).value || '';
         if (!count || count < 1) return _toast('Enter a count of at least 1.');
         try {
-          await TheVine.flock.memberCards.bulkProvision({ count, prefix });
+          await (_isFirebaseComms() ? UpperRoom.memberCardsBulkProvision({ count, prefix }) : TheVine.flock.memberCards.bulkProvision({ count, prefix }));
           _toast(count + ' cards provisioned!');
           _invalidateCache('memberCards.list');
           memberCardsView('cards');
@@ -9146,7 +9183,7 @@ const Modules = (() => {
     const out = document.getElementById('mc-lookup-result');
     if (out) out.innerHTML = _spinner();
     try {
-      const res = await TheVine.flock.memberCards.byNumber({ cardNumber: num });
+      const res = await (_isFirebaseComms() ? UpperRoom.memberCardsByNumber({ cardNumber: num }) : TheVine.flock.memberCards.byNumber({ cardNumber: num }));
       const c   = res && (res.card || res.data || res);
       if (!c || !c.id) { if (out) out.innerHTML = _empty('&#128269;', 'Not Found', 'No card matches that number.'); return; }
       let html = '<div style="max-width:480px;background:var(--bg-raised);border:1px solid var(--line);border-radius:8px;padding:16px;">';
@@ -9214,7 +9251,7 @@ const Modules = (() => {
     if (dash) {
       dash.innerHTML = _spinner();
       try {
-        const res  = await TheVine.flock.reports.dashboard();
+        const res  = await (_isFirebaseComms() ? UpperRoom.reportsDashboard() : TheVine.flock.reports.dashboard());
         const d    = (res && res.dashboard) ? res.dashboard : (res && res.data && res.data.dashboard) ? res.data.dashboard : res;
         const att  = d.attendance30d  || {};
         const giv  = d.giving30d      || {};
@@ -10285,7 +10322,7 @@ const Modules = (() => {
     _shell(el, 'Control Panel', 'System provisioning, security, and administration.',
       _btn('\uD83D\uDD04 Refresh', 'Modules._reloadConfig()'));
     try {
-      const res  = await TheVine.flock.config.list();
+      const res  = await (_isFirebaseComms() ? UpperRoom.listAppConfig() : TheVine.flock.config.list());
       const rows = _rows(res);
       _dataCache['config'] = rows;
 
@@ -10321,33 +10358,51 @@ const Modules = (() => {
       html += '<div class="settings-stat-card"><div class="settings-stat-value" style="font-size:1rem;">' + _e(currentPrefix) + '</div><div class="settings-stat-label">Card Prefix</div></div>';
       html += '</div>';
 
-      // ── Section 0: Security — Lockdown ──────────────────────────────
-      const lockdownRow = rows.find(r => (r.key || r.configKey) === 'LOCKDOWN');
-      const isLocked = lockdownRow ? String(lockdownRow.value || 'FALSE').toUpperCase() === 'TRUE' : false;
-
+      // ── Section 0: Security — Maintenance Mode ───────────────────────
+      // Maintenance status lives in global appConfig/system (not church-scoped)
+      // Render the section with a placeholder, then async-fill once Firestore responds
       html += '<details class="settings-section settings-accordion">';
       html += '<summary class="settings-accordion-trigger"><span class="settings-accordion-chevron">&#9654;</span>';
       html += '<span class="settings-section-icon">\uD83D\uDEE1\uFE0F</span>';
       html += '<span class="settings-accordion-label">Security</span>';
-      html += '<span class="settings-accordion-count">' + (isLocked ? '\u26A0 LOCKED' : 'Normal') + '</span>';
+      html += '<span class="settings-accordion-count" id="maintenance-badge">…</span>';
       html += '</summary>';
       html += '<div class="settings-accordion-body">';
       html += '<div class="settings-card">';
       html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">';
       html += '<div>';
-      html += '<div class="settings-card-label">\uD83D\uDD12 Lockdown Mode</div>';
+      html += '<div class="settings-card-label">\uD83D\uDD12 Maintenance Mode</div>';
       html += '<p class="settings-card-hint" style="margin:4px 0 0;">When enabled, the public portal shows a maintenance page and only Pastor / Admin can access the admin portal.</p>';
       html += '</div>';
       html += '<label class="settings-toggle">';
-      html += '<input type="checkbox" id="lockdown-toggle"' + (isLocked ? ' checked' : '') + ' onchange="Modules.toggleLockdown(this.checked)">';
+      html += '<input type="checkbox" id="lockdown-toggle" onchange="Modules.toggleLockdown(this.checked)">';
       html += '<span class="settings-toggle-slider"></span>';
       html += '</label>';
       html += '</div>';
-      if (isLocked) {
-        html += '<div style="margin-top:12px;padding:10px 14px;border-radius:8px;background:var(--warning,#c98b2e);color:#fff;font-weight:600;font-size:0.85rem;">\u26A0 LOCKDOWN IS ACTIVE — Public portal is blocked. Only Pastor &amp; Admin can access admin.</div>';
-      }
+      html += '<div id="maintenance-active-banner" style="display:none;margin-top:12px;padding:10px 14px;border-radius:8px;background:var(--warning,#c98b2e);color:#fff;font-weight:600;font-size:0.85rem;">\u26A0 MAINTENANCE IS ACTIVE — Public portal is blocked. Only Pastor &amp; Admin can access admin.</div>';
       html += '</div></div>';
       html += '</div></details>';
+
+      // Async-fill maintenance toggle from Firestore
+      (function() {
+        if (typeof UpperRoom !== 'undefined' && UpperRoom.getMaintenanceStatus) {
+          UpperRoom.getMaintenanceStatus().then(function(data) {
+            var active = !!(data && data.maintenance);
+            var badge = document.getElementById('maintenance-badge');
+            if (badge) badge.textContent = active ? '\u26A0 MAINTENANCE' : 'Normal';
+            var cb = document.getElementById('lockdown-toggle');
+            if (cb) cb.checked = active;
+            var banner = document.getElementById('maintenance-active-banner');
+            if (banner) banner.style.display = active ? '' : 'none';
+          }).catch(function() {
+            var badge = document.getElementById('maintenance-badge');
+            if (badge) badge.textContent = 'Normal';
+          });
+        } else {
+          var badge = document.getElementById('maintenance-badge');
+          if (badge) badge.textContent = 'Normal';
+        }
+      })();
 
       // ── Section 1: Identity & Branding ──────────────────────────────
       html += '<details class="settings-section settings-accordion">';
@@ -11240,7 +11295,7 @@ const Modules = (() => {
     async function _render() {
       _shell(el, 'Access Control', 'Manage user roles and system access.', '');
       try {
-        var res  = await _fetch('access-list', () => TheVine.flock.access.list(), _TTL.crm);
+        var res  = await _fetch('access-list', () => _isFirebaseComms() ? UpperRoom.listAccess() : TheVine.flock.access.list(), _TTL.crm);
         var rows = _rows(res);
 
         var h = '';
@@ -11317,7 +11372,7 @@ const Modules = (() => {
       email = email.trim().toLowerCase();
       if (!email) { _toast('Email is required.', 'warn'); return; }
       try {
-        await TheVine.flock.access.set({ email: email, role: role, displayName: name });
+        await (_isFirebaseComms() ? UpperRoom.setAccess({ email: email, role: role, displayName: name }) : TheVine.flock.access.set({ email: email, role: role, displayName: name }));
         _invalidateCache('access-list');
         _toast('Access updated for ' + email, 'success');
         await _render();
@@ -11326,7 +11381,7 @@ const Modules = (() => {
 
     Modules._accessSetRole = async function(email, role) {
       try {
-        await TheVine.flock.access.set({ email: email, role: role });
+        await (_isFirebaseComms() ? UpperRoom.setAccess({ email: email, role: role }) : TheVine.flock.access.set({ email: email, role: role }));
         _invalidateCache('access-list');
         _toast('Role updated', 'success');
         await _render();
@@ -11336,7 +11391,7 @@ const Modules = (() => {
     Modules._accessRemove = async function(email) {
       if (!confirm('Remove access for ' + email + '? This cannot be undone.')) return;
       try {
-        await TheVine.flock.access.remove({ email: email });
+        await (_isFirebaseComms() ? UpperRoom.removeAccess({ email: email }) : TheVine.flock.access.remove({ email: email }));
         _invalidateCache('access-list');
         _toast('Access removed', 'warn');
         await _render();
@@ -11489,7 +11544,7 @@ const Modules = (() => {
           return;
         }
         if (status) status.textContent = 'Importing ' + records.length + ' record(s)\u2026';
-        const res     = await TheVine.flock.bulk.membersImport({ records: JSON.stringify(records) });
+        const res     = await (_isFirebaseComms() ? UpperRoom.bulkMembersImport({ records: JSON.stringify(records) }) : TheVine.flock.bulk.membersImport({ records: JSON.stringify(records) }));
         const created = res && res.created != null ? res.created : '?';
         const errs    = res && res.errors && res.errors.length ? ' (' + res.errors.length + ' errors)' : '';
         if (status) status.textContent = 'Import complete: ' + created + ' created' + errs + '.';
@@ -11519,7 +11574,7 @@ const Modules = (() => {
     if (statusEl) statusEl.textContent = 'Preparing \u201c' + tabName + '\u201d export\u2026';
     try {
       // API returns { tab, headers, rows[] } — convert to CSV and trigger download
-      const res = await TheVine.flock.bulk.dataExport({ tab: tabName });
+      const res = await (_isFirebaseComms() ? UpperRoom.bulkDataExport({ tab: tabName }) : TheVine.flock.bulk.dataExport({ tab: tabName }));
       if (res && res.headers && Array.isArray(res.rows)) {
         const csvLines = [res.headers.join(',')];
         res.rows.forEach(row => {
@@ -11925,15 +11980,15 @@ const Modules = (() => {
     try {
       // ── Parallel fetch: public data always, private data only when logged in ──
       const publicFetches = [
-        _fetch('devotionals', () => TheVine.app.devotionals(), _TTL.ref).catch(() => []),
-        _fetch('reading',     () => TheVine.app.reading(),     _TTL.ref).catch(() => []),
+        _fetch('devotionals', () => _isFirebaseComms() ? UpperRoom.listAppContent('devotionals') : TheVine.app.devotionals(), _TTL.ref).catch(() => []),
+        _fetch('reading',     () => _isFirebaseComms() ? UpperRoom.listAppContent('reading') : TheVine.app.reading(),     _TTL.ref).catch(() => []),
       ];
       const privateFetches = isLoggedIn ? [
-        _fetch('journal',    () => TheVine.flock.journal.list({ limit: 200 })).catch(() => []),
+        _fetch('journal',    () => _isFirebaseComms() ? UpperRoom.listJournal({ limit: 200 }) : TheVine.flock.journal.list({ limit: 200 })).catch(() => []),
         _fetch('prayer',     () => _isFirebaseComms() ? UpperRoom.listPrayers({ limit: 200 }) : TheVine.flock.prayer.list({ limit: 200 })).catch(() => []),
         _fetch('care',       () => _isFirebaseComms() ? UpperRoom.listCareCases({ limit: 200 }) : TheVine.flock.care.list({ limit: 200 })).catch(() => []),
         _fetch('compassion', () => _isFirebaseComms() ? UpperRoom.listCompassionRequests({ limit: 200 }) : TheVine.flock.compassion.requests.list({ limit: 200 })).catch(() => []),
-        _fetch('contacts',   () => TheVine.flock.contacts.list({ limit: 500 })).catch(() => []),
+        _fetch('contacts',   () => _isFirebaseComms() ? UpperRoom.listContacts({ limit: 500 }) : TheVine.flock.contacts.list({ limit: 500 })).catch(() => []),
       ] : [];
       const allResults = await Promise.all([...publicFetches, ...privateFetches]);
 
@@ -12442,13 +12497,19 @@ const Modules = (() => {
     var mood  = (document.getElementById('ur-j-mood') || {}).value || '';
     var cat   = (document.getElementById('ur-j-cat') || {}).value || '';
     try {
-      await TheVine.flock.journal.create({
+      await (_isFirebaseComms() ? UpperRoom.createJournal({
         title: title.trim() || ('Upper Room — ' + new Date().toLocaleDateString()),
         entry: entry.trim(),
         category: cat || 'Devotional',
         scriptureRef: '',
         mood: mood
-      });
+      }) : TheVine.flock.journal.create({
+        title: title.trim() || ('Upper Room — ' + new Date().toLocaleDateString()),
+        entry: entry.trim(),
+        category: cat || 'Devotional',
+        scriptureRef: '',
+        mood: mood
+      }));
       _toast('Journal entry saved.');
       _reload('upper-room');
     } catch (err) { _toast('Save failed: ' + (err.message || err), 'danger'); }
@@ -12489,7 +12550,7 @@ const Modules = (() => {
     _shell(el, 'Journal', 'Personal journal — pray, study & reflect',
       _btn('+ New Entry', "Modules.newJournal()"));
     try {
-      const res  = await TheVine.flock.journal.list({ limit: 200 });
+      const res  = await (_isFirebaseComms() ? UpperRoom.listJournal({ limit: 200 }) : TheVine.flock.journal.list({ limit: 200 }));
       const rows = _rows(res);
       _dataCache['journal'] = rows;
 
@@ -12646,7 +12707,7 @@ const Modules = (() => {
       // Check if admin allows custom themes
       let allowCustom = false;
       try {
-        const cfgRes = await TheVine.flock.config.list();
+        const cfgRes = await (_isFirebaseComms() ? UpperRoom.listAppConfig() : TheVine.flock.config.list());
         const cfgRows = _rows(cfgRes);
         const acRow = cfgRows.find(r => (r.key || r.configKey) === 'ALLOW_CUSTOM_THEMES');
         if (acRow) allowCustom = String(acRow.value || 'FALSE').toUpperCase() === 'TRUE';
@@ -12758,7 +12819,7 @@ const Modules = (() => {
       { name: 'description', label: 'Description', type: 'textarea' },
       { name: 'notes',       label: 'Notes', type: 'textarea' },
     ], async data => {
-      await TheVine.flock.groups.create(data);
+      if (_isFirebaseComms()) { await UpperRoom.createGroup(data); } else { await TheVine.flock.groups.create(data); }
       _reload('groups');
     });
   }
@@ -12772,14 +12833,14 @@ const Modules = (() => {
       { name: 'children',    label: 'Children', type: 'number' },
       { name: 'notes',       label: 'Notes',    type: 'textarea' },
     ], async data => {
-      await TheVine.flock.attendance.create(data);
+      if (_isFirebaseComms()) { await UpperRoom.createAttendance(data); } else { await TheVine.flock.attendance.create(data); }
       _reload('attendance');
     });
   }
 
   async function attendanceSummary() {
     try {
-      const res = await TheVine.flock.attendance.summary({});
+      const res = _isFirebaseComms() ? await UpperRoom.attendanceSummary() : await TheVine.flock.attendance.summary({});
       const months = (res && res.summary) ? res.summary : [];
       const totals = (res && res.totals)  ? res.totals  : {};
       _modal('Attendance Summary', [], () => Promise.resolve());
@@ -12841,7 +12902,7 @@ const Modules = (() => {
     ], async data => {
       if (data.rsvpRequired) data.rsvpRequired = data.rsvpRequired === 'true';
       if (data.capacity) data.capacity = parseInt(data.capacity, 10) || 0;
-      await TheVine.flock.events.create(data);
+      if (_isFirebaseComms()) { await UpperRoom.createEvent(data); } else { await TheVine.flock.events.create(data); }
       _reload('events');
     });
   }
@@ -12855,7 +12916,8 @@ const Modules = (() => {
       { name: 'date',       label: 'Delivery Date',      type: 'date' },
       { name: 'notes',      label: 'Notes',              type: 'textarea' },
     ], async data => {
-      await TheVine.flock.sermons.create(data);
+      if (_isFirebaseComms()) { await UpperRoom.createSermon(data); }
+      else { await TheVine.flock.sermons.create(data); }
       _reload('sermons');
     });
   }
@@ -12873,7 +12935,8 @@ const Modules = (() => {
       { name: 'status',      label: 'Status',       type: 'select',
         options: ['Active','Completed','Planned','Archived'] },
     ], async data => {
-      await TheVine.flock.sermonSeries.create(data);
+      if (_isFirebaseComms()) { await UpperRoom.createSermonSeries(data); }
+      else { await TheVine.flock.sermonSeries.create(data); }
       _invalidateCache('sermon-series');
       sermonView('series');
     });
@@ -12882,7 +12945,8 @@ const Modules = (() => {
   async function _sermonSeriesDelete(id) {
     if (!confirm('Delete this sermon series? This cannot be undone.')) return;
     try {
-      await TheVine.flock.sermonSeries.delete({ id });
+      if (_isFirebaseComms()) { await UpperRoom.deleteSermonSeries({ id }); }
+      else { await TheVine.flock.sermonSeries.delete({ id }); }
       _invalidateCache('sermon-series');
       sermonView('series');
     } catch (e) { _toast('Error: ' + e.message, 'danger'); }
@@ -12891,7 +12955,7 @@ const Modules = (() => {
   async function _sermonSeriesEdit(id) {
     let s = (_dataCache['sermon-series'] || []).find(r => String(r.id) === id);
     if (!s) {
-      try { const res = await TheVine.flock.sermonSeries.get({ id }); s = (res && res.series) ? res.series : (res || {}); }
+      try { const res = _isFirebaseComms() ? await UpperRoom.getSermonSeries({ id }) : await TheVine.flock.sermonSeries.get({ id }); s = (res && res.series) ? res.series : (res || {}); }
       catch (_) { s = {}; }
     }
     _modal('Edit Series', [
@@ -12903,7 +12967,8 @@ const Modules = (() => {
         options: ['Active','Completed','Planned','Archived'],
         value: s.status || 'Active' },
     ], async data => {
-      await TheVine.flock.sermonSeries.update({ id, ...data });
+      if (_isFirebaseComms()) { await UpperRoom.updateSermonSeries({ id, ...data }); }
+      else { await TheVine.flock.sermonSeries.update({ id, ...data }); }
       _invalidateCache('sermon-series');
       sermonView('series');
     });
@@ -12912,7 +12977,8 @@ const Modules = (() => {
   async function _sermonSubmit(id) {
     if (!confirm('Submit this sermon for approval?')) return;
     try {
-      await TheVine.flock.sermons.submit({ id });
+      if (_isFirebaseComms()) { await UpperRoom.submitSermon({ id }); }
+      else { await TheVine.flock.sermons.submit({ id }); }
       _invalidateCache('sermons');
       sermonView('list');
     } catch (e) { _toast('Error: ' + e.message, 'danger'); }
@@ -12921,7 +12987,8 @@ const Modules = (() => {
   async function _sermonApprove(id) {
     if (!confirm('Approve this sermon?')) return;
     try {
-      await TheVine.flock.sermons.approve({ id });
+      if (_isFirebaseComms()) { await UpperRoom.approveSermon({ id }); }
+      else { await TheVine.flock.sermons.approve({ id }); }
       _invalidateCache('sermons');
       sermonView('list');
     } catch (e) { _toast('Error: ' + e.message, 'danger'); }
@@ -12933,7 +13000,8 @@ const Modules = (() => {
         value: new Date().toISOString().slice(0, 10) },
       { name: 'notes', label: 'Delivery Notes', type: 'textarea' },
     ], async data => {
-      await TheVine.flock.sermons.deliver({ id, ...data });
+      if (_isFirebaseComms()) { await UpperRoom.deliverSermon({ id, ...data }); }
+      else { await TheVine.flock.sermons.deliver({ id, ...data }); }
       _invalidateCache('sermons');
       sermonView('list');
     }, 'Mark Delivered');
@@ -12946,7 +13014,8 @@ const Modules = (() => {
       { name: 'mediaType', label: 'Type', type: 'select',
         options: ['audio','video','both'] },
     ], async data => {
-      await TheVine.flock.sermons.upload({ id, ...data });
+      if (_isFirebaseComms()) { await UpperRoom.uploadSermonMedia({ id, ...data }); }
+      else { await TheVine.flock.sermons.upload({ id, ...data }); }
       _toast('Media attached!');
     }, 'Upload');
   }
@@ -12954,7 +13023,8 @@ const Modules = (() => {
   async function _sermonDelete(id) {
     if (!confirm('Delete this sermon? This cannot be undone.')) return;
     try {
-      await TheVine.flock.sermons.delete({ id });
+      if (_isFirebaseComms()) { await UpperRoom.deleteSermon({ id }); }
+      else { await TheVine.flock.sermons.delete({ id }); }
       _invalidateCache('sermons');
       sermonView('list');
     } catch (e) { _toast('Error: ' + e.message, 'danger'); }
@@ -12983,7 +13053,8 @@ const Modules = (() => {
       const idx = opts.indexOf(data.sermonId);
       if (idx >= 0) data.sermonId = ids[idx];
       else if (!data.sermonId && defaultSid) data.sermonId = defaultSid;
-      await TheVine.flock.sermonReviews.create(data);
+      if (_isFirebaseComms()) { await UpperRoom.createSermonReview(data); }
+      else { await TheVine.flock.sermonReviews.create(data); }
       sermonView('reviews');
     });
   }
@@ -13000,7 +13071,8 @@ const Modules = (() => {
       { name: 'worshipLeaderId',  label: 'Worship Leader (Member ID or Name)' },
       { name: 'notes',            label: 'Notes',            type: 'textarea' },
     ], async data => {
-      await TheVine.flock.servicePlans.create(data);
+      if (_isFirebaseComms()) { await UpperRoom.createServicePlan(data); }
+      else { await TheVine.flock.servicePlans.create(data); }
       _reload('services');
     });
   }
@@ -13017,7 +13089,8 @@ const Modules = (() => {
       { name: 'tags',        label: 'Tags (comma-separated)' },
       { name: 'lyrics',      label: 'Lyrics',       type: 'textarea' },
     ], async data => {
-      await TheVine.flock.call('songs.create', data);
+      if (_isFirebaseComms()) { await UpperRoom.createSong(data); }
+      else { await TheVine.flock.call('songs.create', data); }
       _reload('songs');
     });
   }
@@ -13031,7 +13104,8 @@ const Modules = (() => {
       { name: 'email',       label: 'Ministry Email', type: 'email' },
       { name: 'description', label: 'Description',    type: 'textarea' },
     ], async data => {
-      await TheVine.flock.ministries.create(data);
+      if (_isFirebaseComms()) { await UpperRoom.createMinistry(data); }
+      else { await TheVine.flock.ministries.create(data); }
       _reload('ministries');
     });
   }
@@ -13054,7 +13128,8 @@ const Modules = (() => {
         options: ['Sunday AM','Sunday PM','Wednesday','Special','Other'] },
       { name: 'notes',       label: 'Notes',         type: 'textarea' },
     ], async data => {
-      await TheVine.flock.volunteers.create(data);
+      if (_isFirebaseComms()) { await UpperRoom.createVolunteer(data); }
+      else { await TheVine.flock.volunteers.create(data); }
       _reload('volunteers');
     });
   }
@@ -13261,7 +13336,7 @@ const Modules = (() => {
       { name: 'studentGuideUrl',       label: 'Student Guide URL' },
       { name: 'description',           label: 'Description',             type: 'textarea' },
     ], async data => {
-      await TheVine.flock.discipleship.paths.create(data);
+      await (_isFirebaseComms() ? UpperRoom.createDiscPath(data) : TheVine.flock.discipleship.paths.create(data));
       if (typeof TheVine !== 'undefined' && TheVine.cache) TheVine.cache.invalidate('tab:disc-paths');
       discipleshipView('paths');
     });
@@ -13284,14 +13359,14 @@ const Modules = (() => {
       { name: 'status',                label: 'Status',                  type: 'select',
         options: ['draft', 'published', 'archived'] },
       { name: 'description',           label: 'Description',             type: 'textarea' },
-    ], p => TheVine.flock.discipleship.paths.update(p), id,
-       p => TheVine.flock.discipleship.paths.get(p));
+    ], p => _isFirebaseComms() ? UpperRoom.updateDiscPath(p) : TheVine.flock.discipleship.paths.update(p), id,
+       p => _isFirebaseComms() ? UpperRoom.getDiscPath(p) : TheVine.flock.discipleship.paths.get(p));
   }
 
   async function _discPublishPath(id) {
     if (!confirm('Publish this path? It will become visible to members.')) return;
     try {
-      await TheVine.flock.discipleship.paths.publish({ id });
+      await (_isFirebaseComms() ? UpperRoom.publishDiscPath({ id }) : TheVine.flock.discipleship.paths.publish({ id }));
       if (typeof TheVine !== 'undefined' && TheVine.cache) TheVine.cache.invalidate('tab:disc-paths');
       _reload('discipleship');
     } catch (e) { _toast(e.message, 'warn'); }
@@ -13300,7 +13375,7 @@ const Modules = (() => {
   async function _discArchivePath(id) {
     if (!confirm('Archive this path? It will no longer be available for enrollment.')) return;
     try {
-      await TheVine.flock.discipleship.paths.archive({ id });
+      await (_isFirebaseComms() ? UpperRoom.archiveDiscPath({ id }) : TheVine.flock.discipleship.paths.archive({ id }));
       if (typeof TheVine !== 'undefined' && TheVine.cache) TheVine.cache.invalidate('tab:disc-paths');
       _reload('discipleship');
     } catch (e) { _toast(e.message, 'warn'); }
@@ -13310,7 +13385,7 @@ const Modules = (() => {
   async function _discManageSteps(pathId) {
     let steps = [];
     try {
-      const res = await TheVine.flock.discipleship.steps.list({ pathId });
+      const res = await (_isFirebaseComms() ? UpperRoom.listDiscSteps({ pathId }) : TheVine.flock.discipleship.steps.list({ pathId }));
       steps = _rows(res).sort((a, b) => Number(a.stepOrder||0) - Number(b.stepOrder||0));
     } catch (e) { _toast('Could not load steps: ' + e.message, 'danger'); return; }
 
@@ -13359,18 +13434,22 @@ const Modules = (() => {
     const btn = document.getElementById('dss-addbtn');
     if (btn) btn.disabled = true;
     try {
-      await TheVine.flock.discipleship.steps.create({
+      await (_isFirebaseComms() ? UpperRoom.createDiscStep({
         pathId, title, stepType: type,
         durationMinutes: dur ? Number(dur) : null,
         scriptureRefs: script, description: desc,
-      });
+      }) : TheVine.flock.discipleship.steps.create({
+        pathId, title, stepType: type,
+        durationMinutes: dur ? Number(dur) : null,
+        scriptureRefs: script, description: desc,
+      }));
       if (document.getElementById('fl-modal')) await _discManageSteps(pathId);
     } catch (e) { _toast(e.message, 'warn'); if (btn) btn.disabled = false; }
   }
 
   async function _discEditStep(stepId, pathId) {
     let s = {};
-    try { s = await TheVine.flock.discipleship.steps.get({ id: stepId }); } catch (_) {}
+    try { s = await (_isFirebaseComms() ? UpperRoom.getDiscStep({ id: stepId }) : TheVine.flock.discipleship.steps.get({ id: stepId })); } catch (_) {}
     _modal('Edit Step', [
       { name: 'title',           label: 'Title',           required: true, value: s.title || '' },
       { name: 'stepType',        label: 'Type',            type: 'select',
@@ -13385,7 +13464,7 @@ const Modules = (() => {
     ], async data => {
       data.id = stepId;
       data.pathId = pathId;
-      await TheVine.flock.discipleship.steps.update(data);
+      await (_isFirebaseComms() ? UpperRoom.updateDiscStep(data) : TheVine.flock.discipleship.steps.update(data));
       await _discManageSteps(pathId);
     });
   }
@@ -13393,7 +13472,7 @@ const Modules = (() => {
   async function _discDeleteStep(stepId, pathId) {
     if (!confirm('Delete this step? This cannot be undone.')) return;
     try {
-      await TheVine.flock.discipleship.steps.delete({ id: stepId });
+      await (_isFirebaseComms() ? UpperRoom.deleteDiscStep({ id: stepId }) : TheVine.flock.discipleship.steps.delete({ id: stepId }));
       await _discManageSteps(pathId);
     } catch (e) { _toast(e.message, 'warn'); }
   }
@@ -13425,7 +13504,7 @@ const Modules = (() => {
       data.pathName        = path   ? path.name : '';
       data.totalSteps      = path   ? (path.totalSteps || 0) : 0;
       data.facilitatorName = fac    ? (fac.preferredName    || ((fac.firstName||'')    + ' ' + (fac.lastName||'')).trim())    : '';
-      await TheVine.flock.discipleship.enrollments.create(data);
+      await (_isFirebaseComms() ? UpperRoom.createDiscEnrollment(data) : TheVine.flock.discipleship.enrollments.create(data));
       if (typeof TheVine !== 'undefined' && TheVine.cache) TheVine.cache.invalidate('tab:disc-enrollments');
       discipleshipView('enrollments');
     });
@@ -13440,14 +13519,14 @@ const Modules = (() => {
       { name: 'status',           label: 'Status', type: 'select',
         options: ['active', 'paused', 'completed', 'withdrawn'] },
       { name: 'notes',            label: 'Notes', type: 'textarea', rows: 2 },
-    ], p => TheVine.flock.discipleship.enrollments.update(p), id,
-       p => TheVine.flock.discipleship.enrollments.get(p));
+    ], p => _isFirebaseComms() ? UpperRoom.updateDiscEnrollment(p) : TheVine.flock.discipleship.enrollments.update(p), id,
+       p => _isFirebaseComms() ? UpperRoom.getDiscEnrollment(p) : TheVine.flock.discipleship.enrollments.get(p));
   }
 
   async function _discAdvanceEnrollment(id) {
     if (!confirm('Mark the current step complete and advance to the next step?')) return;
     try {
-      await TheVine.flock.discipleship.enrollments.advance({ id });
+      await (_isFirebaseComms() ? UpperRoom.advanceDiscEnrollment({ id }) : TheVine.flock.discipleship.enrollments.advance({ id }));
       if (typeof TheVine !== 'undefined' && TheVine.cache) TheVine.cache.invalidate('tab:disc-enrollments');
       _reload('discipleship');
     } catch (e) { _toast(e.message, 'warn'); }
@@ -13476,7 +13555,7 @@ const Modules = (() => {
       const mentee = dir.find(m => m.email === data.menteeId || m.id === data.menteeId);
       data.mentorName = mentor ? (mentor.preferredName || ((mentor.firstName||'') + ' ' + (mentor.lastName||'')).trim()) : '';
       data.menteeName = mentee ? (mentee.preferredName || ((mentee.firstName||'') + ' ' + (mentee.lastName||'')).trim()) : '';
-      await TheVine.flock.discipleship.mentoring.create(data);
+      await (_isFirebaseComms() ? UpperRoom.createDiscMentoring(data) : TheVine.flock.discipleship.mentoring.create(data));
       if (typeof TheVine !== 'undefined' && TheVine.cache) TheVine.cache.invalidate('tab:disc-mentoring');
       discipleshipView('mentoring');
     });
@@ -13496,8 +13575,8 @@ const Modules = (() => {
         options: ['active', 'paused', 'completed'] },
       { name: 'goals',            label: 'Goals',             type: 'textarea', rows: 2 },
       { name: 'notes',            label: 'Notes',             type: 'textarea', rows: 2 },
-    ], p => TheVine.flock.discipleship.mentoring.update(p), id,
-       p => TheVine.flock.discipleship.mentoring.get(p));
+    ], p => _isFirebaseComms() ? UpperRoom.updateDiscMentoring(p) : TheVine.flock.discipleship.mentoring.update(p), id,
+       p => _isFirebaseComms() ? UpperRoom.getDiscMentoring(p) : TheVine.flock.discipleship.mentoring.get(p));
   }
 
   function _discLogMeeting(mentoringId) {
@@ -13518,7 +13597,7 @@ const Modules = (() => {
       { name: 'notes',             label: 'Notes',             type: 'textarea', rows: 2 },
     ], async data => {
       data.mentoringId = mentoringId;
-      await TheVine.flock.discipleship.meetings.create(data);
+      await (_isFirebaseComms() ? UpperRoom.createDiscMeeting(data) : TheVine.flock.discipleship.meetings.create(data));
     });
   }
 
@@ -13546,7 +13625,7 @@ const Modules = (() => {
       const partner = dir.find(m => m.email === data.accountabilityPartnerId || m.id === data.accountabilityPartnerId);
       data.memberName = member ? (member.preferredName || ((member.firstName||'') + ' ' + (member.lastName||'')).trim()) : '';
       data.accountabilityPartnerName = partner ? (partner.preferredName || ((partner.firstName||'') + ' ' + (partner.lastName||'')).trim()) : '';
-      await TheVine.flock.discipleship.goals.create(data);
+      await (_isFirebaseComms() ? UpperRoom.createDiscGoal(data) : TheVine.flock.discipleship.goals.create(data));
       if (typeof TheVine !== 'undefined' && TheVine.cache) TheVine.cache.invalidate('tab:disc-goals');
       discipleshipView('goals');
     });
@@ -13563,7 +13642,7 @@ const Modules = (() => {
       { name: 'notes',           label: 'Notes',         type: 'textarea', rows: 2 },
     ], async data => {
       data.id = id;
-      await TheVine.flock.discipleship.goals.update(data);
+      await (_isFirebaseComms() ? UpperRoom.updateDiscGoal(data) : TheVine.flock.discipleship.goals.update(data));
       if (typeof TheVine !== 'undefined' && TheVine.cache) TheVine.cache.invalidate('tab:disc-goals');
       _reload('discipleship');
     });
@@ -13592,7 +13671,7 @@ const Modules = (() => {
       if (data.scoreTotal && data.scoreMax && Number(data.scoreMax)) {
         data.scorePercent = Math.round((Number(data.scoreTotal) / Number(data.scoreMax)) * 100);
       }
-      await TheVine.flock.discipleship.assessments.create(data);
+      await (_isFirebaseComms() ? UpperRoom.createDiscAssessment(data) : TheVine.flock.discipleship.assessments.create(data));
       if (typeof TheVine !== 'undefined' && TheVine.cache) TheVine.cache.invalidate('tab:disc-assessments');
       discipleshipView('assessments');
     });
@@ -13601,7 +13680,7 @@ const Modules = (() => {
   async function _discViewAssessment(id) {
     let r = (_dataCache['disc-assessments'] || []).find(a => a.id === id);
     if (!r) {
-      try { r = await TheVine.flock.discipleship.assessments.get({ id }); }
+      try { r = await (_isFirebaseComms() ? UpperRoom.getDiscAssessment({ id }) : TheVine.flock.discipleship.assessments.get({ id })); }
       catch (e) { _toast(e.message, 'warn'); return; }
     }
     const scoreHtml = (r.scoreTotal && r.scoreMax)
@@ -13646,7 +13725,7 @@ const Modules = (() => {
       const path   = paths.find(p => p.id === data.pathId);
       data.memberName = member ? (member.preferredName || ((member.firstName||'') + ' ' + (member.lastName||'')).trim()) : '';
       data.pathName   = path   ? path.name : '';
-      await TheVine.flock.discipleship.milestones.create(data);
+      await (_isFirebaseComms() ? UpperRoom.createDiscMilestone(data) : TheVine.flock.discipleship.milestones.create(data));
       if (typeof TheVine !== 'undefined' && TheVine.cache) TheVine.cache.invalidate('tab:disc-milestones');
       discipleshipView('milestones');
     });
@@ -13670,7 +13749,7 @@ const Modules = (() => {
       const path   = paths.find(p => p.id === data.pathId);
       data.memberName = member ? (member.preferredName || ((member.firstName||'') + ' ' + (member.lastName||'')).trim()) : '';
       data.pathName   = path   ? path.name : '';
-      await TheVine.flock.discipleship.certificates.issue(data);
+      await (_isFirebaseComms() ? UpperRoom.issueDiscCertificate(data) : TheVine.flock.discipleship.certificates.issue(data));
       if (typeof TheVine !== 'undefined' && TheVine.cache) TheVine.cache.invalidate('tab:disc-certs');
       discipleshipView('certificates');
     });
@@ -13679,7 +13758,7 @@ const Modules = (() => {
   async function _discRevokeCert(id) {
     if (!confirm('Revoke this certificate? This action cannot be undone.')) return;
     try {
-      await TheVine.flock.discipleship.certificates.revoke({ id });
+      await (_isFirebaseComms() ? UpperRoom.revokeDiscCertificate({ id }) : TheVine.flock.discipleship.certificates.revoke({ id }));
       if (typeof TheVine !== 'undefined' && TheVine.cache) TheVine.cache.invalidate('tab:disc-certs');
       _reload('discipleship');
     } catch (e) { _toast(e.message, 'warn'); }
@@ -13894,7 +13973,7 @@ const Modules = (() => {
       { name: 'topicName',   label: 'Topic' },
       { name: 'description', label: 'Description', type: 'textarea' },
     ], async data => {
-      await TheVine.flock.learning.playlists.create(data);
+      await (_isFirebaseComms() ? UpperRoom.createLrnPlaylist(data) : TheVine.flock.learning.playlists.create(data));
       _invalidateCache('learning.playlists');
       learningView('playlists');
     });
@@ -13916,7 +13995,7 @@ const Modules = (() => {
       { name: 'sortOrder',  label: 'Sort Order',  type: 'number' },
       { name: 'description',label: 'Description', type: 'textarea' },
     ], async data => {
-      await TheVine.flock.learning.topics.create(data);
+      await (_isFirebaseComms() ? UpperRoom.createLrnTopic(data) : TheVine.flock.learning.topics.create(data));
       _invalidateCache('learning.topics');
       learningView('topics');
     });
@@ -13932,7 +14011,7 @@ const Modules = (() => {
       { name: 'status',     label: 'Status',      type: 'select', options: ['Active', 'Archived'], value: cached.status || 'Active' },
       { name: 'description',label: 'Description', type: 'textarea', value: cached.description || '' },
     ], async data => {
-      await TheVine.flock.learning.topics.update({ id, ...data });
+      await (_isFirebaseComms() ? UpperRoom.updateLrnTopic({ id, ...data }) : TheVine.flock.learning.topics.update({ id, ...data }));
       _invalidateCache('learning.topics');
       learningView('topics');
     });
@@ -13944,7 +14023,7 @@ const Modules = (() => {
     const name   = cached.name || cached.title || 'this topic';
     if (!confirm('Delete topic "' + name + '"? Playlists using it will be unlinked.')) return;
     try {
-      await TheVine.flock.learning.topics.delete({ id });
+      await (_isFirebaseComms() ? UpperRoom.deleteLrnTopic({ id }) : TheVine.flock.learning.topics.delete({ id }));
       _invalidateCache('learning.topics');
       _toast('Topic deleted.');
       learningView('topics');
@@ -13958,7 +14037,7 @@ const Modules = (() => {
     const name   = cached.title || cached.name || 'this playlist';
     if (!confirm('Delete playlist "' + name + '"? This cannot be undone.')) return;
     try {
-      await TheVine.flock.learning.playlists.delete({ id });
+      await (_isFirebaseComms() ? UpperRoom.deleteLrnPlaylist({ id }) : TheVine.flock.learning.playlists.delete({ id }));
       _invalidateCache('learning.playlists');
       _toast('Playlist deleted.');
       learningView('playlists');
@@ -13969,7 +14048,7 @@ const Modules = (() => {
     _modal('Subscribe Member', [
       { name: 'memberId', label: 'Member ID or Email', required: true },
     ], async data => {
-      await TheVine.flock.learning.playlists.subscribe({ playlistId, ...data });
+      await (_isFirebaseComms() ? UpperRoom.subscribeLrnPlaylist({ playlistId, ...data }) : TheVine.flock.learning.playlists.subscribe({ playlistId, ...data }));
       _toast('Member subscribed.');
     });
   }
@@ -13982,7 +14061,7 @@ const Modules = (() => {
       { name: 'passMark',    label: 'Pass Mark (%)', type: 'number', placeholder: '70' },
       { name: 'description', label: 'Description',   type: 'textarea' },
     ], async data => {
-      await TheVine.flock.learning.quizzes.create(data);
+      await (_isFirebaseComms() ? UpperRoom.createLrnQuiz(data) : TheVine.flock.learning.quizzes.create(data));
       _invalidateCache('learning.quizzes');
       learningView('quizzes');
     });
@@ -13997,7 +14076,7 @@ const Modules = (() => {
       { name: 'passMark',    label: 'Pass Mark (%)', type: 'number', value: cached.passMark != null ? String(cached.passMark) : '' },
       { name: 'description', label: 'Description',   type: 'textarea', value: cached.description || '' },
     ], async data => {
-      await TheVine.flock.learning.quizzes.update({ id, ...data });
+      await (_isFirebaseComms() ? UpperRoom.updateLrnQuiz({ id, ...data }) : TheVine.flock.learning.quizzes.update({ id, ...data }));
       _invalidateCache('learning.quizzes');
       learningView('quizzes');
     });
@@ -14009,7 +14088,7 @@ const Modules = (() => {
     const name   = cached.title || cached.name || 'this quiz';
     if (!confirm('Publish "' + name + '"? It will become visible to members.')) return;
     try {
-      await TheVine.flock.learning.quizzes.publish({ id });
+      await (_isFirebaseComms() ? UpperRoom.publishLrnQuiz({ id }) : TheVine.flock.learning.quizzes.publish({ id }));
       _invalidateCache('learning.quizzes');
       _toast('Quiz published.');
       learningView('quizzes');
@@ -14022,7 +14101,7 @@ const Modules = (() => {
     const name   = cached.title || cached.name || 'this quiz';
     if (!confirm('Delete quiz "' + name + '"? All results will be lost.')) return;
     try {
-      await TheVine.flock.learning.quizzes.delete({ id });
+      await (_isFirebaseComms() ? UpperRoom.deleteLrnQuiz({ id }) : TheVine.flock.learning.quizzes.delete({ id }));
       _invalidateCache('learning.quizzes');
       _toast('Quiz deleted.');
       learningView('quizzes');
@@ -14036,7 +14115,7 @@ const Modules = (() => {
       { name: 'playlistId', label: 'Playlist ID',        required: true },
       { name: 'reason',     label: 'Reason / Notes',     type: 'textarea' },
     ], async data => {
-      await TheVine.flock.learning.recommendations.create(data);
+      await (_isFirebaseComms() ? UpperRoom.createLrnRecommendation(data) : TheVine.flock.learning.recommendations.create(data));
       _invalidateCache('learning.recs');
       learningView('recs');
     });
@@ -14046,7 +14125,7 @@ const Modules = (() => {
     const btn = event && event.target;
     if (btn) { btn.disabled = true; btn.textContent = 'Generating\u2026'; }
     try {
-      await TheVine.flock.learning.recommendations.generate({});
+      await (_isFirebaseComms() ? UpperRoom.generateLrnRecommendations() : TheVine.flock.learning.recommendations.generate({}));
       _invalidateCache('learning.recs');
       _toast('Recommendations generated.');
       learningView('recs');
@@ -14058,7 +14137,7 @@ const Modules = (() => {
 
   async function _lrnRecAccept(id) {
     try {
-      await TheVine.flock.learning.recommendations.accept({ id });
+      await (_isFirebaseComms() ? UpperRoom.acceptLrnRecommendation({ id }) : TheVine.flock.learning.recommendations.accept({ id }));
       _invalidateCache('learning.recs');
       _toast('Recommendation accepted.');
       learningView('recs');
@@ -14067,7 +14146,7 @@ const Modules = (() => {
 
   async function _lrnRecDismiss(id) {
     try {
-      await TheVine.flock.learning.recommendations.dismiss({ id });
+      await (_isFirebaseComms() ? UpperRoom.dismissLrnRecommendation({ id }) : TheVine.flock.learning.recommendations.dismiss({ id }));
       _invalidateCache('learning.recs');
       _toast('Recommendation dismissed.');
       learningView('recs');
@@ -14090,7 +14169,7 @@ const Modules = (() => {
     const playlistId = sel ? sel.value : '';
     if (!playlistId) { _toast('Select a playlist first.', 'error'); return; }
     try {
-      await TheVine.flock.learning.playlistItems.create({ playlistId, sermonId });
+      await (_isFirebaseComms() ? UpperRoom.createLrnPlaylistItem({ playlistId, sermonId }) : TheVine.flock.learning.playlistItems.create({ playlistId, sermonId }));
       _toast('Sermon added to playlist.');
     } catch (e) { _toast(e.message, 'error'); }
   }
@@ -14105,7 +14184,7 @@ const Modules = (() => {
       { name: 'colorVar',   label: 'Color CSS Var',  placeholder: 'var(--accent-cyan)' },
       { name: 'sortOrder',  label: 'Sort Order',     type: 'number' },
     ], async data => {
-      await TheVine.flock.theology.categories.create(data);
+      await (_isFirebaseComms() ? UpperRoom.createTheologyCategory(data) : TheVine.flock.theology.categories.create(data));
       _reload('theology');
     });
   }
@@ -14123,7 +14202,8 @@ const Modules = (() => {
         options: ['Normal','High','Urgent'] },
     ], async data => {
       data.recipientType = 'Member';
-      await TheVine.flock.comms.messages.send(data);
+      if (_isFirebaseComms()) { await UpperRoom.createThread(data.subject, [data.recipientId], data.body); }
+      else { await TheVine.flock.comms.messages.send(data); }
       _reload('comms');
     }, 'Send Message');
   }
@@ -14143,15 +14223,19 @@ const Modules = (() => {
           + _e(msg.body || '') + '</div>' },
       { name: 'body', label: 'Your Reply', type: 'textarea', required: true, rows: 6 },
     ], async data => {
-      await TheVine.flock.comms.messages.send({
-        threadId:      msg.threadId,
-        recipientId:   msg.senderEmail || msg.senderId,
-        recipientName: msg.senderName || '',
-        recipientType: 'Member',
-        subject:       'Re: ' + (msg.subject || '').replace(/^Re:\s*/i, ''),
-        body:          data.body + '\n\n' + quoted,
-        replyToId:     msg.id,
-      });
+      if (_isFirebaseComms()) {
+        await UpperRoom.sendMessage(msg.threadId || msg.id, data.body + '\n\n' + quoted);
+      } else {
+        await TheVine.flock.comms.messages.send({
+          threadId:      msg.threadId,
+          recipientId:   msg.senderEmail || msg.senderId,
+          recipientName: msg.senderName || '',
+          recipientType: 'Member',
+          subject:       'Re: ' + (msg.subject || '').replace(/^Re:\s*/i, ''),
+          body:          data.body + '\n\n' + quoted,
+          replyToId:     msg.id,
+        });
+      }
       _commsOpenMsg = null;
       _reload('comms');
     }, 'Send Reply');
@@ -14175,7 +14259,8 @@ const Modules = (() => {
       { name: 'body',        label: 'Message', type: 'textarea', required: true, value: fwdBody, rows: 8 },
     ], async data => {
       data.recipientType = 'Member';
-      await TheVine.flock.comms.messages.send(data);
+      if (_isFirebaseComms()) { await UpperRoom.createThread(data.subject, [data.recipientId], data.body); }
+      else { await TheVine.flock.comms.messages.send(data); }
       _commsOpenMsg = null;
       _reload('comms');
     }, 'Forward');
@@ -14195,7 +14280,7 @@ const Modules = (() => {
       // Lazy-load config if not yet cached (user hasn't visited Control Panel)
       if (!cfgRows.length) {
         try {
-          var res = await TheVine.flock.config.list();
+          var res = await (_isFirebaseComms() ? UpperRoom.listAppConfig() : TheVine.flock.config.list());
           cfgRows = _rows(res);
           _dataCache['config'] = cfgRows;
         } catch (_) { /* offline or no auth — fall through to native */ }
@@ -14224,20 +14309,26 @@ const Modules = (() => {
         options: ['All Members','Volunteers','Leaders','Admins'] },
     ], async data => {
       data.audience = (data.audience || 'all').toLowerCase().replace(/\s+/g, '').replace('allmembers','all');
-      await TheVine.flock.comms.broadcast.create(data);
+      if (_isFirebaseComms()) { await UpperRoom.createBroadcast(data); }
+      else { await TheVine.flock.comms.broadcast.create(data); }
       // Self-notification so the sender receives delivery confirmation in their bell
       try {
         const session = (typeof Nehemiah !== 'undefined') ? Nehemiah.getSession() : null;
         const senderEmail = session && session.email ? session.email : null;
         if (senderEmail) {
-          await TheVine.flock.comms.notifications.create({
-            recipientEmail: senderEmail,
-            subject: '✅ Broadcast sent: ' + (data.subject || ''),
-            body: 'Your broadcast to “' + (data.audience || 'all') + '” was sent successfully.',
-            entityType: 'broadcast',
-            notifType: 'broadcast',
-            status: 'Unread',
-          });
+          if (_isFirebaseComms()) {
+            await UpperRoom.createNotification(senderEmail, '✅ Broadcast sent: ' + (data.subject || ''),
+              'Your broadcast to “' + (data.audience || 'all') + '” was sent successfully.', 'broadcast');
+          } else {
+            await TheVine.flock.comms.notifications.create({
+              recipientEmail: senderEmail,
+              subject: '✅ Broadcast sent: ' + (data.subject || ''),
+              body: 'Your broadcast to “' + (data.audience || 'all') + '” was sent successfully.',
+              entityType: 'broadcast',
+              notifType: 'broadcast',
+              status: 'Unread',
+            });
+          }
           if (typeof refreshNotifBadge === 'function') refreshNotifBadge();
         }
       } catch (_) {}
@@ -14267,7 +14358,7 @@ const Modules = (() => {
       { name: 'icon',             label: 'Flag Emoji', placeholder: 'e.g. 🇮🇷' },
       { name: 'notes',            label: 'Notes', type: 'textarea' },
     ], async data => {
-      await TheVine.missions.registry.create(data);
+      await (_isFirebaseComms() ? UpperRoom.createMissionsRegistry(data) : TheVine.missions.registry.create(data));
       _reload('missions');
     }, 'Add Country');
   }
@@ -14288,7 +14379,7 @@ const Modules = (() => {
       { name: 'status',      label: 'Status', type: 'select', options: ['Active','Upcoming','Answered','Archived'] },
     ], async data => {
       if (data.prayerPoints) data.prayerPoints = data.prayerPoints.split('\n').filter(Boolean);
-      await TheVine.missions.prayerFocus.create(data);
+      await (_isFirebaseComms() ? UpperRoom.createMissionsPrayerFocus(data) : TheVine.missions.prayerFocus.create(data));
       _missionsTab = 'prayer';
       _reload('missions');
     }, 'Add Prayer Need');
@@ -14315,7 +14406,7 @@ const Modules = (() => {
       { name: 'status',      label: 'Status', type: 'select', options: ['Active','Upcoming','Answered','Archived'], value: r.status || 'Active' },
     ], async data => {
       if (data.prayerPoints) data.prayerPoints = data.prayerPoints.split('\n').filter(Boolean);
-      await TheVine.missions.prayerFocus.update({ id, ...data });
+      await (_isFirebaseComms() ? UpperRoom.updateMissionsPrayerFocus({ id, ...data }) : TheVine.missions.prayerFocus.update({ id, ...data }));
       _missionsTab = 'prayer';
       _reload('missions');
     }, 'Save Changes');
@@ -14324,7 +14415,7 @@ const Modules = (() => {
   // ── Missions: Record prayer response ──────────────────────────────────
   async function newPrayerResponse(id) {
     try {
-      await TheVine.missions.prayerFocus.respond({ id, response: 'prayed' });
+      await (_isFirebaseComms() ? UpperRoom.respondMissionsPrayerFocus({ id, response: 'prayed' }) : TheVine.missions.prayerFocus.respond({ id, response: 'prayed' }));
       _toast('Recorded — your prayer counts. 🙏');
     } catch (e) { _toast('Could not record: ' + e.message, 'danger'); }
   }
@@ -14343,7 +14434,7 @@ const Modules = (() => {
       { name: 'body',       label: 'Update Body', type: 'textarea', required: true },
       { name: 'source',     label: 'Source / Reporter' },
     ], async data => {
-      await TheVine.missions.updates.create(data);
+      await (_isFirebaseComms() ? UpperRoom.createMissionsUpdates(data) : TheVine.missions.updates.create(data));
       _missionsTab = 'updates';
       _reload('missions');
     }, 'Post Update');
@@ -14367,7 +14458,7 @@ const Modules = (() => {
       { name: 'objectives',  label: 'Objectives / Goals', type: 'textarea' },
       { name: 'notes',       label: 'Notes', type: 'textarea' },
     ], async data => {
-      await TheVine.missions.teams.create(data);
+      await (_isFirebaseComms() ? UpperRoom.createMissionsTeams(data) : TheVine.missions.teams.create(data));
       _missionsTab = 'teams';
       _reload('missions');
     }, 'Add Team');
@@ -14395,7 +14486,7 @@ const Modules = (() => {
       { name: 'description',       label: 'Description / Notes', type: 'textarea' },
     ], async data => {
       if (data.countries) data.countries = data.countries.split(',').map(s => s.trim()).filter(Boolean);
-      await TheVine.missions.partners.create(data);
+      await (_isFirebaseComms() ? UpperRoom.createMissionsPartners(data) : TheVine.missions.partners.create(data));
       _missionsTab = 'partners';
       _reload('missions');
     }, 'Add Partner');
@@ -14482,14 +14573,14 @@ const Modules = (() => {
     ], async data => {
       if (data.isTaxDeductible) data.isTaxDeductible = data.isTaxDeductible === 'Yes';
       if (data.memberId === '') delete data.memberId;
-      await TheVine.flock.giving.create(data);
+      await (_isFirebaseComms() ? UpperRoom.createGiving(data) : TheVine.flock.giving.create(data));
       _reload('giving');
     });
   }
 
   async function givingSummary() {
     try {
-      const res = await TheVine.flock.giving.summary({});
+      const res = await (_isFirebaseComms() ? UpperRoom.givingSummary() : TheVine.flock.giving.summary({}));
       const s   = (res && res.summary) ? res.summary : (res || {});
       _modal('Giving Summary', [], () => Promise.resolve());
       const form = document.getElementById('ml-modal-form');
@@ -14530,7 +14621,7 @@ const Modules = (() => {
       if (data.memberId === '') delete data.memberId;
       if (data.pledgeAmount) data.pledgeAmount = Number(data.pledgeAmount);
       if (data.totalPledged) data.totalPledged = Number(data.totalPledged);
-      await TheVine.flock.giving.pledges.create(data);
+      await (_isFirebaseComms() ? UpperRoom.createPledge(data) : TheVine.flock.giving.pledges.create(data));
       _invalidateCache('giving-pledges');
       givingView('pledges');
     });
@@ -14555,7 +14646,7 @@ const Modules = (() => {
 
       // API: handleGivingMemberStatement expects { memberId, year }
       // Returns: { memberId, year, totalGiven, records[] }
-      const res   = await TheVine.flock.giving.memberStatement({ memberId, year });
+      const res   = await (_isFirebaseComms() ? UpperRoom.memberGivingStatement({ memberId: memberId, year: year }) : TheVine.flock.giving.memberStatement({ memberId, year }));
       const mName = (found ? ((found.preferredName || found.firstName || '') + ' ' + (found.lastName || '')).trim() : '') || memberInput;
       const totalGiven = res && res.totalGiven != null ? Number(res.totalGiven) : 0;
       const records    = (res && Array.isArray(res.records)) ? res.records : [];
@@ -14658,13 +14749,19 @@ const Modules = (() => {
     const mood  = (document.getElementById('db-jmood-' + idx) || {}).value || '';
     const iso   = _dataCache['_devIso'] ? _dataCache['_devIso'](idx, _dataCache['_devYear'] || new Date().getFullYear()) : '';
     try {
-      await TheVine.flock.journal.create({
+      await (_isFirebaseComms() ? UpperRoom.createJournal({
         title: title.trim() || ('Daily Devotional — ' + iso),
         entry: entry.trim(),
         category: 'Devotional',
         scriptureRef: '',
         mood: mood
-      });
+      }) : TheVine.flock.journal.create({
+        title: title.trim() || ('Daily Devotional — ' + iso),
+        entry: entry.trim(),
+        category: 'Devotional',
+        scriptureRef: '',
+        mood: mood
+      }));
       _toast('Journal entry saved.');
       _reload('devotionals');
     } catch (e) { _toast('Error saving journal: ' + e.message, 'danger'); }
@@ -14735,8 +14832,8 @@ const Modules = (() => {
       // ── Client-side reports (no backend reports.* endpoint needed) ──────
       if (key === 'inactiveMembers') {
         const [memRes, contactRes] = await Promise.all([
-          TheVine.flock.members.list({ limit: 2000 }),
-          TheVine.flock.contacts.list({ limit: 1000 }).catch(() => null),
+          _isFirebaseComms() ? UpperRoom.listMembers({ limit: 2000 }) : TheVine.flock.members.list({ limit: 2000 }),
+          (_isFirebaseComms() ? UpperRoom.listContacts({ limit: 1000 }) : TheVine.flock.contacts.list({ limit: 1000 })).catch(() => null),
         ]);
         const members  = _rows(memRes);
         const contacts = _rows(contactRes);
@@ -14782,7 +14879,7 @@ const Modules = (() => {
         output.innerHTML = html;
 
       } else if (key === 'upcomingBirthdays') {
-        const memRes  = await TheVine.flock.members.list({ limit: 2000 });
+        const memRes  = await (_isFirebaseComms() ? UpperRoom.listMembers({ limit: 2000 }) : TheVine.flock.members.list({ limit: 2000 }));
         const members = _rows(memRes);
         const today   = new Date();
         const in30    = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000);
@@ -14852,8 +14949,8 @@ const Modules = (() => {
 
       } else if (key === 'smallGroupHealth') {
         const [groupRes, memberRes] = await Promise.all([
-          TheVine.flock.groups.list({ limit: 200 }),
-          TheVine.flock.members.list({ limit: 2000 }).catch(() => null),
+          _isFirebaseComms() ? UpperRoom.listGroups({ limit: 200 }) : TheVine.flock.groups.list({ limit: 200 }),
+          (_isFirebaseComms() ? UpperRoom.listMembers({ limit: 2000 }) : TheVine.flock.members.list({ limit: 2000 })).catch(() => null),
         ]);
         const groups  = _rows(groupRes);
         const total   = groups.length;
@@ -14918,7 +15015,7 @@ const Modules = (() => {
         output.innerHTML = html;
 
       } else if (key === 'givingByMember') {
-        const res  = await TheVine.flock.giving.list({ limit: 2000 });
+        const res  = await (_isFirebaseComms() ? UpperRoom.listGiving({ limit: 2000 }) : TheVine.flock.giving.list({ limit: 2000 }));
         const rows = _rows(res);
         const dateFilter = dates.from && dates.to ? (g => {
           var d = new Date(g.date || g.transactionDate || g.createdAt || '');
@@ -15611,23 +15708,37 @@ const Modules = (() => {
       { name: 'value',       label: 'Value',       required: true },
       { name: 'description', label: 'Description' },
     ], async data => {
-      await TheVine.flock.config.set(data);
+      await (_isFirebaseComms() ? UpperRoom.setAppConfig : TheVine.flock.config.set)(data);
       _reload('config');
     });
   }
 
   function toggleLockdown(on) {
-    var val = on ? 'TRUE' : 'FALSE';
-    TheVine.flock.config.set({ key: 'LOCKDOWN', value: val, description: 'Emergency lockdown — blocks public portal, restricts admin to Pastor/Admin' })
-      .then(function() {
-        _toast(on ? 'LOCKDOWN ACTIVATED — Public portal is now blocked.' : 'Lockdown lifted — site is live again.', 'danger');
-        _reload('config');
-      })
-      .catch(function(e) {
-        _toast('Error toggling lockdown: ' + e.message, 'danger');
-        var cb = document.getElementById('lockdown-toggle');
-        if (cb) cb.checked = !on;
-      });
+    if (typeof UpperRoom !== 'undefined' && UpperRoom.setMaintenanceMode) {
+      UpperRoom.setMaintenanceMode({ maintenance: on })
+        .then(function() {
+          _toast(on ? 'MAINTENANCE ACTIVATED — Public portal is now blocked.' : 'Maintenance lifted — site is live again.', 'danger');
+          _reload('config');
+        })
+        .catch(function(e) {
+          _toast('Error toggling maintenance: ' + e.message, 'danger');
+          var cb = document.getElementById('lockdown-toggle');
+          if (cb) cb.checked = !on;
+        });
+    } else {
+      // Fallback: write to church-scoped appConfig (legacy GAS path)
+      var val = on ? 'TRUE' : 'FALSE';
+      (_isFirebaseComms() ? UpperRoom.setAppConfig : TheVine.flock.config.set)({ key: 'LOCKDOWN', value: val, description: 'Emergency lockdown — blocks public portal, restricts admin to Pastor/Admin' })
+        .then(function() {
+          _toast(on ? 'LOCKDOWN ACTIVATED — Public portal is now blocked.' : 'Lockdown lifted — site is live again.', 'danger');
+          _reload('config');
+        })
+        .catch(function(e) {
+          _toast('Error toggling lockdown: ' + e.message, 'danger');
+          var cb = document.getElementById('lockdown-toggle');
+          if (cb) cb.checked = !on;
+        });
+    }
   }
 
   function _reloadConfig() {
@@ -15641,7 +15752,7 @@ const Modules = (() => {
     if (!val || !/^[A-Z0-9]{1,10}$/.test(val)) {
       _toast('Prefix must be 1\u201310 alphanumeric characters.', 'warn'); return;
     }
-    TheVine.flock.config.set({ key: 'CARD_PREFIX', value: val, description: 'Member card number prefix' })
+    (_isFirebaseComms() ? UpperRoom.setAppConfig : TheVine.flock.config.set)({ key: 'CARD_PREFIX', value: val, description: 'Member card number prefix' })
       .then(() => { _toast('Card prefix saved: ' + val); })
       .catch(e => _toast('Error saving prefix: ' + e.message, 'danger'));
   }
@@ -15650,7 +15761,7 @@ const Modules = (() => {
     const sel = document.getElementById('global-theme-select');
     if (!sel) return;
     const val = sel.value;
-    TheVine.flock.config.set({ key: 'GLOBAL_THEME', value: val, description: 'Church-wide theme override (default = member choice)' })
+    (_isFirebaseComms() ? UpperRoom.setAppConfig : TheVine.flock.config.set)({ key: 'GLOBAL_THEME', value: val, description: 'Church-wide theme override (default = member choice)' })
       .then(() => {
         localStorage.setItem('flock_global_theme', val);
         if (val && val !== 'default' && typeof Adornment !== 'undefined') {
@@ -15683,7 +15794,7 @@ const Modules = (() => {
     var val = inp.value;
     localStorage.setItem('flock_font_scale', val);
     document.documentElement.style.fontSize = val + '%';
-    TheVine.flock.config.set({ key: 'FONT_SCALE', value: val, description: 'Desktop font size scale (percentage, default 100)', category: 'Display' })
+    (_isFirebaseComms() ? UpperRoom.setAppConfig : TheVine.flock.config.set)({ key: 'FONT_SCALE', value: val, description: 'Desktop font size scale (percentage, default 100)', category: 'Display' })
       .then(function() { _toast('Desktop font size saved: ' + val + '%'); _reload('config'); })
       .catch(function() { _toast('Desktop font size saved: ' + val + '%'); _reload('config'); });
   }
@@ -15694,7 +15805,7 @@ const Modules = (() => {
     var val = inp.value;
     localStorage.setItem('flock_font_scale_mobile', val);
     document.documentElement.style.fontSize = val + '%';
-    TheVine.flock.config.set({ key: 'FONT_SCALE_MOBILE', value: val, description: 'Mobile font size scale (percentage, default 100)', category: 'Display' })
+    (_isFirebaseComms() ? UpperRoom.setAppConfig : TheVine.flock.config.set)({ key: 'FONT_SCALE_MOBILE', value: val, description: 'Mobile font size scale (percentage, default 100)', category: 'Display' })
       .then(function() { _toast('Mobile font size saved: ' + val + '%'); _reload('config'); })
       .catch(function() { _toast('Mobile font size saved: ' + val + '%'); _reload('config'); });
   }
@@ -15704,7 +15815,7 @@ const Modules = (() => {
     if (!sel) return;
     var val = sel.value;
     localStorage.setItem('flock_quiz_size', val);
-    TheVine.flock.config.set({ key: 'QUIZ_SIZE', value: val, description: 'Number of questions per Bible Quiz attempt (0 = all)', category: 'Display' })
+    (_isFirebaseComms() ? UpperRoom.setAppConfig : TheVine.flock.config.set)({ key: 'QUIZ_SIZE', value: val, description: 'Number of questions per Bible Quiz attempt (0 = all)', category: 'Display' })
       .then(function() { _toast('Quiz size saved: ' + (val === '0' ? 'All Questions' : val + ' questions')); _reload('config'); })
       .catch(function() { _toast('Quiz size saved: ' + (val === '0' ? 'All Questions' : val + ' questions')); _reload('config'); });
   }
@@ -15953,7 +16064,7 @@ const Modules = (() => {
     localStorage.setItem(Adornment.OVERRIDE_LS_KEY, JSON.stringify(obj));
 
     // Persist to backend
-    TheVine.flock.config.set({
+    (_isFirebaseComms() ? UpperRoom.setAppConfig : TheVine.flock.config.set)({
       key: 'INTERFACE_OVERRIDES',
       value: JSON.stringify(obj),
       description: 'Interface Studio overrides (fonts, sizes, padding, corners, shadows, custom CSS)',
@@ -15969,7 +16080,7 @@ const Modules = (() => {
   function _studioReset() {
     if (!confirm('Reset all Interface Studio customizations to defaults? This cannot be undone.')) return;
     Adornment.clearOverrides();
-    TheVine.flock.config.set({
+    (_isFirebaseComms() ? UpperRoom.setAppConfig : TheVine.flock.config.set)({
       key: 'INTERFACE_OVERRIDES',
       value: '',
       description: 'Interface Studio overrides (fonts, sizes, padding, corners, shadows, custom CSS)',
@@ -16038,7 +16149,7 @@ const Modules = (() => {
       _toast('Cannot save: API client unavailable.', 'danger');
       return;
     }
-    TheVine.flock.config.set({ key: 'ALLOW_CUSTOM_THEMES', value: checked ? 'TRUE' : 'FALSE' })
+    (_isFirebaseComms() ? UpperRoom.setAppConfig : TheVine.flock.config.set)({ key: 'ALLOW_CUSTOM_THEMES', value: checked ? 'TRUE' : 'FALSE' })
       .then(function() {
         localStorage.setItem('flock_allow_custom_themes', checked ? 'TRUE' : 'FALSE');
         _toast(checked ? 'Custom themes enabled for all users.' : 'Custom themes disabled — foundational theme enforced.');
@@ -16053,7 +16164,7 @@ const Modules = (() => {
 
   // ── Twilio: toggle SMS gateway ──
   function _twilioToggle(checked) {
-    TheVine.flock.config.set({ key: 'TWILIO_ENABLED', value: checked ? 'TRUE' : 'FALSE' })
+    (_isFirebaseComms() ? UpperRoom.setAppConfig : TheVine.flock.config.set)({ key: 'TWILIO_ENABLED', value: checked ? 'TRUE' : 'FALSE' })
       .then(function() { _toast(checked ? '📱 Twilio SMS gateway enabled.' : '📱 Twilio SMS gateway disabled — using native SMS app.'); })
       .catch(function(e) { _toast('Error saving setting: ' + e.message, 'danger'); });
   }
@@ -16133,7 +16244,7 @@ const Modules = (() => {
     const statusEl = document.getElementById('chunk-save-status');
     if (statusEl) statusEl.textContent = 'Saving\u2026';
     try {
-      await TheVine.flock.config.set({
+      await (_isFirebaseComms() ? UpperRoom.setAppConfig : TheVine.flock.config.set)({
         key: 'SHEET_CHUNKS',
         value: JSON.stringify(chunks),
         description: 'Parallel sheet chunk counts per domain (1\u20134)',
@@ -16173,7 +16284,7 @@ const Modules = (() => {
     localStorage.setItem('flock_provisioning', JSON.stringify(obj));
 
     // Persist to backend
-    TheVine.flock.config.set({
+    (_isFirebaseComms() ? UpperRoom.setAppConfig : TheVine.flock.config.set)({
       key: 'PROVISIONING_URLS',
       value: JSON.stringify(obj),
       description: 'GAS deployment URL',
@@ -16360,7 +16471,7 @@ const Modules = (() => {
 
   function newJournal() {
     _modal('New Journal Entry', _journalFields.map(f => ({...f})), async data => {
-      await TheVine.flock.journal.create(data);
+      await (_isFirebaseComms() ? UpperRoom.createJournal(data) : TheVine.flock.journal.create(data));
       _reloadActive('journal');
     });
   }
@@ -16374,10 +16485,10 @@ const Modules = (() => {
       value: row[f.name] || row[f.label] || ''
     })), async data => {
       data.id = id;
-      await TheVine.flock.journal.update(data);
+      await (_isFirebaseComms() ? UpperRoom.updateJournal(data) : TheVine.flock.journal.update(data));
       _reloadActive('journal');
     }, async () => {
-      await TheVine.flock.journal.delete({ id: id });
+      await (_isFirebaseComms() ? UpperRoom.deleteJournal({ id: id }) : TheVine.flock.journal.delete({ id: id }));
       _reloadActive('journal');
     });
   }
@@ -16408,7 +16519,7 @@ const Modules = (() => {
       { name: 'semester',    label: 'Semester (e.g. Spring 2026)' },
       { name: 'description', label: 'Description', type: 'textarea' },
       { name: 'notes',       label: 'Notes', type: 'textarea' },
-    ], p => TheVine.flock.groups.update(p), id, p => TheVine.flock.groups.get(p));
+    ], p => _isFirebaseComms() ? UpperRoom.updateGroup(p) : TheVine.flock.groups.update(p), id, p => _isFirebaseComms() ? UpperRoom.getGroup(p.id || p) : TheVine.flock.groups.get(p));
   }
 
   function editAttendance(id) {
@@ -16418,7 +16529,7 @@ const Modules = (() => {
       { name: 'adults',      label: 'Adults',          type: 'number' },
       { name: 'children',    label: 'Children',        type: 'number' },
       { name: 'notes',       label: 'Notes',           type: 'textarea' },
-    ], p => TheVine.flock.attendance.update(p), id, p => TheVine.flock.attendance.get(p));
+    ], p => _isFirebaseComms() ? UpperRoom.updateAttendance(p) : TheVine.flock.attendance.update(p), id, p => _isFirebaseComms() ? UpperRoom.getAttendance(p.id || p) : TheVine.flock.attendance.get(p));
   }
 
   function editEvent(id) {
@@ -16448,8 +16559,8 @@ const Modules = (() => {
     ], p => {
       if (p.rsvpRequired) p.rsvpRequired = p.rsvpRequired === 'true';
       if (p.capacity) p.capacity = parseInt(p.capacity, 10) || 0;
-      return TheVine.flock.events.update(p);
-    }, id, p => TheVine.flock.events.get(p));
+      return _isFirebaseComms() ? UpperRoom.updateEvent(p) : TheVine.flock.events.update(p);
+    }, id, p => _isFirebaseComms() ? UpperRoom.getEvent(p.id || p) : TheVine.flock.events.get(p));
   }
 
   function editSermon(id) {
@@ -16462,7 +16573,7 @@ const Modules = (() => {
       { name: 'status',     label: 'Status', type: 'select',
         options: ['draft','submitted','approved','delivered'] },
       { name: 'notes',      label: 'Notes',              type: 'textarea' },
-    ], p => TheVine.flock.sermons.update(p), id, p => TheVine.flock.sermons.get(p));
+    ], p => _isFirebaseComms() ? UpperRoom.updateSermon(p) : TheVine.flock.sermons.update(p), id, p => _isFirebaseComms() ? UpperRoom.getSermon(p.id || p) : TheVine.flock.sermons.get(p));
   }
 
   function editServicePlan(id) {
@@ -16478,7 +16589,7 @@ const Modules = (() => {
       { name: 'status',           label: 'Status',           type: 'select',
         options: ['Draft','Confirmed','In Progress','Completed'] },
       { name: 'notes',            label: 'Notes',            type: 'textarea' },
-    ], p => TheVine.flock.servicePlans.update(p), id, p => TheVine.flock.servicePlans.get(p));
+    ], p => _isFirebaseComms() ? UpperRoom.updateServicePlan(p) : TheVine.flock.servicePlans.update(p), id, p => _isFirebaseComms() ? UpperRoom.getServicePlan(p.id || p) : TheVine.flock.servicePlans.get(p));
   }
 
   function editSong(id) {
@@ -16492,7 +16603,7 @@ const Modules = (() => {
       { name: 'genre',      label: 'Genre' },
       { name: 'tags',       label: 'Tags (comma-separated)' },
       { name: 'lyrics',     label: 'Lyrics',       type: 'textarea' },
-    ], p => TheVine.flock.call('songs.update', p), id, null);
+    ], p => _isFirebaseComms() ? UpperRoom.updateSong(p) : TheVine.flock.call('songs.update', p), id, null);
   }
 
   function editMinistry(id) {
@@ -16503,7 +16614,7 @@ const Modules = (() => {
       { name: 'leader',      label: 'Leader' },
       { name: 'email',       label: 'Ministry Email', type: 'email' },
       { name: 'description', label: 'Description',    type: 'textarea' },
-    ], p => TheVine.flock.ministries.update(p), id, p => TheVine.flock.ministries.get(p));
+    ], p => _isFirebaseComms() ? UpperRoom.updateMinistry(p) : TheVine.flock.ministries.update(p), id, p => _isFirebaseComms() ? UpperRoom.getMinistry(p.id || p) : TheVine.flock.ministries.get(p));
   }
 
   function editVolunteer(id) {
@@ -16517,7 +16628,7 @@ const Modules = (() => {
       { name: 'status',      label: 'Status',        type: 'select',
         options: ['Scheduled','Confirmed','Declined','No-Show','Completed'] },
       { name: 'notes',       label: 'Notes',         type: 'textarea' },
-    ], p => TheVine.flock.volunteers.update(p), id, null);
+    ], p => _isFirebaseComms() ? UpperRoom.updateVolunteer(p) : TheVine.flock.volunteers.update(p), id, null);
   }
 
   // Activate view-my-flock so TheLife full-page editors render into a visible panel.
@@ -16568,8 +16679,8 @@ const Modules = (() => {
       { name: 'title',       label: 'Title',       required: true },
       { name: 'topicName',   label: 'Topic' },
       { name: 'description', label: 'Description', type: 'textarea' },
-    ], p => TheVine.flock.learning.playlists.update(p), id,
-       p => TheVine.flock.learning.playlists.get(p));
+    ], p => _isFirebaseComms() ? UpperRoom.updateLrnPlaylist(p) : TheVine.flock.learning.playlists.update(p), id,
+       p => _isFirebaseComms() ? UpperRoom.getLrnPlaylist(p) : TheVine.flock.learning.playlists.get(p));
   }
 
   function editTheologyCategory(id) {
@@ -16583,8 +16694,8 @@ const Modules = (() => {
       { name: 'sortOrder',  label: 'Sort Order',     type: 'number' },
       { name: 'visible',    label: 'Visible',        type: 'select', options: [{ value: 'TRUE', label: 'Yes' }, { value: 'FALSE', label: 'No' }] },
       { name: 'status',     label: 'Status',          type: 'select', options: [{ value: 'Active', label: 'Active' }, { value: 'Archived', label: 'Archived' }] },
-    ], p => TheVine.flock.theology.categories.update(p), id,
-       p => TheVine.flock.theology.categories.get(p));
+    ], p => _isFirebaseComms() ? UpperRoom.updateTheologyCategory(p) : TheVine.flock.theology.categories.update(p), id,
+       p => _isFirebaseComms() ? UpperRoom.getTheologyCategory(p) : TheVine.flock.theology.categories.get(p));
   }
 
   function editThread(id) {
@@ -16592,8 +16703,8 @@ const Modules = (() => {
       { name: 'subject', label: 'Subject', required: true },
       { name: 'status',  label: 'Status', type: 'select',
         options: ['active','archived','muted'] },
-    ], p => TheVine.flock.comms.threads.update(p), id,
-       p => TheVine.flock.comms.threads.get(p));
+    ], p => _isFirebaseComms() ? UpperRoom.updateConversation(p.id, p) : TheVine.flock.comms.threads.update(p), id,
+       p => _isFirebaseComms() ? UpperRoom.getConversation(p) : TheVine.flock.comms.threads.get(p));
   }
 
   // ── Edit: country / world registry entry ──────────────────────────────
@@ -16617,8 +16728,8 @@ const Modules = (() => {
       { name: 'population',       label: 'Population', type: 'number' },
       { name: 'icon',             label: 'Flag Emoji', placeholder: 'e.g. 🇮🇷' },
       { name: 'notes',            label: 'Notes', type: 'textarea' },
-    ], p => TheVine.missions.registry.update(p), id,
-       p => TheVine.missions.registry.get(p));
+    ], p => _isFirebaseComms() ? UpperRoom.updateMissionsRegistry(p) : TheVine.missions.registry.update(p), id,
+       p => _isFirebaseComms() ? UpperRoom.getMissionsRegistry(p) : TheVine.missions.registry.get(p));
   }
 
   // ── Edit: prayer focus ─────────────────────────────────────────────────
@@ -16633,8 +16744,8 @@ const Modules = (() => {
       { name: 'prayerPoints', label: 'Prayer Points', type: 'textarea' },
       { name: 'status',       label: 'Status', type: 'select',
         options: ['Active','Upcoming','Answered','Archived'] },
-    ], p => TheVine.missions.prayerFocus.update(p), id,
-       p => TheVine.missions.prayerFocus.list({ id }).then(r => (_rows(r)[0] || {})));
+    ], p => _isFirebaseComms() ? UpperRoom.updateMissionsPrayerFocus(p) : TheVine.missions.prayerFocus.update(p), id,
+       p => _isFirebaseComms() ? UpperRoom.listMissionsPrayerFocus({ id }).then(r => (r[0] || {})) : TheVine.missions.prayerFocus.list({ id }).then(r => (_rows(r)[0] || {})));
   }
 
   // ── Edit: field update ─────────────────────────────────────────────────
@@ -16650,8 +16761,8 @@ const Modules = (() => {
         options: ['Public','Restricted','Sensitive','Eyes Only'] },
       { name: 'body',         label: 'Update Body', type: 'textarea' },
       { name: 'source',       label: 'Source / Reporter' },
-    ], p => TheVine.missions.updates.update(p), id,
-       p => TheVine.missions.updates.get(p));
+    ], p => _isFirebaseComms() ? UpperRoom.updateMissionsUpdates(p) : TheVine.missions.updates.update(p), id,
+       p => _isFirebaseComms() ? UpperRoom.getMissionsUpdates(p) : TheVine.missions.updates.get(p));
   }
 
   // ── Edit: mission team ─────────────────────────────────────────────────
@@ -16671,8 +16782,8 @@ const Modules = (() => {
         options: ['Planning','Fundraising','Ready','On Field','Returned','Completed','Cancelled'] },
       { name: 'objectives',   label: 'Objectives / Goals', type: 'textarea' },
       { name: 'notes',        label: 'Notes', type: 'textarea' },
-    ], p => TheVine.missions.teams.update(p), id,
-       p => TheVine.missions.teams.get(p));
+    ], p => _isFirebaseComms() ? UpperRoom.updateMissionsTeams(p) : TheVine.missions.teams.update(p), id,
+       p => _isFirebaseComms() ? UpperRoom.getMissionsTeams(p) : TheVine.missions.teams.get(p));
   }
 
   // ── Edit: mission partner ──────────────────────────────────────────────
@@ -16695,8 +16806,8 @@ const Modules = (() => {
       { name: 'prayerSupport',     label: 'We Support in Prayer?',   type: 'select', options: ['Yes','No'] },
       { name: 'website',           label: 'Website URL' },
       { name: 'description',       label: 'Description / Notes', type: 'textarea' },
-    ], p => TheVine.missions.partners.update(p), id,
-       p => TheVine.missions.partners.get(p));
+    ], p => _isFirebaseComms() ? UpperRoom.updateMissionsPartners(p) : TheVine.missions.partners.update(p), id,
+       p => _isFirebaseComms() ? UpperRoom.getMissionsPartners(p) : TheVine.missions.partners.get(p));
   }
 
   async function editGift(id) {
@@ -16719,7 +16830,7 @@ const Modules = (() => {
     ], async p => {
       if (p.isTaxDeductible !== undefined) p.isTaxDeductible = p.isTaxDeductible === 'Yes';
       if (p.memberId === '') delete p.memberId;
-      return TheVine.flock.giving.update(p);
+      return _isFirebaseComms() ? UpperRoom.updateGiving(Object.assign({ id: id }, p)) : TheVine.flock.giving.update(p);
     }, id, null);
   }
 
@@ -16978,7 +17089,7 @@ const Modules = (() => {
     _edit('config', 'Edit Setting', [
       { name: 'value',       label: 'Value',       required: true },
       { name: 'description', label: 'Description' },
-    ], async p => { p.key = id; await TheVine.flock.config.set(p); }, id, null);
+    ], async p => { p.key = id; await (_isFirebaseComms() ? UpperRoom.setAppConfig : TheVine.flock.config.set)(p); }, id, null);
   }
 
   function editPrayer(id) { TheLife.openPrayer(id); }
@@ -17338,12 +17449,12 @@ const Modules = (() => {
     var row = rows.find(r => (r.id || r['ID']) === id);
     var members = [];
     try {
-      var res = await TheVine.flock.groups.members({ groupId: id });
+      var res = _isFirebaseComms() ? await UpperRoom.listGroupMembers(id) : await TheVine.flock.groups.members({ groupId: id });
       members = _rows(res);
     } catch (e) { /* may not have permission */ }
     if (!row) {
       try {
-        row = await TheVine.flock.groups.get({ id: id });
+        row = _isFirebaseComms() ? await UpperRoom.getGroup(id) : await TheVine.flock.groups.get({ id: id });
         if (!row || row.error) { _toast('Group not found.', 'warn'); return; }
       } catch (e) { _toast('Could not load group.', 'danger'); return; }
     }
@@ -17472,7 +17583,7 @@ const Modules = (() => {
     var groupName = group ? (group.groupName || group.name || group['Group Name'] || 'Group') : 'Group';
     var members = [];
     try {
-      var res = await TheVine.flock.groups.members({ groupId: groupId });
+      var res = _isFirebaseComms() ? await UpperRoom.listGroupMembers(groupId) : await TheVine.flock.groups.members({ groupId: groupId });
       members = _rows(res);
     } catch (e) { /* ignore */ }
 
@@ -17561,13 +17672,15 @@ const Modules = (() => {
     var role = roleEl ? roleEl.value : 'member';
     if (!memberId) { _toast('Please select a member to add.', 'warn'); return; }
     try {
-      await TheVine.flock.groups.addMember({
+      var memberData = {
         groupId: groupId,
         memberId: memberId,
         role: role,
         joinedDate: new Date().toISOString().split('T')[0],
         status: 'Active'
-      });
+      };
+      if (_isFirebaseComms()) { await UpperRoom.addGroupMember(groupId, memberData); }
+      else { await TheVine.flock.groups.addMember(memberData); }
       _toast('Member added!', 'success');
       // Close and reopen to refresh
       var modal = document.getElementById('fl-group-members');
@@ -17579,7 +17692,8 @@ const Modules = (() => {
   async function _removeGroupMember(groupId, memberId) {
     if (!confirm('Remove this member from the group?')) return;
     try {
-      await TheVine.flock.groups.removeMember({ groupId: groupId, memberId: memberId });
+      if (_isFirebaseComms()) { await UpperRoom.removeGroupMember(groupId, memberId); }
+      else { await TheVine.flock.groups.removeMember({ groupId: groupId, memberId: memberId }); }
       _toast('Member removed.', 'success');
       var modal = document.getElementById('fl-group-members');
       if (modal) modal.remove();
@@ -17683,8 +17797,8 @@ const Modules = (() => {
       // Use prayer.list (authenticated) so the user sees their own confidential prayers
       var _mpResults = await Promise.all([
         TheVine.flock.call('members.get', { email: email }),
-        TheVine.flock.prayer.list({ limit: 200 }).catch(function() { return []; }),
-        TheVine.flock.call('journal.list', {}).catch(function() { return []; })
+        (_isFirebaseComms() ? UpperRoom.listPrayers({ limit: 200 }) : TheVine.flock.prayer.list({ limit: 200 })).catch(function() { return []; }),
+        (_isFirebaseComms() ? UpperRoom.listJournal({}) : TheVine.flock.call('journal.list', {})).catch(function() { return []; })
       ]);
       var row = _mpResults[0] || {};
       var allPrayers = _rows(_mpResults[1]);
@@ -18175,9 +18289,9 @@ const Modules = (() => {
     try {
       // Parallel fetch all three data sources
       const [svcRes, volRes, songRes] = await Promise.all([
-        _fetch('services', () => TheVine.flock.servicePlans.list({ limit: 60 }), _TTL.crm).catch(() => ({})),
-        _fetch('volunteers', () => TheVine.flock.volunteers.list({ limit: 100 }), _TTL.crm).catch(() => ({})),
-        _fetch('songs', () => TheVine.flock.songs.list({ limit: 60 }), _TTL.ref).catch(() => ({})),
+        _fetch('services', () => _isFirebaseComms() ? UpperRoom.listServicePlans({ limit: 60 }) : TheVine.flock.servicePlans.list({ limit: 60 }), _TTL.crm).catch(() => ({})),
+        _fetch('volunteers', () => _isFirebaseComms() ? UpperRoom.listVolunteers({ limit: 100 }) : TheVine.flock.volunteers.list({ limit: 100 }), _TTL.crm).catch(() => ({})),
+        _fetch('songs', () => _isFirebaseComms() ? UpperRoom.listSongs({ limit: 60 }) : TheVine.flock.songs.list({ limit: 60 }), _TTL.ref).catch(() => ({})),
       ]);
 
       const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -18573,8 +18687,8 @@ const Modules = (() => {
         (_isFirebaseComms() ? UpperRoom.listPrayers({ limit: 500 }) : TheVine.flock.prayer.list({ limit: 500 })).catch(function () { return null; }),
         (_isFirebaseComms() ? UpperRoom.listCareCases({ limit: 500 }) : TheVine.flock.care.list({ limit: 500 })).catch(function () { return null; }),
         (_isFirebaseComms() ? UpperRoom.listCompassionRequests({ limit: 200 }) : TheVine.flock.compassion.requests.list({ limit: 200 })).catch(function () { return null; }),
-        TheVine.flock.events.list({ limit: 100 }).catch(function () { return null; }),
-        TheVine.flock.giving.list({ limit: 200 }).catch(function () { return null; }),
+        (_isFirebaseComms() ? UpperRoom.listEvents({ limit: 100 }) : TheVine.flock.events.list({ limit: 100 })).catch(function () { return null; }),
+        (_isFirebaseComms() ? UpperRoom.listGiving({ limit: 200 }) : TheVine.flock.giving.list({ limit: 200 })).catch(function () { return null; }),
         TheVine.flock.call('audit.list', { limit: 30 }).catch(function () { return null; }),
         TheVine.flock.todo.list({ limit: 300 }).catch(function () { return null; }),
       ]);
@@ -18863,8 +18977,8 @@ const Modules = (() => {
     if (window._applyFontScale) window._applyFontScale();
     // Also save to server config if available
     if (typeof TheVine !== 'undefined') {
-      if (dSel) TheVine.flock.config.update({ key: 'FONT_SCALE', value: dSel.value }).catch(function(){});
-      if (mSel) TheVine.flock.config.update({ key: 'FONT_SCALE_MOBILE', value: mSel.value }).catch(function(){});
+      if (dSel) (_isFirebaseComms() ? UpperRoom.updateAppConfig : TheVine.flock.config.update)({ key: 'FONT_SCALE', value: dSel.value }).catch(function(){});
+      if (mSel) (_isFirebaseComms() ? UpperRoom.updateAppConfig : TheVine.flock.config.update)({ key: 'FONT_SCALE_MOBILE', value: mSel.value }).catch(function(){});
     }
     _toast('Font sizes saved.');
   }
@@ -18914,7 +19028,7 @@ const Modules = (() => {
   // Fires after a short delay so it doesn't compete with initial navigation.
   setTimeout(() => {
     _ensureMemberDir().catch(() => {});
-    _fetch('comms-inbox', () => TheVine.flock.comms.messages.inbox({ limit: 60 }), _TTL.msg).catch(() => {});
+    if (!_isFirebaseComms()) { _fetch('comms-inbox', () => TheVine.flock.comms.messages.inbox({ limit: 60 }), _TTL.msg).catch(() => {}); }
     if (typeof TheSeason !== 'undefined' && TheSeason.preload) TheSeason.preload();
   }, 1500);
 
@@ -18973,7 +19087,7 @@ const Modules = (() => {
     _outCampaignNew, _outCampaignEdit, _outContactConvert, _outContactArchive,
     _outCampaignArchive, _outFollowUpDone, _outFollowUpNew,
     memberCardsView, _mcBulkProvision, _mcArchive,
-    _mcLinkNew, _mcLinkDelete, _mcLookup,
+    _mcLinkNew, _mcLinkDelete, _mcLookup, _vcardOpen,
     newPlaylist, learningView, learningTopics,
     _lrnTopicNew, _lrnTopicEdit, _lrnTopicDelete,
     _lrnPlaylistDelete, _lrnPlaylistSubscribe,

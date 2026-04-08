@@ -342,6 +342,9 @@
 </div>
 
 <!-- ═══ SCRIPTS ═══ -->
+<script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script defer src="../Scripts/the_upper_room.js"></script>
 <script defer src="../Scripts/fine_linen.js"></script>
 <script defer src="../Scripts/the_true_vine.js"></script>
 <script defer src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
@@ -355,15 +358,24 @@ document.addEventListener('DOMContentLoaded', function() {
   // ── Skip login if already authenticated ──
   Nehemiah.guardLogin();
 
-  // ── Lockdown banner — warn users before they try to log in ──
-  TheVine.flock.call('system.lockdown', {}, { skipAuth: true })
-    .then(function(res) {
-      if (res && res.locked) {
-        var b = document.getElementById('lockdownBanner');
-        if (b) b.style.display = '';
-      }
-    })
-    .catch(function() { /* silent — server-side gate still enforces */ });
+  // ── Maintenance banner — warn users before they try to log in ──
+  try {
+    if (typeof firebase !== 'undefined' && firebase.firestore) {
+      if (!firebase.apps.length) firebase.initializeApp(typeof window.FLOCK_FIREBASE_CONFIG === 'object' && window.FLOCK_FIREBASE_CONFIG || {
+        apiKey: 'AIzaSyBA-fkxjABbwIHn0i6MPiXbGwahfJmuJeo',
+        authDomain: 'flockos-notify.firebaseapp.com',
+        projectId: 'flockos-notify'
+      });
+      firebase.firestore().doc('appConfig/system').get()
+        .then(function(snap) {
+          if (snap.exists && snap.data().maintenance) {
+            var b = document.getElementById('lockdownBanner');
+            if (b) b.style.display = '';
+          }
+        })
+        .catch(function() { /* silent */ });
+    }
+  } catch (_) { /* Firebase not ready — skip banner */ }
 
   // ── View Management ──
   function showView(name) {

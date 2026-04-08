@@ -501,6 +501,10 @@
   </div>
 
 <!-- ═══ SCRIPTS ═══ -->
+<script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script defer src="../Scripts/the_upper_room.js"></script>
 <script defer src="../Scripts/fine_linen.js"></script>
 <script defer src="../Scripts/the_true_vine.js"></script>
 <script defer src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
@@ -516,27 +520,35 @@
 document.addEventListener('DOMContentLoaded', function() {
 Adornment.init();
 
-// ── Lockdown gate ──────────────────────────────────────────────────────────
+// ── Maintenance gate (Firestore-first, no GAS round-trip) ──────────────────
 var _lockdownResolved = false;
 var _isLockedDown = false;
 
 (function() {
-  TheVine.flock.call('system.lockdown', {}, { skipAuth: true })
-    .then(function(res) {
-      _isLockedDown = !!(res && res.locked);
-      _lockdownResolved = true;
-      if (_isLockedDown) _showLockdownPage();
-    })
-    .catch(function() {
-      // Fail closed — if we cannot verify, assume locked
-      _isLockedDown = true;
-      _lockdownResolved = true;
-      _showLockdownPage();
-    });
+  // Firestore path: appConfig/system → { maintenance: true/false }
+  if (typeof firebase !== 'undefined' && firebase.firestore) {
+    try {
+      if (!firebase.apps.length) firebase.initializeApp(typeof window.FLOCK_FIREBASE_CONFIG === 'object' && window.FLOCK_FIREBASE_CONFIG || { apiKey: 'AIzaSyBA-fkxjABbwIHn0i6MPiXbGwahfJmuJeo', authDomain: 'flockos-notify.firebaseapp.com', projectId: 'flockos-notify' });
+    } catch (_) { _lockdownResolved = true; return; }
+    firebase.firestore().doc('appConfig/system').get()
+      .then(function(snap) {
+        var data = snap.exists ? snap.data() : {};
+        _isLockedDown = !!(data && data.maintenance);
+        _lockdownResolved = true;
+        if (_isLockedDown) _showMaintenancePage();
+      })
+      .catch(function() {
+        // Firestore unreachable — fail open so the app still loads
+        _isLockedDown = false;
+        _lockdownResolved = true;
+      });
+  } else {
+    // Firebase SDK not loaded — skip maintenance check
+    _lockdownResolved = true;
+  }
 })();
 
-function _showLockdownPage() {
-  // Remove splash immediately if it's still showing
+function _showMaintenancePage() {
   var splash = document.getElementById('splash');
   if (splash) splash.remove();
 
@@ -544,9 +556,9 @@ function _showLockdownPage() {
     '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;' +
     'min-height:100dvh;background:var(--bg,#1a1a2e);color:var(--ink,#e0e0e0);text-align:center;padding:40px 24px;font-family:Georgia,serif;">' +
     '<div style="font-size:4rem;margin-bottom:20px;">\uD83D\uDEE1\uFE0F</div>' +
-    '<h1 style="font-size:1.8rem;margin:0 0 16px;color:var(--accent,#22d3ee);">Whoa there!</h1>' +
+    '<h1 style="font-size:1.8rem;margin:0 0 16px;color:var(--accent,#22d3ee);">Under Maintenance</h1>' +
     '<p style="font-size:1.1rem;max-width:480px;line-height:1.7;color:var(--ink-muted,#aaa);">' +
-    'Your heart is not quite ready to bear what you will see in the next version of Trinity Baptist Church.</p>' +
+    'FlockOS is being updated. We\u2019ll be back shortly.</p>' +
     '<p style="margin-top:24px;font-size:0.85rem;color:var(--ink-muted,#777);font-style:italic;">' +
     '\u201CFor I know the plans I have for you,\u201D declares the Lord.\u2003\u2014\u2003Jeremiah 29:11</p>' +
     '<p style="margin-top:48px;font-style:italic;font-size:0.85rem;">' +
@@ -642,38 +654,28 @@ function toggleSidebar() {
   document.getElementById('sidebar').classList.toggle('open');
 }
 
-// ── Splash screen dismiss (blocked by lockdown) ───────────────────────────
-setTimeout(function() {
-  // If lockdown resolved and active, the page is already replaced
+// ── Splash screen dismiss ──────────────────────────────────────────────────
+var _splashDismissed = false;
+function _dismissSplash() {
+  if (_splashDismissed) return;
   if (_isLockedDown) return;
-
+  _splashDismissed = true;
   var splash = document.getElementById('splash');
   if (!splash) return;
-
-  // If lockdown check hasn't resolved yet, wait for it
-  if (!_lockdownResolved) {
-    var waitInterval = setInterval(function() {
-      if (_isLockedDown) { clearInterval(waitInterval); return; }
-      if (_lockdownResolved) {
-        clearInterval(waitInterval);
-        splash.classList.add('fade-out');
-        setTimeout(function() { splash.remove(); }, 600);
-      }
-    }, 200);
-    // Safety timeout: if API hasn't responded in 10s, fail closed
-    setTimeout(function() {
-      clearInterval(waitInterval);
-      if (!_lockdownResolved) {
-        _isLockedDown = true;
-        _showLockdownPage();
-      }
-    }, 10000);
-    return;
-  }
-
   splash.classList.add('fade-out');
   setTimeout(function() { splash.remove(); }, 600);
-}, 3500);
+}
+
+// Poll until maintenance check resolves (Firestore ≈ 100ms)
+var _splashPoll = setInterval(function() {
+  if (_lockdownResolved && !_isLockedDown) { clearInterval(_splashPoll); _dismissSplash(); }
+}, 150);
+
+// Safety net: dismiss after 4s even if check somehow stalls
+setTimeout(function() {
+  clearInterval(_splashPoll);
+  if (!_isLockedDown) _dismissSplash();
+}, 4000);
 
 // ── Auto-navigate to public card if ?m= query param is present ──────────
 (function() {
