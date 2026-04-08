@@ -852,9 +852,12 @@ if (!session) throw new Error('Not authenticated');
       '</div>';
   }
 
-  TheVine.flock.call('system.lockdown', {}, { skipAuth: true })
-    .then(function(res) { if (res && res.locked) _blockAdmin(); })
-    .catch(function() {}); // fail open — lockdown disabled by default
+  // Maintenance check — Firestore-first
+  if (typeof firebase !== 'undefined' && firebase.firestore) {
+    firebase.firestore().doc('appConfig/system').get()
+      .then(function(snap) { if (snap.exists && snap.data().maintenance) _blockAdmin(); })
+      .catch(function() {}); // fail open
+  }
 })();
 
 // ── Populate Top Bar ───────────────────────────────────────────────────────

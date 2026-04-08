@@ -892,6 +892,26 @@
       .then(function(snap) { return snap.size; });
   }
 
+  /* ── List notifications (one-shot) ──────────────────────────────── */
+  function listNotifications(opts) {
+    opts = opts || {};
+    return _notifsRef()
+      .where('recipientEmail', '==', _userEmail)
+      .orderBy('createdAt', 'desc')
+      .limit(opts.limit || 60)
+      .get()
+      .then(function(snap) {
+        var out = [];
+        snap.forEach(function(d) { var o = d.data(); o.id = d.id; out.push(o); });
+        return out;
+      });
+  }
+
+  /* ── Dismiss (delete) a notification ────────────────────────────── */
+  function dismissNotification(notifId) {
+    return _notifsRef().doc(notifId).delete();
+  }
+
   /* ══════════════════════════════════════════════════════════════════
      TYPING INDICATORS (ephemeral — auto-expire)
      ══════════════════════════════════════════════════════════════════ */
@@ -3480,6 +3500,578 @@
   }
 
   /* ══════════════════════════════════════════════════════════════════
+     ALBUMS — photo & media galleries
+     ══════════════════════════════════════════════════════════════════ */
+
+  function _albumsRef() { return _churchDoc().collection('albums'); }
+
+  function listAlbums(opts) {
+    opts = opts || {};
+    var q = _albumsRef().orderBy('createdAt', 'desc');
+    q = q.limit(opts.limit || 100);
+    return q.get().then(function(snap) {
+      var out = [];
+      snap.forEach(function(d) { var o = d.data(); o.id = d.id; out.push(o); });
+      return out;
+    });
+  }
+
+  function createAlbum(data) {
+    data.createdAt = _ts();
+    data.createdBy = _userEmail();
+    return _albumsRef().add(data).then(function(ref) { data.id = ref.id; return data; });
+  }
+
+  function updateAlbum(data) {
+    var id = data.id; delete data.id;
+    data.updatedAt = _ts();
+    data.updatedBy = _userEmail();
+    return _albumsRef().doc(id).update(data);
+  }
+
+  function deleteAlbum(id) {
+    return _albumsRef().doc(id).delete();
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     STATISTICS & ANALYTICS
+     ══════════════════════════════════════════════════════════════════ */
+
+  function _statsConfigRef()    { return _churchDoc().collection('statisticsConfig'); }
+  function _statsSnapshotsRef() { return _churchDoc().collection('statisticsSnapshots'); }
+  function _statsViewsRef()     { return _churchDoc().collection('statisticsViews'); }
+
+  // ── Dashboard: aggregate key metrics from latest snapshot ───────
+  function statsDashboard() {
+    return _statsSnapshotsRef().orderBy('createdAt', 'desc').limit(1)
+      .get().then(function(snap) {
+        if (snap.empty) return { stats: [] };
+        var d = snap.docs[0].data();
+        return { stats: d.metrics || d.stats || d.data || [] };
+      });
+  }
+
+  // ── Trends: gather snapshots within period, group by metric ─────
+  function statsTrends(opts) {
+    opts = opts || {};
+    var days = opts.period || 90;
+    var since = new Date(); since.setDate(since.getDate() - days);
+    return _statsSnapshotsRef()
+      .where('createdAt', '>=', firebase.firestore.Timestamp.fromDate(since))
+      .orderBy('createdAt', 'asc')
+      .get().then(function(snap) {
+        var byMetric = {};
+        snap.forEach(function(d) {
+          var o = d.data();
+          var metrics = o.metrics || o.data || [];
+          if (!Array.isArray(metrics)) {
+            metrics = Object.entries(metrics).map(function(e) { return { label: e[0], value: e[1] }; });
+          }
+          metrics.forEach(function(m) {
+            var key = m.label || m.name || m.metric || 'unknown';
+            if (!byMetric[key]) byMetric[key] = { metric: key, data: [] };
+            byMetric[key].data.push(m.value != null ? m.value : m.count != null ? m.count : 0);
+          });
+        });
+        return { trends: Object.values(byMetric) };
+      });
+  }
+
+  // ── Compute: take a fresh snapshot now ──────────────────────────
+  function statsCompute() {
+    // In Firebase mode compute = create a new snapshot from current config
+    return _statsConfigRef().get().then(function(snap) {
+      var metricKeys = [];
+      snap.forEach(function(d) { var c = d.data(); metricKeys.push(c.key || c.metricKey || d.id); });
+      var snapData = { createdAt: _ts(), createdBy: _userEmail(), label: 'Auto-compute', metrics: {} };
+      metricKeys.forEach(function(k) { snapData.metrics[k] = 0; }); // placeholder for real values
+      return _statsSnapshotsRef().add(snapData);
+    });
+  }
+
+  // ── Export: build CSV from latest dashboard ─────────────────────
+  function statsExport() {
+    return statsDashboard().then(function(res) {
+      return { stats: res.stats }; // caller builds CSV in the_tabernacle.js
+    });
+  }
+
+  // ── Config CRUD ─────────────────────────────────────────────────
+  function listStatsConfig()   { return _statsConfigRef().get().then(_snapToArr); }
+  function getStatsConfig(id)  { return _statsConfigRef().doc(id).get().then(function(d) { var o = d.data() || {}; o.id = d.id; return { config: o }; }); }
+  function createStatsConfig(data) {
+    data.createdAt = _ts(); data.createdBy = _userEmail();
+    return _statsConfigRef().add(data);
+  }
+  function updateStatsConfig(data) {
+    var id = data.id; delete data.id;
+    data.updatedAt = _ts(); data.updatedBy = _userEmail();
+    return _statsConfigRef().doc(id).update(data);
+  }
+  function deleteStatsConfig(id) { return _statsConfigRef().doc(id).delete(); }
+
+  // ── Snapshots CRUD ──────────────────────────────────────────────
+  function listStatsSnapshots(opts) {
+    opts = opts || {};
+    return _statsSnapshotsRef().orderBy('createdAt', 'desc').limit(opts.limit || 100).get().then(_snapToArr);
+  }
+  function getStatsSnapshot(id) {
+    return _statsSnapshotsRef().doc(id).get().then(function(d) { var o = d.data() || {}; o.id = d.id; return { snapshot: o }; });
+  }
+  function createStatsSnapshot(data) {
+    data.createdAt = _ts(); data.createdBy = _userEmail();
+    return _statsSnapshotsRef().add(data).then(function(ref) { data.id = ref.id; return data; });
+  }
+  function deleteStatsSnapshot(id) { return _statsSnapshotsRef().doc(id).delete(); }
+
+  // ── Views CRUD ──────────────────────────────────────────────────
+  function listStatsViews()    { return _statsViewsRef().get().then(_snapToArr); }
+  function createStatsView(data) {
+    data.createdAt = _ts(); data.createdBy = _userEmail();
+    return _statsViewsRef().add(data);
+  }
+  function updateStatsView(data) {
+    var id = data.id; delete data.id;
+    data.updatedAt = _ts(); data.updatedBy = _userEmail();
+    return _statsViewsRef().doc(id).update(data);
+  }
+  function deleteStatsView(id) { return _statsViewsRef().doc(id).delete(); }
+
+  // ── helper: snapshot array conversion ───────────────────────────
+  function _snapToArr(snap) {
+    var out = [];
+    snap.forEach(function(d) { var o = d.data(); o.id = d.id; out.push(o); });
+    return out;
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     MISSIONS
+     ══════════════════════════════════════════════════════════════════ */
+
+  function _missionsRef(sub) { return _churchDoc().collection(sub); }
+
+  // generic CRUD factory for each missions sub-collection
+  function _mList(col, opts) {
+    opts = opts || {};
+    var q = _missionsRef(col);
+    if (opts.id) return q.doc(opts.id).get().then(function(d) { var o = d.data() || {}; o.id = d.id; return [o]; });
+    q = q.orderBy('createdAt', 'desc').limit(opts.limit || 200);
+    return q.get().then(_snapToArr);
+  }
+  function _mGet(col, p) {
+    var id = (typeof p === 'string') ? p : p.id;
+    return _missionsRef(col).doc(id).get().then(function(d) { var o = d.data() || {}; o.id = d.id; return o; });
+  }
+  function _mCreate(col, data) {
+    data.createdAt = _ts(); data.createdBy = _userEmail();
+    return _missionsRef(col).add(data).then(function(ref) { data.id = ref.id; return data; });
+  }
+  function _mUpdate(col, data) {
+    var id = data.id; delete data.id;
+    data.updatedAt = _ts(); data.updatedBy = _userEmail();
+    return _missionsRef(col).doc(id).update(data);
+  }
+
+  // ── Registry (countries) ────────────────────────────────────────
+  function listMissionsRegistry(opts) { return _mList('missionsRegistry', opts); }
+  function getMissionsRegistry(p)     { return _mGet('missionsRegistry', p); }
+  function createMissionsRegistry(d)  { return _mCreate('missionsRegistry', d); }
+  function updateMissionsRegistry(d)  { return _mUpdate('missionsRegistry', d); }
+
+  // ── Partners ────────────────────────────────────────────────────
+  function listMissionsPartners(opts) { return _mList('missionsPartners', opts); }
+  function getMissionsPartners(p)     { return _mGet('missionsPartners', p); }
+  function createMissionsPartners(d)  { return _mCreate('missionsPartners', d); }
+  function updateMissionsPartners(d)  { return _mUpdate('missionsPartners', d); }
+
+  // ── Prayer Focus ────────────────────────────────────────────────
+  function listMissionsPrayerFocus(opts) { return _mList('missionsPrayerFocus', opts); }
+  function createMissionsPrayerFocus(d)  { return _mCreate('missionsPrayerFocus', d); }
+  function updateMissionsPrayerFocus(d)  { return _mUpdate('missionsPrayerFocus', d); }
+  function respondMissionsPrayerFocus(p) {
+    return _missionsRef('missionsPrayerFocus').doc(p.id).update({
+      lastPrayedAt: _ts(),
+      prayerCount: firebase.firestore.FieldValue.increment(1),
+      updatedBy: _userEmail()
+    });
+  }
+
+  // ── Updates (field reports) ─────────────────────────────────────
+  function listMissionsUpdates(opts) { return _mList('missionsUpdates', opts); }
+  function getMissionsUpdates(p)     { return _mGet('missionsUpdates', p); }
+  function createMissionsUpdates(d)  { return _mCreate('missionsUpdates', d); }
+  function updateMissionsUpdates(d)  { return _mUpdate('missionsUpdates', d); }
+
+  // ── Teams ───────────────────────────────────────────────────────
+  function listMissionsTeams(opts) { return _mList('missionsTeams', opts); }
+  function getMissionsTeams(p)     { return _mGet('missionsTeams', p); }
+  function createMissionsTeams(d)  { return _mCreate('missionsTeams', d); }
+  function updateMissionsTeams(d)  { return _mUpdate('missionsTeams', d); }
+
+  // ── Bulk create (for restore) ───────────────────────────────────
+  function missionsBulkCreate(p) {
+    var col = 'missionsRegistry';
+    if (p.tab === 'MissionsPartners') col = 'missionsPartners';
+    else if (p.tab === 'MissionsPrayerFocus') col = 'missionsPrayerFocus';
+    else if (p.tab === 'MissionsUpdates') col = 'missionsUpdates';
+    else if (p.tab === 'MissionsTeams') col = 'missionsTeams';
+    var batch = _db.batch();
+    var ref = _missionsRef(col);
+    (p.rows || []).forEach(function(r) { batch.set(ref.doc(), r); });
+    return batch.commit();
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     APP CONFIG — key/value configuration pairs
+     ══════════════════════════════════════════════════════════════════ */
+
+  function _appConfigRef() { return _churchDoc().collection('appConfig'); }
+
+  function listAppConfig() {
+    return _appConfigRef().get().then(function(snap) {
+      var out = [];
+      snap.forEach(function(d) { var o = d.data(); o.id = d.id; o.key = o.key || d.id; out.push(o); });
+      return out;
+    });
+  }
+
+  function getAppConfig(opts) {
+    var key = opts.key || opts.id;
+    return _appConfigRef().doc(key).get().then(function(d) {
+      if (!d.exists) return { key: key, value: '' };
+      var o = d.data(); o.id = d.id; o.key = o.key || d.id;
+      return o;
+    });
+  }
+
+  function setAppConfig(data) {
+    var key = data.key;
+    return _appConfigRef().doc(key).set({
+      key: key,
+      value: data.value != null ? data.value : '',
+      updatedAt: _ts(),
+      updatedBy: _userEmail()
+    }, { merge: true });
+  }
+
+  function updateAppConfig(data) {
+    return setAppConfig(data);
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     MAINTENANCE MODE — global (not church-scoped) appConfig/system
+     ══════════════════════════════════════════════════════════════════ */
+
+  function _globalAppConfigRef() { return _db.collection('appConfig'); }
+
+  function getMaintenanceStatus() {
+    return _globalAppConfigRef().doc('system').get().then(function(d) {
+      if (!d.exists) return { maintenance: false };
+      return d.data();
+    });
+  }
+
+  function setMaintenanceMode(data) {
+    var enabled = !!(data && data.maintenance);
+    return _globalAppConfigRef().doc('system').set({
+      maintenance: enabled,
+      updatedAt: _ts(),
+      updatedBy: _userEmail()
+    }, { merge: true });
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     USER PREFERENCES — per-user preferences
+     ══════════════════════════════════════════════════════════════════ */
+
+  function _prefsRef() { return _churchDoc().collection('preferences'); }
+  function _prefsDocId() { return (_userEmail() || 'anon').replace(/[^a-zA-Z0-9@._-]/g, '_'); }
+
+  function getUserPreferences() {
+    return _prefsRef().doc(_prefsDocId()).get().then(function(d) {
+      return d.exists ? d.data() : {};
+    });
+  }
+
+  function updateUserPreferences(data) {
+    data.updatedAt = _ts();
+    return _prefsRef().doc(_prefsDocId()).set(data, { merge: true });
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     CONTACTS / PASTORAL NOTES / MILESTONES / HOUSEHOLDS
+     ══════════════════════════════════════════════════════════════════ */
+
+  function _contactsRef()   { return _churchDoc().collection('contactLog'); }
+  function _notesRef()      { return _churchDoc().collection('pastoralNotes'); }
+  function _milestonesRef() { return _churchDoc().collection('milestones'); }
+  function _householdsRef() { return _churchDoc().collection('households'); }
+
+  function listContacts(opts) {
+    opts = opts || {};
+    var q = _contactsRef().orderBy('createdAt', 'desc').limit(opts.limit || 500);
+    return q.get().then(_snapToArr);
+  }
+  function createContact(data) {
+    data.createdAt = _ts(); data.createdBy = _userEmail();
+    return _contactsRef().add(data).then(function(ref) { data.id = ref.id; return data; });
+  }
+
+  function listPastoralNotes(opts) {
+    opts = opts || {};
+    var q = _notesRef().orderBy('createdAt', 'desc').limit(opts.limit || 500);
+    return q.get().then(_snapToArr);
+  }
+  function createPastoralNote(data) {
+    data.createdAt = _ts(); data.createdBy = _userEmail();
+    return _notesRef().add(data).then(function(ref) { data.id = ref.id; return data; });
+  }
+
+  function listMilestones(opts) {
+    opts = opts || {};
+    var q = _milestonesRef().orderBy('createdAt', 'desc').limit(opts.limit || 500);
+    return q.get().then(_snapToArr);
+  }
+
+  function listHouseholds(opts) {
+    opts = opts || {};
+    var q = _householdsRef().orderBy('name', 'asc').limit(opts.limit || 500);
+    return q.get().then(_snapToArr);
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     AUDIT LOG
+     ══════════════════════════════════════════════════════════════════ */
+
+  function _auditRef() { return _churchDoc().collection('auditLog'); }
+
+  function listAudit(opts) {
+    opts = opts || {};
+    var q = _auditRef().orderBy('ts', 'desc').limit(opts.limit || 500);
+    return q.get().then(_snapToArr);
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     ACCESS CONTROL
+     ══════════════════════════════════════════════════════════════════ */
+
+  function _accessRef() { return _churchDoc().collection('accessControl'); }
+
+  function listAccess() {
+    return _accessRef().get().then(_snapToArr);
+  }
+  function setAccess(data) {
+    var email = (data.email || '').toLowerCase();
+    return _accessRef().doc(email).set({
+      email: email,
+      role: data.role || 'member',
+      displayName: data.displayName || '',
+      updatedAt: _ts(),
+      updatedBy: _userEmail()
+    }, { merge: true });
+  }
+  function removeAccess(data) {
+    var email = (data.email || '').toLowerCase();
+    return _accessRef().doc(email).delete();
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     MEMBER CARDS — extended methods
+     ══════════════════════════════════════════════════════════════════ */
+
+  function memberCardsDashboard() {
+    return listMemberCards({ limit: 500 }).then(function(cards) {
+      var active = cards.filter(function(c) { return c.status !== 'archived'; });
+      return {
+        totalCards: cards.length,
+        activeCards: active.length,
+        archivedCards: cards.length - active.length
+      };
+    });
+  }
+
+  function memberCardsMine() {
+    return _memberCardsRef().where('email', '==', _userEmail())
+      .limit(1).get().then(function(snap) {
+        if (snap.empty) return null;
+        var d = snap.docs[0].data(); d.id = snap.docs[0].id; return d;
+      });
+  }
+
+  function memberCardsByNumber(opts) {
+    var num = opts.cardNumber || opts.memberNumber || '';
+    return _memberCardsRef().where('memberNumber', '==', num)
+      .limit(1).get().then(function(snap) {
+        if (snap.empty) return null;
+        var d = snap.docs[0].data(); d.id = snap.docs[0].id; return d;
+      });
+  }
+
+  function memberCardsArchive(opts) {
+    return _memberCardsRef().doc(opts.id).update({ status: 'archived', archivedAt: _ts(), archivedBy: _userEmail() });
+  }
+
+  function memberCardsBulkProvision(opts) {
+    var count = opts.count || 1;
+    var prefix = opts.prefix || 'MC';
+    var batch = _db.batch();
+    for (var i = 0; i < count; i++) {
+      var num = prefix + '-' + String(Date.now()).slice(-6) + String(i).padStart(3, '0');
+      batch.set(_memberCardsRef().doc(), { memberNumber: num, status: 'unassigned', createdAt: _ts(), createdBy: _userEmail() });
+    }
+    return batch.commit();
+  }
+
+  function memberCardsVcard(opts) {
+    // In Firebase mode, build a vCard URL from the card data
+    var id = opts.memberNumber || opts.id;
+    return getMemberCard(id).then(function(card) {
+      if (!card) return null;
+      var lines = ['BEGIN:VCARD','VERSION:3.0'];
+      if (card.firstName || card.lastName) lines.push('N:' + (card.lastName || '') + ';' + (card.firstName || ''));
+      if (card.firstName || card.lastName) lines.push('FN:' + ((card.firstName || '') + ' ' + (card.lastName || '')).trim());
+      if (card.email) lines.push('EMAIL:' + card.email);
+      if (card.phone) lines.push('TEL:' + card.phone);
+      lines.push('END:VCARD');
+      var blob = new Blob([lines.join('\r\n')], { type: 'text/vcard' });
+      return URL.createObjectURL(blob);
+    });
+  }
+
+  function memberCardsDirectory() {
+    return listMemberCards({ limit: 500 }).then(function(cards) {
+      return cards.filter(function(c) { return c.status !== 'archived' && c.visibility !== 'hidden'; });
+    });
+  }
+
+  // ── Member Card Links — subcollection ──────────────────────────
+  function _cardLinksRef(cardId) { return _memberCardsRef().doc(cardId).collection('links'); }
+
+  function listCardLinks(opts) {
+    return _cardLinksRef(opts.cardId).get().then(_snapToArr);
+  }
+  function createCardLink(data) {
+    var cardId = data.cardId; delete data.cardId;
+    data.createdAt = _ts();
+    return _cardLinksRef(cardId).add(data).then(function(ref) { data.id = ref.id; return data; });
+  }
+  function deleteCardLink(opts) {
+    // Requires knowing which card the link belongs to; search if needed
+    if (opts.cardId) return _cardLinksRef(opts.cardId).doc(opts.id).delete();
+    // Fallback: try to find by iterating (not ideal but functional)
+    return listMemberCards({ limit: 500 }).then(function(cards) {
+      var promises = cards.map(function(c) {
+        return _cardLinksRef(c.id).doc(opts.id).delete().catch(function() {});
+      });
+      return Promise.all(promises);
+    });
+  }
+
+  // ── Member Card Views — subcollection ──────────────────────────
+  function _cardViewsRef() { return _churchDoc().collection('memberCardViews'); }
+
+  function listCardViews(opts) {
+    opts = opts || {};
+    return _cardViewsRef().orderBy('viewedAt', 'desc').limit(opts.limit || 80).get().then(_snapToArr);
+  }
+  function myCardViews() {
+    return _cardViewsRef().where('viewerEmail', '==', _userEmail())
+      .orderBy('viewedAt', 'desc').limit(30).get().then(_snapToArr);
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     BULK OPERATIONS & DATA TOOLS
+     ══════════════════════════════════════════════════════════════════ */
+
+  function bulkCreate(p) {
+    var colMap = {
+      Members:             'members',
+      Events:              'events',
+      SmallGroups:         'groups',
+      Giving:              'giving',
+      Ministries:          'ministries',
+      Songs:               'songs',
+      Sermons:             'sermons',
+      SermonSeries:        'sermonSeries',
+      DiscipleshipPaths:   'discipleshipPaths',
+      TheologyCategories:  'theologyCategories',
+      TheologySections:    'theologySections',
+      LearningPlaylists:   'learningPlaylists',
+      MemberCards:         'memberCards',
+      AppConfig:           'appConfig'
+    };
+    var col = colMap[p.tab] || p.tab;
+    var batch = _db.batch();
+    var ref = _churchDoc().collection(col);
+    (p.rows || []).forEach(function(r) {
+      r.createdAt = _ts(); r.createdBy = _userEmail();
+      batch.set(ref.doc(), r);
+    });
+    return batch.commit();
+  }
+
+  function bulkMembersImport(opts) {
+    var records = typeof opts.records === 'string' ? JSON.parse(opts.records) : (opts.records || []);
+    var batch = _db.batch();
+    var ref = _churchDoc().collection('members');
+    records.forEach(function(r) {
+      r.createdAt = _ts(); r.createdBy = _userEmail();
+      batch.set(ref.doc(), r);
+    });
+    return batch.commit().then(function() { return { imported: records.length }; });
+  }
+
+  function bulkDataExport(opts) {
+    var col = opts.tab || 'members';
+    return _churchDoc().collection(col).get().then(function(snap) {
+      var out = [];
+      snap.forEach(function(d) { var o = d.data(); o.id = d.id; out.push(o); });
+      return out;
+    });
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     REPORTS
+     ══════════════════════════════════════════════════════════════════ */
+
+  function reportsDashboard() {
+    // Aggregation from existing data — return counts per domain
+    return Promise.all([
+      _churchDoc().collection('members').get().then(function(s) { return s.size; }),
+      _churchDoc().collection('events').get().then(function(s) { return s.size; }),
+      _churchDoc().collection('giving').get().then(function(s) { return s.size; }),
+      _churchDoc().collection('attendance').get().then(function(s) { return s.size; }),
+      _churchDoc().collection('groups').get().then(function(s) { return s.size; }),
+    ]).then(function(counts) {
+      return {
+        members: counts[0],
+        events: counts[1],
+        giving: counts[2],
+        attendance: counts[3],
+        groups: counts[4]
+      };
+    });
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     APP CONTENT (read-only reference data — global, not per-church)
+     ══════════════════════════════════════════════════════════════════ */
+
+  function _appContentRef(type) { return _db.collection('appContent').doc(type).collection('items'); }
+
+  function listAppContent(type, opts) {
+    opts = opts || {};
+    var q = _appContentRef(type);
+    if (opts.orderBy) q = q.orderBy(opts.orderBy, opts.dir || 'asc');
+    q = q.limit(opts.limit || 1000);
+    return q.get().then(function(snap) {
+      var out = [];
+      snap.forEach(function(d) { var o = d.data(); o.id = d.id; out.push(o); });
+      return out;
+    });
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
      PUBLIC API — window.UpperRoom
      ══════════════════════════════════════════════════════════════════ */
 
@@ -3565,9 +4157,11 @@
     // Notifications
     createNotification:  createNotification,
     listenNotifications: listenNotifications,
+    listNotifications:   listNotifications,
     markNotifRead:       markNotifRead,
     markAllNotifsRead:   markAllNotifsRead,
     getUnreadCount:      getUnreadCount,
+    dismissNotification: dismissNotification,
 
     // Typing
     setTyping:      setTyping,
@@ -3890,6 +4484,109 @@
     theologyFlat:            theologyFlat,
     theologyFull:            theologyFull,
     theologyDashboard:       theologyDashboard,
+
+    // App Content (global reference data)
+    listAppContent:  listAppContent,
+
+    // Albums
+    listAlbums:    listAlbums,
+    createAlbum:   createAlbum,
+    updateAlbum:   updateAlbum,
+    deleteAlbum:   deleteAlbum,
+
+    // Statistics & Analytics
+    statsDashboard:       statsDashboard,
+    statsTrends:          statsTrends,
+    statsCompute:         statsCompute,
+    statsExport:          statsExport,
+    listStatsConfig:      listStatsConfig,
+    getStatsConfig:       getStatsConfig,
+    createStatsConfig:    createStatsConfig,
+    updateStatsConfig:    updateStatsConfig,
+    deleteStatsConfig:    deleteStatsConfig,
+    listStatsSnapshots:   listStatsSnapshots,
+    getStatsSnapshot:     getStatsSnapshot,
+    createStatsSnapshot:  createStatsSnapshot,
+    deleteStatsSnapshot:  deleteStatsSnapshot,
+    listStatsViews:       listStatsViews,
+    createStatsView:      createStatsView,
+    updateStatsView:      updateStatsView,
+    deleteStatsView:      deleteStatsView,
+
+    // Missions
+    listMissionsRegistry:     listMissionsRegistry,
+    getMissionsRegistry:      getMissionsRegistry,
+    createMissionsRegistry:   createMissionsRegistry,
+    updateMissionsRegistry:   updateMissionsRegistry,
+    listMissionsPartners:     listMissionsPartners,
+    getMissionsPartners:      getMissionsPartners,
+    createMissionsPartners:   createMissionsPartners,
+    updateMissionsPartners:   updateMissionsPartners,
+    listMissionsPrayerFocus:  listMissionsPrayerFocus,
+    createMissionsPrayerFocus: createMissionsPrayerFocus,
+    updateMissionsPrayerFocus: updateMissionsPrayerFocus,
+    respondMissionsPrayerFocus: respondMissionsPrayerFocus,
+    listMissionsUpdates:      listMissionsUpdates,
+    getMissionsUpdates:       getMissionsUpdates,
+    createMissionsUpdates:    createMissionsUpdates,
+    updateMissionsUpdates:    updateMissionsUpdates,
+    listMissionsTeams:        listMissionsTeams,
+    getMissionsTeams:         getMissionsTeams,
+    createMissionsTeams:      createMissionsTeams,
+    updateMissionsTeams:      updateMissionsTeams,
+    missionsBulkCreate:       missionsBulkCreate,
+
+    // App Config
+    listAppConfig:         listAppConfig,
+    getAppConfig:          getAppConfig,
+    setAppConfig:          setAppConfig,
+    updateAppConfig:       updateAppConfig,
+
+    // Maintenance Mode (global)
+    getMaintenanceStatus:  getMaintenanceStatus,
+    setMaintenanceMode:    setMaintenanceMode,
+
+    // User Preferences
+    getUserPreferences:    getUserPreferences,
+    updateUserPreferences: updateUserPreferences,
+
+    // Contacts / Notes / Milestones / Households
+    listContacts:          listContacts,
+    createContact:         createContact,
+    listPastoralNotes:     listPastoralNotes,
+    createPastoralNote:    createPastoralNote,
+    listMilestones:        listMilestones,
+    listHouseholds:        listHouseholds,
+
+    // Audit
+    listAudit:             listAudit,
+
+    // Access Control
+    listAccess:            listAccess,
+    setAccess:             setAccess,
+    removeAccess:          removeAccess,
+
+    // Member Cards — extended
+    memberCardsDashboard:   memberCardsDashboard,
+    memberCardsMine:        memberCardsMine,
+    memberCardsByNumber:    memberCardsByNumber,
+    memberCardsArchive:     memberCardsArchive,
+    memberCardsBulkProvision: memberCardsBulkProvision,
+    memberCardsVcard:       memberCardsVcard,
+    memberCardsDirectory:   memberCardsDirectory,
+    listCardLinks:          listCardLinks,
+    createCardLink:         createCardLink,
+    deleteCardLink:         deleteCardLink,
+    listCardViews:          listCardViews,
+    myCardViews:            myCardViews,
+
+    // Bulk Operations & Data Tools
+    bulkCreate:             bulkCreate,
+    bulkMembersImport:      bulkMembersImport,
+    bulkDataExport:         bulkDataExport,
+
+    // Reports
+    reportsDashboard:       reportsDashboard,
 
     // Utility
     timeAgo:        _timeAgo

@@ -2016,7 +2016,14 @@ const TheSeason = (() => {
 
     localStorage.setItem('flock_calendar_settings', JSON.stringify(obj));
 
-    if (typeof TheVine !== 'undefined' && TheVine.flock && TheVine.flock.config) {
+    if (_isFB() && typeof UpperRoom !== 'undefined') {
+      UpperRoom.setAppConfig({
+        key: 'CALENDAR_SETTINGS',
+        value: JSON.stringify(obj),
+        description: 'Calendar display preferences, feeds & integrations',
+        category: 'Calendar'
+      }).catch(function() {});
+    } else if (typeof TheVine !== 'undefined' && TheVine.flock && TheVine.flock.config) {
       TheVine.flock.config.set({
         key: 'CALENDAR_SETTINGS',
         value: JSON.stringify(obj),

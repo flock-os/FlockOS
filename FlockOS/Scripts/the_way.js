@@ -1375,7 +1375,9 @@ const TheWay = (() => {
       // Also fetch App-level quiz questions
       var appQuiz = [];
       try {
-        if (typeof TheVine !== 'undefined' && TheVine.app && TheVine.app.quiz) {
+        if (_isFB() && typeof UpperRoom !== 'undefined') {
+          appQuiz = await UpperRoom.listAppContent('quiz');
+        } else if (typeof TheVine !== 'undefined' && TheVine.app && TheVine.app.quiz) {
           var aq = await TheVine.app.quiz();
           appQuiz = _rows(aq);
         }
@@ -1856,8 +1858,11 @@ const TheWay = (() => {
       // Fallback to Matthew flat content if FLOCK API unavailable
       if (!tree.length) {
         try {
-          if (typeof TheVine !== 'undefined' && TheVine.app && TheVine.app.theology) {
+          if (_isFB() && typeof UpperRoom !== 'undefined') {
+            var flat = await UpperRoom.listAppContent('theology');
+          } else if (typeof TheVine !== 'undefined' && TheVine.app && TheVine.app.theology) {
             var flat = _rows(await TheVine.app.theology());
+          }
             if (flat.length) {
               var catMap = {};
               flat.forEach(function(r) {
@@ -2065,7 +2070,10 @@ const TheWay = (() => {
     try {
       var words = [];
       try {
-        if (typeof TheVine !== 'undefined' && TheVine.app && TheVine.app.words) {
+        if (_isFB() && typeof UpperRoom !== 'undefined') {
+          var res = await UpperRoom.listAppContent('words');
+          words = Array.isArray(res) ? res : _rows(res);
+        } else if (typeof TheVine !== 'undefined' && TheVine.app && TheVine.app.words) {
           var res = await TheVine.app.words();
           words = _rows(res);
         }
@@ -2419,7 +2427,10 @@ const TheWay = (() => {
     try {
       var devos = [];
       try {
-        if (typeof TheVine !== 'undefined' && TheVine.app && TheVine.app.devotionals) {
+        if (_isFB() && typeof UpperRoom !== 'undefined') {
+          var res = await UpperRoom.listAppContent('devotionals');
+          devos = Array.isArray(res) ? res : _rows(res);
+        } else if (typeof TheVine !== 'undefined' && TheVine.app && TheVine.app.devotionals) {
           var res = await TheVine.app.devotionals();
           devos = _rows(res);
         }
@@ -2489,7 +2500,10 @@ const TheWay = (() => {
     try {
       var data = [];
       try {
-        if (typeof TheVine !== 'undefined' && TheVine.app && TheVine.app.apologetics) {
+        if (_isFB() && typeof UpperRoom !== 'undefined') {
+          var res = await UpperRoom.listAppContent('apologetics');
+          data = Array.isArray(res) ? res : _rows(res);
+        } else if (typeof TheVine !== 'undefined' && TheVine.app && TheVine.app.apologetics) {
           var res = await TheVine.app.apologetics();
           data = _rows(res);
         }
@@ -2560,7 +2574,10 @@ const TheWay = (() => {
     try {
       var data = [];
       try {
-        if (typeof TheVine !== 'undefined' && TheVine.app && TheVine.app.counseling) {
+        if (_isFB() && typeof UpperRoom !== 'undefined') {
+          var res = await UpperRoom.listAppContent('counseling');
+          data = Array.isArray(res) ? res : _rows(res);
+        } else if (typeof TheVine !== 'undefined' && TheVine.app && TheVine.app.counseling) {
           var res = await TheVine.app.counseling();
           data = _rows(res);
         }
@@ -2702,7 +2719,7 @@ const TheWay = (() => {
   async function _renderHeart() {
     _panel(_spinner());
     try {
-      var raw = await TheVine.app.heart();
+      var raw = await (_isFB() && typeof UpperRoom !== 'undefined' ? UpperRoom.listAppContent('heart') : TheVine.app.heart());
       var rows = Array.isArray(raw) ? raw : _rows(raw);
       if (!rows.length) { _panel(_empty('\u2764', 'No questions yet', 'Add diagnostic questions in the Matthew spreadsheet.')); return; }
 
@@ -2811,7 +2828,7 @@ const TheWay = (() => {
   async function _renderGenealogy() {
     _panel(_spinner());
     try {
-      var raw = await TheVine.app.genealogy();
+      var raw = await (_isFB() && typeof UpperRoom !== 'undefined' ? UpperRoom.listAppContent('genealogy') : TheVine.app.genealogy());
       var rows = Array.isArray(raw) ? raw : _rows(raw);
       if (!rows.length) { _panel(_empty('\uD83D\uDC65', 'No genealogy data yet', 'Add entries in the Matthew spreadsheet.')); return; }
 

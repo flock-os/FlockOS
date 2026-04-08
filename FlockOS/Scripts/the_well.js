@@ -205,49 +205,49 @@ const TheWell = (() => {
       // If live backups are needed, add routes here.
     ],
     missions: [
-      { tab: 'MissionsRegistry',   call: () => TheVine.missions.registry.list() },
-      { tab: 'MissionsPartners',   call: () => TheVine.missions.partners.list() },
-      { tab: 'MissionsPrayerFocus',call: () => TheVine.missions.prayerFocus.list() },
-      { tab: 'MissionsUpdates',    call: () => TheVine.missions.updates.list() },
-      { tab: 'MissionsTeams',      call: () => TheVine.missions.teams.list() },
+      { tab: 'MissionsRegistry',   call: () => _isFB() ? UpperRoom.listMissionsRegistry() : TheVine.missions.registry.list() },
+      { tab: 'MissionsPartners',   call: () => _isFB() ? UpperRoom.listMissionsPartners() : TheVine.missions.partners.list() },
+      { tab: 'MissionsPrayerFocus',call: () => _isFB() ? UpperRoom.listMissionsPrayerFocus() : TheVine.missions.prayerFocus.list() },
+      { tab: 'MissionsUpdates',    call: () => _isFB() ? UpperRoom.listMissionsUpdates() : TheVine.missions.updates.list() },
+      { tab: 'MissionsTeams',      call: () => _isFB() ? UpperRoom.listMissionsTeams() : TheVine.missions.teams.list() },
     ],
     extra: [
-      { tab: 'StatisticsConfig',   call: () => TheVine.extra.statistics.config.list() },
-      { tab: 'StatisticsSnapshots',call: () => TheVine.extra.statistics.snapshots.list() },
+      { tab: 'StatisticsConfig',   call: () => _isFB() ? UpperRoom.listStatsConfig() : TheVine.extra.statistics.config.list() },
+      { tab: 'StatisticsSnapshots',call: () => _isFB() ? UpperRoom.listStatsSnapshots() : TheVine.extra.statistics.snapshots.list() },
     ],
     flock: [
-      { tab: 'Members',                 call: () => TheVine.flock.members.list({ limit: _BACKUP_LIMIT }) },
-      { tab: 'PrayerRequests',          call: () => TheVine.flock.prayer.list({ limit: _BACKUP_LIMIT }) },
+      { tab: 'Members',                 call: () => _isFB() ? UpperRoom.listMembers({ limit: _BACKUP_LIMIT }) : TheVine.flock.members.list({ limit: _BACKUP_LIMIT }) },
+      { tab: 'PrayerRequests',          call: () => _isFB() ? UpperRoom.listPrayers({ limit: _BACKUP_LIMIT }) : TheVine.flock.prayer.list({ limit: _BACKUP_LIMIT }) },
       { tab: 'JournalEntries',          call: () => _isFB() ? UpperRoom.listJournal({ limit: _BACKUP_LIMIT }) : TheVine.flock.journal.list({ limit: _BACKUP_LIMIT }) },
-      { tab: 'ContactLog',              call: () => TheVine.flock.contacts.list({ limit: _BACKUP_LIMIT }) },
-      { tab: 'PastoralNotes',           call: () => TheVine.flock.notes.list({ limit: _BACKUP_LIMIT }) },
-      { tab: 'Milestones',              call: () => TheVine.flock.milestones.list({ limit: _BACKUP_LIMIT }) },
-      { tab: 'Households',              call: () => TheVine.flock.households.list({ limit: _BACKUP_LIMIT }) },
-      { tab: 'ToDo',                    call: () => TheVine.flock.todo.list({ limit: _BACKUP_LIMIT }) },
+      { tab: 'ContactLog',              call: () => _isFB() ? UpperRoom.listContacts({ limit: _BACKUP_LIMIT }) : TheVine.flock.contacts.list({ limit: _BACKUP_LIMIT }) },
+      { tab: 'PastoralNotes',           call: () => _isFB() ? UpperRoom.listPastoralNotes({ limit: _BACKUP_LIMIT }) : TheVine.flock.notes.list({ limit: _BACKUP_LIMIT }) },
+      { tab: 'Milestones',              call: () => _isFB() ? UpperRoom.listMilestones({ limit: _BACKUP_LIMIT }) : TheVine.flock.milestones.list({ limit: _BACKUP_LIMIT }) },
+      { tab: 'Households',              call: () => _isFB() ? UpperRoom.listHouseholds({ limit: _BACKUP_LIMIT }) : TheVine.flock.households.list({ limit: _BACKUP_LIMIT }) },
+      { tab: 'ToDo',                    call: () => _isFB() ? UpperRoom.listTodos({ limit: _BACKUP_LIMIT }) : TheVine.flock.todo.list({ limit: _BACKUP_LIMIT }) },
       { tab: 'Attendance',              call: () => _isFB() ? UpperRoom.listAttendance({ limit: _BACKUP_LIMIT }) : TheVine.flock.attendance.list({ limit: _BACKUP_LIMIT }) },
       { tab: 'Events',                  call: () => _isFB() ? UpperRoom.listEvents({ limit: _BACKUP_LIMIT }) : TheVine.flock.events.list({ limit: _BACKUP_LIMIT }) },
       { tab: 'SmallGroups',             call: () => _isFB() ? UpperRoom.listGroups({ limit: _BACKUP_LIMIT }) : TheVine.flock.groups.list({ limit: _BACKUP_LIMIT }) },
       { tab: 'Giving',                  call: () => _isFB() ? UpperRoom.listGiving({ limit: _BACKUP_LIMIT }) : TheVine.flock.giving.list({ limit: _BACKUP_LIMIT }) },
       { tab: 'VolunteerSchedule',       call: () => _isFB() ? UpperRoom.listVolunteers({ limit: _BACKUP_LIMIT }) : TheVine.flock.volunteers.list({ limit: _BACKUP_LIMIT }) },
-      { tab: 'CommsMessages',           call: () => TheVine.flock.comms.messages.list({ limit: _BACKUP_LIMIT }) },
-      { tab: 'CommsThreads',            call: () => TheVine.flock.comms.threads.list({ limit: _BACKUP_LIMIT }) },
+      { tab: 'CommsMessages',           call: () => _isFB() ? UpperRoom.listConversations('dm') : TheVine.flock.comms.messages.list({ limit: _BACKUP_LIMIT }) },
+      { tab: 'CommsThreads',            call: () => _isFB() ? UpperRoom.listConversations('thread') : TheVine.flock.comms.threads.list({ limit: _BACKUP_LIMIT }) },
       { tab: 'Ministries',              call: () => _isFB() ? UpperRoom.listMinistries({ limit: _BACKUP_LIMIT }) : TheVine.flock.ministries.list({ limit: _BACKUP_LIMIT }) },
       { tab: 'ServicePlans',            call: () => _isFB() ? UpperRoom.listServicePlans({ limit: _BACKUP_LIMIT }) : TheVine.flock.servicePlans.list({ limit: _BACKUP_LIMIT }) },
       { tab: 'Songs',                    call: () => _isFB() ? UpperRoom.listSongs({ limit: _BACKUP_LIMIT }) : TheVine.flock.songs.list({ limit: _BACKUP_LIMIT }) },
-      { tab: 'SpiritualCareCases',      call: () => TheVine.flock.care.list({ limit: _BACKUP_LIMIT }) },
-      { tab: 'OutreachContacts',        call: () => TheVine.flock.outreach.contacts.list({ limit: _BACKUP_LIMIT }) },
-      { tab: 'OutreachCampaigns',       call: () => TheVine.flock.outreach.campaigns.list({ limit: _BACKUP_LIMIT }) },
+      { tab: 'SpiritualCareCases',      call: () => _isFB() ? UpperRoom.listCareCases({ limit: _BACKUP_LIMIT }) : TheVine.flock.care.list({ limit: _BACKUP_LIMIT }) },
+      { tab: 'OutreachContacts',        call: () => _isFB() ? UpperRoom.listOutreachContacts({ limit: _BACKUP_LIMIT }) : TheVine.flock.outreach.contacts.list({ limit: _BACKUP_LIMIT }) },
+      { tab: 'OutreachCampaigns',       call: () => _isFB() ? UpperRoom.listOutreachCampaigns({ limit: _BACKUP_LIMIT }) : TheVine.flock.outreach.campaigns.list({ limit: _BACKUP_LIMIT }) },
       { tab: 'Sermons',                 call: () => _isFB() ? UpperRoom.listSermons({ limit: _BACKUP_LIMIT }) : TheVine.flock.sermons.list({ limit: _BACKUP_LIMIT }) },
       { tab: 'SermonSeries',            call: () => _isFB() ? UpperRoom.listSermonSeries({ limit: _BACKUP_LIMIT }) : TheVine.flock.sermonSeries.list({ limit: _BACKUP_LIMIT }) },
-      { tab: 'CompassionRequests',      call: () => TheVine.flock.compassion.list({ limit: _BACKUP_LIMIT }) },
+      { tab: 'CompassionRequests',      call: () => _isFB() ? UpperRoom.listCompassionRequests({ limit: _BACKUP_LIMIT }) : TheVine.flock.compassion.list({ limit: _BACKUP_LIMIT }) },
       { tab: 'DiscipleshipPaths',       call: () => _isFB() ? UpperRoom.listDiscPaths({ limit: _BACKUP_LIMIT }) : TheVine.flock.discipleship.paths.list({ limit: _BACKUP_LIMIT }) },
       { tab: 'DiscipleshipEnrollments', call: () => _isFB() ? UpperRoom.listDiscEnrollments({ limit: _BACKUP_LIMIT }) : TheVine.flock.discipleship.enrollments.list({ limit: _BACKUP_LIMIT }) },
       { tab: 'LearningPlaylists',       call: () => _isFB() ? UpperRoom.listLrnPlaylists({ limit: _BACKUP_LIMIT }) : TheVine.flock.learning.playlists.list({ limit: _BACKUP_LIMIT }) },
       { tab: 'TheologyCategories',      call: () => _isFB() ? UpperRoom.listTheologyCategories({ limit: _BACKUP_LIMIT }) : TheVine.flock.theology.categories.list({ limit: _BACKUP_LIMIT }) },
       { tab: 'TheologySections',        call: () => _isFB() ? UpperRoom.listTheologySections({ limit: _BACKUP_LIMIT }) : TheVine.flock.theology.sections.list({ limit: _BACKUP_LIMIT }) },
-      { tab: 'MemberCards',             call: () => TheVine.flock.memberCards.list({ limit: _BACKUP_LIMIT }) },
-      { tab: 'AppConfig',               call: () => TheVine.flock.config.list() },
-      { tab: 'AuditLog',                call: () => TheVine.flock.audit.list({ limit: _BACKUP_LIMIT }) },
+      { tab: 'MemberCards',             call: () => _isFB() ? UpperRoom.listMemberCards({ limit: _BACKUP_LIMIT }) : TheVine.flock.memberCards.list({ limit: _BACKUP_LIMIT }) },
+      { tab: 'AppConfig',               call: () => _isFB() ? UpperRoom.listAppConfig() : TheVine.flock.config.list() },
+      { tab: 'AuditLog',                call: () => _isFB() ? UpperRoom.listAudit({ limit: _BACKUP_LIMIT }) : TheVine.flock.audit.list({ limit: _BACKUP_LIMIT }) },
     ],
   };
 
@@ -345,7 +345,7 @@ const TheWell = (() => {
     // Read configurable row limit from AppConfig (flock API only)
     if (api === 'flock') {
       try {
-        var cfgRes = await TheVine.flock.config.list();
+        var cfgRes = await (_isFB() ? UpperRoom.listAppConfig() : TheVine.flock.config.list());
         var cfgRows = _rows(cfgRes);
         var limitRow = cfgRows.find(function(r) { return r['Key'] === 'BACKUP_ROW_LIMIT'; });
         if (limitRow && parseInt(limitRow['Value'], 10) > 0) {
@@ -429,22 +429,22 @@ const TheWell = (() => {
   // Tab name → TheVine bulk/create route (only for restorable tabs)
   var RESTORE_ROUTES = {
     // Flock CRM — primary restore targets
-    Members:                function(rows) { return TheVine.flock.bulk.create({ tab: 'Members', rows: rows }); },
-    Events:                 function(rows) { return TheVine.flock.bulk.create({ tab: 'Events', rows: rows }); },
-    SmallGroups:            function(rows) { return TheVine.flock.bulk.create({ tab: 'SmallGroups', rows: rows }); },
-    Giving:                 function(rows) { return TheVine.flock.bulk.create({ tab: 'Giving', rows: rows }); },
-    Ministries:             function(rows) { return TheVine.flock.bulk.create({ tab: 'Ministries', rows: rows }); },
-    Songs:                  function(rows) { return TheVine.flock.bulk.create({ tab: 'Songs', rows: rows }); },
-    Sermons:                function(rows) { return TheVine.flock.bulk.create({ tab: 'Sermons', rows: rows }); },
-    SermonSeries:           function(rows) { return TheVine.flock.bulk.create({ tab: 'SermonSeries', rows: rows }); },
-    DiscipleshipPaths:      function(rows) { return TheVine.flock.bulk.create({ tab: 'DiscipleshipPaths', rows: rows }); },
-    TheologyCategories:     function(rows) { return TheVine.flock.bulk.create({ tab: 'TheologyCategories', rows: rows }); },
-    TheologySections:       function(rows) { return TheVine.flock.bulk.create({ tab: 'TheologySections', rows: rows }); },
-    LearningPlaylists:      function(rows) { return TheVine.flock.bulk.create({ tab: 'LearningPlaylists', rows: rows }); },
-    MemberCards:            function(rows) { return TheVine.flock.bulk.create({ tab: 'MemberCards', rows: rows }); },
-    AppConfig:              function(rows) { return TheVine.flock.bulk.create({ tab: 'AppConfig', rows: rows }); },
+    Members:                function(rows) { return _isFB() ? UpperRoom.bulkCreate({ tab: 'Members', rows: rows }) : TheVine.flock.bulk.create({ tab: 'Members', rows: rows }); },
+    Events:                 function(rows) { return _isFB() ? UpperRoom.bulkCreate({ tab: 'Events', rows: rows }) : TheVine.flock.bulk.create({ tab: 'Events', rows: rows }); },
+    SmallGroups:            function(rows) { return _isFB() ? UpperRoom.bulkCreate({ tab: 'SmallGroups', rows: rows }) : TheVine.flock.bulk.create({ tab: 'SmallGroups', rows: rows }); },
+    Giving:                 function(rows) { return _isFB() ? UpperRoom.bulkCreate({ tab: 'Giving', rows: rows }) : TheVine.flock.bulk.create({ tab: 'Giving', rows: rows }); },
+    Ministries:             function(rows) { return _isFB() ? UpperRoom.bulkCreate({ tab: 'Ministries', rows: rows }) : TheVine.flock.bulk.create({ tab: 'Ministries', rows: rows }); },
+    Songs:                  function(rows) { return _isFB() ? UpperRoom.bulkCreate({ tab: 'Songs', rows: rows }) : TheVine.flock.bulk.create({ tab: 'Songs', rows: rows }); },
+    Sermons:                function(rows) { return _isFB() ? UpperRoom.bulkCreate({ tab: 'Sermons', rows: rows }) : TheVine.flock.bulk.create({ tab: 'Sermons', rows: rows }); },
+    SermonSeries:           function(rows) { return _isFB() ? UpperRoom.bulkCreate({ tab: 'SermonSeries', rows: rows }) : TheVine.flock.bulk.create({ tab: 'SermonSeries', rows: rows }); },
+    DiscipleshipPaths:      function(rows) { return _isFB() ? UpperRoom.bulkCreate({ tab: 'DiscipleshipPaths', rows: rows }) : TheVine.flock.bulk.create({ tab: 'DiscipleshipPaths', rows: rows }); },
+    TheologyCategories:     function(rows) { return _isFB() ? UpperRoom.bulkCreate({ tab: 'TheologyCategories', rows: rows }) : TheVine.flock.bulk.create({ tab: 'TheologyCategories', rows: rows }); },
+    TheologySections:       function(rows) { return _isFB() ? UpperRoom.bulkCreate({ tab: 'TheologySections', rows: rows }) : TheVine.flock.bulk.create({ tab: 'TheologySections', rows: rows }); },
+    LearningPlaylists:      function(rows) { return _isFB() ? UpperRoom.bulkCreate({ tab: 'LearningPlaylists', rows: rows }) : TheVine.flock.bulk.create({ tab: 'LearningPlaylists', rows: rows }); },
+    MemberCards:            function(rows) { return _isFB() ? UpperRoom.bulkCreate({ tab: 'MemberCards', rows: rows }) : TheVine.flock.bulk.create({ tab: 'MemberCards', rows: rows }); },
+    AppConfig:              function(rows) { return _isFB() ? UpperRoom.bulkCreate({ tab: 'AppConfig', rows: rows }) : TheVine.flock.bulk.create({ tab: 'AppConfig', rows: rows }); },
     // Missions
-    MissionsRegistry:       function(rows) { return TheVine.missions.bulk.create({ tab: 'MissionsRegistry', rows: rows }); },
+    MissionsRegistry:       function(rows) { return _isFB() ? UpperRoom.missionsBulkCreate({ tab: 'MissionsRegistry', rows: rows }) : TheVine.missions.bulk.create({ tab: 'MissionsRegistry', rows: rows }); },
   };
 
   async function restore(api, file) {

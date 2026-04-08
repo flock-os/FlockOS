@@ -627,7 +627,7 @@ const TheHarvest = (() => {
     try {
       var results = await Promise.all([
         _isFB() ? UpperRoom.listVolunteers({ limit: 60 }) : TheVine.flock.volunteers.list({ limit: 60 }),
-        TheVine.flock.memberCards.directory(),
+        _isFB() ? UpperRoom.memberCardsDirectory() : TheVine.flock.memberCards.directory(),
       ]);
       var rows = _rows(results[0]);
       var dir  = _rows(results[1]);
@@ -652,7 +652,7 @@ const TheHarvest = (() => {
           var mName = mLookup[r.memberId] || r.memberName || r.name || r.email || r.memberId || '';
           var mNum = dir.find(function(d) { return d.id === r.memberId; });
           var cardLinks = mNum
-            ? '<a href="javascript:void(0)" onclick="event.stopPropagation();window.open(TheVine.flock.memberCards.vcard({memberNumber:\'' + _e(mNum.memberNumber) + '\'}))" '
+            ? '<a href="javascript:void(0)" onclick="event.stopPropagation();TheHarvest._vcardOpen(\'' + _e(mNum.memberNumber) + '\')" '
               + 'style="color:var(--accent);font-size:0.75rem;margin-right:8px;" title="Download vCard">\u2B07 vCard</a>'
             : '';
           return [
@@ -938,6 +938,11 @@ const TheHarvest = (() => {
 
     // Extras
     _sermonSeries:     _sermonSeries,
+    _vcardOpen:        function(memberNumber) {
+      var result = _isFB() ? UpperRoom.memberCardsVcard({ memberNumber: memberNumber }) : TheVine.flock.memberCards.vcard({ memberNumber: memberNumber });
+      if (typeof result === 'string') { window.open(result); }
+      else if (result && typeof result.then === 'function') { result.then(function(u) { if (u) window.open(u); }); }
+    },
     resetHome:         function() { _activeTab = 'overview'; },
   };
 
