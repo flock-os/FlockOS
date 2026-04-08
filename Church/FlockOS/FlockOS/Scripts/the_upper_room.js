@@ -98,6 +98,24 @@
       }
     });
 
+    // Monitor token refreshes — custom claims (churchId, role) are NOT
+    // persisted through automatic ID token refresh (~1 hour).  When the
+    // refreshed token loses them, Firestore rules start rejecting reads.
+    // This listener detects the loss and silently re-mints a custom token.
+    var _reAuthInFlight = false;
+    _auth.onIdTokenChanged(function(user) {
+      if (!user || _reAuthInFlight) return;
+      user.getIdTokenResult().then(function(result) {
+        if (!result.claims || !result.claims.churchId) {
+          _reAuthInFlight = true;
+          _ready = false;
+          _mintAndSignIn()
+            .then(function()  { _reAuthInFlight = false; })
+            .catch(function() { _reAuthInFlight = false; });
+        }
+      }).catch(function() {});
+    });
+
     return Promise.resolve();
   }
 
