@@ -3256,7 +3256,7 @@ const Modules = (() => {
       + '</div>';
     try {
       if (_cmpTab === 'requests') {
-        const res  = await _fetch('compassion', () => TheVine.flock.compassion.requests.list({ limit: 60 }));
+        const res  = await _fetch('compassion', () => _isFirebaseComms() ? UpperRoom.listCompassionRequests({ limit: 60 }) : TheVine.flock.compassion.requests.list({ limit: 60 }));
         await _ensureMemberDir();
         const rows = _filterClosed(_rows(res));
         _dataCache['compassion'] = rows;
@@ -3293,8 +3293,8 @@ const Modules = (() => {
 
       } else if (_cmpTab === 'dashboard') {
         const [dashRes, lowRes] = await Promise.all([
-          _fetch('compassion-dashboard',      () => TheVine.flock.compassion.dashboard({}),         _TTL.crm).catch(() => ({})),
-          _fetch('compassion-resources-low',  () => TheVine.flock.compassion.resources.low({}),     _TTL.crm).catch(() => ({})),
+          _fetch('compassion-dashboard',      () => _isFirebaseComms() ? UpperRoom.compassionDashboard() : TheVine.flock.compassion.dashboard({}),         _TTL.crm).catch(() => ({})),
+          _fetch('compassion-resources-low',  () => _isFirebaseComms() ? UpperRoom.lowCompassionResources() : TheVine.flock.compassion.resources.low({}),     _TTL.crm).catch(() => ({})),
         ]);
         const d   = (dashRes && dashRes.dashboard) ? dashRes.dashboard
                   : (dashRes && dashRes.data)       ? dashRes.data : dashRes || {};
@@ -3319,7 +3319,7 @@ const Modules = (() => {
             ])
           );
         }
-        const recentRes = await _fetch('compassion-log-recent', () => TheVine.flock.compassion.log.recent({ limit: 10 }), _TTL.msg).catch(() => ({}));
+        const recentRes = await _fetch('compassion-log-recent', () => _isFirebaseComms() ? UpperRoom.recentCompassionLogs({ limit: 10 }) : TheVine.flock.compassion.log.recent({ limit: 10 }), _TTL.msg).catch(() => ({}));
         const recent    = _rows(recentRes);
         if (recent.length) {
           html += '<h4 style="margin:16px 0 10px;font-size:0.88rem;">Recent Distributions</h4>';
@@ -3337,7 +3337,7 @@ const Modules = (() => {
         _body(el, html);
 
       } else if (_cmpTab === 'resources') {
-        const res  = await _fetch('compassion-resources', () => TheVine.flock.compassion.resources.list({ limit: 80 }));
+        const res  = await _fetch('compassion-resources', () => _isFirebaseComms() ? UpperRoom.listCompassionResources({ limit: 80 }) : TheVine.flock.compassion.resources.list({ limit: 80 }));
         const rows = _filterClosed(_rows(res));
         _dataCache['compassion.resources'] = rows;
         let html = tabBar;
@@ -3368,7 +3368,7 @@ const Modules = (() => {
         _body(el, html);
 
       } else { // log
-        const res  = await _fetch('compassion-log', () => TheVine.flock.compassion.log.list({ limit: 80 }));
+        const res  = await _fetch('compassion-log', () => _isFirebaseComms() ? UpperRoom.listCompassionLogs({ limit: 80 }) : TheVine.flock.compassion.log.list({ limit: 80 }));
         const rows = _rows(res);
         _dataCache['compassion.log'] = rows;
         let html = tabBar;
@@ -3683,8 +3683,8 @@ const Modules = (() => {
     try {
       if (_outTab === 'dashboard') {
         const [dashRes, dueRes] = await Promise.all([
-          TheVine.flock.outreach.dashboard({}).catch(() => ({})),
-          TheVine.flock.outreach.followUps.due({}).catch(() => ({})),
+          (_isFirebaseComms() ? UpperRoom.outreachDashboard() : TheVine.flock.outreach.dashboard({})).catch(() => ({})),
+          (_isFirebaseComms() ? UpperRoom.outreachFollowUpsDue() : TheVine.flock.outreach.followUps.due({})).catch(() => ({})),
         ]);
         const d   = (dashRes && dashRes.dashboard) ? dashRes.dashboard
                   : (dashRes && dashRes.data)       ? dashRes.data : dashRes || {};
@@ -3716,7 +3716,7 @@ const Modules = (() => {
         _body(el, html);
 
       } else if (_outTab === 'contacts') {
-        const res  = await TheVine.flock.outreach.contacts.list({ limit: 60 });
+        const res  = await (_isFirebaseComms() ? UpperRoom.listOutreachContacts({ limit: 60 }) : TheVine.flock.outreach.contacts.list({ limit: 60 }));
         const rows = _filterClosed(_rows(res));
         _dataCache['outreach.contacts'] = rows;
         let html = tabBar;
@@ -3750,7 +3750,7 @@ const Modules = (() => {
         _body(el, html);
 
       } else if (_outTab === 'campaigns') {
-        const res  = await TheVine.flock.outreach.campaigns.list({ limit: 50 });
+        const res  = await (_isFirebaseComms() ? UpperRoom.listOutreachCampaigns({ limit: 50 }) : TheVine.flock.outreach.campaigns.list({ limit: 50 }));
         const rows = _filterClosed(_rows(res));
         _dataCache['outreach.campaigns'] = rows;
         let html = tabBar;
@@ -3788,8 +3788,8 @@ const Modules = (() => {
 
       } else { // followups
         const [listRes, dueRes] = await Promise.all([
-          TheVine.flock.outreach.followUps.list({ limit: 60 }).catch(() => ({})),
-          TheVine.flock.outreach.followUps.due({}).catch(() => ({})),
+          (_isFirebaseComms() ? UpperRoom.listOutreachFollowUps({ limit: 60 }) : TheVine.flock.outreach.followUps.list({ limit: 60 })).catch(() => ({})),
+          (_isFirebaseComms() ? UpperRoom.outreachFollowUpsDue() : TheVine.flock.outreach.followUps.due({})).catch(() => ({})),
         ]);
         const rows   = _rows(listRes);
         const due    = _rows(dueRes);
@@ -11763,9 +11763,9 @@ const Modules = (() => {
 
       // Fetch all data in parallel — use prayer.list (authenticated) so user sees own confidential prayers
       const [prayerRaw, careRaw, compassionRaw] = await Promise.all([
-        TheVine.flock.prayer.list({ limit: 200 }).catch(() => []),
-        TheVine.flock.care.list({ limit: 200 }).catch(() => []),
-        TheVine.flock.compassion.requests.list({ limit: 200 }).catch(() => [])
+        (_isFirebaseComms() ? UpperRoom.listPrayers({ limit: 200 }) : TheVine.flock.prayer.list({ limit: 200 })).catch(() => []),
+        (_isFirebaseComms() ? UpperRoom.listCareCases({ limit: 200 }) : TheVine.flock.care.list({ limit: 200 })).catch(() => []),
+        (_isFirebaseComms() ? UpperRoom.listCompassionRequests({ limit: 200 }) : TheVine.flock.compassion.requests.list({ limit: 200 })).catch(() => [])
       ]);
 
       // Members should see ALL their own requests (including resolved/closed)
@@ -11930,9 +11930,9 @@ const Modules = (() => {
       ];
       const privateFetches = isLoggedIn ? [
         _fetch('journal',    () => TheVine.flock.journal.list({ limit: 200 })).catch(() => []),
-        _fetch('prayer',     () => TheVine.flock.prayer.list({ limit: 200 })).catch(() => []),
-        _fetch('care',       () => TheVine.flock.care.list({ limit: 200 })).catch(() => []),
-        _fetch('compassion', () => TheVine.flock.compassion.requests.list({ limit: 200 })).catch(() => []),
+        _fetch('prayer',     () => _isFirebaseComms() ? UpperRoom.listPrayers({ limit: 200 }) : TheVine.flock.prayer.list({ limit: 200 })).catch(() => []),
+        _fetch('care',       () => _isFirebaseComms() ? UpperRoom.listCareCases({ limit: 200 }) : TheVine.flock.care.list({ limit: 200 })).catch(() => []),
+        _fetch('compassion', () => _isFirebaseComms() ? UpperRoom.listCompassionRequests({ limit: 200 }) : TheVine.flock.compassion.requests.list({ limit: 200 })).catch(() => []),
         _fetch('contacts',   () => TheVine.flock.contacts.list({ limit: 500 })).catch(() => []),
       ] : [];
       const allResults = await Promise.all([...publicFetches, ...privateFetches]);
@@ -13075,7 +13075,7 @@ const Modules = (() => {
     const name   = cached.memberName || cached.name || 'this request';
     if (!confirm('Mark request for ' + name + ' as resolved?')) return;
     try {
-      await TheVine.flock.compassion.requests.resolve({ id });
+      await (_isFirebaseComms() ? UpperRoom.resolveCompassionRequest(id) : TheVine.flock.compassion.requests.resolve({ id }));
       _invalidateCache('compassion');
       _toast('Request resolved.');
       compassionView('requests');
@@ -13090,7 +13090,7 @@ const Modules = (() => {
       { name: 'unit',     label: 'Unit',           placeholder: 'e.g. bags, items' },
       { name: 'lowThreshold', label: 'Low-stock Alert Threshold', type: 'number' },
     ], async data => {
-      await TheVine.flock.compassion.resources.create(data);
+      await (_isFirebaseComms() ? UpperRoom.createCompassionResource(data) : TheVine.flock.compassion.resources.create(data));
       _invalidateCache('compassion.resources');
       compassionView('resources');
     });
@@ -13107,7 +13107,7 @@ const Modules = (() => {
       { name: 'status',   label: 'Status',         type: 'select', options: ['Active', 'Depleted', 'Archived'], value: cached.status || 'Active' },
       { name: 'lowThreshold', label: 'Low-stock Threshold', type: 'number', value: cached.lowThreshold != null ? String(cached.lowThreshold) : '' },
     ], async data => {
-      await TheVine.flock.compassion.resources.update({ id, ...data });
+      await (_isFirebaseComms() ? UpperRoom.updateCompassionResource({ id, ...data }) : TheVine.flock.compassion.resources.update({ id, ...data }));
       _invalidateCache('compassion.resources');
       compassionView('resources');
     });
@@ -13125,7 +13125,7 @@ const Modules = (() => {
       { name: 'activityType', label: 'Activity Type', placeholder: 'e.g. Distribution, Meal, Clothing' },
       { name: 'notes',        label: 'Notes', type: 'textarea' },
     ], async data => {
-      await TheVine.flock.compassion.log.create(data);
+      await (_isFirebaseComms() ? UpperRoom.createCompassionLog(data) : TheVine.flock.compassion.log.create(data));
       _invalidateCache('compassion.log');
       _toast('Distribution logged.');
       compassionView('log');
@@ -13135,7 +13135,7 @@ const Modules = (() => {
   async function _cmpResourceDelete(id) {
     if (!confirm('Delete this resource? This cannot be undone.')) return;
     try {
-      await TheVine.flock.compassion.resources.update({ id, status: 'Archived' });
+      await (_isFirebaseComms() ? UpperRoom.updateCompassionResource({ id, status: 'Archived' }) : TheVine.flock.compassion.resources.update({ id, status: 'Archived' }));
       _invalidateCache('compassion.resources');
       _toast('Resource archived.');
       compassionView('resources');
@@ -13145,7 +13145,7 @@ const Modules = (() => {
   async function _cmpLogDelete(id) {
     if (!confirm('Delete this log entry?')) return;
     try {
-      await TheVine.flock.call('compassion.log.delete', { id });
+      await (_isFirebaseComms() ? UpperRoom.deleteCompassionLog(id) : TheVine.flock.call('compassion.log.delete', { id }));
       _invalidateCache('compassion.log');
       _toast('Log entry deleted.');
       compassionView('log');
@@ -13155,7 +13155,7 @@ const Modules = (() => {
   async function _outContactArchive(id) {
     if (!confirm('Archive this outreach contact?')) return;
     try {
-      await TheVine.flock.outreach.contacts.update({ id, status: 'archived' });
+      await (_isFirebaseComms() ? UpperRoom.updateOutreachContact({ id, status: 'archived' }) : TheVine.flock.outreach.contacts.update({ id, status: 'archived' }));
       _invalidateCache('outreach.contacts');
       _toast('Contact archived.');
       outreachView('contacts');
@@ -13165,7 +13165,7 @@ const Modules = (() => {
   async function _outCampaignArchive(id) {
     if (!confirm('Archive this campaign?')) return;
     try {
-      await TheVine.flock.outreach.campaigns.update({ id, status: 'archived' });
+      await (_isFirebaseComms() ? UpperRoom.updateOutreachCampaign({ id, status: 'archived' }) : TheVine.flock.outreach.campaigns.update({ id, status: 'archived' }));
       _invalidateCache('outreach.campaigns');
       _toast('Campaign archived.');
       outreachView('campaigns');
@@ -13799,7 +13799,7 @@ const Modules = (() => {
       { name: 'notes',         label: 'Notes',          type: 'textarea' },
       { name: 'tags',          label: 'Tags',           placeholder: 'comma-separated' },
     ], async data => {
-      await TheVine.flock.outreach.contacts.create(data);
+      await (_isFirebaseComms() ? UpperRoom.createOutreachContact(data) : TheVine.flock.outreach.contacts.create(data));
       _invalidateCache('outreach.contacts');
       _toast('Contact added.', 'success');
       outreachView('contacts');
@@ -13821,7 +13821,7 @@ const Modules = (() => {
       { name: 'endDate',     label: 'End Date',      type: 'date' },
       { name: 'description', label: 'Description',   type: 'textarea' },
     ], async data => {
-      await TheVine.flock.outreach.campaigns.create(data);
+      await (_isFirebaseComms() ? UpperRoom.createOutreachCampaign(data) : TheVine.flock.outreach.campaigns.create(data));
       _invalidateCache('outreach.campaigns');
       outreachView('campaigns');
     });
@@ -13839,7 +13839,7 @@ const Modules = (() => {
       { name: 'endDate',     label: 'End Date',      type: 'date', value: cached.endDate   || '' },
       { name: 'description', label: 'Description',   type: 'textarea', value: cached.description || '' },
     ], async data => {
-      await TheVine.flock.outreach.campaigns.update({ id, ...data });
+      await (_isFirebaseComms() ? UpperRoom.updateOutreachCampaign({ id, ...data }) : TheVine.flock.outreach.campaigns.update({ id, ...data }));
       _invalidateCache('outreach.campaigns');
       outreachView('campaigns');
     });
@@ -13855,7 +13855,7 @@ const Modules = (() => {
         placeholder: 'Paste the member ID after creating them in the Members module' },
     ], async data => {
       if (!confirm('Convert ' + name + ' to a full member? This cannot be undone.')) return;
-      await TheVine.flock.outreach.contacts.convert({ id, memberId: data.memberId });
+      await (_isFirebaseComms() ? UpperRoom.convertOutreachContact({ id, memberId: data.memberId }) : TheVine.flock.outreach.contacts.convert({ id, memberId: data.memberId }));
       _invalidateCache('outreach.contacts');
       _toast('Contact converted to member.', 'success');
       outreachView('contacts');
@@ -13864,7 +13864,7 @@ const Modules = (() => {
 
   async function _outFollowUpDone(id) {
     try {
-      await TheVine.flock.outreach.followUps.done({ id });
+      await (_isFirebaseComms() ? UpperRoom.outreachFollowUpDone(id) : TheVine.flock.outreach.followUps.done({ id }));
       _invalidateCache('outreach.followups');
       _toast('Follow-up marked complete.');
       outreachView(_outTab === 'followups' ? 'followups' : 'dashboard');
@@ -13880,7 +13880,7 @@ const Modules = (() => {
     if (!contactId) fields.unshift({ name: 'contactId', label: 'Contact ID', required: true });
     _modal('New Follow-Up', fields, async data => {
       const payload = contactId ? { contactId, ...data } : data;
-      await TheVine.flock.outreach.followUps.create(payload);
+      await (_isFirebaseComms() ? UpperRoom.createOutreachFollowUp(payload) : TheVine.flock.outreach.followUps.create(payload));
       _invalidateCache('outreach.followups');
       outreachView('followups');
     });
@@ -14815,7 +14815,7 @@ const Modules = (() => {
         output.innerHTML = html;
 
       } else if (key === 'careOverview') {
-        const res  = await TheVine.flock.care.list({ limit: 1000 });
+        const res  = await (_isFirebaseComms() ? UpperRoom.listCareCases({ limit: 1000 }) : TheVine.flock.care.list({ limit: 1000 }));
         const rows = _rows(res);
         const byType  = {};
         const byPriority = {};
@@ -14886,7 +14886,7 @@ const Modules = (() => {
         output.innerHTML = html;
 
       } else if (key === 'visitorPipeline') {
-        const res  = await TheVine.flock.outreach.contacts.list({ limit: 500 });
+        const res  = await (_isFirebaseComms() ? UpperRoom.listOutreachContacts({ limit: 500 }) : TheVine.flock.outreach.contacts.list({ limit: 500 }));
         const rows = _rows(res);
         const byStage  = {};
         const bySource = {};
@@ -15237,13 +15237,19 @@ const Modules = (() => {
         var session = (typeof TheVine !== 'undefined' ? TheVine.session() : null);
         if (document.getElementById('ob-assignMe').checked && session) {
           try {
-            await TheVine.flock.care.assignments.create({
+            await (_isFirebaseComms() ? UpperRoom.createCareAssignment({
               caregiverId: session.email,
               memberId:    newId || email || '',
               role:        'Shepherd',
               status:      'Active',
               startDate:   new Date().toISOString().split('T')[0],
-            });
+            }) : TheVine.flock.care.assignments.create({
+              caregiverId: session.email,
+              memberId:    newId || email || '',
+              role:        'Shepherd',
+              status:      'Active',
+              startDate:   new Date().toISOString().split('T')[0],
+            }));
           } catch (_) { /* non-critical */ }
         }
 
@@ -16321,14 +16327,21 @@ const Modules = (() => {
     if (!firstName.trim()) { _toast('Please enter your first name.', 'warn'); return; }
     if (!email.trim())     { _toast('Please enter your email address.', 'warn'); return; }
     try {
-      await TheVine.flock.call('outreach.contacts.submit', {
+      await (_isFirebaseComms() ? UpperRoom.submitOutreachContact({
         firstName:  firstName.trim(),
         lastName:   lastName.trim(),
         email:      email.trim(),
         phone:      phone.trim(),
         notes:      notes.trim(),
         source:     'public-connect-form'
-      }, { skipAuth: true });
+      }) : TheVine.flock.call('outreach.contacts.submit', {
+        firstName:  firstName.trim(),
+        lastName:   lastName.trim(),
+        email:      email.trim(),
+        phone:      phone.trim(),
+        notes:      notes.trim(),
+        source:     'public-connect-form'
+      }, { skipAuth: true }));
       _toast('Thank you! Someone from our team will be in touch soon. God bless you.');
       var form = document.getElementById('connect-form');
       if (form) form.reset();
@@ -16543,7 +16556,7 @@ const Modules = (() => {
       { name: 'notes',         label: 'Notes',          type: 'textarea', value: cached.notes || '' },
       { name: 'tags',          label: 'Tags',           value: cached.tags || '' },
     ], async data => {
-      await TheVine.flock.outreach.contacts.update({ id, ...data });
+      await (_isFirebaseComms() ? UpperRoom.updateOutreachContact({ id, ...data }) : TheVine.flock.outreach.contacts.update({ id, ...data }));
       _invalidateCache('outreach.contacts');
       _toast('Contact updated.', 'success');
       outreachView('contacts');
@@ -17155,7 +17168,7 @@ const Modules = (() => {
     var rows = _dataCache['myCare'] || _dataCache['care'] || [];
     var row = rows.find(r => (r.id || r['ID']) === id);
     if (!row) {
-      TheVine.flock.care.get({ id: id }).then(r => {
+      (_isFirebaseComms() ? UpperRoom.getCareCase(id) : TheVine.flock.care.get({ id: id })).then(r => {
         if (!r || r.error) { _toast('Care case not found.', 'warn'); return; }
         _showMyCareModal(r);
       }).catch(() => _toast('Could not load care case.', 'danger'));
@@ -17289,7 +17302,7 @@ const Modules = (() => {
     }
 
     try {
-      await TheVine.flock.care.update(data);
+      await (_isFirebaseComms() ? UpperRoom.updateCareCase(data) : TheVine.flock.care.update(data));
       var modal = document.getElementById('fl-my-care');
       if (modal) modal.remove();
       _toast('Care case updated.');
@@ -17307,7 +17320,7 @@ const Modules = (() => {
   async function _markCareResolved(id) {
     if (!confirm('Mark this care case as resolved?')) return;
     try {
-      await TheVine.flock.care.resolve({ id: id });
+      await (_isFirebaseComms() ? UpperRoom.resolveCareCase(id) : TheVine.flock.care.resolve({ id: id }));
       var modal = document.getElementById('fl-my-care');
       if (modal) modal.remove();
       _toast('Care case resolved!');
@@ -18556,10 +18569,10 @@ const Modules = (() => {
 
     try {
       var results = await Promise.all([
-        TheVine.flock.members.list({ limit: 2000 }).catch(function () { return null; }),
-        TheVine.flock.prayer.list({ limit: 500 }).catch(function () { return null; }),
-        TheVine.flock.care.list({ limit: 500 }).catch(function () { return null; }),
-        TheVine.flock.compassion.requests.list({ limit: 200 }).catch(function () { return null; }),
+        (_isFirebaseComms() ? UpperRoom.listMembers({ limit: 2000 }) : TheVine.flock.members.list({ limit: 2000 })).catch(function () { return null; }),
+        (_isFirebaseComms() ? UpperRoom.listPrayers({ limit: 500 }) : TheVine.flock.prayer.list({ limit: 500 })).catch(function () { return null; }),
+        (_isFirebaseComms() ? UpperRoom.listCareCases({ limit: 500 }) : TheVine.flock.care.list({ limit: 500 })).catch(function () { return null; }),
+        (_isFirebaseComms() ? UpperRoom.listCompassionRequests({ limit: 200 }) : TheVine.flock.compassion.requests.list({ limit: 200 })).catch(function () { return null; }),
         TheVine.flock.events.list({ limit: 100 }).catch(function () { return null; }),
         TheVine.flock.giving.list({ limit: 200 }).catch(function () { return null; }),
         TheVine.flock.call('audit.list', { limit: 30 }).catch(function () { return null; }),

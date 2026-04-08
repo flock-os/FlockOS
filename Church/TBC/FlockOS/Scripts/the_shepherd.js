@@ -112,6 +112,11 @@ const TheShepherd = (() => {
   var _hasMember = false;
   var _hasCard   = false;
 
+  // ── Firebase mode check ─────────────────────────────────────────────────
+  function _isFB() {
+    return typeof Modules !== 'undefined' && typeof Modules._isFirebaseComms === 'function' && Modules._isFirebaseComms();
+  }
+
   // ══════════════════════════════════════════════════════════════════════════
   // PEOPLE LIST — search, filter, table
   // ══════════════════════════════════════════════════════════════════════════
@@ -124,9 +129,9 @@ const TheShepherd = (() => {
     try {
       // Parallel-load users, members, cards (users.list may fail for non-admin)
       var res = await Promise.allSettled([
-        TheVine.flock.users.list(),
-        TheVine.flock.members.list(),
-        TheVine.flock.memberCards.directory(),
+        _isFB() ? UpperRoom.listUsers()          : TheVine.flock.users.list(),
+        _isFB() ? UpperRoom.listMembers()         : TheVine.flock.members.list(),
+        _isFB() ? UpperRoom.listMemberCards()      : TheVine.flock.memberCards.directory(),
       ]);
       var users   = _rows(res[0].status === 'fulfilled' ? res[0].value : []);
       var members = _rows(res[1].status === 'fulfilled' ? res[1].value : []);
@@ -255,7 +260,7 @@ const TheShepherd = (() => {
   async function _approve(email) {
     if (!confirm('Approve ' + email + ' for membership?')) return;
     try {
-      await TheVine.flock.users.approve({ email: email });
+      await (_isFB() ? UpperRoom.approveUser(email) : TheVine.flock.users.approve({ email: email }));
       _toast('Approved!', 'success');
       if (typeof TheScrolls !== 'undefined') TheScrolls.log(TheScrolls.TYPES.APPROVAL, email, 'Approved registration', { personName: email });
       renderApp(_container);
@@ -264,7 +269,7 @@ const TheShepherd = (() => {
   async function _deny(email) {
     if (!confirm('Deny registration for ' + email + '?')) return;
     try {
-      await TheVine.flock.users.deny({ email: email });
+      await (_isFB() ? UpperRoom.denyUser(email) : TheVine.flock.users.deny({ email: email }));
       _toast('Denied.', 'danger');
       if (typeof TheScrolls !== 'undefined') TheScrolls.log(TheScrolls.TYPES.DENIAL, email, 'Denied registration', { personName: email });
       renderApp(_container);
@@ -296,10 +301,11 @@ const TheShepherd = (() => {
     var memberRec = null, cardRec = null, volRows = [];
     try {
       var fetches = [
-        isMidKey ? Promise.resolve(null) : TheVine.flock.call('permissions.get', { targetEmail: email }),
-        TheVine.flock.call('permissions.list', {}),
-        isMidKey ? TheVine.flock.call('members.get', { id: midId }) : TheVine.flock.call('members.get', { email: email }),
-        isMidKey ? Promise.resolve([]) : TheVine.flock.memberCards.search({ q: email }),
+        isMidKey ? Promise.resolve(null) : (_isFB() ? UpperRoom.getPermissions(email)       : TheVine.flock.call('permissions.get', { targetEmail: email })),
+        _isFB() ? UpperRoom.listPermissionModules()                                          : TheVine.flock.call('permissions.list', {}),
+        isMidKey ? (_isFB() ? UpperRoom.getMember(midId) : TheVine.flock.call('members.get', { id: midId }))
+                 : (_isFB() ? UpperRoom.getMember(email) : TheVine.flock.call('members.get', { email: email })),
+        isMidKey ? Promise.resolve([]) : (_isFB() ? UpperRoom.searchMemberCards(email)       : TheVine.flock.memberCards.search({ q: email })),
         TheVine.flock.call('volunteers.list', {}),
       ];
       var f = await Promise.allSettled(fetches);
@@ -934,7 +940,7 @@ const TheShepherd = (() => {
           if (f.indexOf('acct_') === 0) acct[f.substring(5)] = el.value;
         });
         _stat('Saving account\u2026');
-        await TheVine.flock.users.update(acct);
+        await (_isFB() ? UpperRoom.updateUser(acct) : TheVine.flock.users.update(acct));
       } catch (e) { errors.push('Account: ' + (e.message || e)); }
     }
 
@@ -951,7 +957,7 @@ const TheShepherd = (() => {
         if (memId) {
           mem.id = memId;
           _stat('Saving member record\u2026');
-          await TheVine.flock.call('members.update', mem);
+          await (_isFB() ? UpperRoom.updateMember(mem) : TheVine.flock.call('members.update', mem));
         }
       } catch (e) { errors.push('Member: ' + (e.message || e)); }
     }
@@ -969,7 +975,7 @@ const TheShepherd = (() => {
         if (cardId) {
           card.id = cardId;
           _stat('Saving contact card\u2026');
-          await TheVine.flock.memberCards.update(card);
+          await (_isFB() ? UpperRoom.updateMemberCard(card) : TheVine.flock.memberCards.update(card));
         }
       } catch (e) { errors.push('Card: ' + (e.message || e)); }
     }
@@ -993,10 +999,13 @@ const TheShepherd = (() => {
     var p = _ppData[(email || '').toLowerCase()] || {};
     var u = p.user || {};
     try {
-      await TheVine.flock.call('members.create', {
+      await (_isFB() ? UpperRoom.createMember({
         primaryEmail: email, firstName: u.firstName || '', lastName: u.lastName || '',
         cellPhone: u.phone || '', photoUrl: u.photoUrl || ''
-      });
+      }) : TheVine.flock.call('members.create', {
+        primaryEmail: email, firstName: u.firstName || '', lastName: u.lastName || '',
+        cellPhone: u.phone || '', photoUrl: u.photoUrl || ''
+      }));
       _toast('Member record created!', 'success');
       if (typeof TheScrolls !== 'undefined') TheScrolls.log(TheScrolls.TYPES.MEMBER_CREATE, email, 'Created member record');
       openProfile(email);
@@ -1007,10 +1016,13 @@ const TheShepherd = (() => {
     var p = _ppData[(email || '').toLowerCase()] || {};
     var u = p.user || {};
     try {
-      await TheVine.flock.memberCards.create({
+      await (_isFB() ? UpperRoom.createMemberCard({
         email: email, firstName: u.firstName || '', lastName: u.lastName || '',
         phone: u.phone || '', photoUrl: u.photoUrl || '', status: 'Active'
-      });
+      }) : TheVine.flock.memberCards.create({
+        email: email, firstName: u.firstName || '', lastName: u.lastName || '',
+        phone: u.phone || '', photoUrl: u.photoUrl || '', status: 'Active'
+      }));
       _toast('Contact card created!', 'success');
       if (typeof TheScrolls !== 'undefined') TheScrolls.log(TheScrolls.TYPES.CARD_CREATE, email, 'Created contact card');
       openProfile(email);
@@ -1096,7 +1108,7 @@ const TheShepherd = (() => {
       if (chk.checked) grants.push(chk.getAttribute('data-perm-key'));
     });
     try {
-      await TheVine.flock.call('permissions.setAll', { targetEmail: targetEmail, grants: grants, denies: [] });
+      await (_isFB() ? UpperRoom.setPermissions(targetEmail, grants, []) : TheVine.flock.call('permissions.setAll', { targetEmail: targetEmail, grants: grants, denies: [] }));
       if (st) { st.textContent = '\u2713 Saved'; setTimeout(function() { if (st) st.textContent = ''; }, 2000); }
     } catch (e) {
       if (st) st.textContent = 'Error: ' + (e.message || e);
@@ -1113,7 +1125,7 @@ const TheShepherd = (() => {
           alert('Passcode must be at least 6 characters.'); return;
         }
         try {
-          await TheVine.flock.users.resetPasscode({ targetEmail: email, newPasscode: data.newPasscode });
+          await (_isFB() ? UpperRoom.resetPasscode(email, data.newPasscode) : TheVine.flock.users.resetPasscode({ targetEmail: email, newPasscode: data.newPasscode }));
           _toast('Passcode reset for ' + email, 'success');
           if (typeof TheScrolls !== 'undefined') TheScrolls.log(TheScrolls.TYPES.ADMIN_ACTION, email, 'Admin reset passcode', { personName: email });
         } catch (e) { alert('Failed: ' + (e.message || e)); }
@@ -1123,7 +1135,7 @@ const TheShepherd = (() => {
       if (!np) return;
       if (np.length < 6) { alert('Passcode must be at least 6 characters.'); return; }
       try {
-        await TheVine.flock.users.resetPasscode({ targetEmail: email, newPasscode: np });
+        await (_isFB() ? UpperRoom.resetPasscode(email, np) : TheVine.flock.users.resetPasscode({ targetEmail: email, newPasscode: np }));
         _toast('Passcode reset for ' + email, 'success');
         if (typeof TheScrolls !== 'undefined') TheScrolls.log(TheScrolls.TYPES.ADMIN_ACTION, email, 'Admin reset passcode', { personName: email });
       } catch (e) { alert('Failed: ' + (e.message || e)); }
@@ -1153,11 +1165,12 @@ const TheShepherd = (() => {
           alert('Passcode must be at least 6 characters.'); return;
         }
         try {
-          await TheVine.flock.users.create({
+          var _userData = {
             email: email, firstName: firstName, lastName: lastName,
             displayName: (firstName + ' ' + lastName).trim(),
             role: data.role, passcode: data.passcode
-          });
+          };
+          await (_isFB() ? UpperRoom.createUser(_userData) : TheVine.flock.users.create(_userData));
           _toast('User account created for ' + email, 'success');
           if (typeof TheScrolls !== 'undefined') TheScrolls.log(TheScrolls.TYPES.ADMIN_ACTION, email, 'Created user account', { personName: firstName + ' ' + lastName });
           openProfile(email);
@@ -1169,11 +1182,12 @@ const TheShepherd = (() => {
       var passcode = prompt('Temporary passcode (6+ characters):');
       if (!passcode || passcode.length < 6) { alert('Passcode must be at least 6 characters.'); return; }
       try {
-        await TheVine.flock.users.create({
+        var _userData2 = {
           email: email, firstName: firstName, lastName: lastName,
           displayName: (firstName + ' ' + lastName).trim(),
           role: role, passcode: passcode
-        });
+        };
+        await (_isFB() ? UpperRoom.createUser(_userData2) : TheVine.flock.users.create(_userData2));
         _toast('User account created for ' + email, 'success');
         if (typeof TheScrolls !== 'undefined') TheScrolls.log(TheScrolls.TYPES.ADMIN_ACTION, email, 'Created user account', { personName: firstName + ' ' + lastName });
         openProfile(email);

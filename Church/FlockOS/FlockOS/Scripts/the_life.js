@@ -156,15 +156,19 @@ const TheLife = (() => {
     return [];
   }
 
+  function _isFB() {
+    return typeof Modules !== 'undefined' && typeof Modules._isFirebaseComms === 'function' && Modules._isFirebaseComms();
+  }
+
   async function _ensureDir() {
     if (_cache.memberDir && _cache.memberDir.length) return _cache.memberDir;
     if (!_memberDirPromise) {
       // All My Flock users have care+ role → use members.list (full roster).
       // Admins also pull users.list (AuthUsers) to catch staff not in Members.
       _memberDirPromise = (async function() {
-        var fetches = [TheVine.flock.call('members.list', { limit: 500 })];
+        var fetches = [_isFB() ? UpperRoom.listMembers({ limit: 500 }) : TheVine.flock.call('members.list', { limit: 500 })];
         if (Nehemiah.hasRole('admin')) {
-          fetches.push(TheVine.flock.call('users.list', {}));
+          fetches.push(_isFB() ? UpperRoom.listUsers() : TheVine.flock.call('users.list', {}));
         }
         var res = await Promise.allSettled(fetches);
         var members = _rows(res[0].status === 'fulfilled' ? res[0].value : []);
@@ -330,14 +334,14 @@ const TheLife = (() => {
     var _cgListIdx = -1;
     var _p = [_ensureDir()];
     if (id) {
-      _p.push(TheVine.flock.care.get({ caseId: id }).catch(function(err) {
+      _p.push((_isFB() ? UpperRoom.getCareCase(id) : TheVine.flock.care.get({ caseId: id })).catch(function(err) {
         console.warn('[TheLife] care.get failed:', err.message || err);
         return null;
       }));
-      _p.push(TheVine.flock.care.interactions.list({ caseId: id }).catch(function() { return []; }));
+      _p.push((_isFB() ? UpperRoom.listCareInteractions({ caseId: id }) : TheVine.flock.care.interactions.list({ caseId: id })).catch(function() { return []; }));
     } else {
       _cgListIdx = _p.length;
-      _p.push(TheVine.flock.care.caregivers.list({}).catch(function() { return { rows: [] }; }));
+      _p.push((_isFB() ? UpperRoom.listCaregivers() : TheVine.flock.care.caregivers.list({})).catch(function() { return { rows: [] }; }));
     }
     var _r = await Promise.all(_p);
     var dir = _r[0];
@@ -373,7 +377,7 @@ const TheLife = (() => {
       }
       if (!rec.id) {
         try {
-          var listRes = await TheVine.flock.care.list({});
+          var listRes = await (_isFB() ? UpperRoom.listCareCases({}) : TheVine.flock.care.list({}));
           var allCases = _rows(listRes);
           _cache.care = allCases;
           rec = allCases.find(function(c) { return c.id === id; }) || {};
@@ -861,11 +865,11 @@ const TheLife = (() => {
       if (_fpCareId) {
         data.id = _fpCareId;
         _stat('Updating case\u2026');
-        await TheVine.flock.care.update(data);
+        await (_isFB() ? UpperRoom.updateCareCase(data) : TheVine.flock.care.update(data));
         _audit('care.update', 'SpiritualCareCases', _fpCareId, data.status || '');
       } else {
         _stat('Creating case\u2026');
-        var res = await TheVine.flock.care.create(data);
+        var res = await (_isFB() ? UpperRoom.createCareCase(data) : TheVine.flock.care.create(data));
         if (res && res.id) _fpCareId = res.id;
         _audit('care.create', 'SpiritualCareCases', _fpCareId || '', data.careType || '');
       }
@@ -890,7 +894,7 @@ const TheLife = (() => {
     if (!_fpCareId) return;
     if (!confirm('Resolve this care case?')) return;
     try {
-      var result = await TheVine.flock.care.resolve({ id: _fpCareId });
+      var result = await (_isFB() ? UpperRoom.resolveCareCase(_fpCareId) : TheVine.flock.care.resolve({ id: _fpCareId }));
       // Verify the server actually confirmed the resolve
       if (!result || !result.ok) {
         throw new Error(
@@ -971,11 +975,15 @@ const TheLife = (() => {
     // Optionally log as care interaction
     if (mode === 'log' && _fpCareId) {
       try {
-        await TheVine.flock.care.interactions.create({
+        await (_isFB() ? UpperRoom.createCareInteraction({
           caseId: _fpCareId,
           interactionType: method === 'email' ? 'Email' : 'Text',
           notes: msg,
-        });
+        }) : TheVine.flock.care.interactions.create({
+          caseId: _fpCareId,
+          interactionType: method === 'email' ? 'Email' : 'Text',
+          notes: msg,
+        }));
         _audit('care.interaction', 'SpiritualCareInteractions', _fpCareId, method + ' outreach logged');
         _toast('Interaction logged!', 'success');
         openCareCase(_fpCareId);  // Refresh to show new interaction
@@ -997,7 +1005,7 @@ const TheLife = (() => {
       { name: 'followUpDate', label: 'Follow-Up Date', type: 'date' },
     ], async function(data) {
       data.caseId = caseId;
-      await TheVine.flock.care.interactions.create(data);
+      await (_isFB() ? UpperRoom.createCareInteraction(data) : TheVine.flock.care.interactions.create(data));
       _audit('care.interaction', 'SpiritualCareInteractions', caseId, data.interactionType || '');
       _toast('Interaction logged!', 'success');
       openCareCase(caseId);
@@ -1012,7 +1020,7 @@ const TheLife = (() => {
       data.caseId = caseId;
       data.interactionType = 'Follow-Up Scheduled';
       data.followUpNeeded = true;
-      await TheVine.flock.care.interactions.create(data);
+      await (_isFB() ? UpperRoom.createCareInteraction(data) : TheVine.flock.care.interactions.create(data));
       _toast('Follow-up scheduled!', 'success');
       openCareCase(caseId);
     });
@@ -1035,7 +1043,7 @@ const TheLife = (() => {
       if (_cache.care && _cache.care.length) {
         all = _cache.care;
       } else {
-        var res = await TheVine.flock.care.list({});
+        var res = await (_isFB() ? UpperRoom.listCareCases({}) : TheVine.flock.care.list({}));
         all = _rows(res);
         _cache.care = all;
       }
@@ -1296,8 +1304,8 @@ const TheLife = (() => {
     // Parallel data fetch
     var _p = [_ensureDir()];
     if (id) {
-      _p.push(TheVine.flock.compassion.requests.get({ id: id }).catch(function() { return null; }));
-      _p.push(TheVine.flock.compassion.log.list({ requestId: id }).catch(function() { return []; }));
+      _p.push((_isFB() ? UpperRoom.getCompassionRequest(id) : TheVine.flock.compassion.requests.get({ id: id })).catch(function() { return null; }));
+      _p.push((_isFB() ? UpperRoom.listCompassionLogs({ requestId: id }) : TheVine.flock.compassion.log.list({ requestId: id })).catch(function() { return []; }));
     }
     var _r = await Promise.all(_p);
     var dir = _r[0];
@@ -1420,11 +1428,11 @@ const TheLife = (() => {
       if (_fpCompId) {
         data.id = _fpCompId;
         _stat('Updating request\u2026');
-        await TheVine.flock.compassion.requests.update(data);
+        await (_isFB() ? UpperRoom.updateCompassionRequest(data) : TheVine.flock.compassion.requests.update(data));
         _audit('compassion.update', 'CompassionRequests', _fpCompId, data.status || '');
       } else {
         _stat('Creating request\u2026');
-        var res = await TheVine.flock.compassion.requests.create(data);
+        var res = await (_isFB() ? UpperRoom.createCompassionRequest(data) : TheVine.flock.compassion.requests.create(data));
         if (res && res.id) _fpCompId = res.id;
         _audit('compassion.create', 'CompassionRequests', _fpCompId || '', data.requestType || '');
       }
@@ -1450,7 +1458,7 @@ const TheLife = (() => {
   async function approveCompassion(id) {
     if (!confirm('Approve this compassion request?')) return;
     try {
-      await TheVine.flock.compassion.requests.approve({ id: id });
+      await (_isFB() ? UpperRoom.approveCompassionRequest(id) : TheVine.flock.compassion.requests.approve({ id: id }));
       _audit('compassion.approve', 'CompassionRequests', id, 'Approved');
       if (typeof TheVine !== 'undefined' && TheVine.cache) {
         ['life:compassion', 'tab:compassion'].forEach(function(k) { TheVine.cache.invalidate(k); });
@@ -1464,7 +1472,7 @@ const TheLife = (() => {
   async function denyCompassion(id) {
     if (!confirm('Deny this compassion request?')) return;
     try {
-      await TheVine.flock.compassion.requests.deny({ id: id });
+      await (_isFB() ? UpperRoom.denyCompassionRequest(id) : TheVine.flock.compassion.requests.deny({ id: id }));
       _audit('compassion.deny', 'CompassionRequests', id, 'Denied');
       if (typeof TheVine !== 'undefined' && TheVine.cache) {
         ['life:compassion', 'tab:compassion'].forEach(function(k) { TheVine.cache.invalidate(k); });
@@ -1482,7 +1490,7 @@ const TheLife = (() => {
       { name: 'notes', label: 'Notes', type: 'textarea', required: true },
     ], async function(data) {
       data.requestId = requestId;
-      await TheVine.flock.compassion.log.create(data);
+      await (_isFB() ? UpperRoom.createCompassionLog(data) : TheVine.flock.compassion.log.create(data));
       _toast('Follow-up logged!', 'success');
       openCompassion(requestId);
     });
@@ -1513,8 +1521,8 @@ const TheLife = (() => {
     // Parallel data fetch
     var _p = [_ensureDir()];
     if (id) {
-      _p.push(TheVine.flock.outreach.contacts.get({ contactId: id }).catch(function() { return null; }));
-      _p.push(TheVine.flock.outreach.followUps.list({ contactId: id }).catch(function() { return []; }));
+      _p.push((_isFB() ? UpperRoom.getOutreachContact(id) : TheVine.flock.outreach.contacts.get({ contactId: id })).catch(function() { return null; }));
+      _p.push((_isFB() ? UpperRoom.listOutreachFollowUps({ contactId: id }) : TheVine.flock.outreach.followUps.list({ contactId: id })).catch(function() { return []; }));
     }
     var _r = await Promise.all(_p);
     var dir = _r[0];
@@ -1639,11 +1647,11 @@ const TheLife = (() => {
       if (_fpOutId) {
         data.id = _fpOutId;
         _stat('Updating contact\u2026');
-        await TheVine.flock.outreach.contacts.update(data);
+        await (_isFB() ? UpperRoom.updateOutreachContact(data) : TheVine.flock.outreach.contacts.update(data));
         _audit('outreach.update', 'OutreachContacts', _fpOutId, '');
       } else {
         _stat('Creating contact\u2026');
-        var res = await TheVine.flock.outreach.contacts.create(data);
+        var res = await (_isFB() ? UpperRoom.createOutreachContact(data) : TheVine.flock.outreach.contacts.create(data));
         if (res && res.id) _fpOutId = res.id;
         _audit('outreach.create', 'OutreachContacts', _fpOutId || '', (data.firstName || '') + ' ' + (data.lastName || ''));
       }
@@ -1676,7 +1684,7 @@ const TheLife = (() => {
       { name: 'nextFollowUp', label: 'Next Follow-Up Date', type: 'date' },
     ], async function(data) {
       data.contactId = contactId;
-      await TheVine.flock.outreach.followUps.create(data);
+      await (_isFB() ? UpperRoom.createOutreachFollowUp(data) : TheVine.flock.outreach.followUps.create(data));
       _toast('Follow-up logged!', 'success');
       openOutreach(contactId);
     });
@@ -1690,7 +1698,7 @@ const TheLife = (() => {
     try {
       var upd = { id: _fpOutId, status: 'Archived' };
       if (rec.email) upd.contactEmail = rec.email; // preserve contact email; avoid auth email injection overwriting it
-      await TheVine.flock.outreach.contacts.update(upd);
+      await (_isFB() ? UpperRoom.updateOutreachContact(upd) : TheVine.flock.outreach.contacts.update(upd));
       delete _cache.allOutreach;
       if (typeof TheVine !== 'undefined' && TheVine.cache) {
         TheVine.cache.invalidate('life:outreach');
@@ -1804,7 +1812,7 @@ const TheLife = (() => {
     var rec = {};
     if (isEdit) {
       try {
-        var res = await TheVine.flock.call('members.get', { id: emailOrId });
+        var res = await (_isFB() ? UpperRoom.getMember(emailOrId) : TheVine.flock.call('members.get', { id: emailOrId }));
         rec = (res && !res.error) ? res : {};
       } catch (_) {
         // Try directory cache
@@ -2050,11 +2058,11 @@ const TheLife = (() => {
       if (_fpMemberId) {
         data.id = _fpMemberId;
         _stat('Updating member\u2026');
-        await TheVine.flock.call('members.update', data);
+        await (_isFB() ? UpperRoom.updateMember(data) : TheVine.flock.call('members.update', data));
         _audit('member.update', 'Members', _fpMemberId, 'Updated member record');
       } else {
         _stat('Creating member\u2026');
-        var res = await TheVine.flock.call('members.create', data);
+        var res = await (_isFB() ? UpperRoom.createMember(data) : TheVine.flock.call('members.create', data));
         if (res && res.id) _fpMemberId = res.id;
         _audit('member.create', 'Members', _fpMemberId || data.primaryEmail || '',
           (data.firstName || '') + ' ' + (data.lastName || ''));
@@ -2062,13 +2070,19 @@ const TheLife = (() => {
         // ── Auto-create care assignment: assign new member to current user ──
         try {
           _stat('Assigning to your flock\u2026');
-          await TheVine.flock.care.assignments.create({
+          await (_isFB() ? UpperRoom.createCareAssignment({
             caregiverId: session.email || '',
             memberId: _fpMemberId || data.primaryEmail || '',
             role: 'Shepherd',
             status: 'Active',
             startDate: new Date().toISOString().split('T')[0],
-          });
+          }) : TheVine.flock.care.assignments.create({
+            caregiverId: session.email || '',
+            memberId: _fpMemberId || data.primaryEmail || '',
+            role: 'Shepherd',
+            status: 'Active',
+            startDate: new Date().toISOString().split('T')[0],
+          }));
           _audit('care.assignment.create', 'SpiritualCareAssignments',
             _fpMemberId || data.primaryEmail || '',
             'Auto-assigned to ' + (session.email || 'caregiver'));
@@ -2081,13 +2095,19 @@ const TheLife = (() => {
         if (createAcct) {
           try {
             _stat('Creating login account\u2026');
-            await TheVine.flock.call('users.create', {
+            await (_isFB() ? UpperRoom.createUser({
               email: data.primaryEmail,
               firstName: data.firstName || '',
               lastName: data.lastName || '',
               passcode: acctPassword,
               role: acctRole,
-            });
+            }) : TheVine.flock.call('users.create', {
+              email: data.primaryEmail,
+              firstName: data.firstName || '',
+              lastName: data.lastName || '',
+              passcode: acctPassword,
+              role: acctRole,
+            }));
             _audit('user.create', 'AuthUsers', data.primaryEmail,
               'Account created with role: ' + acctRole);
           } catch (acctErr) {
@@ -2515,7 +2535,7 @@ const TheLife = (() => {
     var _m = document.getElementById('main'); if (_m) _m.scrollTop = 0;
 
     try {
-      var _r = await Promise.all([TheVine.flock.care.followUps.due(), _ensureDir()]);
+      var _r = await Promise.all([_isFB() ? UpperRoom.careFollowUpsDue() : TheVine.flock.care.followUps.due(), _ensureDir()]);
       var res = _r[0];
       var rows = _rows(res);
 
@@ -2605,15 +2625,15 @@ const TheLife = (() => {
       // ── Light data fetch for KPI ribbon ──
       var fetches = [
         isPastorPlus
-          ? _fetch('members', () => TheVine.flock.call('members.list', { limit: 500 }))
+          ? _fetch('members', () => _isFB() ? UpperRoom.listMembers({ limit: 500 }) : TheVine.flock.call('members.list', { limit: 500 }))
           : isCareRole
-            ? _fetch('myFlock', () => TheVine.flock.care.assignments.myFlock({ caregiverId: email }))
-            : _fetch('directory', () => TheVine.flock.memberCards.directory()),
-        _fetch('care', () => TheVine.flock.care.list({ limit: 100 })),
-        _fetch('followUps', () => TheVine.flock.care.followUps.due({})),
-        _fetch('prayer', () => TheVine.flock.prayer.list({ limit: 100 })),
-        _fetch('compassion', () => TheVine.flock.compassion.requests.list({ limit: 50 })),
-        _fetch('outreach', () => TheVine.flock.outreach.contacts.list({ limit: 50 })),
+            ? _fetch('myFlock', () => _isFB() ? UpperRoom.careAssignmentsMyFlock(email) : TheVine.flock.care.assignments.myFlock({ caregiverId: email }))
+            : _fetch('directory', () => _isFB() ? UpperRoom.listMemberCards() : TheVine.flock.memberCards.directory()),
+        _fetch('care', () => _isFB() ? UpperRoom.listCareCases({ limit: 100 }) : TheVine.flock.care.list({ limit: 100 })),
+        _fetch('followUps', () => _isFB() ? UpperRoom.careFollowUpsDue() : TheVine.flock.care.followUps.due({})),
+        _fetch('prayer', () => _isFB() ? UpperRoom.listPrayers({ limit: 100 }) : TheVine.flock.prayer.list({ limit: 100 })),
+        _fetch('compassion', () => _isFB() ? UpperRoom.listCompassionRequests({ limit: 50 }) : TheVine.flock.compassion.requests.list({ limit: 50 })),
+        _fetch('outreach', () => _isFB() ? UpperRoom.listOutreachContacts({ limit: 50 }) : TheVine.flock.outreach.contacts.list({ limit: 50 })),
         _ensureDir(),
       ];
       var results = await Promise.allSettled(fetches);
@@ -2868,7 +2888,7 @@ const TheLife = (() => {
       // ── Background: secondary fetches ──
       Promise.allSettled([
         TheVine.flock.comms.notifications.unreadCount().catch(function() { return { count: 0 }; }),
-        TheVine.flock.care.dashboard({}).catch(function() { return null; }),
+        (_isFB() ? UpperRoom.careDashboard() : TheVine.flock.care.dashboard({})).catch(function() { return null; }),
       ]).then(function(sec) {
         var unreadCt = (sec[0].status === 'fulfilled' && sec[0].value) ? (sec[0].value.count || 0) : 0;
         var dashboard = (sec[1].status === 'fulfilled' ? sec[1].value : null) || {};

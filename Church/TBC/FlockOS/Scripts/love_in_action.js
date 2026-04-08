@@ -22,6 +22,9 @@ const LoveInAction = (() => {
   function _badge(text, cls) {
     return '<span class="badge badge-' + (cls || 'info') + '">' + _e(text) + '</span>';
   }
+  function _isFB() {
+    return typeof Modules !== 'undefined' && typeof Modules._isFirebaseComms === 'function' && Modules._isFirebaseComms();
+  }
   function _statusBadge(val) {
     var t = String(val || '').toUpperCase();
     if (['TRUE','ACTIVE','OPEN','PUBLISHED','ANSWERED','YES','APPROVED','COMPLETE'].includes(t))
@@ -132,10 +135,10 @@ const LoveInAction = (() => {
     // assignments + followups are lazy-loaded on first tab click.
     try {
       var res = await Promise.allSettled([
-        _nurture('care',       () => TheVine.flock.care.list({ limit: 100 })),
-        _nurture('prayer',     () => TheVine.flock.prayer.list({ limit: 100 })),
-        _nurture('compassion', () => TheVine.flock.compassion.requests.list({ limit: 50 })),
-        _nurture('outreach',   () => TheVine.flock.outreach.contacts.list({ limit: 50 })),
+        _nurture('care',       () => _isFB() ? UpperRoom.listCareCases({ limit: 100 }) : TheVine.flock.care.list({ limit: 100 })),
+        _nurture('prayer',     () => _isFB() ? UpperRoom.listPrayers({ limit: 100 }) : TheVine.flock.prayer.list({ limit: 100 })),
+        _nurture('compassion', () => _isFB() ? UpperRoom.listCompassionRequests({ limit: 50 }) : TheVine.flock.compassion.requests.list({ limit: 50 })),
+        _nurture('outreach',   () => _isFB() ? UpperRoom.listOutreachContacts({ limit: 50 }) : TheVine.flock.outreach.contacts.list({ limit: 50 })),
       ]);
       _cache.care        = _filterClosed(_rows(res[0].status === 'fulfilled' ? res[0].value : []));
       // Restrict to only assigned cases for users without the care.view-all capability
@@ -262,11 +265,11 @@ const LoveInAction = (() => {
     if (panel) panel.innerHTML = _spinner();
     try {
       if (key === 'assignments') {
-        var r = await TheVine.flock.care.assignments.list({ limit: 80 });
+        var r = await (_isFB() ? UpperRoom.listCareAssignments({ limit: 80 }) : TheVine.flock.care.assignments.list({ limit: 80 }));
         _cache.assignments = _filterClosed(_rows(r));
         if (panel) panel.innerHTML = _buildAssignments();
       } else {
-        var r2 = await TheVine.flock.care.followUps.due();
+        var r2 = await (_isFB() ? UpperRoom.careFollowUpsDue() : TheVine.flock.care.followUps.due());
         _cache.followups = _rows(r2);
         if (panel) panel.innerHTML = _buildFollowUps();
       }
@@ -505,7 +508,7 @@ const LoveInAction = (() => {
     var memberId = inp ? inp.value.trim() : '';
     if (!memberId) return;
     try {
-      var res = await TheVine.flock.care.assignments.forMember({ memberId: memberId });
+      var res = await (_isFB() ? UpperRoom.careAssignmentsForMember(memberId) : TheVine.flock.care.assignments.forMember({ memberId: memberId }));
       _cache.assignments = _rows(res);
       var panel = document.getElementById('lia-p-assignments');
       if (panel) panel.innerHTML = _buildAssignments();
@@ -516,7 +519,7 @@ const LoveInAction = (() => {
     // Fetch eligible caregivers (care, leader, pastor, admin) for the dropdown
     var userOpts = [{ value: '', label: '— Select caregiver —' }];
     try {
-      var uRes = await TheVine.flock.care.caregivers.list({});
+      var uRes = await (_isFB() ? UpperRoom.listCaregivers() : TheVine.flock.care.caregivers.list({}));
       var users = _rows(uRes) || [];
       users.forEach(function(u) {
         var label = (u.displayName || u.email) + ' (' + u.role + ')';
@@ -534,8 +537,8 @@ const LoveInAction = (() => {
       { name: 'notes', label: 'Reason / Notes', type: 'textarea' },
     ], async function(data) {
       if (!data.newCaregiverId) throw new Error('Please select a caregiver.');
-      await TheVine.flock.care.assignments.reassign({ id: id, newCaregiverId: data.newCaregiverId, notes: data.notes });
-      var res = await TheVine.flock.care.assignments.list({ limit: 80 });
+      await (_isFB() ? UpperRoom.reassignCareAssignment({ id: id, newCaregiverId: data.newCaregiverId, notes: data.notes }) : TheVine.flock.care.assignments.reassign({ id: id, newCaregiverId: data.newCaregiverId, notes: data.notes }));
+      var res = await (_isFB() ? UpperRoom.listCareAssignments({ limit: 80 }) : TheVine.flock.care.assignments.list({ limit: 80 }));
       _cache.assignments = _filterClosed(_rows(res));
       var panel = document.getElementById('lia-p-assignments');
       if (panel) panel.innerHTML = _buildAssignments();
@@ -547,7 +550,7 @@ const LoveInAction = (() => {
     var name = cached.memberName || cached.member || 'this member';
     if (!confirm('End care assignment for ' + name + '?')) return;
     try {
-      await TheVine.flock.care.assignments.end({ id: id });
+      await (_isFB() ? UpperRoom.endCareAssignment(id) : TheVine.flock.care.assignments.end({ id: id }));
       _cache.assignments = _cache.assignments.filter(function(r) { return String(r.id) !== String(id); });
       var panel = document.getElementById('lia-p-assignments');
       if (panel) panel.innerHTML = _buildAssignments();
@@ -556,7 +559,7 @@ const LoveInAction = (() => {
 
   async function _followUpDone(id) {
     try {
-      await TheVine.flock.care.interactions.followUpDone({ id: id });
+      await (_isFB() ? UpperRoom.followUpDoneCareInteraction(id) : TheVine.flock.care.interactions.followUpDone({ id: id }));
       _cache.followups = _cache.followups.map(function(r) {
         return String(r.id) === String(id) ? Object.assign({}, r, { status: 'done' }) : r;
       });

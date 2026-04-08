@@ -8,7 +8,8 @@
   /* ── Firebase Config ──────────────────────────────────────────────── */
   // Firebase API keys are public identifiers (not secrets).
   // Security is enforced by Firestore security rules, not key secrecy.
-  var FIREBASE_CONFIG = {
+  // Per-church override: set window.FLOCK_FIREBASE_CONFIG before loading.
+  var _DEFAULT_FIREBASE_CONFIG = {
     apiKey:            'AIzaSyBA-fkxjABbwIHn0i6MPiXbGwahfJmuJeo',
     authDomain:        'flockos-notify.firebaseapp.com',
     projectId:         'flockos-notify',
@@ -16,6 +17,9 @@
     messagingSenderId: '321766738616',
     appId:             '1:321766738616:web:d2c1c53ad7493fcde4c24d'
   };
+  var FIREBASE_CONFIG = (typeof window.FLOCK_FIREBASE_CONFIG === 'object' && window.FLOCK_FIREBASE_CONFIG)
+    ? window.FLOCK_FIREBASE_CONFIG
+    : _DEFAULT_FIREBASE_CONFIG;
 
   /* ── State ────────────────────────────────────────────────────────── */
   var _db         = null;   // Firestore instance
@@ -955,6 +959,768 @@
   }
 
   /* ══════════════════════════════════════════════════════════════════
+     USERS — churches/{churchId}/users
+     ══════════════════════════════════════════════════════════════════ */
+
+  function _usersRef() {
+    return _churchRef().collection('users');
+  }
+
+  function listUsers(opts) {
+    opts = opts || {};
+    var q = _usersRef().orderBy('lastName').limit(opts.limit || 500);
+    if (opts.status) q = q.where('status', '==', opts.status);
+    return q.get().then(function(snap) {
+      var results = [];
+      snap.forEach(function(doc) {
+        var d = doc.data(); d.id = doc.id; results.push(d);
+      });
+      return results;
+    });
+  }
+
+  function getUser(email) {
+    return _usersRef().doc(email.toLowerCase()).get().then(function(doc) {
+      if (!doc.exists) return null;
+      var d = doc.data(); d.id = doc.id; return d;
+    });
+  }
+
+  function createUser(data) {
+    var email = (data.email || '').toLowerCase();
+    if (!email) return Promise.reject('email required');
+    data.email = email;
+    data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+    data.createdBy = _userEmail;
+    return _usersRef().doc(email).set(data).then(function() {
+      data.id = email; return data;
+    });
+  }
+
+  function updateUser(data) {
+    var email = (data.targetEmail || data.email || '').toLowerCase();
+    if (!email) return Promise.reject('email required');
+    var payload = Object.assign({}, data);
+    delete payload.targetEmail;
+    payload.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+    payload.updatedBy = _userEmail;
+    return _usersRef().doc(email).update(payload).then(function() {
+      return payload;
+    });
+  }
+
+  function approveUser(email) {
+    return _usersRef().doc(email.toLowerCase()).update({
+      status: 'active',
+      approvedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      approvedBy: _userEmail
+    });
+  }
+
+  function denyUser(email) {
+    return _usersRef().doc(email.toLowerCase()).update({
+      status: 'denied',
+      deniedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      deniedBy: _userEmail
+    });
+  }
+
+  function resetPasscode(email, newPasscode) {
+    return _usersRef().doc(email.toLowerCase()).update({
+      passcode: newPasscode,
+      passcodeResetAt: firebase.firestore.FieldValue.serverTimestamp(),
+      passcodeResetBy: _userEmail
+    });
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     MEMBERS — churches/{churchId}/members
+     ══════════════════════════════════════════════════════════════════ */
+
+  function _membersRef() {
+    return _churchRef().collection('members');
+  }
+
+  function listMembers(opts) {
+    opts = opts || {};
+    var q = _membersRef().orderBy('lastName').limit(opts.limit || 500);
+    if (opts.membershipStatus) q = q.where('membershipStatus', '==', opts.membershipStatus);
+    return q.get().then(function(snap) {
+      var results = [];
+      snap.forEach(function(doc) {
+        var d = doc.data(); d.id = doc.id; results.push(d);
+      });
+      return results;
+    });
+  }
+
+  function getMember(idOrEmail) {
+    // Try by doc ID first, fall back to email query
+    return _membersRef().doc(idOrEmail).get().then(function(doc) {
+      if (doc.exists) { var d = doc.data(); d.id = doc.id; return d; }
+      // Fall back: query by primaryEmail
+      return _membersRef().where('primaryEmail', '==', idOrEmail.toLowerCase())
+        .limit(1).get().then(function(snap) {
+          if (snap.empty) return null;
+          var d2 = snap.docs[0].data(); d2.id = snap.docs[0].id; return d2;
+        });
+    });
+  }
+
+  function createMember(data) {
+    data.primaryEmail = (data.primaryEmail || data.email || '').toLowerCase();
+    data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+    data.createdBy = _userEmail;
+    return _membersRef().add(data).then(function(ref) {
+      data.id = ref.id; return data;
+    });
+  }
+
+  function updateMember(data) {
+    var id = data.id;
+    if (!id) return Promise.reject('member id required');
+    var payload = Object.assign({}, data);
+    delete payload.id;
+    payload.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+    payload.updatedBy = _userEmail;
+    return _membersRef().doc(id).update(payload).then(function() {
+      payload.id = id; return payload;
+    });
+  }
+
+  function deleteMember(id) {
+    return _membersRef().doc(id).delete();
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     MEMBER CARDS — churches/{churchId}/memberCards
+     ══════════════════════════════════════════════════════════════════ */
+
+  function _memberCardsRef() {
+    return _churchRef().collection('memberCards');
+  }
+
+  function listMemberCards(opts) {
+    opts = opts || {};
+    var q = _memberCardsRef().orderBy('lastName').limit(opts.limit || 500);
+    if (opts.status) q = q.where('status', '==', opts.status);
+    if (opts.visibility) q = q.where('visibility', '==', opts.visibility);
+    return q.get().then(function(snap) {
+      var results = [];
+      snap.forEach(function(doc) {
+        var d = doc.data(); d.id = doc.id; results.push(d);
+      });
+      return results;
+    });
+  }
+
+  function getMemberCard(idOrNumber) {
+    return _memberCardsRef().doc(idOrNumber).get().then(function(doc) {
+      if (doc.exists) { var d = doc.data(); d.id = doc.id; return d; }
+      // Fall back: query by memberNumber
+      return _memberCardsRef().where('memberNumber', '==', idOrNumber)
+        .limit(1).get().then(function(snap) {
+          if (snap.empty) return null;
+          var d2 = snap.docs[0].data(); d2.id = snap.docs[0].id; return d2;
+        });
+    });
+  }
+
+  function searchMemberCards(query) {
+    // Client-side filter — Firestore doesn't support LIKE queries
+    return listMemberCards({ limit: 500 }).then(function(cards) {
+      var q = (query || '').toLowerCase();
+      if (!q) return cards;
+      return cards.filter(function(c) {
+        return (c.firstName || '').toLowerCase().indexOf(q) >= 0 ||
+               (c.lastName || '').toLowerCase().indexOf(q) >= 0 ||
+               (c.email || '').toLowerCase().indexOf(q) >= 0 ||
+               (c.cardTitle || '').toLowerCase().indexOf(q) >= 0;
+      });
+    });
+  }
+
+  function createMemberCard(data) {
+    data.email = (data.email || '').toLowerCase();
+    data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+    data.createdBy = _userEmail;
+    return _memberCardsRef().add(data).then(function(ref) {
+      data.id = ref.id; return data;
+    });
+  }
+
+  function updateMemberCard(data) {
+    var id = data.id;
+    if (!id) return Promise.reject('card id required');
+    var payload = Object.assign({}, data);
+    delete payload.id;
+    payload.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+    payload.updatedBy = _userEmail;
+    return _memberCardsRef().doc(id).update(payload).then(function() {
+      payload.id = id; return payload;
+    });
+  }
+
+  function deleteMemberCard(id) {
+    return _memberCardsRef().doc(id).delete();
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     PERMISSIONS — churches/{churchId}/permissions
+     ══════════════════════════════════════════════════════════════════ */
+
+  function _permissionsRef() {
+    return _churchRef().collection('permissions');
+  }
+
+  function getPermissions(email) {
+    return _permissionsRef().doc(email.toLowerCase()).get().then(function(doc) {
+      if (!doc.exists) return { overrides: [], permissions: {} };
+      return doc.data();
+    });
+  }
+
+  function listPermissionModules() {
+    // Static config — stored as a single doc
+    return _churchRef().collection('settings').doc('permissionModules').get()
+      .then(function(doc) {
+        if (!doc.exists) return { modules: {} };
+        return doc.data();
+      });
+  }
+
+  function setPermissions(email, grants, denies) {
+    var payload = {
+      targetEmail: email.toLowerCase(),
+      grants: grants || [],
+      denies: denies || [],
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      updatedBy: _userEmail
+    };
+    return _permissionsRef().doc(email.toLowerCase()).set(payload, { merge: true });
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     CARE CASES — churches/{churchId}/careCases
+     ══════════════════════════════════════════════════════════════════ */
+
+  function _careCasesRef() {
+    return _churchRef().collection('careCases');
+  }
+
+  function listCareCases(opts) {
+    opts = opts || {};
+    var q = _careCasesRef().orderBy('createdAt', 'desc').limit(opts.limit || 200);
+    if (opts.status) q = q.where('status', '==', opts.status);
+    return q.get().then(function(snap) {
+      return snap.docs.map(function(d) { return Object.assign({ id: d.id }, d.data()); });
+    });
+  }
+
+  function getCareCase(id) {
+    return _careCasesRef().doc(id).get().then(function(doc) {
+      if (!doc.exists) return null;
+      return Object.assign({ id: doc.id }, doc.data());
+    });
+  }
+
+  function createCareCase(data) {
+    data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+    data.createdBy = data.createdBy || _userEmail;
+    data.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+    data.status = data.status || 'Open';
+    return _careCasesRef().add(data).then(function(ref) {
+      data.id = ref.id; return data;
+    });
+  }
+
+  function updateCareCase(data) {
+    var id = data.id || data.caseId;
+    if (!id) return Promise.reject('case id required');
+    var payload = Object.assign({}, data);
+    delete payload.id; delete payload.caseId;
+    payload.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+    payload.updatedBy = _userEmail;
+    return _careCasesRef().doc(id).update(payload).then(function() {
+      payload.id = id; return payload;
+    });
+  }
+
+  function resolveCareCase(opts) {
+    var id = (typeof opts === 'string') ? opts : (opts.id || opts.caseId);
+    return _careCasesRef().doc(id).update({
+      status: 'Resolved',
+      resolvedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      resolvedBy: _userEmail,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  }
+
+  function careDashboard() {
+    return _careCasesRef().get().then(function(snap) {
+      var cases = snap.docs.map(function(d) { return Object.assign({ id: d.id }, d.data()); });
+      var open = 0, resolved = 0, total = cases.length;
+      cases.forEach(function(c) { if (c.status === 'Resolved') resolved++; else open++; });
+      return { open: open, resolved: resolved, total: total, cases: cases };
+    });
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     CARE INTERACTIONS — churches/{churchId}/careInteractions
+     ══════════════════════════════════════════════════════════════════ */
+
+  function _careInteractionsRef() {
+    return _churchRef().collection('careInteractions');
+  }
+
+  function listCareInteractions(opts) {
+    opts = opts || {};
+    var q = _careInteractionsRef().orderBy('createdAt', 'desc');
+    if (opts.caseId) q = q.where('caseId', '==', opts.caseId);
+    q = q.limit(opts.limit || 100);
+    return q.get().then(function(snap) {
+      return snap.docs.map(function(d) { return Object.assign({ id: d.id }, d.data()); });
+    });
+  }
+
+  function createCareInteraction(data) {
+    data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+    data.createdBy = data.createdBy || _userEmail;
+    return _careInteractionsRef().add(data).then(function(ref) {
+      data.id = ref.id; return data;
+    });
+  }
+
+  function followUpDoneCareInteraction(id) {
+    return _careInteractionsRef().doc(id).update({
+      followUpDone: true,
+      followUpCompletedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      updatedBy: _userEmail
+    });
+  }
+
+  function careFollowUpsDue() {
+    return _careInteractionsRef()
+      .where('followUpDone', '==', false)
+      .where('dueDate', '<=', new Date().toISOString().slice(0, 10))
+      .orderBy('dueDate')
+      .get().then(function(snap) {
+        return snap.docs.map(function(d) { return Object.assign({ id: d.id }, d.data()); });
+      });
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     CARE ASSIGNMENTS — churches/{churchId}/careAssignments
+     ══════════════════════════════════════════════════════════════════ */
+
+  function _careAssignmentsRef() {
+    return _churchRef().collection('careAssignments');
+  }
+
+  function listCareAssignments(opts) {
+    opts = opts || {};
+    var q = _careAssignmentsRef().orderBy('createdAt', 'desc').limit(opts.limit || 80);
+    if (opts.status) q = q.where('status', '==', opts.status);
+    return q.get().then(function(snap) {
+      return snap.docs.map(function(d) { return Object.assign({ id: d.id }, d.data()); });
+    });
+  }
+
+  function careAssignmentsForMember(memberId) {
+    return _careAssignmentsRef().where('memberId', '==', memberId).get().then(function(snap) {
+      return snap.docs.map(function(d) { return Object.assign({ id: d.id }, d.data()); });
+    });
+  }
+
+  function careAssignmentsMyFlock(caregiverId) {
+    return _careAssignmentsRef()
+      .where('caregiverId', '==', caregiverId)
+      .where('status', '==', 'Active')
+      .get().then(function(snap) {
+        return snap.docs.map(function(d) { return Object.assign({ id: d.id }, d.data()); });
+      });
+  }
+
+  function createCareAssignment(data) {
+    data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+    data.createdBy = data.createdBy || _userEmail;
+    data.status = data.status || 'Active';
+    return _careAssignmentsRef().add(data).then(function(ref) {
+      data.id = ref.id; return data;
+    });
+  }
+
+  function reassignCareAssignment(data) {
+    var id = data.id;
+    if (!id) return Promise.reject('assignment id required');
+    return _careAssignmentsRef().doc(id).update({
+      caregiverId: data.newCaregiverId,
+      notes: data.notes || '',
+      reassignedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      updatedBy: _userEmail
+    });
+  }
+
+  function endCareAssignment(id) {
+    if (typeof id === 'object') id = id.id;
+    return _careAssignmentsRef().doc(id).update({
+      status: 'Ended',
+      endedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      updatedBy: _userEmail
+    });
+  }
+
+  function listCaregivers() {
+    return _careAssignmentsRef()
+      .where('status', '==', 'Active')
+      .get().then(function(snap) {
+        var seen = {}, list = [];
+        snap.docs.forEach(function(d) {
+          var a = d.data();
+          if (a.caregiverId && !seen[a.caregiverId]) {
+            seen[a.caregiverId] = true;
+            list.push({ email: a.caregiverId, role: a.role || 'Shepherd' });
+          }
+        });
+        return list;
+      });
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     COMPASSION REQUESTS — churches/{churchId}/compassionRequests
+     ══════════════════════════════════════════════════════════════════ */
+
+  function _compassionRef() {
+    return _churchRef().collection('compassionRequests');
+  }
+
+  function listCompassionRequests(opts) {
+    opts = opts || {};
+    var q = _compassionRef().orderBy('createdAt', 'desc').limit(opts.limit || 200);
+    if (opts.status) q = q.where('status', '==', opts.status);
+    return q.get().then(function(snap) {
+      return snap.docs.map(function(d) { return Object.assign({ id: d.id }, d.data()); });
+    });
+  }
+
+  function getCompassionRequest(id) {
+    return _compassionRef().doc(id).get().then(function(doc) {
+      if (!doc.exists) return null;
+      return Object.assign({ id: doc.id }, doc.data());
+    });
+  }
+
+  function createCompassionRequest(data) {
+    data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+    data.createdBy = data.createdBy || _userEmail;
+    data.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+    data.status = data.status || 'Pending';
+    return _compassionRef().add(data).then(function(ref) {
+      data.id = ref.id; return data;
+    });
+  }
+
+  function updateCompassionRequest(data) {
+    var id = data.id;
+    if (!id) return Promise.reject('request id required');
+    var payload = Object.assign({}, data);
+    delete payload.id;
+    payload.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+    payload.updatedBy = _userEmail;
+    return _compassionRef().doc(id).update(payload).then(function() {
+      payload.id = id; return payload;
+    });
+  }
+
+  function approveCompassionRequest(id) {
+    if (typeof id === 'object') id = id.id;
+    return _compassionRef().doc(id).update({
+      status: 'Approved',
+      approvedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      approvedBy: _userEmail,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  }
+
+  function denyCompassionRequest(id) {
+    if (typeof id === 'object') id = id.id;
+    return _compassionRef().doc(id).update({
+      status: 'Denied',
+      deniedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      deniedBy: _userEmail,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  }
+
+  function resolveCompassionRequest(id) {
+    if (typeof id === 'object') id = id.id;
+    return _compassionRef().doc(id).update({
+      status: 'Resolved',
+      resolvedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      resolvedBy: _userEmail,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  }
+
+  function compassionDashboard() {
+    return _compassionRef().get().then(function(snap) {
+      var reqs = snap.docs.map(function(d) { return Object.assign({ id: d.id }, d.data()); });
+      var pending = 0, approved = 0, resolved = 0;
+      reqs.forEach(function(r) {
+        if (r.status === 'Pending') pending++;
+        else if (r.status === 'Approved') approved++;
+        else if (r.status === 'Resolved') resolved++;
+      });
+      return { pending: pending, approved: approved, resolved: resolved, total: reqs.length, requests: reqs };
+    });
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     COMPASSION LOGS — churches/{churchId}/compassionLogs
+     ══════════════════════════════════════════════════════════════════ */
+
+  function _compassionLogRef() {
+    return _churchRef().collection('compassionLogs');
+  }
+
+  function listCompassionLogs(opts) {
+    opts = opts || {};
+    var q = _compassionLogRef().orderBy('createdAt', 'desc');
+    if (opts.requestId) q = q.where('requestId', '==', opts.requestId);
+    q = q.limit(opts.limit || 80);
+    return q.get().then(function(snap) {
+      return snap.docs.map(function(d) { return Object.assign({ id: d.id }, d.data()); });
+    });
+  }
+
+  function recentCompassionLogs(opts) {
+    opts = opts || {};
+    return _compassionLogRef().orderBy('createdAt', 'desc').limit(opts.limit || 10)
+      .get().then(function(snap) {
+        return snap.docs.map(function(d) { return Object.assign({ id: d.id }, d.data()); });
+      });
+  }
+
+  function createCompassionLog(data) {
+    data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+    data.createdBy = data.createdBy || _userEmail;
+    return _compassionLogRef().add(data).then(function(ref) {
+      data.id = ref.id; return data;
+    });
+  }
+
+  function deleteCompassionLog(id) {
+    if (typeof id === 'object') id = id.id;
+    return _compassionLogRef().doc(id).delete();
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     COMPASSION RESOURCES — churches/{churchId}/compassionResources
+     ══════════════════════════════════════════════════════════════════ */
+
+  function _compassionResourcesRef() {
+    return _churchRef().collection('compassionResources');
+  }
+
+  function listCompassionResources(opts) {
+    opts = opts || {};
+    return _compassionResourcesRef().orderBy('name').limit(opts.limit || 80)
+      .get().then(function(snap) {
+        return snap.docs.map(function(d) { return Object.assign({ id: d.id }, d.data()); });
+      });
+  }
+
+  function lowCompassionResources() {
+    return _compassionResourcesRef().where('status', '==', 'Low')
+      .get().then(function(snap) {
+        return snap.docs.map(function(d) { return Object.assign({ id: d.id }, d.data()); });
+      });
+  }
+
+  function createCompassionResource(data) {
+    data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+    data.createdBy = data.createdBy || _userEmail;
+    return _compassionResourcesRef().add(data).then(function(ref) {
+      data.id = ref.id; return data;
+    });
+  }
+
+  function updateCompassionResource(data) {
+    var id = data.id;
+    if (!id) return Promise.reject('resource id required');
+    var payload = Object.assign({}, data);
+    delete payload.id;
+    payload.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+    payload.updatedBy = _userEmail;
+    return _compassionResourcesRef().doc(id).update(payload).then(function() {
+      payload.id = id; return payload;
+    });
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     OUTREACH CONTACTS — churches/{churchId}/outreachContacts
+     ══════════════════════════════════════════════════════════════════ */
+
+  function _outreachContactsRef() {
+    return _churchRef().collection('outreachContacts');
+  }
+
+  function listOutreachContacts(opts) {
+    opts = opts || {};
+    var q = _outreachContactsRef().orderBy('createdAt', 'desc').limit(opts.limit || 200);
+    if (opts.status) q = q.where('status', '==', opts.status);
+    return q.get().then(function(snap) {
+      return snap.docs.map(function(d) { return Object.assign({ id: d.id }, d.data()); });
+    });
+  }
+
+  function getOutreachContact(id) {
+    if (typeof id === 'object') id = id.contactId || id.id;
+    return _outreachContactsRef().doc(id).get().then(function(doc) {
+      if (!doc.exists) return null;
+      return Object.assign({ id: doc.id }, doc.data());
+    });
+  }
+
+  function createOutreachContact(data) {
+    data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+    data.createdBy = data.createdBy || _userEmail;
+    data.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+    data.status = data.status || 'New';
+    return _outreachContactsRef().add(data).then(function(ref) {
+      data.id = ref.id; return data;
+    });
+  }
+
+  function updateOutreachContact(data) {
+    var id = data.id;
+    if (!id) return Promise.reject('contact id required');
+    var payload = Object.assign({}, data);
+    delete payload.id;
+    payload.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+    payload.updatedBy = _userEmail;
+    return _outreachContactsRef().doc(id).update(payload).then(function() {
+      payload.id = id; return payload;
+    });
+  }
+
+  function convertOutreachContact(data) {
+    var id = data.id;
+    if (!id) return Promise.reject('contact id required');
+    return _outreachContactsRef().doc(id).update({
+      status: 'Converted',
+      memberId: data.memberId || '',
+      convertedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      convertedBy: _userEmail,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  }
+
+  function submitOutreachContact(data) {
+    data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+    data.status = data.status || 'New';
+    data.source = data.source || 'PublicForm';
+    return _outreachContactsRef().add(data).then(function(ref) {
+      data.id = ref.id; return data;
+    });
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     OUTREACH CAMPAIGNS — churches/{churchId}/outreachCampaigns
+     ══════════════════════════════════════════════════════════════════ */
+
+  function _outreachCampaignsRef() {
+    return _churchRef().collection('outreachCampaigns');
+  }
+
+  function listOutreachCampaigns(opts) {
+    opts = opts || {};
+    return _outreachCampaignsRef().orderBy('createdAt', 'desc').limit(opts.limit || 50)
+      .get().then(function(snap) {
+        return snap.docs.map(function(d) { return Object.assign({ id: d.id }, d.data()); });
+      });
+  }
+
+  function createOutreachCampaign(data) {
+    data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+    data.createdBy = data.createdBy || _userEmail;
+    data.status = data.status || 'Active';
+    return _outreachCampaignsRef().add(data).then(function(ref) {
+      data.id = ref.id; return data;
+    });
+  }
+
+  function updateOutreachCampaign(data) {
+    var id = data.id;
+    if (!id) return Promise.reject('campaign id required');
+    var payload = Object.assign({}, data);
+    delete payload.id;
+    payload.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+    payload.updatedBy = _userEmail;
+    return _outreachCampaignsRef().doc(id).update(payload).then(function() {
+      payload.id = id; return payload;
+    });
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     OUTREACH FOLLOW-UPS — churches/{churchId}/outreachFollowUps
+     ══════════════════════════════════════════════════════════════════ */
+
+  function _outreachFollowUpsRef() {
+    return _churchRef().collection('outreachFollowUps');
+  }
+
+  function listOutreachFollowUps(opts) {
+    opts = opts || {};
+    var q = _outreachFollowUpsRef().orderBy('createdAt', 'desc');
+    if (opts.contactId) q = q.where('contactId', '==', opts.contactId);
+    q = q.limit(opts.limit || 60);
+    return q.get().then(function(snap) {
+      return snap.docs.map(function(d) { return Object.assign({ id: d.id }, d.data()); });
+    });
+  }
+
+  function createOutreachFollowUp(data) {
+    data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+    data.createdBy = data.createdBy || _userEmail;
+    return _outreachFollowUpsRef().add(data).then(function(ref) {
+      data.id = ref.id; return data;
+    });
+  }
+
+  function outreachFollowUpDone(id) {
+    if (typeof id === 'object') id = id.id;
+    return _outreachFollowUpsRef().doc(id).update({
+      done: true,
+      completedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      completedBy: _userEmail
+    });
+  }
+
+  function outreachFollowUpsDue() {
+    return _outreachFollowUpsRef()
+      .where('done', '==', false)
+      .where('dueDate', '<=', new Date().toISOString().slice(0, 10))
+      .orderBy('dueDate')
+      .get().then(function(snap) {
+        return snap.docs.map(function(d) { return Object.assign({ id: d.id }, d.data()); });
+      });
+  }
+
+  function outreachDashboard() {
+    return _outreachContactsRef().get().then(function(snap) {
+      var contacts = snap.docs.map(function(d) { return Object.assign({ id: d.id }, d.data()); });
+      var newC = 0, active = 0, converted = 0;
+      contacts.forEach(function(c) {
+        if (c.status === 'New') newC++;
+        else if (c.status === 'Converted') converted++;
+        else active++;
+      });
+      return { new: newC, active: active, converted: converted, total: contacts.length, contacts: contacts };
+    });
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
      PUBLIC API — window.UpperRoom
      ══════════════════════════════════════════════════════════════════ */
 
@@ -1047,6 +1813,100 @@
     // Typing
     setTyping:      setTyping,
     listenTyping:   listenTyping,
+
+    // Users
+    listUsers:       listUsers,
+    getUser:         getUser,
+    createUser:      createUser,
+    updateUser:      updateUser,
+    approveUser:     approveUser,
+    denyUser:        denyUser,
+    resetPasscode:   resetPasscode,
+
+    // Members
+    listMembers:     listMembers,
+    getMember:       getMember,
+    createMember:    createMember,
+    updateMember:    updateMember,
+    deleteMember:    deleteMember,
+
+    // Member Cards
+    listMemberCards:   listMemberCards,
+    getMemberCard:     getMemberCard,
+    searchMemberCards: searchMemberCards,
+    createMemberCard:  createMemberCard,
+    updateMemberCard:  updateMemberCard,
+    deleteMemberCard:  deleteMemberCard,
+
+    // Permissions
+    getPermissions:        getPermissions,
+    listPermissionModules: listPermissionModules,
+    setPermissions:        setPermissions,
+
+    // Care Cases
+    listCareCases:         listCareCases,
+    getCareCase:           getCareCase,
+    createCareCase:        createCareCase,
+    updateCareCase:        updateCareCase,
+    resolveCareCase:       resolveCareCase,
+    careDashboard:         careDashboard,
+
+    // Care Interactions
+    listCareInteractions:       listCareInteractions,
+    createCareInteraction:      createCareInteraction,
+    followUpDoneCareInteraction: followUpDoneCareInteraction,
+    careFollowUpsDue:           careFollowUpsDue,
+
+    // Care Assignments
+    listCareAssignments:       listCareAssignments,
+    careAssignmentsForMember:  careAssignmentsForMember,
+    careAssignmentsMyFlock:    careAssignmentsMyFlock,
+    createCareAssignment:      createCareAssignment,
+    reassignCareAssignment:    reassignCareAssignment,
+    endCareAssignment:         endCareAssignment,
+    listCaregivers:            listCaregivers,
+
+    // Compassion Requests
+    listCompassionRequests:    listCompassionRequests,
+    getCompassionRequest:      getCompassionRequest,
+    createCompassionRequest:   createCompassionRequest,
+    updateCompassionRequest:   updateCompassionRequest,
+    approveCompassionRequest:  approveCompassionRequest,
+    denyCompassionRequest:     denyCompassionRequest,
+    resolveCompassionRequest:  resolveCompassionRequest,
+    compassionDashboard:       compassionDashboard,
+
+    // Compassion Logs
+    listCompassionLogs:        listCompassionLogs,
+    recentCompassionLogs:      recentCompassionLogs,
+    createCompassionLog:       createCompassionLog,
+    deleteCompassionLog:       deleteCompassionLog,
+
+    // Compassion Resources
+    listCompassionResources:   listCompassionResources,
+    lowCompassionResources:    lowCompassionResources,
+    createCompassionResource:  createCompassionResource,
+    updateCompassionResource:  updateCompassionResource,
+
+    // Outreach Contacts
+    listOutreachContacts:      listOutreachContacts,
+    getOutreachContact:        getOutreachContact,
+    createOutreachContact:     createOutreachContact,
+    updateOutreachContact:     updateOutreachContact,
+    convertOutreachContact:    convertOutreachContact,
+    submitOutreachContact:     submitOutreachContact,
+
+    // Outreach Campaigns
+    listOutreachCampaigns:     listOutreachCampaigns,
+    createOutreachCampaign:    createOutreachCampaign,
+    updateOutreachCampaign:    updateOutreachCampaign,
+
+    // Outreach Follow-ups
+    listOutreachFollowUps:     listOutreachFollowUps,
+    createOutreachFollowUp:    createOutreachFollowUp,
+    outreachFollowUpDone:      outreachFollowUpDone,
+    outreachFollowUpsDue:      outreachFollowUpsDue,
+    outreachDashboard:         outreachDashboard,
 
     // Utility
     timeAgo:        _timeAgo
