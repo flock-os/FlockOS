@@ -41,6 +41,7 @@
   function _churchRef() {
     return _db.collection('churches').doc(_churchId);
   }
+  var _churchDoc = _churchRef;
   function _convosRef() {
     return _churchRef().collection('conversations');
   }
