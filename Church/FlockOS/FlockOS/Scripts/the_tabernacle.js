@@ -3858,6 +3858,11 @@ const Modules = (() => {
   }
 
   _def('learning', async el => {
+    if (typeof TheWay !== 'undefined' && TheWay.renderHub) {
+      if (TheWay.resetHome) TheWay.resetHome();
+      TheWay.renderHub(el, typeof Nehemiah !== 'undefined' && Nehemiah.getSession ? Nehemiah.getSession() : {});
+      return;
+    }
     _shell(el, 'Learning', 'Playlists, topics, quizzes & progress tracking.',
       _btn('+ New Playlist', "Modules.newPlaylist()") +
       _btn('+ New Topic', "Modules._lrnTopicNew()", false));
