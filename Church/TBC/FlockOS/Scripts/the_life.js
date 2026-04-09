@@ -421,10 +421,6 @@ const TheLife = (() => {
     detSec += _fpField('Summary', 'summary', rec.summary, 'textarea');
     var _canSeeNotes = _canViewNotes();
     detSec += _fpField(_canSeeNotes ? 'Notes (confidential)' : 'Notes (confidential — Lead Pastor eyes only)', 'notes', _canSeeNotes ? rec.notes : '', 'textarea');
-    if (!_canSeeNotes) {
-      detSec += '<p style="font-size:0.72rem;color:var(--ink-muted);margin-top:-8px;font-style:italic;">' +
-        'Your notes are saved securely. Only the Lead Pastor and system administrator can view saved notes.</p>';
-    }
     if (id) {
       detSec += _fp2(
         _fpField('Created', 'createdAt', rec.createdAt, 'readonly'),
