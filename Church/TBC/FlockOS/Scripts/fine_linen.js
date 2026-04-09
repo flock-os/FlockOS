@@ -4558,6 +4558,129 @@ details.settings-section.settings-accordion > .settings-accordion-trigger {
   .theme-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
 }
 
+/* ══════════════════════════════════════════════════════════════════════════════
+   SETTINGS TAB NAVIGATION
+   ══════════════════════════════════════════════════════════════════════════════ */
+.config-tabs-bar {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  background: var(--bg-sunken, rgba(0,0,0,0.2));
+  border-radius: 12px;
+  margin-bottom: 24px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.config-tabs-bar::-webkit-scrollbar { display: none; }
+.config-tab {
+  padding: 10px 20px;
+  border: none;
+  background: transparent;
+  color: var(--ink-muted, #888);
+  font-size: 0.82rem;
+  font-weight: 600;
+  font-family: inherit;
+  border-radius: 10px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.config-tab:hover {
+  color: var(--ink, #e0e0e0);
+  background: rgba(255,255,255,0.04);
+}
+.config-tab.active {
+  background: var(--accent, #22d3ee);
+  color: var(--bg, #0f0f23);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+.config-tab-icon {
+  font-size: 1rem;
+}
+.config-tab-panel {
+  display: none;
+  animation: configFadeIn 0.25s ease;
+}
+.config-tab-panel.active {
+  display: block;
+}
+@keyframes configFadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Enhanced stat cards */
+.config-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.config-stat-card {
+  background: var(--bg-raised, #1a1a2e);
+  border: 1px solid var(--line, #333);
+  border-radius: 14px;
+  padding: 20px;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.config-stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+}
+.config-stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+}
+.config-stat-card:nth-child(1)::before { background: linear-gradient(90deg, #22d3ee, #06b6d4); }
+.config-stat-card:nth-child(2)::before { background: linear-gradient(90deg, #a78bfa, #7c3aed); }
+.config-stat-card:nth-child(3)::before { background: linear-gradient(90deg, #4ade80, #22c55e); }
+.config-stat-card:nth-child(4)::before { background: linear-gradient(90deg, #fbbf24, #f59e0b); }
+.config-stat-icon {
+  font-size: 1.5rem;
+  margin-bottom: 8px;
+}
+.config-stat-value {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: var(--ink, #e0e0e0);
+  line-height: 1.2;
+}
+.config-stat-label {
+  font-size: 0.72rem;
+  color: var(--ink-muted, #888);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-top: 4px;
+}
+@media (max-width: 768px) {
+  .config-tabs-bar {
+    gap: 2px;
+    padding: 3px;
+    border-radius: 8px;
+  }
+  .config-tab {
+    padding: 8px 12px;
+    font-size: 0.76rem;
+  }
+  .config-tab-icon { display: none; }
+  .config-stat-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  .config-stat-card { padding: 14px; }
+  .config-stat-value { font-size: 1.2rem; }
+}
+
 /* My Requests cards */
 .my-requests-grid {
   display: grid;

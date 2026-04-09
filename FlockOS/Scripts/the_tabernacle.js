@@ -10364,13 +10364,34 @@ const Modules = (() => {
 
       let html = '';
 
-      // ── Overview stat cards ─────────────────────────────────────────
-      html += '<div class="settings-stat-row">';
-      html += '<div class="settings-stat-card"><div class="settings-stat-value">' + themeList.length + '</div><div class="settings-stat-label">Themes Available</div></div>';
-      html += '<div class="settings-stat-card"><div class="settings-stat-value">' + totalOn + '</div><div class="settings-stat-label">Active Modules</div></div>';
-      html += '<div class="settings-stat-card"><div class="settings-stat-value">' + rows.length + '</div><div class="settings-stat-label">Config Entries</div></div>';
-      html += '<div class="settings-stat-card"><div class="settings-stat-value" style="font-size:1rem;">' + _e(currentPrefix) + '</div><div class="settings-stat-label">Card Prefix</div></div>';
+      // ── Tab switching ───────────────────────────────────────────────
+      Modules._configTab = function(tabId) {
+        document.querySelectorAll('.config-tab-panel').forEach(function(p) { p.classList.remove('active'); });
+        document.querySelectorAll('.config-tab').forEach(function(t) { t.classList.remove('active'); });
+        var panel = document.querySelector('.config-tab-panel[data-tab="' + tabId + '"]');
+        var tab = document.querySelector('.config-tab[data-tab="' + tabId + '"]');
+        if (panel) panel.classList.add('active');
+        if (tab) tab.classList.add('active');
+      };
+
+      // ── Overview stat cards (enhanced) ──────────────────────────────
+      html += '<div class="config-stat-grid">';
+      html += '<div class="config-stat-card"><div class="config-stat-icon">\uD83C\uDFA8</div><div class="config-stat-value">' + themeList.length + '</div><div class="config-stat-label">Themes Available</div></div>';
+      html += '<div class="config-stat-card"><div class="config-stat-icon">\uD83E\uDDE9</div><div class="config-stat-value">' + totalOn + '</div><div class="config-stat-label">Active Modules</div></div>';
+      html += '<div class="config-stat-card"><div class="config-stat-icon">\uD83D\uDCCB</div><div class="config-stat-value">' + rows.length + '</div><div class="config-stat-label">Config Entries</div></div>';
+      html += '<div class="config-stat-card"><div class="config-stat-icon">\uD83C\uDFF7\uFE0F</div><div class="config-stat-value" style="font-size:1.1rem;">' + _e(currentPrefix) + '</div><div class="config-stat-label">Card Prefix</div></div>';
       html += '</div>';
+
+      // ── Tab Navigation ──────────────────────────────────────────────
+      html += '<div class="config-tabs-bar">';
+      html += '<button class="config-tab active" data-tab="overview" onclick="Modules._configTab(\'overview\')"><span class="config-tab-icon">\uD83C\uDFE0</span> Overview</button>';
+      html += '<button class="config-tab" data-tab="look-feel" onclick="Modules._configTab(\'look-feel\')"><span class="config-tab-icon">\uD83C\uDFA8</span> Look &amp; Feel</button>';
+      html += '<button class="config-tab" data-tab="modules" onclick="Modules._configTab(\'modules\')"><span class="config-tab-icon">\uD83E\uDDE9</span> Modules</button>';
+      html += '<button class="config-tab" data-tab="admin" onclick="Modules._configTab(\'admin\')"><span class="config-tab-icon">\u2699\uFE0F</span> Administration</button>';
+      html += '</div>';
+
+      // ══ Tab: Overview ═══════════════════════════════════════════════
+      html += '<div class="config-tab-panel active" data-tab="overview">';
 
       // ── Section 0: Security — Maintenance Mode ───────────────────────
       // Maintenance status lives in global appConfig/system (not church-scoped)
@@ -10417,6 +10438,11 @@ const Modules = (() => {
           if (badge) badge.textContent = 'Normal';
         }
       })();
+
+      html += '</div>'; // close Overview tab
+
+      // ══ Tab: Look & Feel ════════════════════════════════════════════
+      html += '<div class="config-tab-panel" data-tab="look-feel">';
 
       // ── Section 1: Identity & Branding ──────────────────────────────
       html += '<details class="settings-section settings-accordion">';
@@ -10815,6 +10841,11 @@ const Modules = (() => {
 
       html += '</div></details>'; // close Interface Studio accordion
 
+      html += '</div>'; // close Look & Feel tab
+
+      // ══ Tab: Modules ════════════════════════════════════════════════
+      html += '<div class="config-tab-panel" data-tab="modules">';
+
       // ── Section 5: Site Modules (Accordion) ──────────────────────────
       html += '<details class="settings-section settings-accordion">';
       html += '<summary class="settings-accordion-trigger"><span class="settings-accordion-chevron">&#9654;</span>';
@@ -10841,6 +10872,11 @@ const Modules = (() => {
         }
       }
       html += '</div></details>';
+
+      html += '</div>'; // close Modules tab
+
+      // ══ Tab: Administration ═════════════════════════════════════════
+      html += '<div class="config-tab-panel" data-tab="admin">';
 
       // ── Section 5: System Settings (Accordion) ──────────────────────
       const _cfgCatIcons = { General: '\uD83C\uDFE0', Auth: '\uD83D\uDD10', Modules: '\uD83E\uDDE9', Notifications: '\uD83D\uDD14', Display: '\uD83D\uDCBB', Security: '\uD83D\uDEE1\uFE0F' };
@@ -11247,6 +11283,8 @@ const Modules = (() => {
       html += '</div>';
 
       html += '</div></details>'; // close calendar settings accordion
+
+      html += '</div>'; // close Administration tab
 
       _body(el, html);
 
