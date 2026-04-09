@@ -28,25 +28,25 @@ const TheVine = (() => {
   const _config = {
 
     APP_ENDPOINTS: [
-      '', // PRIMARY (unified)
+      'https://script.google.com/macros/s/AKfycbzR1z1qf0PEJK5Znm1IM-vE6ls4xjfVDjtqOVm7zBVeINS5PRByeOAfa6G3flwPQZTZiQ/exec', // PRIMARY (unified)
       '', // SECONDARY
       '', // TERTIARY
     ],
 
     FLOCK_ENDPOINTS: [
-      '', // PRIMARY (unified)
+      'https://script.google.com/macros/s/AKfycbzR1z1qf0PEJK5Znm1IM-vE6ls4xjfVDjtqOVm7zBVeINS5PRByeOAfa6G3flwPQZTZiQ/exec', // PRIMARY (unified)
       '', // SECONDARY
       '', // TERTIARY
     ],
 
     MISSIONS_ENDPOINTS: [
-      '', // PRIMARY (unified)
+      'https://script.google.com/macros/s/AKfycbzR1z1qf0PEJK5Znm1IM-vE6ls4xjfVDjtqOVm7zBVeINS5PRByeOAfa6G3flwPQZTZiQ/exec', // PRIMARY (unified)
       '', // SECONDARY
       '', // TERTIARY
     ],
 
     EXTRA_ENDPOINTS: [
-      '', // PRIMARY (unified)
+      'https://script.google.com/macros/s/AKfycbzR1z1qf0PEJK5Znm1IM-vE6ls4xjfVDjtqOVm7zBVeINS5PRByeOAfa6G3flwPQZTZiQ/exec', // PRIMARY (unified)
       '', // SECONDARY
       '', // TERTIARY
     ],

@@ -155,7 +155,7 @@ function offlineFallback() {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>FlockOS — Offline</title>
+  <title>FlockOS-GAS — Offline</title>
   <style>
     body {
       margin: 0; min-height: 100vh;
@@ -178,7 +178,7 @@ function offlineFallback() {
 <body>
   <div class="offline-card">
     <h1>You're Offline</h1>
-    <p>FlockOS can't reach the server right now. Your data is safe and will sync automatically when you reconnect.</p>
+    <p>FlockOS-GAS can't reach the server right now. Your data is safe and will sync automatically when you reconnect.</p>
     <button onclick="location.reload()">Try Again</button>
   </div>
 </body>

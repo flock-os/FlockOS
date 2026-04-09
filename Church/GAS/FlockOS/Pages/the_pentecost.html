@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>FlockOS — Deployment &amp; Project Guide</title>
+  <title>FlockOS-GAS — Deployment &amp; Project Guide</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;600;700;800&family=Noto+Serif:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
@@ -366,7 +366,7 @@
 </div>
 
 <header>
-  <h1>&#x1F54A;&#xFE0F; FlockOS &mdash; Deployment &amp; Project Guide</h1>
+  <h1>&#x1F54A;&#xFE0F; FlockOS-GAS &mdash; Deployment &amp; Project Guide</h1>
   <p>Project status, folder layouts, and complete step-by-step setup for the unified Google Apps Script API</p>
   <div class="verse">"I am the vine; you are the branches." &mdash; John 15:5</div>
 </header>
@@ -780,7 +780,7 @@ python3 -m http.server 8080</code></pre>
 
   <h3>API Deployment URL (Current)</h3>
   <p>The single database endpoint is configured in Settings &rarr; Provisioning (<code>DATABASE_URL</code>), or hardcoded in <code>FlockOS/Scripts/the_true_vine.js</code> (<code>_config</code> block). Health check:</p>
-  <pre><code>?action=health</code></pre>
+  <pre><code>https://script.google.com/macros/s/AKfycbzR1z1qf0PEJK5Znm1IM-vE6ls4xjfVDjtqOVm7zBVeINS5PRByeOAfa6G3flwPQZTZiQ/exec?action=health</code></pre>
   <p>Unified endpoint confirmed healthy.</p>
   <p style="margin-top:2rem;text-align:right;"><a href="#toc" style="color:var(--accent);text-decoration:none;font-size:0.9rem;">&uarr; Back to Table of Contents</a></p>
 </section>
@@ -1184,7 +1184,7 @@ Session expiry (default: 6 hours)
 
   <h3>Step 4.8 &mdash; Test</h3>
   <p>Open your browser and go to:</p>
-  <pre><code>?action=health</code></pre>
+  <pre><code>https://script.google.com/macros/s/AKfycbzR1z1qf0PEJK5Znm1IM-vE6ls4xjfVDjtqOVm7zBVeINS5PRByeOAfa6G3flwPQZTZiQ/exec?action=health</code></pre>
   <p>You should see:</p>
   <pre><code>{"ok":true,"message":"ATOG Church CRM Expansion is running.","version":"1.0.0"}</code></pre>
   <p style="margin-top:2rem;text-align:right;"><a href="#toc" style="color:var(--accent);text-decoration:none;font-size:0.9rem;">&uarr; Back to Table of Contents</a></p>
@@ -1236,7 +1236,7 @@ Session expiry (default: 6 hours)
 
   <h3>Step 1 &mdash; Health Check</h3>
   <p>Open the Database URL in your browser with <code>?action=health</code> appended. It should return <code>"ok": true</code>:</p>
-  <pre><code>?action=health</code></pre>
+  <pre><code>https://script.google.com/macros/s/AKfycbzR1z1qf0PEJK5Znm1IM-vE6ls4xjfVDjtqOVm7zBVeINS5PRByeOAfa6G3flwPQZTZiQ/exec?action=health</code></pre>
   <p>Expected: <code>{"ok":true,"message":"ATOG Church CRM Expansion is running.","version":"1.0.0"}</code></p>
 
   <h3>Step 2 &mdash; Tab Count Verification</h3>
@@ -1248,10 +1248,10 @@ Session expiry (default: 6 hours)
 
   <h3>Step 3 &mdash; End-to-End Tests</h3>
   <ul class="checklist">
-    <li>Login: <code>?action=auth.login&amp;email=...&amp;passcode=...</code></li>
-    <li>Profile: <code>?action=auth.profile&amp;token=...&amp;email=...</code></li>
-    <li>Tab reader: <code>?tab=Books</code></li>
-    <li>Members: <code>?action=members.list&amp;token=...&amp;email=...</code></li>
+    <li>Login: <code>https://script.google.com/macros/s/AKfycbzR1z1qf0PEJK5Znm1IM-vE6ls4xjfVDjtqOVm7zBVeINS5PRByeOAfa6G3flwPQZTZiQ/exec?action=auth.login&amp;email=...&amp;passcode=...</code></li>
+    <li>Profile: <code>https://script.google.com/macros/s/AKfycbzR1z1qf0PEJK5Znm1IM-vE6ls4xjfVDjtqOVm7zBVeINS5PRByeOAfa6G3flwPQZTZiQ/exec?action=auth.profile&amp;token=...&amp;email=...</code></li>
+    <li>Tab reader: <code>https://script.google.com/macros/s/AKfycbzR1z1qf0PEJK5Znm1IM-vE6ls4xjfVDjtqOVm7zBVeINS5PRByeOAfa6G3flwPQZTZiQ/exec?tab=Books</code></li>
+    <li>Members: <code>https://script.google.com/macros/s/AKfycbzR1z1qf0PEJK5Znm1IM-vE6ls4xjfVDjtqOVm7zBVeINS5PRByeOAfa6G3flwPQZTZiQ/exec?action=members.list&amp;token=...&amp;email=...</code></li>
   </ul>
 
   <h3>If Something Is Wrong</h3>
@@ -1467,7 +1467,7 @@ Session expiry (default: 6 hours)
 
 <footer>
   <a href="the_good_shepherd.html" style="color:var(--accent);text-decoration:none;font-size:0.9rem;">&larr; Back to Dashboard</a><br><br>
-  FlockOS &mdash; Deployment &amp; Project Guide &middot; Updated March 29, 2026<br>
+  FlockOS-GAS &mdash; Deployment &amp; Project Guide &middot; Updated March 29, 2026<br>
   <em>"I am the vine; you are the branches." &mdash; John 15:5</em><br><br>
   This file is local-only and excluded from Git.
 </footer>
