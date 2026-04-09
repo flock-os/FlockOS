@@ -1855,16 +1855,18 @@ const TheWay = (() => {
       // ── Fetch full tree (categories → sections → scriptures) ─────────
       var tree = [];
       var stats = null;
-      try {
-        var results = await Promise.all([
-          _isFB() ? UpperRoom.theologyFull() : TheVine.flock.theology.full(),
-          _isFB() ? UpperRoom.theologyDashboard() : TheVine.flock.theology.dashboard()
-        ]);
-        tree  = _rows(results[0]);
-        stats = results[1];
-        if (stats && stats.rows) stats = stats.rows[0] || stats.rows;
-        if (stats && stats.data) stats = stats.data;
-      } catch (_) {}
+      if (_isFB()) {
+        try {
+          var results = await Promise.all([
+            UpperRoom.theologyFull(),
+            UpperRoom.theologyDashboard()
+          ]);
+          tree  = _rows(results[0]);
+          stats = results[1];
+          if (stats && stats.rows) stats = stats.rows[0] || stats.rows;
+          if (stats && stats.data) stats = stats.data;
+        } catch (_) {}
+      }
 
       // Fallback to Matthew flat content if FLOCK API unavailable
       if (!tree.length) {

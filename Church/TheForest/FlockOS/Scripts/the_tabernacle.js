@@ -5715,7 +5715,7 @@ const Modules = (() => {
   _def('app-theology', async el => {
     _shell(el, 'Doctrine', 'Our statement of faith & systematic theology.', '');
     try {
-      const raw  = await _fetch('theology-flat', () => _isFirebaseComms() ? UpperRoom.theologyFlat() : TheVine.flock.theology.flat(), _TTL.ref);
+      const raw  = await _fetch('theology-flat', () => _isFirebaseComms() ? UpperRoom.theologyFlat() : TheVine.app.theology(), _TTL.ref);
       const rows = Array.isArray(raw) ? raw : _rows(raw);
       if (!rows.length) { _body(el, _empty('&#9768;', 'No doctrine yet', 'Add theology categories & sections in the admin portal.')); return; }
 
