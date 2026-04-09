@@ -7951,9 +7951,20 @@ const Modules = (() => {
       + 'var ch=document.getElementById(\'' + uid + '-ch\');'
       + 'var open=b.classList.toggle(\'dev-feed-open\');'
       + 'if(ch)ch.style.transform=open?\'rotate(180deg)\':\'\';';
-    const pts = Array.isArray(r.prayerPoints)
+    var _rawPts = Array.isArray(r.prayerPoints)
       ? r.prayerPoints
       : (r.prayerPoints ? String(r.prayerPoints).split('\n').filter(Boolean) : []);
+    // Flatten into individual items: split on numbered patterns like "1. ", "2. " etc.
+    var pts = [];
+    _rawPts.forEach(function(line) {
+      var parts = line.split(/(?:^|,\s*)(?=\d+\.\s)/).filter(Boolean);
+      if (parts.length > 1) {
+        parts.forEach(function(p) { var t = p.replace(/^\d+\.\s*/, '').trim(); if (t) pts.push(t); });
+      } else {
+        var t = line.replace(/^\d+\.\s*/, '').trim();
+        if (t) pts.push(t);
+      }
+    });
     const canEdit = typeof Nehemiah !== 'undefined' && Nehemiah.can('missions.prayer.edit');
     return '<div style="background:var(--bg-raised);border:1px solid ' + pri.border + ';border-left:4px solid ' + pri.color + ';border-radius:12px;overflow:hidden;">'
       // ── Header ──
@@ -7992,7 +8003,7 @@ const Modules = (() => {
           ? '<div class="dev-section-card dev-question" style="background:rgba(140,197,162,0.06);">'
             + '<div class="dev-section-label"><span>🙏</span> Prayer Points</div>'
             + '<div class="dev-section-content"><ul style="margin:0;padding-left:20px;display:grid;gap:8px;">'
-            + pts.map(function(pt) { return '<li style="font-size:0.9rem;line-height:1.6;">' + _e(pt) + '</li>'; }).join('')
+            + pts.map(function(pt) { return '<li style="line-height:1.8;">' + _e(pt) + '</li>'; }).join('')
             + '</ul></div>'
             + '</div>'
           : '')
