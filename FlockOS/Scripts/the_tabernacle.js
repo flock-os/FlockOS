@@ -12086,12 +12086,9 @@ const Modules = (() => {
 
     try {
       // ── Parallel fetch: public data always, private data only when logged in ──
-      // GAS (TheVine.app) is primary for devotionals + reading — these are public
-      // content tabs that always live in the master GAS Truth sheet. Firestore is
-      // the fallback in case GAS is cold/unavailable.
       const publicFetches = [
-        _publicFetch('devotionals', function() { return TheVine.app.devotionals(); }, function() { return UpperRoom.listAppContent('devotionals'); }),
-        _publicFetch('reading',     function() { return TheVine.app.reading(); },     function() { return UpperRoom.listAppContent('reading'); }),
+        _publicFetch('devotionals', function() { return UpperRoom.listAppContent('devotionals'); }, function() { return TheVine.app.devotionals(); }),
+        _publicFetch('reading',     function() { return UpperRoom.listAppContent('reading'); },     function() { return TheVine.app.reading(); }),
       ];
       const privateFetches = isLoggedIn ? [
         _fetch('journal',    () => _isFirebaseComms() ? UpperRoom.listJournal({ limit: 200 }) : TheVine.flock.journal.list({ limit: 200 })).catch(() => []),
