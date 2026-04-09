@@ -41,7 +41,7 @@ const APP_SHELL = [
   // ── Icons / images ──────────────────────────────────────────────────────
   './FlockOS/Images/FlockOS_Midnight.png',
   './FlockOS/Images/FlockOS_Wide.jpeg',
-  './FlockOS/Images/FlockOSforTBCicon.png',
+  './FlockOS/Images/FlockOS_Angels.png',
 
   // ── JS modules ───────────────────────────────────────────────
   './FlockOS/Scripts/firm_foundation.js',

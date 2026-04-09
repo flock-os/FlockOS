@@ -11703,7 +11703,7 @@ const Modules = (() => {
       { name: 'photosUrl',   label: 'Photos Album URL',                 type: 'url',    value: '' },
       { name: 'adminEmail',  label: 'Admin / Notification Email',       type: 'email',  value: '' },
       { name: 'analyticsId', label: 'Google Analytics ID (G-\u2026)',   type: 'text',   value: '' },
-      { name: 'favicon',     label: 'Favicon filename',                 type: 'text',   value: 'FlockOSforTBCicon.png' },
+      { name: 'favicon',     label: 'Favicon filename',                 type: 'text',   value: 'FlockOS_Angels.png' },
       { name: 'portrait',    label: 'Portrait / Logo filename',         type: 'text',   value: 'FlockOS_Portrait.png' },
       { name: 'version',     label: 'Version',                          type: 'text',   value: '1.0' },
     ], async data => {
@@ -11737,7 +11737,7 @@ const Modules = (() => {
       { name: 'photosUrl',   label: 'Photos Album URL',                 type: 'url',    value: c.photosUrl   || '' },
       { name: 'adminEmail',  label: 'Admin / Notification Email',       type: 'email',  value: c.adminEmail  || '' },
       { name: 'analyticsId', label: 'Google Analytics ID',              type: 'text',   value: c.analyticsId || '' },
-      { name: 'favicon',     label: 'Favicon filename',                 type: 'text',   value: c.favicon     || 'FlockOSforTBCicon.png' },
+      { name: 'favicon',     label: 'Favicon filename',                 type: 'text',   value: c.favicon     || 'FlockOS_Angels.png' },
       { name: 'portrait',    label: 'Portrait / Logo filename',         type: 'text',   value: c.portrait    || 'FlockOS_Portrait.png' },
       { name: 'version',     label: 'Version',                          type: 'text',   value: c.version     || '1.0' },
       { name: 'status',      label: 'Status',                           type: 'select', options: ['Active', 'Inactive'], value: c.status || 'Active' },
