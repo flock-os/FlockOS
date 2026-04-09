@@ -965,6 +965,24 @@ const Modules = (() => {
       : fetcher();
   }
 
+  // ── Resilient public-content fetch (devotionals, reading, etc.) ────────
+  // Firestore rules gate Truth content behind isChurchMember, so if the
+  // auth token's claims are stale/missing the read silently returns [].
+  // This helper tries the primary source and falls back to the alternate
+  // so public content is always visible regardless of auth state.
+  async function _publicFetch(key, fbFn, gasFn) {
+    try {
+      var primary = _isFirebaseComms() ? fbFn : gasFn;
+      var result = await _fetch(key, primary, _TTL.ref);
+      var rows = Array.isArray(result) ? result : _rows(result);
+      if (rows.length) return rows;
+      // Primary returned empty — try the alternate source
+      var alt = _isFirebaseComms() ? gasFn : fbFn;
+      var altResult = await alt().catch(function() { return []; });
+      return Array.isArray(altResult) ? altResult : _rows(altResult);
+    } catch (_) { return []; }
+  }
+
   // ── Shared member directory helpers ────────────────────────────────────
   // Loads directory once, caches in _dataCache['memberDir'].
   // Returns {value, label} options for select dropdowns + a lookup map.
@@ -4138,7 +4156,7 @@ const Modules = (() => {
   _def('library', async el => {
     _shell(el, 'The Word of God', '66 Books of the Bible \u2014 encyclopedic reference.', '');
     try {
-      const raw  = await _fetch('library', () => _isFirebaseComms() ? UpperRoom.listAppContent('books') : TheVine.app.books(), _TTL.ref);
+      const raw  = await _publicFetch('library', function() { return UpperRoom.listAppContent('books'); }, function() { return TheVine.app.books(); });
       const rows = Array.isArray(raw) ? raw : _rows(raw);
       if (!rows.length) { _body(el, _empty('&#128214;', 'No books yet', 'Add book entries in the Truth spreadsheet.')); return; }
 
@@ -4236,7 +4254,7 @@ const Modules = (() => {
   _def('genealogy', async el => {
     _shell(el, 'Genealogy', 'Biblical characters \u2014 names, roles & lineages.', '');
     try {
-      const raw  = await _fetch('genealogy', () => _isFirebaseComms() ? UpperRoom.listAppContent('genealogy') : TheVine.app.genealogy(), _TTL.ref);
+      const raw  = await _publicFetch('genealogy', function() { return UpperRoom.listAppContent('genealogy'); }, function() { return TheVine.app.genealogy(); });
       const rows = Array.isArray(raw) ? raw : _rows(raw);
       if (!rows.length) { _body(el, _empty('&#128101;', 'No genealogy data yet', 'Add entries in the Matthew spreadsheet.')); return; }
 
@@ -4405,7 +4423,7 @@ const Modules = (() => {
   _def('counseling', async el => {
     _shell(el, 'Biblical Counseling', 'Compassionate, Scripture-centered guidance for every season of life.', '');
     try {
-      const raw  = await _fetch('counseling', () => _isFirebaseComms() ? UpperRoom.listAppContent('counseling') : TheVine.app.counseling(), _TTL.ref);
+      const raw  = await _publicFetch('counseling', function() { return UpperRoom.listAppContent('counseling'); }, function() { return TheVine.app.counseling(); });
       const rows = Array.isArray(raw) ? raw : _rows(raw);
       if (!rows.length) { _body(el, _empty('&#9878;', 'No protocols yet', 'Add counseling protocols in the Matthew spreadsheet.')); return; }
 
@@ -4505,8 +4523,8 @@ const Modules = (() => {
 
       // Fetch devotionals + reading + (if logged in) journal & prayer data
       const fetches = [
-        _fetch('devotionals', () => _isFirebaseComms() ? UpperRoom.listAppContent('devotionals') : TheVine.app.devotionals(), _TTL.ref),
-        _fetch('reading', () => _isFirebaseComms() ? UpperRoom.listAppContent('reading') : TheVine.app.reading(), _TTL.ref).catch(() => [])
+        _publicFetch('devotionals', function() { return UpperRoom.listAppContent('devotionals'); }, function() { return TheVine.app.devotionals(); }),
+        _publicFetch('reading', function() { return UpperRoom.listAppContent('reading'); }, function() { return TheVine.app.reading(); })
       ];
       if (isLoggedIn) {
         fetches.push(_fetch('journal', () => _isFirebaseComms() ? UpperRoom.listJournal({ limit: 200 }) : TheVine.flock.journal.list({ limit: 200 })).catch(() => []));
@@ -4962,14 +4980,22 @@ const Modules = (() => {
     (_isFirebaseComms() ? UpperRoom.listAppContent('reading') : TheVine.app.reading()).then(function(raw) {
       var rows = Array.isArray(raw) ? raw : _rows(raw);
       if (rows.length) _readingRows = rows;
-    }).catch(function() {});
+    }).catch(function() {
+      // Firestore read failed — try GAS fallback for warm-up
+      if (_isFirebaseComms() && typeof TheVine !== 'undefined' && TheVine.app && TheVine.app.reading) {
+        TheVine.app.reading().then(function(alt) {
+          var altRows = Array.isArray(alt) ? alt : _rows(alt);
+          if (altRows.length) _readingRows = altRows;
+        }).catch(function() {});
+      }
+    });
   }
 
   _def('reading', async el => {
     _shell(el, 'Reading Plan', 'Daily Bible reading \u2014 OT, NT, Psalms & Proverbs.', '');
     try {
-      var raw  = await (_isFirebaseComms() ? UpperRoom.listAppContent('reading') : TheVine.app.reading());
-      var rows = Array.isArray(raw) ? raw : _rows(raw);
+      var rawResult = await _publicFetch('reading', function() { return UpperRoom.listAppContent('reading'); }, function() { return TheVine.app.reading(); });
+      var rows = Array.isArray(rawResult) ? rawResult : _rows(rawResult);
       _readingRows = rows;
       _rpShown = _rpPageSize;
       _rpWarmDone = false;
@@ -5050,7 +5076,7 @@ const Modules = (() => {
   _def('words', async el => {
     _shell(el, 'Lexicon', "Strong\u2019s Concordance \u2014 Hebrew & Greek word studies.", '');
     try {
-      const raw  = await (_isFirebaseComms() ? UpperRoom.listAppContent('words') : TheVine.app.words());
+      const raw  = await _publicFetch('words', function() { return UpperRoom.listAppContent('words'); }, function() { return TheVine.app.words(); });
       const rows = Array.isArray(raw) ? raw : _rows(raw);
       if (!rows.length) { _body(el, _empty('&#10017;', 'No lexicon data yet', 'Add word entries in the Matthew spreadsheet.')); return; }
 
@@ -5307,7 +5333,7 @@ const Modules = (() => {
       + 'padding:10px 18px;font-weight:700;cursor:pointer;font-size:0.82rem;font-family:inherit;letter-spacing:0.03em;">'
       + '\uD83D\uDE4F Request Prayer</button>');
     try {
-      const raw  = await (_isFirebaseComms() ? UpperRoom.listAppContent('heart') : TheVine.app.heart());
+      const raw  = await _publicFetch('heart', function() { return UpperRoom.listAppContent('heart'); }, function() { return TheVine.app.heart(); });
       const rows = Array.isArray(raw) ? raw : _rows(raw);
       if (!rows.length) { _body(el, _empty('&#10084;', 'No questions yet', 'Add diagnostic questions in the Matthew spreadsheet.')); return; }
 
@@ -5608,7 +5634,7 @@ const Modules = (() => {
       + 'padding:10px 18px;font-weight:700;cursor:pointer;font-size:0.82rem;font-family:inherit;letter-spacing:0.03em;">'
       + '\uD83D\uDCCB Send Triage Report</button>');
     try {
-      const raw  = await (_isFirebaseComms() ? UpperRoom.listAppContent('mirror') : TheVine.app.mirror());
+      const raw  = await _publicFetch('mirror', function() { return UpperRoom.listAppContent('mirror'); }, function() { return TheVine.app.mirror(); });
       const rows = Array.isArray(raw) ? raw : _rows(raw);
       if (!rows.length) { _body(el, _empty('&#128270;', 'No triage data yet', 'Add Mirror questions in the Matthew spreadsheet.')); return; }
 
@@ -5715,7 +5741,7 @@ const Modules = (() => {
   _def('app-theology', async el => {
     _shell(el, 'Doctrine', 'Our statement of faith & systematic theology.', '');
     try {
-      const raw  = await _fetch('theology-flat', () => _isFirebaseComms() ? UpperRoom.theologyFlat() : TheVine.app.theology(), _TTL.ref);
+      const raw  = await _publicFetch('theology-flat', function() { return UpperRoom.theologyFlat(); }, function() { return TheVine.app.theology(); });
       const rows = Array.isArray(raw) ? raw : _rows(raw);
       if (!rows.length) { _body(el, _empty('&#9768;', 'No doctrine yet', 'Add theology categories & sections in the admin portal.')); return; }
 
@@ -5790,7 +5816,7 @@ const Modules = (() => {
     _shell(el, 'Bible Quiz', 'Test your Bible knowledge',
       _btn('↻ New Quiz', "Modules.startQuiz()"));
     try {
-      const raw  = await (_isFirebaseComms() ? UpperRoom.listAppContent('quiz') : TheVine.app.quiz());
+      const raw  = await _publicFetch('quiz', function() { return UpperRoom.listAppContent('quiz'); }, function() { return TheVine.app.quiz(); });
       const rows = Array.isArray(raw) ? raw : _rows(raw);
       if (!rows.length) { _body(el, _empty('&#10068;', 'No quiz questions yet', 'Add quiz data in the Matthew spreadsheet.')); return; }
       // Show as interactive quiz — pick 10 random questions
@@ -6126,7 +6152,7 @@ const Modules = (() => {
   _def('apologetics', async el => {
     _shell(el, 'Apologetics', 'Defending the faith — common questions & biblical answers.', '');
     try {
-      const raw  = await _fetch('apologetics', () => _isFirebaseComms() ? UpperRoom.listAppContent('apologetics') : TheVine.app.apologetics(), _TTL.ref);
+      const raw  = await _publicFetch('apologetics', function() { return UpperRoom.listAppContent('apologetics'); }, function() { return TheVine.app.apologetics(); });
       const rows = Array.isArray(raw) ? raw : _rows(raw);
       if (!rows.length) { _body(el, _empty('&#9878;', 'No apologetics data yet', 'Add entries in the Matthew spreadsheet.')); return; }
 
@@ -12058,8 +12084,8 @@ const Modules = (() => {
     try {
       // ── Parallel fetch: public data always, private data only when logged in ──
       const publicFetches = [
-        _fetch('devotionals', () => _isFirebaseComms() ? UpperRoom.listAppContent('devotionals') : TheVine.app.devotionals(), _TTL.ref).catch(() => []),
-        _fetch('reading',     () => _isFirebaseComms() ? UpperRoom.listAppContent('reading') : TheVine.app.reading(),     _TTL.ref).catch(() => []),
+        _publicFetch('devotionals', function() { return UpperRoom.listAppContent('devotionals'); }, function() { return TheVine.app.devotionals(); }),
+        _publicFetch('reading',     function() { return UpperRoom.listAppContent('reading'); },     function() { return TheVine.app.reading(); }),
       ];
       const privateFetches = isLoggedIn ? [
         _fetch('journal',    () => _isFirebaseComms() ? UpperRoom.listJournal({ limit: 200 }) : TheVine.flock.journal.list({ limit: 200 })).catch(() => []),
