@@ -6959,6 +6959,10 @@ const Modules = (() => {
   }
 
   async function commsView(tab) {
+    if (tab) _commsTab = tab;
+    _commsOpenRoom = null;
+    _commsOpenThread = null;
+    _commsOpenMsg = null;
     // Detach any active Firebase listeners
     if (_roomMsgListener) {
       try { if (typeof UpperRoom !== 'undefined') UpperRoom.detachAll(); } catch(_) {}
