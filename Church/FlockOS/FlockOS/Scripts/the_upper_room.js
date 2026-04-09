@@ -92,11 +92,21 @@
     _churchId = _resolveChurchId();
 
     // Enable offline persistence (only runs once)
-    _db.enablePersistence({ synchronizeTabs: true }).catch(function(err) {
-      if (err.code !== 'failed-precondition' && err.code !== 'unimplemented') {
-        console.warn('[UpperRoom] Persistence error:', err.code);
-      }
-    });
+    if (firebase.firestore.persistentLocalCache) {
+      try {
+        _db.settings({
+          localCache: firebase.firestore.persistentLocalCache({
+            tabManager: firebase.firestore.persistentMultipleTabManager()
+          })
+        });
+      } catch (_) { /* already configured on prev init() */ }
+    } else {
+      _db.enablePersistence({ synchronizeTabs: true }).catch(function(err) {
+        if (err.code !== 'failed-precondition' && err.code !== 'unimplemented') {
+          console.warn('[UpperRoom] Persistence error:', err.code);
+        }
+      });
+    }
 
     // Monitor token refreshes — custom claims (churchId, role) are NOT
     // persisted through automatic ID token refresh (~1 hour).  When the
