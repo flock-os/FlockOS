@@ -946,6 +946,52 @@ const Modules = (() => {
     return [];
   }
 
+  // ── Normalize Firestore camelCase → GAS header-style keys ──────────
+  // Firestore docs use camelCase (e.g. oldTestament), GAS returns headers
+  // with spaces/caps (e.g. "Old Testament"). All rendering code expects
+  // the GAS style.  This adds the GAS-style alias if missing.
+  var _fieldAliases = {
+    date: 'Date', title: 'Title', scripture: 'Scripture', theme: 'Theme',
+    reflection: 'Reflection', prayer: 'Prayer', question: 'Question',
+    oldTestament: 'Old Testament', newTestament: 'New Testament',
+    psalms: 'Psalms', proverbs: 'Proverbs',
+    bookName: 'Book Name', testament: 'Testament', genre: 'Genre',
+    summary: 'Summary', coreTheology: 'Core Theology',
+    practicalApplication: 'Practical Application', bookId: 'ID / Book Number',
+    name: 'Name', lifespan: 'Lifespan', meaning: 'Meaning',
+    reference: 'Reference', bio: 'Bio', children: 'Children', personId: 'ID',
+    icon: 'Icon', color: 'Color', definition: 'Definition',
+    scriptures: 'Scriptures', steps: 'Steps', topicId: 'ID',
+    english: 'English', strongs: "Strong's", original: 'Original',
+    transliteration: 'Transliteration', nuance: 'Nuance',
+    usageCount: 'Usage Count', verses: 'Verses',
+    category: 'Category', chartAxis: 'Chart Axis', questionId: 'Question ID',
+    prescription: 'Prescription', verseReference: 'Verse Reference',
+    categoryId: 'Category ID', categoryTitle: 'Category Title',
+    categoryIntro: 'Category Intro', sectionId: 'Section ID',
+    sectionTitle: 'Section Title', content: 'Content',
+    chartLabel: 'Chart Label', slug: 'Slug',
+    quizId: 'ID', optionA: 'Option A', optionB: 'Option B',
+    optionC: 'Option C', optionD: 'Option D',
+    correctAnswer: 'Correct Answer', difficulty: 'Difficulty',
+    categoryColor: 'Category Color', shortTitle: 'Short Title',
+    answerContent: 'Answer Content', quoteText: 'Quote Text',
+    referenceText: 'Reference Text', referenceUrl: 'Reference URL',
+    questionTitle: 'Question Title'
+  };
+  function _normalizeRows(rows) {
+    if (!rows || !rows.length) return rows;
+    for (var i = 0; i < rows.length; i++) {
+      var r = rows[i];
+      for (var k in _fieldAliases) {
+        if (r[k] !== undefined && r[_fieldAliases[k]] === undefined) {
+          r[_fieldAliases[k]] = r[k];
+        }
+      }
+    }
+    return rows;
+  }
+
   function _invalidateCache(key) {
     delete _dataCache[key];
     if (typeof TheVine !== 'undefined' && TheVine.cache && TheVine.cache.invalidate)
@@ -971,19 +1017,34 @@ const Modules = (() => {
   // error.  The inner try/catch ensures that error triggers the GAS fallback
   // rather than being swallowed by the outer catch (which would return []).
   async function _publicFetch(key, fbFn, gasFn) {
+    var src = _isFirebaseComms() ? 'firebase' : 'gas';
+    console.log('[FlockOS:fetch] _publicFetch("' + key + '") — primary:', src);
     try {
       var primary = _isFirebaseComms() ? fbFn : gasFn;
       var rows = [];
       try {
         var result = await _fetch(key, primary, _TTL.ref);
         rows = Array.isArray(result) ? result : _rows(result);
-      } catch (_) { /* primary failed — fall through to alternate */ }
-      if (rows.length) return rows;
+        console.log('[FlockOS:fetch] _publicFetch("' + key + '") — primary ' + src + ' returned', rows.length, 'rows');
+      } catch (primaryErr) {
+        console.error('[FlockOS:fetch] _publicFetch("' + key + '") — primary ' + src + ' THREW:', primaryErr.message || primaryErr);
+      }
+      if (rows.length) return _normalizeRows(rows);
       // Primary returned empty or threw — try the alternate source
+      var altSrc = _isFirebaseComms() ? 'gas' : 'firebase';
+      console.log('[FlockOS:fetch] _publicFetch("' + key + '") — trying alt:', altSrc);
       var alt = _isFirebaseComms() ? gasFn : fbFn;
-      var altResult = await alt().catch(function() { return []; });
-      return Array.isArray(altResult) ? altResult : _rows(altResult);
-    } catch (_) { return []; }
+      var altResult = await alt().catch(function(altErr) {
+        console.error('[FlockOS:fetch] _publicFetch("' + key + '") — alt ' + altSrc + ' THREW:', altErr.message || altErr);
+        return [];
+      });
+      var altRows = Array.isArray(altResult) ? altResult : _rows(altResult);
+      console.log('[FlockOS:fetch] _publicFetch("' + key + '") — alt ' + altSrc + ' returned', altRows.length, 'rows');
+      return _normalizeRows(altRows);
+    } catch (outerErr) {
+      console.error('[FlockOS:fetch] _publicFetch("' + key + '") — OUTER catch:', outerErr.message || outerErr);
+      return [];
+    }
   }
 
   // ── Shared member directory helpers ────────────────────────────────────
@@ -6251,24 +6312,35 @@ const Modules = (() => {
 
   // Load comms mode from Firestore (cached after first load)
   async function _loadCommsMode() {
-    if (_commsMode !== null) return;
+    if (_commsMode !== null) { console.log('[FlockOS:comms] _loadCommsMode — already set:', _commsMode); return; }
     if (_commsModeLoading) {
-      // Wait for in-flight load
+      console.log('[FlockOS:comms] _loadCommsMode — waiting for in-flight load');
       await new Promise(function(res) { setTimeout(res, 800); });
       return;
     }
     _commsModeLoading = true;
+    console.log('[FlockOS:comms] _loadCommsMode — starting');
     try {
-      if (typeof UpperRoom === 'undefined') { _commsMode = 'sheets'; return; }
-      // UpperRoom exists → default to firebase; only override if settings say sheets
+      if (typeof UpperRoom === 'undefined') { _commsMode = 'sheets'; console.warn('[FlockOS:comms] UpperRoom undefined → sheets'); return; }
+      console.log('[FlockOS:comms] UpperRoom exists → calling init()');
       await UpperRoom.init();
-      if (!UpperRoom.isReady()) await UpperRoom.authenticate();
+      console.log('[FlockOS:comms] init() done — isReady:', UpperRoom.isReady(), '| churchId:', UpperRoom.churchId());
+      if (!UpperRoom.isReady()) {
+        console.log('[FlockOS:comms] Not ready → calling authenticate()');
+        await UpperRoom.authenticate();
+        console.log('[FlockOS:comms] authenticate() done — isReady:', UpperRoom.isReady());
+      }
       _commsMode = await UpperRoom.getCommsMode();
-    } catch (_) {
+      console.log('[FlockOS:comms] getCommsMode() →', _commsMode);
+    } catch (err) {
+      console.error('[FlockOS:comms] _loadCommsMode FAILED:', err.message || err);
+      console.log('[FlockOS:comms] UpperRoom defined:', typeof UpperRoom !== 'undefined', '| isReady:', typeof UpperRoom !== 'undefined' && UpperRoom.isReady());
       // Auth or settings fetch failed — only use firebase if UpperRoom actually authenticated
       _commsMode = (typeof UpperRoom !== 'undefined' && UpperRoom.isReady()) ? 'firebase' : 'sheets';
+      console.warn('[FlockOS:comms] Fallback _commsMode →', _commsMode);
     } finally {
       _commsModeLoading = false;
+      console.log('[FlockOS:comms] _loadCommsMode FINAL — _commsMode:', _commsMode);
     }
   }
 
@@ -12078,14 +12150,30 @@ const Modules = (() => {
     //      onIdTokenChanged listener sets _ready=false while re-minting custom
     //      claims, causing Firestore permission errors that resolve as empty arrays.
     if (isLoggedIn) {
-      if (_commsMode === null) await _loadCommsMode().catch(function() {});
-      if (_isFirebaseComms() && typeof UpperRoom !== 'undefined' && !UpperRoom.isReady()) {
-        try { await UpperRoom.init(); await UpperRoom.authenticate(); } catch (_) {}
+      console.log('[FlockOS:upper-room] Logged in as', userEmail, '— _commsMode:', _commsMode);
+      if (_commsMode === null) {
+        console.log('[FlockOS:upper-room] _commsMode is null → calling _loadCommsMode()');
+        await _loadCommsMode().catch(function(e) { console.error('[FlockOS:upper-room] _loadCommsMode error:', e.message || e); });
       }
+      console.log('[FlockOS:upper-room] After _loadCommsMode — _commsMode:', _commsMode, '| _isFirebaseComms:', _isFirebaseComms());
+      if (_isFirebaseComms() && typeof UpperRoom !== 'undefined' && !UpperRoom.isReady()) {
+        console.log('[FlockOS:upper-room] Firebase mode but UpperRoom not ready — retrying auth');
+        try {
+          await UpperRoom.init();
+          await UpperRoom.authenticate();
+          console.log('[FlockOS:upper-room] Auth retry succeeded — isReady:', UpperRoom.isReady());
+        } catch (retryErr) {
+          console.error('[FlockOS:upper-room] Auth retry FAILED:', retryErr.message || retryErr);
+        }
+      }
+      console.log('[FlockOS:upper-room] Pre-fetch state — _commsMode:', _commsMode, '| UpperRoom.isReady:', typeof UpperRoom !== 'undefined' && UpperRoom.isReady(), '| churchId:', typeof UpperRoom !== 'undefined' && UpperRoom.churchId());
+    } else {
+      console.log('[FlockOS:upper-room] Not logged in — public mode');
     }
 
     try {
       // ── Parallel fetch: public data always, private data only when logged in ──
+      console.log('[FlockOS:upper-room] Starting parallel fetches...');
       const publicFetches = [
         _publicFetch('devotionals', function() { return UpperRoom.listAppContent('devotionals'); }, function() { return TheVine.app.devotionals(); }),
         _publicFetch('reading',     function() { return UpperRoom.listAppContent('reading'); },     function() { return TheVine.app.reading(); }),

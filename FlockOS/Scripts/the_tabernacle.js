@@ -946,6 +946,52 @@ const Modules = (() => {
     return [];
   }
 
+  // ── Normalize Firestore camelCase → GAS header-style keys ──────────
+  // Firestore docs use camelCase (e.g. oldTestament), GAS returns headers
+  // with spaces/caps (e.g. "Old Testament"). All rendering code expects
+  // the GAS style.  This adds the GAS-style alias if missing.
+  var _fieldAliases = {
+    date: 'Date', title: 'Title', scripture: 'Scripture', theme: 'Theme',
+    reflection: 'Reflection', prayer: 'Prayer', question: 'Question',
+    oldTestament: 'Old Testament', newTestament: 'New Testament',
+    psalms: 'Psalms', proverbs: 'Proverbs',
+    bookName: 'Book Name', testament: 'Testament', genre: 'Genre',
+    summary: 'Summary', coreTheology: 'Core Theology',
+    practicalApplication: 'Practical Application', bookId: 'ID / Book Number',
+    name: 'Name', lifespan: 'Lifespan', meaning: 'Meaning',
+    reference: 'Reference', bio: 'Bio', children: 'Children', personId: 'ID',
+    icon: 'Icon', color: 'Color', definition: 'Definition',
+    scriptures: 'Scriptures', steps: 'Steps', topicId: 'ID',
+    english: 'English', strongs: "Strong's", original: 'Original',
+    transliteration: 'Transliteration', nuance: 'Nuance',
+    usageCount: 'Usage Count', verses: 'Verses',
+    category: 'Category', chartAxis: 'Chart Axis', questionId: 'Question ID',
+    prescription: 'Prescription', verseReference: 'Verse Reference',
+    categoryId: 'Category ID', categoryTitle: 'Category Title',
+    categoryIntro: 'Category Intro', sectionId: 'Section ID',
+    sectionTitle: 'Section Title', content: 'Content',
+    chartLabel: 'Chart Label', slug: 'Slug',
+    quizId: 'ID', optionA: 'Option A', optionB: 'Option B',
+    optionC: 'Option C', optionD: 'Option D',
+    correctAnswer: 'Correct Answer', difficulty: 'Difficulty',
+    categoryColor: 'Category Color', shortTitle: 'Short Title',
+    answerContent: 'Answer Content', quoteText: 'Quote Text',
+    referenceText: 'Reference Text', referenceUrl: 'Reference URL',
+    questionTitle: 'Question Title'
+  };
+  function _normalizeRows(rows) {
+    if (!rows || !rows.length) return rows;
+    for (var i = 0; i < rows.length; i++) {
+      var r = rows[i];
+      for (var k in _fieldAliases) {
+        if (r[k] !== undefined && r[_fieldAliases[k]] === undefined) {
+          r[_fieldAliases[k]] = r[k];
+        }
+      }
+    }
+    return rows;
+  }
+
   function _invalidateCache(key) {
     delete _dataCache[key];
     if (typeof TheVine !== 'undefined' && TheVine.cache && TheVine.cache.invalidate)
@@ -983,7 +1029,7 @@ const Modules = (() => {
       } catch (primaryErr) {
         console.error('[FlockOS:fetch] _publicFetch("' + key + '") — primary ' + src + ' THREW:', primaryErr.message || primaryErr);
       }
-      if (rows.length) return rows;
+      if (rows.length) return _normalizeRows(rows);
       // Primary returned empty or threw — try the alternate source
       var altSrc = _isFirebaseComms() ? 'gas' : 'firebase';
       console.log('[FlockOS:fetch] _publicFetch("' + key + '") — trying alt:', altSrc);
@@ -994,7 +1040,7 @@ const Modules = (() => {
       });
       var altRows = Array.isArray(altResult) ? altResult : _rows(altResult);
       console.log('[FlockOS:fetch] _publicFetch("' + key + '") — alt ' + altSrc + ' returned', altRows.length, 'rows');
-      return altRows;
+      return _normalizeRows(altRows);
     } catch (outerErr) {
       console.error('[FlockOS:fetch] _publicFetch("' + key + '") — OUTER catch:', outerErr.message || outerErr);
       return [];
