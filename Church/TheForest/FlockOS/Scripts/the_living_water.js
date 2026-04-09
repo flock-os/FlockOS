@@ -39,7 +39,7 @@ const APP_SHELL = [
   './FlockOS/Pages/the_invitation.html',
 
   // ── Icons / images ──────────────────────────────────────────────────────
-  './FlockOS/Images/FlockOS_Angels.png',
+  './FlockOS/Images/FlockOS_OD.png',
   './FlockOS/Images/FlockOS_Wide.jpeg',
 
   // ── JS modules ───────────────────────────────────────────────
@@ -155,7 +155,7 @@ function offlineFallback() {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Trinity Baptist Church — Offline</title>
+  <title>The Forest — Offline</title>
   <style>
     body {
       margin: 0; min-height: 100vh;
@@ -178,7 +178,7 @@ function offlineFallback() {
 <body>
   <div class="offline-card">
     <h1>You're Offline</h1>
-    <p>Trinity Baptist Church can't reach the server right now. Your data is safe and will sync automatically when you reconnect.</p>
+    <p>The Forest can't reach the server right now. Your data is safe and will sync automatically when you reconnect.</p>
     <button onclick="location.reload()">Try Again</button>
   </div>
 </body>
