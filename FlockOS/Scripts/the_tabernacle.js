@@ -967,16 +967,19 @@ const Modules = (() => {
 
   // ── Resilient public-content fetch (devotionals, reading, etc.) ────────
   // Firestore rules gate Truth content behind isChurchMember, so if the
-  // auth token's claims are stale/missing the read silently returns [].
-  // This helper tries the primary source and falls back to the alternate
-  // so public content is always visible regardless of auth state.
+  // auth token's claims are stale/missing the read will throw a permissions
+  // error.  The inner try/catch ensures that error triggers the GAS fallback
+  // rather than being swallowed by the outer catch (which would return []).
   async function _publicFetch(key, fbFn, gasFn) {
     try {
       var primary = _isFirebaseComms() ? fbFn : gasFn;
-      var result = await _fetch(key, primary, _TTL.ref);
-      var rows = Array.isArray(result) ? result : _rows(result);
+      var rows = [];
+      try {
+        var result = await _fetch(key, primary, _TTL.ref);
+        rows = Array.isArray(result) ? result : _rows(result);
+      } catch (_) { /* primary failed — fall through to alternate */ }
       if (rows.length) return rows;
-      // Primary returned empty — try the alternate source
+      // Primary returned empty or threw — try the alternate source
       var alt = _isFirebaseComms() ? gasFn : fbFn;
       var altResult = await alt().catch(function() { return []; });
       return Array.isArray(altResult) ? altResult : _rows(altResult);
