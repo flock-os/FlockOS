@@ -12040,6 +12040,21 @@ const Modules = (() => {
     const isLoggedIn = !!(session && session.email);
     const userEmail  = isLoggedIn ? session.email.toLowerCase() : '';
 
+    // ── Ensure Firebase comms mode and auth are fully resolved ────────────────
+    // Fixes two race conditions for logged-in users:
+    //   1. Page-load: _loadCommsMode() may not have completed when the user first
+    //      navigates here, leaving _commsMode null → private data silently falls
+    //      back to GAS (which trails Firestore by up to an hour).
+    //   2. Mid-session: Firebase auto-refreshes ID tokens ~hourly; the
+    //      onIdTokenChanged listener sets _ready=false while re-minting custom
+    //      claims, causing Firestore permission errors that resolve as empty arrays.
+    if (isLoggedIn) {
+      if (_commsMode === null) await _loadCommsMode().catch(function() {});
+      if (_isFirebaseComms() && typeof UpperRoom !== 'undefined' && !UpperRoom.isReady()) {
+        try { await UpperRoom.init(); await UpperRoom.authenticate(); } catch (_) {}
+      }
+    }
+
     try {
       // ── Parallel fetch: public data always, private data only when logged in ──
       const publicFetches = [
