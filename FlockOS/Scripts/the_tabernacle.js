@@ -6867,7 +6867,7 @@ const Modules = (() => {
       // Messages container (will be populated by listener)
       let bodyHtml = headerHtml
         + '<div id="room-messages-' + _e(roomId) + '" style="display:flex;flex-direction:column;gap:12px;margin-bottom:8px;'
-        + 'max-height:calc(100vh - 340px);overflow-y:auto;padding-right:4px;">'
+        + 'flex:1 1 auto;max-height:calc(100vh - 220px);overflow-y:auto;padding-right:4px;">'
         + _spinner()
         + '</div>';
 
