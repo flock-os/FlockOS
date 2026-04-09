@@ -312,26 +312,9 @@
     .toggle-row-label .icon { font-size: 1.1rem; opacity: 0.7; }
     .toggle-row-label .name { font-weight: 600; }
 
-    /* ── Top Progress Bar ───────────────────────────────────────────── */
-    #top-bar {
-      position: fixed; top: 0; left: 0; z-index: 99999;
-      width: 0; height: 6px;
-      background: linear-gradient(90deg, #3d0000, #8b0000 30%, #cc1a1a 50%, #8b0000 70%, #3d0000);
-      background-size: 300% 100%;
-      animation: blood-wash 1.5s ease-in-out infinite;
-      transition: width 0.3s ease, opacity 0.4s ease;
-      opacity: 0;
-      pointer-events: none;
-    }
-    #top-bar.active { opacity: 1; }
-    @keyframes blood-wash {
-      0%   { background-position: 100% 0; }
-      100% { background-position: -100% 0; }
-    }
   </style>
 </head>
 <body>
-<div id="top-bar"></div>
 
 <!-- ═══ SPLASH SCREEN ═══ -->
 <div id="splash">
@@ -863,40 +846,6 @@ setTimeout(function() {
 window.navigate = navigate;
 window.toggleSidebar = toggleSidebar;
 
-// ── Top Progress Bar ───────────────────────────────────────────────────────
-window.TopBar = (function() {
-  var _bar = null;
-  var _pending = 0;
-  var _hideTimer = null;
-  function _el() { return _bar || (_bar = document.getElementById('top-bar')); }
-  function _isFirestore() { return typeof UpperRoom !== 'undefined' && UpperRoom.isReady && UpperRoom.isReady(); }
-  function start() {
-    if (_isFirestore()) return;
-    _pending++;
-    clearTimeout(_hideTimer);
-    var b = _el(); if (!b) return;
-    b.style.width = '0';
-    b.classList.add('active');
-    // Animate to 85% while waiting
-    requestAnimationFrame(function() {
-      b.style.transition = 'width 8s cubic-bezier(0.1,0.05,0,1), opacity 0.4s ease';
-      b.style.width = '85%';
-    });
-  }
-  function done() {
-    if (_isFirestore()) return;
-    _pending = Math.max(0, _pending - 1);
-    if (_pending > 0) return;
-    var b = _el(); if (!b) return;
-    b.style.transition = 'width 0.2s ease, opacity 0.4s ease';
-    b.style.width = '100%';
-    _hideTimer = setTimeout(function() {
-      b.classList.remove('active');
-      setTimeout(function() { b.style.width = '0'; }, 400);
-    }, 250);
-  }
-  return { start: start, done: done };
-})();
 }); /* DOMContentLoaded */
 </script>
 </body>
