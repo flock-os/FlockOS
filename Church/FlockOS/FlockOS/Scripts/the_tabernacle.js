@@ -12760,6 +12760,11 @@ const Modules = (() => {
   function _flockSwitchTab(k) { TheLife.switchTab(k); }
   function _flockRefresh()    { TheLife.refresh(); }
 
+  _def('care', function(el) {
+    if (typeof LoveInAction !== 'undefined' && LoveInAction.renderApp) return LoveInAction.renderApp(el, { tab: 'care', embedded: true });
+    el.innerHTML = '<div style="text-align:center;padding:60px 20px;color:var(--ink-muted);"><p>Pastoral Care is loading…</p></div>';
+  });
+
 
   // ═══════════════════════════════════════════════════════════════════════
   // THEMES  (admin-only unless custom themes enabled)
