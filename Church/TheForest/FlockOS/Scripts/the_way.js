@@ -28,7 +28,7 @@ const TheWay = (() => {
          + 'Loading\u2026</div>';
   }
 
-  function _isFB() { return typeof Modules !== 'undefined' && Modules._isFirebaseComms && Modules._isFirebaseComms(); }
+  function _isFB() { return typeof UpperRoom !== 'undefined' && UpperRoom.isReady(); }
 
   function _errHtml(msg) {
     return '<div style="padding:24px;text-align:center;color:var(--danger);">'
@@ -315,6 +315,11 @@ const TheWay = (() => {
   async function renderHub(el, session) {
     _hubElement = el;
     _session = session || _getSession();
+
+    // Ensure Firebase auth is ready so _isFB() routes to Firestore content
+    if (typeof UpperRoom !== 'undefined' && !UpperRoom.isReady()) {
+      try { await UpperRoom.init(); await UpperRoom.authenticate(); } catch (_) {}
+    }
 
     el.innerHTML = '<div style="max-width:1200px;margin:0 auto;">'
       + '<div id="tw-tabs" style="' + (_activeTab === 'dashboard' ? 'display:none;' : '') + '">' + _renderTabs() + '</div>'

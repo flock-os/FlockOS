@@ -6246,6 +6246,15 @@ const Modules = (() => {
   // Helper used throughout comms rendering
   function _isFirebaseComms() { return _commsMode === 'firebase'; }
 
+  // Eagerly resolve comms mode so _isFirebaseComms() returns correctly
+  // for ALL views, not just comms.  Gated on having a session (logged-in page).
+  setTimeout(function() {
+    try {
+      var s = typeof Nehemiah !== 'undefined' && Nehemiah.getSession ? Nehemiah.getSession() : null;
+      if (s && s.email) _loadCommsMode().catch(function() {});
+    } catch (_) {}
+  }, 0);
+
   function _commsTabBtn(label, tab, badge) {
     const active = _commsTab === tab;
     const bg = active
