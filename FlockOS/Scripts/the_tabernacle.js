@@ -6236,8 +6236,8 @@ const Modules = (() => {
       if (!UpperRoom.isReady()) await UpperRoom.authenticate();
       _commsMode = await UpperRoom.getCommsMode();
     } catch (_) {
-      // Auth or settings fetch failed — still default to firebase if UpperRoom is loaded
-      _commsMode = (typeof UpperRoom !== 'undefined') ? 'firebase' : 'sheets';
+      // Auth or settings fetch failed — only use firebase if UpperRoom actually authenticated
+      _commsMode = (typeof UpperRoom !== 'undefined' && UpperRoom.isReady()) ? 'firebase' : 'sheets';
     } finally {
       _commsModeLoading = false;
     }
