@@ -10457,8 +10457,26 @@ const Modules = (() => {
     _shell(el, 'Control Panel', 'System provisioning, security, and administration.',
       _btn('\uD83D\uDD04 Refresh', 'Modules._reloadConfig()'));
     try {
-      const res  = await (_isFirebaseComms() ? UpperRoom.listAppConfig() : TheVine.flock.config.list());
-      const rows = _rows(res);
+      var _fbRows = null;
+      if (_isFirebaseComms()) {
+        const _fbRes = await UpperRoom.listAppConfig().catch(() => null);
+        _fbRows = _fbRes ? _rows(_fbRes) : [];
+      }
+      // If Firebase returned zero rows (config not yet synced), pull from GAS and
+      // write each entry into Firestore so subsequent loads are fast.
+      var _usedGasFallback = false;
+      if (_isFirebaseComms() && _fbRows !== null && _fbRows.length === 0) {
+        const _gasRes = await TheVine.flock.config.list().catch(() => null);
+        const _gasRows = _gasRes ? _rows(_gasRes) : [];
+        if (_gasRows.length > 0) {
+          _usedGasFallback = true;
+          _fbRows = _gasRows;
+          // Silently sync each row into Firestore
+          _gasRows.forEach(function(r) { UpperRoom.setAppConfig(r).catch(function() {}); });
+        }
+      }
+      const res  = _isFirebaseComms() ? (_fbRows || []) : await TheVine.flock.config.list();
+      const rows = _isFirebaseComms() ? _fbRows : _rows(res);
       _dataCache['config'] = rows;
 
       // Sync display settings to localStorage so public site picks them up
@@ -11165,13 +11183,14 @@ const Modules = (() => {
       html += '<summary class="settings-accordion-trigger">&#128225; API Health<span class="settings-accordion-count">Run diagnostics to check</span></summary>';
       html += '<div class="settings-accordion-body">';
       html += '<div class="settings-card" id="health-dashboard">';
-      html += '<div class="health-row" id="health-row-database" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;">';
+      html += '<div class="health-row" id="health-row-database" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--line);">';
       html += '<div style="flex:1;min-width:0;">';
-      html += '<div style="font-weight:600;font-size:0.88rem;color:var(--ink);">FlockOS Database</div>';
-      html += '<div style="font-size:0.78rem;color:var(--ink-muted);">Unified endpoint — CRM, content, missions, statistics</div>';
+      html += '<div style="font-weight:600;font-size:0.88rem;color:var(--ink);">&#128196; Apps Script (GAS) <span style="font-size:0.72rem;font-weight:400;color:var(--ink-muted);">— Auth &amp; database endpoint</span></div>';
+      html += '<div style="font-size:0.78rem;color:var(--ink-muted);">Mints auth tokens for every session &mdash; must always be reachable</div>';
       html += '</div>';
       html += '<span class="health-pill health-pill-unknown" id="health-pill-database"><span class="health-dot"></span>Pending</span>';
       html += '</div>';
+      html += '<div id="health-conn-type" style="padding:12px 0;border-bottom:1px solid var(--line);font-size:0.82rem;color:var(--ink-muted);">&#9203; Detecting connection type&hellip;</div>';
       html += '<div style="display:flex;align-items:center;gap:12px;margin-top:14px;flex-wrap:wrap;">';
       html += '<button class="btn btn-primary" onclick="Modules._runHealthCheck()" style="padding:10px 24px;font-size:0.88rem;">&#128225; Run Diagnostics</button>';
       html += '<span id="health-timestamp" style="font-size:0.78rem;color:var(--ink-faint);"></span>';
@@ -11409,8 +11428,15 @@ const Modules = (() => {
 
       _body(el, html);
 
-      // Hydrate spring status cards after render
+      // Hydrate status cards after render
       if (_wsAvailable) { setTimeout(_wellspringRefreshStatus, 100); }
+      // Auto-populate connection type without making the user click Run Diagnostics
+      setTimeout(function() {
+        var connTypeEl = document.getElementById('health-conn-type');
+        if (connTypeEl) {
+          _adConnectionCard().then(function(h) { connTypeEl.innerHTML = h; }).catch(function() {});
+        }
+      }, 150);
 
     } catch (e) { _body(el, _errHtml(e.message)); }
   });
@@ -16304,22 +16330,28 @@ const Modules = (() => {
   function _runHealthCheck() {
     var pill = document.getElementById('health-pill-database');
     var provPill = document.getElementById('prov-health-primary');
+    var connTypeEl = document.getElementById('health-conn-type');
     if (pill) { pill.className = 'health-pill health-pill-unknown'; pill.innerHTML = '<span class="health-dot"></span> Checking\u2026'; }
     if (provPill) { provPill.className = 'health-pill health-pill-unknown'; provPill.innerHTML = '<span class="health-dot"></span> \u2026'; }
+    if (connTypeEl) connTypeEl.innerHTML = '&#9203; Detecting\u2026';
 
     if (typeof TheVine === 'undefined' || !TheVine.manifest || !TheVine.manifest.diagnostics) {
       if (pill) { pill.className = 'health-pill health-pill-fail'; pill.innerHTML = '<span class="health-dot"></span> No API client'; }
       return;
     }
 
-    TheVine.manifest.diagnostics().then(function(diag) {
+    // Run GAS health check and connection type detection in parallel
+    Promise.all([
+      TheVine.manifest.diagnostics(),
+      _adConnectionCard(),
+    ]).then(function(results) {
+      var diag = results[0];
+      var connHtml = results[1];
+
+      // ── GAS health pill ──
       var branchList = diag.branches || [];
-      // Use the first healthy branch result (all point to same endpoint now)
-      var best = null;
-      branchList.forEach(function(r) {
-        if (!best || (r.status === 'online' && (!best || r.latencyMs < best.latencyMs))) best = r;
-      });
-      if (!best) best = branchList[0] || { status: 'offline', latencyMs: 0 };
+      var flockBranch = branchList.find(function(r) { return r.alias === 'flock'; });
+      var best = flockBranch || branchList.find(function(r) { return r.status === 'online'; }) || branchList[0] || { status: 'offline', latencyMs: 0 };
 
       var cls, txt;
       if (best.status === 'online') {
@@ -16333,11 +16365,17 @@ const Modules = (() => {
       if (pill) { pill.className = 'health-pill ' + cls; pill.innerHTML = '<span class="health-dot"></span> ' + txt; }
       if (provPill) { provPill.className = 'health-pill ' + cls; provPill.innerHTML = '<span class="health-dot"></span> ' + txt; }
 
+      // ── Connection type ──
+      if (connTypeEl) connTypeEl.innerHTML = connHtml;
+
       var ts = document.getElementById('health-timestamp');
       if (ts) ts.textContent = 'Last check: ' + new Date().toLocaleTimeString();
     }).catch(function(err) {
       if (pill) { pill.className = 'health-pill health-pill-fail'; pill.innerHTML = '<span class="health-dot"></span> Error'; }
     });
+
+    // Also refresh admin-dashboard card if open
+    if (document.getElementById('ad-conn-card')) _adRefreshConnCard();
   }
 
 
@@ -19037,6 +19075,10 @@ const Modules = (() => {
       // ── Right Column ─────────────────────────────────────────────────────
       var rightHtml = '';
 
+      // Connection type card — async, rendered into placeholder after initial paint
+      rightHtml += '<div id="ad-conn-card">' + _adCard('&#128268; Database Connection',
+        '<div style="font-size:0.78rem;color:var(--ink-muted);padding:4px 0;">Checking connection\u2026</div>') + '</div>';
+
       // Quick Actions grid
       var qaButtons = [
         { icon: '&#9881;&#65039;', label: 'Settings',      nav: 'config' },
@@ -19112,11 +19154,200 @@ const Modules = (() => {
       document.getElementById('ad-left').innerHTML  = leftHtml;
       document.getElementById('ad-right').innerHTML = rightHtml;
 
+      // Resolve and render the connection card asynchronously after DOM paint
+      _adRefreshConnCard();
+
     } catch (e) {
       var errEl = document.getElementById('ad-left');
       if (errEl) errEl.innerHTML = _errHtml(e.message);
     }
   });
+
+  // ── Connection diagnostics card — resolves asynchronously ──────────────
+  async function _adRefreshConnCard() {
+    var el = document.getElementById('ad-conn-card');
+    if (!el) return;
+    // Show spinner while running
+    el.innerHTML = _adCard('&#128268; Database Connection',
+      '<div style="font-size:0.78rem;color:var(--ink-muted);padding:4px 0;">&#9203; Testing connections\u2026</div>');
+    el.innerHTML = _adCard('&#128268; Database Connection', await _adConnectionCard());
+  }
+
+  async function _adConnectionCard() {
+    // ── 1. GAS health ping (FLOCK branch) ────────────────────────────────
+    var gasStatus = 'pending', gasLatency = null, gasUrl = '';
+    var gasErrorDetail = '';
+    try {
+      gasUrl = (typeof TheVine !== 'undefined') ? (TheVine.flock.endpoint() || '') : '';
+      if (!gasUrl || gasUrl === '(not configured)') {
+        gasStatus = 'not configured';
+      } else {
+        var t0 = performance.now();
+        var gasResult = await TheVine.health('flock');
+        gasLatency = Math.round(performance.now() - t0);
+        gasStatus  = gasResult ? 'online' : 'offline';
+        if (!gasResult) gasErrorDetail = 'GAS returned a non-OK response. The Web App may need to be redeployed.';
+      }
+    } catch (err) {
+      gasStatus = 'offline';
+      gasErrorDetail = err && err.message ? err.message : 'Request failed';
+    }
+
+    // ── 2. Firebase / Firestore status ───────────────────────────────────
+    var fbReady = typeof UpperRoom !== 'undefined' && UpperRoom.isReady();
+    var fbMode  = _isFirebaseComms();
+    var fbProjectId = '';
+    try {
+      if (typeof firebase !== 'undefined' && firebase.app) {
+        fbProjectId = firebase.app().options.projectId || '';
+      }
+    } catch (_) {}
+
+    // ── 3. Sync doc check (Type C vs D) ──────────────────────────────────
+    var hasSyncDoc = false;
+    var syncEndpoint = '';
+    if (fbReady && fbMode) {
+      try {
+        var churchId = UpperRoom.churchId();
+        if (churchId && typeof firebase !== 'undefined') {
+          var _fdb = firebase.firestore();
+          var syncDoc = await _fdb.collection('churches').doc(churchId)
+            .collection('settings').doc('sync').get();
+          if (syncDoc.exists) {
+            var sd = syncDoc.data();
+            hasSyncDoc  = !!(sd.gasEndpoint && sd.syncSecret);
+            syncEndpoint = sd.gasEndpoint || '';
+          }
+        }
+      } catch (_) {}
+    }
+
+    // ── 4. Determine connection type ─────────────────────────────────────
+    var type, typeName, typeColor, typeDesc;
+    if (!fbReady) {
+      type = 'A'; typeName = 'GAS Only';
+      typeColor = 'var(--warning,#f59e0b)';
+      typeDesc  = 'Google Apps Script / Sheets is the sole database. All reads, writes, and auth route through the GAS endpoint.';
+    } else if (!fbMode) {
+      type = 'B'; typeName = 'GAS + Firestore Backup';
+      typeColor = 'var(--peach,#fb923c)';
+      typeDesc  = 'GAS/Sheets is primary. Firebase is initialized but not in primary mode. An hourly GAS trigger can mirror Firestore \u2192 Sheet.';
+    } else if (hasSyncDoc) {
+      type = 'D'; typeName = 'Full Real-Time Sync';
+      typeColor = 'var(--success,#4ade80)';
+      typeDesc  = 'Firestore is primary. Cloud Functions mirror every write to Sheets in real time via the GAS sync endpoint.';
+    } else {
+      type = 'C'; typeName = 'Firebase Primary';
+      typeColor = 'var(--mint,#34d399)';
+      typeDesc  = 'Firestore is the real-time database for all app modules. Auth tokens are still minted by GAS.';
+    }
+
+    // ── 5. Build HTML ─────────────────────────────────────────────────────
+    function _connRow(label, icon, statusStr, latMs, detail, url, noteHtml) {
+      var isOnline = statusStr === 'online';
+      var isOff    = statusStr === 'offline';
+      var dotClr   = isOnline ? 'var(--success,#4ade80)' : isOff ? 'var(--danger,#f87171)' : 'var(--warning,#f59e0b)';
+      var dotChar  = isOnline ? '\u25cf' : isOff ? '\u25cf' : '\u25d4';
+      var latLabel = latMs !== null ? latMs + 'ms' : '';
+
+      var rowHtml = '<div style="display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);">'
+        + '<div style="margin-top:2px;font-size:0.85rem;color:' + dotClr + ';flex-shrink:0;">' + dotChar + '</div>'
+        + '<div style="flex:1;min-width:0;">'
+        + '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">'
+        + '<span style="font-size:0.82rem;font-weight:700;color:var(--ink);">' + icon + ' ' + _e(label) + '</span>'
+        + '<span style="font-size:0.68rem;padding:2px 8px;border-radius:20px;background:' + dotClr + ';color:' + (isOnline ? '#000' : '#fff') + ';font-weight:700;">'
+        + _e(statusStr.toUpperCase()) + '</span>'
+        + (latLabel ? '<span style="font-size:0.68rem;color:var(--ink-muted);">' + _e(latLabel) + '</span>' : '')
+        + '</div>';
+
+      if (url && url !== '(not configured)') {
+        var displayUrl = url.length > 52 ? url.substring(0, 52) + '\u2026' : url;
+        rowHtml += '<div style="font-size:0.68rem;color:var(--ink-muted);font-family:monospace;margin-top:2px;word-break:break-all;">'
+          + _e(displayUrl) + '</div>';
+      }
+      if (detail) {
+        rowHtml += '<div style="font-size:0.72rem;color:var(--danger,#f87171);margin-top:3px;">\u26a0\ufe0f ' + _e(detail) + '</div>';
+      }
+      if (noteHtml) {
+        rowHtml += '<div style="font-size:0.71rem;color:var(--ink-muted);margin-top:3px;line-height:1.45;">' + noteHtml + '</div>';
+      }
+      rowHtml += '</div></div>';
+      return rowHtml;
+    }
+
+    var html = '';
+
+    // Connection type badge row
+    html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;'
+      + 'padding:10px 12px;background:var(--bg-sunken);border-radius:8px;border-left:3px solid ' + typeColor + ';">'
+      + '<div style="width:32px;height:32px;border-radius:50%;border:2px solid ' + typeColor + ';display:flex;align-items:center;justify-content:center;flex-shrink:0;">'
+      + '<span style="font-size:0.88rem;font-weight:900;color:' + typeColor + ';">' + _e(type) + '</span>'
+      + '</div>'
+      + '<div>'
+      + '<div style="font-size:0.85rem;font-weight:700;color:var(--ink);">Type ' + _e(type) + ' \u2014 ' + _e(typeName) + '</div>'
+      + '<div style="font-size:0.72rem;color:var(--ink-muted);line-height:1.45;margin-top:1px;">' + _e(typeDesc) + '</div>'
+      + '</div></div>';
+
+    // GAS row — always shown first (runs auth for all types)
+    html += _connRow(
+      'Apps Script (GAS)',
+      '&#128196;',
+      gasStatus,
+      gasLatency,
+      gasErrorDetail,
+      gasUrl,
+      '<strong style="color:var(--ink);">Auth always runs here</strong> \u2014 GAS mints tokens and handles SMS for every connection type.'
+    );
+
+    // Firebase row
+    if (fbReady) {
+      html += _connRow(
+        'Firebase / Firestore',
+        '&#128293;',
+        'online',
+        null,
+        '',
+        fbProjectId ? 'Project: ' + fbProjectId : '',
+        fbMode
+          ? 'Firestore is the <strong style="color:var(--ink);">primary database</strong> for all real-time app modules.'
+          : 'Firebase is initialized but GAS/Sheets is primary (<em>commsMode = sheets</em>).'
+      );
+    } else {
+      html += _connRow(
+        'Firebase / Firestore',
+        '&#128293;',
+        'not connected',
+        null,
+        '',
+        fbProjectId || '',
+        'Firebase is not initialized or not authenticated in this session.'
+      );
+    }
+
+    // Sync doc row (Type D only)
+    if (fbMode) {
+      html += _connRow(
+        'Cloud Fn \u2192 Sheet Sync',
+        '&#9889;',
+        hasSyncDoc ? 'configured' : 'not configured',
+        null,
+        '',
+        syncEndpoint || '',
+        hasSyncDoc
+          ? 'Real-time Firestore\u2192Sheet mirroring is active via Cloud Functions.'
+          : 'No <code>settings/sync</code> doc found. Add <code>gasEndpoint</code> + <code>syncSecret</code> to enable Type D sync.'
+      );
+    }
+
+    // Re-test button
+    html += '<div style="margin-top:10px;text-align:right;">'
+      + '<button onclick="Modules._adRefreshConnCard()" style="font-size:0.75rem;padding:5px 14px;'
+      + 'border-radius:6px;border:1px solid var(--line);background:none;color:var(--ink-muted);'
+      + 'cursor:pointer;font-family:inherit;">&#8635; Re-test</button>'
+      + '</div>';
+
+    return html;
+  }
 
   function _adRenderTasks(tasks) {
     if (!tasks.length) return '<div style="color:var(--ink-muted);font-size:0.82rem;padding:8px 0;">No tasks yet.</div>';
