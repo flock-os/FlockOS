@@ -9435,6 +9435,8 @@ const Modules = (() => {
   }
 
   // ═══════════════════════════════════════════════════════════════════════
+  var _configActiveTab = 'overview'; // persists across config reloads
+
   // 25. PEOPLE  (admin — full-page user / member / card management)
   // ═══════════════════════════════════════════════════════════════════════
   var _ppData = {};     // merged people keyed by lower-case email
@@ -10523,6 +10525,7 @@ const Modules = (() => {
 
       // ── Tab switching ───────────────────────────────────────────────
       Modules._configTab = function(tabId) {
+        _configActiveTab = tabId; // persist so reloads restore position
         document.querySelectorAll('.config-tab-panel').forEach(function(p) { p.classList.remove('active'); });
         document.querySelectorAll('.config-tab').forEach(function(t) { t.classList.remove('active'); });
         var panel = document.querySelector('.config-tab-panel[data-tab="' + tabId + '"]');
@@ -11445,6 +11448,11 @@ const Modules = (() => {
       html += '</div>'; // close Administration tab
 
       _body(el, html);
+
+      // Restore the last active tab (survives every _reload('config') call)
+      if (_configActiveTab && _configActiveTab !== 'overview') {
+        Modules._configTab(_configActiveTab);
+      }
 
       // Hydrate status cards after render
       if (_wsAvailable) { setTimeout(_wellspringRefreshStatus, 100); }
