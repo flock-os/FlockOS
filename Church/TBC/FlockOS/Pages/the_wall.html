@@ -36,101 +36,99 @@
     }
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
+    html { height: 100%; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       background: var(--bg);
       color: var(--text);
       min-height: 100dvh;
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
-      padding: 24px;
-      overflow: hidden;
-    }
-    /* Ambient glow behind the card */
-    body::before {
-      content: '';
-      position: fixed;
-      top: -30%;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 600px;
-      height: 600px;
-      border-radius: 50%;
-      background: var(--accent-dim);
-      filter: blur(100px);
-      pointer-events: none;
-      z-index: 0;
+      padding: 24px 24px env(safe-area-inset-bottom, 24px);
+      overflow-x: hidden;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
     }
 
-    /* ── Card ── */
+    /* ── Wrapper — keeps everything vertically centered ── */
     .wall {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 28px;
-      padding: 48px 40px 40px;
       width: 100%;
       max-width: 400px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
       position: relative;
-      z-index: 1;
-      box-shadow: 0 12px 48px rgba(0,0,0,0.06), 0 2px 6px rgba(0,0,0,0.03);
-    }
-    @media (max-width: 440px) {
-      .wall { padding: 36px 24px 28px; border-radius: 22px; }
     }
 
-    /* ── Header ── */
-    .wall-header {
-      text-align: center;
-      margin-bottom: 32px;
-    }
+    /* ── App Icon — THE HERO ── */
     .wall-logo {
-      width: 80px;
-      height: 80px;
-      border-radius: 20px;
+      width: clamp(180px, 48vw, 280px);
+      height: clamp(180px, 48vw, 280px);
       object-fit: contain;
-      margin-bottom: 20px;
-      filter: drop-shadow(0 6px 16px rgba(0,0,0,0.08));
-      transition: transform 0.3s ease;
+      filter: drop-shadow(0 20px 50px rgba(0,0,0,0.12));
+      animation: breathe 5s ease-in-out infinite;
+      flex-shrink: 0;
     }
-    .wall-logo:hover { transform: scale(1.05); }
-    .wall-header h1 {
-      font-size: 1.5rem;
+    @keyframes breathe {
+      0%, 100% { transform: scale(1); filter: drop-shadow(0 20px 50px rgba(0,0,0,0.12)); }
+      50%      { transform: scale(1.03); filter: drop-shadow(0 24px 60px rgba(0,0,0,0.16)); }
+    }
+
+    /* ── Church name under logo ── */
+    .wall-title {
+      font-size: clamp(1.15rem, 3.5vw, 1.5rem);
       font-weight: 700;
       color: var(--text);
-      letter-spacing: 0.02em;
+      letter-spacing: 0.01em;
+      margin-top: 16px;
+      text-align: center;
     }
-    .wall-header .subtitle {
-      color: var(--muted);
-      font-size: 0.82rem;
-      margin-top: 6px;
-      font-weight: 400;
-    }
-    .wall-header .verse {
+    .wall-verse {
       color: var(--gold);
       font-style: italic;
-      font-size: 0.74rem;
-      margin-top: 14px;
-      line-height: 1.4;
-      opacity: 0.75;
+      font-size: 0.72rem;
+      margin-top: 8px;
+      line-height: 1.45;
+      opacity: 0.65;
+      text-align: center;
+      max-width: 280px;
+    }
+
+    /* ── Form card — frosted glass beneath the icon ── */
+    .wall-card {
+      width: 100%;
+      margin-top: 28px;
+      background: color-mix(in srgb, var(--surface) 85%, transparent);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 32px 28px 28px;
+      position: relative;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.05);
+    }
+    @media (max-width: 440px) {
+      .wall-card { padding: 24px 20px 20px; border-radius: 20px; }
     }
 
     /* ── Views ── */
     .view { display: none; }
-    .view.active { display: block; animation: viewIn 0.25s ease; }
+    .view.active { display: block; animation: viewIn 0.3s ease; }
     @keyframes viewIn {
-      from { opacity: 0; transform: translateY(6px); }
+      from { opacity: 0; transform: translateY(8px); }
       to   { opacity: 1; transform: translateY(0); }
     }
 
     /* ── Floating-label input fields ── */
     .field {
       position: relative;
-      margin-bottom: 20px;
+      margin-bottom: 22px;
     }
     .field input {
       width: 100%;
-      padding: 16px 16px 8px;
+      padding: 14px 14px 8px;
       background: var(--bg);
       border: 1.5px solid var(--border);
       border-radius: 12px;
@@ -147,7 +145,7 @@
     .field input::placeholder { color: transparent; }
     .field label {
       position: absolute;
-      left: 16px;
+      left: 14px;
       top: 50%;
       transform: translateY(-50%);
       font-size: 0.92rem;
@@ -160,9 +158,9 @@
     }
     .field input:focus + label,
     .field input:not(:placeholder-shown) + label {
-      top: 8px;
+      top: 6px;
       transform: translateY(0);
-      font-size: 0.68rem;
+      font-size: 0.66rem;
       font-weight: 600;
       letter-spacing: 0.06em;
       text-transform: uppercase;
@@ -174,7 +172,7 @@
       width: 100%;
       padding: 14px;
       border: none;
-      border-radius: 12px;
+      border-radius: 50px;
       font-size: 0.92rem;
       font-weight: 600;
       letter-spacing: 0.03em;
@@ -191,22 +189,22 @@
     }
     .btn-primary {
       background: var(--accent);
-      color: var(--ink-inverse, var(--bg));
+      color: var(--ink-inverse, #fff);
       box-shadow: 0 4px 16px var(--accent-dim);
     }
     .btn-primary:hover:not(:disabled) {
-      box-shadow: 0 6px 24px var(--accent-dim);
-      transform: translateY(-1px);
+      box-shadow: 0 8px 28px var(--accent-dim);
+      transform: translateY(-2px);
     }
 
     /* ── Links ── */
     .links {
       text-align: center;
-      margin-top: 22px;
+      margin-top: 18px;
     }
     .links a {
       color: var(--muted);
-      font-size: 0.8rem;
+      font-size: 0.78rem;
       text-decoration: none;
       cursor: pointer;
       transition: color 0.15s;
@@ -215,14 +213,14 @@
     .links .sep {
       color: var(--border);
       margin: 0 10px;
-      font-size: 0.7rem;
+      font-size: 0.65rem;
     }
 
     /* ── Alert Messages ── */
     .alert {
       border-radius: 12px;
       padding: 10px 14px;
-      margin-bottom: 18px;
+      margin-bottom: 16px;
       font-size: 0.84rem;
       line-height: 1.5;
       display: none;
@@ -250,7 +248,7 @@
       width: 16px;
       height: 16px;
       border: 2px solid transparent;
-      border-top-color: var(--bg);
+      border-top-color: currentColor;
       border-radius: 50%;
       animation: spin 0.6s linear infinite;
       vertical-align: middle;
@@ -258,19 +256,20 @@
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* ── Back arrow ── */
+    /* ── Back button ── */
     .back {
       position: absolute;
-      top: 18px;
-      left: 18px;
+      top: 14px;
+      left: 14px;
       color: var(--muted);
-      font-size: 1.1rem;
+      font-size: 1rem;
       cursor: pointer;
       display: none;
       background: none;
       border: none;
       font-family: inherit;
       transition: color 0.15s;
+      z-index: 2;
     }
     .back:hover { color: var(--accent); }
     .back.show { display: block; }
@@ -278,36 +277,42 @@
     /* ── Footer ── */
     .wall-footer {
       text-align: center;
-      margin-top: 28px;
-      padding-top: 18px;
-      border-top: 1px solid var(--border);
+      margin-top: 20px;
     }
     .wall-footer span {
       color: var(--muted);
-      font-size: 0.7rem;
+      font-size: 0.68rem;
       letter-spacing: 0.03em;
+      opacity: 0.5;
+    }
+
+    /* ── Responsive ── */
+    @media (max-height: 680px) {
+      .wall-logo { width: clamp(120px, 30vw, 180px); height: clamp(120px, 30vw, 180px); }
+      .wall-card { margin-top: 16px; padding: 20px 18px 18px; }
+      .wall-title { margin-top: 10px; }
     }
   </style>
 </head>
 <body>
 
 <div class="wall">
-  <button class="back" id="backBtn" onclick="showView('login')" aria-label="Back to login">&larr;</button>
+  <!-- ── App Icon — centerpiece ── -->
+  <img id="wall-logo" class="wall-logo" src="../Images/FlockOS_Angels.png" alt="Trinity Baptist Church">
+  <h1 class="wall-title">Trinity Baptist Church</h1>
+  <div class="wall-verse">&ldquo;I am the gate; whoever enters through me will be saved.&rdquo; &mdash; John 10:9</div>
 
-  <div class="wall-header">
-    <img id="wall-logo" class="wall-logo" src="../Images/FlockOS_Angels.png" alt="Trinity Baptist Church">
-    <h1>Trinity Baptist Church</h1>
-    <div class="subtitle">Welcome back</div>
-    <div class="verse">&ldquo;I am the gate; whoever enters through me will be saved.&rdquo;<br>John 10:9</div>
-  </div>
+  <!-- ── Form card ── -->
+  <div class="wall-card">
+    <button class="back" id="backBtn" onclick="showView('login')" aria-label="Back">&larr;</button>
 
-  <div id="alertBox" class="alert"></div>
+    <div id="alertBox" class="alert"></div>
 
-  <!-- ═══ LOGIN VIEW ═══ -->
-  <div id="loginView" class="view active">
-    <div id="lockdownBanner" style="display:none;margin-bottom:16px;padding:12px 16px;border-radius:10px;background:var(--warning,#c98b2e);color:#fff;font-size:0.9rem;font-weight:600;text-align:center;line-height:1.5;">
-      🛡️ Trinity Baptist Church is in maintenance mode.<br>Only Pastors and Admins may sign in.
-    </div>
+    <!-- ═══ LOGIN VIEW ═══ -->
+    <div id="loginView" class="view active">
+      <div id="lockdownBanner" style="display:none;margin-bottom:16px;padding:12px 16px;border-radius:10px;background:var(--warning,#c98b2e);color:#fff;font-size:0.9rem;font-weight:600;text-align:center;line-height:1.5;">
+        🛡️ Trinity Baptist Church is in maintenance mode.<br>Only Pastors and Admins may sign in.
+      </div>
     <form id="loginForm" onsubmit="handleLogin(event)">
       <div class="field">
         <input type="email" id="loginEmail" placeholder="Email" required autocomplete="email">
@@ -324,12 +329,12 @@
       <span class="sep">&middot;</span>
       <a onclick="showView('register')">Request access</a>
     </div>
-    <div class="links" style="margin-top:8px;">
-      <a href="../../index.html">&larr; Return Home</a>
+      <div class="links" style="margin-top:8px;">
+        <a href="../../index.html">&larr; Return Home</a>
+      </div>
     </div>
-  </div>
 
-  <!-- ═══ REGISTER VIEW ═══ -->
+    <!-- ═══ REGISTER VIEW ═══ -->
   <div id="registerView" class="view">
     <form id="registerForm" onsubmit="handleRegister(event)">
       <div class="field">
@@ -371,8 +376,8 @@
     </div>
   </div>
 
-  <!-- ═══ RESET PASSWORD VIEW ═══ -->
-  <div id="resetView" class="view">
+    <!-- ═══ RESET PASSWORD VIEW ═══ -->
+    <div id="resetView" class="view">
     <form id="resetForm" onsubmit="handleReset(event)">
       <div class="field">
         <input type="email" id="resetEmail" placeholder="Email" required autocomplete="email">
@@ -388,10 +393,11 @@
       </div>
       <button type="submit" class="btn btn-primary" id="resetBtn">Reset Passcode</button>
     </form>
-    <div class="links">
-      <a onclick="showView('login')">Back to sign in</a>
+      <div class="links">
+        <a onclick="showView('login')">Back to sign in</a>
+      </div>
     </div>
-  </div>
+  </div><!-- /.wall-card -->
 
   <div class="wall-footer">
     <span>Trinity Baptist Church v1.77 &middot; Nehemiah 6:3</span>
