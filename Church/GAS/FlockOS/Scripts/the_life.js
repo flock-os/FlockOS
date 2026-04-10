@@ -439,7 +439,7 @@ const TheLife = (() => {
         + '</div>';
       if (interactions.length) {
         tlSec += '<div class="fp-timeline">';
-        interactions.sort(function(a, b) { return (b.date || b.createdAt || '').localeCompare(a.date || a.createdAt || ''); });
+        interactions.sort(function(a, b) { return String(b.date || b.createdAt || '').localeCompare(String(a.date || a.createdAt || '')); });
         interactions.forEach(function(ix) {
           tlSec += '<div class="fp-timeline-item">'
             + '<div class="fp-timeline-dot"></div>'

@@ -395,7 +395,7 @@ const TheVine = (() => {
     },
 
     // ── Users (admin) ────────────────────────────────────────────────────
-    users:         _f('users', ['list', 'create', 'update', 'deactivate', 'resetPasscode', 'approve', 'deny', 'pending']),
+    users:         _f('users', ['list', 'create', 'update', 'deactivate', 'delete', 'resetPasscode', 'approve', 'deny', 'pending']),
 
     // ── Access (admin) ───────────────────────────────────────────────────
     access:        _f('access', ['list', 'set', 'remove']),
@@ -404,7 +404,7 @@ const TheVine = (() => {
     config:        _f('config', ['list', 'get', 'set']),
 
     // ── Members (core) ───────────────────────────────────────────────────
-    members:       _f('members', ['list', 'search', 'get', 'create', 'update']),
+    members:       _f('members', ['list', 'search', 'get', 'create', 'update', 'delete']),
 
     // ── Prayer Requests ──────────────────────────────────────────────────
     prayer:        _f('prayer', ['list', 'get', 'create', 'update']),
