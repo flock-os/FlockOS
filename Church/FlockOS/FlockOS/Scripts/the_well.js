@@ -42,7 +42,7 @@ const TheWell = (() => {
       label: 'Matthew — Content',
       file:  'FlockOS_Matthew_Content.xlsx',
       tabs: [
-        ['Books', ['Book Name','Testament','Genre','Summary','Core Theology','Practical Application','ID / Book Number']],
+        ['Books', ['Book Name','Testament','Genre','Summary','Core Theology','Practical Application','booknum']],
         ['Genealogy', ['Name','Title','Lifespan','Meaning','Reference','Bio','Children','ID']],
         ['Counseling', ['Title','Icon','Color','Definition','Scriptures','Steps','ID']],
         ['Devotionals', ['Date','Title','Theme','Scripture','Reflection','Question','Prayer']],

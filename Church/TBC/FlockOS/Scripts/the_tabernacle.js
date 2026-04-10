@@ -957,7 +957,7 @@ const Modules = (() => {
     psalms: 'Psalms', proverbs: 'Proverbs',
     bookName: 'Book Name', testament: 'Testament', genre: 'Genre',
     summary: 'Summary', coreTheology: 'Core Theology',
-    practicalApplication: 'Practical Application', bookId: 'ID / Book Number',
+    practicalApplication: 'Practical Application', booknum: 'booknum',
     name: 'Name', lifespan: 'Lifespan', meaning: 'Meaning',
     reference: 'Reference', bio: 'Bio', children: 'Children', personId: 'ID',
     icon: 'Icon', color: 'Color', definition: 'Definition',
@@ -4229,11 +4229,11 @@ const Modules = (() => {
       if (!rows.length) { _body(el, _empty('&#128214;', 'No books yet', 'Add book entries in the Truth spreadsheet.')); return; }
 
       // Sort in canonical Bible order.
-      // Primary key: 'ID / Book Number' (1-66), aliased from Firestore 'bookId'.
+      // Primary key: 'booknum' (1-66) — same field name in both GAS and Firestore.
       // Fallback: match 'Book Name' against the canonical order list.
       rows.sort(function(a, b) {
-        var aNum = parseInt(a['ID / Book Number'] || a['bookId'] || 0, 10);
-        var bNum = parseInt(b['ID / Book Number'] || b['bookId'] || 0, 10);
+        var aNum = parseInt(a['booknum'] || 0, 10);
+        var bNum = parseInt(b['booknum'] || 0, 10);
         if (aNum && bNum) return aNum - bNum;
         if (aNum) return -1;
         if (bNum) return 1;
