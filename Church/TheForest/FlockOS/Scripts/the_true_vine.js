@@ -139,6 +139,69 @@ const TheVine = (() => {
   }
 
 
+  // ── Outgoing key normalization (camelCase → Title Case for GAS sheets) ──
+  // GAS sheet headers use Title Case with spaces ("Care Type", "Member ID").
+  // Frontend forms & Firestore use camelCase ("careType", "memberId").
+  // This layer normalizes outgoing keys so GAS matches existing column headers
+  // instead of creating duplicate camelCase columns.
+
+  var _ACRONYMS = {
+    Id:'ID', Url:'URL', Bpm:'BPM', Ccli:'CCLI', Rsvp:'RSVP',
+    Zip:'ZIP', Ip:'IP', Bg:'BG', Sms:'SMS', Iso:'ISO',
+    Html:'HTML', Json:'JSON', Csv:'CSV', Dm:'DM',
+  };
+
+  // Headers containing hyphens or lowercase prepositions that can't be
+  // derived from a generic camelCase split.  Keyed by the all-lowercase
+  // collapsed form of the camelCase field name.
+  var _HEADER_OVERRIDES = {
+    dateofbirth:'Date of Birth', dateofdeath:'Date of Death',
+    followuprequested:'Follow-Up Requested', followupneeded:'Follow-Up Needed',
+    followupdate:'Follow-Up Date', followupcompleted:'Follow-Up Completed',
+    followupdone:'Follow-Up Done', followuppriority:'Follow-Up Priority',
+    nextfollowup:'Next Follow-Up', nextfollowupdate:'Next Follow-Up Date',
+    replytoid:'Reply-To ID', inappenabled:'In-App Enabled',
+    coleaderid:'Co-Leader ID', coleadid:'Co-Lead ID',
+  };
+
+  // Verbs whose params represent row data destined for sheet columns.
+  var _WRITE_VERBS = { create:1, update:1, bulkCreate:1, send:1, set:1, setAll:1, post:1 };
+
+  function _camelToTitle(key) {
+    // 1. Check override map (handles hyphens, "of", etc.)
+    var canonical = key.toLowerCase();
+    if (_HEADER_OVERRIDES[canonical]) return _HEADER_OVERRIDES[canonical];
+
+    // 2. Generic split on camelCase boundaries + letter→digit boundaries
+    return key
+      .replace(/([a-z\d])([A-Z])/g, '$1 $2')
+      .replace(/([a-zA-Z])(\d)/g, '$1 $2')
+      .split(' ')
+      .map(function(w, i) {
+        var cap = w.charAt(0).toUpperCase() + w.slice(1);
+        return _ACRONYMS[cap] || cap;
+      })
+      .join(' ');
+  }
+
+  function _normalizeOutgoing(params) {
+    if (!params || typeof params !== 'object' || Array.isArray(params)) return params;
+    var out = {};
+    var keys = Object.keys(params);
+    for (var i = 0; i < keys.length; i++) {
+      var k = keys[i];
+      if (k === 'rows' && Array.isArray(params.rows)) {
+        out.rows = params.rows.map(_normalizeOutgoing);
+      } else if (k === 'tab') {
+        out.tab = params.tab;
+      } else {
+        out[_camelToTitle(k)] = params[k];
+      }
+    }
+    return out;
+  }
+
+
   // ── Core fetch engine ────────────────────────────────────────────────────
 
   /**
@@ -164,6 +227,14 @@ const TheVine = (() => {
     }
 
     if (!baseUrl) throw new Error('TheVine: endpoint URL not configured for action "' + action + '"');
+
+    // ── Normalize outgoing data keys for GAS (camelCase → Title Case) ──
+    // Runs AFTER the local resolver (Firestore keeps camelCase) and
+    // BEFORE auth injection (so token/authEmail/email stay lowercase).
+    var _verb = action.split('.').pop();
+    if (_WRITE_VERBS[_verb]) {
+      params = _normalizeOutgoing(params);
+    }
 
     // Inject auth unless explicitly skipped
     if (!opts.skipAuth) {
