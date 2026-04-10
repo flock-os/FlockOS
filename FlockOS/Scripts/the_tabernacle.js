@@ -11919,7 +11919,7 @@ const Modules = (() => {
   }
 
   // ── Provision: opens the Provisioner Web App in a new tab ──────────────
-  const _PROVISIONER_URL = 'https://script.google.com/macros/s/AKfycbwngAJULbve_-WBeZTS9MQLkdPohdlhTKI1ARJxqU9wu28vTpfQem8gSxFeSHr2k2jX/exec';
+  const _PROVISIONER_URL = 'https://provision.flockos.yhwh.one';
 
   async function _churchProvision(churchId) {
     const rows = _dataCache['churches'] || [];
