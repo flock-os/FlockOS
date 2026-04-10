@@ -1136,7 +1136,7 @@ const TheShepherd = (() => {
           await TheUpperRoom.deleteMember(email);
         }
       } catch (_) { /* Firestore cleanup is best-effort */ }
-      await _loadPeople();
+      renderApp(_container);
     } catch (e) { alert('Delete failed: ' + (e.message || e)); }
   }
 
