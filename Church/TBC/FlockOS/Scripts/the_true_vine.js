@@ -162,6 +162,7 @@ const TheVine = (() => {
     nextfollowup:'Next Follow-Up', nextfollowupdate:'Next Follow-Up Date',
     replytoid:'Reply-To ID', inappenabled:'In-App Enabled',
     coleaderid:'Co-Leader ID', coleadid:'Co-Lead ID',
+    churchid:'churchId',
   };
 
   // Verbs whose params represent row data destined for sheet columns.

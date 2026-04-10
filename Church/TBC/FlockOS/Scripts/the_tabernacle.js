@@ -178,6 +178,10 @@ const Modules = (() => {
       return _badge(val, 'warn');
     if (['URGENT','HIGH','PENDING','DRAFT','NEW'].includes(t))
       return _badge(val, 'danger');
+    if (['LOCKED','SUSPENDED','DISABLED'].includes(t))
+      return '<span style="display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;'
+           + 'font-weight:600;padding:2px 8px;border-radius:20px;background:rgba(248,113,113,0.15);'
+           + 'color:#f87171;border:1px solid rgba(248,113,113,0.35);">&#128274; ' + _e(val) + '</span>';
     return _badge(val, 'info');
   }
 
@@ -11829,7 +11833,8 @@ const Modules = (() => {
   // ═══════════════════════════════════════════════════════════════════════
   _def('church', async el => {
     _shell(el, 'Church Registry', 'Manage FlockOS church tenant registrations.',
-      _btn('+ Register Church', "Modules._churchCreate()"));
+        _btn('+ Register Church',    "Modules._churchCreate()")
+      + _btn('&#9889; Provision Church', "Modules._churchProvisionNew()", false));
     try {
       const res  = await _fetch('church-list', () => TheVine.flock.church.list({ limit: 100 }), _TTL.ref);
       const rows = _rows(res);
@@ -11839,14 +11844,24 @@ const Modules = (() => {
         return;
       }
       _body(el, _table(
-        ['Name', 'Short Name', 'Database URL', 'Status', 'Created'],
+        ['Name', 'Short Name', 'Database URL', 'Status', 'Created', 'Controls'],
         rows.map(r => [
           _e(r.churchName || ''),
           _e(r.shortName  || ''),
-          r.databaseUrl ? '<span style="color:var(--success,#4ade80);font-size:0.8rem;">&#10003; Set</span>'
-                        : '<span style="color:var(--warning,#f59e0b);font-size:0.8rem;">&#9888; Not set</span>',
-          _statusBadge(r.status || 'Active'),
+          r.databaseUrl
+            ? '<span style="color:var(--success,#4ade80);font-size:0.8rem;">&#10003; Set</span>'
+            : '<span style="color:var(--warning,#f59e0b);font-size:0.8rem;">&#9888; Not set</span>',
+          r.locked ? _statusBadge('Locked') : _statusBadge(r.status || 'Active'),
           _e(r.createdAt ? new Date(r.createdAt).toLocaleDateString() : ''),
+          '<div style="display:flex;gap:6px;flex-wrap:wrap;">'
+          + '<button onclick="event.stopPropagation();Modules._churchProvision(\'' + _e(r.churchId) + '\')" '
+          +   'style="font-size:0.73rem;padding:3px 9px;border-radius:5px;cursor:pointer;'
+          +   'border:1px solid var(--accent);background:none;color:var(--accent);font-family:inherit;">&#9889; Provision</button>'
+          + '<button onclick="event.stopPropagation();Modules._churchLock(\'' + _e(r.churchId) + '\',' + (!r.locked) + ')" '
+          +   'style="font-size:0.73rem;padding:3px 9px;border-radius:5px;cursor:pointer;'
+          +   'border:1px solid var(--line);background:none;color:var(--ink-muted);font-family:inherit;">'
+          +   (r.locked ? '&#128275; Unlock' : '&#128274; Lock') + '</button>'
+          + '</div>',
         ]),
         { editFn: 'editChurch', ids: rows.map(r => r.churchId) }
       ));
@@ -11872,8 +11887,7 @@ const Modules = (() => {
       await TheVine.flock.church.create(data);
       _invalidateCache('church-list');
       _toast('Church registered \u2014 open it to Setup Database when ready.', 'success');
-      const el = document.getElementById('view-church');
-      if (el) { el.dataset.loaded = ''; _reg['church'](el); }
+      _reload('church');
     }, 'Register');
   }
 
@@ -11885,10 +11899,102 @@ const Modules = (() => {
     } catch (e) { _toast(e.message || 'Setup failed.', 'danger'); }
   }
 
+  // ── Lock / Unlock a church deployment ──────────────────────────────────
+  async function _churchLock(churchId, lock) {
+    const verb    = lock ? 'lock' : 'unlock';
+    const warning = lock
+      ? 'This will prevent all members of this church from logging in until unlocked. Continue?'
+      : 'Restore full access for this church? Continue?';
+    if (!confirm((lock ? 'Lock' : 'Unlock') + ' church — ' + warning)) return;
+    try {
+      await TheVine.flock.church.update({
+        churchId,
+        locked: lock,
+        status: lock ? 'Locked' : 'Active',
+      });
+      _invalidateCache('church-list');
+      _toast('Church ' + verb + 'ed.', lock ? 'warn' : 'success');
+      _reload('church');
+    } catch (e) { _toast(e.message || 'Failed to ' + verb + ' church.', 'danger'); }
+  }
+
+  // ── Provision: opens the Provisioner Web App in a new tab ──────────────
+  const _PROVISIONER_URL = 'https://script.google.com/macros/s/AKfycbwngAJULbve_-WBeZTS9MQLkdPohdlhTKI1ARJxqU9wu28vTpfQem8gSxFeSHr2k2jX/exec';
+
+  async function _churchProvision(churchId) {
+    const rows = _dataCache['churches'] || [];
+    const c    = rows.find(r => String(r.churchId) === String(churchId)) || {};
+    _modal('Provision Church: ' + (c.churchName || churchId), [
+      { name: 'connectionType', label: 'Connection Type', type: 'select', required: true,
+        options: [
+          { value: 'A', label: 'A \u2014 GAS Only' },
+          { value: 'B', label: 'B \u2014 GAS + Firestore Backup' },
+          { value: 'C', label: 'C \u2014 Firebase Primary + GAS Auth' },
+          { value: 'D', label: 'D \u2014 Full Real-Time Sync (recommended)' },
+        ], value: 'D' },
+      { name: 'timezone', label: 'Timezone (IANA)', type: 'text', value: 'America/Los_Angeles', required: true },
+      { name: 'adminEmail', label: 'Admin / Notification Email', type: 'email', value: c.adminEmail || '' },
+      { name: '_note', type: 'html', html:
+          '<div style="font-size:0.79rem;color:var(--ink-muted);background:var(--bg);border:1px solid var(--line);'
+        + 'border-radius:6px;padding:10px 14px;line-height:1.7;margin-top:4px;">'
+        + '<strong style="color:var(--accent);">&#9889; The Provisioner will:</strong><br>'
+        + '&bull; Create the church CRM Google Sheet in the shared Drive folder<br>'
+        + '&bull; Write a step-by-step Deployment Guide to Sheet1<br>'
+        + '&bull; Pre-fill Code.gs, FirestoreSync.gs, and SyncHandler.gs tabs<br>'
+        + '&bull; Seed Firestore with church registry data and sync config<br>'
+        + '&bull; Open the result in a new tab &mdash; follow the guide to finish GAS setup'
+        + '</div>' },
+    ], async data => {
+      const params = new URLSearchParams({
+        action:          'provision',
+        churchName:      c.churchName      || churchId,
+        churchShortId:   c.shortName       || churchId,
+        brandName:       c.brandName       || c.churchName || '',
+        tagline:         c.tagline         || 'Church Management & Ministry Platform',
+        timezone:        data.timezone,
+        adminEmail:      data.adminEmail   || c.adminEmail || '',
+        themeColor:      c.themeColor      || '#e8a838',
+        backgroundColor: c.bgColor         || '#1a1a2e',
+        favicon:         c.favicon         || 'FlockOS_Angels.png',
+        portrait:        c.portrait        || 'FlockOS_Angels.png',
+        connectionType:  data.connectionType,
+        version:         c.version         || '1.0',
+      });
+      window.open(_PROVISIONER_URL + '?' + params.toString(), '_blank');
+      _toast('Provisioner launched in new tab. Follow the result page for GAS setup steps.', 'success');
+    }, 'Launch Provisioner');
+  }
+
+  async function _churchProvisionNew() {
+    const rows = _dataCache['churches'] || [];
+    if (!rows.length) {
+      _toast('Register a church first, then provision it.', 'warn');
+      return;
+    }
+    _modal('Provision Church', [
+      { name: 'churchId', label: 'Select Church', type: 'select', required: true,
+        options: rows.map(r => ({ value: r.churchId, label: r.churchName + ' (' + (r.shortName || r.churchId) + ')' })) },
+      { name: '_hint', type: 'html', html:
+          '<div style="font-size:0.78rem;color:var(--ink-muted);">'
+        + 'Select the church registered above to configure and launch the provisioner.</div>' },
+    ], async data => {
+      const m = document.getElementById('fl-modal');
+      if (m) m.remove();
+      _churchProvision(data.churchId);
+    }, 'Continue');
+  }
+
   function editChurch(id) {
     const rows = _dataCache['churches'] || [];
     const c    = rows.find(r => String(r.churchId) === String(id)) || {};
+    const lockedBanner = c.locked
+      ? '<div style="background:rgba(248,113,113,0.12);border:1px solid rgba(248,113,113,0.35);'
+      +   'border-radius:6px;padding:10px 14px;margin-bottom:6px;font-size:0.82rem;color:#f87171;">'
+      +   '&#128274; <strong>This church is currently LOCKED.</strong> Members cannot log in. '
+      +   'Click <em>Unlock Church</em> below to restore access.</div>'
+      : '';
     _modal('Edit Church', [
+      { name: '_lockedBanner', type: 'html', html: lockedBanner },
       { name: 'churchName',  label: 'Church Full Name',                type: 'text',   value: c.churchName  || '' },
       { name: 'shortName',   label: 'Short Name (URL slug)',            type: 'text',   value: c.shortName   || '' },
       { name: 'brandName',   label: 'Brand Name',                       type: 'text',   value: c.brandName   || 'FlockOS' },
@@ -11902,29 +12008,38 @@ const Modules = (() => {
       { name: 'favicon',     label: 'Favicon filename',                 type: 'text',   value: c.favicon     || 'FlockOS_Camo.png' },
       { name: 'portrait',    label: 'Portrait / Logo filename',         type: 'text',   value: c.portrait    || 'FlockOS_Camo.png' },
       { name: 'version',     label: 'Version',                          type: 'text',   value: c.version     || '1.0' },
-      { name: 'status',      label: 'Status',                           type: 'select', options: ['Active', 'Inactive'], value: c.status || 'Active' },
-      { name: '_setup', type: 'html', html:
-          '<div style="padding:10px 0 2px;border-top:1px solid var(--line);margin-top:4px;">'
+      { name: 'status',      label: 'Status',                           type: 'select', options: ['Active', 'Inactive', 'Locked', 'Suspended'], value: c.status || 'Active' },
+      { name: '_controls', type: 'html', html:
+          '<div style="padding:10px 0 2px;border-top:1px solid var(--line);margin-top:4px;display:flex;flex-wrap:wrap;gap:8px;">'
         + '<button type="button" onclick="Modules._churchSetup(\'' + _e(id) + '\')" '
-        + 'style="background:none;border:1px solid var(--accent);color:var(--accent);border-radius:6px;'
-        + 'padding:7px 14px;cursor:pointer;font-size:0.83rem;font-family:inherit;">&#9881; Setup Database Tabs</button>'
-        + '<div style="font-size:0.75rem;color:var(--ink-muted);margin-top:5px;">'
-        + 'Provisions all FlockOS tabs on this church\'s spreadsheet. Safe to run on a fresh, empty sheet only.</div></div>' },
+        +   'style="background:none;border:1px solid var(--accent);color:var(--accent);border-radius:6px;'
+        +   'padding:7px 14px;cursor:pointer;font-size:0.82rem;font-family:inherit;">&#9881; Setup Database Tabs</button>'
+        + '<button type="button" onclick="Modules._churchProvision(\'' + _e(id) + '\')" '
+        +   'style="background:none;border:1px solid var(--accent);color:var(--accent);border-radius:6px;'
+        +   'padding:7px 14px;cursor:pointer;font-size:0.82rem;font-family:inherit;">&#9889; Provision</button>'
+        + '<button type="button" onclick="Modules._churchLock(\'' + _e(id) + '\',' + (!c.locked) + ')" '
+        +   'style="background:none;border:1px solid var(--danger,#f87171);color:var(--danger,#f87171);border-radius:6px;'
+        +   'padding:7px 14px;cursor:pointer;font-size:0.82rem;font-family:inherit;">'
+        +   (c.locked ? '&#128275; Unlock Church' : '&#128274; Lock Church') + '</button>'
+        + '</div>'
+        + '<div style="font-size:0.73rem;color:var(--ink-muted);margin-top:5px;">'
+        + 'Setup: provisions all FlockOS tabs on a fresh sheet.  '
+        + 'Provision: generates the CRM sheet + deployment guide.  '
+        + 'Lock: immediately blocks all member logins for this church.</div>' },
     ], async data => {
-      delete data._setup;
+      delete data._lockedBanner;
+      delete data._controls;
       data.churchId = id;
       await TheVine.flock.church.update(data);
       _invalidateCache('church-list');
       _toast('Church updated', 'success');
-      const el = document.getElementById('view-church');
-      if (el) { el.dataset.loaded = ''; _reg['church'](el); }
+      _reload('church');
     }, async () => {
       if (!confirm('Remove this church from the registry? This marks it as Deleted and hides it from the list. The spreadsheet and its data are not affected.')) return;
       await TheVine.flock.church.delete({ churchId: id });
       _invalidateCache('church-list');
       _toast('Church removed from registry.', 'success');
-      const el = document.getElementById('view-church');
-      if (el) { el.dataset.loaded = ''; _reg['church'](el); }
+      _reload('church');
     }, 'Save Changes');
   }
 
