@@ -10,7 +10,7 @@
   "orientation": "any",
   "icons": [
     {
-      "src": "FlockOS/Images/FlockOS_icon.png",
+      "src": "FlockOS/Images/FlockOS_Camo.png",
       "sizes": "192x192 512x512 1024x1024",
       "type": "image/png",
       "purpose": "any"
@@ -21,17 +21,17 @@
     {
       "name": "Dashboard",
       "url": "FlockOS/Pages/the_good_shepherd.html#dashboard",
-      "icons": [{ "src": "FlockOS/Images/FlockOS_icon.png", "sizes": "192x192" }]
+      "icons": [{ "src": "FlockOS/Images/FlockOS_Camo.png", "sizes": "192x192" }]
     },
     {
       "name": "Messages",
       "url": "FlockOS/Pages/the_good_shepherd.html#comms",
-      "icons": [{ "src": "FlockOS/Images/FlockOS_icon.png", "sizes": "192x192" }]
+      "icons": [{ "src": "FlockOS/Images/FlockOS_Camo.png", "sizes": "192x192" }]
     },
     {
       "name": "Directory",
       "url": "FlockOS/Pages/the_good_shepherd.html#directory",
-      "icons": [{ "src": "FlockOS/Images/FlockOS_icon.png", "sizes": "192x192" }]
+      "icons": [{ "src": "FlockOS/Images/FlockOS_Camo.png", "sizes": "192x192" }]
     }
   ]
 }

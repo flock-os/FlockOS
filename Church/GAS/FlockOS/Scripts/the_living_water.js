@@ -39,8 +39,7 @@ const APP_SHELL = [
   './FlockOS/Pages/the_invitation.html',
 
   // ── Icons / images ──────────────────────────────────────────────────────
-  './FlockOS/Images/FlockOS_ODCamo.png',
-  './FlockOS/Images/FlockOS_Wide.jpeg',
+  './FlockOS/Images/FlockOS_Camo.png',
 
   // ── JS modules ───────────────────────────────────────────────
   './FlockOS/Scripts/firm_foundation.js',
