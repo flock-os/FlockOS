@@ -12,7 +12,6 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <style>
     :root {
-      /* Fallback values — overridden by Fine Linen theme system */
       --bg: #f5f5f7;
       --surface: #ffffff;
       --border: #e2e8f0;
@@ -25,10 +24,8 @@
       --success: #16a34a;
       --warn: #d97706;
       --danger: #dc2626;
-      --code-bg: #f1f5f9;
       --radius: 10px;
     }
-    /* Map Fine Linen theme tokens when available */
     [data-theme] {
       --surface: var(--bg-raised, #111118);
       --border: var(--line, #1e1e2a);
@@ -36,120 +33,157 @@
       --muted: var(--ink-muted, #7a7a8e);
       --accent-dim: color-mix(in srgb, var(--accent) 15%, transparent);
       --gold-dim: color-mix(in srgb, var(--gold, #f8d58f) 12%, transparent);
-      --code-bg: var(--bg-sunken, #0d0d14);
     }
     * { margin: 0; padding: 0; box-sizing: border-box; }
+
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       background: var(--bg);
       color: var(--text);
       min-height: 100dvh;
       display: flex;
-      flex-direction: column;
       align-items: center;
       justify-content: center;
-      padding: 20px 20px 60px;
-      background-image: radial-gradient(ellipse at 50% 0%, var(--accent-dim) 0%, transparent 70%);
+      padding: 24px;
+      overflow: hidden;
+    }
+    /* Ambient glow behind the card */
+    body::before {
+      content: '';
+      position: fixed;
+      top: -30%;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 600px;
+      height: 600px;
+      border-radius: 50%;
+      background: var(--accent-dim);
+      filter: blur(100px);
+      pointer-events: none;
+      z-index: 0;
     }
 
     /* ── Card ── */
     .wall {
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 20px;
-      padding: 44px 36px 36px;
+      border-radius: 28px;
+      padding: 48px 40px 40px;
       width: 100%;
-      max-width: 420px;
+      max-width: 400px;
       position: relative;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.04);
+      z-index: 1;
+      box-shadow: 0 12px 48px rgba(0,0,0,0.06), 0 2px 6px rgba(0,0,0,0.03);
+    }
+    @media (max-width: 440px) {
+      .wall { padding: 36px 24px 28px; border-radius: 22px; }
     }
 
     /* ── Header ── */
     .wall-header {
       text-align: center;
-      margin-bottom: 28px;
+      margin-bottom: 32px;
     }
     .wall-logo {
-      width: 88px;
-      height: 88px;
-      border-radius: 22px;
+      width: 80px;
+      height: 80px;
+      border-radius: 20px;
       object-fit: contain;
-      margin-bottom: 16px;
-      filter: drop-shadow(0 4px 12px rgba(0,0,0,0.1));
+      margin-bottom: 20px;
+      filter: drop-shadow(0 6px 16px rgba(0,0,0,0.08));
+      transition: transform 0.3s ease;
     }
+    .wall-logo:hover { transform: scale(1.05); }
     .wall-header h1 {
-      font-size: 1.6rem;
+      font-size: 1.5rem;
       font-weight: 700;
-      color: var(--accent);
-      letter-spacing: 0.04em;
+      color: var(--text);
+      letter-spacing: 0.02em;
     }
     .wall-header .subtitle {
       color: var(--muted);
-      font-size: 0.85rem;
+      font-size: 0.82rem;
       margin-top: 6px;
-      font-weight: 500;
+      font-weight: 400;
     }
     .wall-header .verse {
       color: var(--gold);
       font-style: italic;
-      font-size: 0.78rem;
-      margin-top: 10px;
+      font-size: 0.74rem;
+      margin-top: 14px;
       line-height: 1.4;
-      opacity: 0.85;
+      opacity: 0.75;
     }
 
-    /* ── Views (login / register / forgot / reset) ── */
+    /* ── Views ── */
     .view { display: none; }
-    .view.active { display: block; }
-
-    /* ── Form Elements ── */
-    .field {
-      margin-bottom: 18px;
+    .view.active { display: block; animation: viewIn 0.25s ease; }
+    @keyframes viewIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
     }
-    .field label {
-      display: block;
-      font-size: 0.78rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: var(--muted);
-      margin-bottom: 6px;
+
+    /* ── Floating-label input fields ── */
+    .field {
+      position: relative;
+      margin-bottom: 20px;
     }
     .field input {
       width: 100%;
-      padding: 11px 14px;
+      padding: 16px 16px 8px;
       background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 8px;
+      border: 1.5px solid var(--border);
+      border-radius: 12px;
       color: var(--text);
       font-size: 0.95rem;
       font-family: inherit;
       outline: none;
-      transition: border-color 0.2s;
+      transition: border-color 0.2s, box-shadow 0.2s;
     }
     .field input:focus {
       border-color: var(--accent);
       box-shadow: 0 0 0 3px var(--accent-dim);
     }
-    .field input::placeholder {
+    .field input::placeholder { color: transparent; }
+    .field label {
+      position: absolute;
+      left: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 0.92rem;
       color: var(--muted);
-      opacity: 0.6;
+      pointer-events: none;
+      transition: all 0.2s ease;
+      background: transparent;
+      padding: 0 2px;
+      font-weight: 400;
+    }
+    .field input:focus + label,
+    .field input:not(:placeholder-shown) + label {
+      top: 8px;
+      transform: translateY(0);
+      font-size: 0.68rem;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--accent);
     }
 
     /* ── Buttons ── */
     .btn {
       width: 100%;
-      padding: 12px;
+      padding: 14px;
       border: none;
-      border-radius: 8px;
+      border-radius: 12px;
       font-size: 0.92rem;
       font-weight: 600;
       letter-spacing: 0.03em;
       cursor: pointer;
-      transition: opacity 0.2s, transform 0.1s;
+      transition: all 0.2s ease;
       font-family: inherit;
+      margin-top: 4px;
     }
-    .btn:active { transform: scale(0.98); }
+    .btn:active { transform: scale(0.97); }
     .btn:disabled {
       opacity: 0.5;
       cursor: not-allowed;
@@ -158,45 +192,49 @@
     .btn-primary {
       background: var(--accent);
       color: var(--ink-inverse, var(--bg));
-      box-shadow: 0 2px 8px var(--accent-dim);
+      box-shadow: 0 4px 16px var(--accent-dim);
     }
-    .btn-primary:hover:not(:disabled) { opacity: 0.88; box-shadow: 0 4px 14px var(--accent-dim); }
+    .btn-primary:hover:not(:disabled) {
+      box-shadow: 0 6px 24px var(--accent-dim);
+      transform: translateY(-1px);
+    }
 
     /* ── Links ── */
     .links {
       text-align: center;
-      margin-top: 20px;
+      margin-top: 22px;
     }
     .links a {
-      color: var(--accent);
-      font-size: 0.84rem;
+      color: var(--muted);
+      font-size: 0.8rem;
       text-decoration: none;
       cursor: pointer;
+      transition: color 0.15s;
     }
-    .links a:hover { text-decoration: underline; }
+    .links a:hover { color: var(--accent); }
     .links .sep {
-      color: var(--muted);
-      margin: 0 8px;
-      font-size: 0.75rem;
+      color: var(--border);
+      margin: 0 10px;
+      font-size: 0.7rem;
     }
 
     /* ── Alert Messages ── */
     .alert {
-      border-radius: 8px;
+      border-radius: 12px;
       padding: 10px 14px;
       margin-bottom: 18px;
-      font-size: 0.85rem;
+      font-size: 0.84rem;
       line-height: 1.5;
       display: none;
     }
-    .alert.show { display: block; }
+    .alert.show { display: block; animation: viewIn 0.2s ease; }
     .alert-error {
-      background: rgba(248,113,113,0.08);
+      background: rgba(248,113,113,0.06);
       border-left: 3px solid var(--danger);
       color: var(--danger);
     }
     .alert-success {
-      background: rgba(74,222,128,0.08);
+      background: rgba(74,222,128,0.06);
       border-left: 3px solid var(--success);
       color: var(--success);
     }
@@ -223,15 +261,16 @@
     /* ── Back arrow ── */
     .back {
       position: absolute;
-      top: 16px;
-      left: 16px;
+      top: 18px;
+      left: 18px;
       color: var(--muted);
-      font-size: 1.2rem;
+      font-size: 1.1rem;
       cursor: pointer;
       display: none;
       background: none;
       border: none;
       font-family: inherit;
+      transition: color 0.15s;
     }
     .back:hover { color: var(--accent); }
     .back.show { display: block; }
@@ -239,13 +278,14 @@
     /* ── Footer ── */
     .wall-footer {
       text-align: center;
-      margin-top: 24px;
-      padding-top: 16px;
+      margin-top: 28px;
+      padding-top: 18px;
       border-top: 1px solid var(--border);
     }
     .wall-footer span {
       color: var(--muted);
-      font-size: 0.75rem;
+      font-size: 0.7rem;
+      letter-spacing: 0.03em;
     }
   </style>
 </head>
@@ -257,8 +297,8 @@
   <div class="wall-header">
     <img id="wall-logo" class="wall-logo" src="../Images/FlockOS_Angels.png" alt="Trinity Baptist Church">
     <h1>Trinity Baptist Church</h1>
-    <div class="subtitle">Member Login</div>
-    <div class="verse">&ldquo;I am the gate; whoever enters through me will be saved.&rdquo; — John 10:9</div>
+    <div class="subtitle">Welcome back</div>
+    <div class="verse">&ldquo;I am the gate; whoever enters through me will be saved.&rdquo;<br>John 10:9</div>
   </div>
 
   <div id="alertBox" class="alert"></div>
@@ -270,21 +310,21 @@
     </div>
     <form id="loginForm" onsubmit="handleLogin(event)">
       <div class="field">
+        <input type="email" id="loginEmail" placeholder="Email" required autocomplete="email">
         <label for="loginEmail">Email</label>
-        <input type="email" id="loginEmail" placeholder="your@email.com" required autocomplete="email">
       </div>
       <div class="field">
+        <input type="password" id="loginPass" placeholder="Passcode" required autocomplete="current-password">
         <label for="loginPass">Passcode</label>
-        <input type="password" id="loginPass" placeholder="Enter your passcode" required autocomplete="current-password">
       </div>
       <button type="submit" class="btn btn-primary" id="loginBtn">Sign In</button>
     </form>
     <div class="links">
       <a onclick="showView('forgot')">Forgot passcode?</a>
-      <span class="sep">|</span>
+      <span class="sep">&middot;</span>
       <a onclick="showView('register')">Request access</a>
     </div>
-    <div class="links" style="margin-top:6px;">
+    <div class="links" style="margin-top:8px;">
       <a href="../../index.html">&larr; Return Home</a>
     </div>
   </div>
@@ -293,20 +333,20 @@
   <div id="registerView" class="view">
     <form id="registerForm" onsubmit="handleRegister(event)">
       <div class="field">
-        <label for="regFirst">First Name</label>
         <input type="text" id="regFirst" placeholder="First name" required autocomplete="given-name">
+        <label for="regFirst">First Name</label>
       </div>
       <div class="field">
-        <label for="regLast">Last Name</label>
         <input type="text" id="regLast" placeholder="Last name" autocomplete="family-name">
+        <label for="regLast">Last Name</label>
       </div>
       <div class="field">
+        <input type="email" id="regEmail" placeholder="Email" required autocomplete="email">
         <label for="regEmail">Email</label>
-        <input type="email" id="regEmail" placeholder="your@email.com" required autocomplete="email">
       </div>
       <div class="field">
+        <input type="password" id="regPass" placeholder="Passcode" required minlength="6" autocomplete="new-password">
         <label for="regPass">Passcode</label>
-        <input type="password" id="regPass" placeholder="6+ characters" required minlength="6" autocomplete="new-password">
       </div>
       <button type="submit" class="btn btn-primary" id="regBtn">Request Access</button>
     </form>
@@ -319,14 +359,14 @@
   <div id="forgotView" class="view">
     <form id="forgotForm" onsubmit="handleForgot(event)">
       <div class="field">
+        <input type="email" id="forgotEmail" placeholder="Email" required autocomplete="email">
         <label for="forgotEmail">Email</label>
-        <input type="email" id="forgotEmail" placeholder="your@email.com" required autocomplete="email">
       </div>
       <button type="submit" class="btn btn-primary" id="forgotBtn">Send Reset Code</button>
     </form>
     <div class="links">
       <a onclick="showView('login')">Back to sign in</a>
-      <span class="sep">|</span>
+      <span class="sep">&middot;</span>
       <a onclick="showView('reset')">I have a code</a>
     </div>
   </div>
@@ -335,16 +375,16 @@
   <div id="resetView" class="view">
     <form id="resetForm" onsubmit="handleReset(event)">
       <div class="field">
+        <input type="email" id="resetEmail" placeholder="Email" required autocomplete="email">
         <label for="resetEmail">Email</label>
-        <input type="email" id="resetEmail" placeholder="your@email.com" required autocomplete="email">
       </div>
       <div class="field">
+        <input type="text" id="resetCode" placeholder="Reset code" required maxlength="6" autocomplete="one-time-code">
         <label for="resetCode">Reset Code</label>
-        <input type="text" id="resetCode" placeholder="6-digit code from email" required maxlength="6" autocomplete="one-time-code">
       </div>
       <div class="field">
+        <input type="password" id="resetPass" placeholder="New passcode" required minlength="6" autocomplete="new-password">
         <label for="resetPass">New Passcode</label>
-        <input type="password" id="resetPass" placeholder="6+ characters" required minlength="6" autocomplete="new-password">
       </div>
       <button type="submit" class="btn btn-primary" id="resetBtn">Reset Passcode</button>
     </form>
