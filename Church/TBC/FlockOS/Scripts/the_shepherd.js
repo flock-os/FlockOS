@@ -1119,25 +1119,75 @@ const TheShepherd = (() => {
     }
   }
 
-  // ── Reset Passcode (admin) ──────────────────────────────────────────────
+  // ── Delete / Wipe User (admin) ────────────────────────────────────────
   async function _deleteUser(email) {
     if (!email) return;
-    var confirmed = confirm('PERMANENTLY DELETE this user?\n\n' + email + '\n\nThis will remove them from:\n• AuthUsers (login)\n• AccessControl (permissions)\n• UserProfiles\n• Members list\n• Permissions\n\nThis action CANNOT be undone.');
+    var confirmed = confirm(
+      'PERMANENTLY DELETE & WIPE this user?\n\n' + email +
+      '\n\nThis will remove ALL their data from:\n' +
+      '• AuthUsers / AccessControl / Permissions\n' +
+      '• Members / MemberCards / UserProfiles\n' +
+      '• Journal, Prayer Requests, To-Do items\n' +
+      '• Giving, Pledges, Volunteer records\n' +
+      '• Contact Log, Pastoral Notes, Milestones\n' +
+      '• Spiritual Care, Compassion, Outreach\n' +
+      '• Discipleship, Learning, Quiz Results\n' +
+      '• Conversations, Notifications, Calendar\n' +
+      '• Small Group memberships\n' +
+      '\nData is wiped from BOTH GAS and Firestore.\n\n' +
+      'This action CANNOT be undone.'
+    );
     if (!confirmed) return;
-    var doubleConfirm = confirm('Are you absolutely sure? Type OK to confirm deletion of ' + email);
+    var doubleConfirm = confirm('Are you absolutely sure? Type OK to confirm FULL WIPE of ' + email);
     if (!doubleConfirm) return;
+
+    _toast('Wiping user data…', 'info');
+
+    var gasOk = false, fbOk = false, fbResult = null;
+
+    // 1. GAS wipe — deletes AuthUsers + AccessControl + Permissions rows
     try {
-      var res = await TheVine.flock.users.delete({ targetEmail: email });
-      _toast('User deleted: ' + email, 'success');
-      if (typeof TheScrolls !== 'undefined') TheScrolls.log(TheScrolls.TYPES.ADMIN_ACTION, email, 'Admin deleted user', { personName: email });
-      // Also remove from Firestore if UpperRoom available
-      try {
-        if (typeof TheUpperRoom !== 'undefined' && TheUpperRoom.deleteMember) {
-          await TheUpperRoom.deleteMember(email);
-        }
-      } catch (_) { /* Firestore cleanup is best-effort */ }
-      renderApp(_container);
-    } catch (e) { alert('Delete failed: ' + (e.message || e)); }
+      await TheVine.flock.users.delete({ targetEmail: email });
+      gasOk = true;
+    } catch (e) {
+      console.warn('[Shepherd] GAS delete failed:', e);
+    }
+
+    // 2. Firestore cascade wipe — all collections
+    try {
+      if (typeof TheUpperRoom !== 'undefined' && TheUpperRoom.deleteUserCascade) {
+        fbResult = await TheUpperRoom.deleteUserCascade(email);
+        fbOk = true;
+      }
+    } catch (e) {
+      console.warn('[Shepherd] Firestore cascade failed:', e);
+    }
+
+    // === Build result summary ===
+    var parts = [];
+    if (gasOk) parts.push('GAS ✓');
+    else parts.push('GAS ✗');
+    if (fbOk && fbResult) {
+      var total = (fbResult.totalDeleted || 0) + (fbResult.totalUpdated || 0);
+      parts.push('Firestore ✓ (' + total + ' records)');
+    } else if (!fbOk && typeof TheUpperRoom !== 'undefined') {
+      parts.push('Firestore ✗');
+    }
+
+    if (gasOk || fbOk) {
+      _toast('User wiped: ' + email + ' — ' + parts.join(', '), 'success');
+      if (typeof TheScrolls !== 'undefined') {
+        TheScrolls.log(TheScrolls.TYPES.ADMIN_ACTION, email, 'Admin wiped user (full cascade)', {
+          personName: email,
+          gasDeleted: gasOk,
+          firestoreResult: fbResult ? fbResult.summary : null
+        });
+      }
+    } else {
+      alert('Wipe failed for both backends. Check console for details.');
+    }
+
+    renderApp(_container);
   }
 
   async function _resetPasscode(email) {

@@ -1090,6 +1090,147 @@
     return _membersRef().doc(id).delete();
   }
 
+  /* ── CASCADE DELETE — wipe all user data across every collection ── */
+  function deleteUserCascade(email) {
+    if (!email) return Promise.reject('email required');
+    email = email.toLowerCase();
+
+    var toDelete = [];   // { ref, label }
+    var toUpdate = [];   // { ref, data, label }
+
+    function _collect(ref, label) {
+      toDelete.push({ ref: ref, label: label });
+    }
+
+    function _sweep(collRef, field, value, label) {
+      return collRef.where(field, '==', value).get().then(function(snap) {
+        snap.forEach(function(doc) { _collect(doc.ref, label); });
+      });
+    }
+
+    function _sweepConvo(field) {
+      return _convosRef().where(field, 'array-contains', email).get().then(function(snap) {
+        snap.forEach(function(doc) {
+          var d = doc.data();
+          var arr = d[field] || [];
+          if (arr.length <= 1) {
+            _collect(doc.ref, 'conversations');
+          } else {
+            var upd = {};
+            upd[field] = firebase.firestore.FieldValue.arrayRemove(email);
+            if (field === 'subscribers') upd.subscriberCount = firebase.firestore.FieldValue.increment(-1);
+            else upd.memberCount = firebase.firestore.FieldValue.increment(-1);
+            toUpdate.push({ ref: doc.ref, data: upd, label: 'conversations (removed from)' });
+          }
+        });
+      });
+    }
+
+    // Step 1 — find member doc(s) by email
+    return _membersRef().where('primaryEmail', '==', email).limit(5).get()
+      .then(function(snap) {
+        var memberIds = [];
+        snap.forEach(function(doc) {
+          memberIds.push(doc.id);
+          _collect(doc.ref, 'members');
+        });
+
+        // Build unique lookup keys: email + any Firestore member doc IDs
+        var ids = [email];
+        memberIds.forEach(function(mid) { if (mid !== email && ids.indexOf(mid) === -1) ids.push(mid); });
+
+        var s = [];
+
+        // ── Direct doc-keyed by email ──
+        s.push(_permissionsRef().doc(email).get().then(function(d) { if (d.exists) _collect(d.ref, 'permissions'); }));
+        s.push(_accessRef().doc(email).get().then(function(d) { if (d.exists) _collect(d.ref, 'accessControl'); }));
+        var prefId = email.replace(/[^a-zA-Z0-9@._-]/g, '_');
+        s.push(_prefsRef().doc(prefId).get().then(function(d) { if (d.exists) _collect(d.ref, 'preferences'); }));
+
+        // ── Email-field queries ──
+        s.push(_sweep(_memberCardsRef(), 'email', email, 'memberCards'));
+        s.push(_sweep(_prayersRef(), 'submitterEmail', email, 'prayers'));
+        s.push(_sweep(_journalRef(), 'createdBy', email, 'journal'));
+        s.push(_sweep(_todosRef(), 'assignedTo', email, 'todos'));
+        s.push(_sweep(_notifsRef(), 'recipientEmail', email, 'notifications'));
+        s.push(_sweep(_calendarEventsRef(), 'email', email, 'calendarEvents'));
+        s.push(_sweep(_outreachContactsRef(), 'email', email, 'outreachContacts'));
+        s.push(_sweep(_outreachContactsRef(), 'assignedTo', email, 'outreachContacts'));
+
+        // ── memberId-based queries (email OR Firestore doc ID) ──
+        ids.forEach(function(mid) {
+          s.push(_sweep(_rsvpsRef(), 'memberId', mid, 'rsvps'));
+          s.push(_sweep(_volunteersRef(), 'memberId', mid, 'volunteers'));
+          s.push(_sweep(_givingRef(), 'memberId', mid, 'giving'));
+          s.push(_sweep(_pledgesRef(), 'memberId', mid, 'pledges'));
+          s.push(_sweep(_contactsRef(), 'memberId', mid, 'contactLog'));
+          s.push(_sweep(_notesRef(), 'memberId', mid, 'pastoralNotes'));
+          s.push(_sweep(_milestonesRef(), 'memberId', mid, 'milestones'));
+          s.push(_sweep(_careCasesRef(), 'memberId', mid, 'careCases'));
+          s.push(_sweep(_careAssignmentsRef(), 'memberId', mid, 'careAssignments'));
+          s.push(_sweep(_compassionRef(), 'memberId', mid, 'compassionRequests'));
+          s.push(_sweep(_discEnrollRef(), 'memberId', mid, 'discEnrollments'));
+          s.push(_sweep(_discGoalsRef(), 'memberId', mid, 'discGoals'));
+          s.push(_sweep(_discAssessRef(), 'memberId', mid, 'discAssessments'));
+          s.push(_sweep(_discMilestonesRef(), 'memberId', mid, 'discMilestones'));
+          s.push(_sweep(_discCertsRef(), 'memberId', mid, 'discCertificates'));
+          s.push(_sweep(_discMentoringRef(), 'mentorId', mid, 'discMentoring'));
+          s.push(_sweep(_discMentoringRef(), 'menteeId', mid, 'discMentoring'));
+          s.push(_sweep(_lrnProgressRef(), 'memberId', mid, 'lrnProgress'));
+          s.push(_sweep(_lrnNotesRef(), 'memberId', mid, 'lrnNotes'));
+          s.push(_sweep(_lrnCertsRef(), 'memberId', mid, 'lrnCertificates'));
+          s.push(_sweep(_lrnRecsRef(), 'memberId', mid, 'lrnRecommendations'));
+          s.push(_sweep(_lrnQuizResultsRef(), 'memberId', mid, 'lrnQuizResults'));
+        });
+
+        // ── Conversations: remove user from participant / subscriber arrays ──
+        s.push(_sweepConvo('participants'));
+        s.push(_sweepConvo('subscribers'));
+
+        // ── Group member subcollections: groups/{gid}/members/{memberId} ──
+        s.push(_groupsRef().get().then(function(gSnap) {
+          var gDels = [];
+          gSnap.forEach(function(gDoc) {
+            ids.forEach(function(mid) {
+              gDels.push(
+                _groupsRef().doc(gDoc.id).collection('members').doc(mid).get().then(function(mDoc) {
+                  if (mDoc.exists) _collect(mDoc.ref, 'groupMembers');
+                })
+              );
+            });
+          });
+          return Promise.all(gDels);
+        }));
+
+        return Promise.all(s);
+      })
+      .then(function() {
+        // ── Batch-delete all collected refs (max 450 ops per batch) ──
+        var allOps = toDelete.map(function(o) { return { type: 'delete', ref: o.ref, label: o.label }; })
+          .concat(toUpdate.map(function(o) { return { type: 'update', ref: o.ref, data: o.data, label: o.label }; }));
+
+        if (allOps.length === 0) return Promise.resolve();
+
+        var promises = [];
+        for (var i = 0; i < allOps.length; i += 450) {
+          var chunk = allOps.slice(i, i + 450);
+          var b = _db.batch();
+          chunk.forEach(function(op) {
+            if (op.type === 'delete') b.delete(op.ref);
+            else b.update(op.ref, op.data);
+          });
+          promises.push(b.commit());
+        }
+        return Promise.all(promises);
+      })
+      .then(function() {
+        var summary = {};
+        toDelete.forEach(function(o) { summary[o.label] = (summary[o.label] || 0) + 1; });
+        toUpdate.forEach(function(o) { summary[o.label] = (summary[o.label] || 0) + 1; });
+        return { success: true, totalDeleted: toDelete.length, totalUpdated: toUpdate.length, summary: summary };
+      });
+  }
+
   /* ══════════════════════════════════════════════════════════════════
      MEMBER CARDS — churches/{churchId}/memberCards
      ══════════════════════════════════════════════════════════════════ */
@@ -4160,6 +4301,7 @@
     createMember:    createMember,
     updateMember:    updateMember,
     deleteMember:    deleteMember,
+    deleteUserCascade: deleteUserCascade,
 
     // Member Cards
     listMemberCards:   listMemberCards,
