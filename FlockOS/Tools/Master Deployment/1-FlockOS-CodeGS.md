@@ -1475,24 +1475,65 @@ var MODULE_PERMISSIONS = {
  */
 
 /**
- * Normalize any Title Case param keys (produced by TheVine._normalizeOutgoing)
- * back to camelCase so all handlers can use params.churchId, params.shortName, etc.
- * e.g. "Church Id" → "churchId", "Short Name" → "shortName"
- * Keeps the original key as well so nothing breaks.
+ * Reverse-normalizes params that passed through TheVine._normalizeOutgoing().
+ * That function converts camelCase keys → Title Case for Google Sheet column
+ * headers, but GAS handlers read params as camelCase. This runs ONCE at the
+ * entry point to restore camelCase keys before any handler is called.
+ *
+ * Handles all four cases produced by _camelToTitle:
+ *   1. Single-word PascalCase: 'Locked'       → 'locked'
+ *   2. All-caps acronym:       'ID'            → 'id', 'URL' → 'url'
+ *   3. Multi-word Title Case:  'Church Name'   → 'churchName'
+ *   4. Acronym in multi-word:  'Member ID'     → 'memberId'
+ *   5. Hyphenated overrides:   'Follow-Up Date'→ 'followUpDate'
+ *
+ * Always keeps the original key–value pair so nothing that already worked breaks.
  */
 function _normalizeCamelParams(params) {
+  // Reverse of TheVine._ACRONYMS — maps all-caps output back to camelChunk form
+  // e.g. 'ID'→'Id'  so 'Member ID' splits to [member, Id] = 'memberId'
+  var REV = {
+    'ID':'Id','URL':'Url','BPM':'Bpm','CCLI':'Ccli','RSVP':'Rsvp',
+    'ZIP':'Zip','IP':'Ip','BG':'Bg','SMS':'Sms','ISO':'Iso',
+    'HTML':'Html','JSON':'Json','CSV':'Csv','DM':'Dm'
+  };
+  // Reverse of TheVine._HEADER_OVERRIDES (hyphenated / lowercase-preposition specials)
+  var OVERRIDES = {
+    'Date of Birth':'dateOfBirth','Date of Death':'dateOfDeath',
+    'Follow-Up Requested':'followUpRequested','Follow-Up Needed':'followUpNeeded',
+    'Follow-Up Date':'followUpDate','Follow-Up Completed':'followUpCompleted',
+    'Follow-Up Done':'followUpDone','Follow-Up Priority':'followUpPriority',
+    'Next Follow-Up':'nextFollowUp','Next Follow-Up Date':'nextFollowUpDate',
+    'Reply-To ID':'replyToId','In-App Enabled':'inAppEnabled',
+    'Co-Leader ID':'coLeaderId','Co-Lead ID':'coLeadId'
+  };
+  function toCamel(k) {
+    // 1. Direct override check (hyphenated / lowercase-preposition specials)
+    if (OVERRIDES.hasOwnProperty(k)) return OVERRIDES[k];
+    // 2. No space — PascalCase ('Locked'→'locked') or all-caps acronym ('ID'→'id')
+    if (k.indexOf(' ') === -1) {
+      var w = REV.hasOwnProperty(k) ? REV[k] : k;
+      return w.charAt(0).toLowerCase() + w.slice(1);
+    }
+    // 3. Multi-word Title Case with optional acronyms ('Member ID'→'memberId')
+    var parts = k.split(' ');
+    var camel = '';
+    for (var i = 0; i < parts.length; i++) {
+      var part = REV.hasOwnProperty(parts[i]) ? REV[parts[i]] : parts[i];
+      camel += (i === 0)
+        ? part.charAt(0).toLowerCase() + part.slice(1)
+        : part.charAt(0).toUpperCase() + part.slice(1);
+    }
+    return camel;
+  }
   var out = {};
   var keys = Object.keys(params);
   for (var i = 0; i < keys.length; i++) {
     var k = keys[i];
-    out[k] = params[k]; // always keep original
-    if (k.indexOf(' ') !== -1) {
-      var parts = k.split(' ');
-      var camel = parts[0].charAt(0).toLowerCase() + parts[0].slice(1);
-      for (var j = 1; j < parts.length; j++) {
-        camel += parts[j].charAt(0).toUpperCase() + parts[j].slice(1);
-      }
-      if (!out.hasOwnProperty(camel)) out[camel] = params[k];
+    out[k] = params[k];                                   // always preserve original
+    var camel = toCamel(k);
+    if (camel !== k && !out.hasOwnProperty(camel)) {
+      out[camel] = params[k];                             // add camelCase alias
     }
   }
   return out;
