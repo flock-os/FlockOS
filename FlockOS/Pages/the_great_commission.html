@@ -550,6 +550,25 @@ function _renderPage() {
     + '</div>'
     + '</div>';
 
+  // ── AppConfig Editor
+  var churchOptions = '<option value="">— Select a Church —</option>';
+  _churches.forEach(function(c) {
+    churchOptions += '<option value="' + _e(c.churchId) + '">' + _e(c.churchName || c.shortName) + '</option>';
+  });
+
+  html += '<div class="section-label">AppConfig Editor</div>'
+    + '<div style="background:var(--bg-raised);border:1px solid var(--line,rgba(255,255,255,0.08));border-radius:10px;padding:18px 20px;">'
+    + '<div style="display:flex;gap:8px;align-items:center;margin-bottom:14px;">'
+    + '<select id="appconfig-church-select" onchange="_gcLoadAppConfig()" style="flex:1;font-size:0.85rem;'
+    + 'background:var(--bg,#1a1a2e);border:1px solid var(--line,rgba(255,255,255,0.12));border-radius:6px;'
+    + 'padding:8px 10px;color:var(--ink);outline:none;">'
+    + churchOptions + '</select>'
+    + '<button onclick="_gcLoadAppConfig()" style="background:var(--accent);color:var(--ink-inverse);border:none;'
+    + 'border-radius:6px;padding:8px 14px;cursor:pointer;font-size:0.8rem;font-weight:600;white-space:nowrap;">&#8635; Load</button>'
+    + '</div>'
+    + '<div id="appconfig-editor-body"></div>'
+    + '</div>';
+
   main.innerHTML = html;
 }
 
@@ -642,6 +661,138 @@ async function _gcTestProvisionerUrl() {
     } else {
       _showResult('danger', '&#10007;', 'Unreachable', _e(msg), null);
     }
+  }
+}
+
+// ── AppConfig Editor ──────────────────────────────────────────────────────
+
+var _acRows    = [];   // current church's config rows
+var _acChurch  = '';   // current churchId
+
+async function _gcLoadAppConfig() {
+  var sel     = document.getElementById('appconfig-church-select');
+  var body    = document.getElementById('appconfig-editor-body');
+  var churchId = sel ? sel.value : '';
+  if (!churchId) { body.innerHTML = ''; return; }
+
+  _acChurch = churchId;
+  body.innerHTML = '<div style="display:flex;gap:10px;align-items:center;padding:14px 0;color:var(--ink-muted);font-size:0.83rem;">'
+    + '<div class="spin" style="width:18px;height:18px;border-width:2px;"></div>Loading AppConfig…</div>';
+
+  try {
+    var res = await TheVine.flock.call('church.config.list', { churchId: churchId });
+    _acRows = Array.isArray(res) ? res : (res && res.rows ? res.rows : []);
+    _gcRenderAppConfig();
+  } catch (e) {
+    body.innerHTML = '<div style="color:var(--danger,#f87171);font-size:0.83rem;padding:10px 0;">&#10007; '
+      + _e(e && e.message ? e.message : String(e)) + '</div>';
+  }
+}
+
+function _gcRenderAppConfig() {
+  var body    = document.getElementById('appconfig-editor-body');
+  if (!_acRows.length) {
+    body.innerHTML = '<div style="color:var(--ink-muted);font-size:0.83rem;padding:10px 0;">No config rows found.</div>';
+    return;
+  }
+
+  // Group by category
+  var groups = {};
+  _acRows.forEach(function(r) {
+    var cat = r.category || 'General';
+    if (!groups[cat]) groups[cat] = [];
+    groups[cat].push(r);
+  });
+
+  var html = '';
+  Object.keys(groups).sort().forEach(function(cat) {
+    html += '<div style="margin-bottom:18px;">'
+      + '<div style="font-size:0.75rem;font-weight:700;letter-spacing:0.08em;color:var(--ink-muted);'
+      + 'text-transform:uppercase;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid var(--line,rgba(255,255,255,0.08));">'
+      + _e(cat) + '</div>';
+
+    groups[cat].forEach(function(r, idx) {
+      var rowId = 'ac-row-' + _e(r.key).replace(/[^a-zA-Z0-9]/g, '_');
+      html += '<div id="' + rowId + '" style="display:grid;grid-template-columns:220px 1fr auto;gap:8px;align-items:start;'
+        + 'padding:7px 0;border-bottom:1px solid rgba(255,255,255,0.04);">'
+        // key + description
+        + '<div>'
+        + '<div style="font-size:0.82rem;font-family:monospace;color:var(--accent);">' + _e(r.key) + '</div>'
+        + (r.description ? '<div style="font-size:0.73rem;color:var(--ink-muted);margin-top:2px;line-height:1.4;">' + _e(r.description) + '</div>' : '')
+        + (r.updatedBy ? '<div style="font-size:0.7rem;color:rgba(255,255,255,0.3);margin-top:2px;">' + _e(r.updatedBy) + '</div>' : '')
+        + '</div>'
+        // value input
+        + '<input id="' + rowId + '-val" type="text" value="' + _e(r.value) + '"'
+        + ' style="font-size:0.82rem;font-family:monospace;background:var(--bg,#1a1a2e);'
+        + 'border:1px solid var(--line,rgba(255,255,255,0.12));border-radius:6px;padding:6px 9px;'
+        + 'color:var(--ink);outline:none;width:100%;" />'
+        // save button
+        + '<button onclick="_gcSaveAppConfigRow(\'' + _e(r.key) + '\',\'' + rowId + '\')" '
+        + 'style="background:var(--accent);color:var(--ink-inverse);border:none;border-radius:6px;'
+        + 'padding:6px 12px;cursor:pointer;font-size:0.78rem;font-weight:600;white-space:nowrap;">Save</button>'
+        + '</div>';
+    });
+
+    html += '</div>';
+  });
+
+  // Add new key row
+  html += '<div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--line,rgba(255,255,255,0.08));">'
+    + '<div style="font-size:0.82rem;color:var(--ink-muted);margin-bottom:8px;">Add / Override Key</div>'
+    + '<div style="display:grid;grid-template-columns:220px 1fr auto;gap:8px;align-items:start;">'
+    + '<input id="ac-new-key" type="text" placeholder="KEY_NAME"'
+    + ' style="font-size:0.82rem;font-family:monospace;background:var(--bg,#1a1a2e);'
+    + 'border:1px solid var(--line,rgba(255,255,255,0.12));border-radius:6px;padding:6px 9px;color:var(--ink);outline:none;" />'
+    + '<input id="ac-new-val" type="text" placeholder="Value"'
+    + ' style="font-size:0.82rem;font-family:monospace;background:var(--bg,#1a1a2e);'
+    + 'border:1px solid var(--line,rgba(255,255,255,0.12));border-radius:6px;padding:6px 9px;color:var(--ink);outline:none;" />'
+    + '<button onclick="_gcAddAppConfigKey()" style="background:var(--accent);color:var(--ink-inverse);'
+    + 'border:none;border-radius:6px;padding:6px 12px;cursor:pointer;font-size:0.78rem;font-weight:600;white-space:nowrap;">Add</button>'
+    + '</div>'
+    + '<div id="ac-new-result" style="margin-top:6px;font-size:0.78rem;min-height:16px;"></div>'
+    + '</div>';
+
+  body.innerHTML = html;
+}
+
+async function _gcSaveAppConfigRow(key, rowId) {
+  var input  = document.getElementById(rowId + '-val');
+  var btn    = input && input.parentElement && input.parentElement.querySelector('button');
+  var value  = input ? input.value : '';
+  if (!_acChurch) return;
+
+  if (btn) { btn.disabled = true; btn.textContent = '…'; }
+
+  try {
+    await TheVine.flock.call('church.config.set', { churchId: _acChurch, key: key, value: value });
+    if (btn) { btn.disabled = false; btn.textContent = '✓'; btn.style.background = 'var(--success,#4ade80)'; btn.style.color = '#000'; }
+    setTimeout(function() { if (btn) { btn.textContent = 'Save'; btn.style.background = ''; btn.style.color = ''; btn.disabled = false; } }, 1800);
+    // update local cache
+    _acRows.forEach(function(r) { if (r.key === key) r.value = value; });
+  } catch (e) {
+    if (btn) { btn.disabled = false; btn.textContent = '✗'; btn.style.background = 'var(--danger,#f87171)'; btn.style.color = '#fff'; }
+    setTimeout(function() { if (btn) { btn.textContent = 'Save'; btn.style.background = ''; btn.style.color = ''; btn.disabled = false; } }, 2500);
+  }
+}
+
+async function _gcAddAppConfigKey() {
+  var keyIn   = document.getElementById('ac-new-key');
+  var valIn   = document.getElementById('ac-new-val');
+  var resDiv  = document.getElementById('ac-new-result');
+  var key     = keyIn ? keyIn.value.trim() : '';
+  var value   = valIn ? valIn.value : '';
+  if (!key)       { if (resDiv) resDiv.innerHTML = '<span style="color:var(--warn,#fbbd24);">Enter a key name.</span>'; return; }
+  if (!_acChurch) { if (resDiv) resDiv.innerHTML = '<span style="color:var(--warn,#fbbd24);">Select a church first.</span>'; return; }
+
+  if (resDiv) resDiv.innerHTML = '<span style="color:var(--ink-muted);">Saving…</span>';
+  try {
+    await TheVine.flock.call('church.config.set', { churchId: _acChurch, key: key, value: value });
+    if (resDiv) resDiv.innerHTML = '<span style="color:var(--success,#4ade80);">&#10003; Saved. Reloading…</span>';
+    if (keyIn) keyIn.value = '';
+    if (valIn) valIn.value = '';
+    setTimeout(_gcLoadAppConfig, 900);
+  } catch (e) {
+    if (resDiv) resDiv.innerHTML = '<span style="color:var(--danger,#f87171);">&#10007; ' + _e(e && e.message ? e.message : String(e)) + '</span>';
   }
 }
 
