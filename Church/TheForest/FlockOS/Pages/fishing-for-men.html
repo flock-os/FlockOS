@@ -344,11 +344,11 @@
 
     <div class="highlight-grid">
       <div class="highlight-card">
-        <span class="num">43,000+</span>
+        <span class="num">51,000+</span>
         <span class="label">Lines of Frontend Code</span>
       </div>
       <div class="highlight-card">
-        <span class="num">26,200+</span>
+        <span class="num">27,550+</span>
         <span class="label">Lines of Backend Code</span>
       </div>
       <div class="highlight-card">
@@ -356,7 +356,7 @@
         <span class="label">Integrated Modules</span>
       </div>
       <div class="highlight-card">
-        <span class="num">1,500+</span>
+        <span class="num">2,800+</span>
         <span class="label">Functions</span>
       </div>
       <div class="highlight-card">
@@ -396,7 +396,7 @@
     <h3>&#x1F9D1;&#x200D;&#x2695;&#xFE0F; Pastoral Care</h3>
     <ul>
       <li>&ldquo;My Flock&rdquo; pastoral command hub with sub-tabs for care, prayer, compassion, outreach, discipleship, people, groups, and notes</li>
-      <li>Care case management with 14 care type workflows &mdash; Crisis, Grief, Marriage, Addiction, Hospital Visit, Medical, New Believer, Restoration, Counseling, Discipleship, Family, Financial, Shepherding, and Elder Care &mdash; each with a per-type guide panel, stage list, default priority level, and auto-injected notes template</li>
+      <li>Care case management with 24 care type workflows &mdash; Crisis, Grief, Marriage, Pre-Marriage, Addiction, Pornography/Sexual Addiction, Hospital Visit, Medical, Terminal Illness/End of Life, New Believer, New Member Integration, Restoration, Counseling, Mental Health, Gender Identity/Sexuality, Discipleship, Family, Financial, Shepherding, Elder Care, Abuse/Domestic Violence, Immigration/Deportation, Incarceration &amp; Re-Entry, and Pregnancy &amp; Infant Loss &mdash; each with a per-type guide panel, stage list, default priority level, and auto-injected notes template</li>
       <li>Automated care notifications: pastor alert on new case creation, direct caregiver assignment email, follow-up reminders when no contact is logged within the configured threshold, escalation to all pastors at 2&times; threshold</li>
       <li>Daily 6 AM pastoral summary email to all active pastors: open care cases sorted by priority, open prayer requests with age and assignment status, and active missions prayer focus items</li>
       <li>Prayer request system &mdash; public submission (no auth required) plus admin queue with replies, status updates, and notes</li>
@@ -479,7 +479,7 @@
   <section>
     <h2><span class="num">3</span> Custom Development Cost</h2>
     <div class="gospel">"Suppose one of you wants to build a tower. Won't you first sit down and estimate the cost?" &mdash; Luke 14:28</div>
-    <p>Based on current agency rates of $150&ndash;$200/hr and approximately 700&ndash;1,200 hours of development work across 69,200+ lines of code (43,000 frontend + 26,200 backend), here is the estimated cost to build FlockOS from scratch:</p>
+    <p>Based on current agency rates of $150&ndash;$200/hr and approximately 900&ndash;1,500 hours of development work across 88,500+ lines of code (51,000 frontend + 27,550 backend + 10,000 HTML), here is the estimated cost to build FlockOS from scratch:</p>
 
     <table>
       <thead>
@@ -492,43 +492,43 @@
       <tbody>
         <tr>
           <td>Backend &mdash; Unified API (Master Code.gs), auth, database engine, 200-tab schema</td>
-          <td>$30,000</td>
-          <td>$45,000</td>
+          <td>$32,000</td>
+          <td>$48,000</td>
         </tr>
         <tr>
-          <td>Control Panel &mdash; 30+ module UIs, 17,890-line admin hub (the_tabernacle.js)</td>
-          <td>$35,000</td>
-          <td>$55,000</td>
+          <td>Control Panel &mdash; 30+ module UIs, 19,451-line admin hub (the_tabernacle.js)</td>
+          <td>$40,000</td>
+          <td>$60,000</td>
         </tr>
         <tr>
           <td>Calendar &amp; Events &mdash; Recurring, 7-tier visibility, delegation, iCal, tasks, check-in</td>
+          <td>$16,000</td>
+          <td>$22,000</td>
+        </tr>
+        <tr>
+          <td>Pastoral Care &mdash; My Flock hub, 24 care type workflows, prayer, compassion, outreach</td>
+          <td>$14,000</td>
+          <td>$22,000</td>
+        </tr>
+        <tr>
+          <td>Learning Hub &mdash; Courses, quizzes, Bible browser, lexicon, genealogy, devotionals, certificates</td>
           <td>$14,000</td>
           <td>$20,000</td>
         </tr>
         <tr>
-          <td>Pastoral Care &mdash; My Flock hub, care cases, prayer, compassion, outreach</td>
+          <td>Communications &mdash; Messaging, SMS (Twilio), channels, templates, broadcast, read receipts</td>
           <td>$10,000</td>
           <td>$16,000</td>
         </tr>
         <tr>
-          <td>Learning Hub &mdash; Courses, quizzes, Bible browser, lexicon, genealogy, devotionals, certificates</td>
+          <td>Ministry &amp; Worship &mdash; Services, songs, Music Stand, sermons, volunteers, photos</td>
           <td>$12,000</td>
           <td>$18,000</td>
         </tr>
         <tr>
-          <td>Communications &mdash; Messaging, SMS (Twilio), channels, templates, broadcast, read receipts</td>
-          <td>$8,000</td>
-          <td>$14,000</td>
-        </tr>
-        <tr>
-          <td>Ministry &amp; Worship &mdash; Services, songs, Music Stand, sermons, volunteers, photos</td>
-          <td>$10,000</td>
-          <td>$16,000</td>
-        </tr>
-        <tr>
           <td>People Engine &mdash; Directory, profiles, member cards (QR/NFC), groups, interactions</td>
-          <td>$8,000</td>
-          <td>$12,000</td>
+          <td>$10,000</td>
+          <td>$14,000</td>
         </tr>
         <tr>
           <td>Security &mdash; 6-tier RBAC, per-user permissions, lockdown, audit, provisioning</td>
@@ -542,34 +542,34 @@
         </tr>
         <tr>
           <td>PWA &amp; Offline &mdash; Service worker, IndexedDB offline mode, backup/restore, device integration</td>
-          <td>$6,000</td>
-          <td>$10,000</td>
+          <td>$8,000</td>
+          <td>$12,000</td>
         </tr>
         <tr>
           <td>Missions, Giving, Statistics, Reporting, Discipleship</td>
-          <td>$8,000</td>
-          <td>$14,000</td>
+          <td>$10,000</td>
+          <td>$16,000</td>
         </tr>
         <tr>
           <td>Documentation, testing, deployment pipeline, multi-church build system</td>
-          <td>$5,000</td>
-          <td>$8,000</td>
+          <td>$6,000</td>
+          <td>$10,000</td>
         </tr>
         <tr class="row-total">
           <td>Total Custom Build</td>
-          <td>$160,000</td>
-          <td>$250,000</td>
+          <td>$200,000</td>
+          <td>$290,000</td>
         </tr>
       </tbody>
     </table>
 
     <div class="highlight-grid">
       <div class="highlight-card">
-        <span class="num">$205,000</span>
+        <span class="num">$245,000</span>
         <span class="label">Average Build Cost</span>
       </div>
       <div class="highlight-card">
-        <span class="num">700&ndash;1,200</span>
+        <span class="num">900&ndash;1,500</span>
         <span class="label">Development Hours</span>
       </div>
       <div class="highlight-card">
@@ -693,9 +693,9 @@
       <tbody>
         <tr>
           <td>Replacement build cost</td>
-          <td>$160,000</td>
-          <td>$250,000</td>
-          <td>$205,000</td>
+          <td>$200,000</td>
+          <td>$290,000</td>
+          <td>$245,000</td>
         </tr>
         <tr>
           <td>Equivalent SaaS (5-year TCO)</td>
@@ -773,8 +773,8 @@
   <div class="summary-banner">
     <h2>&#x1F3A3; The Bottom Line</h2>
     <p>
-      The Forest delivers <strong>$205,000</strong> in custom development value across
-      <strong>69,200+ lines of code</strong>, <strong>30+ modules</strong>, and <strong>1,500+ functions</strong> &mdash; with
+      The Forest delivers <strong>$245,000</strong> in custom development value across
+      <strong>88,500+ lines of code</strong>, <strong>30+ modules</strong>, and <strong>2,800+ functions</strong> &mdash; with
       <strong>$0</strong> annual licensing, running on free Google infrastructure.
       Average ongoing maintenance is <strong>$16,750/yr</strong> &mdash; a fraction of
       the $3,000&ndash;$7,200/yr commercial alternatives charge <em>before</em> you even
@@ -789,7 +789,7 @@
 
 <footer>
   <a href="the_pentecost.html" style="color:var(--accent);text-decoration:none;font-size:0.9rem;">&larr; Back to Deployment Guide</a><br><br>
-  The Forest &mdash; Value Proposition &middot; Value Proposition &middot; Updated April 4, 2026<br>
+  The Forest &mdash; Value Proposition &middot; Value Proposition &middot; Updated April 9, 2026<br>
   <em>"Come, follow me, and I will send you out to fish for people." &mdash; Matthew 4:19</em><br><br>
   This file is local-only and excluded from Git.
 </footer>
