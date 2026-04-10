@@ -546,7 +546,7 @@ function _renderPage() {
     + 'border:none;border-radius:6px;padding:7px 14px;cursor:pointer;font-size:0.8rem;font-weight:600;white-space:nowrap;">'
     + 'Test URL</button>'
     + '</div>'
-    + '<div id="provisioner-test-result" style="margin-top:8px;font-size:0.78rem;min-height:18px;"></div>'
+    + '<div id="provisioner-test-result" style="margin-top:10px;display:none;border-radius:8px;overflow:hidden;"></div>'
     + '</div>'
     + '</div>';
 
@@ -559,11 +559,47 @@ async function _gcTestProvisionerUrl() {
   var input  = document.getElementById('provisioner-test-url');
   var result = document.getElementById('provisioner-test-result');
   var url    = (input && input.value || '').trim();
-  if (!url) { result.innerHTML = '<span style="color:var(--warn,#f90);">Enter a URL first.</span>'; return; }
 
-  result.innerHTML = '<span style="color:var(--ink-muted);">Testing…</span>';
+  function _showResult(state, icon, title, detail, finalUrl) {
+    // state: 'success' | 'warn' | 'danger' | 'info'
+    var colors = {
+      success: { bg: 'rgba(40,180,80,0.12)', border: 'rgba(40,180,80,0.35)', icon: '#4c4', title: '#6e6' },
+      warn:    { bg: 'rgba(255,160,0,0.12)', border: 'rgba(255,160,0,0.35)',  icon: '#f90', title: '#fb3' },
+      danger:  { bg: 'rgba(200,50,50,0.12)', border: 'rgba(200,50,50,0.35)', icon: '#d44', title: '#e66' },
+      info:    { bg: 'rgba(80,140,255,0.10)', border: 'rgba(80,140,255,0.30)', icon: '#6af', title: '#8cf' },
+    };
+    var c = colors[state] || colors.info;
+    var urlRow = finalUrl
+      ? '<div style="margin-top:6px;font-size:0.76rem;font-family:monospace;color:var(--ink-muted);word-break:break-all;">'
+        + '&#8618; ' + _e(finalUrl) + '</div>'
+      : '';
+    result.style.display = '';
+    result.innerHTML =
+      '<div style="display:flex;gap:12px;align-items:flex-start;padding:14px 16px;'
+      + 'background:' + c.bg + ';border:1px solid ' + c.border + ';border-radius:8px;">'
+      + '<div style="font-size:1.5rem;line-height:1;color:' + c.icon + ';flex-shrink:0;">' + icon + '</div>'
+      + '<div style="flex:1;">'
+      + '<div style="font-size:0.85rem;font-weight:600;color:' + c.title + ';margin-bottom:3px;">' + title + '</div>'
+      + '<div style="font-size:0.78rem;color:var(--ink-muted);line-height:1.6;">' + detail + '</div>'
+      + urlRow
+      + '</div>'
+      + '</div>';
+  }
 
-  // Append a no-op ping param so query-string forwarding can be verified
+  if (!url) {
+    _showResult('warn', '&#9888;', 'No URL entered', 'Enter a URL in the field above before testing.');
+    return;
+  }
+
+  result.style.display = '';
+  result.innerHTML =
+    '<div style="display:flex;gap:12px;align-items:center;padding:14px 16px;'
+    + 'background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:8px;">'
+    + '<div class="spin" style="width:18px;height:18px;border-width:2px;"></div>'
+    + '<div style="font-size:0.82rem;color:var(--ink-muted);">Testing&nbsp;<span style="font-family:monospace;color:var(--accent);">' + _e(url) + '</span>…</div>'
+    + '</div>';
+
+  // Append a ping param to verify query-string forwarding
   var testUrl = url + (url.indexOf('?') >= 0 ? '&' : '?') + 'action=ping';
 
   try {
@@ -572,26 +608,39 @@ async function _gcTestProvisionerUrl() {
     var text = '';
     try { text = await resp.text(); } catch (_) {}
 
-    // Determine if query params survived the redirect
     var paramsPreserved = finalUrl.indexOf('action=ping') >= 0 || text.indexOf('ping') >= 0;
+    var wasRedirected   = finalUrl && finalUrl !== testUrl;
 
     if (resp.ok || resp.status === 200) {
       if (paramsPreserved) {
-        result.innerHTML = '<span style="color:var(--success,#4c4);">&#10003; Reachable and query params forwarded correctly.</span>';
-      } else if (finalUrl && finalUrl !== testUrl) {
-        result.innerHTML = '<span style="color:var(--warn,#f90);">&#9888; Reachable but query params appear to be dropped by the redirect. Provisioning will fail.</span>';
+        _showResult('success', '&#10003;', 'Reachable — Query params forwarded',
+          'The URL resolved and query parameters survived the redirect. Provisioning will work correctly.',
+          wasRedirected ? finalUrl : null);
+      } else if (wasRedirected) {
+        _showResult('warn', '&#9888;', 'Reachable — Query params dropped',
+          'The URL resolved but query parameters were stripped by the redirect. Provisioning will fail — enable “Forward with query string” in your DNS settings.',
+          finalUrl);
       } else {
-        result.innerHTML = '<span style="color:var(--success,#4c4);">&#10003; Reachable (status ' + resp.status + ').</span>';
+        _showResult('success', '&#10003;', 'Reachable (HTTP ' + resp.status + ')',
+          'The URL responded successfully. Query param forwarding could not be verified — test with a real provision run to confirm.',
+          null);
       }
     } else {
-      result.innerHTML = '<span style="color:var(--warn,#f90);">&#9888; Responded with HTTP ' + resp.status + '.</span>';
+      _showResult('warn', '&#9888;', 'HTTP ' + resp.status + ' response',
+        'The server responded but returned a non-success status code.',
+        wasRedirected ? finalUrl : null);
     }
   } catch (err) {
-    // CORS block is actually a good sign — it means the URL resolved
-    if (err && err.message && (err.message.indexOf('CORS') >= 0 || err.message.indexOf('NetworkError') >= 0 || err.message.indexOf('Failed to fetch') >= 0)) {
-      result.innerHTML = '<span style="color:var(--success,#4c4);">&#10003; URL resolved (CORS block = server responded). Query param forwarding cannot be confirmed here — test manually.</span>';
+    // CORS / network error — if CORS, the URL resolved (good sign)
+    var msg = err && err.message ? err.message : String(err);
+    var isCors = msg.indexOf('CORS') >= 0 || msg.indexOf('NetworkError') >= 0 || msg.indexOf('Failed to fetch') >= 0;
+    if (isCors) {
+      _showResult('info', '&#8505;', 'URL resolved (CORS block)',
+        'The server responded but the browser blocked the response due to CORS. This is normal for GAS endpoints. '
+        + 'Query param forwarding cannot be auto-confirmed — open the URL manually in a new tab to verify.',
+        null);
     } else {
-      result.innerHTML = '<span style="color:var(--danger,#d44);">&#10007; Unreachable: ' + _e(err && err.message ? err.message : String(err)) + '</span>';
+      _showResult('danger', '&#10007;', 'Unreachable', _e(msg), null);
     }
   }
 }
