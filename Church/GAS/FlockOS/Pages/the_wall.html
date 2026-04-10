@@ -43,28 +43,39 @@
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       background: var(--bg);
       color: var(--text);
-      min-height: 100vh;
+      min-height: 100dvh;
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
-      padding: 20px 20px 200px;
+      padding: 20px 20px 60px;
+      background-image: radial-gradient(ellipse at 50% 0%, var(--accent-dim) 0%, transparent 70%);
     }
 
     /* ── Card ── */
     .wall {
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 40px 36px 36px;
+      border-radius: 20px;
+      padding: 44px 36px 36px;
       width: 100%;
       max-width: 420px;
       position: relative;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.04);
     }
 
     /* ── Header ── */
     .wall-header {
       text-align: center;
-      margin-bottom: 32px;
+      margin-bottom: 28px;
+    }
+    .wall-logo {
+      width: 88px;
+      height: 88px;
+      border-radius: 22px;
+      object-fit: contain;
+      margin-bottom: 16px;
+      filter: drop-shadow(0 4px 12px rgba(0,0,0,0.1));
     }
     .wall-header h1 {
       font-size: 1.6rem;
@@ -74,14 +85,17 @@
     }
     .wall-header .subtitle {
       color: var(--muted);
-      font-size: 0.88rem;
-      margin-top: 4px;
+      font-size: 0.85rem;
+      margin-top: 6px;
+      font-weight: 500;
     }
     .wall-header .verse {
       color: var(--gold);
       font-style: italic;
-      font-size: 0.8rem;
-      margin-top: 8px;
+      font-size: 0.78rem;
+      margin-top: 10px;
+      line-height: 1.4;
+      opacity: 0.85;
     }
 
     /* ── Views (login / register / forgot / reset) ── */
@@ -115,6 +129,7 @@
     }
     .field input:focus {
       border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-dim);
     }
     .field input::placeholder {
       color: var(--muted);
@@ -143,8 +158,9 @@
     .btn-primary {
       background: var(--accent);
       color: var(--ink-inverse, var(--bg));
+      box-shadow: 0 2px 8px var(--accent-dim);
     }
-    .btn-primary:hover:not(:disabled) { opacity: 0.88; }
+    .btn-primary:hover:not(:disabled) { opacity: 0.88; box-shadow: 0 4px 14px var(--accent-dim); }
 
     /* ── Links ── */
     .links {
@@ -239,9 +255,10 @@
   <button class="back" id="backBtn" onclick="showView('login')" aria-label="Back to login">&larr;</button>
 
   <div class="wall-header">
+    <img id="wall-logo" class="wall-logo" src="../Images/FlockOS_ODCamo.png" alt="FlockOS-GAS">
     <h1>FlockOS-GAS</h1>
-    <div class="subtitle">The Wall — Member Login</div>
-    <div class="verse">"I am the gate; whoever enters through me will be saved." — John 10:9</div>
+    <div class="subtitle">Member Login</div>
+    <div class="verse">&ldquo;I am the gate; whoever enters through me will be saved.&rdquo; — John 10:9</div>
   </div>
 
   <div id="alertBox" class="alert"></div>
