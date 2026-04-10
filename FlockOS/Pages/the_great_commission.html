@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>FlockOS — Great Commission</title>
+  <link rel="icon" type="image/png" href="../Images/FlockOS_Camo.png">
+  <link rel="apple-touch-icon" href="../Images/FlockOS_Camo.png">
+  <link rel="manifest" href="../../manifest.json">
+  <meta name="theme-color" content="#e8a838">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;600;700&family=Noto+Serif:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --topbar-h: 56px;
+      /* Fallback values — overridden by Fine Linen theme system */
+      --bg: #1a1a2e;
+      --bg-raised: #16213e;
+      --ink: #e0e0e0;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { font-size: 100%; -webkit-text-size-adjust: 100%; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      line-height: 1.6;
+      min-height: 100vh;
+      min-height: 100dvh;
+    }
+
+    /* ── Top Bar ─────────────────────────────────────────────────────────── */
+    .topbar {
+      position: fixed; top: 0; left: 0; right: 0;
+      height: var(--topbar-h);
+      background: var(--bg-raised);
+      border-bottom: 1px solid var(--line, rgba(255,255,255,0.08));
+      display: flex; align-items: center; padding: 0 20px;
+      z-index: 100; gap: 12px;
+    }
+    .topbar-brand {
+      font-size: 1.05rem; font-weight: 700;
+      color: var(--accent, #7eaacc); letter-spacing: 0.04em;
+      margin-right: auto;
+    }
+    .topbar-brand span {
+      color: var(--gold, #e8a838); font-weight: 400;
+      font-size: 0.78rem; margin-left: 8px;
+    }
+    .topbar-user { display: flex; align-items: center; gap: 12px; }
+    .topbar-user .name { color: var(--ink); font-size: 0.85rem; font-weight: 500; }
+    .back-link {
+      background: none; border: 1px solid var(--line, rgba(255,255,255,0.08));
+      border-radius: 6px; color: var(--ink-muted, #999); font-size: 0.78rem;
+      padding: 5px 12px; cursor: pointer; font-family: inherit;
+      text-decoration: none; transition: all 0.2s; display: inline-flex; align-items: center; gap: 5px;
+    }
+    .back-link:hover { border-color: var(--accent, #7eaacc); color: var(--accent, #7eaacc); }
+    .logout-btn {
+      background: none; border: 1px solid var(--line, rgba(255,255,255,0.08));
+      border-radius: 6px; color: var(--ink-muted, #999); font-size: 0.78rem;
+      padding: 5px 12px; cursor: pointer; font-family: inherit; transition: all 0.2s;
+    }
+    .logout-btn:hover { border-color: var(--danger, #f87171); color: var(--danger, #f87171); }
+
+    /* ── Main Content ──────────────────────────────────────────────────── */
+    .main {
+      margin-top: var(--topbar-h);
+      padding: 32px 24px 120px;
+      max-width: 1200px;
+      margin-left: auto; margin-right: auto;
+    }
+    @media (max-width: 600px) { .main { padding: 20px 12px 80px; } }
+
+    /* ── Page Header ──────────────────────────────────────────────────── */
+    .page-header {
+      margin-bottom: 28px; padding-bottom: 18px;
+      border-bottom: 1px solid var(--line, rgba(255,255,255,0.08));
+      display: flex; flex-wrap: wrap; justify-content: space-between;
+      align-items: flex-start; gap: 16px;
+    }
+    .page-header h1 { color: var(--accent, #7eaacc); font-weight: 700; font-size: 1.5rem; }
+    .page-header p { color: var(--ink-muted, #999); margin-top: 4px; font-size: 0.88rem; }
+    .header-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+
+    /* ── Buttons ──────────────────────────────────────────────────────── */
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 9px 18px; border-radius: 8px; font-size: 0.84rem;
+      font-family: inherit; font-weight: 600; cursor: pointer;
+      border: 1px solid var(--accent, #7eaacc);
+      background: var(--accent-soft, rgba(126,170,204,0.1));
+      color: var(--accent, #7eaacc);
+      transition: all 0.2s; text-decoration: none;
+    }
+    .btn:hover {
+      background: var(--accent, #7eaacc);
+      color: var(--bg, #1a1a2e);
+    }
+    .btn-primary {
+      background: var(--accent, #7eaacc);
+      color: var(--bg, #1a1a2e);
+    }
+    .btn-primary:hover { opacity: 0.88; color: var(--bg, #1a1a2e); }
+    .btn-gold {
+      border-color: var(--gold, #e8a838);
+      background: rgba(232,168,56,0.1);
+      color: var(--gold, #e8a838);
+    }
+    .btn-gold:hover { background: var(--gold, #e8a838); color: var(--bg, #1a1a2e); }
+    .btn-danger { border-color: var(--danger, #f87171); background: rgba(248,113,113,0.08); color: var(--danger, #f87171); }
+    .btn-danger:hover { background: var(--danger, #f87171); color: #fff; }
+    .btn-sm { padding: 4px 10px; font-size: 0.76rem; border-radius: 5px; }
+
+    /* ── Cards ────────────────────────────────────────────────────────── */
+    .stat-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 14px; margin-bottom: 28px;
+    }
+    .stat-card {
+      background: var(--bg-raised, #16213e);
+      border: 1px solid var(--line, rgba(255,255,255,0.08));
+      border-radius: 10px; padding: 18px 20px; text-align: center;
+    }
+    .stat-card .stat-value { font-size: 2rem; font-weight: 700; color: var(--accent, #7eaacc); }
+    .stat-card .stat-label { font-size: 0.75rem; color: var(--ink-muted, #999); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.06em; }
+
+    /* ── Info Banner ─────────────────────────────────────────────────── */
+    .seed-banner {
+      background: rgba(232,168,56,0.08);
+      border: 1px solid rgba(232,168,56,0.25);
+      border-radius: 8px; padding: 10px 16px;
+      font-size: 0.82rem; color: var(--gold, #e8a838);
+      margin-bottom: 24px; display: flex; align-items: center; gap: 8px;
+    }
+
+    /* ── Data Table ─────────────────────────────────────────────────── */
+    .table-wrap {
+      background: var(--bg-raised, #16213e);
+      border: 1px solid var(--line, rgba(255,255,255,0.08));
+      border-radius: 10px; overflow: hidden;
+    }
+    .data-table { width: 100%; border-collapse: collapse; }
+    .data-table th, .data-table td {
+      text-align: left; padding: 11px 16px;
+      border-bottom: 1px solid var(--line, rgba(255,255,255,0.08));
+      font-size: 0.85rem;
+    }
+    .data-table th {
+      color: var(--accent, #7eaacc); font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.06em;
+      background: rgba(0,0,0,0.15); font-size: 0.73rem;
+    }
+    .data-table tr:last-child td { border-bottom: none; }
+    .data-table tbody tr { cursor: pointer; transition: background 0.12s; }
+    .data-table tbody tr:hover td { background: rgba(126,170,204,0.05); }
+    @media (max-width: 768px) {
+      .data-table .col-db, .data-table .col-created { display: none; }
+    }
+
+    /* ── Badges ──────────────────────────────────────────────────────── */
+    .badge {
+      display: inline-block; padding: 2px 9px; border-radius: 5px;
+      font-size: 0.71rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+    }
+    .badge-success { background: rgba(74,222,128,0.12); color: var(--success, #4ade80); }
+    .badge-warn    { background: rgba(251,191,36,0.12);  color: var(--warning, #fbbd24); }
+    .badge-danger  { background: rgba(248,113,113,0.12); color: var(--danger,  #f87171); }
+    .badge-info    { background: var(--accent-soft, rgba(126,170,204,0.1)); color: var(--accent, #7eaacc); }
+
+    /* ── Loading / Empty ─────────────────────────────────────────────── */
+    .loading { text-align: center; padding: 48px 20px; color: var(--ink-muted, #999); }
+    .loading .spin {
+      display: inline-block; width: 26px; height: 26px;
+      border: 3px solid var(--line, rgba(255,255,255,0.08));
+      border-top-color: var(--accent, #7eaacc);
+      border-radius: 50%; animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .empty-state { text-align: center; padding: 60px 20px; color: var(--ink-muted, #999); }
+    .empty-state .icon { font-size: 2rem; margin-bottom: 12px; opacity: 0.4; }
+    .empty-state h3 { color: var(--ink); margin-bottom: 6px; }
+
+    /* ── Modal ───────────────────────────────────────────────────────── */
+    .modal-backdrop {
+      position: fixed; inset: 0; z-index: 1000;
+      background: rgba(0,0,0,0.65); display: flex;
+      align-items: center; justify-content: center; padding: 20px;
+    }
+    .modal-box {
+      background: var(--bg-raised, #16213e);
+      border: 1px solid var(--line, rgba(255,255,255,0.08));
+      border-radius: 12px; width: 100%; max-width: 540px;
+      max-height: calc(100vh - 80px); display: flex; flex-direction: column;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    }
+    .modal-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 18px 22px 14px; border-bottom: 1px solid var(--line, rgba(255,255,255,0.08));
+    }
+    .modal-title { font-weight: 700; font-size: 1rem; color: var(--accent, #7eaacc); }
+    .modal-close {
+      background: none; border: none; color: var(--ink-muted, #999);
+      font-size: 1.3rem; cursor: pointer; line-height: 1; padding: 2px 6px;
+    }
+    .modal-close:hover { color: var(--danger, #f87171); }
+    .modal-body { padding: 18px 22px; overflow-y: auto; flex: 1; }
+    .modal-footer {
+      padding: 14px 22px 18px;
+      border-top: 1px solid var(--line, rgba(255,255,255,0.08));
+      display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end;
+    }
+
+    /* ── Form Fields ─────────────────────────────────────────────────── */
+    .field { margin-bottom: 14px; }
+    .field label {
+      display: block; font-size: 0.78rem; font-weight: 600;
+      color: var(--ink-muted, #999); margin-bottom: 5px;
+      text-transform: uppercase; letter-spacing: 0.04em;
+    }
+    .field input, .field select, .field textarea {
+      width: 100%; padding: 9px 12px; border-radius: 7px;
+      border: 1px solid var(--line, rgba(255,255,255,0.08));
+      background: var(--bg, #1a1a2e); color: var(--ink);
+      font-size: 0.85rem; font-family: inherit; outline: none;
+      transition: border-color 0.2s;
+    }
+    .field input:focus, .field select:focus, .field textarea:focus {
+      border-color: var(--accent, #7eaacc);
+    }
+    .field input[type="color"] { height: 38px; padding: 3px 6px; cursor: pointer; }
+    .field textarea { resize: vertical; min-height: 72px; }
+
+    /* ── Toast ───────────────────────────────────────────────────────── */
+    #gc-toast-wrap {
+      position: fixed; bottom: 24px; right: 24px; z-index: 9999;
+      display: flex; flex-direction: column; gap: 8px;
+      pointer-events: none;
+    }
+    .gc-toast {
+      background: var(--bg-raised, #16213e);
+      border: 1px solid var(--line, rgba(255,255,255,0.08));
+      border-radius: 8px; padding: 10px 18px;
+      font-size: 0.83rem; color: var(--ink);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.35);
+      animation: toast-in 0.25s ease;
+      pointer-events: auto;
+    }
+    .gc-toast.success { border-left: 3px solid var(--success, #4ade80); }
+    .gc-toast.warn    { border-left: 3px solid var(--warning, #fbbd24); }
+    .gc-toast.danger  { border-left: 3px solid var(--danger,  #f87171); }
+    @keyframes toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* ── Section ─────────────────────────────────────────────────────── */
+    .section-label {
+      font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.1em; color: var(--ink-muted, #999);
+      margin: 28px 0 12px; display: flex; align-items: center; gap: 10px;
+    }
+    .section-label::after {
+      content: ''; flex: 1; height: 1px;
+      background: var(--line, rgba(255,255,255,0.08));
+    }
+
+    /* ── Controls cell ───────────────────────────────────────────────── */
+    .ctrl-cell { display: flex; gap: 6px; flex-wrap: wrap; }
+  </style>
+</head>
+<body>
+
+<!-- ─── TOP BAR ─────────────────────────────────────────────────────────── -->
+<div class="topbar">
+  <div class="topbar-brand">FlockOS <span>Great Commission</span></div>
+  <div class="topbar-user">
+    <span class="name" id="gc-user-name"></span>
+    <a class="back-link" href="the_good_shepherd.html">&#8592; Dashboard</a>
+    <button class="logout-btn" onclick="Nehemiah.logout()">Sign Out</button>
+  </div>
+</div>
+
+<!-- ─── MAIN ──────────────────────────────────────────────────────────── -->
+<div class="main" id="gc-main">
+  <div class="loading"><div class="spin"></div>&nbsp; Loading…</div>
+</div>
+
+<!-- ─── TOAST CONTAINER ───────────────────────────────────────────────── -->
+<div id="gc-toast-wrap"></div>
+
+<!-- ─── SCRIPTS ───────────────────────────────────────────────────────── -->
+<script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script defer src="../Scripts/the_upper_room.js"></script>
+<script defer src="../Scripts/fine_linen.js"></script>
+<script defer src="../Scripts/the_true_vine.js"></script>
+<script defer src="../Scripts/the_wellspring.js"></script>
+<script defer src="../Scripts/the_well.js"></script>
+<script defer src="../Scripts/firm_foundation.js"></script>
+
+<script>
+// ══════════════════════════════════════════════════════════════════════════
+// THE GREAT COMMISSION — Church Command Center (seed admin only)
+// ══════════════════════════════════════════════════════════════════════════
+
+const _PROVISIONER_URL = 'https://script.google.com/macros/s/AKfycbwngAJULbve_-WBeZTS9MQLkdPohdlhTKI1ARJxqU9wu28vTpfQem8gSxFeSHr2k2jX/exec';
+
+let _churches = [];
+let _gcSession = null;
+
+// ── Utilities ─────────────────────────────────────────────────────────────
+
+function _e(str) {
+  return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function _toast(msg, type) {
+  type = type || 'success';
+  var wrap = document.getElementById('gc-toast-wrap');
+  if (!wrap) return;
+  var t = document.createElement('div');
+  t.className = 'gc-toast ' + type;
+  t.textContent = msg;
+  wrap.appendChild(t);
+  setTimeout(function() { t.style.opacity = '0'; t.style.transition = 'opacity 0.4s'; setTimeout(function() { t.remove(); }, 400); }, 3500);
+}
+
+function _statusBadge(status, locked) {
+  if (locked || (status || '').toLowerCase() === 'locked') {
+    return '<span class="badge badge-danger">&#128274; Locked</span>';
+  }
+  var s = (status || 'Active').toLowerCase();
+  if (s === 'active')   return '<span class="badge badge-success">' + _e(status) + '</span>';
+  if (s === 'inactive') return '<span class="badge badge-warn">'    + _e(status) + '</span>';
+  if (s === 'suspended' || s === 'disabled') return '<span class="badge badge-danger">' + _e(status) + '</span>';
+  return '<span class="badge badge-info">' + _e(status) + '</span>';
+}
+
+// ── Modal ─────────────────────────────────────────────────────────────────
+
+/**
+ * Render a form modal.
+ * @param {string}   title
+ * @param {Array}    fields   — [{name, label, type, value, required, options, html}]
+ * @param {Function} onSave   — async fn(data)
+ * @param {Function} [onDelete] — async fn() — shows Delete button when provided
+ * @param {string}   [saveLabel]
+ */
+function _gcModal(title, fields, onSave, onDelete, saveLabel) {
+  var existing = document.getElementById('gc-modal');
+  if (existing) existing.remove();
+
+  var bodyHtml = '';
+  fields.forEach(function(f) {
+    if (f.type === 'html') {
+      bodyHtml += f.html || '';
+      return;
+    }
+    var req = f.required ? ' required' : '';
+    var val = _e(f.value !== undefined ? f.value : '');
+    var id  = 'gcf-' + f.name;
+
+    bodyHtml += '<div class="field"><label for="' + id + '">' + _e(f.label || '') + (f.required ? ' *' : '') + '</label>';
+    if (f.type === 'select') {
+      var opts = (f.options || []).map(function(o) {
+        var v = typeof o === 'object' ? o.value : o;
+        var l = typeof o === 'object' ? o.label : o;
+        var sel = String(v) === String(f.value || '') ? ' selected' : '';
+        return '<option value="' + _e(v) + '"' + sel + '>' + _e(l) + '</option>';
+      }).join('');
+      bodyHtml += '<select id="' + id + '" name="' + f.name + '"' + req + '>' + opts + '</select>';
+    } else if (f.type === 'textarea') {
+      bodyHtml += '<textarea id="' + id + '" name="' + f.name + '"' + req + '>' + val + '</textarea>';
+    } else {
+      bodyHtml += '<input id="' + id + '" name="' + f.name + '" type="' + (f.type || 'text') + '" value="' + val + '"' + req + '>';
+    }
+    bodyHtml += '</div>';
+  });
+
+  var footerHtml = '';
+  if (onDelete) {
+    footerHtml += '<button type="button" class="btn btn-danger" id="gc-modal-delete">Delete</button>';
+    footerHtml += '<span style="flex:1"></span>';
+  }
+  footerHtml += '<button type="button" class="btn" id="gc-modal-cancel">Cancel</button>';
+  footerHtml += '<button type="button" class="btn btn-primary" id="gc-modal-save">' + _e(saveLabel || 'Save') + '</button>';
+
+  var el = document.createElement('div');
+  el.className = 'modal-backdrop';
+  el.id = 'gc-modal';
+  el.innerHTML =
+    '<div class="modal-box" role="dialog" aria-modal="true">'
+    + '<div class="modal-header">'
+    +   '<span class="modal-title">' + _e(title) + '</span>'
+    +   '<button class="modal-close" id="gc-modal-x">&#10005;</button>'
+    + '</div>'
+    + '<div class="modal-body">' + bodyHtml + '</div>'
+    + '<div class="modal-footer">' + footerHtml + '</div>'
+    + '</div>';
+
+  document.body.appendChild(el);
+
+  function _close() { el.remove(); }
+  function _collect() {
+    var data = {};
+    fields.forEach(function(f) {
+      if (f.type === 'html') return;
+      var input = document.getElementById('gcf-' + f.name);
+      if (input) data[f.name] = input.value;
+    });
+    return data;
+  }
+
+  document.getElementById('gc-modal-x').onclick      = _close;
+  document.getElementById('gc-modal-cancel').onclick  = _close;
+  el.addEventListener('click', function(ev) { if (ev.target === el) _close(); });
+
+  document.getElementById('gc-modal-save').onclick = async function() {
+    var data = _collect();
+    try {
+      document.getElementById('gc-modal-save').disabled = true;
+      await onSave(data);
+      _close();
+    } catch (e) {
+      _toast(e.message || 'An error occurred.', 'danger');
+      var btn = document.getElementById('gc-modal-save');
+      if (btn) btn.disabled = false;
+    }
+  };
+
+  if (onDelete) {
+    document.getElementById('gc-modal-delete').onclick = async function() {
+      try {
+        await onDelete();
+        _close();
+      } catch (e) {
+        _toast(e.message || 'Delete failed.', 'danger');
+      }
+    };
+  }
+
+  // Focus first input
+  setTimeout(function() {
+    var first = el.querySelector('input, select, textarea');
+    if (first) first.focus();
+  }, 80);
+}
+
+// ── Render ────────────────────────────────────────────────────────────────
+
+function _renderPage() {
+  var main = document.getElementById('gc-main');
+  var total    = _churches.length;
+  var active   = _churches.filter(function(r) { return !r.locked && (r.status || '').toLowerCase() !== 'inactive'; }).length;
+  var locked   = _churches.filter(function(r) { return r.locked || (r.status || '').toLowerCase() === 'locked'; }).length;
+  var noDb     = _churches.filter(function(r) { return !r.databaseUrl; }).length;
+
+  var html = '';
+
+  // ── seed-admin banner
+  html += '<div class="seed-banner">&#128081;&nbsp;<strong>Seed Admin Only.</strong>&nbsp; This command center is not accessible to any other user or any deployed church instance.</div>';
+
+  // ── page header
+  html += '<div class="page-header">'
+    + '<div><h1>&#9989; Church Command Center</h1>'
+    + '<p>Provision, manage, and control all FlockOS church deployments.</p></div>'
+    + '<div class="header-actions">'
+    + '<button class="btn btn-gold" onclick="_gcProvisionNew()">&#9889; Provision Church</button>'
+    + '<button class="btn btn-primary" onclick="_gcRegisterChurch()">+ Register Church</button>'
+    + '</div>'
+    + '</div>';
+
+  // ── stats
+  html += '<div class="stat-row">'
+    + '<div class="stat-card"><div class="stat-value">' + total  + '</div><div class="stat-label">Total Churches</div></div>'
+    + '<div class="stat-card"><div class="stat-value">' + active + '</div><div class="stat-label">Active</div></div>'
+    + '<div class="stat-card"><div class="stat-value" style="color:var(--danger,#f87171);">' + locked + '</div><div class="stat-label">Locked</div></div>'
+    + '<div class="stat-card"><div class="stat-value" style="color:var(--warning,#fbbd24);">' + noDb   + '</div><div class="stat-label">No DB URL</div></div>'
+    + '</div>';
+
+  // ── church table
+  html += '<div class="section-label">Registered Churches</div>';
+
+  if (!_churches.length) {
+    html += '<div class="empty-state"><div class="icon">&#9962;</div><h3>No Churches Registered</h3><p>Register the first church to get started.</p></div>';
+  } else {
+    html += '<div class="table-wrap"><table class="data-table"><thead><tr>'
+      + '<th>Name</th><th>Short Name</th>'
+      + '<th class="col-db">Database URL</th>'
+      + '<th>Status</th>'
+      + '<th class="col-created">Created</th>'
+      + '<th>Controls</th>'
+      + '</tr></thead><tbody>';
+
+    _churches.forEach(function(r) {
+      var cid = _e(r.churchId);
+      html += '<tr onclick="_gcEditChurch(\'' + cid + '\')">'
+        + '<td>' + _e(r.churchName || '') + '</td>'
+        + '<td><code style="font-size:0.8rem;background:rgba(0,0,0,0.2);padding:1px 6px;border-radius:4px;">' + _e(r.shortName || '') + '</code></td>'
+        + '<td class="col-db">'
+        +   (r.databaseUrl
+            ? '<span style="color:var(--success,#4ade80);font-size:0.8rem;">&#10003; Set</span>'
+            : '<span style="color:var(--warning,#fbbd24);font-size:0.8rem;">&#9888; Missing</span>')
+        + '</td>'
+        + '<td>' + _statusBadge(r.status || 'Active', r.locked) + '</td>'
+        + '<td class="col-created" style="font-size:0.78rem;color:var(--ink-muted,#999);">'
+        +   (r.createdAt ? new Date(r.createdAt).toLocaleDateString() : '—')
+        + '</td>'
+        + '<td onclick="event.stopPropagation()">'
+        +   '<div class="ctrl-cell">'
+        +     '<button class="btn btn-gold btn-sm" onclick="_gcProvisionChurch(\'' + cid + '\')">&#9889; Provision</button>'
+        +     '<button class="btn btn-sm" style="border-color:var(--line);color:var(--ink-muted);" '
+        +       'onclick="_gcLockChurch(\'' + cid + '\',' + (!r.locked) + ')">'
+        +       (r.locked ? '&#128275; Unlock' : '&#128274; Lock')
+        +     '</button>'
+        +   '</div>'
+        + '</td>'
+        + '</tr>';
+    });
+
+    html += '</tbody></table></div>';
+  }
+
+  // ── provisioner reference
+  html += '<div class="section-label">Provisioner</div>'
+    + '<div style="background:var(--bg-raised);border:1px solid var(--line,rgba(255,255,255,0.08));border-radius:10px;padding:18px 20px;">'
+    + '<div style="font-size:0.82rem;color:var(--ink-muted);margin-bottom:4px;">Provisioner Web App URL</div>'
+    + '<div style="font-size:0.79rem;font-family:monospace;color:var(--accent);word-break:break-all;">'
+    + _e(_PROVISIONER_URL) + '</div>'
+    + '<div style="margin-top:12px;font-size:0.78rem;color:var(--ink-muted);line-height:1.7;">'
+    + 'The provisioner creates the church CRM Google Sheet, writes all script tabs '
+    + '(Code.gs, FirestoreSync.gs, SyncHandler.gs), seeds Firestore, and returns a step-by-step '
+    + 'Deployment Guide. Select a church above and click <strong style="color:var(--gold)">&#9889; Provision</strong> to launch.'
+    + '</div>'
+    + '</div>';
+
+  main.innerHTML = html;
+}
+
+// ── Data Loading ──────────────────────────────────────────────────────────
+
+async function _gcLoad() {
+  var main = document.getElementById('gc-main');
+  main.innerHTML = '<div class="loading"><div class="spin"></div>&nbsp; Loading churches…</div>';
+  try {
+    var res = await TheVine.flock.church.list({ limit: 200 });
+    _churches = Array.isArray(res) ? res : (res && res.data ? res.data : (res && res.rows ? res.rows : []));
+    _renderPage();
+  } catch (e) {
+    main.innerHTML = '<div class="empty-state"><div class="icon">&#9888;</div><h3>Failed to load</h3><p>' + _e(e.message) + '</p>'
+      + '<button class="btn" onclick="_gcLoad()" style="margin-top:16px;">Retry</button></div>';
+  }
+}
+
+// ── Register Church ───────────────────────────────────────────────────────
+
+function _gcRegisterChurch() {
+  _gcModal('Register Church', [
+    { name: 'churchName',  label: 'Church Full Name',                     type: 'text',   required: true },
+    { name: 'shortName',   label: 'Short Name — URL slug (e.g. TBC)',     type: 'text',   required: true },
+    { name: 'brandName',   label: 'Brand Name (shown in app)',             type: 'text',   value: 'FlockOS' },
+    { name: 'tagline',     label: 'Tagline',                               type: 'text',   value: 'Church Management & Ministry Platform' },
+    { name: 'themeColor',  label: 'Theme Color',                           type: 'color',  value: '#e8a838' },
+    { name: 'bgColor',     label: 'Background Color',                      type: 'color',  value: '#1a1a2e' },
+    { name: 'databaseUrl', label: 'Database URL (GAS Web App)',            type: 'url',    value: '' },
+    { name: 'adminEmail',  label: 'Admin / Notification Email',            type: 'email',  value: '' },
+    { name: 'favicon',     label: 'Favicon filename',                      type: 'text',   value: 'FlockOS_Camo.png' },
+    { name: 'portrait',    label: 'Portrait / Logo filename',              type: 'text',   value: 'FlockOS_Camo.png' },
+    { name: 'analyticsId', label: 'Google Analytics ID (G-…)',             type: 'text',   value: '' },
+    { name: 'version',     label: 'Version',                               type: 'text',   value: '1.0' },
+  ], async function(data) {
+    await TheVine.flock.church.create(data);
+    _toast('Church registered. Open it to set up the database when ready.', 'success');
+    await _gcLoad();
+  }, null, 'Register');
+}
+
+// ── Edit Church ───────────────────────────────────────────────────────────
+
+function _gcEditChurch(churchId) {
+  var c = _churches.find(function(r) { return String(r.churchId) === String(churchId); }) || {};
+
+  var lockedBanner = c.locked
+    ? { type: 'html', html: '<div style="background:rgba(248,113,113,0.12);border:1px solid rgba(248,113,113,0.3);border-radius:7px;padding:10px 14px;margin-bottom:4px;font-size:0.82rem;color:var(--danger,#f87171);">&#128274; <strong>This church is LOCKED.</strong> Members cannot log in until unlocked.</div>' }
+    : { type: 'html', html: '' };
+
+  _gcModal('Edit Church — ' + (c.churchName || churchId), [
+    lockedBanner,
+    { name: 'churchName',  label: 'Church Full Name',              type: 'text',   value: c.churchName  || '' },
+    { name: 'shortName',   label: 'Short Name (URL slug)',          type: 'text',   value: c.shortName   || '' },
+    { name: 'brandName',   label: 'Brand Name',                     type: 'text',   value: c.brandName   || 'FlockOS' },
+    { name: 'tagline',     label: 'Tagline',                        type: 'text',   value: c.tagline     || '' },
+    { name: 'themeColor',  label: 'Theme Color',                    type: 'color',  value: c.themeColor  || '#e8a838' },
+    { name: 'bgColor',     label: 'Background Color',               type: 'color',  value: c.bgColor     || '#1a1a2e' },
+    { name: 'databaseUrl', label: 'Database URL (GAS Web App)',     type: 'url',    value: c.databaseUrl || '' },
+    { name: 'photosUrl',   label: 'Photos Album URL',               type: 'url',    value: c.photosUrl   || '' },
+    { name: 'adminEmail',  label: 'Admin / Notification Email',     type: 'email',  value: c.adminEmail  || '' },
+    { name: 'analyticsId', label: 'Google Analytics ID',            type: 'text',   value: c.analyticsId || '' },
+    { name: 'favicon',     label: 'Favicon filename',               type: 'text',   value: c.favicon     || 'FlockOS_Camo.png' },
+    { name: 'portrait',    label: 'Portrait / Logo filename',       type: 'text',   value: c.portrait    || 'FlockOS_Camo.png' },
+    { name: 'version',     label: 'Version',                        type: 'text',   value: c.version     || '1.0' },
+    { name: 'status',      label: 'Status',                         type: 'select', value: c.status || 'Active',
+      options: [
+        { value: 'Active',    label: 'Active' },
+        { value: 'Inactive',  label: 'Inactive' },
+        { value: 'Locked',    label: 'Locked' },
+        { value: 'Suspended', label: 'Suspended' },
+      ]
+    },
+    { type: 'html', html:
+        '<div style="padding:12px 0 2px;border-top:1px solid var(--line,rgba(255,255,255,0.08));margin-top:6px;display:flex;flex-wrap:wrap;gap:8px;">'
+      + '<button type="button" onclick="document.getElementById(\'gc-modal\').remove();_gcProvisionChurch(\'' + _e(String(churchId)) + '\')" '
+      +   'class="btn btn-gold btn-sm">&#9889; Provision</button>'
+      + '<button type="button" onclick="document.getElementById(\'gc-modal\').remove();_gcLockChurch(\'' + _e(String(churchId)) + '\',' + (!c.locked) + ')" '
+      +   'class="btn btn-sm btn-danger">'
+      +   (c.locked ? '&#128275; Unlock Church' : '&#128274; Lock Church') + '</button>'
+      + '</div>'
+      + '<div style="font-size:0.72rem;color:var(--ink-muted);margin-top:6px;line-height:1.6;">'
+      + 'Lock immediately blocks all member logins. Provision generates the CRM sheet and deployment guide.</div>'
+    },
+  ], async function(data) {
+    delete data[''];
+    data.churchId = churchId;
+    await TheVine.flock.church.update(data);
+    _toast('Church updated.', 'success');
+    await _gcLoad();
+  }, async function() {
+    if (!confirm('Remove "' + (c.churchName || churchId) + '" from the registry?\n\nThis marks it as Deleted. The spreadsheet and its data are NOT affected.')) return;
+    await TheVine.flock.church.delete({ churchId: churchId });
+    _toast('Church removed from registry.', 'success');
+    await _gcLoad();
+  }, 'Save Changes');
+}
+
+// ── Lock / Unlock ─────────────────────────────────────────────────────────
+
+async function _gcLockChurch(churchId, lock) {
+  var c    = _churches.find(function(r) { return String(r.churchId) === String(churchId); }) || {};
+  var name = c.churchName || churchId;
+  var msg  = lock
+    ? 'Lock "' + name + '"?\n\nThis will immediately block all members from logging in until unlocked.'
+    : 'Unlock "' + name + '"?\n\nThis restores full member access.';
+  if (!confirm(msg)) return;
+  try {
+    await TheVine.flock.church.update({
+      churchId: churchId,
+      locked:   lock,
+      status:   lock ? 'Locked' : 'Active',
+    });
+    _toast('Church ' + (lock ? 'locked' : 'unlocked') + '.', lock ? 'warn' : 'success');
+    await _gcLoad();
+  } catch (e) {
+    _toast((e.message || 'Failed to ' + (lock ? 'lock' : 'unlock') + ' church.'), 'danger');
+  }
+}
+
+// ── Provision — select church picker ─────────────────────────────────────
+
+function _gcProvisionNew() {
+  if (!_churches.length) {
+    _toast('Register a church first, then provision it.', 'warn');
+    return;
+  }
+  _gcModal('Provision Church', [
+    { name: 'churchId', label: 'Select Church', type: 'select', required: true,
+      options: _churches.map(function(r) {
+        return { value: r.churchId, label: (r.churchName || r.churchId) + ' (' + (r.shortName || r.churchId) + ')' };
+      })
+    },
+    { type: 'html', html: '<div style="font-size:0.78rem;color:var(--ink-muted);">Select a registered church to configure and launch the Provisioner.</div>' },
+  ], async function(data) {
+    var m = document.getElementById('gc-modal');
+    if (m) m.remove();
+    _gcProvisionChurch(data.churchId);
+  }, null, 'Continue');
+}
+
+// ── Provision — configure + launch ───────────────────────────────────────
+
+function _gcProvisionChurch(churchId) {
+  var c = _churches.find(function(r) { return String(r.churchId) === String(churchId); }) || {};
+
+  _gcModal('Provision — ' + (c.churchName || churchId), [
+    { name: 'connectionType', label: 'Connection Type', type: 'select', required: true, value: 'D',
+      options: [
+        { value: 'A', label: 'A — GAS Only' },
+        { value: 'B', label: 'B — GAS + Firestore Backup' },
+        { value: 'C', label: 'C — Firebase Primary + GAS Auth' },
+        { value: 'D', label: 'D — Full Real-Time Sync (recommended)' },
+      ]
+    },
+    { name: 'timezone',   label: 'Timezone (IANA)',              type: 'text',  value: 'America/Los_Angeles', required: true },
+    { name: 'adminEmail', label: 'Admin / Notification Email',   type: 'email', value: c.adminEmail || '' },
+    { type: 'html', html:
+        '<div style="font-size:0.79rem;color:var(--ink-muted);background:var(--bg,#1a1a2e);'
+      + 'border:1px solid var(--line,rgba(255,255,255,0.08));border-radius:6px;padding:12px 14px;'
+      + 'line-height:1.75;margin-top:4px;">'
+      + '<strong style="color:var(--gold,#e8a838);">&#9889; The Provisioner will:</strong><br>'
+      + '&bull; Create the church CRM Google Sheet in the shared Drive folder<br>'
+      + '&bull; Write a step-by-step Deployment Guide to Sheet1<br>'
+      + '&bull; Pre-fill Code.gs, FirestoreSync.gs, and SyncHandler.gs tabs<br>'
+      + '&bull; Seed Firestore with church registry data and sync config<br>'
+      + '&bull; Open the result in a new tab — follow the guide to finish GAS setup'
+      + '</div>'
+    },
+  ], async function(data) {
+    var params = new URLSearchParams({
+      action:          'provision',
+      churchName:      c.churchName      || churchId,
+      churchShortId:   c.shortName       || churchId,
+      brandName:       c.brandName       || c.churchName || '',
+      tagline:         c.tagline         || 'Church Management & Ministry Platform',
+      timezone:        data.timezone     || 'America/Los_Angeles',
+      adminEmail:      data.adminEmail   || c.adminEmail || '',
+      themeColor:      c.themeColor      || '#e8a838',
+      backgroundColor: c.bgColor         || '#1a1a2e',
+      favicon:         c.favicon         || 'FlockOS_Angels.png',
+      portrait:        c.portrait        || 'FlockOS_Angels.png',
+      connectionType:  data.connectionType || 'D',
+      version:         c.version         || '1.0',
+    });
+    window.open(_PROVISIONER_URL + '?' + params.toString(), '_blank');
+    _toast('Provisioner launched in new tab. Follow the result page for GAS setup steps.', 'success');
+  }, null, 'Launch Provisioner');
+}
+
+// ── Boot ──────────────────────────────────────────────────────────────────
+
+document.addEventListener('DOMContentLoaded', function() {
+  // Theme init (fine_linen.js)
+  if (typeof Adornment !== 'undefined') Adornment.init();
+
+  // Auth guard — redirect to login if no session
+  var session = Nehemiah.guard();
+  if (!session) return;
+  _gcSession = session;
+
+  // Seed-admin gate — only the first registered user may access this page
+  if (!session.isSeed) {
+    window.location.replace('the_good_shepherd.html');
+    return;
+  }
+
+  // Populate top bar
+  var nameEl = document.getElementById('gc-user-name');
+  if (nameEl) nameEl.textContent = (session.displayName || '').split(' ')[0] || session.email || '';
+
+  // Load church data
+  _gcLoad();
+});
+</script>
+</body>
+</html>

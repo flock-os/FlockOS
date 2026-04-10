@@ -576,6 +576,9 @@
         <a class="nav-item" data-view="church" data-module="church" onclick="navigate('church')">
           <span class="icon">&#127963;</span> Church Registry
         </a>
+        <a class="nav-item" id="nav-great-commission" href="the_great_commission.html" style="display:none;">
+          <span class="icon">&#9989;</span> Great Commission
+        </a>
         <a class="nav-item" href="../../index.html">
           <span class="icon">&#9758;</span> Public Site
         </a>
@@ -889,6 +892,11 @@ document.querySelectorAll('.nav-item[data-module]').forEach(item => {
 document.querySelectorAll('.nav-item[href="the_pentecost.html"]').forEach(function(item) {
   if (!Nehemiah.can('config')) item.style.display = 'none';
 });
+// Show Great Commission link for seed admin only
+if (session.isSeed) {
+  var _gcNav = document.getElementById('nav-great-commission');
+  if (_gcNav) _gcNav.style.display = '';
+}
 // Hide Photos nav if no URL configured
 if (!PHOTOS_URL) {
   var _photosNav = document.getElementById('nav-photos');
