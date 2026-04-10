@@ -367,7 +367,7 @@
 
 <header>
   <h1>&#x1F54A;&#xFE0F; Trinity Baptist Church &mdash; Deployment &amp; Project Guide</h1>
-  <p>Project status, folder layouts, and complete step-by-step setup for the unified Google Apps Script API</p>
+  <p>Project status, folder layouts, architecture (GAS + Firestore + Offline), and complete step-by-step setup</p>
   <div class="verse">"I am the vine; you are the branches." &mdash; John 15:5</div>
 </header>
 
@@ -387,6 +387,7 @@
     <li><a href="#missions-api">MISSIONS API (Mark) &mdash; 56 Tabs</a></li>
     <li><a href="#extra-api">EXTRA API (Luke) &mdash; 53 Tabs</a></li>
     <li><a href="#flock-api">FLOCK API (John) &mdash; 79 Tabs</a></li>
+    <li><a href="#firebase-deploy">Firebase / Firestore Deployment (Optional)</a></li>
     <li><a href="#frontend-config">Frontend Configuration</a></li>
     <li><a href="#verification">Post-Deployment Verification</a></li>
     <li><a href="#troubleshooting">Troubleshooting</a></li>
@@ -399,7 +400,7 @@
 
 <!-- SECTION 0: PROJECT STATUS -->
 <section id="status">
-  <h2><span class="num">Status</span> Project Status &mdash; March 26, 2026</h2>
+  <h2><span class="num">Status</span> Project Status &mdash; April 10, 2026</h2>
   <div class="gospel">"The LORD is my rock and my fortress." &mdash; Psalm 18:2</div>
 
   <h3>What Has Been Built</h3>
@@ -410,7 +411,7 @@
       <td>TheVine API Client</td>
       <td><code>FlockOS/Scripts/the_true_vine.js</code></td>
       <td><span class="badge badge-success">Done</span></td>
-      <td>~1,293 lines. All API calls flow through here. Health checks, auth, all CRUD. Fixed session save to handle nested <code>data.session</code> shape.</td>
+      <td>~1,409 lines. All API calls flow through here. Health checks, auth, all CRUD. Outgoing key normalization (camelCase &rarr; Title Case) for GAS sheet compatibility. Load-balanced multi-tier endpoints with failover.</td>
     </tr>
     <tr>
       <td>The Wall (Auth Gate)</td>
@@ -434,13 +435,13 @@
       <td>Module System (the_tabernacle.js)</td>
       <td><code>FlockOS/Scripts/the_tabernacle.js</code></td>
       <td><span class="badge badge-success">Done</span></td>
-      <td>17,890 lines. 48+ module renderers with full CRUD, card-based and table-based views, shared helpers, generic <code>_modal()</code> and <code>_edit()</code> form system. Card-based message inbox/detail view, notification bell integration, Daily Devotional unified page, The Upper Room spiritual dashboard. Delegates to 6 external IIFEs: TheSeasons, TheLife, TheWay, TheHarvest, TheShepherd, TheFold.</td>
+      <td>19,451 lines. 48+ module renderers with full CRUD, card-based and table-based views, shared helpers, generic <code>_modal()</code> and <code>_edit()</code> form system. Card-based message inbox/detail view, notification bell integration, Daily Devotional unified page, The Upper Room spiritual dashboard. Dual-backend routing via <code>_isFirebaseComms()</code>. Delegates to 6 external IIFEs: TheSeasons, TheLife, TheWay, TheHarvest, TheShepherd, TheFold.</td>
     </tr>
     <tr>
       <td>CSS Theme System (fine_linen.js)</td>
       <td><code>FlockOS/Scripts/fine_linen.js</code></td>
       <td><span class="badge badge-success">Done</span></td>
-      <td>14 themes (light, dark, and flag), full CSS framework, pills/badges, cards, tables, responsive layout. iOS zoom prevention (all inputs 16px). Dynamic theming across all pages including deployment guide. Interface Studio override engine.</td>
+      <td>5,614 lines. 14 themes (light, dark, and flag), full CSS framework, pills/badges, cards, tables, responsive layout. iOS zoom prevention (all inputs 16px). Dynamic theming across all pages including deployment guide. Interface Studio override engine.</td>
     </tr>
 
     <!-- BACKEND FIXES -->
@@ -633,6 +634,44 @@
       <td><span class="badge badge-success">Done</span></td>
       <td>Admin-only section when creating new members: optional login account with email, password, confirm, and role selector. Creates AuthUsers record via <code>users.create</code>. Auto-creates care assignment and returns to hub after save.</td>
     </tr>
+
+    <tr><td colspan="4" style="background:var(--accent-soft);font-weight:700;padding:10px 12px;">Firebase / Firestore Backend &mdash; March&ndash;April 2026</td></tr>
+    <tr>
+      <td>UpperRoom (Firestore Layer)</td>
+      <td><code>FlockOS/Scripts/the_upper_room.js</code></td>
+      <td><span class="badge badge-success">Done</span></td>
+      <td>4,576 lines. Complete Firestore data layer: real-time messaging (DMs, chat rooms, channels, notifications), journal, prayer, devotionals, members, care, compassion, outreach, discipleship, theology, music, events, attendance, groups, giving, milestones, contacts, ministry members, service plans, learning, statistics, and more. Per-church Firebase config override. Firebase Auth session management.</td>
+    </tr>
+    <tr>
+      <td>Dual-Backend Routing</td>
+      <td><code>the_tabernacle.js</code></td>
+      <td><span class="badge badge-success">Done</span></td>
+      <td>Every data call checks <code>_isFirebaseComms()</code> to route to UpperRoom (Firestore) or TheVine (GAS). Mode auto-detected at runtime &mdash; no manual config needed. Falls back to GAS if UpperRoom unavailable.</td>
+    </tr>
+    <tr>
+      <td>Cloud Functions Sync</td>
+      <td><code>functions/index.js</code></td>
+      <td><span class="badge badge-success">Done</span></td>
+      <td>Firestore triggers on create/update/delete under <code>churches/{churchId}/{collection}/{docId}</code>. Syncs every write back to Google Sheets via GAS endpoint with sync secret validation. Keeps Sheet as single source of truth.</td>
+    </tr>
+    <tr>
+      <td>TheWellspring (Offline Mode)</td>
+      <td><code>FlockOS/Scripts/the_wellspring.js</code></td>
+      <td><span class="badge badge-success">Done</span></td>
+      <td>752 lines. Local IndexedDB data layer. Load a .xlsx backup and run FlockOS fully offline. Routes via TheVine&rsquo;s LOCAL_RESOLVER hook, transparent to all UI code. API: <code>enable()</code>, <code>disable()</code>, <code>load(file)</code>, <code>exportDB()</code>, <code>status()</code>.</td>
+    </tr>
+    <tr>
+      <td>TheWell (Backup &amp; Restore)</td>
+      <td><code>FlockOS/Scripts/the_well.js</code></td>
+      <td><span class="badge badge-success">Done</span></td>
+      <td>579 lines. Complete schema definition for all 200 tabs (~4,256 columns). Template generation, live backup to .xlsx, restore from .xlsx via TheVine or UpperRoom. Batch processing in chunks of 100.</td>
+    </tr>
+    <tr>
+      <td>Key Normalization (camelCase &rarr; Title Case)</td>
+      <td><code>the_true_vine.js</code></td>
+      <td><span class="badge badge-success">Done</span></td>
+      <td>Centralized in <code>_call()</code>. All create/update/send calls auto-normalize camelCase keys to Title Case sheet headers before sending to GAS. Prevents duplicate column creation. Handles acronyms (ID, URL, BPM, CCLI, ZIP) and 14 special headers (Date of Birth, Follow-Up Date, Co-Leader ID, etc.).</td>
+    </tr>
     <tr>
       <td>Audit Logging (My Flock)</td>
       <td><code>the_life.js _audit()</code></td>
@@ -819,10 +858,11 @@ python3 -m http.server 8080</code></pre>
 &boxv;   &boxvr;&boxh;&boxh; Scripts/                     &larr; Production JavaScript (served via GitHub Pages)
 &boxv;   &boxv;   &boxvr;&boxh;&boxh; fine_linen.js            &larr; 14-theme CSS design system + Interface Studio
 &boxv;   &boxv;   &boxvr;&boxh;&boxh; the_cornerstone.js       &larr; Architecture registry: APIs, actions, routes, RBAC
-&boxv;   &boxv;   &boxvr;&boxh;&boxh; the_true_vine.js         &larr; TheVine: centralized API client
+&boxv;   &boxv;   &boxvr;&boxh;&boxh; the_true_vine.js         &larr; TheVine: centralized API client + key normalization
 &boxv;   &boxv;   &boxvr;&boxh;&boxh; firm_foundation.js       &larr; Auth guard, session, role enforcement
-&boxv;   &boxv;   &boxvr;&boxh;&boxh; the_wellspring.js        &larr; Local data layer / IndexedDB
-&boxv;   &boxv;   &boxvr;&boxh;&boxh; the_well.js              &larr; Google Drive sync for offline churches
+&boxv;   &boxv;   &boxvr;&boxh;&boxh; the_upper_room.js        &larr; UpperRoom: Firestore data layer (4,576 lines)
+&boxv;   &boxv;   &boxvr;&boxh;&boxh; the_wellspring.js        &larr; TheWellspring: offline IndexedDB data layer
+&boxv;   &boxv;   &boxvr;&boxh;&boxh; the_well.js              &larr; Backup, restore &amp; template system
 &boxv;   &boxv;   &boxvr;&boxh;&boxh; the_tabernacle.js        &larr; 48+ module renderers / nav / routing
 &boxv;   &boxv;   &boxvr;&boxh;&boxh; the_seasons.js           &larr; Calendar, Tasks &amp; Check-In Hub
 &boxv;   &boxv;   &boxvr;&boxh;&boxh; the_way.js               &larr; Learning Hub: 16-tab education dashboard
@@ -893,6 +933,31 @@ python3 -m http.server 8080</code></pre>
 <!-- SECTION 2: ARCHITECTURE -->
 <section id="architecture">
   <h2><span class="num">2</span> Architecture Overview</h2>
+
+  <h3>Three-Backend Architecture</h3>
+  <p>FlockOS supports <strong>three independent backends</strong> &mdash; selected at runtime, transparent to the UI.</p>
+  <table>
+    <tr><th>Backend</th><th>Mode</th><th>Module</th><th>When to Use</th></tr>
+    <tr>
+      <td><strong>Google Apps Script</strong></td>
+      <td><code>sheets</code> (default)</td>
+      <td>TheVine (<code>the_true_vine.js</code>)</td>
+      <td>Default for all churches. Zero cost, zero configuration beyond GAS deployment.</td>
+    </tr>
+    <tr>
+      <td><strong>Firebase / Firestore</strong></td>
+      <td><code>firebase</code></td>
+      <td>UpperRoom (<code>the_upper_room.js</code>)</td>
+      <td>When a church needs real-time messaging, sub-second reads, or scales past GAS quotas. Firestore writes automatically sync back to GAS via Cloud Functions.</td>
+    </tr>
+    <tr>
+      <td><strong>Local / Offline</strong></td>
+      <td>IndexedDB</td>
+      <td>TheWellspring (<code>the_wellspring.js</code>)</td>
+      <td>Offline-capable mode. Load a .xlsx backup into IndexedDB and run FlockOS without any network. Ideal for mission trips or unreliable internet.</td>
+    </tr>
+  </table>
+
   <pre><code>
   GitHub Pages (Static Site)
   &boxur;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxul;
@@ -910,8 +975,58 @@ python3 -m http.server 8080</code></pre>
   &boxur;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxul; &boxur;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxul; &boxur;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxul; &boxur;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxul;
     Google Sheet  Google Sheet Google Sheet  Google Sheet
     + GAS Web App + GAS App   + GAS App     + GAS App
+           &boxv;                                    &boxv;
+           &boxv; (if firebase mode)                 &boxv;
+           &boxv;     &boxur;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxul;
+           &boxv;     &boxv;                         &boxv;
+           &boxv;     &darr;                         &boxv;
+           &boxv;  &boxur;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxul;  &boxv;
+           &boxv;  &boxv;  UpperRoom            &boxv;  &boxv;
+           &boxv;  &boxv;  (the_upper_room.js)  &boxv;  &boxv;
+           &boxv;  &boxv;  Firestore DB         &boxv;  &boxv;
+           &boxv;  &boxv;  Real-time reads      &boxv;  &boxv;
+           &boxv;  &boxur;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxul;  &boxv;
+           &boxv;       &boxv;                      &boxv;
+           &boxv;       &darr; Cloud Functions        &boxv;
+           &boxv;       sync writes &rarr; GAS &rarr; Sheet  &boxv;
+           &boxur;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxh;&boxul;
   </code></pre>
   <p>Total: <strong>200 tabs</strong> in 1 Google Sheet, ~4,256 columns.</p>
+
+  <h3>Why Firestore?</h3>
+  <p>Google Apps Script is free and simple, but has hard limits:</p>
+  <table>
+    <tr><th>Constraint</th><th>GAS (Sheets)</th><th>Firestore</th></tr>
+    <tr><td>Read latency</td><td>1&ndash;5 seconds (cold start: 10s+)</td><td>50&ndash;200 ms</td></tr>
+    <tr><td>Daily reads</td><td>~50,000 (consumer Gmail)</td><td>50,000 free / unlimited on Blaze</td></tr>
+    <tr><td>Script runtime</td><td>6 min max per call</td><td>No limit</td></tr>
+    <tr><td>Real-time updates</td><td>Polling only (30+ seconds)</td><td>Native real-time listeners</td></tr>
+    <tr><td>Concurrent users</td><td>~10&ndash;20 before queueing</td><td>1,000+ concurrent</td></tr>
+    <tr><td>Cost</td><td>Free</td><td>Free tier generous; Blaze = pay-as-you-go</td></tr>
+  </table>
+  <p><strong>For most churches (under ~100 active users), GAS is perfectly fine.</strong> Firestore becomes the better choice when a church hits GAS quota walls, needs real-time messaging, or wants sub-second response times. The beauty is that <strong>the UI code doesn't change</strong> &mdash; the same modules call the same API surface, and <code>_isFirebaseComms()</code> routes each call to the right backend at runtime.</p>
+
+  <h3>How the Toggle Works</h3>
+  <p>Every data call in FlockOS checks <code>_isFirebaseComms()</code> before deciding which backend to hit:</p>
+  <pre><code>// Example from the_tabernacle.js
+var rows = _isFirebaseComms()
+    ? await UpperRoom.listCareCases({ limit: 500 })
+    : await TheVine.flock.care.list({ limit: 500 });
+
+// _isFirebaseComms() returns _commsMode === 'firebase'
+// _commsMode is detected automatically:
+//   1. Is the UpperRoom module loaded + initialized?
+//   2. UpperRoom.getCommsMode() returns 'firebase' or 'sheets'
+//   3. Defaults to 'sheets' if UpperRoom unavailable</code></pre>
+  <p>You do not set this manually. If the UpperRoom script is loaded and Firebase is configured, it activates automatically. If not, everything falls through to GAS.</p>
+
+  <h3>Cloud Functions Sync</h3>
+  <p>When using Firestore mode, a Firebase Cloud Function (<code>functions/index.js</code>) watches for writes to Firestore and syncs them back to Google Sheets via the GAS endpoint. This keeps the Google Sheet as the single source of truth for backups and manual inspection, while Firestore handles the live read/write traffic.</p>
+  <pre><code>Firestore write (create/update/delete)
+  &rarr; Cloud Function trigger: churches/{churchId}/{collection}/{docId}
+    &rarr; POST to GAS endpoint with sync secret + payload
+      &rarr; GAS writes row to Google Sheet
+        &rarr; Sheet stays in sync with Firestore</code></pre>
 
   <h3>Authentication &amp; Session Flow</h3>
   <p>All auth is handled by two frontend modules (<code>firm_foundation.js</code> + <code>the_true_vine.js</code>) talking to the Flock CRM API.</p>
@@ -1000,30 +1115,33 @@ Session expiry (default: 6 hours)
     <div class="file">Duplicate_Databases.gs <span>Dedup reference</span></div>
   </div>
 
-  <h3>FlockOS/Scripts/ &mdash; Production JavaScript (19 .js files)</h3>
+  <h3>FlockOS/Scripts/ &mdash; Production JavaScript (22 .js files)</h3>
   <div class="file-grid">
-    <div class="file">fine_linen.js <span>13-theme CSS design system + Interface Studio (5,240 lines)</span></div>
-    <div class="file">the_cornerstone.js <span>Architecture registry (790 lines)</span></div>
-    <div class="file">the_truth.js <span>Reserved placeholder (John 8:32)</span></div>
-    <div class="file">the_true_vine.js <span>TheVine API client (1,293 lines)</span></div>
-    <div class="file">firm_foundation.js <span>Auth guard / The Wall (462 lines)</span></div>
-    <div class="file">the_wellspring.js <span>TheWellspring local data layer / IndexedDB (859 lines)</span></div>
-    <div class="file">the_well.js <span>Google Drive sync for offline churches (559 lines)</span></div>
-    <div class="file">the_tabernacle.js <span>48+ module renderers (17,890 lines)</span></div>
-    <div class="file">the_seasons.js <span>Calendar, Tasks &amp; Check-In Hub (2,199 lines)</span></div>
-    <div class="file">the_way.js <span>Learning Hub (16 tabs, 2,958 lines)</span></div>
-    <div class="file">the_harvest.js <span>Ministry Hub (906 lines)</span></div>
-    <div class="file">the_life.js <span>My Flock Portal (2,342 lines)</span></div>
-    <div class="file">the_shepherd.js <span>People Engine (765 lines)</span></div>
-    <div class="file">love_in_action.js <span>Care Hub (347 lines)</span></div>
-    <div class="file">the_fold.js <span>Groups &amp; Attendance (276 lines)</span></div>
-    <div class="file">the_scrolls.js <span>Interaction Ledger (307 lines)</span></div>
-    <div class="file">the_shofar.js <span>Song library + chord charts (1,621 lines)</span></div>
+    <div class="file">fine_linen.js <span>14-theme CSS design system + Interface Studio (5,614 lines)</span></div>
+    <div class="file">the_cornerstone.js <span>Architecture registry (806 lines)</span></div>
+    <div class="file">the_truth.js <span>Reserved placeholder (618 lines)</span></div>
+    <div class="file">the_true_vine.js <span>TheVine API client + key normalization (1,409 lines)</span></div>
+    <div class="file">firm_foundation.js <span>Auth guard / The Wall (557 lines)</span></div>
+    <div class="file">the_upper_room.js <span>UpperRoom: Firestore data layer (4,576 lines)</span></div>
+    <div class="file">the_wellspring.js <span>TheWellspring: offline IndexedDB layer (752 lines)</span></div>
+    <div class="file">the_well.js <span>Backup, restore &amp; schema (579 lines)</span></div>
+    <div class="file">the_tabernacle.js <span>48+ module renderers (19,451 lines)</span></div>
+    <div class="file">the_seasons.js <span>Calendar, Tasks &amp; Check-In Hub (2,420 lines)</span></div>
+    <div class="file">the_way.js <span>Learning Hub (16 tabs, 3,427 lines)</span></div>
+    <div class="file">the_harvest.js <span>Ministry Hub (949 lines)</span></div>
+    <div class="file">the_life.js <span>My Flock Portal (3,485 lines)</span></div>
+    <div class="file">the_shepherd.js <span>People Engine (1,249 lines)</span></div>
+    <div class="file">love_in_action.js <span>Care Hub (583 lines)</span></div>
+    <div class="file">the_fold.js <span>Groups &amp; Attendance (292 lines)</span></div>
+    <div class="file">the_scrolls.js <span>Interaction Ledger (316 lines)</span></div>
+    <div class="file">the_shofar.js <span>Song library + chord charts (1,797 lines)</span></div>
     <div class="file">the_trumpet.js <span>Notification system (486 lines)</span></div>
     <div class="file">the_pagans.js <span>Public-facing content helpers (160 lines)</span></div>
+    <div class="file">the_commission.js <span>Deployment automation blueprint (1,333 lines)</span></div>
+    <div class="file">the_living_water.js <span>Service worker source (196 lines)</span></div>
   </div>
 
-  <h3>FlockOS/Pages/ &mdash; HTML Pages</h3>
+  <h3>FlockOS/Pages/ &mdash; HTML Pages (14 files)</h3>
   <div class="file-grid">
     <div class="file">the_pentecost.html <span>This deployment guide</span></div>
     <div class="file">the_good_shepherd.html <span>Admin dashboard</span></div>
@@ -1031,15 +1149,14 @@ Session expiry (default: 6 hours)
     <div class="file">index.html <span>Main app shell</span></div>
     <div class="file">Learn More.html <span>Learn more landing page</span></div>
     <div class="file">About_FlockOS.html <span>The Why</span></div>
+    <div class="file">fishing-for-men.html <span>Value proposition &amp; cost analysis</span></div>
     <div class="file">the_generations.html <span>Generational dynamics</span></div>
     <div class="file">the_anatomy_of_worship.html <span>Worship anatomy guide</span></div>
     <div class="file">prayerful_action.html <span>Prayerful action guide</span></div>
     <div class="file">the_invitation.html <span>Invitation page</span></div>
     <div class="file">the_gift_drift.html <span>Gift drift guide</span></div>
     <div class="file">the_call_to_forgive.html <span>Forgiveness guide</span></div>
-    <div class="file">the_weavers_plan.html <span>Weaver's plan guide</span></div>
-    <div class="file">FlockOS_White.png <span>Logo (white)</span></div>
-    <div class="file">FlockOS_Midnight.png <span>Logo (midnight)</span></div>
+    <div class="file">the_weavers_plan.html <span>Weaver&rsquo;s plan guide</span></div>
   </div>
 
   <div class="alert alert-info">
@@ -1187,6 +1304,99 @@ Session expiry (default: 6 hours)
   <pre><code>https://script.google.com/macros/s/AKfycbwAFp0BQvt0DiDJBjzBrycMripfUHOkP0PwiB_DSXgGVezP_y8jCOVxZWweTp58gai7/exec?action=health</code></pre>
   <p>You should see:</p>
   <pre><code>{"ok":true,"message":"ATOG Church CRM Expansion is running.","version":"1.0.0"}</code></pre>
+  <p style="margin-top:2rem;text-align:right;"><a href="#toc" style="color:var(--accent);text-decoration:none;font-size:0.9rem;">&uarr; Back to Table of Contents</a></p>
+</section>
+
+
+<!-- SECTION: FIREBASE / FIRESTORE DEPLOYMENT (OPTIONAL) -->
+<section id="firebase-deploy">
+  <h2><span class="num">&#x1F525;</span> Firebase / Firestore Deployment (Optional)</h2>
+  <div class="gospel">"And suddenly there came from heaven a sound like a mighty rushing wind, and it filled the entire house." &mdash; Acts 2:2</div>
+
+  <p>This section is <strong>optional</strong>. The GAS backend (Sections 4&ndash;7 above) is the default and works for most churches. Only set up Firebase if you need:</p>
+  <ul>
+    <li><strong>Real-time messaging</strong> &mdash; instant DMs, chat rooms, channels without polling</li>
+    <li><strong>Sub-second reads</strong> &mdash; Firestore responds in 50&ndash;200ms vs GAS&rsquo;s 1&ndash;5 seconds</li>
+    <li><strong>Scale past GAS quotas</strong> &mdash; 50K daily reads (consumer Gmail) is the GAS ceiling</li>
+    <li><strong>Cloud Functions</strong> &mdash; automated triggers, sync, background processing</li>
+  </ul>
+
+  <h3>What You&rsquo;ll Get</h3>
+  <table>
+    <tr><th>Component</th><th>Purpose</th></tr>
+    <tr><td>Firestore Database</td><td>Real-time NoSQL document store — all CRM data (members, care, journal, comms, etc.)</td></tr>
+    <tr><td>Firebase Auth</td><td>Session management and user state (works alongside FlockOS&rsquo;s existing auth)</td></tr>
+    <tr><td>Cloud Functions</td><td>Firestore triggers that sync every write back to your Google Sheet via GAS</td></tr>
+    <tr><td>UpperRoom module</td><td><code>the_upper_room.js</code> (4,576 lines) — already included in FlockOS, activates automatically when Firebase is configured</td></tr>
+  </table>
+
+  <h3>Step F.1 &mdash; Create a Firebase Project</h3>
+  <ol>
+    <li>Go to <a href="https://console.firebase.google.com" style="color:var(--accent)">console.firebase.google.com</a></li>
+    <li>Click <strong>Add project</strong> &rarr; name it (e.g. &ldquo;FlockOS-YourChurch&rdquo;)</li>
+    <li>Disable Google Analytics (optional, not needed)</li>
+    <li>Click <strong>Create project</strong></li>
+  </ol>
+
+  <h3>Step F.2 &mdash; Enable Firestore</h3>
+  <ol>
+    <li>In the Firebase console, click <strong>Build &rarr; Firestore Database</strong></li>
+    <li>Click <strong>Create database</strong></li>
+    <li>Choose a location (e.g. <code>us-central1</code>, <code>us-east1</code>)</li>
+    <li>Start in <strong>Production mode</strong> (we&rsquo;ll add rules next)</li>
+  </ol>
+
+  <h3>Step F.3 &mdash; Deploy Firestore Rules</h3>
+  <p>Copy the rules from <code>FlockOS/Tools/Development Scripts/firestore.rules</code> into the Firebase console (Firestore &rarr; Rules tab), or deploy via CLI:</p>
+  <pre><code>cd /Users/greg.granger/Desktop/FlockOS/Software
+firebase deploy --only firestore:rules</code></pre>
+
+  <h3>Step F.4 &mdash; Add a Web App</h3>
+  <ol>
+    <li>In Firebase console: Project Settings &rarr; <strong>Add app</strong> &rarr; select <strong>Web</strong> (&lt;/&gt;)</li>
+    <li>Register a nickname (e.g. &ldquo;FlockOS Web&rdquo;)</li>
+    <li>Copy the Firebase config object:</li>
+  </ol>
+  <pre><code>const firebaseConfig = {
+  apiKey: "AIza...",
+  authDomain: "your-project.firebaseapp.com",
+  projectId: "your-project-id",
+  storageBucket: "your-project.appspot.com",
+  messagingSenderId: "123456789",
+  appId: "1:123456789:web:abc123"
+};</code></pre>
+  <p>This config goes into the church&rsquo;s deployment configuration (the UpperRoom module picks it up from the church config automatically).</p>
+
+  <h3>Step F.5 &mdash; Deploy Cloud Functions</h3>
+  <pre><code>cd /Users/greg.granger/Desktop/FlockOS/Software
+firebase deploy --only functions</code></pre>
+  <p>This deploys the sync function from <code>functions/index.js</code>. It watches for Firestore writes under <code>churches/{churchId}/{collection}/{docId}</code> and POSTs them to your GAS endpoint to keep the Google Sheet in sync.</p>
+
+  <h3>Step F.6 &mdash; Set Sync Secret</h3>
+  <p>The Cloud Function validates a sync secret to prevent unauthorized writes to GAS. Set it in your Firestore sync settings document:</p>
+  <pre><code>churches/{churchId}/settings/sync
+  {
+    gasEndpoint: "https://script.google.com/macros/s/.../exec",
+    syncSecret: "your-secure-random-secret"
+  }</code></pre>
+  <div class="alert alert-danger">&#x1F512; The sync secret must match between your Firestore config and your GAS Script Properties. Keep it safe.</div>
+
+  <h3>Step F.7 &mdash; Verify</h3>
+  <ul class="checklist">
+    <li>UpperRoom initializes (check browser console for <code>[UpperRoom] Firebase initialized</code>)</li>
+    <li><code>_isFirebaseComms()</code> returns <code>true</code> in the browser console</li>
+    <li>Create a journal entry &mdash; appears in Firestore under <code>churches/{churchId}/journal</code></li>
+    <li>Same journal entry syncs to JournalEntries tab in Google Sheet (via Cloud Function)</li>
+    <li>Data reads are noticeably faster (sub-second vs multi-second)</li>
+  </ul>
+
+  <h3>Reverting to GAS-Only</h3>
+  <p>If you need to turn off Firestore and go back to GAS-only mode:</p>
+  <ol>
+    <li>Remove the Firebase config from the church deployment config</li>
+    <li>The UpperRoom module will not initialize, <code>_isFirebaseComms()</code> returns <code>false</code></li>
+    <li>All calls automatically fall through to TheVine (GAS) &mdash; zero code changes needed</li>
+  </ol>
   <p style="margin-top:2rem;text-align:right;"><a href="#toc" style="color:var(--accent);text-decoration:none;font-size:0.9rem;">&uarr; Back to Table of Contents</a></p>
 </section>
 
@@ -1467,7 +1677,7 @@ Session expiry (default: 6 hours)
 
 <footer>
   <a href="the_good_shepherd.html" style="color:var(--accent);text-decoration:none;font-size:0.9rem;">&larr; Back to Dashboard</a><br><br>
-  Trinity Baptist Church &mdash; Deployment &amp; Project Guide &middot; Updated March 29, 2026<br>
+  Trinity Baptist Church &mdash; Deployment &amp; Project Guide &middot; Updated April 10, 2026<br>
   <em>"I am the vine; you are the branches." &mdash; John 15:5</em><br><br>
   This file is local-only and excluded from Git.
 </footer>
