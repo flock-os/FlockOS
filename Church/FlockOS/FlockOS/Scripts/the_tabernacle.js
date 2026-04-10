@@ -9734,14 +9734,15 @@ const Modules = (() => {
       var _pinDisplay = _pin
         ? ('<span id="pp-pin-val" style="font-family:monospace;font-size:1.05rem;letter-spacing:0.12em;font-weight:700;color:var(--accent);">' + _e(_pin) + '</span>')
         : ('<span id="pp-pin-val" style="color:var(--ink-muted);font-size:0.83rem;">Not assigned</span>');
+      var _memDocId = _e(memberRec.id || '');
       html += '<div style="display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px 16px;margin-bottom:14px;flex-wrap:wrap;">';
       html += '<span style="font-size:0.75rem;color:var(--ink-muted);white-space:nowrap;">&#128272; Member ID</span>';
       html += _pinDisplay;
       if (_pin) {
-        html += '<button type="button" onclick="(function(){var t=document.getElementById(\'pp-pin-val\');if(t){navigator.clipboard.writeText(t.textContent);Modules._toast(\'Copied!\')}})()"'
+        html += '<button type="button" onclick="Modules._ppCopyPin()"'
           + ' style="margin-left:auto;background:none;border:1px solid var(--line);border-radius:5px;padding:3px 10px;cursor:pointer;font-size:0.77rem;color:var(--ink-muted);">Copy</button>';
       } else {
-        html += '<button type="button" onclick="Modules._ppGenPin(\'" + _e(memberRec.id || '') + "\')"'
+        html += '<button type="button" onclick="Modules._ppGenPin(' + JSON.stringify(_memDocId) + ')"'
           + ' style="margin-left:auto;background:var(--accent);color:var(--ink-inverse);border:none;border-radius:5px;padding:4px 12px;cursor:pointer;font-size:0.8rem;font-weight:600;">Generate ID</button>';
       }
       html += '</div>';
@@ -17100,6 +17101,12 @@ const Modules = (() => {
   function _euTab() {} // no-op stub (removed — tabs consolidated into _ppOpen sections)
   function _euSave() {} // no-op stub (removed — saves consolidated into _ppSaveAll)
 
+  // Copy visible Member ID pin to clipboard
+  function _ppCopyPin() {
+    var t = document.getElementById('pp-pin-val');
+    if (t) { navigator.clipboard.writeText(t.textContent.trim()); _toast('Copied!'); }
+  }
+
   // Generate and save a new Member Pin (xxx-xx-xxxx) for an existing member record
   async function _ppGenPin(memberId) {
     if (!memberId) return;
@@ -19698,6 +19705,7 @@ const Modules = (() => {
     _euSave,
     _euCreateMember,
     _euCreateCard,
+    _ppCopyPin,
     _ppGenPin,
     _applyPermTemplate,
     _tabOnPermChkChange,
