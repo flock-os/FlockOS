@@ -4182,7 +4182,7 @@
     opts = opts || {};
     var q = _appContentRef(type);
     if (opts.orderBy) q = q.orderBy(opts.orderBy, opts.dir || 'asc');
-    q = q.limit(opts.limit || 1000);
+    if (opts.limit) q = q.limit(opts.limit);
     return q.get().then(function(snap) {
       var out = [];
       snap.forEach(function(d) { var o = d.data(); o.id = d.id; out.push(o); });

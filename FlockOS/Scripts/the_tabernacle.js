@@ -974,6 +974,7 @@ const Modules = (() => {
     quizId: 'ID', optionA: 'Option A', optionB: 'Option B',
     optionC: 'Option C', optionD: 'Option D',
     correctAnswer: 'Correct Answer', difficulty: 'Difficulty',
+    type: 'Type', bookOrder: 'Book Order',
     categoryColor: 'Category Color', shortTitle: 'Short Title',
     answerContent: 'Answer Content', quoteText: 'Quote Text',
     referenceText: 'Reference Text', referenceUrl: 'Reference URL',
@@ -4205,12 +4206,45 @@ const Modules = (() => {
   // ═══════════════════════════════════════════════════════════════════════
   // 16. THE WORD OF GOD  — 66 Books of the Bible (Matthew / APP API)
   // ═══════════════════════════════════════════════════════════════════════
+  // Canonical Bible book order for sorting
+  var _BIBLE_ORDER = [
+    'Genesis','Exodus','Leviticus','Numbers','Deuteronomy','Joshua','Judges','Ruth',
+    '1 Samuel','2 Samuel','1 Kings','2 Kings','1 Chronicles','2 Chronicles',
+    'Ezra','Nehemiah','Esther','Job','Psalms','Proverbs','Ecclesiastes',
+    'Song of Solomon','Isaiah','Jeremiah','Lamentations','Ezekiel','Daniel',
+    'Hosea','Joel','Amos','Obadiah','Jonah','Micah','Nahum','Habakkuk',
+    'Zephaniah','Haggai','Zechariah','Malachi',
+    'Matthew','Mark','Luke','John','Acts','Romans',
+    '1 Corinthians','2 Corinthians','Galatians','Ephesians','Philippians',
+    'Colossians','1 Thessalonians','2 Thessalonians','1 Timothy','2 Timothy',
+    'Titus','Philemon','Hebrews','James','1 Peter','2 Peter',
+    '1 John','2 John','3 John','Jude','Revelation'
+  ];
+
   _def('library', async el => {
     _shell(el, 'The Word of God', '66 Books of the Bible \u2014 encyclopedic reference.', '');
     try {
       const raw  = await _publicFetch('library', function() { return UpperRoom.listAppContent('books'); }, function() { return TheVine.app.books(); });
       const rows = Array.isArray(raw) ? raw : _rows(raw);
       if (!rows.length) { _body(el, _empty('&#128214;', 'No books yet', 'Add book entries in the Truth spreadsheet.')); return; }
+
+      // Sort in canonical Bible order.
+      // Primary key: 'ID / Book Number' (1-66), aliased from Firestore 'bookId'.
+      // Fallback: match 'Book Name' against the canonical order list.
+      rows.sort(function(a, b) {
+        var aNum = parseInt(a['ID / Book Number'] || a['bookId'] || 0, 10);
+        var bNum = parseInt(b['ID / Book Number'] || b['bookId'] || 0, 10);
+        if (aNum && bNum) return aNum - bNum;
+        if (aNum) return -1;
+        if (bNum) return 1;
+        var aName = (a['Book Name'] || a['bookName'] || '').trim();
+        var bName = (b['Book Name'] || b['bookName'] || '').trim();
+        var aIdx = _BIBLE_ORDER.indexOf(aName);
+        var bIdx = _BIBLE_ORDER.indexOf(bName);
+        if (aIdx === -1) aIdx = 999;
+        if (bIdx === -1) bIdx = 999;
+        return aIdx - bIdx;
+      });
 
       const otBooks = rows.filter(r => (r['Testament'] || '') !== 'New');
       const ntBooks = rows.filter(r => (r['Testament'] || '') === 'New');
