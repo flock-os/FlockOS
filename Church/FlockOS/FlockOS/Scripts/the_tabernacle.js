@@ -9729,6 +9729,23 @@ const Modules = (() => {
     if (memberRec) {
       var mid = '<input type="hidden" id="pp-mem_id" value="' + _e(memberRec.id || '') + '">';
 
+      // ── Member ID bar (visible, copyable) ──
+      var _pin = memberRec.memberPin || '';
+      var _pinDisplay = _pin
+        ? ('<span id="pp-pin-val" style="font-family:monospace;font-size:1.05rem;letter-spacing:0.12em;font-weight:700;color:var(--accent);">' + _e(_pin) + '</span>')
+        : ('<span id="pp-pin-val" style="color:var(--ink-muted);font-size:0.83rem;">Not assigned</span>');
+      html += '<div style="display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px 16px;margin-bottom:14px;flex-wrap:wrap;">';
+      html += '<span style="font-size:0.75rem;color:var(--ink-muted);white-space:nowrap;">&#128272; Member ID</span>';
+      html += _pinDisplay;
+      if (_pin) {
+        html += '<button type="button" onclick="(function(){var t=document.getElementById(\'pp-pin-val\');if(t){navigator.clipboard.writeText(t.textContent);Modules._toast(\'Copied!\')}})()"'
+          + ' style="margin-left:auto;background:none;border:1px solid var(--line);border-radius:5px;padding:3px 10px;cursor:pointer;font-size:0.77rem;color:var(--ink-muted);">Copy</button>';
+      } else {
+        html += '<button type="button" onclick="Modules._ppGenPin(\'" + _e(memberRec.id || '') + "\')"'
+          + ' style="margin-left:auto;background:var(--accent);color:var(--ink-inverse);border:none;border-radius:5px;padding:4px 12px;cursor:pointer;font-size:0.8rem;font-weight:600;">Generate ID</button>';
+      }
+      html += '</div>';
+
       // Demographics (name/photo/email/phone now in Identity)
       var dem = '';
       dem += _pp2(
@@ -17083,6 +17100,27 @@ const Modules = (() => {
   function _euTab() {} // no-op stub (removed — tabs consolidated into _ppOpen sections)
   function _euSave() {} // no-op stub (removed — saves consolidated into _ppSaveAll)
 
+  // Generate and save a new Member Pin (xxx-xx-xxxx) for an existing member record
+  async function _ppGenPin(memberId) {
+    if (!memberId) return;
+    var n = String(Math.floor(Math.random() * 900000000) + 100000000);
+    var pin = n.slice(0, 3) + '-' + n.slice(3, 5) + '-' + n.slice(5);
+    try {
+      await (_isFirebaseComms() ? UpperRoom.updateMember({ id: memberId, memberPin: pin }) : TheVine.flock.call('members.update', { id: memberId, memberPin: pin }));
+      // Update display inline without full page reload
+      var el = document.getElementById('pp-pin-val');
+      if (el) {
+        el.style.fontFamily = 'monospace';
+        el.style.fontSize = '1.05rem';
+        el.style.letterSpacing = '0.12em';
+        el.style.fontWeight = '700';
+        el.style.color = 'var(--accent)';
+        el.textContent = pin;
+      }
+      _toast('Member ID assigned: ' + pin);
+    } catch (e) { _toast('Failed to assign ID: ' + (e.message || e), 'danger'); }
+  }
+
   // Create a new member record linked to this user
   async function _euCreateMember(email) {
     var r = (_dataCache['users'] || []).find(function(x) { return (x.email || x.id) === email; }) || {};
@@ -19660,6 +19698,7 @@ const Modules = (() => {
     _euSave,
     _euCreateMember,
     _euCreateCard,
+    _ppGenPin,
     _applyPermTemplate,
     _tabOnPermChkChange,
     _tabOnGrpChkChange,

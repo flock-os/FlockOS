@@ -1065,8 +1065,15 @@
     });
   }
 
+  function _genMemberPin() {
+    // 9 random digits always starting with 1–9, formatted xxx-xx-xxxx
+    var n = String(Math.floor(Math.random() * 900000000) + 100000000);
+    return n.slice(0, 3) + '-' + n.slice(3, 5) + '-' + n.slice(5);
+  }
+
   function createMember(data) {
     data.primaryEmail = (data.primaryEmail || data.email || '').toLowerCase();
+    if (!data.memberPin) data.memberPin = _genMemberPin();
     data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
     data.createdBy = _userEmail;
     return _membersRef().add(data).then(function(ref) {
