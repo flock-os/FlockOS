@@ -529,15 +529,71 @@ function _renderPage() {
     + '<div style="background:var(--bg-raised);border:1px solid var(--line,rgba(255,255,255,0.08));border-radius:10px;padding:18px 20px;">'
     + '<div style="font-size:0.82rem;color:var(--ink-muted);margin-bottom:4px;">Provisioner Web App URL</div>'
     + '<div style="font-size:0.79rem;font-family:monospace;color:var(--accent);word-break:break-all;">'
-    + _e(_PROVISIONER_URL) + '</div>'
+    + 'https://provision.flockos.yhwh.one</div>'
     + '<div style="margin-top:12px;font-size:0.78rem;color:var(--ink-muted);line-height:1.7;">'
     + 'The provisioner creates the church CRM Google Sheet, writes all script tabs '
     + '(Code.gs, FirestoreSync.gs, SyncHandler.gs), seeds Firestore, and returns a step-by-step '
     + 'Deployment Guide. Select a church above and click <strong style="color:var(--gold)">&#9889; Provision</strong> to launch.'
     + '</div>'
+    + '<div style="margin-top:16px;border-top:1px solid var(--line,rgba(255,255,255,0.08));padding-top:14px;">'
+    + '<div style="font-size:0.82rem;color:var(--ink-muted);margin-bottom:8px;">Test Provisioner URL</div>'
+    + '<div style="display:flex;gap:8px;align-items:center;">'
+    + '<input id="provisioner-test-url" type="text" value="https://provision.flockos.yhwh.one"'
+    + ' style="flex:1;font-size:0.79rem;font-family:monospace;background:var(--bg-deep,#111);'
+    + 'border:1px solid var(--line,rgba(255,255,255,0.12));border-radius:6px;padding:7px 10px;'
+    + 'color:var(--ink);outline:none;" placeholder="Enter URL to test…" />'
+    + '<button onclick="_gcTestProvisionerUrl()" style="background:var(--accent);color:var(--ink-inverse);'
+    + 'border:none;border-radius:6px;padding:7px 14px;cursor:pointer;font-size:0.8rem;font-weight:600;white-space:nowrap;">'
+    + 'Test URL</button>'
+    + '</div>'
+    + '<div id="provisioner-test-result" style="margin-top:8px;font-size:0.78rem;min-height:18px;"></div>'
+    + '</div>'
     + '</div>';
 
   main.innerHTML = html;
+}
+
+// ── Test Provisioner URL ──────────────────────────────────────────────────
+
+async function _gcTestProvisionerUrl() {
+  var input  = document.getElementById('provisioner-test-url');
+  var result = document.getElementById('provisioner-test-result');
+  var url    = (input && input.value || '').trim();
+  if (!url) { result.innerHTML = '<span style="color:var(--warn,#f90);">Enter a URL first.</span>'; return; }
+
+  result.innerHTML = '<span style="color:var(--ink-muted);">Testing…</span>';
+
+  // Append a no-op ping param so query-string forwarding can be verified
+  var testUrl = url + (url.indexOf('?') >= 0 ? '&' : '?') + 'action=ping';
+
+  try {
+    var resp = await fetch(testUrl, { method: 'GET', redirect: 'follow' });
+    var finalUrl = resp.url || '';
+    var text = '';
+    try { text = await resp.text(); } catch (_) {}
+
+    // Determine if query params survived the redirect
+    var paramsPreserved = finalUrl.indexOf('action=ping') >= 0 || text.indexOf('ping') >= 0;
+
+    if (resp.ok || resp.status === 200) {
+      if (paramsPreserved) {
+        result.innerHTML = '<span style="color:var(--success,#4c4);">&#10003; Reachable and query params forwarded correctly.</span>';
+      } else if (finalUrl && finalUrl !== testUrl) {
+        result.innerHTML = '<span style="color:var(--warn,#f90);">&#9888; Reachable but query params appear to be dropped by the redirect. Provisioning will fail.</span>';
+      } else {
+        result.innerHTML = '<span style="color:var(--success,#4c4);">&#10003; Reachable (status ' + resp.status + ').</span>';
+      }
+    } else {
+      result.innerHTML = '<span style="color:var(--warn,#f90);">&#9888; Responded with HTTP ' + resp.status + '.</span>';
+    }
+  } catch (err) {
+    // CORS block is actually a good sign — it means the URL resolved
+    if (err && err.message && (err.message.indexOf('CORS') >= 0 || err.message.indexOf('NetworkError') >= 0 || err.message.indexOf('Failed to fetch') >= 0)) {
+      result.innerHTML = '<span style="color:var(--success,#4c4);">&#10003; URL resolved (CORS block = server responded). Query param forwarding cannot be confirmed here — test manually.</span>';
+    } else {
+      result.innerHTML = '<span style="color:var(--danger,#d44);">&#10007; Unreachable: ' + _e(err && err.message ? err.message : String(err)) + '</span>';
+    }
+  }
 }
 
 // ── Data Loading ──────────────────────────────────────────────────────────
