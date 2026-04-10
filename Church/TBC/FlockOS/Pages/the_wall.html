@@ -36,238 +36,205 @@
     }
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
-    html { height: 100%; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       background: var(--bg);
       color: var(--text);
       min-height: 100dvh;
       display: flex;
-      flex-direction: column;
-      align-items: center;
-      overflow-y: auto;
-      overflow-x: hidden;
-      -webkit-overflow-scrolling: touch;
-    }
-
-    /* ── Hero zone — logo showcase ── */
-    .wall-hero {
-      width: 100%;
-      display: flex;
-      flex-direction: column;
       align-items: center;
       justify-content: center;
-      padding: 48px 24px 24px;
-      position: relative;
-      flex-shrink: 0;
+      padding: 24px;
+      overflow: hidden;
     }
-    /* Ambient glow behind the logo */
-    .wall-hero::before {
+    /* Ambient glow behind the card */
+    body::before {
       content: '';
-      position: absolute;
-      top: 50%;
+      position: fixed;
+      top: -30%;
       left: 50%;
-      transform: translate(-50%, -50%);
-      width: 360px;
-      height: 360px;
+      transform: translateX(-50%);
+      width: 600px;
+      height: 600px;
       border-radius: 50%;
       background: var(--accent-dim);
-      filter: blur(80px);
+      filter: blur(100px);
       pointer-events: none;
       z-index: 0;
     }
-    .wall-logo {
-      width: clamp(200px, 50vw, 320px);
-      height: clamp(200px, 50vw, 320px);
-      object-fit: contain;
+
+    /* ── Card ── */
+    .wall {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 28px;
+      padding: 48px 40px 40px;
+      width: 100%;
+      max-width: 400px;
       position: relative;
       z-index: 1;
-      filter: drop-shadow(0 16px 40px rgba(0,0,0,0.10));
-      animation: heroFloat 6s ease-in-out infinite;
+      box-shadow: 0 12px 48px rgba(0,0,0,0.06), 0 2px 6px rgba(0,0,0,0.03);
     }
-    @keyframes heroFloat {
-      0%, 100% { transform: translateY(0); }
-      50%      { transform: translateY(-8px); }
-    }
-    .wall-hero h1 {
-      font-size: clamp(1.25rem, 4vw, 1.75rem);
-      font-weight: 700;
-      color: var(--text);
-      letter-spacing: 0.01em;
-      margin-top: 16px;
-      text-align: center;
-      position: relative;
-      z-index: 1;
-    }
-    .wall-hero .verse {
-      color: var(--gold);
-      font-style: italic;
-      font-size: 0.72rem;
-      margin-top: 10px;
-      line-height: 1.5;
-      opacity: 0.6;
-      text-align: center;
-      max-width: 300px;
-      position: relative;
-      z-index: 1;
+    @media (max-width: 440px) {
+      .wall { padding: 36px 24px 28px; border-radius: 22px; }
     }
 
-    /* ── Form panel ── */
-    .wall-form {
-      width: 100%;
-      max-width: 380px;
-      padding: 0 24px 32px;
-      position: relative;
-      flex-shrink: 0;
+    /* ── Header ── */
+    .wall-header {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+    .wall-logo {
+      width: 80px;
+      height: 80px;
+      border-radius: 20px;
+      object-fit: contain;
+      margin-bottom: 20px;
+      filter: drop-shadow(0 6px 16px rgba(0,0,0,0.08));
+      transition: transform 0.3s ease;
+    }
+    .wall-logo:hover { transform: scale(1.05); }
+    .wall-header h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: 0.02em;
+    }
+    .wall-header .subtitle {
+      color: var(--muted);
+      font-size: 0.82rem;
+      margin-top: 6px;
+      font-weight: 400;
+    }
+    .wall-header .verse {
+      color: var(--gold);
+      font-style: italic;
+      font-size: 0.74rem;
+      margin-top: 14px;
+      line-height: 1.4;
+      opacity: 0.75;
     }
 
     /* ── Views ── */
     .view { display: none; }
-    .view.active { display: block; animation: viewIn 0.3s ease; }
+    .view.active { display: block; animation: viewIn 0.25s ease; }
     @keyframes viewIn {
-      from { opacity: 0; transform: translateY(10px); }
+      from { opacity: 0; transform: translateY(6px); }
       to   { opacity: 1; transform: translateY(0); }
     }
 
-    /* ── Input fields — minimal underline style ── */
+    /* ── Floating-label input fields ── */
     .field {
       position: relative;
-      margin-bottom: 24px;
+      margin-bottom: 20px;
     }
     .field input {
       width: 100%;
-      padding: 14px 0 10px;
-      background: transparent;
-      border: none;
-      border-bottom: 1.5px solid var(--border);
-      border-radius: 0;
+      padding: 16px 16px 8px;
+      background: var(--bg);
+      border: 1.5px solid var(--border);
+      border-radius: 12px;
       color: var(--text);
-      font-size: 1rem;
+      font-size: 0.95rem;
       font-family: inherit;
       outline: none;
-      transition: border-color 0.25s;
+      transition: border-color 0.2s, box-shadow 0.2s;
     }
     .field input:focus {
-      border-bottom-color: var(--accent);
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-dim);
     }
     .field input::placeholder { color: transparent; }
     .field label {
       position: absolute;
-      left: 0;
-      top: 14px;
-      font-size: 0.95rem;
+      left: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 0.92rem;
       color: var(--muted);
       pointer-events: none;
-      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      transition: all 0.2s ease;
+      background: transparent;
+      padding: 0 2px;
       font-weight: 400;
     }
     .field input:focus + label,
     .field input:not(:placeholder-shown) + label {
-      top: -6px;
-      font-size: 0.7rem;
+      top: 8px;
+      transform: translateY(0);
+      font-size: 0.68rem;
       font-weight: 600;
-      letter-spacing: 0.05em;
+      letter-spacing: 0.06em;
       text-transform: uppercase;
       color: var(--accent);
-    }
-    /* Animated underline */
-    .field::after {
-      content: '';
-      position: absolute;
-      bottom: 0;
-      left: 50%;
-      width: 0;
-      height: 2px;
-      background: var(--accent);
-      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-    .field:focus-within::after {
-      left: 0;
-      width: 100%;
     }
 
     /* ── Buttons ── */
     .btn {
       width: 100%;
-      padding: 15px;
+      padding: 14px;
       border: none;
-      border-radius: 50px;
-      font-size: 0.95rem;
+      border-radius: 12px;
+      font-size: 0.92rem;
       font-weight: 600;
-      letter-spacing: 0.04em;
+      letter-spacing: 0.03em;
       cursor: pointer;
-      transition: all 0.25s ease;
+      transition: all 0.2s ease;
       font-family: inherit;
-      margin-top: 8px;
+      margin-top: 4px;
     }
     .btn:active { transform: scale(0.97); }
     .btn:disabled {
-      opacity: 0.45;
+      opacity: 0.5;
       cursor: not-allowed;
       transform: none;
     }
     .btn-primary {
       background: var(--accent);
-      color: var(--ink-inverse, #fff);
-      box-shadow: 0 4px 20px var(--accent-dim);
+      color: var(--ink-inverse, var(--bg));
+      box-shadow: 0 4px 16px var(--accent-dim);
     }
     .btn-primary:hover:not(:disabled) {
-      box-shadow: 0 8px 32px var(--accent-dim);
-      transform: translateY(-2px);
+      box-shadow: 0 6px 24px var(--accent-dim);
+      transform: translateY(-1px);
     }
 
     /* ── Links ── */
     .links {
       text-align: center;
-      margin-top: 20px;
+      margin-top: 22px;
     }
     .links a {
       color: var(--muted);
       font-size: 0.8rem;
       text-decoration: none;
       cursor: pointer;
-      transition: color 0.2s;
+      transition: color 0.15s;
     }
     .links a:hover { color: var(--accent); }
     .links .sep {
       color: var(--border);
       margin: 0 10px;
-      font-size: 0.65rem;
+      font-size: 0.7rem;
     }
-
-    /* ── Back button ── */
-    .back {
-      display: none;
-      margin-bottom: 12px;
-      color: var(--muted);
-      font-size: 0.85rem;
-      cursor: pointer;
-      background: none;
-      border: none;
-      font-family: inherit;
-      transition: color 0.2s;
-      padding: 0;
-    }
-    .back:hover { color: var(--accent); }
-    .back.show { display: inline-flex; align-items: center; gap: 4px; }
 
     /* ── Alert Messages ── */
     .alert {
-      border-radius: 10px;
+      border-radius: 12px;
       padding: 10px 14px;
-      margin-bottom: 16px;
+      margin-bottom: 18px;
       font-size: 0.84rem;
       line-height: 1.5;
       display: none;
     }
     .alert.show { display: block; animation: viewIn 0.2s ease; }
     .alert-error {
-      background: rgba(248,113,113,0.08);
+      background: rgba(248,113,113,0.06);
       border-left: 3px solid var(--danger);
       color: var(--danger);
     }
     .alert-success {
-      background: rgba(74,222,128,0.08);
+      background: rgba(74,222,128,0.06);
       border-left: 3px solid var(--success);
       color: var(--success);
     }
@@ -283,7 +250,7 @@
       width: 16px;
       height: 16px;
       border: 2px solid transparent;
-      border-top-color: currentColor;
+      border-top-color: var(--bg);
       border-radius: 50%;
       animation: spin 0.6s linear infinite;
       vertical-align: middle;
@@ -291,46 +258,48 @@
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
+    /* ── Back arrow ── */
+    .back {
+      position: absolute;
+      top: 18px;
+      left: 18px;
+      color: var(--muted);
+      font-size: 1.1rem;
+      cursor: pointer;
+      display: none;
+      background: none;
+      border: none;
+      font-family: inherit;
+      transition: color 0.15s;
+    }
+    .back:hover { color: var(--accent); }
+    .back.show { display: block; }
+
     /* ── Footer ── */
     .wall-footer {
       text-align: center;
-      padding: 16px 24px 24px;
-      width: 100%;
-      flex-shrink: 0;
+      margin-top: 28px;
+      padding-top: 18px;
+      border-top: 1px solid var(--border);
     }
     .wall-footer span {
       color: var(--muted);
-      font-size: 0.68rem;
-      letter-spacing: 0.04em;
-      opacity: 0.6;
-    }
-
-    /* ── Responsive tweaks ── */
-    @media (min-height: 750px) {
-      body { justify-content: center; }
-    }
-    @media (max-height: 680px) {
-      .wall-hero { padding-top: 24px; padding-bottom: 12px; }
-      .wall-logo { width: clamp(140px, 35vw, 200px); height: clamp(140px, 35vw, 200px); }
-      .wall-hero h1 { margin-top: 8px; }
-    }
-    @media (max-width: 380px) {
-      .wall-form { padding: 0 16px 24px; }
+      font-size: 0.7rem;
+      letter-spacing: 0.03em;
     }
   </style>
 </head>
 <body>
 
-<!-- ── Hero — showcase the church logo ── -->
-<div class="wall-hero">
-  <img id="wall-logo" class="wall-logo" src="../Images/FlockOS_Angels.png" alt="Trinity Baptist Church">
-  <h1>Trinity Baptist Church</h1>
-  <div class="verse">&ldquo;I am the gate; whoever enters through me will be saved.&rdquo; &mdash; John 10:9</div>
-</div>
+<div class="wall">
+  <button class="back" id="backBtn" onclick="showView('login')" aria-label="Back to login">&larr;</button>
 
-<!-- ── Form panel ── -->
-<div class="wall-form">
-  <button class="back" id="backBtn" onclick="showView('login')" aria-label="Back">&larr; Back</button>
+  <div class="wall-header">
+    <img id="wall-logo" class="wall-logo" src="../Images/FlockOS_Angels.png" alt="Trinity Baptist Church">
+    <h1>Trinity Baptist Church</h1>
+    <div class="subtitle">Welcome back</div>
+    <div class="verse">&ldquo;I am the gate; whoever enters through me will be saved.&rdquo;<br>John 10:9</div>
+  </div>
 
   <div id="alertBox" class="alert"></div>
 
@@ -423,10 +392,10 @@
       <a onclick="showView('login')">Back to sign in</a>
     </div>
   </div>
-</div>
 
-<div class="wall-footer">
-  <span>Trinity Baptist Church v1.77 &middot; Nehemiah 6:3</span>
+  <div class="wall-footer">
+    <span>Trinity Baptist Church v1.77 &middot; Nehemiah 6:3</span>
+  </div>
 </div>
 
 <!-- ═══ SCRIPTS ═══ -->
