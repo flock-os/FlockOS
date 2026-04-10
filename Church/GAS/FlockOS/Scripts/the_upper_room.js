@@ -1016,72 +1016,20 @@
     return _churchRef().collection('users');
   }
 
-  function listUsers(opts) {
-    opts = opts || {};
-    var q = _usersRef().orderBy('lastName').limit(opts.limit || 500);
-    if (opts.status) q = q.where('status', '==', opts.status);
-    return q.get().then(function(snap) {
-      var results = [];
-      snap.forEach(function(doc) {
-        var d = doc.data(); d.id = doc.id; results.push(d);
-      });
-      return results;
-    });
-  }
+  function listUsers() { return Promise.reject('User admin moved to GAS — use TheVine.flock.users.list()'); }
+  function getUser()   { return Promise.reject('User admin moved to GAS'); }
 
-  function getUser(email) {
-    return _usersRef().doc(email.toLowerCase()).get().then(function(doc) {
-      if (!doc.exists) return null;
-      var d = doc.data(); d.id = doc.id; return d;
-    });
-  }
+  // ── User admin functions REMOVED ─────────────────────────────────────
+  // User administration (create, update, approve, deny, reset passcode)
+  // is now handled exclusively by GAS (TheVine) to ensure passwords are
+  // hashed server-side and auth data never enters Firestore.
+  // See: the_shepherd.js, the_tabernacle.js, the_life.js → TheVine.flock.users.*
 
-  function createUser(data) {
-    var email = (data.email || '').toLowerCase();
-    if (!email) return Promise.reject('email required');
-    data.email = email;
-    data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-    data.createdBy = _userEmail;
-    return _usersRef().doc(email).set(data).then(function() {
-      data.id = email; return data;
-    });
-  }
-
-  function updateUser(data) {
-    var email = (data.targetEmail || data.email || '').toLowerCase();
-    if (!email) return Promise.reject('email required');
-    var payload = Object.assign({}, data);
-    delete payload.targetEmail;
-    payload.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
-    payload.updatedBy = _userEmail;
-    return _usersRef().doc(email).update(payload).then(function() {
-      return payload;
-    });
-  }
-
-  function approveUser(email) {
-    return _usersRef().doc(email.toLowerCase()).update({
-      status: 'active',
-      approvedAt: firebase.firestore.FieldValue.serverTimestamp(),
-      approvedBy: _userEmail
-    });
-  }
-
-  function denyUser(email) {
-    return _usersRef().doc(email.toLowerCase()).update({
-      status: 'denied',
-      deniedAt: firebase.firestore.FieldValue.serverTimestamp(),
-      deniedBy: _userEmail
-    });
-  }
-
-  function resetPasscode(email, newPasscode) {
-    return _usersRef().doc(email.toLowerCase()).update({
-      passcode: newPasscode,
-      passcodeResetAt: firebase.firestore.FieldValue.serverTimestamp(),
-      passcodeResetBy: _userEmail
-    });
-  }
+  function createUser()    { return Promise.reject('User admin moved to GAS — use TheVine.flock.users.create()'); }
+  function updateUser()    { return Promise.reject('User admin moved to GAS — use TheVine.flock.users.update()'); }
+  function approveUser()   { return Promise.reject('User admin moved to GAS — use TheVine.flock.users.approve()'); }
+  function denyUser()      { return Promise.reject('User admin moved to GAS — use TheVine.flock.users.deny()'); }
+  function resetPasscode() { return Promise.reject('User admin moved to GAS — use TheVine.flock.users.resetPasscode()'); }
 
   /* ══════════════════════════════════════════════════════════════════
      MEMBERS — churches/{churchId}/members

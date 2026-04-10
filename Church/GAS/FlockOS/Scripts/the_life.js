@@ -178,7 +178,7 @@ const TheLife = (() => {
       _memberDirPromise = (async function() {
         var fetches = [_isFB() ? UpperRoom.listMembers({ limit: 500 }) : TheVine.flock.call('members.list', { limit: 500 })];
         if (Nehemiah.hasRole('admin')) {
-          fetches.push(_isFB() ? UpperRoom.listUsers() : TheVine.flock.call('users.list', {}));
+          fetches.push(TheVine.flock.call('users.list', {}));
         }
         var res = await Promise.allSettled(fetches);
         var members = _rows(res[0].status === 'fulfilled' ? res[0].value : []);
@@ -2101,19 +2101,13 @@ const TheLife = (() => {
         if (createAcct) {
           try {
             _stat('Creating login account\u2026');
-            await (_isFB() ? UpperRoom.createUser({
+            await TheVine.flock.call('users.create', {
               email: data.primaryEmail,
               firstName: data.firstName || '',
               lastName: data.lastName || '',
               passcode: acctPassword,
               role: acctRole,
-            }) : TheVine.flock.call('users.create', {
-              email: data.primaryEmail,
-              firstName: data.firstName || '',
-              lastName: data.lastName || '',
-              passcode: acctPassword,
-              role: acctRole,
-            }));
+            });
             _audit('user.create', 'AuthUsers', data.primaryEmail,
               'Account created with role: ' + acctRole);
           } catch (acctErr) {

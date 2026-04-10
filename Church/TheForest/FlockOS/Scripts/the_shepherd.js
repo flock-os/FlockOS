@@ -129,7 +129,7 @@ const TheShepherd = (() => {
     try {
       // Parallel-load users, members, cards (users.list may fail for non-admin)
       var res = await Promise.allSettled([
-        _isFB() ? UpperRoom.listUsers()          : TheVine.flock.users.list(),
+        TheVine.flock.users.list(),
         _isFB() ? UpperRoom.listMembers()         : TheVine.flock.members.list(),
         _isFB() ? UpperRoom.listMemberCards()      : TheVine.flock.memberCards.directory(),
       ]);
@@ -260,7 +260,7 @@ const TheShepherd = (() => {
   async function _approve(email) {
     if (!confirm('Approve ' + email + ' for membership?')) return;
     try {
-      await (_isFB() ? UpperRoom.approveUser(email) : TheVine.flock.users.approve({ email: email }));
+      await TheVine.flock.users.approve({ email: email });
       _toast('Approved!', 'success');
       if (typeof TheScrolls !== 'undefined') TheScrolls.log(TheScrolls.TYPES.APPROVAL, email, 'Approved registration', { personName: email });
       renderApp(_container);
@@ -269,7 +269,7 @@ const TheShepherd = (() => {
   async function _deny(email) {
     if (!confirm('Deny registration for ' + email + '?')) return;
     try {
-      await (_isFB() ? UpperRoom.denyUser(email) : TheVine.flock.users.deny({ email: email }));
+      await TheVine.flock.users.deny({ email: email });
       _toast('Denied.', 'danger');
       if (typeof TheScrolls !== 'undefined') TheScrolls.log(TheScrolls.TYPES.DENIAL, email, 'Denied registration', { personName: email });
       renderApp(_container);
@@ -940,7 +940,7 @@ const TheShepherd = (() => {
           if (f.indexOf('acct_') === 0) acct[f.substring(5)] = el.value;
         });
         _stat('Saving account\u2026');
-        await (_isFB() ? UpperRoom.updateUser(acct) : TheVine.flock.users.update(acct));
+        await TheVine.flock.users.update(acct);
       } catch (e) { errors.push('Account: ' + (e.message || e)); }
     }
 
@@ -1125,7 +1125,7 @@ const TheShepherd = (() => {
           alert('Passcode must be at least 6 characters.'); return;
         }
         try {
-          await (_isFB() ? UpperRoom.resetPasscode(email, data.newPasscode) : TheVine.flock.users.resetPasscode({ targetEmail: email, newPasscode: data.newPasscode }));
+          await TheVine.flock.users.resetPasscode({ targetEmail: email, newPasscode: data.newPasscode });
           _toast('Passcode reset for ' + email, 'success');
           if (typeof TheScrolls !== 'undefined') TheScrolls.log(TheScrolls.TYPES.ADMIN_ACTION, email, 'Admin reset passcode', { personName: email });
         } catch (e) { alert('Failed: ' + (e.message || e)); }
@@ -1135,7 +1135,7 @@ const TheShepherd = (() => {
       if (!np) return;
       if (np.length < 6) { alert('Passcode must be at least 6 characters.'); return; }
       try {
-        await (_isFB() ? UpperRoom.resetPasscode(email, np) : TheVine.flock.users.resetPasscode({ targetEmail: email, newPasscode: np }));
+        await TheVine.flock.users.resetPasscode({ targetEmail: email, newPasscode: np });
         _toast('Passcode reset for ' + email, 'success');
         if (typeof TheScrolls !== 'undefined') TheScrolls.log(TheScrolls.TYPES.ADMIN_ACTION, email, 'Admin reset passcode', { personName: email });
       } catch (e) { alert('Failed: ' + (e.message || e)); }
@@ -1170,7 +1170,7 @@ const TheShepherd = (() => {
             displayName: (firstName + ' ' + lastName).trim(),
             role: data.role, passcode: data.passcode
           };
-          await (_isFB() ? UpperRoom.createUser(_userData) : TheVine.flock.users.create(_userData));
+          await TheVine.flock.users.create(_userData);
           _toast('User account created for ' + email, 'success');
           if (typeof TheScrolls !== 'undefined') TheScrolls.log(TheScrolls.TYPES.ADMIN_ACTION, email, 'Created user account', { personName: firstName + ' ' + lastName });
           openProfile(email);
@@ -1187,7 +1187,7 @@ const TheShepherd = (() => {
           displayName: (firstName + ' ' + lastName).trim(),
           role: role, passcode: passcode
         };
-        await (_isFB() ? UpperRoom.createUser(_userData2) : TheVine.flock.users.create(_userData2));
+        await TheVine.flock.users.create(_userData2);
         _toast('User account created for ' + email, 'success');
         if (typeof TheScrolls !== 'undefined') TheScrolls.log(TheScrolls.TYPES.ADMIN_ACTION, email, 'Created user account', { personName: firstName + ' ' + lastName });
         openProfile(email);

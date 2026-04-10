@@ -9428,7 +9428,7 @@ const Modules = (() => {
   async function _ppLoadList(el) {
     try {
       var res = await Promise.all([
-        _isFirebaseComms() ? UpperRoom.listUsers()      : TheVine.flock.users.list(),
+        TheVine.flock.users.list(),
         _isFirebaseComms() ? UpperRoom.listMembers()     : TheVine.flock.members.list(),
         _isFirebaseComms() ? UpperRoom.listMemberCards()  : TheVine.flock.memberCards.directory()
       ]);
@@ -9547,7 +9547,7 @@ const Modules = (() => {
   async function _ppApprove(email) {
     if (!confirm('Approve ' + email + ' for membership?')) return;
     try {
-      await (_isFirebaseComms() ? UpperRoom.approveUser(email) : TheVine.flock.users.approve({ email: email }));
+      await TheVine.flock.users.approve({ email: email });
       _toast('Approved!', 'success');
       _reload('users');
     } catch (e) { _toast('Failed: ' + (e.message || e), 'danger'); }
@@ -9555,7 +9555,7 @@ const Modules = (() => {
   async function _ppDeny(email) {
     if (!confirm('Deny registration for ' + email + '?')) return;
     try {
-      await (_isFirebaseComms() ? UpperRoom.denyUser(email) : TheVine.flock.users.deny({ email: email }));
+      await TheVine.flock.users.deny({ email: email });
       _toast('Denied.', 'warn');
       _reload('users');
     } catch (e) { _toast('Failed: ' + (e.message || e), 'danger'); }
@@ -10359,7 +10359,7 @@ const Modules = (() => {
         if (f.indexOf('acct_') === 0) acct[f.substring(5)] = el.value;
       });
       _stat('Saving account\u2026');
-      await (_isFirebaseComms() ? UpperRoom.updateUser(acct) : TheVine.flock.users.update(acct));
+      await TheVine.flock.users.update(acct);
     } catch (e) { errors.push('Account: ' + (e.message || e)); }
 
     // 2. Member record — fan in shared fields
@@ -15815,7 +15815,7 @@ const Modules = (() => {
           role: _wv('role'),
           passcode: _wv('passcode')
         };
-        await (_isFirebaseComms() ? UpperRoom.createUser(_newUser) : TheVine.flock.users.create(_newUser));
+        await TheVine.flock.users.create(_newUser);
 
         // Step 2: Create member record (if toggled on)
         if (document.getElementById('wiz-createMember').checked) {
@@ -17242,7 +17242,7 @@ const Modules = (() => {
       if (c.checked) groups.push(c.getAttribute('data-group'));
     });
     try {
-      await (_isFirebaseComms() ? UpperRoom.updateUser({ targetEmail: targetEmail, groups: groups.join(', ') }) : TheVine.flock.users.update({ targetEmail: targetEmail, groups: groups.join(', ') }));
+      await TheVine.flock.users.update({ targetEmail: targetEmail, groups: groups.join(', ') });
       if (st) { st.textContent = '\u2713 Saved'; setTimeout(function() { if (st) st.textContent = ''; }, 2000); }
     } catch (e) {
       if (st) st.textContent = 'Error: ' + (e.message || e);

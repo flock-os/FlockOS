@@ -88,6 +88,9 @@ const SKIP_COLLECTIONS = new Set([
   "appConfig",        // local config, not in sheets
   "preferences",      // per-user UI prefs
   "auditLog",         // server-generated, read-only
+  "users",            // auth data — GAS-only, never sync (contains hashed passwords)
+  "accessControl",    // RBAC — GAS-only
+  "permissions",      // per-user overrides — GAS-only
 ]);
 
 // ── Map Firestore camelCase fields back to Sheet header names ──────────
