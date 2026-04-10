@@ -3869,7 +3869,7 @@
       key: key,
       value: data.value != null ? data.value : '',
       updatedAt: _ts(),
-      updatedBy: _userEmail()
+      updatedBy: _userEmail
     }, { merge: true });
   }
 
