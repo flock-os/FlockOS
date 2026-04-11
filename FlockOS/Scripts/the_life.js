@@ -333,8 +333,6 @@ const TheLife = (() => {
     el.innerHTML = '<div class="fp-editor">'
       + '<div class="fp-topbar">'
       + '<button class="fp-back" onclick="TheLife.backToHub()">\u2190 My Flock</button>'
-      + '<span style="color:var(--ink-faint);font-size:0.82rem;margin:0 2px;">/</span>'
-      + '<button class="fp-back" onclick="TheLife.backToLoveInAction()">Love in Action</button>'
       + '<h2 class="fp-title">' + (id ? 'Edit Care Case' : 'New Care Case') + '</h2>'
       + '</div>'
       + '<div id="fp-body">' + _spinner() + '</div></div>';
@@ -882,11 +880,11 @@ const TheLife = (() => {
       if (btn) { btn.disabled = false; btn.textContent = '\uD83D\uDCBE Save Care Case'; }
       _toast('Care case saved!', 'success');
       _stat('Saved \u2713');
-      // If status is now terminal, go back to Love in Action (item will be filtered);
+      // If status is now terminal, go back to hub (item will be filtered);
       // otherwise reload to show fresh data.
       if (_fpCareId) {
         var _ns = (data.status || '').toLowerCase();
-        if (_TERMINAL_STATUSES.indexOf(_ns) !== -1 && !_canViewNotes()) { backToLoveInAction(); }
+        if (_TERMINAL_STATUSES.indexOf(_ns) !== -1 && !_canViewNotes()) { backToHub(); }
         else { openCareCase(_fpCareId); }
       }
     } catch (err) {
@@ -912,14 +910,14 @@ const TheLife = (() => {
       }
       _audit('care.resolve', 'SpiritualCareCases', _fpCareId, 'Resolved');
       _toast('Case resolved!', 'success');
-      // Invalidate ALL cached care data (both hub and Love in Action keys)
+      // Invalidate ALL cached care data keys
       if (typeof TheVine !== 'undefined' && TheVine.cache) {
         ['life:care','life:followUps','tab:care','tab:prayer','tab:compassion','tab:outreach'].forEach(function(k) {
           TheVine.cache.invalidate(k);
         });
       }
       delete _cache.care;
-      backToLoveInAction();
+      backToHub();
     } catch (e) {
       console.error('[TheLife] care.resolve FAILED:', e);
       alert('Failed to resolve: ' + (e.message || e));
@@ -1117,8 +1115,6 @@ const TheLife = (() => {
     el.innerHTML = '<div class="fp-editor">'
       + '<div class="fp-topbar">'
       + '<button class="fp-back" onclick="TheLife.backToHub()">\u2190 My Flock</button>'
-      + '<span style="color:var(--ink-faint);font-size:0.82rem;margin:0 2px;">/</span>'
-      + '<button class="fp-back" onclick="TheLife.backToLoveInAction()">Love in Action</button>'
       + '<h2 class="fp-title">Prayer Request</h2>'
       + '</div>'
       + '<div id="fp-body">' + _spinner() + '</div></div>';
@@ -1300,8 +1296,6 @@ const TheLife = (() => {
     el.innerHTML = '<div class="fp-editor">'
       + '<div class="fp-topbar">'
       + '<button class="fp-back" onclick="TheLife.backToHub()">\u2190 My Flock</button>'
-      + '<span style="color:var(--ink-faint);font-size:0.82rem;margin:0 2px;">/</span>'
-      + '<button class="fp-back" onclick="TheLife.backToLoveInAction()">Love in Action</button>'
       + '<h2 class="fp-title">' + (id ? 'Edit Compassion Request' : 'New Compassion Request') + '</h2>'
       + '</div>'
       + '<div id="fp-body">' + _spinner() + '</div></div>';
@@ -1451,7 +1445,7 @@ const TheLife = (() => {
       delete _cache.allCompassion;
       if (_fpCompId) {
         var _ns = (data.status || '').toLowerCase();
-        if (_TERMINAL_STATUSES.indexOf(_ns) !== -1 && !_canViewNotes()) { backToLoveInAction('compassion'); }
+        if (_TERMINAL_STATUSES.indexOf(_ns) !== -1 && !_canViewNotes()) { backToHub(); }
         else { openCompassion(_fpCompId); }
       }
     } catch (err) {
@@ -1485,7 +1479,7 @@ const TheLife = (() => {
       }
       delete _cache.allCompassion;
       _toast('Request denied.', 'danger');
-      backToLoveInAction('compassion');
+      backToHub();
     } catch (e) { alert('Failed: ' + (e.message || e)); }
   }
 
@@ -1517,8 +1511,6 @@ const TheLife = (() => {
     el.innerHTML = '<div class="fp-editor">'
       + '<div class="fp-topbar">'
       + '<button class="fp-back" onclick="TheLife.backToHub()">\u2190 My Flock</button>'
-      + '<span style="color:var(--ink-faint);font-size:0.82rem;margin:0 2px;">/</span>'
-      + '<button class="fp-back" onclick="TheLife.backToLoveInAction(\'outreach\')">Love in Action</button>'
       + '<h2 class="fp-title">' + (id ? 'Edit Outreach Contact' : 'New Outreach Contact') + '</h2>'
       + '</div>'
       + '<div id="fp-body">' + _spinner() + '</div></div>';
@@ -1672,7 +1664,7 @@ const TheLife = (() => {
       if (_fpOutId) {
         var _ns = (data.status || '').toLowerCase();
         if (_ns === 'archived' || _ns === 'inactive' || (_TERMINAL_STATUSES && _TERMINAL_STATUSES.indexOf(_ns) !== -1)) {
-          backToLoveInAction('outreach');
+          backToHub();
         } else { openOutreach(_fpOutId); }
       }
     } catch (err) {
@@ -1711,7 +1703,7 @@ const TheLife = (() => {
         TheVine.cache.invalidate('tab:outreach');
       }
       _toast('Contact archived.', 'success');
-      backToLoveInAction('outreach');
+      backToHub();
     } catch (e) { _toast('Archive failed: ' + (e.message || e), 'error'); }
   }
 
@@ -2583,14 +2575,262 @@ const TheLife = (() => {
     var _m = document.getElementById('main'); if (_m) _m.scrollTop = 0;
   }
 
-  function backToLoveInAction(tab) {
-    var el = _hubEl();
-    if (!el) return backToHub();
-    el.dataset.loaded = '';
-    Modules.render('my-flock', el, Nehemiah.getSession());
-    // Wait for hub to render, then immediately open Love in Action at the correct tab
-    setTimeout(function() { openApp('care', tab || 'care'); }, 120);
+  // Legacy alias — LoveInAction removed; all care flows now live in My Flock
+  function backToLoveInAction() { backToHub(); }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // CARE HUB — inline tabbed view (replaces the removed love_in_action.js)
+  // Tabs: Care Cases · Prayer · Compassion · Outreach · Assignments · Follow-Ups
+  // ══════════════════════════════════════════════════════════════════════════
+
+  var _careHubTab         = 'care';
+  var _careHubAssignments = [];
+  var _careHubFollowups   = [];
+  var _careHubLoadingAsgn = false;
+  var _careHubLoadingFU   = false;
+
+  function _renderCareHub(container, tab) {
+    _careHubTab         = tab || 'care';
+    _careHubAssignments = [];
+    _careHubFollowups   = [];
+    _careHubLoadingAsgn = false;
+    _careHubLoadingFU   = false;
+
+    var d             = _flockData;
+    var allCare       = d.allCare       || [];
+    var allPrayer     = d.allPrayer     || [];
+    var allCompassion = d.allCompassion || [];
+    var allOutreach   = d.allOutreach   || [];
+
+    var h = '<div class="fp-editor">';
+    h += '<div class="fp-topbar"><button class="fp-back" onclick="TheLife.backToHub()">\u2190 My Flock</button>'
+       + '<h2 class="fp-title">\u2764\uFE0F Care \u0026 Outreach</h2></div>';
+
+    // KPI strip
+    h += '<div class="flock-kpi-row" style="margin-bottom:14px;">';
+    h += _flockKpi(allCare.length,       'Care Cases',  allCare.length        ? 'warn'   : 'success', "TheLife._careHubSwitch('care')");
+    h += _flockKpi(allPrayer.length,     'Prayers',     allPrayer.length      ? 'danger' : 'success', "TheLife._careHubSwitch('prayer')");
+    h += _flockKpi(allCompassion.length, 'Compassion',  allCompassion.length  ? 'warn'   : 'success', "TheLife._careHubSwitch('compassion')");
+    h += _flockKpi(allOutreach.length,   'Outreach',    'accent',                                     "TheLife._careHubSwitch('outreach')");
+    h += '</div>';
+
+    // Search
+    h += '<div style="margin-bottom:14px;">'
+       + '<input id="care-hub-q" type="search" placeholder="Search cases, names, notes\u2026"'
+       + ' oninput="TheLife._careHubSearch(this.value)"'
+       + ' style="width:100%;max-width:480px;background:rgba(255,255,255,0.07);border:1px solid var(--line);'
+       + 'border-radius:6px;padding:8px 12px;color:var(--ink);font-size:0.88rem;font-family:inherit;"></div>';
+
+    // Tab bar
+    var _chTabs = [
+      { key: 'care',        label: '\u2764\uFE0F Care',       ct: allCare.length },
+      { key: 'prayer',      label: '\uD83D\uDE4F Prayer',     ct: allPrayer.length },
+      { key: 'compassion',  label: '\u2665 Compassion',       ct: allCompassion.length },
+      { key: 'outreach',    label: '\u261E Outreach',         ct: allOutreach.length },
+      { key: 'assignments', label: '\uD83D\uDC65 Assignments',ct: 0 },
+      { key: 'followups',   label: '\u23F0 Follow-Ups',       ct: 0 },
+    ];
+    h += '<div style="display:flex;gap:2px;border-bottom:2px solid var(--line);margin-bottom:16px;overflow-x:auto;-webkit-overflow-scrolling:touch;">';
+    _chTabs.forEach(function(t) {
+      var active = t.key === _careHubTab;
+      h += '<button class="flock-tab' + (active ? ' active' : '') + '" id="care-hub-tab-' + t.key + '"'
+         + ' onclick="TheLife._careHubSwitch(\'' + t.key + '\')">'
+         + t.label + (t.ct > 0 ? ' <span style="font-size:0.72rem;opacity:.7;">(' + t.ct + ')</span>' : '')
+         + '</button>';
+    });
+    h += '</div>';
+
+    // Panels
+    h += '<div id="care-hub-panels">';
+    _chTabs.forEach(function(t) {
+      h += '<div id="care-hub-p-' + t.key + '" style="' + (t.key !== _careHubTab ? 'display:none;' : '') + '">';
+      if (t.key === 'care')       h += _buildCarePanel(allCare);
+      else if (t.key === 'prayer')      h += _buildPrayerPanel(allPrayer);
+      else if (t.key === 'compassion')  h += _buildCompassionPanel(allCompassion);
+      else if (t.key === 'outreach')    h += _buildOutreachPanel(allOutreach);
+      // assignments & followups are lazy-loaded on first tab click
+      h += '</div>';
+    });
+    h += '</div></div>';
+
+    container.innerHTML = h;
     var _m = document.getElementById('main'); if (_m) _m.scrollTop = 0;
+
+    if (_careHubTab === 'assignments') _careHubLazyLoad('assignments');
+    else if (_careHubTab === 'followups') _careHubLazyLoad('followups');
+  }
+
+  function _careHubSwitch(key) {
+    _careHubTab = key;
+    document.querySelectorAll('[id^="care-hub-tab-"]').forEach(function(btn) {
+      btn.classList.toggle('active', btn.id === 'care-hub-tab-' + key);
+    });
+    document.querySelectorAll('[id^="care-hub-p-"]').forEach(function(panel) {
+      panel.style.display = (panel.id === 'care-hub-p-' + key) ? '' : 'none';
+    });
+    if (key === 'assignments' || key === 'followups') {
+      var panel = document.getElementById('care-hub-p-' + key);
+      if (panel && !panel.innerHTML.trim()) _careHubLazyLoad(key);
+    }
+    _audit('care-hub.tab', 'CareHub', key, 'Switched to ' + key);
+  }
+
+  async function _careHubLazyLoad(key) {
+    var panel = document.getElementById('care-hub-p-' + key);
+    if (panel) panel.innerHTML = _spinner();
+    try {
+      if (key === 'assignments') {
+        _careHubLoadingAsgn = true;
+        var r = await (_isFB() ? UpperRoom.listCareAssignments({ limit: 80 }) : TheVine.flock.care.assignments.list({ limit: 80 }));
+        _careHubAssignments = _filterClosed(_rows(r));
+        if (panel) panel.innerHTML = _buildCareAssignmentsTable(_careHubAssignments);
+        _careHubLoadingAsgn = false;
+      } else {
+        _careHubLoadingFU = true;
+        var r2 = await (_isFB() ? UpperRoom.careFollowUpsDue() : TheVine.flock.care.followUps.due());
+        _careHubFollowups = _rows(r2);
+        if (panel) panel.innerHTML = _buildCareFollowUpsTable(_careHubFollowups);
+        _careHubLoadingFU = false;
+      }
+    } catch (e) {
+      if (panel) panel.innerHTML = '<div style="padding:20px;color:var(--danger);font-size:0.88rem;">Failed to load: ' + _e(e.message) + '</div>';
+      _careHubLoadingAsgn = false;
+      _careHubLoadingFU   = false;
+    }
+  }
+
+  function _careHubSearch(q) {
+    q = (q || '').toLowerCase().trim();
+    document.querySelectorAll('.care-hub-row').forEach(function(r) {
+      r.style.display = (!q || (r.dataset.search || '').indexOf(q) >= 0) ? '' : 'none';
+    });
+  }
+
+  function _buildCareAssignmentsTable(rows) {
+    var h = '<div style="margin-bottom:14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">'
+      + '<label style="font-size:0.8rem;color:var(--ink-muted);">Filter by member:</label>'
+      + '<input id="care-asgn-member" type="text" placeholder="Member ID or email"'
+      + ' style="padding:6px 10px;border:1px solid var(--line);border-radius:6px;background:rgba(255,255,255,0.07);color:var(--ink);font-size:0.8rem;font-family:inherit;min-width:180px;">'
+      + '<button onclick="TheLife._careHubSearchAssignments()"'
+      + ' style="background:var(--accent);color:var(--ink-inverse);border:none;border-radius:6px;padding:6px 14px;font-size:0.8rem;cursor:pointer;font-family:inherit;">Search</button>'
+      + '</div>';
+    if (!rows.length) return h + _flockEmpty('\uD83D\uDC65', 'No care assignments found.');
+    h += '<div style="overflow-x:auto;"><table class="data-table"><thead><tr>';
+    ['Member', 'Caregiver', 'Type', 'Status', 'Assigned On', 'Actions'].forEach(function(col) {
+      h += '<th>' + _e(col) + '</th>';
+    });
+    h += '</tr></thead><tbody>';
+    rows.forEach(function(r) {
+      var id       = _e(String(r.id || ''));
+      var isOpen   = !/^(ended|closed|complete|inactive|reassigned)$/i.test(r.status || '');
+      var openCase = (_flockData.allCare || []).find(function(c) {
+        return c.memberId === r.memberId && !/^(resolved|closed|archived)$/i.test(c.status || '');
+      });
+      var caseId   = openCase ? _e(openCase.id) : '';
+      h += '<tr>'
+        + '<td>' + (caseId
+          ? '<a href="#" onclick="TheLife.openCareCase(\'' + caseId + '\');return false;" style="color:var(--accent);text-decoration:none;font-weight:600;">' + _e(_memberName(r.memberId) || r.memberId || '') + '</a>'
+          : _e(_memberName(r.memberId) || r.memberId || '')) + '</td>'
+        + '<td>' + _e(_memberName(r.caregiverId) || r.caregiverId || '') + '</td>'
+        + '<td>' + _e(r.role || '') + '</td>'
+        + '<td>' + _statusBadge(r.status || 'Active') + '</td>'
+        + '<td>' + _e(r.startDate || r.createdAt || '') + '</td>'
+        + '<td>';
+      if (caseId) h += '<button onclick="TheLife.openCareCase(\'' + caseId + '\')" style="background:var(--accent);color:var(--ink-inverse);border:none;border-radius:5px;padding:3px 7px;font-size:0.73rem;cursor:pointer;margin-right:3px;font-family:inherit;">Open Case</button>';
+      h += isOpen
+        ? '<button onclick="TheLife._careHubReassign(\'' + id + '\')" style="background:none;border:1px solid var(--line);border-radius:5px;padding:3px 7px;font-size:0.73rem;cursor:pointer;margin-right:3px;font-family:inherit;">Reassign</button>'
+          + '<button onclick="TheLife._careHubEndAssignment(\'' + id + '\')" style="background:var(--danger);color:#fff;border:none;border-radius:5px;padding:3px 7px;font-size:0.73rem;cursor:pointer;font-family:inherit;">End</button>'
+        : '<span style="color:var(--ink-muted);font-size:0.76rem;">Closed</span>';
+      h += '</td></tr>';
+    });
+    h += '</tbody></table></div>';
+    return h;
+  }
+
+  function _buildCareFollowUpsTable(rows) {
+    if (!rows.length) return _flockEmpty('\u23F0', 'No pending follow-up interactions.');
+    var h = '<div style="overflow-x:auto;"><table class="data-table"><thead><tr>';
+    ['Member', 'Caregiver', 'Due / Date', 'Notes', 'Status', 'Action'].forEach(function(col) {
+      h += '<th>' + _e(col) + '</th>';
+    });
+    h += '</tr></thead><tbody>';
+    rows.forEach(function(r) {
+      var id            = _e(String(r.id || ''));
+      var done          = r.followUpDone || /^(done|completed|complete)$/i.test(r.status || '');
+      var notes         = r.notes || r.summary || '';
+      var caseRec       = (_flockData.allCare || []).find(function(c) { return c.id === r.caseId; }) || {};
+      var memberName    = _memberName(caseRec.memberId) || caseRec.memberName || r.memberName || r.caseId || '';
+      var caregiverName = _memberName(r.caregiverId) || r.caregiverName || r.caregiver || r.createdBy || '';
+      h += '<tr>'
+        + '<td>' + _e(memberName) + '</td>'
+        + '<td>' + _e(caregiverName) + '</td>'
+        + '<td>' + _e(r.followUpDate || r.date || r.interactionDate || '') + '</td>'
+        + '<td>' + _e(notes.length > 60 ? notes.substring(0, 60) + '\u2026' : notes) + '</td>'
+        + '<td>' + _statusBadge(done ? 'Done' : (r.status || 'Pending')) + '</td>'
+        + '<td>' + (done
+          ? '<span style="color:var(--ink-muted);font-size:0.76rem;">Done</span>'
+          : '<button onclick="TheLife._careHubFollowUpDone(\'' + id + '\')" style="background:var(--success);color:#fff;border:none;border-radius:5px;padding:3px 10px;font-size:0.76rem;cursor:pointer;font-family:inherit;">Done</button>')
+        + '</td></tr>';
+    });
+    h += '</tbody></table></div>';
+    return h;
+  }
+
+  async function _careHubSearchAssignments() {
+    var inp = document.getElementById('care-asgn-member');
+    var memberId = inp ? inp.value.trim() : '';
+    if (!memberId) return;
+    try {
+      var res = await (_isFB() ? UpperRoom.careAssignmentsForMember(memberId) : TheVine.flock.care.assignments.forMember({ memberId: memberId }));
+      _careHubAssignments = _rows(res);
+      var panel = document.getElementById('care-hub-p-assignments');
+      if (panel) panel.innerHTML = _buildCareAssignmentsTable(_careHubAssignments);
+    } catch (e) { alert('Search failed: ' + (e.message || e)); }
+  }
+
+  async function _careHubReassign(id) {
+    var userOpts = [{ value: '', label: '\u2014 Select caregiver \u2014' }];
+    try {
+      var uRes = await (_isFB() ? UpperRoom.listCaregivers() : TheVine.flock.care.caregivers.list({}));
+      (_rows(uRes) || []).forEach(function(u) {
+        userOpts.push({ value: u.email, label: (u.displayName || u.email) + ' (' + u.role + ')' });
+      });
+    } catch (e) { /* fall through */ }
+    if (userOpts.length === 1) { alert('No caregivers found to reassign to.'); return; }
+    _miniModal('Reassign Care Assignment', [
+      { name: 'newCaregiverId', label: 'New Caregiver', type: 'select', options: userOpts, required: true },
+      { name: 'notes', label: 'Reason / Notes', type: 'textarea' },
+    ], async function(data) {
+      if (!data.newCaregiverId) throw new Error('Please select a caregiver.');
+      await (_isFB() ? UpperRoom.reassignCareAssignment({ id: id, newCaregiverId: data.newCaregiverId, notes: data.notes }) : TheVine.flock.care.assignments.reassign({ id: id, newCaregiverId: data.newCaregiverId, notes: data.notes }));
+      var res = await (_isFB() ? UpperRoom.listCareAssignments({ limit: 80 }) : TheVine.flock.care.assignments.list({ limit: 80 }));
+      _careHubAssignments = _filterClosed(_rows(res));
+      var panel = document.getElementById('care-hub-p-assignments');
+      if (panel) panel.innerHTML = _buildCareAssignmentsTable(_careHubAssignments);
+    });
+  }
+
+  async function _careHubEndAssignment(id) {
+    var cached = (_careHubAssignments || []).find(function(r) { return String(r.id) === String(id); }) || {};
+    var name = cached.memberName || cached.member || 'this member';
+    if (!confirm('End care assignment for ' + name + '?')) return;
+    try {
+      await (_isFB() ? UpperRoom.endCareAssignment(id) : TheVine.flock.care.assignments.end({ id: id }));
+      _careHubAssignments = _careHubAssignments.filter(function(r) { return String(r.id) !== String(id); });
+      var panel = document.getElementById('care-hub-p-assignments');
+      if (panel) panel.innerHTML = _buildCareAssignmentsTable(_careHubAssignments);
+    } catch (e) { alert('Failed: ' + (e.message || e)); }
+  }
+
+  async function _careHubFollowUpDone(id) {
+    try {
+      await (_isFB() ? UpperRoom.followUpDoneCareInteraction(id) : TheVine.flock.care.interactions.followUpDone({ id: id }));
+      _careHubFollowups = _careHubFollowups.map(function(r) {
+        return String(r.id) === String(id) ? Object.assign({}, r, { status: 'done' }) : r;
+      });
+      var panel = document.getElementById('care-hub-p-followups');
+      if (panel) panel.innerHTML = _buildCareFollowUpsTable(_careHubFollowups);
+    } catch (e) { alert('Failed: ' + (e.message || e)); }
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -2826,7 +3066,7 @@ const TheLife = (() => {
       html += '<div class="dash-zone-label">The Holy Place</div>';
       html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;">';
 
-      html += _appCard('\u2764\uFE0F', 'Love in Action',
+      html += _appCard('\u2764\uFE0F', 'Care & Outreach',
         'Care cases, prayer requests, compassion & outreach.',
         openCases.length + ' open cases \u00B7 ' + newPrayers.length + ' prayers', 'care');
 
@@ -2932,7 +3172,7 @@ const TheLife = (() => {
         if (typeof TheShepherd !== 'undefined') TheShepherd.renderApp(body);
         break;
       case 'care':
-        if (typeof LoveInAction !== 'undefined') LoveInAction.renderApp(body, { tab: tab || 'care' });
+        _renderCareHub(body, tab || 'care');
         break;
       case 'fold':
         if (typeof TheFold !== 'undefined') TheFold.renderApp(body);
@@ -3432,8 +3672,16 @@ const TheLife = (() => {
     refresh:         refresh,
     switchTab:       switchTab,
     backToHub:       backToHub,
-    backToLoveInAction: backToLoveInAction,
+    backToLoveInAction: backToLoveInAction,  // legacy alias
     openApp:         openApp,
+
+    // Care Hub (inline)
+    _careHubSwitch:            _careHubSwitch,
+    _careHubSearch:            _careHubSearch,
+    _careHubSearchAssignments: _careHubSearchAssignments,
+    _careHubReassign:          _careHubReassign,
+    _careHubEndAssignment:     _careHubEndAssignment,
+    _careHubFollowUpDone:      _careHubFollowUpDone,
 
     // Members
     openAddMember:   openAddMember,

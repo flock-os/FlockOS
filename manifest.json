@@ -1,7 +1,7 @@
 {
   "name": "FlockOS",
   "short_name": "FlockOS",
-  "description": "Church Management & Ministry Platform",
+  "description": "Ministry Operating System — Free. Offline-capable. Built for every church.",
   "start_url": "FlockOS/Pages/the_good_shepherd.html",
   "scope": "/",
   "display": "standalone",

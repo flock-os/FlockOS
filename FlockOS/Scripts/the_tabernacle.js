@@ -2814,8 +2814,6 @@ const Modules = (() => {
   var _activeSongId   = null;
   var _activeSongTitle = '';
 
-  function _sgTab() { return ''; } // compat stub — no longer used in list view
-
   // ═══════════════════════════════════════════════════════════════════════
   // 7. SONGS  — catalog with search & inline arrangement expansion
   // ═══════════════════════════════════════════════════════════════════════
@@ -13173,11 +13171,6 @@ const Modules = (() => {
   function _flockSwitchTab(k) { TheLife.switchTab(k); }
   function _flockRefresh()    { TheLife.refresh(); }
 
-  _def('care', function(el) {
-    if (typeof LoveInAction !== 'undefined' && LoveInAction.renderApp) return LoveInAction.renderApp(el, { tab: 'care', embedded: true });
-    el.innerHTML = '<div style="text-align:center;padding:60px 20px;color:var(--ink-muted);"><p>Pastoral Care is loading…</p></div>';
-  });
-
 
   // ═══════════════════════════════════════════════════════════════════════
   // THEMES  (admin-only unless custom themes enabled)
@@ -17031,8 +17024,6 @@ const Modules = (() => {
   // EDIT FORM ACTIONS  — called from clickable table rows
   // ══════════════════════════════════════════════════════════════════════════
 
-  // editCard removed — directory clicks now use _dirOpen → People detail page
-
   async function editGroup(id) {
     var dir = await _ensureMemberDir();
     var mOpts = _memberOpts(dir);
@@ -17374,11 +17365,8 @@ const Modules = (() => {
   function unarchiveTask(id) { TheSeason.unarchiveTask(id); }
   function deleteTask(id) { TheSeason.deleteTask(id); }
 
-  // editUser modal removed — all user management now in People detail page (_ppOpen)
-  // Shim kept so any stale onclick references don't crash — just redirect to _ppOpen
+  // editUser shim — redirects stale onclick references to the People detail page (_ppOpen)
   function editUser(id) { navigate('users'); setTimeout(function() { _ppOpen(id); }, 120); }
-  function _euTab() {} // no-op stub (removed — tabs consolidated into _ppOpen sections)
-  function _euSave() {} // no-op stub (removed — saves consolidated into _ppSaveAll)
 
   // Copy visible Member ID pin to clipboard
   function _ppCopyPin() {

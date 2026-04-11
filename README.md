@@ -2,13 +2,13 @@
 
 > *"I am the vine; you are the branches."* — John 15:5
 
-A complete church management platform built on Google Apps Script and Google Sheets. No server, no database subscription, no infrastructure — just a Google Sheet, a deployed Apps Script Web App, and a static front-end served via GitHub Pages.
+A ministry operating system built on Google Apps Script and Google Sheets — portable, offline-capable, and free. No subscriptions, no server, no infrastructure. Just a Google Sheet, a deployed Apps Script Web App, and a static front-end served via GitHub Pages.
 
 ---
 
 ## What It Is
 
-FlockOS is a single-codebase, multi-church CRM and ministry platform designed to run inside any church's existing Google Workspace. One unified API endpoint backed by a 200-tab Google Sheet handles members, care cases, prayer, giving, attendance, events, songs, missions, and more. The front-end is a progressive web app hosted on GitHub Pages.
+FlockOS is a ministry operating system — a single-codebase, multi-church platform designed to run inside any church's existing Google Workspace. One unified API endpoint backed by a 200-tab Google Sheet handles members, care cases, prayer, giving, attendance, events, songs, missions, and more. The front-end is a progressive web app hosted on GitHub Pages.
 
 ---
 
