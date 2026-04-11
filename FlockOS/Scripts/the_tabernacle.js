@@ -10538,14 +10538,6 @@ const Modules = (() => {
         if (tab) tab.classList.add('active');
       };
 
-      // ── Overview stat cards (enhanced) ──────────────────────────────
-      html += '<div class="config-stat-grid">';
-      html += '<div class="config-stat-card"><div class="config-stat-icon">\uD83C\uDFA8</div><div class="config-stat-value">' + themeList.length + '</div><div class="config-stat-label">Themes Available</div></div>';
-      html += '<div class="config-stat-card"><div class="config-stat-icon">\uD83E\uDDE9</div><div class="config-stat-value">' + totalOn + '</div><div class="config-stat-label">Active Modules</div></div>';
-      html += '<div class="config-stat-card"><div class="config-stat-icon">\uD83D\uDCCB</div><div class="config-stat-value">' + rows.length + '</div><div class="config-stat-label">Config Entries</div></div>';
-      html += '<div class="config-stat-card"><div class="config-stat-icon">\uD83C\uDFF7\uFE0F</div><div class="config-stat-value" style="font-size:1.1rem;">' + _e(currentPrefix) + '</div><div class="config-stat-label">Card Prefix</div></div>';
-      html += '</div>';
-
       // ── Tab Navigation ──────────────────────────────────────────────
       html += '<div class="config-tabs-bar">';
       html += '<button class="config-tab active" data-tab="overview" onclick="Modules._configTab(\'overview\')"><span class="config-tab-icon">\uD83C\uDFE0</span> Overview</button>';
@@ -10556,6 +10548,14 @@ const Modules = (() => {
 
       // ══ Tab: Overview ═══════════════════════════════════════════════
       html += '<div class="config-tab-panel active" data-tab="overview">';
+
+      // ── Overview stat cards ──────────────────────────────────────────
+      html += '<div class="config-stat-grid">';
+      html += '<div class="config-stat-card"><div class="config-stat-icon">\uD83C\uDFA8</div><div class="config-stat-value">' + themeList.length + '</div><div class="config-stat-label">Themes Available</div></div>';
+      html += '<div class="config-stat-card"><div class="config-stat-icon">\uD83E\uDDE9</div><div class="config-stat-value">' + totalOn + '</div><div class="config-stat-label">Active Modules</div></div>';
+      html += '<div class="config-stat-card"><div class="config-stat-icon">\uD83D\uDCCB</div><div class="config-stat-value">' + rows.length + '</div><div class="config-stat-label">Config Entries</div></div>';
+      html += '<div class="config-stat-card"><div class="config-stat-icon">\uD83C\uDFF7\uFE0F</div><div class="config-stat-value" style="font-size:1.1rem;">' + _e(currentPrefix) + '</div><div class="config-stat-label">Card Prefix</div></div>';
+      html += '</div>';
 
       // ── Section 0: Security — Maintenance Mode ───────────────────────
       // Maintenance status lives in global appConfig/system (not church-scoped)
