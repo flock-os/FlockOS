@@ -1067,8 +1067,7 @@ async function _gcRunConfigAudit() {
   // Load config for each selected church in parallel
   await Promise.all(churchIds.map(async function(cid) {
     try {
-      var res = await TheVine.flock.call('church.config.list', { churchId: cid });
-      _auditData[cid] = Array.isArray(res) ? res : ((res && res.rows) ? res.rows : []);
+      _auditData[cid] = await _gcChurchConfigList(cid);
     } catch(e) {
       _auditData[cid] = null; // error marker
     }
@@ -1298,8 +1297,34 @@ async function _gcTestProvisionerUrl() {
 
 // ── AppConfig Editor ──────────────────────────────────────────────────────
 
-var _acRows    = [];   // current church's config rows
-var _acChurch  = '';   // current churchId
+// Direct per-church GAS helpers — bypasses master TheVine since each church
+// has its own GAS endpoint and these actions don't route through master API.
+async function _gcChurchConfigList(churchId) {
+  var c   = _churches.find(function(r) { return String(r.churchId) === String(churchId); });
+  var url = c && c.databaseUrl;
+  if (!url) throw new Error('No databaseUrl for church: ' + churchId);
+  var resp = await fetch(url + '?action=config.list', { redirect: 'follow' });
+  if (!resp.ok) throw new Error('HTTP ' + resp.status);
+  var json = await resp.json();
+  // GAS returns { rows: [...] } or an array directly
+  return Array.isArray(json) ? json : (json && json.rows ? json.rows : (json && json.data ? json.data : []));
+}
+
+async function _gcChurchConfigSet(churchId, key, value, description, category) {
+  var c   = _churches.find(function(r) { return String(r.churchId) === String(churchId); });
+  var url = c && c.databaseUrl;
+  if (!url) throw new Error('No databaseUrl for church: ' + churchId);
+  var resp = await fetch(url + '?action=config.set', {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify({ key: key, value: value, description: description || '', category: category || '' }),
+    redirect: 'follow',
+  });
+  if (!resp.ok) throw new Error('HTTP ' + resp.status);
+  var json = await resp.json().catch(function() { return {}; });
+  if (json && json.error) throw new Error(json.error);
+  return json;
+}
 
 async function _gcLoadAppConfig() {
   var sel     = document.getElementById('appconfig-church-select');
@@ -1312,8 +1337,7 @@ async function _gcLoadAppConfig() {
     + '<div class="spin" style="width:18px;height:18px;border-width:2px;"></div>Loading AppConfig…</div>';
 
   try {
-    var res = await TheVine.flock.call('church.config.list', { churchId: churchId });
-    _acRows = Array.isArray(res) ? res : (res && res.rows ? res.rows : []);
+    _acRows = await _gcChurchConfigList(churchId);
     _gcRenderAppConfig();
   } catch (e) {
     body.innerHTML = '<div style="color:var(--danger,#f87171);font-size:0.83rem;padding:10px 0;">&#10007; '
@@ -1396,7 +1420,7 @@ async function _gcSaveAppConfigRow(key, rowId) {
   if (btn) { btn.disabled = true; btn.textContent = '…'; }
 
   try {
-    await TheVine.flock.call('church.config.set', { churchId: _acChurch, key: key, value: value });
+    await _gcChurchConfigSet(_acChurch, key, value);
     if (btn) { btn.disabled = false; btn.textContent = '✓'; btn.style.background = 'var(--success,#4ade80)'; btn.style.color = '#000'; }
     setTimeout(function() { if (btn) { btn.textContent = 'Save'; btn.style.background = ''; btn.style.color = ''; btn.disabled = false; } }, 1800);
     // update local cache
@@ -1418,7 +1442,7 @@ async function _gcAddAppConfigKey() {
 
   if (resDiv) resDiv.innerHTML = '<span style="color:var(--ink-muted);">Saving…</span>';
   try {
-    await TheVine.flock.call('church.config.set', { churchId: _acChurch, key: key, value: value });
+    await _gcChurchConfigSet(_acChurch, key, value);
     if (resDiv) resDiv.innerHTML = '<span style="color:var(--success,#4ade80);">&#10003; Saved. Reloading…</span>';
     if (keyIn) keyIn.value = '';
     if (valIn) valIn.value = '';
