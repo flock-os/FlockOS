@@ -19338,16 +19338,20 @@ const Modules = (() => {
         (_isFirebaseComms() ? UpperRoom.listGiving({ limit: 200 }) : TheVine.flock.giving.list({ limit: 200 })).catch(function () { return null; }),
         TheVine.flock.call('audit.list', { limit: 30 }).catch(function () { return null; }),
         TheVine.flock.todo.list({ limit: 300 }).catch(function () { return null; }),
+        (typeof firebase !== 'undefined' ? firebase.firestore().collection('problems')
+          .where('status', 'in', ['Open', 'In Progress'])
+          .orderBy('createdAt', 'desc').limit(50).get() : Promise.resolve(null)).catch(function () { return null; }),
       ]);
 
-      var members     = _rows(results[0]);
-      var prayers     = _rows(results[1]);
-      var careCases   = _rows(results[2]);
-      var compassions = _rows(results[3]);
-      var events      = _rows(results[4]);
-      var givings     = _rows(results[5]);
-      var audits      = _rows(results[6]);
-      var todos       = _rows(results[7]);
+      var members      = _rows(results[0]);
+      var prayers      = _rows(results[1]);
+      var careCases    = _rows(results[2]);
+      var compassions  = _rows(results[3]);
+      var events       = _rows(results[4]);
+      var givings      = _rows(results[5]);
+      var audits       = _rows(results[6]);
+      var todos        = _rows(results[7]);
+      var openProblems = results[8] ? results[8].docs.map(function(d) { return Object.assign({ _id: d.id }, d.data()); }) : [];
 
       // ── KPI calculations ─────────────────────────────────────────────────
       var activeMembers = members.filter(function (m) {
@@ -19518,6 +19522,35 @@ const Modules = (() => {
               + _e(b.label) + '</button>';
           }).join('')
         + '</div>');
+
+      // Open Problems card — inline on the dashboard
+      var pBadgeColor  = { Critical: 'var(--danger)', High: 'var(--danger)', Medium: 'var(--warning,#f59e0b)', Low: 'var(--ink-muted)' };
+      var pStatusColor = { 'Open': 'var(--danger)', 'In Progress': 'var(--warning,#f59e0b)' };
+      var problemRows = openProblems.slice(0, 6).map(function(p) {
+        var pColor = pBadgeColor[p.priority]  || 'var(--ink-muted)';
+        var sColor = pStatusColor[p.status]   || 'var(--ink-muted)';
+        var ghLink = p.githubIssueNumber
+          ? ' <a href="https://github.com/flock-os/FlockOS/issues/' + _e(String(p.githubIssueNumber)) + '" target="_blank" rel="noopener noreferrer" style="color:var(--accent);font-size:0.72rem;">#' + _e(String(p.githubIssueNumber)) + ' \u2197</a>'
+          : '';
+        return '<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--line);">'
+          + '<div style="width:7px;height:7px;border-radius:50%;background:' + pColor + ';flex-shrink:0;"></div>'
+          + '<div style="flex:1;min-width:0;">'
+          + '<div style="font-size:0.84rem;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _e(p.title || '\u2014') + ghLink + '</div>'
+          + '<div style="font-size:0.71rem;color:' + pColor + ';">' + _e(p.priority || '') + (p.assignedTo ? '<span style="color:var(--ink-muted);"> \u2022 ' + _e(p.assignedTo) + '</span>' : '') + '</div>'
+          + '</div>'
+          + '<span style="font-size:0.68rem;padding:2px 7px;border-radius:12px;background:' + sColor + ';color:#fff;white-space:nowrap;">' + _e(p.status || '') + '</span>'
+          + '</div>';
+      }).join('');
+      if (!openProblems.length) {
+        problemRows = '<div style="font-size:0.82rem;color:var(--ink-muted);padding:6px 0;">\u2705 No open problems.</div>';
+      } else if (openProblems.length > 6) {
+        problemRows += '<div style="font-size:0.73rem;color:var(--ink-muted);padding:5px 0;">' + (openProblems.length - 6) + ' more\u2026</div>';
+      }
+      problemRows += '<div style="margin-top:10px;display:flex;gap:6px;">'
+        + '<button onclick="Modules._problemsNew()" style="padding:6px 14px;border-radius:8px;border:none;background:var(--accent);color:var(--ink-inverse);font-weight:600;font-size:0.78rem;cursor:pointer;font-family:inherit;">+ New Problem</button>'
+        + '<button onclick="Modules._adGoTo(\'problems\',\'Problems\')" style="padding:6px 14px;border-radius:8px;border:1px solid var(--line);background:none;color:var(--ink);font-size:0.78rem;cursor:pointer;font-family:inherit;">View All \u2197</button>'
+        + '</div>';
+      rightHtml += _adCard('&#128030; Open Problems (' + openProblems.length + ')', problemRows);
 
       // Recent Activity (audit log)
       if (audits.length) {
