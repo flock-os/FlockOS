@@ -1010,18 +1010,24 @@ const TheShepherd = (() => {
   async function _createMember(email) {
     var p = _ppData[(email || '').toLowerCase()] || {};
     var u = p.user || {};
-    try {
-      await (_isFB() ? UpperRoom.createMember({
-        primaryEmail: email, firstName: u.firstName || '', lastName: u.lastName || '',
-        cellPhone: u.phone || '', photoUrl: u.photoUrl || ''
-      }) : TheVine.flock.call('members.create', {
-        primaryEmail: email, firstName: u.firstName || '', lastName: u.lastName || '',
-        cellPhone: u.phone || '', photoUrl: u.photoUrl || ''
-      }));
-      _toast('Member record created!', 'success');
-      if (typeof TheScrolls !== 'undefined') TheScrolls.log(TheScrolls.TYPES.MEMBER_CREATE, email, 'Created member record');
-      openProfile(email);
-    } catch (e) { alert('Failed: ' + (e.message || e)); }
+    // Redirect to the canonical Add Member form (TheLife) so all member creation
+    // goes through one consistent workflow — including auto-care-assignment.
+    var prefill = {
+      primaryEmail: email,
+      firstName: u.firstName || '',
+      lastName: u.lastName || '',
+      cellPhone: u.phone || '',
+      photoUrl: u.photoUrl || ''
+    };
+    var target = document.getElementById('view-my-flock');
+    if (target) {
+      document.querySelectorAll('.module-view').forEach(function(v) { v.classList.remove('active'); });
+      target.classList.add('active');
+      document.querySelectorAll('.nav-item').forEach(function(n) { n.classList.remove('active'); });
+      var nav = document.querySelector('.nav-item[data-view="my-flock"]');
+      if (nav) nav.classList.add('active');
+    }
+    if (typeof TheLife !== 'undefined') TheLife.openAddMember('', prefill);
   }
 
   async function _deleteMember(memberId, email) {

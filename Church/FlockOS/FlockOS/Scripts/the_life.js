@@ -1792,7 +1792,9 @@ const TheLife = (() => {
 
   var _fpMemberId = '';
 
-  async function openAddMember(emailOrId) {
+  // prefill: optional plain object with member fields to pre-populate when creating a new member
+  // (used when redirecting from People or Admin panels where user context is already loaded)
+  async function openAddMember(emailOrId, prefill) {
     if (!Nehemiah.can('my-flock.add-edit-members')) { _toast('You do not have permission to add or edit members.', 'error'); return; }
     var el = _hubEl();
     if (!el) return;
@@ -1819,6 +1821,9 @@ const TheLife = (() => {
       }
       // Pin to server-side UUID so updates target the exact row
       if (rec.id) _fpMemberId = rec.id;
+    } else if (prefill && typeof prefill === 'object') {
+      // Pre-populate the form with caller-supplied data (e.g. redirected from People or Admin panels)
+      rec = prefill;
     }
 
     // Load member/user directory for caregiver dropdown

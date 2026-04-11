@@ -17497,22 +17497,21 @@ const Modules = (() => {
   }
 
   // Create a new member record linked to this user
+  // Redirects to the canonical Add Member form so all member creation goes through
+  // one consistent workflow — including auto-care-assignment.
   async function _euCreateMember(email) {
     var r = (_dataCache['users'] || []).find(function(x) { return (x.email || x.id) === email; }) || {};
-    try {
-      var _memData = {
-        primaryEmail: email,
-        firstName: r.firstName || '',
-        lastName: r.lastName || '',
-        cellPhone: r.phone || '',
-        photoUrl: r.photoUrl || ''
-      };
-      await _createMember(_memData);
-      _toast('Member record created!');
-      var modal = document.getElementById('eu-modal');
-      if (modal) modal.remove();
-      _ppOpen(email);
-    } catch (e) { _toast('Failed: ' + (e.message || 'Unknown error'), 'danger'); }
+    var prefill = {
+      primaryEmail: email,
+      firstName: r.firstName || '',
+      lastName: r.lastName || '',
+      cellPhone: r.phone || '',
+      photoUrl: r.photoUrl || ''
+    };
+    var modal = document.getElementById('eu-modal');
+    if (modal) modal.remove();
+    _activateHubView();
+    if (typeof TheLife !== 'undefined') TheLife.openAddMember('', prefill);
   }
 
   // Create a new contact card linked to this user
@@ -19498,6 +19497,7 @@ const Modules = (() => {
         { icon: '&#128202;',       label: 'Statistics',        nav: 'statistics' },
         { icon: '&#128196;',       label: 'Reports',           nav: 'reports' },
         { icon: '&#128270;',       label: 'Audit Log',         nav: 'audit' },
+        { icon: '&#128030;',       label: 'Problems',          nav: 'problems' },
         { icon: '&#128591;',       label: 'Prayers',           nav: 'prayer-admin' },
         { icon: '&#127925;',       label: 'Music Stand',       nav: 'service-hub' },
         { icon: '&#128197;',       label: 'Calendar',          nav: 'calendar' },
@@ -19901,6 +19901,146 @@ const Modules = (() => {
   _def('content-admin', async (el, s) => { await TheTruth.render(el, s); });
 
 
+  // ══════════════════════════════════════════════════════════════════════════
+  // PROBLEMS — Issue tracker synced to GitHub Issues
+  // ══════════════════════════════════════════════════════════════════════════
+  _def('problems', async function(el, session) {
+    var s = session || (typeof TheVine !== 'undefined' ? TheVine.session() : null);
+    if (!s || !TheVine.hasRole('admin')) {
+      el.innerHTML = '<div style="text-align:center;padding:80px 20px;">'
+        + '<div style="font-size:3rem;margin-bottom:12px;">&#128274;</div>'
+        + '<p style="color:var(--ink-muted);">Admin access required.</p></div>';
+      return;
+    }
+
+    el.innerHTML =
+      '<div class="page-header">'
+      + '<h1>\uD83D\uDC1B Problems</h1>'
+      + '<p>Log issues and track them to completion \u2014 each problem syncs to a GitHub Issue automatically.</p>'
+      + '<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">'
+      + '<button onclick="Modules._problemsNew()" style="padding:8px 18px;border-radius:8px;border:none;'
+      + 'background:var(--accent);color:var(--ink-inverse);font-weight:600;cursor:pointer;font-size:0.85rem;font-family:inherit;">'
+      + '+ New Problem</button>'
+      + '<a href="https://github.com/flock-os/FlockOS/issues" target="_blank" rel="noopener noreferrer" '
+      + 'style="display:inline-flex;align-items:center;gap:5px;padding:8px 16px;border-radius:8px;'
+      + 'border:1px solid var(--line);color:var(--ink);font-size:0.85rem;text-decoration:none;">'
+      + '&#128279; View on GitHub &#8599;</a>'
+      + '</div></div>'
+      + '<div id="ml-body">' + _spinner() + '</div>';
+    var main = document.getElementById('main'); if (main) main.scrollTop = 0;
+
+    await _problemsRefresh();
+  });
+
+  async function _problemsRefresh() {
+    var body = document.getElementById('ml-body');
+    if (!body) return;
+    try {
+      var fdb  = firebase.firestore();
+      var snap = await fdb.collection('problems').orderBy('createdAt', 'desc').limit(200).get();
+      var rows = snap.docs.map(function(d) { return Object.assign({ _id: d.id }, d.data()); });
+
+      if (!rows.length) {
+        body.innerHTML = _empty('\uD83D\uDC1B', 'No problems logged', 'Click "+ New Problem" to log your first issue. It will appear as a GitHub Issue automatically.');
+        return;
+      }
+
+      var html = '<div style="overflow-x:auto;"><table class="data-table"><thead><tr>'
+        + '<th>Title</th><th>Priority</th><th>Status</th><th>Assigned To</th><th>GitHub</th><th>Logged</th>'
+        + '</tr></thead><tbody>';
+
+      rows.forEach(function(r) {
+        var pBadge = { Critical: 'danger', High: 'danger', Medium: 'warn', Low: 'info' }[r.priority] || 'info';
+        var sBadge = { 'Open': 'danger', 'In Progress': 'warn', 'Closed': 'success' }[r.status] || 'info';
+        var created = '';
+        if (r.createdAt) {
+          var d = r.createdAt.toDate ? r.createdAt.toDate() : new Date(r.createdAt);
+          created = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        }
+        var ghLink = r.githubIssueNumber
+          ? '<a href="https://github.com/flock-os/FlockOS/issues/' + _e(String(r.githubIssueNumber)) + '" '
+            + 'target="_blank" rel="noopener noreferrer" style="color:var(--accent);font-size:0.8rem;">'
+            + '#' + _e(String(r.githubIssueNumber)) + ' &#8599;</a>'
+          : '<span style="color:var(--ink-muted);font-size:0.75rem;">Pending\u2026</span>';
+        html += '<tr data-edit-id="' + _e(r._id) + '" onclick="Modules._problemsEdit(\'' + _e(r._id) + '\')">'
+          + '<td style="font-weight:600;">' + _e(r.title || '\u2014') + '</td>'
+          + '<td>' + _badge(r.priority || 'Medium', pBadge) + '</td>'
+          + '<td>' + _badge(r.status   || 'Open',   sBadge) + '</td>'
+          + '<td>' + _e(r.assignedTo || '\u2014') + '</td>'
+          + '<td>' + ghLink + '</td>'
+          + '<td style="font-size:0.78rem;color:var(--ink-muted);">' + _e(created || '\u2014') + '</td>'
+          + '</tr>';
+      });
+
+      html += '</tbody></table></div>';
+      body.innerHTML = html;
+    } catch (e) {
+      body.innerHTML = _errHtml(e.message);
+    }
+  }
+
+  function _problemsNew() {
+    _modal('\uD83D\uDC1B New Problem', [
+      { name: 'title',       label: 'Title',       type: 'text',     required: true },
+      { name: 'description', label: 'Description', type: 'textarea', rows: 4 },
+      { name: 'priority',    label: 'Priority',    type: 'select',   value: 'Medium',
+        options: ['Low', 'Medium', 'High', 'Critical'] },
+      { name: 'status',      label: 'Status',      type: 'select',   value: 'Open',
+        options: ['Open', 'In Progress', 'Closed'] },
+      { name: 'assignedTo',  label: 'Assigned To (optional)', type: 'text' },
+    ], async function(data) {
+      var s   = typeof TheVine !== 'undefined' ? TheVine.session() : null;
+      var fdb = firebase.firestore();
+      await fdb.collection('problems').add({
+        title:       data.title,
+        description: data.description || '',
+        priority:    data.priority,
+        status:      data.status,
+        assignedTo:  data.assignedTo || '',
+        createdBy:   s ? (s.displayName || s.email || '') : '',
+        createdAt:   firebase.firestore.FieldValue.serverTimestamp(),
+        updatedAt:   firebase.firestore.FieldValue.serverTimestamp(),
+      });
+      _toast('Problem logged \u2014 syncing to GitHub\u2026');
+      var el = document.getElementById('view-problems');
+      if (el) { delete el.dataset.loaded; Modules.render('problems', el); }
+    });
+  }
+
+  function _problemsEdit(id) {
+    firebase.firestore().collection('problems').doc(id).get()
+      .then(function(doc) {
+        if (!doc.exists) { _toast('Problem not found.', 'danger'); return; }
+        var r = doc.data();
+        _modal('\u270E Edit Problem', [
+          { name: 'title',       label: 'Title',       type: 'text',     required: true, value: r.title || '' },
+          { name: 'description', label: 'Description', type: 'textarea', rows: 4,        value: r.description || '' },
+          { name: 'priority',    label: 'Priority',    type: 'select',   value: r.priority || 'Medium',
+            options: ['Low', 'Medium', 'High', 'Critical'] },
+          { name: 'status',      label: 'Status',      type: 'select',   value: r.status || 'Open',
+            options: ['Open', 'In Progress', 'Closed'] },
+          { name: 'assignedTo',  label: 'Assigned To (optional)', type: 'text', value: r.assignedTo || '' },
+        ], async function(data) {
+          await firebase.firestore().collection('problems').doc(id).update({
+            title:       data.title,
+            description: data.description || '',
+            priority:    data.priority,
+            status:      data.status,
+            assignedTo:  data.assignedTo || '',
+            updatedAt:   firebase.firestore.FieldValue.serverTimestamp(),
+          });
+          _toast('Problem updated \u2014 syncing to GitHub\u2026');
+          var el = document.getElementById('view-problems');
+          if (el) { delete el.dataset.loaded; Modules.render('problems', el); }
+        }, async function() {
+          await firebase.firestore().collection('problems').doc(id).delete();
+          _toast('Problem deleted.');
+          var el = document.getElementById('view-problems');
+          if (el) { delete el.dataset.loaded; Modules.render('problems', el); }
+        });
+      })
+      .catch(function(e) { _toast(e.message, 'danger'); });
+  }
 
 
   // ── Background preload — warm caches before user clicks ──────────────
@@ -20267,6 +20407,8 @@ const Modules = (() => {
     _adDeleteTask,
     _adSaveFontSize,
     _adGoTo,
+    _problemsNew,
+    _problemsEdit,
     generateQR,
     showCardQR,
     geoCheckin,

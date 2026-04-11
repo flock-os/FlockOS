@@ -33,6 +33,9 @@
 const { onDocumentWritten } = require("firebase-functions/v2/firestore");
 const { initializeApp }     = require("firebase-admin/app");
 const { getFirestore }      = require("firebase-admin/firestore");
+const { defineSecret }      = require("firebase-functions/params");
+
+const GITHUB_TOKEN = defineSecret("GITHUB_TOKEN");
 
 initializeApp();
 const db = getFirestore();
@@ -96,6 +99,7 @@ const SKIP_COLLECTIONS = new Set([
   "users",            // auth data — GAS-only, never sync (contains hashed passwords)
   "accessControl",    // RBAC — GAS-only
   "permissions",      // per-user overrides — GAS-only
+  "problems",         // issue tracker — has its own GitHub sync (syncProblems)
 ]);
 
 // ── Map Firestore camelCase fields back to Sheet header names ──────────
@@ -195,6 +199,116 @@ exports.syncGroupMembers = onDocumentWritten(
     }
   }
 );
+
+// ── Problems → GitHub Issues sync ────────────────────────────────────
+// On create  → opens a new GitHub Issue and writes back the issue number.
+// On update  → patches the title/body/state of the existing issue.
+// On delete  → closes the issue.
+exports.syncProblems = onDocumentWritten(
+  {
+    document: "problems/{docId}",
+    region:   "us-central1",
+    secrets:  [GITHUB_TOKEN],
+  },
+  async (event) => {
+    const token = GITHUB_TOKEN.value();
+    if (!token) return;
+
+    const { docId } = event.params;
+    const op = _opType(event.data);
+    if (!op) return;
+
+    const REPO   = "flock-os/FlockOS";
+    const API    = "https://api.github.com";
+    const headers = {
+      "Authorization":        "Bearer " + token,
+      "Accept":               "application/vnd.github+json",
+      "X-GitHub-Api-Version": "2022-11-28",
+      "Content-Type":         "application/json",
+    };
+
+    // ── DELETE: close the linked issue ───────────────────────────────
+    if (op === "delete") {
+      const before = event.data.before.data();
+      const issueNum = before && before.githubIssueNumber;
+      if (!issueNum) return;
+      await fetch(`${API}/repos/${REPO}/issues/${issueNum}`, {
+        method: "PATCH",
+        headers,
+        body: JSON.stringify({ state: "closed", state_reason: "not_planned" }),
+      });
+      return;
+    }
+
+    const data = event.data.after.data();
+    if (!data) return;
+
+    // ── UPDATE: skip the write-back echo triggered by syncProblems itself ─
+    if (op === "update") {
+      const before = event.data.before.data() || {};
+      // If before had no issueNumber and after has one, this is the write-back — skip
+      if (!before.githubIssueNumber && data.githubIssueNumber) return;
+    }
+
+    const title  = data.title || "(Untitled Problem)";
+    const body   = _buildProblemBody(data);
+    const labels = _buildProblemLabels(data);
+    const state  = data.status === "Closed" ? "closed" : "open";
+
+    // ── CREATE: open a new issue ──────────────────────────────────────
+    if (op === "create") {
+      const resp = await fetch(`${API}/repos/${REPO}/issues`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ title, body, labels }),
+      });
+      if (!resp.ok) {
+        console.error(`[problems] GitHub create failed: HTTP ${resp.status}`, await resp.text());
+        return;
+      }
+      const issue = await resp.json();
+      // Write back the issue number so the dashboard can link to it.
+      // This triggers a second update event which is filtered above.
+      await db.collection("problems").doc(docId).update({
+        githubIssueNumber: issue.number,
+        githubIssueUrl:    issue.html_url,
+      });
+      return;
+    }
+
+    // ── UPDATE: patch the existing issue ──────────────────────────────
+    const issueNum = data.githubIssueNumber;
+    if (!issueNum) return; // created before sync was deployed
+    const patchResp = await fetch(`${API}/repos/${REPO}/issues/${issueNum}`, {
+      method: "PATCH",
+      headers,
+      body: JSON.stringify({ title, body, labels, state }),
+    });
+    if (!patchResp.ok) {
+      console.error(`[problems] GitHub patch failed: HTTP ${patchResp.status}`, await patchResp.text());
+    }
+  }
+);
+
+function _buildProblemBody(data) {
+  const lines = [];
+  if (data.description) lines.push(data.description, "");
+  lines.push("---");
+  lines.push(`**Priority:** ${data.priority || "Medium"}`);
+  lines.push(`**Status:** ${data.status || "Open"}`);
+  if (data.assignedTo) lines.push(`**Assigned To:** ${data.assignedTo}`);
+  if (data.createdBy)  lines.push(`**Reported By:** ${data.createdBy}`);
+  lines.push("", "*Synced from FlockOS Admin Dashboard*");
+  return lines.join("\n");
+}
+
+function _buildProblemLabels(data) {
+  const labels = [];
+  if (data.priority) labels.push("priority:" + data.priority.toLowerCase());
+  const status = (data.status || "open").toLowerCase().replace(/\s+/g, "-");
+  labels.push("status:" + status);
+  return labels;
+}
 
 // ── Subcollection trigger: member card links ───────────────────────────
 exports.syncCardLinks = onDocumentWritten(
