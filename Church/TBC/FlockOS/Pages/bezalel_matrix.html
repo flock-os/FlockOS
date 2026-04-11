@@ -7,6 +7,15 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=VT323&display=swap" rel="stylesheet">
+  <!-- Auth scripts -->
+  <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+  <script defer src="../Scripts/the_upper_room.js"></script>
+  <script defer src="../Scripts/fine_linen.js"></script>
+  <script defer src="../Scripts/the_true_vine.js"></script>
+  <script defer src="../Scripts/the_wellspring.js"></script>
+  <script defer src="../Scripts/firm_foundation.js"></script>
   <script src="bezalel_codex.js"></script>
   <script src="bezalel_firestoresync_codex.js"></script>
   <script src="bezalel_synchandler_codex.js"></script>
@@ -49,6 +58,9 @@
         rgba(0,0,0,0.07) 4px
       );
     }
+
+    /* Auth gate — hide everything until seed-admin confirmed */
+    body.auth-pending { visibility: hidden; }
 
     body {
       font-family: 'Share Tech Mono', 'Courier New', monospace;
@@ -414,7 +426,7 @@
     .page-header h1 { animation: glitch 8s infinite; }
   </style>
 </head>
-<body>
+<body class="auth-pending">
 
 <!-- Matrix Rain Canvas -->
 <canvas id="matrixCanvas"></canvas>
@@ -1114,6 +1126,21 @@ function _toggleEye(inputId, btn) {
   el.type = isHidden ? 'text' : 'password';
   btn.innerHTML = isHidden ? '&#128683;' : '&#128065;';
 }
+
+// ── Auth gate ─────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function() {
+  if (typeof Adornment !== 'undefined') Adornment.init();
+
+  var session = Nehemiah.guard(); // redirects to login if no session
+  if (!session) return;
+
+  if (!session.isSeed) {
+    window.location.replace('the_good_shepherd.html');
+    return;
+  }
+
+  document.body.classList.remove('auth-pending');
+});
 </script>
 
 </body>
