@@ -424,6 +424,59 @@
       98%          { opacity:0.8; transform:translate(0,-1px); }
     }
     .page-header h1 { animation: glitch 8s infinite; }
+
+    /* ── Vault Panel ───────────────────────────────────────────────────── */
+    .vault-panel { margin-bottom: 16px; border: 1px solid var(--line); border-radius: 4px; background: var(--bg-card); }
+    .vault-toggle {
+      width: 100%; display: flex; align-items: center; gap: 8px;
+      background: none; border: none; color: var(--ink); font-family: inherit;
+      font-size: 0.82rem; font-weight: 700; letter-spacing: 0.08em;
+      text-transform: uppercase; padding: 11px 14px; cursor: pointer;
+      text-align: left;
+    }
+    .vault-toggle:hover { color: var(--accent); }
+    .vault-toggle .vault-chevron { margin-left: auto; transition: transform 0.2s; font-style: normal; }
+    .vault-toggle.open .vault-chevron { transform: rotate(90deg); }
+    .vault-body { display: none; padding: 14px; border-top: 1px solid var(--line); }
+    .vault-body.open { display: flex; gap: 14px; flex-wrap: wrap; }
+    .vault-col { flex: 1 1 260px; min-width: 0; }
+    .vault-col-title { font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-muted); margin-bottom: 8px; }
+    .vault-cred-row { display: flex; align-items: center; gap: 5px; margin-bottom: 5px; }
+    .vault-input {
+      flex: 1; background: var(--bg-raised); border: 1px solid var(--line);
+      color: var(--ink); font-family: inherit; font-size: 0.78rem;
+      padding: 5px 8px; border-radius: 2px; min-width: 0;
+    }
+    .vault-input:focus { outline: none; border-color: var(--accent); }
+    .vault-eye-btn, .vault-del-btn {
+      background: none; border: 1px solid var(--line); color: var(--ink-muted);
+      font-size: 0.78rem; padding: 4px 7px; border-radius: 2px; cursor: pointer;
+      flex-shrink: 0;
+    }
+    .vault-eye-btn:hover { color: var(--accent); border-color: var(--accent); }
+    .vault-del-btn:hover { color: var(--danger); border-color: var(--danger); }
+    .vault-actions { display: flex; gap: 7px; margin-top: 10px; flex-wrap: wrap; }
+    .vault-save-btn {
+      padding: 6px 16px; border-radius: 2px; border: 1px solid var(--accent);
+      background: none; color: var(--accent); font-family: inherit;
+      font-size: 0.78rem; font-weight: 700; letter-spacing: 0.06em;
+      text-transform: uppercase; cursor: pointer;
+    }
+    .vault-save-btn:hover { background: var(--accent-soft); }
+    .vault-save-btn:disabled { opacity: 0.4; cursor: default; }
+    .vault-autofill-btn {
+      padding: 6px 16px; border-radius: 2px; border: 1px solid var(--line);
+      background: none; color: var(--ink-muted); font-family: inherit;
+      font-size: 0.78rem; letter-spacing: 0.04em; text-transform: uppercase; cursor: pointer;
+    }
+    .vault-autofill-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .vault-add-btn {
+      font-size: 0.75rem; padding: 4px 10px; border-radius: 2px;
+      border: 1px dashed var(--line); background: none;
+      color: var(--ink-muted); cursor: pointer; font-family: inherit;
+    }
+    .vault-add-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .vault-meta { font-size: 0.7rem; color: var(--ink-muted); margin-top: 8px; }
   </style>
 </head>
 <body class="auth-pending">
@@ -475,6 +528,35 @@
           <button class="church-btn" data-church="custom"    onclick="_selectChurch('custom')">
             <span class="church-icon">&#10010;</span>New Church
           </button>
+        </div>
+      </div>
+
+      <!-- Church Vault -->
+      <div class="vault-panel" id="vaultPanel" style="display:none;">
+        <button class="vault-toggle" id="vaultToggle" onclick="_toggleVaultPanel()">
+          &#128272; CHURCH VAULT
+          <span id="vaultBadge" style="display:none;font-size:0.68rem;font-weight:400;padding:2px 8px;border-radius:2px;background:var(--accent-soft);color:var(--accent);border:1px solid var(--line);"></span>
+          <em class="vault-chevron">&#9654;</em>
+        </button>
+        <div class="vault-body" id="vaultBody">
+          <div class="vault-col">
+            <div class="vault-col-title">NOTES</div>
+            <textarea id="vault-notes" class="vault-input" rows="6" style="width:100%;resize:vertical;" placeholder="Deployment notes, contacts, links..."></textarea>
+          </div>
+          <div class="vault-col">
+            <div class="vault-col-title" style="display:flex;align-items:center;justify-content:space-between;">
+              CREDENTIALS
+              <button class="vault-add-btn" onclick="_vaultAddRow()">+ ADD</button>
+            </div>
+            <div id="vault-creds"></div>
+          </div>
+          <div style="width:100%;">
+            <div class="vault-actions">
+              <button class="vault-save-btn" id="vault-save-btn" onclick="_saveVault()">SAVE VAULT</button>
+              <button class="vault-autofill-btn" onclick="_vaultAutoFill(false)">AUTO-FILL FORM</button>
+            </div>
+            <div class="vault-meta" id="vault-meta"></div>
+          </div>
         </div>
       </div>
 
@@ -883,6 +965,7 @@ function _selectChurch(id) {
     if (key === 'CHURCH_TIMEZONE' && el) el.value = preset[key];
   });
   _update();
+  _loadVault();
 }
 
 function _val(id) {
@@ -1100,6 +1183,116 @@ function _copyGsFile(btn, content, toastMsg) {
     document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
     _done();
   }
+}
+
+// ── Church Vault ─────────────────────────────────────────────────────────────────
+var _VAULT = { notes: '', credentials: [] };
+
+function _vaultChurchId() {
+  return _val('FIRESTORE_CHURCH_ID') || _selectedChurch || null;
+}
+
+function _loadVault() {
+  var cid = _vaultChurchId();
+  var panel = document.getElementById('vaultPanel');
+  if (!cid || cid === 'custom') { if (panel) panel.style.display = 'none'; return; }
+  _VAULT = { notes: '', credentials: [] };
+  try {
+    firebase.firestore().collection('churchVault').doc(cid).get().then(function(snap) {
+      var data = snap.exists ? snap.data() : {};
+      _VAULT.notes = data.notes || '';
+      _VAULT.credentials = (data.credentials || []).map(function(c) {
+        return { label: c.label || '', value: c.value || '', _hidden: true };
+      });
+      var notesEl = document.getElementById('vault-notes');
+      if (notesEl) notesEl.value = _VAULT.notes;
+      var meta = document.getElementById('vault-meta');
+      if (meta) {
+        if (data.updatedAt && data.updatedBy) {
+          var d = data.updatedAt.toDate ? data.updatedAt.toDate() : new Date(data.updatedAt);
+          meta.textContent = 'SAVED ' + d.toLocaleDateString() + ' BY ' + data.updatedBy.toUpperCase();
+        } else { meta.textContent = snap.exists ? '' : 'NO VAULT RECORD YET.'; }
+      }
+      _vaultRenderCreds();
+      if (panel) panel.style.display = '';
+      var badge = document.getElementById('vaultBadge');
+      if (badge) {
+        var count = _VAULT.credentials.length;
+        if (count) { badge.textContent = count + ' CREDENTIAL' + (count !== 1 ? 'S' : ''); badge.style.display = ''; }
+        else { badge.style.display = 'none'; }
+      }
+      _vaultAutoFill(true);
+    }).catch(function() { if (panel) panel.style.display = 'none'; });
+  } catch(e) { if (panel) panel.style.display = 'none'; }
+}
+
+function _vaultRenderCreds() {
+  var ct = document.getElementById('vault-creds');
+  if (!ct) return;
+  if (!_VAULT.credentials.length) {
+    ct.innerHTML = '<div style="font-size:0.75rem;color:var(--ink-muted);padding:8px 0;">NO CREDENTIALS STORED. CLICK + ADD TO START.</div>';
+    return;
+  }
+  ct.innerHTML = _VAULT.credentials.map(function(c, i) {
+    return '<div class="vault-cred-row">'
+      + '<input class="vault-input" value="' + _he(c.label) + '" placeholder="LABEL" oninput="_vaultCredChange(' + i + ',\'label\',this.value)">'
+      + '<input class="vault-input" type="' + (c._hidden ? 'password' : 'text') + '" value="' + _he(c.value) + '" placeholder="VALUE" oninput="_vaultCredChange(' + i + ',\'value\',this.value)">'
+      + '<button class="vault-eye-btn" onclick="_vaultToggleHide(' + i + ')">' + (c._hidden ? '&#128065;' : '&#128683;') + '</button>'
+      + '<button class="vault-del-btn" onclick="_vaultRemoveRow(' + i + ')">&times;</button>'
+      + '</div>';
+  }).join('');
+}
+
+function _vaultCredChange(i, field, val) { if (_VAULT.credentials[i]) _VAULT.credentials[i][field] = val; }
+function _vaultToggleHide(i) {
+  if (_VAULT.credentials[i]) { _VAULT.credentials[i]._hidden = !_VAULT.credentials[i]._hidden; _vaultRenderCreds(); }
+}
+function _vaultAddRow() {
+  _VAULT.credentials.push({ label: '', value: '', _hidden: true });
+  _vaultRenderCreds();
+  var ct = document.getElementById('vault-creds');
+  if (ct) { var ins = ct.querySelectorAll('.vault-input'); if (ins.length) ins[ins.length - 2].focus(); }
+}
+function _vaultRemoveRow(i) { _VAULT.credentials.splice(i, 1); _vaultRenderCreds(); }
+
+function _vaultAutoFill(onlyEmpty) {
+  _VAULT.credentials.forEach(function(c) {
+    if (!c.label || !c.value) return;
+    var el = document.getElementById('f_' + c.label);
+    if (el && (!onlyEmpty || !el.value.trim())) el.value = c.value;
+  });
+  _update();
+}
+
+function _saveVault() {
+  var cid = _vaultChurchId();
+  if (!cid) { alert('SELECT A CHURCH FIRST.'); return; }
+  var notesEl = document.getElementById('vault-notes');
+  if (notesEl) _VAULT.notes = notesEl.value;
+  var btn = document.getElementById('vault-save-btn');
+  if (btn) btn.disabled = true;
+  var toSave = _VAULT.credentials.map(function(c) { return { label: c.label || '', value: c.value || '' }; });
+  try {
+    firebase.firestore().collection('churchVault').doc(cid).set({
+      notes: _VAULT.notes, credentials: toSave,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      updatedBy: (typeof Nehemiah !== 'undefined' && Nehemiah.current && Nehemiah.current().email) || 'operator'
+    }).then(function() {
+      var t = document.getElementById('toast');
+      if (t) { t.textContent = '> VAULT SAVED_'; t.classList.add('show'); setTimeout(function() { t.classList.remove('show'); t.textContent = '> COPIED TO CLIPBOARD_'; }, 2500); }
+      if (btn) btn.disabled = false;
+      var meta = document.getElementById('vault-meta');
+      if (meta) meta.textContent = 'SAVED ' + new Date().toLocaleString().toUpperCase();
+    }).catch(function(err) { alert('SAVE FAILED: ' + err.message); if (btn) btn.disabled = false; });
+  } catch(e) { alert('VAULT ERROR: ' + e.message); if (btn) btn.disabled = false; }
+}
+
+function _toggleVaultPanel() {
+  var toggle = document.getElementById('vaultToggle');
+  var body   = document.getElementById('vaultBody');
+  if (!toggle || !body) return;
+  var isOpen = body.classList.toggle('open');
+  toggle.classList.toggle('open', isOpen);
 }
 
 function _genPassword() {
