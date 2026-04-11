@@ -153,12 +153,18 @@
     }
     .field input, .field textarea, .field select {
       background: var(--bg-card); border: 1px solid var(--line);
-      border-radius: 7px; color: var(--ink); font-family: inherit;
-      font-size: 0.84rem; padding: 9px 12px;
+      border-radius: 7px; color: var(--ink); -webkit-text-fill-color: var(--ink);
+      font-family: inherit; font-size: 0.84rem; padding: 9px 12px;
       transition: border-color 0.15s; outline: none; width: 100%;
     }
     .field input:focus, .field textarea:focus, .field select:focus {
       border-color: var(--accent);
+    }
+    .field input:-webkit-autofill,
+    .field input:-webkit-autofill:focus {
+      -webkit-text-fill-color: var(--ink);
+      -webkit-box-shadow: 0 0 0 1000px var(--bg-card) inset;
+      caret-color: var(--ink);
     }
     .field input::placeholder, .field textarea::placeholder { color: var(--ink-muted); opacity: 0.6; }
     .field textarea {
