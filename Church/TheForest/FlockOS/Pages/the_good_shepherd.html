@@ -11,7 +11,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta property="og:title" content="The Forest">
-  <meta property="og:description" content="Church Management & Ministry Platform">
+  <meta property="og:description" content="Ministry Operating System — Free. Offline-capable. Built for every church.">
   <meta property="og:image" content="../Images/FlockOS_Camo.png">
   <meta name="twitter:card" content="summary_large_image">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -640,7 +640,6 @@
     <div class="module-view" id="view-songs"></div>
     <div class="module-view" id="view-ministries"></div>
     <div class="module-view" id="view-volunteers"></div>
-    <div class="module-view" id="view-care"></div>
     <div class="module-view" id="view-compassion"></div>
     <div class="module-view" id="view-discipleship"></div>
     <div class="module-view" id="view-outreach"></div>
@@ -790,7 +789,6 @@
 <script defer src="../Scripts/the_life.js"></script>
 <script defer src="../Scripts/the_scrolls.js"></script>
 <script defer src="../Scripts/the_shepherd.js"></script>
-<script defer src="../Scripts/love_in_action.js"></script>
 <script defer src="../Scripts/the_fold.js"></script>
 <script defer src="../Scripts/the_way.js"></script>
 <script defer src="../Scripts/the_harvest.js"></script>
@@ -978,7 +976,6 @@ _collapseNavGroups();
     { view: 'comms',        icon: '&#9993;',  title: 'Messages',     desc: 'Inbox & notifications',  role: 'volunteer', zone: 'gates' },
     { view: 'todo',         icon: '&#9744;',  title: 'Tasks',        desc: 'My to-do list',          role: 'volunteer', zone: 'gates' },
     { view: 'my-flock',     icon: '&#128101;',title: 'My Flock',     desc: 'Your assigned members',  role: 'care',      zone: 'courts' },
-    { view: 'care',         icon: '&#10084;',  title: 'Pastoral Care', desc: 'Cases & follow-ups',             role: 'leader',    zone: 'courts' },
     { view: 'compassion',   icon: '&#128149;', title: 'Compassion',    desc: 'Aid requests & resources',       role: 'care',      zone: 'courts' },
     { view: 'prayer-admin', icon: '&#128591;', title: 'Prayer',        desc: 'Requests & responses',           role: 'care',      zone: 'courts' },
     { view: 'attendance',   icon: '&#10003;',  title: 'Attendance',    desc: 'Track & history',                role: 'volunteer', zone: 'courts' },
@@ -1498,8 +1495,6 @@ async function notifClick(id) {
           if (ready) {
             if (targetView === 'comms' && Modules.openMessage) {
               Modules.openMessage(String(eid), n.cache || 'inbox');
-            } else if (targetView === 'care' && Modules.viewCareCase) {
-              Modules.viewCareCase(String(eid));
             } else if (targetView === 'todo' && Modules.viewTodoItem) {
               Modules.viewTodoItem(String(eid));
             } else if (targetView === 'events' && Modules.viewEvent) {

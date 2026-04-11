@@ -2814,8 +2814,6 @@ const Modules = (() => {
   var _activeSongId   = null;
   var _activeSongTitle = '';
 
-  function _sgTab() { return ''; } // compat stub — no longer used in list view
-
   // ═══════════════════════════════════════════════════════════════════════
   // 7. SONGS  — catalog with search & inline arrangement expansion
   // ═══════════════════════════════════════════════════════════════════════
@@ -13173,11 +13171,6 @@ const Modules = (() => {
   function _flockSwitchTab(k) { TheLife.switchTab(k); }
   function _flockRefresh()    { TheLife.refresh(); }
 
-  _def('care', function(el) {
-    if (typeof LoveInAction !== 'undefined' && LoveInAction.renderApp) return LoveInAction.renderApp(el, { tab: 'care', embedded: true });
-    el.innerHTML = '<div style="text-align:center;padding:60px 20px;color:var(--ink-muted);"><p>Pastoral Care is loading…</p></div>';
-  });
-
 
   // ═══════════════════════════════════════════════════════════════════════
   // THEMES  (admin-only unless custom themes enabled)
@@ -17030,8 +17023,6 @@ const Modules = (() => {
   // ══════════════════════════════════════════════════════════════════════════
   // EDIT FORM ACTIONS  — called from clickable table rows
   // ══════════════════════════════════════════════════════════════════════════
-
-  // editCard removed — directory clicks now use _dirOpen → People detail page
 
   async function editGroup(id) {
     var dir = await _ensureMemberDir();

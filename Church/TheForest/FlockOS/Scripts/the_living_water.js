@@ -55,7 +55,6 @@ const APP_SHELL = [
   './FlockOS/Scripts/the_life.js',
   './FlockOS/Scripts/the_scrolls.js',
   './FlockOS/Scripts/the_shepherd.js',
-  './FlockOS/Scripts/love_in_action.js',
   './FlockOS/Scripts/the_fold.js',
   './FlockOS/Scripts/the_shofar.js',
   './FlockOS/Scripts/the_trumpet.js',

@@ -17365,8 +17365,11 @@ const Modules = (() => {
   function unarchiveTask(id) { TheSeason.unarchiveTask(id); }
   function deleteTask(id) { TheSeason.deleteTask(id); }
 
-  // editUser shim — redirects stale onclick references to the People detail page (_ppOpen)
+  // editUser modal removed — all user management now in People detail page (_ppOpen)
+  // Shim kept so any stale onclick references don't crash — just redirect to _ppOpen
   function editUser(id) { navigate('users'); setTimeout(function() { _ppOpen(id); }, 120); }
+  function _euTab() {} // no-op stub (removed — tabs consolidated into _ppOpen sections)
+  function _euSave() {} // no-op stub (removed — saves consolidated into _ppSaveAll)
 
   // Copy visible Member ID pin to clipboard
   function _ppCopyPin() {

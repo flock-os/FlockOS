@@ -521,7 +521,7 @@ const TheVine = (() => {
     // ── Volunteers ───────────────────────────────────────────────────────
     volunteers:    _f('volunteers', ['list', 'schedule', 'create', 'update', 'swap']),
 
-    // ── Communications (legacy) ──────────────────────────────────────────
+    // ── Communications ────────────────────────────────────────────────────
     comms: (() => {
       const c = _f('comms', ['list', 'create', 'send', 'dashboard']);
       c.messages      = _f('comms.messages', ['list', 'get', 'send', 'update', 'delete', 'inbox', 'sent']);
