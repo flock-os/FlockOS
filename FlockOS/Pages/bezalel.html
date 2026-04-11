@@ -18,6 +18,7 @@
   <script defer src="../Scripts/the_true_vine.js"></script>
   <script defer src="../Scripts/the_wellspring.js"></script>
   <script defer src="../Scripts/firm_foundation.js"></script>
+  <script src="bezalel_codex.js"></script>
   <style>
     :root {
       --bg:          #1a1a2e;
@@ -511,10 +512,23 @@
         </div>
       </div>
 
-      <!-- Output -->
+      <!-- Code.gs output -->
+      <div class="output-card" style="margin-bottom:16px;">
+        <div class="output-toolbar">
+          <span class="output-title">&#128196; Code.gs — Master Backend</span>
+          <span id="codeGsLineCt" style="font-size:0.7rem;color:var(--ink-muted);margin-right:auto;"></span>
+          <button class="btn btn-sm" id="codeGsViewBtn" onclick="_viewCodeGS(this)">&#128065; Preview</button>
+          <button class="btn btn-sm btn-gold" onclick="_copyCodeGS(this)">&#128203; Copy</button>
+        </div>
+        <div class="output-body" id="codeGsBlock" style="color:var(--ink-muted);font-style:italic;min-height:60px;max-height:240px;">
+// Code.gs ready — click Copy to put the full backend on your clipboard,
+// or Preview to see the first 60 lines here.</div>
+      </div>
+
+      <!-- Setup.gs output -->
       <div class="output-card">
         <div class="output-toolbar">
-          <span class="output-title">&#128196; Generated — setAllScriptProperties_()</span>
+          <span class="output-title">&#128196; Setup.gs — setAllScriptProperties_()</span>
           <button class="btn btn-sm" onclick="_saveConfig(this)" title="Save non-secret config fields to Firestore for later recall">&#128190; Save Config</button>
           <button class="btn btn-sm btn-gold" onclick="_copyOutput(this)">&#128203; Copy</button>
           <button class="btn btn-sm btn-danger" onclick="_clearAll()">&#10006; Clear</button>
@@ -1011,6 +1025,61 @@ function _deleteConfig(docId, btn) {
   db.collection('deployConfigs').doc(docId).delete()
     .then(function() { _loadHistory(); })
     .catch(function(err) { btn.disabled = false; alert('Delete failed: ' + err.message); });
+}
+
+// ── Code.gs output ─────────────────────────────────────────────────────────
+function _initCodeGsPanel() {
+  var ct = document.getElementById('codeGsLineCt');
+  if (ct && window.BEZALEL_CODE_GS_LINES) {
+    ct.textContent = window.BEZALEL_CODE_GS_LINES.toLocaleString() + ' lines';
+  }
+}
+document.addEventListener('DOMContentLoaded', _initCodeGsPanel);
+
+function _viewCodeGS(btn) {
+  var content = window.BEZALEL_CODE_GS;
+  var block = document.getElementById('codeGsBlock');
+  if (!content) {
+    block.textContent = '// Code.gs not available — run build_churches.sh to regenerate bezalel_codex.js.';
+    return;
+  }
+  if (btn && btn.dataset.open === '1') {
+    block.textContent = '// Code.gs ready — click Copy or Preview.';
+    block.style.fontStyle = 'italic'; block.style.color = 'var(--ink-muted)';
+    btn.innerHTML = '&#128065; Preview'; btn.dataset.open = '';
+    return;
+  }
+  var lines = content.split('\n');
+  block.style.fontStyle = ''; block.style.color = '';
+  block.textContent = lines.slice(0, 60).join('\n') + '\n\n// ... (' + lines.length.toLocaleString() + ' lines total — click Copy for the full file)';
+  if (btn) { btn.innerHTML = '&#128683; Hide'; btn.dataset.open = '1'; }
+}
+
+function _copyCodeGS(btn) {
+  var content = window.BEZALEL_CODE_GS;
+  if (!content) { alert('Code.gs not loaded. Run build_churches.sh to generate bezalel_codex.js first.'); return; }
+  var orig = btn ? btn.innerHTML : '';
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(content).then(function() { _codeGsToast(btn, orig); });
+  } else {
+    var ta = document.createElement('textarea');
+    ta.value = content;
+    ta.style.cssText = 'position:fixed;opacity:0;pointer-events:none;';
+    document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+    _codeGsToast(btn, orig);
+  }
+}
+
+function _codeGsToast(btn, orig) {
+  if (btn) {
+    btn.innerHTML = '&#10003; Copied!';
+    btn.classList.add('btn-success'); btn.classList.remove('btn-gold');
+    setTimeout(function() { btn.innerHTML = orig; btn.classList.remove('btn-success'); btn.classList.add('btn-gold'); }, 2200);
+  }
+  var t = document.getElementById('toast');
+  t.textContent = '\u2713 Code.gs copied to clipboard';
+  t.classList.add('show');
+  setTimeout(function() { t.classList.remove('show'); t.textContent = '\u2713 Copied to clipboard'; }, 2500);
 }
 
 function _toggleHistory() {
