@@ -22,20 +22,28 @@
 //
 //  STEP 4 — Set Script Properties (⚙ Settings → Script Properties)
 //      Required:
-//        • FIREBASE_SERVICE_ACCOUNT  →  paste the full JSON from
-//                                       CurrentFBPW.json
+//        • FIREBASE_SERVICE_ACCOUNT       →  service account JSON for THIS
+//                                            church's Firebase project
+//        • TRUTH_SERVICE_ACCOUNT          →  service account JSON for the
+//                                            flockos-truth project
+//                                            (enables replicateTruthFromMaster())
 //      Optional (auto-resolved from ChurchRegistry if present):
-//        • FIRESTORE_CHURCH_ID       →  e.g. 'TBC', 'TheForest'
-//                                       (used by FirestoreSync to know
-//                                       which Firestore path to read)
+//        • FIRESTORE_PROJECT_ID           →  Firebase project ID for this church
+//                                            e.g. 'flockos-trinity', 'flockos-theforest'
+//                                            Default: 'flockos-notify'
+//        • FIRESTORE_CHURCH_ID            →  e.g. 'TBC', 'TheForest'
+//                                            (used by FirestoreSync to know
+//                                            which Firestore path to read)
+//        • TRUTH_FIRESTORE_PROJECT_ID     →  Default: 'flockos-truth'
 //
 //  STEP 5 — Run setupFlockOS()
 //      Select setupFlockOS in the function dropdown and click ▶ Run.
 //      Grant permissions when prompted. This does everything:
-//        • Builds all ~70 tabs and seeds content
+//        • Builds only auth/system tabs (8 tabs) — all CRM tabs created
+//          lazily by FirestoreSync on first data write
 //        • Initializes the auth pepper
-//        • Copies master Truth content (12 tabs) into the sheet
-//        • Seeds the entire Firestore database (Truth → churches/{id}/*)
+//        • Replicates Truth content from FlockOS-Truth Firestore →
+//          this church's Firestore (requires TRUTH_SERVICE_ACCOUNT)
 //        • Creates the first admin account
 //        • Seeds AppConfig with church name and timezone
 //        • Installs careFollowUpReminder and dailyPastoralSummary triggers
@@ -225,59 +233,35 @@ function setupFlockOS() {
   initPepper();
   _log_('      ✅ Pepper ready.');
 
-  // ── 3. Build core pastoral tabs ──────────────────────────────────────────
-  _log_('\n[2/10] Building core pastoral tabs (Members, Prayer, Care, etc.)...');
-  _buildCoreTabs_();
-  _log_('      ✅ Core tabs complete.');
+  // ── 3. Build auth/system tabs only ──────────────────────────────────────
+  //   CRM and content tabs (Members, Care, Giving, Songs, etc.) are NOT
+  //   pre-built. They are created lazily by _getOrCreateSheet_() in
+  //   FirestoreSync when data first arrives from Firestore.
+  _log_('\n[2/6] Building auth and system tabs...');
+  _buildAuthTabsOnly_();
+  _log_('      ✅ Auth tabs ready (AuthUsers, AppConfig, ChurchRegistry, AccessControl, Permissions, AuditLog, AuthAudit, UserProfiles).');
 
-  // ── 4. Build permissions infrastructure ──────────────────────────────────
-  _log_('\n[3/10] Setting up permissions and AppConfig...');
+  // ── 4. Build permissions infrastructure ─────────────────────────────────
+  _log_('\n[3/6] Setting up permissions...');
   setupPermissions();
   _log_('      ✅ Permissions complete.');
 
-  // ── 5. Copy Truth content FIRST (before dropdowns are applied) ───────────
-  //   Truth data is written before setupAppApi so that data validation rules
-  //   (setAllowInvalid:false) are not yet in place when rows are inserted.
-  var truthSheetId = TRUTH_DB_ID;
-  _log_('\n[4/10] Copying content from master Truth Database...');
+  // ── 5. Replicate Truth content from FlockOS-Truth Firestore ─────────────
+  //   Reads the 12 Truth collections from the master flockos-truth project
+  //   and writes them to this church's Firestore under churches/{churchId}/.
+  //   Requires TRUTH_SERVICE_ACCOUNT in Script Properties.
+  _log_('\n[4/6] Replicating Truth content from FlockOS-Truth Firestore...');
   try {
-    setupTruthSheet();
-    _log_('      ✅ Truth content copied.');
-  } catch(e) {
-    _log_('      ⚠️  Truth copy failed: ' + e.message);
-  }
-
-  // ── 5b. Seed Firestore with Truth content ────────────────────────────────
-  //   Pushes the 12 Truth collections into Firestore so the app can read
-  //   them immediately. Requires FIREBASE_SERVICE_ACCOUNT in Script Props.
-  _log_('\n[5/10] Seeding Firestore database (Truth content → churches/' + (props.getProperty('FIRESTORE_CHURCH_ID') || DEPLOY_CONFIG.churchName || 'FlockOS') + ')...');
-  try {
-    if (typeof seedFirestoreTruth === 'function') {
-      var seeded = seedFirestoreTruth();
-      _log_('      ✅ Firestore seeded: ' + seeded + ' documents.');
+    if (typeof replicateTruthFromMaster === 'function') {
+      var seeded = replicateTruthFromMaster();
+      _log_('      ✅ Truth replicated: ' + seeded + ' documents.');
     } else {
-      _log_('      ⚠️  seedFirestoreTruth not found — paste FirestoreSync.gs to enable.');
+      _log_('      ⚠️  replicateTruthFromMaster not found — paste FirestoreSync.gs to enable.');
     }
   } catch(e) {
-    _log_('      ⚠️  Firestore seed failed: ' + e.message);
-    _log_('         (This is non-fatal — you can run seedFirestoreTruth() later.)');
+    _log_('      ⚠️  Truth replication failed: ' + e.message);
+    _log_('         (Non-fatal — run replicateTruthFromMaster() manually after setup.)');
   }
-
-  // ── 6. Build app/content tabs — creates schema + applies dropdowns ────────
-  //   Runs AFTER Truth data is loaded so validation doesn't block the copy.
-  _log_('\n[6/10] Building app content tabs (Books, Devotionals, Theology…)...');
-  setupAppApi();
-  _log_('      ✅ App content tabs complete.');
-
-  // ── 7. Build missions tabs ───────────────────────────────────────────────
-  _log_('\n[7/10] Building missions tabs...');
-  setupMissionsApi();
-  _log_('      ✅ Missions tabs complete.');
-
-  // ── 7b. Build statistics tabs ──────────────────────────────────────────────
-  _log_('\n[7b/10] Building statistics tabs...');
-  setupExtraApi();
-  _log_('      ✅ Statistics tabs complete.');
 
   // ── 8. Create first admin account ────────────────────────────────────────
   _log_('\n[8/10] Creating first admin account (' + adminEmail + ')...');
@@ -7665,6 +7649,8 @@ function routeExpansionAction(action, params, auth) {
   if (action === 'church.configs')           return handleChurchConfigs(params, auth);
   if (action === 'church.list')              return handleChurchList(params, auth);
   if (action === 'church.delete')            return handleChurchDelete(params, auth);
+  if (action === 'church.config.list')       return asJson(handleChurchConfigList_(params, auth));
+  if (action === 'church.config.set')        return asJson(handleChurchConfigSet_(params, auth));
 
   // ── Calendar Events (CalendarEvents sheet) ──────────────────────────────────
   if (action === 'calendar.list')            return handleCalendarEventsList(params, auth);
@@ -9835,6 +9821,74 @@ function _buildCoreTabs_() {
   Logger.log('║                                                              ║');
   Logger.log('║  6. Run → deploymentChecklist() to verify all steps done.   ║');
   Logger.log('╚══════════════════════════════════════════════════════════════╝');
+}
+
+/**
+ * Builds ONLY the 8 auth/system tabs required for FlockOS to function.
+ * All CRM, content, and operational tabs (Members, Care, Giving, Songs,
+ * Missions, Statistics, etc.) are created lazily when data first arrives.
+ *
+ * Called by setupFlockOS() — replaces _buildCoreTabs_() in initial setup.
+ * _buildCoreTabs_() remains available for manual full re-build if ever needed.
+ */
+function _buildAuthTabsOnly_() {
+  var ss = SpreadsheetApp.openById(
+    PropertiesService.getScriptProperties().getProperty('SHEET_ID')
+  );
+
+  // ── AuthUsers ────────────────────────────────────────────────────────────
+  ensureTab(ss, 'AuthUsers', [
+    'Email','Passcode','Passcode Hash','Salt',
+    'First Name','Last Name','Role','Status','Created At','Updated At'
+  ]);
+  addDropdowns(ss, 'AuthUsers', {
+    'G': ['admin','pastor','leader','volunteer','readonly'],
+    'H': ['active','inactive','suspended','pending']
+  });
+
+  // ── UserProfiles ─────────────────────────────────────────────────────────
+  ensureTab(ss, 'UserProfiles', [
+    'Email','Display Name','Photo URL','Phone','Bio',
+    'Timezone','Language','Notifications','Theme','Updated At'
+  ]);
+  addDropdowns(ss, 'UserProfiles', { 'H': ['TRUE','FALSE'], 'I': ['Light','Dark','Auto'] });
+
+  // ── AccessControl ────────────────────────────────────────────────────────
+  ensureTab(ss, 'AccessControl', [
+    'Email','Role','Display Name','Groups','Active','Notes','Created At','Updated At'
+  ]);
+  addDropdowns(ss, 'AccessControl', {
+    'B': ['admin','pastor','leader','volunteer','readonly'],
+    'E': ['TRUE','FALSE']
+  });
+
+  // ── Permissions (per-user module overrides) ──────────────────────────────
+  ensureTab(ss, 'Permissions', ['Email','Module','Access','GrantedBy','GrantedAt','Notes']);
+  addDropdowns(ss, 'Permissions', { 'C': ['grant','deny'] });
+
+  // ── AuthAudit ────────────────────────────────────────────────────────────
+  ensureTab(ss, 'AuthAudit', ['Timestamp','Event','Email','Details']);
+
+  // ── AuditLog ─────────────────────────────────────────────────────────────
+  ensureTab(ss, 'AuditLog', ['Timestamp','Email','Role','Action','Tab','Row Ref','Details']);
+
+  // ── AppConfig ────────────────────────────────────────────────────────────
+  ensureTab(ss, 'AppConfig', ['Key','Value','Description','Category','Updated By','Updated At']);
+  addDropdowns(ss, 'AppConfig', {
+    'D': ['Auth','Care','Display','Failover','General','Modules','Notifications','Pastoral','Roles','Security']
+  });
+  seedAppConfigDefaults_(ss);
+
+  // ── ChurchRegistry ───────────────────────────────────────────────────────
+  ensureTab(ss, 'ChurchRegistry', [
+    'ChurchID','SheetID','Name','Plan','Status','CreatedAt','ShortName',
+    'BrandName','Tagline','ThemeColor','BackgroundColor','DatabaseUrl',
+    'PhotosUrl','AdminEmail','AnalyticsId','Favicon','Portrait','Version','FirebaseConfig'
+  ]);
+  addDropdowns(ss, 'ChurchRegistry', { 'D': ['Standard','Premium'], 'E': ['Active','Inactive'] });
+
+  SpreadsheetApp.flush();
+  Logger.log('✅ Auth tabs built — all other tabs will be created lazily on first data write.');
 }
 
 /**
@@ -17416,6 +17470,71 @@ function handleChurchDelete(params, auth) {
     return jsonOk({ deleted: true, churchId: params.churchId });
   }
   return jsonErr('Church not found: ' + params.churchId);
+}
+
+// ── Cross-Church AppConfig Proxy (seed admin only) ────────────────────────
+
+function handleChurchConfigList_(params, auth) {
+  if (!isSeedAdmin_(auth)) return jsonErr('Seed admin only.');
+  if (!params.churchId) return jsonErr('churchId is required.');
+  var ss;
+  try { ss = resolveChurchSheet(params.churchId); } catch (e) { return jsonErr('Cannot open church sheet: ' + e.message); }
+  var sheet = ss.getSheetByName('AppConfig');
+  if (!sheet) return jsonErr('AppConfig tab not found for church: ' + params.churchId);
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return jsonOk({ rows: [] });
+  var data = sheet.getRange(2, 1, lastRow - 1, 6).getValues();
+  var category = String(params.category || '').trim();
+  var rows = [];
+  for (var i = 0; i < data.length; i++) {
+    var row = {
+      index:       i + 2,
+      key:         String(data[i][0] || ''),
+      value:       String(data[i][1] || ''),
+      description: String(data[i][2] || ''),
+      category:    String(data[i][3] || ''),
+      updatedBy:   String(data[i][4] || ''),
+      updatedAt:   isoDate(data[i][5])
+    };
+    if (category && row.category !== category) continue;
+    if (!row.key) continue;
+    rows.push(row);
+  }
+  return jsonOk({ rows: rows });
+}
+
+function handleChurchConfigSet_(params, auth) {
+  if (!isSeedAdmin_(auth)) return jsonErr('Seed admin only.');
+  if (!params.churchId) return jsonErr('churchId is required.');
+  var key   = String(params.key   || '').trim();
+  var value = String(params.value != null ? params.value : '');
+  if (!key) return jsonErr('key is required.');
+  var ss;
+  try { ss = resolveChurchSheet(params.churchId); } catch (e) { return jsonErr('Cannot open church sheet: ' + e.message); }
+  var sheet = ss.getSheetByName('AppConfig');
+  if (!sheet) return jsonErr('AppConfig tab not found for church: ' + params.churchId);
+  var lastRow = sheet.getLastRow();
+  if (lastRow >= 2) {
+    var keys = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+    for (var i = 0; i < keys.length; i++) {
+      if (String(keys[i][0]).trim() === key) {
+        var rowIdx = i + 2;
+        sheet.getRange(rowIdx, 2).setValue(value);
+        sheet.getRange(rowIdx, 5).setValue(auth.email + ' (seed)');
+        sheet.getRange(rowIdx, 6).setValue(isoNow());
+        writeAudit(auth, 'church.config.set', 'AppConfig@' + params.churchId, rowIdx, key + ' = ' + value);
+        return jsonOk({ key: key, value: value, message: 'Config updated.' });
+      }
+    }
+  }
+  sheet.appendRow([
+    key, value,
+    String(params.description || ''),
+    String(params.category || 'General'),
+    auth.email + ' (seed)', isoNow()
+  ]);
+  writeAudit(auth, 'church.config.set', 'AppConfig@' + params.churchId, '', key + ' = ' + value + ' (new)');
+  return jsonOk({ key: key, value: value, message: 'Config created.' });
 }
 
 function handleChurchConfigs(params, auth) {
