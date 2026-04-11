@@ -992,7 +992,10 @@ function _esc(str) {
 }
 
 function _escJson(str) {
-  try { return JSON.stringify(JSON.parse(str)); } catch(e) { return _esc(str); }
+  try {
+    var compact = JSON.stringify(JSON.parse(str));
+    return compact.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  } catch(e) { return _esc(str); }
 }
 
 function _buildOutput() {
@@ -1015,7 +1018,8 @@ function _buildOutput() {
 
   Object.keys(props).forEach(function(key) {
     var raw = props[key];
-    var escaped = (key === 'FIREBASE_SERVICE_ACCOUNT') ? _escJson(raw) : _esc(raw);
+    var isJson = (key === 'FIREBASE_SERVICE_ACCOUNT' || key === 'TRUTH_SERVICE_ACCOUNT');
+    var escaped = isJson ? _escJson(raw) : _esc(raw);
     lines.push(
       '    <span class="c-key">\'' + _he(key) + '\'</span>'
       + '<span class="c-punct">: </span>'
@@ -1048,12 +1052,13 @@ function _plainOutput() {
   if (!Object.keys(props).length) return '// No values entered.';
   var lines = [];
   lines.push('// ── Paste into Apps Script, run ONCE, then delete ──────────');
-  lines.push('function setAllScriptProperties_() {');
+  lines.push('function setAllScriptProperties() {');
   lines.push('  var props = PropertiesService.getScriptProperties();');
   lines.push('  props.setProperties({');
   Object.keys(props).forEach(function(key) {
     var raw = props[key];
-    var escaped = (key === 'FIREBASE_SERVICE_ACCOUNT') ? _escJson(raw) : _esc(raw);
+    var isJson = (key === 'FIREBASE_SERVICE_ACCOUNT' || key === 'TRUTH_SERVICE_ACCOUNT');
+    var escaped = isJson ? _escJson(raw) : _esc(raw);
     lines.push("    '" + key + "': '" + escaped + "',");
   });
   lines.push('  });');
