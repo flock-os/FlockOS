@@ -19733,6 +19733,7 @@ const Modules = (() => {
         { icon: '&#128100;',       label: 'Directory',         nav: 'directory' },
         { icon: '&#128640;',       label: 'Deploy Guide',      nav: 'deployment-guide' },
         { icon: '&#9989;&#65039;', label: 'Great Commission',  href: 'the_great_commission.html' },
+        { icon: '&#9881;&#65039;', label: 'Generate Deploy',   href: 'bezalel.html' },
       ];
       rightHtml += _adCard('&#128640; Quick Actions',
         '<div style="display:grid;grid-template-columns:1fr 1fr;gap:7px;">'

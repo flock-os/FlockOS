@@ -1,0 +1,1021 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>FlockOS — Deployment Generator</title>
+  <link rel="icon" type="image/png" href="../Images/FlockOS_Camo.png">
+  <link rel="apple-touch-icon" href="../Images/FlockOS_Camo.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;600;700&family=Noto+Mono&display=swap" rel="stylesheet">
+  <!-- Auth scripts — same set as the_great_commission.html -->
+  <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+  <script defer src="../Scripts/the_upper_room.js"></script>
+  <script defer src="../Scripts/fine_linen.js"></script>
+  <script defer src="../Scripts/the_true_vine.js"></script>
+  <script defer src="../Scripts/the_wellspring.js"></script>
+  <script defer src="../Scripts/firm_foundation.js"></script>
+  <style>
+    :root {
+      --bg:          #1a1a2e;
+      --bg-raised:   #16213e;
+      --bg-card:     #0f172a;
+      --line:        rgba(255,255,255,0.08);
+      --ink:         #e0e0e0;
+      --ink-muted:   #8899aa;
+      --accent:      #7eaacc;
+      --accent-soft: rgba(126,170,204,0.12);
+      --gold:        #e8a838;
+      --gold-soft:   rgba(232,168,56,0.12);
+      --danger:      #f87171;
+      --success:     #4ade80;
+      --warn:        #fb923c;
+      --topbar-h:    56px;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { font-size: 100%; -webkit-text-size-adjust: 100%; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    /* ── Top Bar ───────────────────────────────────────────────────────── */
+    .topbar {
+      position: fixed; top: 0; left: 0; right: 0; height: var(--topbar-h);
+      background: var(--bg-raised);
+      border-bottom: 1px solid var(--line);
+      display: flex; align-items: center; padding: 0 20px; z-index: 100; gap: 12px;
+    }
+    .topbar-brand {
+      font-size: 1.05rem; font-weight: 700; color: var(--accent);
+      letter-spacing: 0.04em; margin-right: auto;
+    }
+    .topbar-brand span { color: var(--gold); font-weight: 400; font-size: 0.78rem; margin-left: 8px; }
+    .back-link {
+      background: none; border: 1px solid var(--line); border-radius: 6px;
+      color: var(--ink-muted); font-size: 0.78rem; padding: 5px 12px;
+      cursor: pointer; font-family: inherit; text-decoration: none;
+      transition: all 0.2s; display: inline-flex; align-items: center; gap: 5px;
+    }
+    .back-link:hover { border-color: var(--accent); color: var(--accent); }
+    .seed-badge {
+      font-size: 0.7rem; font-weight: 700; letter-spacing: 0.07em;
+      padding: 3px 9px; border-radius: 4px; text-transform: uppercase;
+      background: var(--gold-soft); color: var(--gold); border: 1px solid rgba(232,168,56,0.25);
+    }
+    /* Auth gate — hide everything until seed-admin confirmed */
+    body.auth-pending { visibility: hidden; }
+
+    /* ── Layout ────────────────────────────────────────────────────────── */
+    .main {
+      margin-top: var(--topbar-h);
+      padding: 28px 24px 80px;
+      max-width: 1380px;
+      margin-left: auto; margin-right: auto;
+    }
+    .page-header {
+      margin-bottom: 24px; padding-bottom: 18px;
+      border-bottom: 1px solid var(--line);
+    }
+    .page-header h1 { color: var(--accent); font-size: 1.4rem; font-weight: 700; }
+    .page-header p  { color: var(--ink-muted); font-size: 0.87rem; margin-top: 4px; }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 1fr 380px;
+      gap: 24px;
+      align-items: start;
+    }
+    @media (max-width: 960px) {
+      .layout { grid-template-columns: 1fr; }
+      .instructions-panel { order: -1; }
+    }
+
+    /* ── Cards ─────────────────────────────────────────────────────────── */
+    .card {
+      background: var(--bg-raised);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 20px 22px;
+      margin-bottom: 16px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.08em; color: var(--ink-muted); margin-bottom: 14px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .card-title .icon { font-size: 1rem; }
+
+    /* ── Church Selector ───────────────────────────────────────────────── */
+    .church-selector {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px;
+      margin-bottom: 0;
+    }
+    .church-btn {
+      display: flex; flex-direction: column; align-items: center; gap: 5px;
+      padding: 14px 10px; border-radius: 9px;
+      border: 2px solid var(--line); background: var(--bg-card);
+      color: var(--ink-muted); cursor: pointer; font-family: inherit;
+      font-size: 0.82rem; font-weight: 600; transition: all 0.18s;
+      text-align: center;
+    }
+    .church-btn .church-icon { font-size: 1.6rem; }
+    .church-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .church-btn.active {
+      border-color: var(--gold); color: var(--gold);
+      background: var(--gold-soft);
+    }
+
+    /* ── Form Fields ───────────────────────────────────────────────────── */
+    .form-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px;
+    }
+    .form-grid.full { grid-template-columns: 1fr; }
+    @media (max-width: 600px) { .form-grid { grid-template-columns: 1fr; } }
+
+    .field { display: flex; flex-direction: column; gap: 5px; }
+    .field.span2 { grid-column: 1 / -1; }
+    .field label {
+      font-size: 0.73rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.07em; color: var(--ink-muted);
+      display: flex; align-items: center; gap: 6px;
+    }
+    .field label .req { color: var(--danger); font-size: 0.9em; }
+    .field label .hint {
+      font-weight: 400; text-transform: none; letter-spacing: 0;
+      color: var(--ink-muted); font-size: 0.7rem; margin-left: auto;
+    }
+    .field input, .field textarea, .field select {
+      background: var(--bg-card); border: 1px solid var(--line);
+      border-radius: 7px; color: var(--ink); font-family: inherit;
+      font-size: 0.84rem; padding: 9px 12px;
+      transition: border-color 0.15s; outline: none; width: 100%;
+    }
+    .field input:focus, .field textarea:focus, .field select:focus {
+      border-color: var(--accent);
+    }
+    .field input::placeholder, .field textarea::placeholder { color: var(--ink-muted); opacity: 0.6; }
+    .field textarea {
+      font-family: 'Noto Mono', 'Courier New', monospace; font-size: 0.75rem;
+      resize: vertical; min-height: 80px;
+    }
+    .field .secret-wrap { position: relative; display: flex; align-items: center; }
+    .field .secret-wrap input { padding-right: 40px; }
+    .field .secret-wrap .eye-btn {
+      position: absolute; right: 10px; background: none; border: none;
+      color: var(--ink-muted); cursor: pointer; font-size: 1rem;
+      padding: 0; line-height: 1;
+    }
+    .field .secret-wrap .eye-btn:hover { color: var(--accent); }
+    .field select option { background: var(--bg-raised); }
+    .field-note {
+      font-size: 0.69rem; color: var(--ink-muted); margin-top: 2px; line-height: 1.4;
+    }
+
+    /* ── Section divider ───────────────────────────────────────────────── */
+    .section-sep {
+      border: none; border-top: 1px solid var(--line);
+      margin: 20px 0 16px;
+    }
+
+    /* ── Output block ──────────────────────────────────────────────────── */
+    .output-card {
+      background: var(--bg-card);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      margin-top: 8px;
+      overflow: hidden;
+    }
+    .output-toolbar {
+      display: flex; align-items: center; gap: 10px;
+      padding: 12px 16px; border-bottom: 1px solid var(--line);
+      background: var(--bg-raised);
+    }
+    .output-title {
+      font-size: 0.73rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.08em; color: var(--ink-muted); margin-right: auto;
+    }
+    .output-body {
+      padding: 16px;
+      font-family: 'Noto Mono', 'Courier New', monospace;
+      font-size: 0.73rem; line-height: 1.7;
+      color: #a0c8e8;
+      white-space: pre;
+      overflow-x: auto;
+      min-height: 180px;
+      max-height: 420px;
+      overflow-y: auto;
+    }
+    .output-body .c-comment { color: var(--ink-muted); }
+    .output-body .c-key    { color: #93c5fd; }
+    .output-body .c-val    { color: #86efac; }
+    .output-body .c-punct  { color: var(--ink-muted); }
+    .output-body .c-kw     { color: var(--gold); }
+    .output-body .c-fn     { color: var(--accent); }
+
+    /* ── Buttons ───────────────────────────────────────────────────────── */
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 8px 16px; border-radius: 8px; font-size: 0.82rem;
+      font-family: inherit; font-weight: 600; cursor: pointer;
+      border: 1px solid var(--accent); background: var(--accent-soft);
+      color: var(--accent); transition: all 0.18s; text-decoration: none;
+    }
+    .btn:hover { background: var(--accent); color: var(--bg); }
+    .btn-gold { border-color: var(--gold); background: var(--gold-soft); color: var(--gold); }
+    .btn-gold:hover { background: var(--gold); color: var(--bg); }
+    .btn-danger { border-color: var(--danger); background: rgba(248,113,113,0.08); color: var(--danger); }
+    .btn-danger:hover { background: var(--danger); color: #fff; }
+    .btn-sm { padding: 5px 12px; font-size: 0.76rem; border-radius: 6px; }
+    .btn-success { border-color: var(--success); background: rgba(74,222,128,0.08); color: var(--success); }
+
+    /* ── Instructions Panel ────────────────────────────────────────────── */
+    .instructions-panel { position: sticky; top: calc(var(--topbar-h) + 20px); }
+    .step-list { display: flex; flex-direction: column; gap: 0; }
+    .step {
+      display: flex; gap: 14px; padding: 14px 0;
+      border-bottom: 1px solid var(--line);
+    }
+    .step:last-child { border-bottom: none; }
+    .step-num {
+      flex-shrink: 0; width: 28px; height: 28px;
+      border-radius: 50%; display: flex; align-items: center; justify-content: center;
+      font-size: 0.75rem; font-weight: 700;
+      background: var(--accent-soft); color: var(--accent);
+      border: 1px solid rgba(126,170,204,0.25);
+      margin-top: 1px;
+    }
+    .step.done .step-num { background: rgba(74,222,128,0.15); color: var(--success); border-color: rgba(74,222,128,0.2); }
+    .step.warn .step-num { background: rgba(251,146,60,0.12); color: var(--warn); border-color: rgba(251,146,60,0.2); }
+    .step.danger .step-num { background: rgba(248,113,113,0.1); color: var(--danger); border-color: rgba(248,113,113,0.2); }
+    .step-body { flex: 1; min-width: 0; }
+    .step-body strong { font-size: 0.84rem; color: var(--ink); display: block; margin-bottom: 2px; }
+    .step-body p  { font-size: 0.78rem; color: var(--ink-muted); line-height: 1.5; }
+    .step-body code {
+      font-family: 'Noto Mono', monospace; font-size: 0.71rem;
+      background: var(--bg-card); border: 1px solid var(--line);
+      border-radius: 4px; padding: 1px 5px; color: var(--gold);
+    }
+
+    /* ── Toast ─────────────────────────────────────────────────────────── */
+    .toast {
+      position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(40px);
+      background: var(--bg-raised); border: 1px solid var(--success);
+      color: var(--success); padding: 10px 22px; border-radius: 8px;
+      font-size: 0.84rem; font-weight: 600; opacity: 0;
+      transition: all 0.28s; z-index: 999; pointer-events: none;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* ── History panel ────────────────────────────────────────────────── */
+    .history-panel {
+      background: var(--bg-raised); border: 1px solid var(--line);
+      border-radius: 10px; padding: 0; overflow: hidden; margin-top: 16px;
+    }
+    .history-header {
+      display: flex; align-items: center; gap: 10px;
+      padding: 13px 16px; border-bottom: 1px solid var(--line);
+      cursor: pointer;
+    }
+    .history-header:hover { background: rgba(255,255,255,0.03); }
+    .history-title {
+      font-size: 0.73rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.08em; color: var(--ink-muted); flex: 1;
+    }
+    .history-toggle { font-size: 0.7rem; color: var(--ink-muted); }
+    .history-body { padding: 8px 0; display: none; }
+    .history-body.open { display: block; }
+    .history-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 16px; cursor: pointer;
+      border-bottom: 1px solid var(--line); transition: background 0.12s;
+    }
+    .history-item:last-child { border-bottom: none; }
+    .history-item:hover { background: rgba(255,255,255,0.04); }
+    .history-item-info { flex: 1; min-width: 0; }
+    .history-item-name { font-size: 0.82rem; font-weight: 600; color: var(--ink); }
+    .history-item-meta { font-size: 0.7rem; color: var(--ink-muted); margin-top: 1px; }
+    .history-item-del {
+      background: none; border: none; color: var(--ink-muted); cursor: pointer;
+      font-size: 0.9rem; padding: 4px 6px; border-radius: 4px;
+      transition: color 0.15s;
+    }
+    .history-item-del:hover { color: var(--danger); }
+    .history-empty { padding: 16px; text-align: center; color: var(--ink-muted); font-size: 0.8rem; }
+
+    /* ── Warning banner ────────────────────────────────────────────────── */
+    .warn-banner {
+      background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.2);
+      border-radius: 8px; padding: 11px 16px; font-size: 0.81rem;
+      color: #fca5a5; display: flex; gap: 10px; align-items: flex-start;
+      margin-bottom: 18px;
+    }
+    .warn-banner .wi { font-size: 1.1rem; flex-shrink: 0; margin-top: 1px; }
+  </style>
+</head>
+<body class="auth-pending">
+
+<!-- ═════ TOP BAR ═════ -->
+<div class="topbar">
+  <div class="topbar-brand">FlockOS <span>Deployment Generator</span></div>
+  <span class="seed-badge">&#128081; Seed Admin</span>
+  <a class="back-link" href="the_great_commission.html">&#8592; Command Center</a>
+</div>
+
+<!-- ═════ MAIN ═════ -->
+<div class="main">
+  <div class="page-header">
+    <h1>&#9881; Script Properties Generator</h1>
+    <p>Fill in the fields below to generate a ready-to-paste Apps Script function that sets all Script Properties for a church deployment.</p>
+  </div>
+
+  <div class="warn-banner">
+    <span class="wi">&#9888;</span>
+    <span>
+      <strong>Security reminder:</strong> Secrets entered here never leave your browser.
+      Generation is entirely client-side. Do NOT share the generated output — it contains credentials.
+      After running <code>setAllScriptProperties_()</code> in Apps Script, <strong>delete it immediately</strong>.
+    </span>
+  </div>
+
+  <div class="layout">
+
+    <!-- ── LEFT: FORM ─────────────────────────────────────────────── -->
+    <div class="form-col">
+
+      <!-- Church Selector -->
+      <div class="card">
+        <div class="card-title"><span class="icon">&#9962;</span> Select Church Deployment</div>
+        <div class="church-selector" id="churchSelector">
+          <button class="church-btn" data-church="flockos"   onclick="_selectChurch('flockos')">
+            <span class="church-icon">&#127884;</span>FlockOS
+          </button>
+          <button class="church-btn" data-church="tbc"       onclick="_selectChurch('tbc')">
+            <span class="church-icon">&#9962;</span>Trinity Baptist
+          </button>
+          <button class="church-btn" data-church="theforest" onclick="_selectChurch('theforest')">
+            <span class="church-icon">&#127795;</span>The Forest
+          </button>
+          <button class="church-btn" data-church="custom"    onclick="_selectChurch('custom')">
+            <span class="church-icon">&#10010;</span>New Church
+          </button>
+        </div>
+      </div>
+
+      <!-- Identity -->
+      <div class="card">
+        <div class="card-title"><span class="icon">&#127968;</span> Identity</div>
+        <div class="form-grid">
+          <div class="field span2">
+            <label>CHURCH_NAME <span class="req">*</span></label>
+            <input type="text" id="f_CHURCH_NAME" placeholder="e.g. Grace Community Church" oninput="_update()">
+          </div>
+          <div class="field">
+            <label>CHURCH_TIMEZONE <span class="req">*</span></label>
+            <select id="f_CHURCH_TIMEZONE" onchange="_update()">
+              <option value="America/Chicago">America/Chicago</option>
+              <option value="America/New_York">America/New_York</option>
+              <option value="America/Denver">America/Denver</option>
+              <option value="America/Los_Angeles">America/Los_Angeles</option>
+              <option value="America/Phoenix">America/Phoenix</option>
+              <option value="America/Anchorage">America/Anchorage</option>
+              <option value="Pacific/Honolulu">Pacific/Honolulu</option>
+              <option value="Europe/London">Europe/London</option>
+              <option value="Europe/Berlin">Europe/Berlin</option>
+              <option value="Australia/Sydney">Australia/Sydney</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>CHURCH_APP_URL <span class="hint">Set after Web App deploy</span></label>
+            <input type="text" id="f_CHURCH_APP_URL" placeholder="https://script.google.com/macros/s/…/exec" oninput="_update()">
+          </div>
+        </div>
+      </div>
+
+      <!-- Firestore -->
+      <div class="card">
+        <div class="card-title"><span class="icon">&#128293;</span> Firestore</div>
+        <div class="form-grid">
+          <div class="field">
+            <label>FIRESTORE_PROJECT_ID <span class="req">*</span></label>
+            <input type="text" id="f_FIRESTORE_PROJECT_ID" placeholder="flockos-yourchurch" oninput="_update()">
+          </div>
+          <div class="field">
+            <label>FIRESTORE_CHURCH_ID <span class="req">*</span></label>
+            <input type="text" id="f_FIRESTORE_CHURCH_ID" placeholder="YourChurch" oninput="_update()">
+            <span class="field-note">The <code>id</code> key under <code>churches/</code> in Firestore</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Secrets -->
+      <div class="card">
+        <div class="card-title"><span class="icon">&#128274;</span> Secrets</div>
+        <div class="form-grid">
+          <div class="field">
+            <label>SYNC_SECRET <span class="req">*</span></label>
+            <div class="secret-wrap">
+              <input type="password" id="f_SYNC_SECRET" placeholder="Church sync secret" oninput="_update()">
+              <button class="eye-btn" onclick="_toggleEye('f_SYNC_SECRET', this)">&#128065;</button>
+            </div>
+            <span class="field-note">Stored in Firestore at <code>churches/{id}.syncSecret</code></span>
+          </div>
+          <div class="field">
+            <label>MASTER_SYNC_SECRET <span class="req">*</span></label>
+            <div class="secret-wrap">
+              <input type="password" id="f_MASTER_SYNC_SECRET" placeholder="Master override secret" oninput="_update()">
+              <button class="eye-btn" onclick="_toggleEye('f_MASTER_SYNC_SECRET', this)">&#128065;</button>
+            </div>
+            <span class="field-note">Same value across all churches — from <code>master-api.json</code></span>
+          </div>
+          <div class="field span2">
+            <label>FIREBASE_SERVICE_ACCOUNT <span class="req">*</span>
+              <span class="hint">Paste full JSON</span>
+            </label>
+            <textarea id="f_FIREBASE_SERVICE_ACCOUNT" placeholder='{"type":"service_account","project_id":"..."}' oninput="_update()"></textarea>
+            <span class="field-note">Google Cloud service account JSON for this church's Firebase project. Download from GCP Console → IAM → Service Accounts.</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Admin Setup -->
+      <div class="card">
+        <div class="card-title"><span class="icon">&#128100;</span> Admin Setup <small style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--danger);margin-left:6px;">— Delete ADMIN_PASSWORD from Script Properties after first login</small></div>
+        <div class="form-grid">
+          <div class="field">
+            <label>ADMIN_EMAIL <span class="req">*</span></label>
+            <input type="email" id="f_ADMIN_EMAIL" placeholder="pastor@yourchurch.org" oninput="_update()">
+          </div>
+          <div class="field">
+            <label>NOTIFY_EMAIL</label>
+            <input type="email" id="f_NOTIFY_EMAIL" placeholder="Same as admin, or a notification inbox" oninput="_update()">
+          </div>
+          <div class="field">
+            <label>ADMIN_FIRST <span class="req">*</span></label>
+            <input type="text" id="f_ADMIN_FIRST" placeholder="First name" oninput="_update()">
+          </div>
+          <div class="field">
+            <label>ADMIN_LAST <span class="req">*</span></label>
+            <input type="text" id="f_ADMIN_LAST" placeholder="Last name" oninput="_update()">
+          </div>
+          <div class="field span2">
+            <label>ADMIN_PASSWORD <span class="req">*</span></label>
+            <div class="secret-wrap">
+              <input type="password" id="f_ADMIN_PASSWORD" placeholder="Initial admin password (change after first login)" oninput="_update()">
+              <button class="eye-btn" onclick="_toggleEye('f_ADMIN_PASSWORD', this)">&#128065;</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Optional -->
+      <div class="card">
+        <div class="card-title"><span class="icon">&#10024;</span> Optional</div>
+        <div class="form-grid">
+          <div class="field">
+            <label>TWILIO_SID</label>
+            <input type="text" id="f_TWILIO_SID" placeholder="ACxxxxxxxx" oninput="_update()">
+          </div>
+          <div class="field">
+            <label>TWILIO_TOKEN</label>
+            <div class="secret-wrap">
+              <input type="password" id="f_TWILIO_TOKEN" placeholder="Twilio auth token" oninput="_update()">
+              <button class="eye-btn" onclick="_toggleEye('f_TWILIO_TOKEN', this)">&#128065;</button>
+            </div>
+          </div>
+          <div class="field">
+            <label>TWILIO_NUMBER</label>
+            <input type="text" id="f_TWILIO_NUMBER" placeholder="+15551234567" oninput="_update()">
+          </div>
+          <div class="field">
+            <label>CHURCH_FOLDER_ID</label>
+            <input type="text" id="f_CHURCH_FOLDER_ID" placeholder="Google Drive folder ID" oninput="_update()">
+          </div>
+          <div class="field span2">
+            <label>TRUTH_SHEET_ID</label>
+            <input type="text" id="f_TRUTH_SHEET_ID" placeholder="Google Sheets ID for Truth database" oninput="_update()">
+          </div>
+        </div>
+      </div>
+
+      <!-- Output -->
+      <div class="output-card">
+        <div class="output-toolbar">
+          <span class="output-title">&#128196; Generated — setAllScriptProperties_()</span>
+          <button class="btn btn-sm" onclick="_saveConfig(this)" title="Save non-secret config fields to Firestore for later recall">&#128190; Save Config</button>
+          <button class="btn btn-sm btn-gold" onclick="_copyOutput(this)">&#128203; Copy</button>
+          <button class="btn btn-sm btn-danger" onclick="_clearAll()">&#10006; Clear</button>
+        </div>
+        <div class="output-body" id="outputBlock">
+          <span class="c-comment">// Select a church and fill in the required fields above
+// to generate the Apps Script paste block.</span>
+        </div>
+      </div>
+
+    </div><!-- /form-col -->
+
+    <!-- ── RIGHT: INSTRUCTIONS ────────────────────────────────────── -->
+    <div class="instructions-panel">
+      <div class="card">
+        <div class="card-title"><span class="icon">&#128640;</span> Deployment Steps</div>
+        <div class="step-list">
+
+          <div class="step">
+            <div class="step-num">1</div>
+            <div class="step-body">
+              <strong>Create the GAS Project</strong>
+              <p>Go to <a href="https://script.google.com" target="_blank" style="color:var(--accent);">script.google.com</a>. Create a new project. Name it (e.g., <em>TBC — FlockOS Backend</em>).</p>
+            </div>
+          </div>
+
+          <div class="step">
+            <div class="step-num">2</div>
+            <div class="step-body">
+              <strong>Paste Code.gs</strong>
+              <p>Open <code>10-Master Code.md</code>. Copy everything. In Apps Script, replace all of <code>Code.gs</code> with the contents. Save.</p>
+            </div>
+          </div>
+
+          <div class="step warn">
+            <div class="step-num">3</div>
+            <div class="step-body">
+              <strong>Set Script Properties</strong>
+              <p>Copy the generated block above. Paste it into a new file in Apps Script (e.g., <code>Setup.gs</code>). Save, then run <code>setAllScriptProperties_()</code>. You'll be prompted to authorize.</p>
+            </div>
+          </div>
+
+          <div class="step danger">
+            <div class="step-num">4</div>
+            <div class="step-body">
+              <strong>Delete Setup.gs immediately</strong>
+              <p>After the function runs successfully, <strong>delete <code>Setup.gs</code></strong> before you do anything else. It contains plaintext credentials.</p>
+            </div>
+          </div>
+
+          <div class="step">
+            <div class="step-num">5</div>
+            <div class="step-body">
+              <strong>Run <code>setupFlockOS()</code></strong>
+              <p>Back in <code>Code.gs</code>, run the <code>setupFlockOS()</code> function. It seeds all defaults and creates the admin user. Check the Execution Log for success.</p>
+            </div>
+          </div>
+
+          <div class="step warn">
+            <div class="step-num">6</div>
+            <div class="step-body">
+              <strong>Delete ADMIN_PASSWORD</strong>
+              <p>After setup completes, go to ⚙ Project Settings → Script Properties. Find <code>ADMIN_PASSWORD</code> and <strong>delete it</strong>.</p>
+            </div>
+          </div>
+
+          <div class="step">
+            <div class="step-num">7</div>
+            <div class="step-body">
+              <strong>Deploy as Web App</strong>
+              <p>Deploy → New Deployment → Web App. Set "Execute as: Me" and "Who has access: Anyone". Copy the Web App URL.</p>
+            </div>
+          </div>
+
+          <div class="step">
+            <div class="step-num">8</div>
+            <div class="step-body">
+              <strong>Register the URL</strong>
+              <p>Paste the Web App URL into <code>CHURCH_APP_URL</code> above, copy the regenerated block, run again (only the URL property will change). Then run <code>registerChurchUrl()</code> in GAS.</p>
+            </div>
+          </div>
+
+          <div class="step done">
+            <div class="step-num">&#10003;</div>
+            <div class="step-body">
+              <strong>Register in Command Center</strong>
+              <p>Return to the <a href="the_great_commission.html" style="color:var(--accent);">Great Commission</a> and click <strong>+ Register</strong> to add this church to the network.</p>
+            </div>
+          </div>
+
+        </div><!-- /step-list -->
+      </div>
+
+      <!-- Saved configs history -->
+      <div class="history-panel" id="historyPanel">
+        <div class="history-header" onclick="_toggleHistory()">
+          <span class="history-title">&#128197; Saved Configs</span>
+          <span class="history-toggle" id="historyToggleIcon">&#9660;</span>
+        </div>
+        <div class="history-body" id="historyBody">
+          <div class="history-empty" id="historyEmpty">Loading…</div>
+        </div>
+      </div>
+
+      <!-- Quick-ref property table -->
+      <div class="card" style="margin-top:0;">
+        <div class="card-title"><span class="icon">&#128196;</span> Auto-Generated Properties</div>
+        <p style="font-size:0.77rem;color:var(--ink-muted);line-height:1.6;">
+          These are set automatically — <strong>do not set manually:</strong><br><br>
+          <code>FLOCK_AUTH_PEPPER</code> — set by <code>initPepper()</code> on first run<br>
+          <code>SHEET_ID</code> — set by <code>setupFlockOS()</code><br>
+          <code>exp.session.*</code> — set at runtime on each login
+        </p>
+      </div>
+    </div><!-- /instructions-panel -->
+
+  </div><!-- /layout -->
+</div><!-- /main -->
+
+<div class="toast" id="toast">&#10003; Copied to clipboard</div>
+
+<script>
+// ── Auth gate ────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function() {
+  if (typeof Adornment !== 'undefined') Adornment.init();
+
+  var session = Nehemiah.guard(); // redirects to login if no session
+  if (!session) return;
+
+  if (!session.isSeed) {
+    // Non-seed users have no reason to be here — send them home
+    window.location.replace('the_good_shepherd.html');
+    return;
+  }
+
+  document.body.classList.remove('auth-pending');
+});
+
+// ── Church config presets (public data only — no secrets) ───────────────────
+var CHURCH_PRESETS = {
+  flockos: {
+    CHURCH_NAME:           'FlockOS',
+    CHURCH_TIMEZONE:       'America/Chicago',
+    FIRESTORE_PROJECT_ID:  '',           // flockos has no firebase
+    FIRESTORE_CHURCH_ID:   'FlockOS',
+    CHURCH_APP_URL:        'https://script.google.com/macros/s/AKfycbwH7HY6_HK8NnP2R4IXfhsVQYnyAhWRStV8t5KJwaD7pnga0QKNj1mxwX5OAYwxEKDI/exec',
+  },
+  tbc: {
+    CHURCH_NAME:           'Trinity Baptist Church',
+    CHURCH_TIMEZONE:       'America/Chicago',
+    FIRESTORE_PROJECT_ID:  'flockos-trinity',
+    FIRESTORE_CHURCH_ID:   'TBC',
+    CHURCH_APP_URL:        'https://script.google.com/macros/s/AKfycbwAFp0BQvt0DiDJBjzBrycMripfUHOkP0PwiB_DSXgGVezP_y8jCOVxZWweTp58gai7/exec',
+  },
+  theforest: {
+    CHURCH_NAME:           'The Forest',
+    CHURCH_TIMEZONE:       'America/Chicago',
+    FIRESTORE_PROJECT_ID:  'flockos-theforest',
+    FIRESTORE_CHURCH_ID:   'TheForest',
+    CHURCH_APP_URL:        'https://script.google.com/macros/s/AKfycbwH7HY6_HK8NnP2R4IXfhsVQYnyAhWRStV8t5KJwaD7pnga0QKNj1mxwX5OAYwxEKDI/exec',
+  },
+  custom: {
+    CHURCH_NAME:           '',
+    CHURCH_TIMEZONE:       'America/Chicago',
+    FIRESTORE_PROJECT_ID:  '',
+    FIRESTORE_CHURCH_ID:   '',
+    CHURCH_APP_URL:        '',
+  },
+};
+
+// ── Field IDs in output order ───────────────────────────────────────────────
+var FIELD_ORDER = [
+  'CHURCH_NAME', 'CHURCH_TIMEZONE', 'FIRESTORE_PROJECT_ID', 'FIRESTORE_CHURCH_ID',
+  'SYNC_SECRET', 'MASTER_SYNC_SECRET', 'FIREBASE_SERVICE_ACCOUNT',
+  'ADMIN_EMAIL', 'ADMIN_FIRST', 'ADMIN_LAST', 'ADMIN_PASSWORD', 'NOTIFY_EMAIL',
+  'CHURCH_APP_URL',
+  'TWILIO_SID', 'TWILIO_TOKEN', 'TWILIO_NUMBER',
+  'CHURCH_FOLDER_ID', 'TRUTH_SHEET_ID',
+];
+
+var _selectedChurch = null;
+
+function _selectChurch(id) {
+  _selectedChurch = id;
+  // Toggle active state
+  document.querySelectorAll('.church-btn').forEach(function(btn) {
+    btn.classList.toggle('active', btn.dataset.church === id);
+  });
+  // Fill preset values
+  var preset = CHURCH_PRESETS[id] || {};
+  Object.keys(preset).forEach(function(key) {
+    var el = document.getElementById('f_' + key);
+    if (el && !el.value.trim()) el.value = preset[key];
+    // For timezone <select>
+    if (key === 'CHURCH_TIMEZONE' && el) el.value = preset[key];
+  });
+  _update();
+}
+
+function _val(id) {
+  var el = document.getElementById('f_' + id);
+  if (!el) return '';
+  return el.value.trim();
+}
+
+function _esc(str) {
+  // JavaScript string escape (for single-line values)
+  return str.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n').replace(/\r/g, '');
+}
+
+function _escJson(str) {
+  // Already JSON — validate and compact if possible
+  try {
+    return JSON.stringify(JSON.parse(str));
+  } catch(e) {
+    return _esc(str);
+  }
+}
+
+function _buildOutput() {
+  var props = {};
+  FIELD_ORDER.forEach(function(key) {
+    var raw = _val(key);
+    if (!raw) return;
+    props[key] = raw;
+  });
+
+  if (!Object.keys(props).length) {
+    return '<span class="c-comment">// No values entered yet.\n// Select a church and fill in the required fields.</span>';
+  }
+
+  var lines = [];
+  lines.push('<span class="c-comment">// ── Paste into Apps Script, run ONCE, then delete ──────────</span>');
+  lines.push('<span class="c-kw">function</span> <span class="c-fn">setAllScriptProperties_</span>() {');
+  lines.push('  <span class="c-kw">var</span> props = PropertiesService.getScriptProperties();');
+  lines.push('  props.setProperties({');
+
+  Object.keys(props).forEach(function(key) {
+    var raw = props[key];
+    var escaped = (key === 'FIREBASE_SERVICE_ACCOUNT') ? _escJson(raw) : _esc(raw);
+    lines.push(
+      '    <span class="c-key">\'' + _he(key) + '\'</span>'
+      + '<span class="c-punct">: </span>'
+      + '<span class="c-val">\'' + _he(escaped) + '\'</span><span class="c-punct">,</span>'
+    );
+  });
+
+  lines.push('  });');
+  lines.push('  Logger.log(<span class="c-val">\'✅ Script Properties set.\'</span>);');
+  lines.push('  Logger.log(<span class="c-val">\'⚠️  Delete this function now.\'</span>);');
+  lines.push('}');
+  return lines.join('\n');
+}
+
+function _he(str) {
+  // HTML-encode for display inside pre/code
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function _update() {
+  document.getElementById('outputBlock').innerHTML = _buildOutput();
+}
+
+function _plainOutput() {
+  // Returns plain text for clipboard
+  var props = {};
+  FIELD_ORDER.forEach(function(key) {
+    var raw = _val(key);
+    if (!raw) return;
+    props[key] = raw;
+  });
+
+  if (!Object.keys(props).length) return '// No values entered.';
+
+  var lines = [];
+  lines.push('// ── Paste into Apps Script, run ONCE, then delete ──────────');
+  lines.push('function setAllScriptProperties_() {');
+  lines.push('  var props = PropertiesService.getScriptProperties();');
+  lines.push('  props.setProperties({');
+  Object.keys(props).forEach(function(key) {
+    var raw = props[key];
+    var escaped = (key === 'FIREBASE_SERVICE_ACCOUNT') ? _escJson(raw) : _esc(raw);
+    lines.push("    '" + key + "': '" + escaped + "',");
+  });
+  lines.push('  });');
+  lines.push("  Logger.log('✅ Script Properties set.');");
+  lines.push("  Logger.log('⚠️  Delete this function now.');");
+  lines.push('}');
+  return lines.join('\n');
+}
+
+function _copyOutput(btn) {
+  var text = _plainOutput();
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(function() { _showToast(btn); });
+  } else {
+    // Fallback
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'position:fixed;opacity:0;pointer-events:none;';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    _showToast(btn);
+  }
+}
+
+function _showToast(btn) {
+  if (btn) {
+    var orig = btn.innerHTML;
+    btn.innerHTML = '&#10003; Copied!';
+    btn.classList.add('btn-success');
+    btn.classList.remove('btn-gold');
+    setTimeout(function() {
+      btn.innerHTML = orig;
+      btn.classList.remove('btn-success');
+      btn.classList.add('btn-gold');
+    }, 2200);
+  }
+  var t = document.getElementById('toast');
+  t.classList.add('show');
+  setTimeout(function() { t.classList.remove('show'); }, 2200);
+}
+
+function _clearAll() {
+  if (!confirm('Clear all entered values?')) return;
+  FIELD_ORDER.forEach(function(key) {
+    var el = document.getElementById('f_' + key);
+    if (el) el.value = '';
+  });
+  document.querySelectorAll('.church-btn').forEach(function(b) { b.classList.remove('active'); });
+  _selectedChurch = null;
+  _update();
+}
+
+function _toggleEye(inputId, btn) {
+  var el = document.getElementById(inputId);
+  if (!el) return;
+  var isHidden = el.type === 'password';
+  el.type = isHidden ? 'text' : 'password';
+  btn.textContent = isHidden ? '&#128683;' : '&#128065;';
+  btn.innerHTML   = isHidden ? '&#128683;' : '&#128065;';
+}
+
+// ── Firestore — deployConfigs ──────────────────────────────────────────────────
+//
+// Secrets are NEVER saved to Firestore. Only non-sensitive config is stored:
+// church name, timezone, Firestore IDs, admin email/name, notify email,
+// Twilio SID+number, folder ID, truth sheet ID, app URL.
+//
+// Document path: deployConfigs/{autoId}
+// Fields saved: churchId, label, savedAt, savedBy, + non-secret form fields
+
+var SECRET_FIELDS = [
+  'SYNC_SECRET', 'MASTER_SYNC_SECRET', 'FIREBASE_SERVICE_ACCOUNT',
+  'ADMIN_PASSWORD', 'TWILIO_TOKEN'
+];
+
+function _db() {
+  // Firebase is initialized by the_upper_room.js before DOMContentLoaded fires
+  if (typeof firebase === 'undefined' || !firebase.apps || !firebase.apps.length) return null;
+  return firebase.firestore();
+}
+
+function _saveConfig(btn) {
+  var db = _db();
+  if (!db) { alert('Firestore not available.'); return; }
+
+  var name = _val('CHURCH_NAME');
+  if (!name) { alert('Enter a Church Name before saving.'); return; }
+
+  var doc = {
+    churchId:  _selectedChurch || 'custom',
+    label:     name,
+    savedAt:   firebase.firestore.FieldValue.serverTimestamp(),
+    savedBy:   (typeof Nehemiah !== 'undefined' && Nehemiah.session && Nehemiah.session().email) || 'seed',
+  };
+
+  // Save only non-secret fields
+  FIELD_ORDER.forEach(function(key) {
+    if (SECRET_FIELDS.indexOf(key) !== -1) return; // skip secrets
+    var v = _val(key);
+    if (v) doc[key] = v;
+  });
+
+  var origHtml = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = 'Saving…';
+
+  db.collection('deployConfigs').add(doc)
+    .then(function() {
+      btn.innerHTML = '&#10003; Saved!';
+      btn.classList.add('btn-success');
+      setTimeout(function() {
+        btn.innerHTML = origHtml;
+        btn.classList.remove('btn-success');
+        btn.disabled = false;
+      }, 2200);
+      _loadHistory();
+    })
+    .catch(function(err) {
+      btn.innerHTML = origHtml;
+      btn.disabled = false;
+      alert('Save failed: ' + err.message);
+    });
+}
+
+function _loadHistory() {
+  var db = _db();
+  if (!db) return;
+
+  var body  = document.getElementById('historyBody');
+  var empty = document.getElementById('historyEmpty');
+  if (empty) empty.textContent = 'Loading…';
+
+  db.collection('deployConfigs')
+    .orderBy('savedAt', 'desc')
+    .limit(20)
+    .get()
+    .then(function(snap) {
+      if (snap.empty) {
+        if (empty) { empty.textContent = 'No saved configs yet.'; empty.style.display = ''; }
+        return;
+      }
+      if (empty) empty.style.display = 'none';
+
+      // Remove existing items
+      body.querySelectorAll('.history-item').forEach(function(el) { el.remove(); });
+
+      snap.forEach(function(docSnap) {
+        var d = docSnap.data();
+        var ts = '';
+        if (d.savedAt && d.savedAt.toDate) {
+          var dt = d.savedAt.toDate();
+          ts = dt.toLocaleDateString() + ' ' + dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+        var item = document.createElement('div');
+        item.className = 'history-item';
+        item.innerHTML =
+          '<div class="history-item-info">'
+          + '<div class="history-item-name">' + _he(d.label || d.churchId || 'Unnamed') + '</div>'
+          + '<div class="history-item-meta">' + _he(d.FIRESTORE_PROJECT_ID || '') + (ts ? ' · ' + ts : '') + '</div>'
+          + '</div>'
+          + '<button class="history-item-del" title="Delete this saved config" onclick="event.stopPropagation();_deleteConfig(\'' + docSnap.id + '\',this)">&#128465;</button>';
+        item.addEventListener('click', function() { _restoreConfig(d); });
+        body.appendChild(item);
+      });
+    })
+    .catch(function(err) {
+      if (empty) empty.textContent = 'Could not load history: ' + err.message;
+    });
+}
+
+function _restoreConfig(d) {
+  // Fill non-secret fields from saved doc
+  FIELD_ORDER.forEach(function(key) {
+    if (SECRET_FIELDS.indexOf(key) !== -1) return;
+    var el = document.getElementById('f_' + key);
+    if (!el) return;
+    el.value = d[key] || '';
+    // Sync <select> for timezone
+    if (key === 'CHURCH_TIMEZONE' && el.tagName === 'SELECT') el.value = d[key] || 'America/Chicago';
+  });
+
+  // Highlight the matching church button if known
+  var cid = d.churchId || '';
+  document.querySelectorAll('.church-btn').forEach(function(b) {
+    b.classList.toggle('active', b.dataset.church === cid);
+  });
+  _selectedChurch = cid || null;
+  _update();
+
+  // Collapse history panel after restore
+  var hb = document.getElementById('historyBody');
+  if (hb) { hb.classList.remove('open'); }
+  var icon = document.getElementById('historyToggleIcon');
+  if (icon) icon.innerHTML = '&#9660;';
+
+  var t = document.getElementById('toast');
+  t.textContent = '\u2713 Config restored — enter secrets to regenerate';
+  t.classList.add('show');
+  setTimeout(function() {
+    t.classList.remove('show');
+    t.textContent = '\u2713 Copied to clipboard';
+  }, 2800);
+}
+
+function _deleteConfig(docId, btn) {
+  if (!confirm('Delete this saved config?')) return;
+  var db = _db();
+  if (!db) return;
+  btn.disabled = true;
+  db.collection('deployConfigs').doc(docId).delete()
+    .then(function() { _loadHistory(); })
+    .catch(function(err) { btn.disabled = false; alert('Delete failed: ' + err.message); });
+}
+
+function _toggleHistory() {
+  var body = document.getElementById('historyBody');
+  var icon = document.getElementById('historyToggleIcon');
+  if (!body) return;
+  var isOpen = body.classList.toggle('open');
+  if (icon) icon.innerHTML = isOpen ? '&#9650;' : '&#9660;';
+  if (isOpen) _loadHistory();
+}
+</script>
+
+</body>
+</html>

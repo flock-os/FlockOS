@@ -385,6 +385,7 @@ const _PROVISIONER_URL = 'https://script.google.com/macros/s/AKfycbwngAJULbve_-W
 
 let _churches = [];
 let _gcSession = null;
+let _gcSyncSecret = '';  // loaded from FlockOS master on init — used for cross-church AppConfig calls
 
 // ── Utilities ─────────────────────────────────────────────────────────────
 
@@ -566,6 +567,7 @@ function _renderPage() {
     + '<p>Provision, manage, test, and verify all FlockOS church deployments.</p></div>'
     + '<div class="header-actions">'
     + '<button class="btn btn-sm" onclick="_gcTab(\'overview\');_gcRunHealthMonitor();" title="Refresh all health checks">&#8635; Refresh Health</button>'
+    + '<a class="btn btn-sm" href="bezalel.html" title="Generate Script Properties for a new church deployment">&#9881; Generate</a>'
     + '<button class="btn btn-gold" onclick="_gcProvisionNew()">&#9889; Provision</button>'
     + '<button class="btn btn-primary" onclick="_gcRegisterChurch()">+ Register</button>'
     + '</div></div>';
@@ -1303,7 +1305,7 @@ async function _gcChurchConfigList(churchId) {
   var c   = _churches.find(function(r) { return String(r.churchId) === String(churchId); });
   var url = c && c.databaseUrl;
   if (!url) throw new Error('No databaseUrl for church: ' + churchId);
-  var resp = await fetch(url + '?action=config.list', { redirect: 'follow' });
+  var resp = await fetch(url + '?action=config.list' + (_gcSyncSecret ? '&syncSecret=' + encodeURIComponent(_gcSyncSecret) : ''), { redirect: 'follow' });
   if (!resp.ok) throw new Error('HTTP ' + resp.status);
   var json = await resp.json();
   // GAS returns { rows: [...] } or an array directly
@@ -1314,7 +1316,7 @@ async function _gcChurchConfigSet(churchId, key, value, description, category) {
   var c   = _churches.find(function(r) { return String(r.churchId) === String(churchId); });
   var url = c && c.databaseUrl;
   if (!url) throw new Error('No databaseUrl for church: ' + churchId);
-  var resp = await fetch(url + '?action=config.set', {
+  var resp = await fetch(url + '?action=config.set' + (_gcSyncSecret ? '&syncSecret=' + encodeURIComponent(_gcSyncSecret) : ''), {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain' },
     body: JSON.stringify({ key: key, value: value, description: description || '', category: category || '' }),
@@ -1460,6 +1462,17 @@ async function _gcLoad() {
   try {
     var res = await TheVine.flock.church.list({ limit: 200 });
     _churches = Array.isArray(res) ? res : (res && res.data ? res.data : (res && res.rows ? res.rows : []));
+    // Fetch master sync secret from FlockOS master GAS (enables cross-church AppConfig calls)
+    if (!_gcSyncSecret && _gcSession && _gcSession.token) {
+      try {
+        var _surl = TheVine.config && TheVine.config.FLOCK_URL ? TheVine.config.FLOCK_URL : '';
+        if (_surl) {
+          var _sr = await fetch(_surl + '?action=system.masterSyncSecret&token=' + encodeURIComponent(_gcSession.token), { redirect: 'follow' });
+          var _sj = await _sr.json().catch(function() { return {}; });
+          _gcSyncSecret = (_sj && _sj.secret) ? String(_sj.secret) : '';
+        }
+      } catch (_se) { /* secret fetch failed silently */ }
+    }
     _renderPage();
   } catch (e) {
     main.innerHTML = '<div class="empty-state"><div class="icon">&#9888;</div><h3>Failed to load</h3><p>' + _e(e.message) + '</p>'
