@@ -216,7 +216,8 @@
     transition: all 0.2s ease; font-weight: 400;
   }
   .field input:focus + label,
-  .field input:not(:placeholder-shown) + label {
+  .field input:not(:placeholder-shown) + label,
+  .field input:-webkit-autofill + label {
     top: 6px; transform: none; font-size: 0.63rem; font-weight: 700;
     letter-spacing: 0.07em; text-transform: uppercase; color: var(--accent, #22d3ee);
   }
