@@ -461,17 +461,8 @@
         <a class="nav-item" id="nav-photos" data-view="photos" onclick="navigate('photos')">
           <span class="icon">&#128247;</span> Photos
         </a>
-        <a class="nav-item" data-view="attendance" data-module="attendance" onclick="navigate('attendance')">
-          <span class="icon">&#10003;</span> Attendance
-        </a>
-        <a class="nav-item" data-view="compassion" data-module="compassion" onclick="navigate('compassion')">
-          <span class="icon">&#128149;</span> Compassion
-        </a>
         <a class="nav-item" data-view="ministry" data-module="ministry" onclick="navigate('ministry')" style="font-weight:700;">
           <span class="icon">&#10036;</span> Ministry Hub
-        </a>
-        <a class="nav-item" data-view="volunteers" data-module="volunteers" onclick="navigate('volunteers')">
-          <span class="icon">&#9997;</span> Volunteers
         </a>
       </div>
     </div>
@@ -485,29 +476,8 @@
         <a class="nav-item" data-view="learning" data-module="learning" onclick="navigate('learning')" style="font-weight:700;">
           <span class="icon">&#128218;</span> Learning Hub
         </a>
-        <a class="nav-item" data-view="content-admin" data-module="content-admin" onclick="navigate('content-admin')">
-          <span class="icon">&#9998;</span> Content Editor
-        </a>
-        <a class="nav-item" data-view="discipleship" data-module="discipleship" onclick="navigate('discipleship')">
-          <span class="icon">&#10016;</span> Discipleship
-        </a>
         <a class="nav-item" data-view="prayer" onclick="navigate('prayer')">
           <span class="icon">&#128591;</span> Prayer
-        </a>
-        <a class="nav-item" data-view="sermons" data-module="sermons" onclick="navigate('sermons')">
-          <span class="icon">&#9998;</span> Sermons
-        </a>
-        <a class="nav-item" data-view="services" data-module="services" onclick="navigate('services')">
-          <span class="icon">&#9962;</span> Service Plans
-        </a>
-        <a class="nav-item" data-view="songs" data-module="songs" onclick="navigate('songs')">
-          <span class="icon">&#127925;</span> Songs
-        </a>
-        <a class="nav-item" data-view="missions" data-module="missions" onclick="navigate('missions')">
-          <span class="icon">&#9992;</span> Missions
-        </a>
-        <a class="nav-item" data-view="outreach" data-module="outreach" onclick="navigate('outreach')">
-          <span class="icon">&#128587;</span> Connect
         </a>
         <a class="nav-item" data-view="giving" data-module="giving" onclick="navigate('giving')">
           <span class="icon">&#10070;</span> Giving
@@ -536,15 +506,6 @@
         <a class="nav-item" data-view="my-profile" data-module="my-profile" onclick="navigate('my-profile')">
           <span class="icon">&#128100;</span> Profile
         </a>
-        <a class="nav-item" data-view="my-requests" onclick="navigate('my-requests')">
-          <span class="icon">&#128203;</span> My Requests
-        </a>
-        <a class="nav-item" data-view="my-giving" data-module="my-giving" onclick="navigate('my-giving')">
-          <span class="icon">&#128176;</span> My Giving
-        </a>
-        <a class="nav-item" data-view="memberCards" data-module="memberCards" onclick="navigate('memberCards')">
-          <span class="icon">&#128199;</span> My Card
-        </a>
       </div>
     </div>
 
@@ -555,26 +516,11 @@
         <a class="nav-item" data-view="users" data-module="users" onclick="navigate('users')">
           <span class="icon">&#128101;</span> People
         </a>
-        <a class="nav-item" data-view="statistics" data-module="statistics" onclick="navigate('statistics')">
-          <span class="icon">&#9632;</span> Statistics
-        </a>
-        <a class="nav-item" data-view="reports" data-module="reports" onclick="navigate('reports')">
-          <span class="icon">&#9638;</span> Reports
-        </a>
         <a class="nav-item" data-view="config" data-module="config" onclick="navigate('config')">
           <span class="icon">&#9881;</span> Settings
         </a>
-        <a class="nav-item" data-view="audit" data-module="audit" onclick="navigate('audit')">
-          <span class="icon">&#9783;</span> Audit Log
-        </a>
-        <a class="nav-item" data-view="bulk" data-module="bulk" onclick="navigate('bulk')">
-          <span class="icon">&#128260;</span> Import / Export
-        </a>
-        <a class="nav-item" data-view="access" data-module="access" onclick="navigate('access')">
-          <span class="icon">&#128272;</span> Access Control
-        </a>
-        <a class="nav-item" data-view="network" data-module="network" onclick="navigate('network')">
-          <span class="icon">&#127760;</span> Network
+        <a class="nav-item" data-view="admin-dashboard" data-module="admin-dashboard" onclick="navigate('admin-dashboard')" style="font-weight:700;">
+          <span class="icon">&#128640;</span> Admin Hub
         </a>
         <a class="nav-item" id="nav-great-commission" href="the_great_commission.html" style="display:none;">
           <span class="icon">&#9989;</span> Great Commission
@@ -684,6 +630,7 @@
     <div class="module-view" id="view-access"></div>
     <div class="module-view" id="view-church"></div>
     <div class="module-view" id="view-network"></div>
+    <div class="module-view" id="view-admin-dashboard"></div>
 
     <!-- Support view -->
     <div class="module-view" id="view-support">
@@ -989,6 +936,8 @@ _collapseNavGroups();
     { view: 'statistics',    icon: '&#9632;',  title: 'Statistics',    desc: 'Dashboard & trends',        role: 'leader',    zone: 'holies' },
     { view: 'reports',       icon: '&#9638;',  title: 'Reports',       desc: 'Attendance, giving & trends',role: 'leader',    zone: 'holies' },
     { view: 'users',         icon: '&#9881;',  title: 'Manage Users',  desc: 'Accounts & roles',          role: 'admin',     zone: 'holies' },
+    { view: 'calendar',       icon: '&#128197;', title: 'Calendar',      desc: 'Upcoming events & schedule', role: 'volunteer', zone: 'gates'  },
+    { view: 'admin-dashboard',icon: '&#128640;', title: 'Admin Hub',     desc: 'System settings & oversight',role: 'admin',     zone: 'holies' },
   ];
 
   const zones = [
