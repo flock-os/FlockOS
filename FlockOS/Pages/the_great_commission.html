@@ -343,6 +343,56 @@
     .audit-table td.key-col { font-family: monospace; color: var(--ink, #e0e0e0); min-width: 180px; }
     .audit-cell-ok   { color: #4ade80; font-weight: 700; text-align: center; }
     .audit-cell-miss { color: #f87171; font-weight: 700; text-align: center; }
+
+    /* ── Church Vault ──────────────────────────────────────────── */
+    .vault-layout { display: grid; grid-template-columns: 1fr 1.2fr; gap: 24px; align-items: start; }
+    @media (max-width: 760px) { .vault-layout { grid-template-columns: 1fr; } }
+    .vault-card {
+      background: var(--bg-raised, #16213e);
+      border: 1px solid var(--line, rgba(255,255,255,0.08));
+      border-radius: 10px; padding: 20px;
+    }
+    .vault-card-title {
+      font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.08em; color: var(--ink-muted, #888);
+      margin-bottom: 14px; display: flex; align-items: center; gap: 8px;
+    }
+    .vault-cred-row {
+      display: grid; grid-template-columns: 1fr 1fr auto auto;
+      gap: 6px; align-items: center;
+      padding: 5px 0; border-bottom: 1px solid var(--line, rgba(255,255,255,0.08));
+    }
+    .vault-input {
+      padding: 6px 9px; border: 1px solid var(--line, rgba(255,255,255,0.08));
+      border-radius: 6px; background: var(--bg, #1a1a2e); color: var(--ink, #e0e0e0);
+      font-size: 0.8rem; font-family: inherit; width: 100%; box-sizing: border-box;
+      -webkit-text-fill-color: var(--ink, #e0e0e0);
+    }
+    .vault-eye-btn, .vault-del-btn {
+      padding: 5px 8px; border-radius: 6px; border: 1px solid var(--line, rgba(255,255,255,0.08));
+      background: none; cursor: pointer; font-size: 0.8rem; flex-shrink: 0;
+    }
+    .vault-eye-btn { color: var(--ink-muted, #888); }
+    .vault-del-btn { border-color: var(--danger, #f87171); color: var(--danger, #f87171); }
+    .vault-save-btn {
+      padding: 9px 22px; border-radius: 8px; border: none;
+      background: var(--accent, #7eaacc); color: var(--bg, #1a1a2e);
+      font-weight: 700; font-size: 0.85rem; cursor: pointer; font-family: inherit;
+    }
+    .vault-save-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .vault-add-btn {
+      padding: 4px 12px; border-radius: 6px;
+      border: 1px solid var(--accent, #7eaacc);
+      background: var(--accent-soft, rgba(126,170,204,0.1));
+      color: var(--accent, #7eaacc); font-size: 0.78rem; cursor: pointer; font-family: inherit;
+    }
+    .vault-meta { font-size: 0.71rem; color: var(--ink-muted, #888); margin-top: 8px; }
+    .vault-disclaimer {
+      font-size: 0.77rem; color: var(--ink-muted, #888); line-height: 1.6;
+      border-left: 3px solid var(--warning, #fbbd24); padding-left: 12px;
+      margin-bottom: 20px; background: rgba(251,189,36,0.06);
+      border-radius: 0 6px 6px 0; padding: 10px 12px;
+    }
   </style>
 </head>
 <body>
@@ -544,6 +594,7 @@ function _gcTab(id) {
     else if (id === 'audit')    _gcRenderConfigAudit();
     else if (id === 'appconfig') _gcRenderAppConfigTab();
     else if (id === 'provisioner') _gcRenderProvisioner();
+    else if (id === 'vault')    _gcRenderVault();
   }
 }
 
@@ -581,6 +632,7 @@ function _renderPage() {
     { id:'audit',       label:'&#9989; Config Audit' },
     { id:'appconfig',   label:'&#9889; AppConfig'    },
     { id:'provisioner', label:'&#128736; Provisioner'},
+    { id:'vault',       label:'&#128272; Vault'      },
   ];
   html += '<div class="gc-tabs">';
   tabs.forEach(function(t) {
@@ -1680,6 +1732,158 @@ document.addEventListener('DOMContentLoaded', function() {
   // Load church data
   _gcLoad();
 });
+
+// ══ CHURCH VAULT ════════════════════════════════════════════════════════════════
+// Per-church deployment notes + credential pairs, stored in Firestore
+// churchVault/{churchId} — seed admin read/write only.
+// Syncs across Great Commission, Bezalel, and the Admin Hub.
+// ════════════════════════════════════════════════════════════════════
+
+var _gcVault = { churchId: null, notes: '', credentials: [] };
+
+function _gcRenderVault() {
+  var panel = document.querySelector('.gc-tab-panel[data-tab="vault"]');
+  if (!panel) return;
+
+  var selOpts = '<option value="">— Select a church —</option>'
+    + _churches.map(function(c) {
+        return '<option value="' + _e(c.churchId) + '">' + _e(c.churchName || c.churchId) + ' (' + _e(c.shortName || c.churchId) + ')</option>';
+      }).join('');
+
+  panel.innerHTML =
+    '<div class="vault-disclaimer">'
+    + '<strong>&#128272; Seed-admin only.</strong> This vault stores deployment notes and credential references per church. '
+    + 'Values are encrypted at rest in Firestore. This is a <em>reference record</em> — live secrets must still be set in each church\'s GAS Script Properties.'
+    + '</div>'
+    + '<div style="margin-bottom:20px;">'
+    + '<label style="display:block;font-size:0.78rem;font-weight:700;color:var(--ink-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;">Church</label>'
+    + '<select id="vault-church-sel" style="max-width:360px;width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font-size:0.85rem;font-family:inherit;" onchange="_gcVaultLoad()">'
+    + selOpts + '</select></div>'
+    + '<div id="vault-main" style="display:none;">'
+    + '<div class="vault-layout">'
+    // Left: notes
+    + '<div>'
+    + '<div class="vault-card">'
+    + '<div class="vault-card-title">&#128221; Deployment Notes</div>'
+    + '<textarea id="vault-notes" rows="10" class="vault-input" style="resize:vertical;width:100%;" placeholder="Deployment history, reminders, references, known issues…"></textarea>'
+    + '<div class="vault-meta" id="vault-meta"></div>'
+    + '</div></div>'
+    // Right: credentials
+    + '<div>'
+    + '<div class="vault-card">'
+    + '<div class="vault-card-title" style="justify-content:space-between;">'
+    + '<span>&#128273; Credentials</span>'
+    + '<button class="vault-add-btn" onclick="_gcVaultAddRow()">+ Add</button>'
+    + '</div>'
+    + '<div style="font-size:0.72rem;color:var(--ink-muted);margin-bottom:10px;display:grid;grid-template-columns:1fr 1fr auto auto;gap:6px;">'
+    + '<span>Label</span><span>Value</span><span></span><span></span></div>'
+    + '<div id="vault-creds"></div>'
+    + '<div style="margin-top:16px;">'
+    + '<button class="vault-save-btn" id="vault-save-btn" onclick="_gcVaultSave()">&#128190; Save Vault</button>'
+    + '</div></div></div>'
+    + '</div></div>';
+}
+
+function _gcVaultLoad() {
+  var sel = document.getElementById('vault-church-sel');
+  var cid = sel ? sel.value : '';
+  _gcVault = { churchId: cid, notes: '', credentials: [] };
+  var main = document.getElementById('vault-main');
+  if (!cid) { if (main) main.style.display = 'none'; return; }
+  if (main) main.style.display = 'none';
+
+  try {
+    firebase.firestore().collection('churchVault').doc(cid).get().then(function(snap) {
+      var data = snap.exists ? snap.data() : {};
+      _gcVault.notes = data.notes || '';
+      _gcVault.credentials = (data.credentials || []).map(function(c) {
+        return { label: c.label || '', value: c.value || '', _hidden: true };
+      });
+      var notesEl = document.getElementById('vault-notes');
+      if (notesEl) notesEl.value = _gcVault.notes;
+      var meta = document.getElementById('vault-meta');
+      if (meta) {
+        if (data.updatedAt && data.updatedBy) {
+          var d = data.updatedAt.toDate ? data.updatedAt.toDate() : new Date(data.updatedAt);
+          meta.textContent = 'Last saved ' + d.toLocaleString() + ' by ' + data.updatedBy;
+        } else {
+          meta.textContent = snap.exists ? '' : 'No vault record yet — add credentials and save.';
+        }
+      }
+      if (main) main.style.display = '';
+      _gcVaultRenderCreds();
+    }).catch(function(err) { _toast('Vault load failed: ' + err.message, 'danger'); });
+  } catch(err) { _toast('Vault unavailable: ' + err.message, 'danger'); }
+}
+
+function _gcVaultRenderCreds() {
+  var ct = document.getElementById('vault-creds');
+  if (!ct) return;
+  if (!_gcVault.credentials.length) {
+    ct.innerHTML = '<div style="font-size:0.8rem;color:var(--ink-muted);padding:10px 0;">No credentials stored. Click <strong>+ Add</strong> to start.</div>';
+    return;
+  }
+  ct.innerHTML = _gcVault.credentials.map(function(c, i) {
+    return '<div class="vault-cred-row">'
+      + '<input class="vault-input" value="' + _e(c.label) + '" placeholder="Label" oninput="_gcVaultCredChange(' + i + ',\'label\',this.value)">'
+      + '<input class="vault-input" type="' + (c._hidden ? 'password' : 'text') + '" value="' + _e(c.value) + '" placeholder="Value" oninput="_gcVaultCredChange(' + i + ',\'value\',this.value)">'
+      + '<button class="vault-eye-btn" onclick="_gcVaultToggleHide(' + i + ')" title="' + (c._hidden ? 'Show' : 'Hide') + '">' + (c._hidden ? '&#128065;' : '&#128683;') + '</button>'
+      + '<button class="vault-del-btn" onclick="_gcVaultRemoveRow(' + i + ')" title="Remove">&times;</button>'
+      + '</div>';
+  }).join('');
+}
+
+function _gcVaultCredChange(i, field, val) {
+  if (_gcVault.credentials[i]) _gcVault.credentials[i][field] = val;
+}
+function _gcVaultToggleHide(i) {
+  if (_gcVault.credentials[i]) {
+    _gcVault.credentials[i]._hidden = !_gcVault.credentials[i]._hidden;
+    _gcVaultRenderCreds();
+  }
+}
+function _gcVaultAddRow() {
+  _gcVault.credentials.push({ label: '', value: '', _hidden: true });
+  _gcVaultRenderCreds();
+  // Scroll bottom + focus new label input
+  var ct = document.getElementById('vault-creds');
+  if (ct) {
+    var inputs = ct.querySelectorAll('.vault-input');
+    if (inputs.length) inputs[inputs.length - 2].focus();
+  }
+}
+function _gcVaultRemoveRow(i) {
+  _gcVault.credentials.splice(i, 1);
+  _gcVaultRenderCreds();
+}
+
+function _gcVaultSave() {
+  var cid = _gcVault.churchId;
+  if (!cid) return;
+  var notesEl = document.getElementById('vault-notes');
+  if (notesEl) _gcVault.notes = notesEl.value;
+  var btn = document.getElementById('vault-save-btn');
+  if (btn) btn.disabled = true;
+
+  var toSave = _gcVault.credentials.map(function(c) {
+    return { label: c.label || '', value: c.value || '' };
+  });
+
+  firebase.firestore().collection('churchVault').doc(cid).set({
+    notes:       _gcVault.notes,
+    credentials: toSave,
+    updatedAt:   firebase.firestore.FieldValue.serverTimestamp(),
+    updatedBy:   (_gcSession && _gcSession.email) || 'unknown'
+  }).then(function() {
+    _toast('Vault saved ✓');
+    if (btn) btn.disabled = false;
+    var meta = document.getElementById('vault-meta');
+    if (meta) meta.textContent = 'Saved ' + new Date().toLocaleString();
+  }).catch(function(err) {
+    _toast('Save failed: ' + err.message, 'danger');
+    if (btn) btn.disabled = false;
+  });
+}
 </script>
 </body>
 </html>

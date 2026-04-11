@@ -19749,6 +19749,44 @@ const Modules = (() => {
           }).join('')
         + '</div>');
 
+      // Church Vault card — seed admin only
+      if (_isSeedAdmin()) {
+        var _vCid = '';
+        try { _vCid = UpperRoom.churchId() || ''; } catch(_e_) {}
+        if (_vCid) {
+          rightHtml += '<div id="ad-vault-card">' + _adCard('&#128272; Church Vault',
+            '<div style="font-size:0.78rem;color:var(--ink-muted);padding:4px 0;">Loading vault\u2026</div>') + '</div>';
+          firebase.firestore().collection('churchVault').doc(_vCid).get().then(function(snap) {
+            var data = snap.exists ? snap.data() : {};
+            var notes = data.notes || '';
+            var creds = data.credentials || [];
+            var html = '';
+            if (notes) {
+              html += '<div style="font-size:0.82rem;color:var(--ink);white-space:pre-wrap;word-break:break-word;margin-bottom:10px;padding:8px;background:var(--bg-alt,var(--bg));border-radius:6px;border:1px solid var(--line);">' + _e(notes) + '</div>';
+            }
+            if (creds.length) {
+              html += '<div style="display:flex;flex-direction:column;gap:5px;">';
+              creds.forEach(function(c) {
+                html += '<div style="display:flex;align-items:center;gap:7px;font-size:0.81rem;">'
+                  + '<span style="font-weight:600;color:var(--ink);min-width:110px;flex-shrink:0;">' + _e(c.label || '') + '</span>'
+                  + '<span style="font-family:monospace;color:var(--ink-muted);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + _e(c.value || '') + '">\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022</span>'
+                  + '<button onclick="var s=this.previousElementSibling;s.textContent=s.textContent===\'' + _e(c.value || '').replace(/'/g,"\\'") + '\'?\'\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\':\'' + _e(c.value || '').replace(/'/g,"\\'") + '\'" style="padding:2px 8px;font-size:0.72rem;border:1px solid var(--line);border-radius:4px;background:none;color:var(--ink);cursor:pointer;">Show</button>'
+                  + '</div>';
+              });
+              html += '</div>';
+            }
+            if (!notes && !creds.length) html = '<div style="font-size:0.78rem;color:var(--ink-muted);">No vault record for this church yet.</div>';
+            if (data.updatedAt && data.updatedBy) {
+              var vd = data.updatedAt.toDate ? data.updatedAt.toDate() : new Date(data.updatedAt);
+              html += '<div style="font-size:0.7rem;color:var(--ink-muted);margin-top:8px;">Saved ' + vd.toLocaleDateString() + ' by ' + _e(data.updatedBy) + '</div>';
+            }
+            html += '<div style="margin-top:10px;"><a href="the_great_commission.html#vault" style="font-size:0.78rem;color:var(--accent);">Edit in Great Commission \u2197</a></div>';
+            var card = document.getElementById('ad-vault-card');
+            if (card) card.innerHTML = _adCard('&#128272; Church Vault', html);
+          }).catch(function() {});
+        }
+      }
+
       // Open Problems card — inline on the dashboard
       var pBadgeColor  = { Critical: 'var(--danger)', High: 'var(--danger)', Medium: 'var(--warning,#f59e0b)', Low: 'var(--ink-muted)' };
       var pStatusColor = { 'Open': 'var(--danger)', 'In Progress': 'var(--warning,#f59e0b)' };

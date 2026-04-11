@@ -405,6 +405,39 @@
         </div>
       </div>
 
+      <!-- Church Vault -->
+      <div class="vault-panel" id="vaultPanel" style="display:none;">
+        <button class="vault-toggle" id="vaultToggle" onclick="_toggleVaultPanel()">
+          <span style="font-size:0.95rem;">&#128272;</span>
+          <span class="vtitle">Church Vault</span>
+          <span class="vbadge" id="vaultBadge" style="display:none;"></span>
+          <span class="vchevron">&#9660;</span>
+        </button>
+        <div class="vault-body" id="vaultBody">
+          <div class="vault-layout">
+            <div>
+              <div class="vault-col-title">&#128221; Notes</div>
+              <textarea id="vault-notes" rows="7" class="vault-input" style="resize:vertical;width:100%;" placeholder="Deployment notes, reminders, known issues…"></textarea>
+              <div class="vault-meta" id="vault-meta"></div>
+            </div>
+            <div>
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+                <span class="vault-col-title">&#128273; Credentials</span>
+                <button class="vault-add-btn" onclick="_vaultAddRow()">+ Add</button>
+              </div>
+              <div style="font-size:0.68rem;color:var(--ink-muted);display:grid;grid-template-columns:1fr 1fr auto auto;gap:5px;padding-bottom:4px;">
+                <span>Label</span><span>Value</span><span></span><span></span>
+              </div>
+              <div id="vault-creds"></div>
+            </div>
+          </div>
+          <div class="vault-actions">
+            <button class="vault-save-btn" id="vault-save-btn" onclick="_saveVault()">&#128190; Save Vault</button>
+            <button class="vault-autofill-btn" onclick="_vaultAutoFill()" title="Fill form fields from stored credentials">&#11123; Auto-fill Form</button>
+          </div>
+        </div>
+      </div>
+
       <!-- Identity -->
       <div class="card">
         <div class="card-title"><span class="icon">&#127968;</span> Identity</div>
@@ -797,6 +830,7 @@ function _selectChurch(id) {
     if (key === 'CHURCH_TIMEZONE' && el) el.value = preset[key];
   });
   _update();
+  _loadVault();
 }
 
 function _val(id) {
@@ -1130,6 +1164,119 @@ function _initCodeGsPanel() {
   }
 }
 document.addEventListener('DOMContentLoaded', _initCodeGsPanel);
+
+// ── Church Vault ────────────────────────────────────────────────────────────
+var _VAULT = { notes: '', credentials: [] };
+
+function _vaultChurchId() {
+  return _val('FIRESTORE_CHURCH_ID') || _selectedChurch || null;
+}
+
+function _loadVault() {
+  var cid = _vaultChurchId();
+  var panel = document.getElementById('vaultPanel');
+  if (!cid || cid === 'custom') { if (panel) panel.style.display = 'none'; return; }
+  _VAULT = { notes: '', credentials: [] };
+  try {
+    var db = _db();
+    db.collection('churchVault').doc(cid).get().then(function(snap) {
+      var data = snap.exists ? snap.data() : {};
+      _VAULT.notes = data.notes || '';
+      _VAULT.credentials = (data.credentials || []).map(function(c) {
+        return { label: c.label || '', value: c.value || '', _hidden: true };
+      });
+      var notesEl = document.getElementById('vault-notes');
+      if (notesEl) notesEl.value = _VAULT.notes;
+      var meta = document.getElementById('vault-meta');
+      if (meta) {
+        if (data.updatedAt && data.updatedBy) {
+          var d = data.updatedAt.toDate ? data.updatedAt.toDate() : new Date(data.updatedAt);
+          meta.textContent = 'Saved ' + d.toLocaleDateString() + ' by ' + data.updatedBy;
+        } else { meta.textContent = snap.exists ? '' : 'No vault record yet.'; }
+      }
+      _vaultRenderCreds();
+      if (panel) panel.style.display = '';
+      var badge = document.getElementById('vaultBadge');
+      if (badge) {
+        var count = _VAULT.credentials.length;
+        if (count) { badge.textContent = count + ' credential' + (count !== 1 ? 's' : ''); badge.style.display = ''; }
+        else { badge.style.display = 'none'; }
+      }
+      _vaultAutoFill(true);
+    }).catch(function() { if (panel) panel.style.display = 'none'; });
+  } catch(e) { if (panel) panel.style.display = 'none'; }
+}
+
+function _vaultRenderCreds() {
+  var ct = document.getElementById('vault-creds');
+  if (!ct) return;
+  if (!_VAULT.credentials.length) {
+    ct.innerHTML = '<div style="font-size:0.75rem;color:var(--ink-muted);padding:8px 0;">No credentials stored. Click + Add to start.</div>';
+    return;
+  }
+  ct.innerHTML = _VAULT.credentials.map(function(c, i) {
+    return '<div class="vault-cred-row">'
+      + '<input class="vault-input" value="' + _he(c.label) + '" placeholder="Label" oninput="_vaultCredChange(' + i + ',\'label\',this.value)">'
+      + '<input class="vault-input" type="' + (c._hidden ? 'password' : 'text') + '" value="' + _he(c.value) + '" placeholder="Value" oninput="_vaultCredChange(' + i + ',\'value\',this.value)">'
+      + '<button class="vault-eye-btn" onclick="_vaultToggleHide(' + i + ')">' + (c._hidden ? '&#128065;' : '&#128683;') + '</button>'
+      + '<button class="vault-del-btn" onclick="_vaultRemoveRow(' + i + ')">&times;</button>'
+      + '</div>';
+  }).join('');
+}
+
+function _vaultCredChange(i, field, val) { if (_VAULT.credentials[i]) _VAULT.credentials[i][field] = val; }
+function _vaultToggleHide(i) {
+  if (_VAULT.credentials[i]) { _VAULT.credentials[i]._hidden = !_VAULT.credentials[i]._hidden; _vaultRenderCreds(); }
+}
+function _vaultAddRow() {
+  _VAULT.credentials.push({ label: '', value: '', _hidden: true });
+  _vaultRenderCreds();
+  var ct = document.getElementById('vault-creds');
+  if (ct) { var ins = ct.querySelectorAll('.vault-input'); if (ins.length) ins[ins.length - 2].focus(); }
+}
+function _vaultRemoveRow(i) { _VAULT.credentials.splice(i, 1); _vaultRenderCreds(); }
+
+function _vaultAutoFill(onlyEmpty) {
+  _VAULT.credentials.forEach(function(c) {
+    if (!c.label || !c.value) return;
+    var el = document.getElementById('f_' + c.label);
+    if (el && (!onlyEmpty || !el.value.trim())) el.value = c.value;
+  });
+  _update();
+}
+
+function _saveVault() {
+  var cid = _vaultChurchId();
+  if (!cid) { alert('Select a church first.'); return; }
+  var notesEl = document.getElementById('vault-notes');
+  if (notesEl) _VAULT.notes = notesEl.value;
+  var btn = document.getElementById('vault-save-btn');
+  if (btn) btn.disabled = true;
+  var toSave = _VAULT.credentials.map(function(c) { return { label: c.label || '', value: c.value || '' }; });
+  try {
+    _db().collection('churchVault').doc(cid).set({
+      notes: _VAULT.notes, credentials: toSave,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      updatedBy: (Nehemiah && Nehemiah.current && Nehemiah.current().email) || 'unknown'
+    }).then(function() {
+      var t = document.getElementById('toast');
+      t.textContent = '\u2713 Vault saved';
+      t.classList.add('show');
+      setTimeout(function() { t.classList.remove('show'); t.textContent = '\u2713 Copied to clipboard'; }, 2500);
+      if (btn) btn.disabled = false;
+      var meta = document.getElementById('vault-meta');
+      if (meta) meta.textContent = 'Saved ' + new Date().toLocaleString();
+    }).catch(function(err) { alert('Save failed: ' + err.message); if (btn) btn.disabled = false; });
+  } catch(e) { alert('Vault error: ' + e.message); if (btn) btn.disabled = false; }
+}
+
+function _toggleVaultPanel() {
+  var toggle = document.getElementById('vaultToggle');
+  var body   = document.getElementById('vaultBody');
+  if (!toggle || !body) return;
+  var isOpen = body.classList.toggle('open');
+  toggle.classList.toggle('open', isOpen);
+}
 
 function _viewCodeGS(btn) {
   var content = window.BEZALEL_CODE_GS;
