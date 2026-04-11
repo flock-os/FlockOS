@@ -162,6 +162,15 @@ const Modules = (() => {
     return '<span class="badge badge-' + (cls || 'info') + '">' + _e(String(text || '')) + '</span>';
   }
 
+  // Safely convert any date value (string, Date, Firestore Timestamp) to YYYY-MM-DD
+  function _dateStr(v) {
+    if (!v) return '';
+    if (typeof v === 'string') return v.substring(0, 10);
+    if (v.toDate) return v.toDate().toISOString().substring(0, 10);
+    if (v instanceof Date) return v.toISOString().substring(0, 10);
+    return String(v).substring(0, 10);
+  }
+
   function _toast(msg, type) {
     var t = document.createElement('div');
     t.className = 'toast toast-' + (type || 'success') + ' show';
@@ -4825,7 +4834,7 @@ const Modules = (() => {
               const entry   = j.entry || j['Entry'] || '';
               const mood    = j.mood || j['Mood'] || '';
               const cat     = j.category || j['Category'] || '';
-              const created = (j.createdAt || j['Created At'] || '').substring(0, 10);
+              const created = _dateStr(j.createdAt || j['Created At']);
               const jid     = j.id || j['ID'] || '';
               h += '<div class="dev-journal-entry" onclick="Modules.editJournal(\'' + _e(jid) + '\')">'
                 + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">'
@@ -12692,7 +12701,7 @@ const Modules = (() => {
           var entry   = j.entry || j['Entry'] || '';
           var mood    = j.mood || j['Mood'] || '';
           var cat     = j.category || j['Category'] || '';
-          var created = (j.createdAt || j['Created At'] || '').substring(0, 10);
+          var created = _dateStr(j.createdAt || j['Created At']);
           var jid     = j.id || j['ID'] || '';
           h += '<div class="ur-entry-card" onclick="Modules.editJournal(\'' + _e(jid) + '\')">';
           h += '<div class="ur-entry-header">';
@@ -18573,7 +18582,7 @@ const Modules = (() => {
           var entry = j.entry || j['Entry'] || '';
           var mood = j.mood || j['Mood'] || '';
           var cat = j.category || j['Category'] || '';
-          var created = (j.createdAt || j['Created At'] || '').substring(0, 10);
+          var created = _dateStr(j.createdAt || j['Created At']);
           journalHtml += '<div onclick="Modules.editJournal(\'' + _e(jid) + '\')" style="cursor:pointer;padding:10px 12px;'
             + 'border:1px solid var(--line);border-radius:8px;margin-bottom:8px;background:var(--bg-raised);transition:opacity 0.15s;"'
             + ' onmouseover="this.style.opacity=\'0.85\'" onmouseout="this.style.opacity=\'1\'">'
@@ -19314,11 +19323,10 @@ const Modules = (() => {
       + '&ldquo;Whatever you do, work at it with all your heart.&rdquo; &mdash; Col\u00a03:23'
       + '</div></div>'
       + '<div id="ad-kpis" style="margin-bottom:18px;">' + _spinner() + '</div>'
-      + '<div id="ad-body" style="display:grid;grid-template-columns:1fr 320px;gap:16px;">'
-      + '<div id="ad-left">' + _spinner() + '</div>'
-      + '<div id="ad-right">' + _spinner() + '</div>'
+      + '<div id="ad-body" class="ad-body">'
+      + '<div id="ad-left" style="min-width:0;">' + _spinner() + '</div>'
+      + '<div id="ad-right" style="min-width:0;">' + _spinner() + '</div>'
       + '</div>'
-      + '<style>#ad-body{grid-template-columns:1fr 320px}@media(max-width:860px){#ad-body{grid-template-columns:1fr!important}}</style>'
       + '</div>';
 
     try {

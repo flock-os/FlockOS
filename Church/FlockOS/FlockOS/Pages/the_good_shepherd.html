@@ -234,9 +234,10 @@
     /* ── Dashboard Cards ───────────────────────────────────────────────── */
     .card-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
       gap: 16px;
     }
+    .card-grid > * { min-width: 0; }
     .card {
       background: var(--bg-raised);
       border: 1px solid var(--line);
@@ -309,13 +310,24 @@
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
+    /* ── Admin Dashboard Body ───────────────────────────────────────────── */
+    .ad-body {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 320px);
+      gap: 16px;
+    }
+
     /* ── Responsive ────────────────────────────────────────────────────── */
+    @media (max-width: 860px) {
+      .ad-body { grid-template-columns: 1fr; }
+    }
     @media (max-width: 768px) {
       :root { --sidebar-w: 0px; }
       .topbar-toggle { display: block; }
       .sidebar { transform: translateX(-260px); width: 260px; }
       .sidebar.open { transform: translateX(0); }
-      .main { margin-left: 0; padding: 24px 12px 200px; }
+      .main { margin-left: 0; padding: 16px 10px 200px; }
+      .card-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
       /* Data-table, topbar-user, notif-bell mobile sizes → fine_linen.js */
     }
 

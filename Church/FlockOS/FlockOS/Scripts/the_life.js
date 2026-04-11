@@ -2104,7 +2104,11 @@ const TheLife = (() => {
               'Account created with role: ' + acctRole);
           } catch (acctErr) {
             console.warn('[TheLife] Account creation failed:', acctErr);
-            _toast('Member created, but account creation failed: ' + (acctErr.message || ''), 'danger');
+            if (acctErr.message && acctErr.message.toLowerCase().includes('already exists')) {
+              _toast('Member created. A login account for this email already exists.', 'info');
+            } else {
+              _toast('Member created, but account creation failed: ' + (acctErr.message || ''), 'danger');
+            }
           }
         }
       }
