@@ -1219,6 +1219,10 @@ function navigate(viewName) {
   // Clear any pending auto-refresh for the previous view
   if (_autoRefreshTimer) { clearTimeout(_autoRefreshTimer); _autoRefreshTimer = null; }
 
+  // Remove admin-hub back bar when navigating back to admin-dashboard or elsewhere
+  var _adBar = document.getElementById('ad-back-bar');
+  if (_adBar && viewName === 'admin-dashboard') _adBar.remove();
+
   document.querySelectorAll('.module-view').forEach(v => v.classList.remove('active'));
 
   const target = document.getElementById('view-' + viewName);

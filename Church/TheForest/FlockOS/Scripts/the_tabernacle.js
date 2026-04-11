@@ -834,10 +834,12 @@ const Modules = (() => {
   // Hub children (theology, events, sermons, etc.) are navigated to via tiles — never disable
   const _defaultDisabled = [
     'mirror',
-    'attendance', 'checkin', 'audit', 'reports', 'statistics',
+    'attendance', 'checkin',
     'ministry',
     'todo', 'my-giving', 'my-requests'
   ];
+  // Admin tools: audit, reports, statistics are no longer nav items — always accessible to admins via Admin Hub
+  // (removed from _defaultDisabled so navigate() doesn't bounce them to dashboard)
 
   function _getModuleVis() {
     try { return JSON.parse(localStorage.getItem(_VIS_KEY) || '{}'); } catch(e) { return {}; }
@@ -19396,24 +19398,24 @@ const Modules = (() => {
 
       // Quick Actions grid
       var qaButtons = [
-        { icon: '&#9881;&#65039;', label: 'Settings',      nav: 'config' },
-        { icon: '&#128101;',       label: 'Users',          nav: 'users' },
-        { icon: '&#128202;',       label: 'Statistics',     nav: 'statistics' },
-        { icon: '&#128196;',       label: 'Reports',        nav: 'reports' },
-        { icon: '&#128270;',       label: 'Audit Log',      nav: 'audit' },
-        { icon: '&#128591;',       label: 'Prayers',        nav: 'prayer-admin' },
-        { icon: '&#127925;',       label: 'Music Stand',    nav: 'service-hub' },
-        { icon: '&#128197;',       label: 'Calendar',       nav: 'calendar' },
-        { icon: '&#128100;',       label: 'Directory',      nav: 'directory' },
-        { icon: '&#128640;',       label: 'Deploy Guide',     nav: 'deployment-guide' },
-        { icon: '&#9989;&#65039;',  label: 'Great Commission', href: 'the_great_commission.html' },
+        { icon: '&#9881;&#65039;', label: 'Settings',         nav: 'config' },
+        { icon: '&#128101;',       label: 'Users',             nav: 'users' },
+        { icon: '&#128202;',       label: 'Statistics',        nav: 'statistics' },
+        { icon: '&#128196;',       label: 'Reports',           nav: 'reports' },
+        { icon: '&#128270;',       label: 'Audit Log',         nav: 'audit' },
+        { icon: '&#128591;',       label: 'Prayers',           nav: 'prayer-admin' },
+        { icon: '&#127925;',       label: 'Music Stand',       nav: 'service-hub' },
+        { icon: '&#128197;',       label: 'Calendar',          nav: 'calendar' },
+        { icon: '&#128100;',       label: 'Directory',         nav: 'directory' },
+        { icon: '&#128640;',       label: 'Deploy Guide',      nav: 'deployment-guide' },
+        { icon: '&#9989;&#65039;', label: 'Great Commission',  href: 'the_great_commission.html' },
       ];
       rightHtml += _adCard('&#128640; Quick Actions',
         '<div style="display:grid;grid-template-columns:1fr 1fr;gap:7px;">'
         + qaButtons.map(function (b) {
             var action = b.href
               ? 'window.location.href=\'' + b.href + '\''
-              : 'navigate(\'' + b.nav + '\')'
+              : 'Modules._adGoTo(\'' + b.nav + '\',\'' + b.label + '\')'
             return '<button onclick="' + action + '" style="display:flex;align-items:center;gap:6px;'
               + 'padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:var(--bg);'
               + 'color:var(--ink);cursor:pointer;font-size:0.77rem;font-family:inherit;text-align:left;">'
@@ -19738,6 +19740,33 @@ const Modules = (() => {
     _toast('Font sizes saved.');
   }
 
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // ADMIN HUB SUB-NAVIGATION
+  // ══════════════════════════════════════════════════════════════════════════
+  // Called by Admin Hub Quick Actions — navigates to a sub-module and inserts
+  // a sticky "← Admin Hub" back bar so the user can return without hunting the nav.
+  function _adGoTo(name, label) {
+    // Inject (or replace) the back bar into the top of #main
+    var main = document.getElementById('main');
+    var existing = document.getElementById('ad-back-bar');
+    if (existing) existing.remove();
+    if (main) {
+      var bar = document.createElement('div');
+      bar.id = 'ad-back-bar';
+      bar.style.cssText = 'position:sticky;top:0;z-index:200;background:var(--bg);'
+        + 'border-bottom:1px solid var(--line);padding:7px 20px;display:flex;'
+        + 'align-items:center;gap:10px;';
+      bar.innerHTML = '<button onclick="navigate(\'admin-dashboard\');" '
+        + 'style="display:flex;align-items:center;gap:5px;padding:5px 12px;'
+        + 'border-radius:6px;border:1px solid var(--line);background:none;'
+        + 'color:var(--accent);cursor:pointer;font-size:0.78rem;font-weight:600;'
+        + 'font-family:inherit;">&#8592; Admin Hub</button>'
+        + '<span style="font-size:0.78rem;color:var(--ink-muted);">/ ' + _e(label) + '</span>';
+      main.insertBefore(bar, main.firstChild);
+    }
+    if (typeof navigate === 'function') navigate(name);
+  }
 
   // ══════════════════════════════════════════════════════════════════════════
   // FULLSCREEN TOGGLE
@@ -20142,6 +20171,7 @@ const Modules = (() => {
     _adToggleTask,
     _adDeleteTask,
     _adSaveFontSize,
+    _adGoTo,
     generateQR,
     showCardQR,
     geoCheckin,
