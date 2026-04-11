@@ -10491,25 +10491,39 @@ const Modules = (() => {
       _btn('\uD83D\uDD04 Refresh', 'Modules._reloadConfig()'));
     try {
       var _fbRows = null;
+      var _gasFailed = false;
+      var _configSource = 'gас'; // 'firebase' | 'gas' | 'defaults'
       if (_isFirebaseComms()) {
         const _fbRes = await UpperRoom.listAppConfig().catch(() => null);
         _fbRows = _fbRes ? _rows(_fbRes) : [];
+        if (_fbRows.length > 0) _configSource = 'firebase';
       }
-      // If Firebase returned zero rows (config not yet synced), pull from GAS and
-      // write each entry into Firestore so subsequent loads are fast.
+      // If Firebase returned zero rows, pull from GAS and seed Firestore
       var _usedGasFallback = false;
       if (_isFirebaseComms() && _fbRows !== null && _fbRows.length === 0) {
-        const _gasRes = await TheVine.flock.config.list().catch(() => null);
+        const _gasRes = await TheVine.flock.config.list().catch(function(e) { _gasFailed = true; return null; });
         const _gasRows = _gasRes ? _rows(_gasRes) : [];
         if (_gasRows.length > 0) {
           _usedGasFallback = true;
+          _configSource = 'gas';
           _fbRows = _gasRows;
-          // Silently sync each row into Firestore
           _gasRows.forEach(function(r) { UpperRoom.setAppConfig(r).catch(function() {}); });
         }
       }
-      const res  = _isFirebaseComms() ? (_fbRows || []) : await TheVine.flock.config.list();
-      const rows = _isFirebaseComms() ? _fbRows : _rows(res);
+      var res  = _isFirebaseComms() ? (_fbRows || []) : await TheVine.flock.config.list().catch(function(e) { _gasFailed = true; return null; });
+      var rows = _isFirebaseComms() ? (_fbRows || []) : _rows(res);
+
+      // ── Auto-seed from defaults when both Firebase and GAS return zero ─
+      var _seededDefaults = false;
+      if (rows.length === 0) {
+        _configSource = 'defaults';
+        _seededDefaults = true;
+        rows = _DEFAULT_APP_CONFIG.slice();
+        if (_isFirebaseComms()) {
+          rows.forEach(function(r) { UpperRoom.setAppConfig(r).catch(function() {}); });
+        }
+      }
+
       _dataCache['config'] = rows;
 
       // Sync display settings to localStorage so public site picks them up
@@ -10558,10 +10572,27 @@ const Modules = (() => {
       html += '<button class="config-tab" data-tab="look-feel" onclick="Modules._configTab(\'look-feel\')"><span class="config-tab-icon">\uD83C\uDFA8</span> Look &amp; Feel</button>';
       html += '<button class="config-tab" data-tab="modules" onclick="Modules._configTab(\'modules\')"><span class="config-tab-icon">\uD83E\uDDE9</span> Modules</button>';
       html += '<button class="config-tab" data-tab="admin" onclick="Modules._configTab(\'admin\')"><span class="config-tab-icon">\u2699\uFE0F</span> Administration</button>';
+      if (_isFirebaseComms()) html += '<button class="config-tab" data-tab="master-config" onclick="Modules._configTab(\'master-config\')"><span class="config-tab-icon">&#127758;</span> Master Config</button>';
       html += '</div>';
 
       // ══ Tab: Overview ═══════════════════════════════════════════════
       html += '<div class="config-tab-panel" data-tab="overview">';
+
+      // ── Config source status banner ─────────────────────────────────
+      if (_seededDefaults) {
+        html += '<div style="margin-bottom:14px;padding:12px 16px;border-radius:10px;background:var(--warning,#c98b2e);color:#fff;font-size:0.83rem;line-height:1.5;">'
+          + '<strong>&#9888; Config seeded from defaults.</strong> Your church\'s AppConfig sheet '
+          + (_gasFailed ? 'could not be reached (GAS error). ' : 'was empty. ')
+          + 'Default values have been written to Firestore. Edit any key below and save to customise.'
+          + '<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">'
+          + '<button onclick="Modules._configSeedFromGas()" style="padding:5px 14px;border-radius:6px;border:1px solid rgba(255,255,255,0.5);background:rgba(255,255,255,0.15);color:#fff;font-size:0.78rem;cursor:pointer;font-family:inherit;">&#128260; Re-try Seed from GAS</button>'
+          + '</div></div>';
+      } else if (_usedGasFallback) {
+        html += '<div style="margin-bottom:14px;padding:10px 16px;border-radius:10px;background:var(--mint,#34d399);color:#000;font-size:0.82rem;">'
+          + '&#10003; Config loaded from GAS sheet and synced to Firestore (' + rows.length + ' entries).</div>';
+      } else if (_configSource === 'firebase') {
+        html += ''; // Normal — no banner needed
+      }
 
       // ── Row 1: Quick-stat cards ──────────────────────────────────────
       var _churchNameRow = rows.find(function(r) { return (r.key || r.configKey) === 'CHURCH_NAME'; });
@@ -11578,7 +11609,32 @@ const Modules = (() => {
 
       html += '</div>'; // close Administration tab
 
+      // ══ Tab: Master Config ══════════════════════════════════════════
+      html += '<div class="config-tab-panel" data-tab="master-config">';
+      html += '<div style="margin-bottom:18px;padding:14px 18px;border-radius:10px;background:var(--surface2,rgba(255,255,255,0.05));border:1px solid var(--border,rgba(255,255,255,0.1));">';
+      html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">';
+      html += '<span style="font-size:1.4rem;">&#127758;</span>';
+      html += '<div><div style="font-weight:700;font-size:1rem;color:var(--ink);">Master Config</div>';
+      html += '<div style="font-size:0.76rem;color:var(--ink-muted);">Edit the master defaults stored in this church\'s Firestore. Use <strong>Push to All Churches</strong> to broadcast a key to every deployment via their GAS endpoints.</div></div>';
+      html += '</div>';
+      html += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">';
+      html += '<button class="btn btn-primary" onclick="Modules._masterConfigPushAll()" style="padding:8px 20px;font-size:0.82rem;">&#128640; Push to All Churches</button>';
+      html += '<button class="btn btn-secondary" onclick="Modules._masterConfigReload()" style="padding:8px 16px;font-size:0.82rem;">&#128260; Reload</button>';
+      html += '</div>';
+      html += '<div id="master-config-push-result" style="margin-top:10px;font-size:0.78rem;color:var(--ink-muted);"></div>';
+      html += '</div>';
+
+      // Table — will be populated async after render
+      html += '<div id="master-config-table-wrap" style="border-radius:12px;overflow:hidden;border:1px solid var(--border,rgba(255,255,255,0.1));">';
+      html += '<div style="padding:24px;text-align:center;color:var(--ink-muted);font-size:0.82rem;">Loading master config\u2026</div>';
+      html += '</div>';
+
+      html += '</div>'; // close Master Config tab
+
       _body(el, html);
+
+      // Load master config table async
+      setTimeout(Modules._masterConfigRender, 80);
 
       // Restore the last active tab (survives every _reload('config') call)
       Modules._configTab(_configActiveTab || 'overview');
@@ -16354,6 +16410,149 @@ const Modules = (() => {
     _reload('config');
   }
 
+  async function _configSeedFromGas() {
+    _toast('Pulling config from GAS\u2026');
+    try {
+      var gasRes  = await TheVine.flock.config.list();
+      var gasRows = _rows(gasRes);
+      if (!gasRows.length) {
+        _toast('GAS AppConfig sheet is empty. Keeping defaults.', 'warn');
+        return;
+      }
+      if (_isFirebaseComms()) {
+        await Promise.all(gasRows.map(function(r) { return UpperRoom.setAppConfig(r).catch(function(){}); }));
+      }
+      _toast('Seeded ' + gasRows.length + ' config entries from GAS.');
+      _reload('config');
+    } catch (e) {
+      _toast('GAS seed failed: ' + (e && e.message ? e.message : String(e)), 'danger');
+    }
+  }
+
+  // ── Master Config helpers ────────────────────────────────────────────
+
+  function _masterConfigRef() {
+    if (typeof firebase === 'undefined' || !firebase.firestore) throw new Error('Firebase not available');
+    return firebase.firestore().collection('masterConfig');
+  }
+
+  async function _masterConfigLoad() {
+    var snap = await _masterConfigRef().get();
+    var out  = [];
+    snap.forEach(function(d) {
+      var o = d.data();
+      o.key = o.key || d.id;
+      out.push(o);
+    });
+    if (out.length === 0) {
+      // Seed defaults into masterConfig if empty
+      out = _DEFAULT_APP_CONFIG.slice();
+      var batch = firebase.firestore().batch();
+      out.forEach(function(r) {
+        batch.set(_masterConfigRef().doc(r.key), r);
+      });
+      await batch.commit();
+    }
+    return out;
+  }
+
+  async function _masterConfigRender() {
+    var wrap = document.getElementById('master-config-table-wrap');
+    if (!wrap) return;
+    wrap.innerHTML = '<div style="padding:20px;text-align:center;color:var(--ink-muted);font-size:0.82rem;">Loading\u2026</div>';
+    try {
+      var rows = await _masterConfigLoad();
+      // Sort by category then key
+      rows.sort(function(a, b) {
+        var ca = a.category || 'zzz', cb = b.category || 'zzz';
+        return ca !== cb ? ca.localeCompare(cb) : a.key.localeCompare(b.key);
+      });
+      var html = '<table style="width:100%;border-collapse:collapse;font-size:0.82rem;">';
+      html += '<thead><tr style="background:var(--surface2,rgba(0,0,0,0.2));">';
+      html += '<th style="padding:9px 14px;text-align:left;color:var(--ink-muted);font-weight:600;">Key</th>';
+      html += '<th style="padding:9px 14px;text-align:left;color:var(--ink-muted);font-weight:600;">Value</th>';
+      html += '<th style="padding:9px 14px;text-align:left;color:var(--ink-muted);font-weight:600;">Category</th>';
+      html += '<th style="padding:9px 8px;text-align:center;color:var(--ink-muted);font-weight:600;">Save</th>';
+      html += '</tr></thead><tbody>';
+      var prevCat = null;
+      rows.forEach(function(r) {
+        var cat = r.category || 'Other';
+        if (cat !== prevCat) {
+          html += '<tr><td colspan="4" style="padding:10px 14px 4px;font-weight:700;font-size:0.74rem;color:var(--accent);letter-spacing:0.05em;text-transform:uppercase;background:var(--surface,rgba(0,0,0,0.1));">' + _e(cat) + '</td></tr>';
+          prevCat = cat;
+        }
+        var desc = r.description ? ' title="' + _e(r.description) + '"' : '';
+        html += '<tr style="border-bottom:1px solid var(--border,rgba(255,255,255,0.06));">';
+        html += '<td style="padding:8px 14px;font-family:monospace;font-size:0.8rem;color:var(--ink);" ' + desc + '>' + _e(r.key) + '</td>';
+        html += '<td style="padding:6px 10px;"><input type="text" class="settings-input" style="width:100%;min-width:120px;" data-mc-key="' + _e(r.key) + '" data-mc-cat="' + _e(cat) + '" data-mc-desc="' + _e(r.description || '') + '" value="' + _e(String(r.value != null ? r.value : '')) + '"></td>';
+        html += '<td style="padding:8px 10px;color:var(--ink-muted);font-size:0.76rem;">' + _e(cat) + '</td>';
+        html += '<td style="padding:6px 8px;text-align:center;"><button onclick="Modules._masterConfigSaveRow(this)" style="padding:4px 12px;border-radius:6px;border:1px solid var(--accent);background:transparent;color:var(--accent);font-size:0.74rem;cursor:pointer;font-family:inherit;">Save</button></td>';
+        html += '</tr>';
+      });
+      html += '</tbody></table>';
+      wrap.innerHTML = html;
+    } catch (e) {
+      wrap.innerHTML = '<div style="padding:20px;color:var(--danger,#f87171);font-size:0.82rem;">Error loading master config: ' + _e(e.message) + '</div>';
+    }
+  }
+
+  async function _masterConfigSaveRow(btn) {
+    var row  = btn.closest('tr');
+    var inp  = row ? row.querySelector('[data-mc-key]') : null;
+    if (!inp) return;
+    var key  = inp.dataset.mcKey;
+    var val  = inp.value;
+    var cat  = inp.dataset.mcCat  || '';
+    var desc = inp.dataset.mcDesc || '';
+    btn.disabled = true;
+    btn.textContent = '\u23F3';
+    try {
+      await _masterConfigRef().doc(key).set({ key: key, value: val, category: cat, description: desc }, { merge: true });
+      btn.textContent = '\u2713';
+      btn.style.color = 'var(--mint,#34d399)';
+      setTimeout(function() { btn.textContent = 'Save'; btn.style.color = ''; btn.disabled = false; }, 1800);
+    } catch (e) {
+      _toast('Save failed: ' + e.message, 'danger');
+      btn.textContent = 'Save';
+      btn.disabled = false;
+    }
+  }
+
+  function _masterConfigReload() {
+    _masterConfigRender();
+  }
+
+  async function _masterConfigPushAll() {
+    if (!_isFirebaseComms()) {
+      _toast('Firebase required for Master Config push.', 'warn'); return;
+    }
+    var resultEl = document.getElementById('master-config-push-result');
+    if (resultEl) resultEl.innerHTML = '<span style="color:var(--ink-muted);">&#128640; Pushing to all churches\u2026</span>';
+    try {
+      var pushFn = firebase.functions().httpsCallable('pushAllMasterConfig');
+      var result = await pushFn({});
+      var data   = result.data;
+      if (!data || !data.results) {
+        if (resultEl) resultEl.innerHTML = '<span style="color:var(--ink-muted);">Done (no results returned).</span>';
+        return;
+      }
+      var lines = data.results.map(function(r) {
+        var icon  = r.fail === 0 ? '\u2705' : (r.ok === 0 ? '\u274C' : '\u26A0\uFE0F');
+        var label = _e(r.name || r.churchId);
+        var detail = r.fail === 0
+          ? r.ok + ' key' + (r.ok !== 1 ? 's' : '') + ' updated'
+          : r.ok + ' ok, ' + r.fail + ' failed: ' + _e((r.errors || []).join('; '));
+        return icon + ' <strong>' + label + '</strong> &mdash; ' + detail;
+      });
+      if (resultEl) resultEl.innerHTML = lines.join('<br>');
+      _toast('Push complete: ' + data.results.length + ' church(es) updated.');
+    } catch (e) {
+      var msg = e.message || String(e);
+      if (resultEl) resultEl.innerHTML = '<span style="color:var(--danger,#f87171);">&#10060; Push failed: ' + _e(msg) + '</span>';
+      _toast('Push failed: ' + msg, 'danger');
+    }
+  }
+
   function saveCardPrefix() {
     const input = document.getElementById('card-prefix-input');
     if (!input) return;
@@ -19286,6 +19485,32 @@ const Modules = (() => {
 
 
   // ═══════════════════════════════════════════════════════════════════════
+  // DEFAULT APP CONFIG — seeded when both Firebase and GAS return zero rows
+  // ═══════════════════════════════════════════════════════════════════════
+  var _DEFAULT_APP_CONFIG = [
+    { key: 'CARD_PREFIX',            value: 'FLOCK',   description: 'Member card number prefix (1-10 alphanumeric chars)',  category: 'Members' },
+    { key: 'GLOBAL_THEME',           value: 'default', description: 'Church-wide theme override (default = member choice)', category: 'Display' },
+    { key: 'FONT_SCALE',             value: '100',     description: 'Desktop font scale percentage',                        category: 'Display' },
+    { key: 'FONT_SCALE_MOBILE',      value: '100',     description: 'Mobile font scale percentage',                         category: 'Display' },
+    { key: 'QUIZ_SIZE',              value: '10',      description: 'Number of questions per quiz session',                 category: 'Learning' },
+    { key: 'MAINTENANCE_MODE',       value: 'FALSE',   description: 'Put the app in maintenance lockdown (TRUE/FALSE)',     category: 'System' },
+    { key: 'TWILIO_ENABLED',         value: 'FALSE',   description: 'Enable Twilio SMS notifications (TRUE/FALSE)',         category: 'Notifications' },
+    { key: 'ALLOW_SELF_REGISTER',    value: 'FALSE',   description: 'Allow new users to self-register (TRUE/FALSE)',        category: 'Access' },
+    { key: 'DEFAULT_ROLE',           value: 'member',  description: 'Role assigned to new registrations',                  category: 'Access' },
+    { key: 'BACKUP_ROW_LIMIT',       value: '5000',    description: 'Max rows per sheet tab in database backups',           category: 'System' },
+    { key: 'GIVING_CURRENCY',        value: 'USD',     description: 'Currency code for giving/pledges display',            category: 'Giving' },
+    { key: 'ATTENDANCE_AUTO_CLOSE',  value: '180',     description: 'Minutes before a check-in session auto-closes',       category: 'Attendance' },
+    { key: 'PRAYER_MAX_DAYS',        value: '30',      description: 'Days before unanswered prayers are auto-archived',    category: 'Prayer' },
+    { key: 'SERMON_UPLOAD_ENABLED',  value: 'FALSE',   description: 'Enable sermon file upload to cloud storage',          category: 'Sermons' },
+    { key: 'CHURCH_LOGO',            value: '',        description: 'URL of the church logo image',                        category: 'Display' },
+    { key: 'CHURCH_WEBSITE',         value: '',        description: 'Public website URL for the church',                   category: 'Church Info' },
+    { key: 'CHURCH_PHONE',           value: '',        description: 'Main church phone number',                            category: 'Church Info' },
+    { key: 'CHURCH_ADDRESS',         value: '',        description: 'Physical address of the church',                      category: 'Church Info' },
+    { key: 'CHURCH_EMAIL',           value: '',        description: 'Main contact email for the church',                   category: 'Church Info' },
+    { key: 'COMMS_MODE',             value: 'sheets',  description: 'Primary database mode: sheets or firebase',           category: 'System' },
+  ];
+
+  // ═══════════════════════════════════════════════════════════════════════
   // ADMIN DASHBOARD — GO BIG
   // ═══════════════════════════════════════════════════════════════════════
   const _SCRATCH_KEY = 'flock_admin_scratchpad';
@@ -20325,6 +20550,11 @@ const Modules = (() => {
     _saveIdentity,
     _cfgFilter,
     _reloadConfig,
+    _configSeedFromGas,
+    _masterConfigRender,
+    _masterConfigSaveRow,
+    _masterConfigReload,
+    _masterConfigPushAll,
     toggleLockdown,
     saveGlobalTheme,
     setPersonalTheme,

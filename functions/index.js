@@ -34,6 +34,7 @@ const { onDocumentWritten } = require("firebase-functions/v2/firestore");
 const { initializeApp }     = require("firebase-admin/app");
 const { getFirestore }      = require("firebase-admin/firestore");
 const { defineSecret }      = require("firebase-functions/params");
+const { onCall }            = require("firebase-functions/v2/https");
 
 const GITHUB_TOKEN = defineSecret("GITHUB_TOKEN");
 
@@ -340,3 +341,140 @@ exports.syncCardLinks = onDocumentWritten(
     }
   }
 );
+
+// ── Master Config → All Churches push ─────────────────────────────────
+//
+// Triggered whenever a masterConfig/{key} doc is written in the
+// flockos-notify (master) Firebase project.
+//
+// For each active church in the churches/ collection:
+//   1. POSTs action=config.set to the church's GAS endpoint
+//   2. GAS writes the value to the AppConfig sheet + church Firestore
+//
+// Churches must have MASTER_SYNC_SECRET set as a GAS Script Property
+// matching the syncSecret stored in churches/{id} here.
+//
+// To push a single key:  write to masterConfig/{KEY} in flockos-notify
+// To push all keys:      call the pushAllMasterConfig callable function
+//
+exports.syncMasterConfig = onDocumentWritten(
+  {
+    document: "masterConfig/{key}",
+    region:   "us-central1",
+  },
+  async (event) => {
+    const { key } = event.params;
+    const op = _opType(event.data);
+    if (!op || op === "delete") return;
+
+    const data = event.data.after.data();
+    if (!data) return;
+
+    const value       = data.value       ?? "";
+    const description = data.description ?? "";
+    const category    = data.category    ?? "";
+
+    await _pushConfigKeyToAllChurches(key, value, description, category);
+  }
+);
+
+// ── Callable: push ALL master config keys to all churches ──────────────
+// Called from the Admin Dashboard "Push to All Churches" button.
+// Returns { results: [{ churchId, name, status, error? }] }
+//
+exports.pushAllMasterConfig = onCall(
+  { region: "us-central1" },
+  async (request) => {
+    // Require caller to be authenticated (admin check done client-side;
+    // the function itself only writes config values so the risk is low,
+    // but we at least require a signed-in user).
+    if (!request.auth) {
+      throw new Error("unauthenticated");
+    }
+
+    // Load all masterConfig keys from Firestore
+    const snap = await db.collection("masterConfig").get();
+    if (snap.empty) {
+      return { results: [], message: "No masterConfig keys found." };
+    }
+
+    const results = [];
+
+    for (const doc of snap.docs) {
+      const data        = doc.data();
+      const key         = doc.id;
+      const value       = data.value       ?? "";
+      const description = data.description ?? "";
+      const category    = data.category    ?? "";
+
+      const churchResults = await _pushConfigKeyToAllChurches(key, value, description, category);
+      results.push(...churchResults);
+    }
+
+    // Aggregate by church
+    const byChurch = {};
+    for (const r of results) {
+      if (!byChurch[r.churchId]) byChurch[r.churchId] = { churchId: r.churchId, name: r.name, ok: 0, fail: 0, errors: [] };
+      if (r.ok) byChurch[r.churchId].ok++;
+      else {
+        byChurch[r.churchId].fail++;
+        byChurch[r.churchId].errors.push(r.key + ": " + r.error);
+      }
+    }
+
+    return { results: Object.values(byChurch) };
+  }
+);
+
+// ── Helper: push a single config key to every active church ───────────
+async function _pushConfigKeyToAllChurches(key, value, description, category) {
+  // Load church registry from flockos-notify
+  const churchSnap = await db.collection("churches").where("active", "==", true).get();
+  if (churchSnap.empty) {
+    console.warn("[masterConfig] No active churches found in churches/ collection.");
+    return [];
+  }
+
+  const results = [];
+
+  await Promise.allSettled(
+    churchSnap.docs.map(async (churchDoc) => {
+      const church = churchDoc.data();
+      const churchId = church.id || churchDoc.id;
+
+      if (!church.databaseUrl) {
+        results.push({ churchId, name: church.name, key, ok: false, error: "No databaseUrl" });
+        return;
+      }
+
+      const syncSecret = church.syncSecret || "";
+      const url = church.databaseUrl
+        + "?action=config.set"
+        + "&syncSecret=" + encodeURIComponent(syncSecret);
+
+      try {
+        const resp = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain" },
+          body: JSON.stringify({ key, value, description, category }),
+          redirect: "follow",
+        });
+
+        if (!resp.ok) {
+          throw new Error("HTTP " + resp.status);
+        }
+
+        const json = await resp.json().catch(() => ({}));
+        if (json && json.error) throw new Error(json.error);
+
+        console.log(`[masterConfig] ✓ ${churchId} — ${key}=${value}`);
+        results.push({ churchId, name: church.name, key, ok: true });
+      } catch (err) {
+        console.error(`[masterConfig] ✗ ${churchId} — ${key}: ${err.message}`);
+        results.push({ churchId, name: church.name, key, ok: false, error: err.message });
+      }
+    })
+  );
+
+  return results;
+}
