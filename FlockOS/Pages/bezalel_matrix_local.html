@@ -602,9 +602,22 @@
             <label>CHURCH_FOLDER_ID</label>
             <input type="text" id="f_CHURCH_FOLDER_ID" placeholder="Google Drive folder ID" oninput="_update()">
           </div>
-          <div class="field span2">
-            <label>TRUTH_SHEET_ID</label>
-            <input type="text" id="f_TRUTH_SHEET_ID" placeholder="Google Sheets ID for Truth database" oninput="_update()">
+          <div class="field span2" style="border:1px solid var(--line);border-radius:2px;padding:12px 14px;background:var(--bg-raised);">
+            <label style="margin-bottom:8px;display:block;letter-spacing:0.08em;">TRUTH CONTENT SOURCE</label>
+            <div style="display:flex;gap:8px;margin-bottom:10px;">
+              <button id="truth-src-firestore" class="btn btn-sm btn-gold" onclick="_setTruthSource('firestore')" style="flex:1;">&#128293; FIRESTORE REPLICATION</button>
+              <button id="truth-src-sheet" class="btn btn-sm" onclick="_setTruthSource('sheet')" style="flex:1;">&#128196; SHEET ID</button>
+            </div>
+            <div id="truth-src-firestore-field">
+              <label style="font-size:0.72rem;margin-bottom:4px;display:block;letter-spacing:0.06em;">TRUTH_SERVICE_ACCOUNT</label>
+              <span class="field-note">Service account JSON for flockos-truth. Enables Firestore-to-Firestore replication during setup.</span>
+              <textarea id="f_TRUTH_SERVICE_ACCOUNT" rows="3" placeholder='{"type":"service_account","project_id":"flockos-truth",...}' oninput="_update()" style="width:100%;background:var(--bg);border:1px solid var(--line);color:var(--ink);font-family:inherit;font-size:0.72rem;padding:7px 9px;border-radius:2px;resize:vertical;margin-top:4px;"></textarea>
+            </div>
+            <div id="truth-src-sheet-field" style="display:none;">
+              <label style="font-size:0.72rem;margin-bottom:4px;display:block;letter-spacing:0.06em;">TRUTH_SHEET_ID</label>
+              <span class="field-note">Google Sheets ID of the master Truth sheet (legacy / manual import).</span>
+              <input type="text" id="f_TRUTH_SHEET_ID" placeholder="Google Sheets ID for Truth database" oninput="_update()" style="width:100%;margin-top:4px;">
+            </div>
           </div>
         </div>
       </div>
@@ -857,7 +870,7 @@ var FIELD_ORDER = [
   'ADMIN_EMAIL', 'ADMIN_FIRST', 'ADMIN_LAST', 'ADMIN_PASSWORD', 'NOTIFY_EMAIL',
   'CHURCH_APP_URL',
   'TWILIO_SID', 'TWILIO_TOKEN', 'TWILIO_NUMBER',
-  'CHURCH_FOLDER_ID', 'TRUTH_SHEET_ID',
+  'CHURCH_FOLDER_ID', 'TRUTH_SHEET_ID', 'TRUTH_SERVICE_ACCOUNT',
 ];
 
 var _selectedChurch = null;
@@ -1114,6 +1127,34 @@ function _genPassword() {
     var tmp = result[j]; result[j] = result[k]; result[k] = tmp;
   }
   return result.join('');
+}
+
+// ── Truth Source Toggle ───────────────────────────────────────────────────────────────
+var _truthSource = 'firestore';
+
+function _setTruthSource(src) {
+  _truthSource = src;
+  var fsField  = document.getElementById('truth-src-firestore-field');
+  var shField  = document.getElementById('truth-src-sheet-field');
+  var fsBtn    = document.getElementById('truth-src-firestore');
+  var shBtn    = document.getElementById('truth-src-sheet');
+  if (!fsField || !shField) return;
+  if (src === 'firestore') {
+    fsField.style.display = '';
+    shField.style.display = 'none';
+    var shEl = document.getElementById('f_TRUTH_SHEET_ID');
+    if (shEl) shEl.value = '';
+    if (fsBtn) { fsBtn.classList.remove('btn-sm'); fsBtn.classList.add('btn-gold'); }
+    if (shBtn) { shBtn.classList.add('btn-sm'); shBtn.classList.remove('btn-gold'); }
+  } else {
+    fsField.style.display = 'none';
+    shField.style.display = '';
+    var saEl = document.getElementById('f_TRUTH_SERVICE_ACCOUNT');
+    if (saEl) saEl.value = '';
+    if (shBtn) { shBtn.classList.remove('btn-sm'); shBtn.classList.add('btn-gold'); }
+    if (fsBtn) { fsBtn.classList.add('btn-sm'); fsBtn.classList.remove('btn-gold'); }
+  }
+  _update();
 }
 
 function _genFill(inputId) {
