@@ -268,6 +268,81 @@
 
     /* ── Controls cell ───────────────────────────────────────────────── */
     .ctrl-cell { display: flex; gap: 6px; flex-wrap: wrap; }
+
+    /* ── Tab bar ─────────────────────────────────────────────── */
+    .gc-tabs {
+      display: flex; flex-wrap: wrap; gap: 4px;
+      background: var(--bg-raised, #16213e);
+      border: 1px solid var(--line, rgba(255,255,255,0.08));
+      border-radius: 10px; padding: 4px; margin-bottom: 28px;
+    }
+    .gc-tab {
+      padding: 8px 16px; border-radius: 7px; border: none;
+      background: none; color: var(--ink-muted, #888);
+      font-size: 0.82rem; font-weight: 600; font-family: inherit;
+      cursor: pointer; white-space: nowrap; transition: all 0.15s;
+    }
+    .gc-tab:hover { color: var(--ink, #e0e0e0); }
+    .gc-tab.active { background: var(--accent, #7eaacc); color: var(--bg, #1a1a2e); }
+    .gc-tab-panel { display: none; }
+    .gc-tab-panel.active { display: block; }
+
+    /* ── Health grid ─────────────────────────────────────────── */
+    .gc-health-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 14px; margin-bottom: 24px;
+    }
+    .gc-health-card {
+      background: var(--bg-raised, #16213e);
+      border: 1px solid var(--line, rgba(255,255,255,0.08));
+      border-radius: 10px; padding: 16px 18px;
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    .gc-health-card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+    .gc-health-name { font-weight: 700; font-size: 0.95rem; color: var(--ink, #e0e0e0); }
+    .gc-health-id   { font-size: 0.71rem; color: var(--ink-muted, #888); text-transform: uppercase; letter-spacing: 0.05em; }
+    .gc-pill { padding: 3px 9px; border-radius: 20px; font-size: 0.72rem; font-weight: 700; white-space: nowrap; flex-shrink: 0; }
+    .gc-pill-checking { background: rgba(255,255,255,0.07); color: var(--ink-muted, #888); }
+    .gc-pill-ok       { background: rgba(74,222,128,0.15);  color: #4ade80; }
+    .gc-pill-down     { background: rgba(248,113,113,0.15); color: #f87171; }
+    .gc-pill-warn     { background: rgba(251,191,36,0.15);  color: #fbbd24; }
+    .gc-health-meta { display: flex; flex-direction: column; gap: 4px; font-size: 0.78rem; }
+    .gc-meta-row { display: flex; gap: 6px; align-items: baseline; }
+    .gc-meta-lbl { color: var(--ink-muted, #888); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; min-width: 60px; }
+    .gc-meta-val { color: var(--ink, #e0e0e0); font-family: monospace; font-size: 0.76rem; word-break: break-all; }
+    .gc-health-foot { display: flex; gap: 6px; flex-wrap: wrap; padding-top: 8px; border-top: 1px solid var(--line, rgba(255,255,255,0.08)); }
+
+    /* ── Probe tool ──────────────────────────────────────────── */
+    .probe-response {
+      background: var(--bg, #1a1a2e);
+      border: 1px solid var(--line, rgba(255,255,255,0.08));
+      border-radius: 8px; padding: 14px 16px;
+      font-size: 0.78rem; font-family: monospace;
+      max-height: 420px; overflow-y: auto;
+      white-space: pre-wrap; word-break: break-all;
+      color: var(--ink, #e0e0e0); line-height: 1.7;
+    }
+    .probe-hist-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 8px 12px; border-radius: 7px; cursor: pointer; transition: background 0.12s;
+    }
+    .probe-hist-item:hover { background: rgba(255,255,255,0.04); }
+
+    /* ── Config Audit ────────────────────────────────────────── */
+    .audit-matrix { overflow-x: auto; margin-bottom: 24px; }
+    .audit-table { border-collapse: collapse; font-size: 0.78rem; min-width: 100%; }
+    .audit-table th, .audit-table td {
+      padding: 8px 12px; border-bottom: 1px solid var(--line, rgba(255,255,255,0.08));
+      text-align: left; white-space: nowrap;
+    }
+    .audit-table th {
+      background: rgba(0,0,0,0.15); color: var(--accent, #7eaacc);
+      font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700;
+    }
+    .audit-table td.key-col { font-family: monospace; color: var(--ink, #e0e0e0); min-width: 180px; }
+    .audit-cell-ok   { color: #4ade80; font-weight: 700; text-align: center; }
+    .audit-cell-miss { color: #f87171; font-weight: 700; text-align: center; }
   </style>
 </head>
 <body>
@@ -449,128 +524,685 @@ function _gcModal(title, fields, onSave, onDelete, saveLabel) {
   }, 80);
 }
 
-// ── Render ────────────────────────────────────────────────────────────────
+// ── Tab switching ─────────────────────────────────────────────────────────
+
+var _gcActiveTab = 'overview';
+
+function _gcTab(id) {
+  _gcActiveTab = id;
+  document.querySelectorAll('.gc-tab').forEach(function(b) { b.classList.toggle('active', b.dataset.tab === id); });
+  document.querySelectorAll('.gc-tab-panel').forEach(function(p) { p.classList.toggle('active', p.dataset.tab === id); });
+  // Lazy-render tab content on first visit
+  var panel = document.querySelector('.gc-tab-panel[data-tab="' + id + '"]');
+  if (panel && !panel.dataset.rendered) {
+    panel.dataset.rendered = '1';
+    if      (id === 'overview') _gcRenderOverview();
+    else if (id === 'churches') _gcRenderChurches();
+    else if (id === 'health')   _gcRenderHealthMonitor();
+    else if (id === 'probe')    _gcRenderProbe();
+    else if (id === 'audit')    _gcRenderConfigAudit();
+    else if (id === 'appconfig') _gcRenderAppConfigTab();
+    else if (id === 'provisioner') _gcRenderProvisioner();
+  }
+}
+
+// ── Page shell (tabs + header) ────────────────────────────────────────────
 
 function _renderPage() {
-  var main = document.getElementById('gc-main');
-  var total    = _churches.length;
-  var active   = _churches.filter(function(r) { return !r.locked && (r.status || '').toLowerCase() !== 'inactive'; }).length;
-  var locked   = _churches.filter(function(r) { return r.locked || (r.status || '').toLowerCase() === 'locked'; }).length;
-  var noDb     = _churches.filter(function(r) { return !r.databaseUrl; }).length;
+  var main   = document.getElementById('gc-main');
+  var total  = _churches.length;
+  var active = _churches.filter(function(r) { return !r.locked && (r.status||'').toLowerCase() !== 'inactive'; }).length;
+  var locked = _churches.filter(function(r) { return r.locked || (r.status||'').toLowerCase() === 'locked'; }).length;
+  var noDb   = _churches.filter(function(r) { return !r.databaseUrl; }).length;
 
   var html = '';
 
-  // ── seed-admin banner
-  html += '<div class="seed-banner">&#128081;&nbsp;<strong>Seed Admin Only.</strong>&nbsp; This command center is not accessible to any other user or any deployed church instance.</div>';
+  // Seed-admin banner
+  html += '<div class="seed-banner">&#128081;&nbsp;<strong>Seed Admin Only.</strong>&nbsp; This command center is not accessible to any other user or deployed church instance.</div>';
 
-  // ── page header
+  // Page header
   html += '<div class="page-header">'
     + '<div><h1>&#9989; Church Command Center</h1>'
-    + '<p>Provision, manage, and control all FlockOS church deployments.</p></div>'
+    + '<p>Provision, manage, test, and verify all FlockOS church deployments.</p></div>'
     + '<div class="header-actions">'
-    + '<button class="btn btn-gold" onclick="_gcProvisionNew()">&#9889; Provision Church</button>'
-    + '<button class="btn btn-primary" onclick="_gcRegisterChurch()">+ Register Church</button>'
-    + '</div>'
-    + '</div>';
+    + '<button class="btn btn-sm" onclick="_gcTab(\'overview\');_gcRunHealthMonitor();" title="Refresh all health checks">&#8635; Refresh Health</button>'
+    + '<button class="btn btn-gold" onclick="_gcProvisionNew()">&#9889; Provision</button>'
+    + '<button class="btn btn-primary" onclick="_gcRegisterChurch()">+ Register</button>'
+    + '</div></div>';
 
-  // ── stats
+  // Tab bar
+  var tabs = [
+    { id:'overview',    label:'&#127968; Overview'   },
+    { id:'churches',    label:'&#9962; Churches'     },
+    { id:'health',      label:'&#128152; Health'     },
+    { id:'probe',       label:'&#128270; Probe'      },
+    { id:'audit',       label:'&#9989; Config Audit' },
+    { id:'appconfig',   label:'&#9889; AppConfig'    },
+    { id:'provisioner', label:'&#128736; Provisioner'},
+  ];
+  html += '<div class="gc-tabs">';
+  tabs.forEach(function(t) {
+    html += '<button class="gc-tab' + (t.id === 'overview' ? ' active' : '') + '" data-tab="' + t.id + '" onclick="_gcTab(\'' + t.id + '\')">' + t.label + '</button>';
+  });
+  html += '</div>';
+
+  // Tab panels (content rendered lazily)
+  tabs.forEach(function(t) {
+    html += '<div class="gc-tab-panel' + (t.id === 'overview' ? ' active' : '') + '" data-tab="' + t.id + '"></div>';
+  });
+
+  main.innerHTML = html;
+
+  // Pre-render the initial tab
+  document.querySelector('.gc-tab-panel[data-tab="overview"]').dataset.rendered = '1';
+  _gcRenderOverview();
+}
+
+// ── Tab: Overview ─────────────────────────────────────────────────────────
+
+function _gcRenderOverview() {
+  var panel  = document.querySelector('.gc-tab-panel[data-tab="overview"]');
+  if (!panel) return;
+
+  var total  = _churches.length;
+  var active = _churches.filter(function(r) { return !r.locked && (r.status||'').toLowerCase() !== 'inactive'; }).length;
+  var locked = _churches.filter(function(r) { return r.locked || (r.status||'').toLowerCase() === 'locked'; }).length;
+  var noDb   = _churches.filter(function(r) { return !r.databaseUrl; }).length;
+
+  var html = '';
   html += '<div class="stat-row">'
-    + '<div class="stat-card"><div class="stat-value">' + total  + '</div><div class="stat-label">Total Churches</div></div>'
-    + '<div class="stat-card"><div class="stat-value">' + active + '</div><div class="stat-label">Active</div></div>'
-    + '<div class="stat-card"><div class="stat-value" style="color:var(--danger,#f87171);">' + locked + '</div><div class="stat-label">Locked</div></div>'
-    + '<div class="stat-card"><div class="stat-value" style="color:var(--warning,#fbbd24);">' + noDb   + '</div><div class="stat-label">No DB URL</div></div>'
+    + _sc(total,  'Total Churches', '')
+    + _sc(active, 'Active',         'color:var(--success,#4ade80)')
+    + _sc(locked, 'Locked',         'color:var(--danger,#f87171)')
+    + _sc(noDb,   'No DB URL',      'color:var(--warning,#fbbd24)')
     + '</div>';
 
-  // ── church table
-  html += '<div class="section-label">Registered Churches</div>';
-
+  // Mini health grid
+  html += '<div class="section-label">Live Health</div>';
   if (!_churches.length) {
-    html += '<div class="empty-state"><div class="icon">&#9962;</div><h3>No Churches Registered</h3><p>Register the first church to get started.</p></div>';
+    html += '<div class="empty-state"><div class="icon">&#9962;</div><h3>No churches registered yet.</h3></div>';
+  } else {
+    html += '<div class="gc-health-grid" id="ov-health-grid">';
+    _churches.forEach(function(c) {
+      var cid = _e(c.churchId);
+      html += '<div class="gc-health-card">'
+        + '<div class="gc-health-card-top">'
+        + '<div><div class="gc-health-name">' + _e(c.churchName||c.shortName||cid) + '</div>'
+        + '<div class="gc-health-id">' + _e(c.shortName||cid) + '</div></div>'
+        + '<span class="gc-pill gc-pill-checking" id="ov-pill-' + cid + '">\u25CF Checking\u2026</span>'
+        + '</div>'
+        + '<div class="gc-health-meta">'
+        + '<div class="gc-meta-row"><span class="gc-meta-lbl">Latency</span><span class="gc-meta-val" id="ov-lat-' + cid + '">\u2014</span></div>'
+        + '<div class="gc-meta-row"><span class="gc-meta-lbl">Endpoint</span><span class="gc-meta-val">' + (c.databaseUrl ? '\u2713 Set' : '<span style="color:#fbbd24;">\u26A0 Missing</span>') + '</span></div>'
+        + '</div>'
+        + '<div class="gc-health-foot">'
+        + '<button class="btn btn-sm" onclick="_gcTab(\'probe\');_gcPreFillProbe(\'' + _e(c.databaseUrl||'') + '\');">Probe \u2197</button>'
+        + '<button class="btn btn-sm" onclick="_gcEditChurch(\'' + cid + '\')">Edit</button>'
+        + '</div>'
+        + '</div>';
+    });
+    html += '</div>';
+  }
+
+  panel.innerHTML = html;
+  _gcRunHealthMonitor('ov');  // run pings against overview pills
+}
+
+function _sc(val, label, style) {
+  return '<div class="stat-card"><div class="stat-value"' + (style ? ' style="' + style + '"' : '') + '>' + val + '</div><div class="stat-label">' + label + '</div></div>';
+}
+
+// ── Tab: Churches ─────────────────────────────────────────────────────────
+
+function _gcRenderChurches() {
+  var panel = document.querySelector('.gc-tab-panel[data-tab="churches"]');
+  if (!panel) return;
+
+  var html = '<div class="section-label">Registered Churches</div>';
+  if (!_churches.length) {
+    html += '<div class="empty-state"><div class="icon">&#9962;</div><h3>No Churches Registered</h3>'
+      + '<p>Register the first church to get started.</p>'
+      + '<button class="btn btn-primary" onclick="_gcRegisterChurch()" style="margin-top:16px;">+ Register Church</button></div>';
   } else {
     html += '<div class="table-wrap"><table class="data-table"><thead><tr>'
-      + '<th>Name</th><th>Short Name</th>'
-      + '<th class="col-db">Database URL</th>'
-      + '<th>Status</th>'
-      + '<th class="col-created">Created</th>'
-      + '<th>Controls</th>'
+      + '<th>Name</th><th>Short Name</th><th class="col-db">Database URL</th>'
+      + '<th>Status</th><th class="col-created">Created</th><th>Controls</th>'
       + '</tr></thead><tbody>';
-
     _churches.forEach(function(r) {
       var cid = _e(r.churchId);
       html += '<tr onclick="_gcEditChurch(\'' + cid + '\')">'
-        + '<td>' + _e(r.churchName || '') + '</td>'
-        + '<td><code style="font-size:0.8rem;background:rgba(0,0,0,0.2);padding:1px 6px;border-radius:4px;">' + _e(r.shortName || '') + '</code></td>'
-        + '<td class="col-db">'
-        +   (r.databaseUrl
-            ? '<span style="color:var(--success,#4ade80);font-size:0.8rem;">&#10003; Set</span>'
-            : '<span style="color:var(--warning,#fbbd24);font-size:0.8rem;">&#9888; Missing</span>')
-        + '</td>'
-        + '<td>' + _statusBadge(r.status || 'Active', r.locked) + '</td>'
-        + '<td class="col-created" style="font-size:0.78rem;color:var(--ink-muted,#999);">'
-        +   (r.createdAt ? new Date(r.createdAt).toLocaleDateString() : '—')
-        + '</td>'
-        + '<td onclick="event.stopPropagation()">'
-        +   '<div class="ctrl-cell">'
-        +     '<button class="btn btn-gold btn-sm" onclick="_gcProvisionChurch(\'' + cid + '\')">&#9889; Provision</button>'
-        +     '<button class="btn btn-sm" style="border-color:var(--line);color:var(--ink-muted);" '
-        +       'onclick="_gcLockChurch(\'' + cid + '\',' + (!r.locked) + ')">'
-        +       (r.locked ? '&#128275; Unlock' : '&#128274; Lock')
-        +     '</button>'
-        +   '</div>'
-        + '</td>'
-        + '</tr>';
+        + '<td>' + _e(r.churchName||'') + '</td>'
+        + '<td><code style="font-size:0.8rem;background:rgba(0,0,0,0.2);padding:1px 6px;border-radius:4px;">' + _e(r.shortName||'') + '</code></td>'
+        + '<td class="col-db">' + (r.databaseUrl ? '<span style="color:var(--success,#4ade80);">\u2713 Set</span>' : '<span style="color:var(--warning,#fbbd24);">\u26A0 Missing</span>') + '</td>'
+        + '<td>' + _statusBadge(r.status||'Active', r.locked) + '</td>'
+        + '<td class="col-created" style="font-size:0.78rem;color:var(--ink-muted,#999);">' + (r.createdAt ? new Date(r.createdAt).toLocaleDateString() : '\u2014') + '</td>'
+        + '<td onclick="event.stopPropagation()"><div class="ctrl-cell">'
+        + '<button class="btn btn-gold btn-sm" onclick="_gcProvisionChurch(\'' + cid + '\')">&#9889; Provision</button>'
+        + '<button class="btn btn-sm" style="border-color:var(--line);color:var(--ink-muted);" onclick="_gcLockChurch(\'' + cid + '\',' + (!r.locked) + ')">' + (r.locked ? '&#128275; Unlock' : '&#128274; Lock') + '</button>'
+        + '</div></td></tr>';
     });
-
     html += '</tbody></table></div>';
   }
+  panel.innerHTML = html;
+}
 
-  // ── provisioner reference
-  html += '<div class="section-label">Provisioner</div>'
-    + '<div style="background:var(--bg-raised);border:1px solid var(--line,rgba(255,255,255,0.08));border-radius:10px;padding:18px 20px;">'
+// ── Tab: Health Monitor ───────────────────────────────────────────────────
+
+function _gcRenderHealthMonitor() {
+  var panel = document.querySelector('.gc-tab-panel[data-tab="health"]');
+  if (!panel) return;
+
+  var html = '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px;">'
+    + '<div><div class="section-label" style="margin:0;">Fleet Health</div>'
+    + '<p style="font-size:0.82rem;color:var(--ink-muted,#888);margin-top:4px;">Live ping of all registered church GAS endpoints. CORS-blocked responses still confirm reachability.</p></div>'
+    + '<div style="display:flex;gap:8px;">'
+    + '<span style="font-size:0.8rem;color:var(--ink-muted);align-self:center;" id="health-summary"></span>'
+    + '<button class="btn btn-sm btn-primary" onclick="_gcRunHealthMonitor(\'hm\')">&#8635; Refresh All</button>'
+    + '</div></div>';
+
+  if (!_churches.length) {
+    html += '<div class="empty-state"><div class="icon">&#128152;</div><h3>No churches to check.</h3></div>';
+  } else {
+    html += '<div class="gc-health-grid" id="hm-health-grid">';
+    _churches.forEach(function(c) {
+      var cid = _e(c.churchId);
+      html += '<div class="gc-health-card">'
+        + '<div class="gc-health-card-top">'
+        + '<div><div class="gc-health-name">' + _e(c.churchName||c.shortName||cid) + '</div>'
+        + '<div class="gc-health-id">' + _e(c.shortName||cid) + ' &mdash; v' + _e(c.version||'?') + '</div></div>'
+        + '<span class="gc-pill gc-pill-checking" id="hm-pill-' + cid + '">\u25CF Checking\u2026</span>'
+        + '</div>'
+        + '<div class="gc-health-meta">'
+        + '<div class="gc-meta-row"><span class="gc-meta-lbl">Latency</span><span class="gc-meta-val" id="hm-lat-' + cid + '">\u2014</span></div>'
+        + '<div class="gc-meta-row"><span class="gc-meta-lbl">Status</span><span class="gc-meta-val">' + _statusBadge(c.status||'Active', c.locked) + '</span></div>'
+        + '<div class="gc-meta-row"><span class="gc-meta-lbl">Endpoint</span><span class="gc-meta-val">'
+        +   (c.databaseUrl ? '<a href="' + _e(c.databaseUrl) + '" target="_blank" rel="noopener" style="color:var(--accent,#7eaacc);font-size:0.72rem;">GAS \u2197</a>' : '<span style="color:#fbbd24;">\u26A0 Missing</span>')
+        + '</span></div>'
+        + '</div>'
+        + '<div class="gc-health-foot">'
+        + (c.databaseUrl
+            ? '<button class="btn btn-sm" onclick="_gcTab(\'probe\');_gcPreFillProbe(\'' + _e(c.databaseUrl) + '\')">Probe \u2197</button>'
+            : '')
+        + '<button class="btn btn-sm" onclick="_gcEditChurch(\'' + cid + '\')">Edit</button>'
+        + '</div></div>';
+    });
+    html += '</div>';
+  }
+
+  panel.innerHTML = html;
+  _gcRunHealthMonitor('hm');
+}
+
+// ── Health pinger (shared by Overview and Health tab, prefix = 'ov' or 'hm') ──
+
+function _gcRunHealthMonitor(prefix) {
+  prefix = prefix || 'hm';
+  var results = { ok: 0, down: 0, total: _churches.length };
+
+  function _updateSummary() {
+    var el = document.getElementById('health-summary');
+    if (el && results.ok + results.down === results.total) {
+      el.textContent = results.ok + ' online, ' + results.down + ' offline';
+    }
+  }
+
+  _churches.forEach(function(church) {
+    if (!church.databaseUrl) {
+      var pillEl = document.getElementById(prefix + '-pill-' + church.churchId);
+      var latEl  = document.getElementById(prefix + '-lat-'  + church.churchId);
+      if (pillEl) { pillEl.className = 'gc-pill gc-pill-warn'; pillEl.textContent = '\u25CF No URL'; }
+      if (latEl)  latEl.textContent = '\u2014';
+      results.down++; _updateSummary(); return;
+    }
+
+    var pillEl = document.getElementById(prefix + '-pill-' + church.churchId);
+    var latEl  = document.getElementById(prefix + '-lat-'  + church.churchId);
+    var t0 = Date.now();
+    var url = church.databaseUrl + '?action=health&_nc=' + t0;
+    var controller = new AbortController();
+    var timer = setTimeout(function() { controller.abort(); }, 9000);
+
+    fetch(url, { method:'GET', mode:'no-cors', cache:'no-store', signal: controller.signal })
+      .then(function() {
+        clearTimeout(timer);
+        var ms = Date.now() - t0;
+        results.ok++;
+        if (pillEl) { pillEl.className = 'gc-pill gc-pill-ok'; pillEl.textContent = '\u25CF Online'; }
+        if (latEl)  latEl.textContent = ms + 'ms';
+        _updateSummary();
+      })
+      .catch(function() {
+        clearTimeout(timer);
+        results.down++;
+        if (pillEl) { pillEl.className = 'gc-pill gc-pill-down'; pillEl.textContent = '\u25CF Offline'; }
+        if (latEl)  latEl.textContent = 'Unreachable';
+        _updateSummary();
+      });
+  });
+}
+
+// ── Tab: Endpoint Probe ───────────────────────────────────────────────────
+
+var _probeHistory = [];
+
+function _gcRenderProbe() {
+  var panel = document.querySelector('.gc-tab-panel[data-tab="probe"]');
+  if (!panel) return;
+
+  var churchOptions = '<option value="">— Custom URL —</option>';
+  _churches.forEach(function(c) {
+    if (c.databaseUrl) {
+      churchOptions += '<option value="' + _e(c.databaseUrl) + '">' + _e(c.churchName||c.shortName) + '</option>';
+    }
+  });
+
+  var commonActions = ['health','list','create','update','delete',
+    'appConfig.list','appConfig.set',
+    'members.list','members.get','members.search',
+    'comms.messages.send','comms.channels.list',
+    'events.list','attendance.list',
+    'users.list','users.get'];
+
+  var actionOptions = commonActions.map(function(a) { return '<option value="' + a + '">' + a + '</option>'; }).join('');
+
+  panel.innerHTML = ''
+    + '<div class="section-label">Endpoint Probe</div>'
+    + '<p style="font-size:0.82rem;color:var(--ink-muted,#888);margin-bottom:20px;">Send any action to any GAS endpoint and inspect the raw response. Useful for verifying deployments work end-to-end.</p>'
+
+    + '<div style="background:var(--bg-raised,#16213e);border:1px solid var(--line,rgba(255,255,255,0.08));border-radius:10px;padding:20px;">'
+
+    // Church selector
+    + '<div class="field"><label>Church / Endpoint</label>'
+    + '<select onchange="document.getElementById(\'probe-url\').value=this.value" style="width:100%;background:var(--bg,#1a1a2e);border:1px solid var(--line,rgba(255,255,255,0.12));border-radius:6px;padding:8px 10px;color:var(--ink);font-size:0.85rem;font-family:inherit;outline:none;">'
+    + churchOptions + '</select></div>'
+
+    // URL field
+    + '<div class="field"><label>URL</label>'
+    + '<input id="probe-url" type="url" placeholder="https://script.google.com/macros/s/…/exec" '
+    + 'style="width:100%;background:var(--bg,#1a1a2e);border:1px solid var(--line,rgba(255,255,255,0.12));border-radius:6px;padding:8px 10px;color:var(--ink);font-size:0.82rem;font-family:monospace;outline:none;"></div>'
+
+    // Action + method row
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">'
+    + '<div class="field"><label>Action</label>'
+    + '<input id="probe-action" type="text" list="probe-action-list" placeholder="e.g. health" '
+    + 'style="width:100%;background:var(--bg,#1a1a2e);border:1px solid var(--line,rgba(255,255,255,0.12));border-radius:6px;padding:8px 10px;color:var(--ink);font-size:0.85rem;font-family:monospace;outline:none;">'
+    + '<datalist id="probe-action-list">' + actionOptions + '</datalist></div>'
+    + '<div class="field"><label>Timeout (ms)</label>'
+    + '<input id="probe-timeout" type="number" value="10000" min="1000" max="30000" step="1000" '
+    + 'style="width:100%;background:var(--bg,#1a1a2e);border:1px solid var(--line,rgba(255,255,255,0.12));border-radius:6px;padding:8px 10px;color:var(--ink);font-size:0.85rem;outline:none;"></div>'
+    + '</div>'
+
+    // Extra params
+    + '<div class="field"><label>Extra Params — JSON object (optional)</label>'
+    + '<textarea id="probe-params" rows="3" placeholder=\'{"key":"value","limit":50}\' '
+    + 'style="width:100%;background:var(--bg,#1a1a2e);border:1px solid var(--line,rgba(255,255,255,0.12));border-radius:6px;padding:8px 10px;color:var(--ink);font-size:0.82rem;font-family:monospace;outline:none;resize:vertical;min-height:64px;"></textarea></div>'
+
+    // Run button
+    + '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">'
+    + '<button class="btn btn-primary" id="probe-run-btn" onclick="_gcRunProbe()">&#9654; Run Probe</button>'
+    + '<button class="btn btn-sm" onclick="_gcRunProbeAction(\'health\')">Quick: health</button>'
+    + '<button class="btn btn-sm" onclick="_gcRunProbeAction(\'appConfig.list\')">Quick: config</button>'
+    + '<button class="btn btn-sm" onclick="_gcRunProbeAction(\'members.list\')">Quick: members</button>'
+    + '<span id="probe-status" style="font-size:0.8rem;color:var(--ink-muted,#888);"></span>'
+    + '</div>'
+    + '</div>'
+
+    // Response pane
+    + '<div id="probe-response-wrap" style="margin-top:20px;display:none;">'
+    + '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px;">'
+    + '<span style="font-size:0.82rem;font-weight:700;color:var(--accent,#7eaacc);">Response</span>'
+    + '<div style="display:flex;gap:8px;align-items:center;">'
+    + '<span id="probe-timing" style="font-size:0.77rem;color:var(--ink-muted,#888);"></span>'
+    + '<button class="btn btn-sm" onclick="_gcCopyProbeResponse()">Copy</button>'
+    + '</div></div>'
+    + '<div class="probe-response" id="probe-response"></div>'
+    + '</div>'
+
+    // History
+    + '<div id="probe-history-wrap" style="margin-top:24px;display:none;">'
+    + '<div class="section-label" style="margin-top:0;">Recent Probes</div>'
+    + '<div id="probe-history"></div>'
+    + '</div>';
+}
+
+function _gcPreFillProbe(url) {
+  var inp = document.getElementById('probe-url');
+  if (inp) inp.value = url;
+}
+
+function _gcRunProbeAction(action) {
+  var act = document.getElementById('probe-action');
+  if (act) act.value = action;
+  _gcRunProbe();
+}
+
+async function _gcRunProbe() {
+  var urlEl    = document.getElementById('probe-url');
+  var actEl    = document.getElementById('probe-action');
+  var toEl     = document.getElementById('probe-timeout');
+  var parEl    = document.getElementById('probe-params');
+  var statusEl = document.getElementById('probe-status');
+  var respWrap = document.getElementById('probe-response-wrap');
+  var respEl   = document.getElementById('probe-response');
+  var timEl    = document.getElementById('probe-timing');
+  var btn      = document.getElementById('probe-run-btn');
+
+  var url     = (urlEl  && urlEl.value.trim())  || '';
+  var action  = (actEl  && actEl.value.trim())  || 'health';
+  var timeout = parseInt((toEl && toEl.value) || '10000') || 10000;
+  var rawPar  = (parEl  && parEl.value.trim()) || '';
+
+  if (!url) { _toast('Enter a URL first.', 'warn'); return; }
+
+  var extraParams = {};
+  if (rawPar) {
+    try { extraParams = JSON.parse(rawPar); }
+    catch(e) { _toast('Extra params is not valid JSON.', 'warn'); return; }
+  }
+
+  if (btn) btn.disabled = true;
+  if (statusEl) statusEl.textContent = 'Running\u2026';
+  if (respWrap) respWrap.style.display = 'none';
+
+  var qs = new URLSearchParams({ action: action });
+  Object.keys(extraParams).forEach(function(k) { qs.set(k, extraParams[k]); });
+  qs.set('_nc', Date.now());
+  var fullUrl = url + (url.indexOf('?') >= 0 ? '&' : '?') + qs.toString();
+
+  var t0 = Date.now();
+  var controller = new AbortController();
+  var timer = setTimeout(function() { controller.abort(); }, timeout);
+
+  try {
+    var resp = await fetch(fullUrl, { method:'GET', cache:'no-store', signal: controller.signal });
+    clearTimeout(timer);
+    var ms   = Date.now() - t0;
+    var text = '';
+    try { text = await resp.text(); } catch(_) {}
+
+    var display = text;
+    try { display = JSON.stringify(JSON.parse(text), null, 2); } catch(_) {}
+
+    if (statusEl) statusEl.textContent = 'HTTP ' + resp.status + ' \u2014 ' + ms + 'ms';
+    if (timEl)    timEl.textContent    = 'HTTP ' + resp.status + ' \u2014 ' + ms + 'ms';
+    if (respEl)   respEl.textContent   = display || '(empty response)';
+    if (respWrap) respWrap.style.display = '';
+
+    _addProbeHistory({ url: url, action: action, status: resp.status, ms: ms, response: display });
+
+  } catch(e) {
+    clearTimeout(timer);
+    var ms = Date.now() - t0;
+    var msg = e && e.message ? e.message : String(e);
+    var isCors = msg.indexOf('Failed to fetch') >= 0 || msg.indexOf('NetworkError') >= 0 || msg.indexOf('CORS') >= 0;
+
+    if (isCors) {
+      // Retry with no-cors to at least confirm reachability
+      var t1 = Date.now();
+      try {
+        await fetch(fullUrl, { method:'GET', mode:'no-cors', cache:'no-store' });
+        var ms2 = Date.now() - t1;
+        if (statusEl) statusEl.textContent = 'Reachable (CORS block) \u2014 ' + ms2 + 'ms';
+        if (timEl)    timEl.textContent    = 'Reachable (CORS block) \u2014 ' + ms2 + 'ms';
+        if (respEl)   respEl.textContent   = 'CORS policy blocked the response body.\n\nThe endpoint IS reachable (opaque response received in ' + ms2 + 'ms).\n'
+          + 'This is normal for GAS endpoints when called cross-origin without CORS headers.\n\n'
+          + 'To read the response body, test from a server-side context (e.g. the Provisioner) or '
+          + 'open the URL directly in a browser tab:\n\n' + fullUrl;
+        if (respWrap) respWrap.style.display = '';
+        _addProbeHistory({ url: url, action: action, status: 'CORS', ms: ms2, response: 'CORS (reachable)' });
+      } catch(_) {
+        if (statusEl) statusEl.textContent = 'Unreachable \u2014 ' + (Date.now()-t1) + 'ms';
+        if (respEl)   respEl.textContent   = 'Network error: endpoint unreachable.\n\n' + msg;
+        if (respWrap) respWrap.style.display = '';
+      }
+    } else {
+      var aborted = e && e.name === 'AbortError';
+      if (statusEl) statusEl.textContent = aborted ? 'Timeout (' + timeout + 'ms)' : 'Error';
+      if (respEl)   respEl.textContent   = aborted ? 'Request timed out after ' + timeout + 'ms.' : msg;
+      if (respWrap) respWrap.style.display = '';
+    }
+  }
+
+  if (btn) btn.disabled = false;
+}
+
+function _addProbeHistory(entry) {
+  _probeHistory.unshift(entry);
+  if (_probeHistory.length > 8) _probeHistory.pop();
+
+  var wrap = document.getElementById('probe-history-wrap');
+  var hist = document.getElementById('probe-history');
+  if (!wrap || !hist) return;
+  wrap.style.display = '';
+
+  var html = '';
+  _probeHistory.forEach(function(h, i) {
+    var statusColor = (h.status === 200 || h.status === 'CORS') ? '#4ade80' : '#f87171';
+    html += '<div class="probe-hist-item" onclick="_gcRestoreProbe(' + i + ')">'
+      + '<span style="font-family:monospace;font-size:0.79rem;color:var(--accent,#7eaacc);min-width:120px;">' + _e(h.action) + '</span>'
+      + '<span style="font-size:0.75rem;color:var(--ink-muted,#888);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + _e(h.url) + '</span>'
+      + '<span style="font-size:0.72rem;color:' + statusColor + ';white-space:nowrap;font-weight:700;">' + _e(String(h.status)) + '</span>'
+      + '<span style="font-size:0.72rem;color:var(--ink-faint,#666);white-space:nowrap;">' + h.ms + 'ms</span>'
+      + '</div>';
+  });
+  hist.innerHTML = html;
+}
+
+function _gcRestoreProbe(i) {
+  var h = _probeHistory[i];
+  if (!h) return;
+  var urlEl  = document.getElementById('probe-url');
+  var actEl  = document.getElementById('probe-action');
+  var respEl = document.getElementById('probe-response');
+  var timEl  = document.getElementById('probe-timing');
+  var wrap   = document.getElementById('probe-response-wrap');
+  if (urlEl)  urlEl.value  = h.url;
+  if (actEl)  actEl.value  = h.action;
+  if (respEl) respEl.textContent = h.response || '';
+  if (timEl)  timEl.textContent  = 'HTTP ' + h.status + ' \u2014 ' + h.ms + 'ms';
+  if (wrap)   wrap.style.display = '';
+}
+
+function _gcCopyProbeResponse() {
+  var respEl = document.getElementById('probe-response');
+  if (respEl && navigator.clipboard) {
+    navigator.clipboard.writeText(respEl.textContent || '').then(function() { _toast('Copied!', 'success'); });
+  }
+}
+
+// ── Tab: Config Audit ─────────────────────────────────────────────────────
+
+var _REQUIRED_KEYS = [
+  'CHURCH_NAME','ADMIN_EMAIL','CHURCH_TIMEZONE','SESSION_TTL_HOURS','MIN_PASSCODE_LENGTH',
+  'SELF_REGISTRATION','GLOBAL_THEME','CARD_PREFIX','LOCKDOWN','DATA_LAYER',
+  'NOTIFY_PRAYER_REQUEST','ITEMS_PER_PAGE','DATE_FORMAT',
+];
+
+var _auditData = {};  // { churchId: [rows] }
+
+function _gcRenderConfigAudit() {
+  var panel = document.querySelector('.gc-tab-panel[data-tab="audit"]');
+  if (!panel) return;
+
+  var churchCheckboxes = '';
+  _churches.forEach(function(c) {
+    churchCheckboxes += '<label style="display:flex;align-items:center;gap:6px;font-size:0.82rem;cursor:pointer;">'
+      + '<input type="checkbox" class="audit-church-cb" value="' + _e(c.churchId) + '" checked> '
+      + _e(c.churchName||c.shortName) + '</label>';
+  });
+
+  panel.innerHTML = '<div class="section-label">Config Audit</div>'
+    + '<p style="font-size:0.82rem;color:var(--ink-muted,#888);margin-bottom:20px;">'
+    + 'Verify required config keys are set across all deployed churches. Loads live config from each selected church via the provisioner API.</p>'
+    + '<div style="background:var(--bg-raised,#16213e);border:1px solid var(--line,rgba(255,255,255,0.08));border-radius:10px;padding:18px 20px;margin-bottom:20px;">'
+    + '<div style="font-size:0.8rem;font-weight:700;color:var(--ink-muted,#888);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:10px;">Churches</div>'
+    + '<div style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:14px;">' + churchCheckboxes + '</div>'
+    + '<div style="font-size:0.8rem;font-weight:700;color:var(--ink-muted,#888);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;">Required Keys</div>'
+    + '<textarea id="audit-keys" rows="4" style="width:100%;background:var(--bg,#1a1a2e);border:1px solid var(--line,rgba(255,255,255,0.12));border-radius:6px;padding:8px 10px;color:var(--ink);font-size:0.79rem;font-family:monospace;outline:none;resize:vertical;">'
+    + _REQUIRED_KEYS.join('\n') + '</textarea>'
+    + '<div style="margin-top:10px;display:flex;gap:8px;">'
+    + '<button class="btn btn-primary" onclick="_gcRunConfigAudit()">&#9989; Run Audit</button>'
+    + '<button class="btn btn-sm" onclick="_gcExportAuditCsv()">Export CSV</button>'
+    + '<span id="audit-status" style="font-size:0.8rem;color:var(--ink-muted,#888);align-self:center;"></span>'
+    + '</div></div>'
+    + '<div id="audit-matrix-wrap"></div>';
+}
+
+async function _gcRunConfigAudit() {
+  var keysRaw   = (document.getElementById('audit-keys') || { value: '' }).value;
+  var keys      = keysRaw.split(/[\n,]+/).map(function(k) { return k.trim(); }).filter(Boolean);
+  var cbs       = document.querySelectorAll('.audit-church-cb:checked');
+  var churchIds = Array.from(cbs).map(function(cb) { return cb.value; });
+  var statusEl  = document.getElementById('audit-status');
+  var matrixWrap = document.getElementById('audit-matrix-wrap');
+
+  if (!keys.length)      { _toast('Enter at least one key to audit.', 'warn'); return; }
+  if (!churchIds.length) { _toast('Select at least one church.', 'warn'); return; }
+
+  if (statusEl) statusEl.textContent = 'Loading\u2026';
+  if (matrixWrap) matrixWrap.innerHTML = '<div class="loading"><div class="spin"></div>&nbsp; Fetching configs\u2026</div>';
+
+  _auditData = {};
+
+  // Load config for each selected church in parallel
+  await Promise.all(churchIds.map(async function(cid) {
+    try {
+      var res = await TheVine.flock.call('church.config.list', { churchId: cid });
+      _auditData[cid] = Array.isArray(res) ? res : ((res && res.rows) ? res.rows : []);
+    } catch(e) {
+      _auditData[cid] = null; // error marker
+    }
+  }));
+
+  // Build matrix
+  var churches = churchIds.map(function(cid) {
+    return _churches.find(function(c) { return String(c.churchId) === String(cid); }) || { churchId: cid, shortName: cid };
+  });
+
+  var html = '<div class="audit-matrix"><table class="audit-table"><thead><tr>'
+    + '<th class="key-col">Config Key</th>';
+  churches.forEach(function(c) {
+    html += '<th>' + _e(c.shortName || c.churchName || c.churchId) + '</th>';
+  });
+  html += '</tr></thead><tbody>';
+
+  var missCount = 0;
+  keys.forEach(function(key) {
+    html += '<tr><td class="key-col">' + _e(key) + '</td>';
+    churches.forEach(function(c) {
+      var rows = _auditData[c.churchId];
+      if (rows === null) {
+        html += '<td style="color:var(--ink-muted,#888);text-align:center;" title="Load error">\u2014</td>';
+        return;
+      }
+      var row = (rows || []).find(function(r) { return (r.key||r.configKey) === key; });
+      if (row && row.value !== undefined && row.value !== '') {
+        var display = String(row.value);
+        if (display.length > 20) display = display.substring(0, 18) + '\u2026';
+        html += '<td class="audit-cell-ok" title="' + _e(String(row.value)) + '">\u2713 <span style="font-size:0.7rem;color:var(--ink-muted,#888);font-weight:400;">' + _e(display) + '</span></td>';
+      } else {
+        missCount++;
+        html += '<td class="audit-cell-miss">\u2717</td>';
+      }
+    });
+    html += '</tr>';
+  });
+
+  html += '</tbody></table></div>';
+  if (matrixWrap) matrixWrap.innerHTML = html;
+
+  var total = keys.length * churches.length;
+  if (statusEl) statusEl.textContent = (total - missCount) + '/' + total + ' keys set — ' + missCount + ' missing';
+}
+
+function _gcExportAuditCsv() {
+  var keysRaw   = (document.getElementById('audit-keys') || { value: '' }).value;
+  var keys      = keysRaw.split(/[\n,]+/).map(function(k) { return k.trim(); }).filter(Boolean);
+  var cbs       = document.querySelectorAll('.audit-church-cb:checked');
+  var churchIds = Array.from(cbs).map(function(cb) { return cb.value; });
+
+  if (!Object.keys(_auditData).length) { _toast('Run the audit first.', 'warn'); return; }
+
+  var churches = churchIds.map(function(cid) {
+    return _churches.find(function(c) { return String(c.churchId) === String(cid); }) || { churchId: cid, shortName: cid };
+  });
+
+  var lines = ['Key,' + churches.map(function(c) { return '"' + (c.shortName||c.churchId) + '"'; }).join(',')];
+  keys.forEach(function(key) {
+    var row = ['"' + key + '"'];
+    churches.forEach(function(c) {
+      var rows = _auditData[c.churchId] || [];
+      var found = rows.find(function(r) { return (r.key||r.configKey) === key; });
+      row.push(found && found.value ? '"' + String(found.value).replace(/"/g,'""') + '"' : '""');
+    });
+    lines.push(row.join(','));
+  });
+
+  var blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+  var a    = document.createElement('a');
+  a.href   = URL.createObjectURL(blob);
+  a.download = 'config-audit-' + new Date().toISOString().split('T')[0] + '.csv';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+// ── Tab: AppConfig Editor ─────────────────────────────────────────────────
+
+function _gcRenderAppConfigTab() {
+  var panel = document.querySelector('.gc-tab-panel[data-tab="appconfig"]');
+  if (!panel) return;
+
+  var churchOptions = '<option value="">— Select a Church —</option>';
+  _churches.forEach(function(c) {
+    churchOptions += '<option value="' + _e(c.churchId) + '">' + _e(c.churchName||c.shortName) + '</option>';
+  });
+
+  panel.innerHTML = '<div class="section-label">AppConfig Editor</div>'
+    + '<p style="font-size:0.82rem;color:var(--ink-muted,#888);margin-bottom:20px;">Read and write any church\'s config keys via the Provisioner API. Changes take effect on next session.</p>'
+    + '<div style="background:var(--bg-raised,#16213e);border:1px solid var(--line,rgba(255,255,255,0.08));border-radius:10px;padding:18px 20px;">'
+    + '<div style="display:flex;gap:8px;align-items:center;margin-bottom:14px;">'
+    + '<select id="appconfig-church-select" onchange="_gcLoadAppConfig()" style="flex:1;font-size:0.85rem;background:var(--bg,#1a1a2e);border:1px solid var(--line,rgba(255,255,255,0.12));border-radius:6px;padding:8px 10px;color:var(--ink);outline:none;">'
+    + churchOptions + '</select>'
+    + '<button onclick="_gcLoadAppConfig()" style="background:var(--accent,#7eaacc);color:var(--ink-inverse,#1a1a2e);border:none;border-radius:6px;padding:8px 14px;cursor:pointer;font-size:0.8rem;font-weight:600;white-space:nowrap;">&#8635; Load</button>'
+    + '</div>'
+    + '<div id="appconfig-editor-body"></div>'
+    + '</div>';
+}
+
+// ── Tab: Provisioner ──────────────────────────────────────────────────────
+
+function _gcRenderProvisioner() {
+  var panel = document.querySelector('.gc-tab-panel[data-tab="provisioner"]');
+  if (!panel) return;
+
+  panel.innerHTML = '<div class="section-label">Provisioner</div>'
+    + '<div style="background:var(--bg-raised,#16213e);border:1px solid var(--line,rgba(255,255,255,0.08));border-radius:10px;padding:18px 20px;margin-bottom:20px;">'
     + '<div style="font-size:0.82rem;color:var(--ink-muted);margin-bottom:4px;">Provisioner Web App URL</div>'
-    + '<div style="font-size:0.79rem;font-family:monospace;color:var(--accent);word-break:break-all;">'
-    + 'https://provisioner.flockos.yhwh.one</div>'
+    + '<div style="font-size:0.79rem;font-family:monospace;color:var(--accent);word-break:break-all;">' + _PROVISIONER_URL + '</div>'
     + '<div style="margin-top:12px;font-size:0.78rem;color:var(--ink-muted);line-height:1.7;">'
     + 'The provisioner creates the church CRM Google Sheet, writes all script tabs '
     + '(Code.gs, FirestoreSync.gs, SyncHandler.gs), seeds Firestore, and returns a step-by-step '
-    + 'Deployment Guide. Select a church above and click <strong style="color:var(--gold)">&#9889; Provision</strong> to launch.'
+    + 'Deployment Guide. Select a church and click <strong style="color:var(--gold,#e8a838)">&#9889; Provision</strong> to launch.'
     + '</div>'
     + '<div style="margin-top:16px;border-top:1px solid var(--line,rgba(255,255,255,0.08));padding-top:14px;">'
     + '<div style="font-size:0.82rem;color:var(--ink-muted);margin-bottom:8px;">Test Provisioner URL</div>'
     + '<div style="display:flex;gap:8px;align-items:center;">'
-    + '<input id="provisioner-test-url" type="text" value="https://provisioner.flockos.yhwh.one"'
-    + ' style="flex:1;font-size:0.79rem;font-family:monospace;background:var(--bg,#1a1a2e);'
-    + 'border:1px solid var(--line,rgba(255,255,255,0.12));border-radius:6px;padding:7px 10px;'
-    + 'color:var(--ink);outline:none;" placeholder="Enter URL to test…" />'
-    + '<button onclick="_gcTestProvisionerUrl()" style="background:var(--accent);color:var(--ink-inverse);'
-    + 'border:none;border-radius:6px;padding:7px 14px;cursor:pointer;font-size:0.8rem;font-weight:600;white-space:nowrap;">'
-    + 'Test URL</button>'
+    + '<input id="provisioner-test-url" type="text" value="' + _PROVISIONER_URL + '"'
+    + ' style="flex:1;font-size:0.79rem;font-family:monospace;background:var(--bg,#1a1a2e);border:1px solid var(--line,rgba(255,255,255,0.12));border-radius:6px;padding:7px 10px;color:var(--ink);outline:none;" />'
+    + '<button onclick="_gcTestProvisionerUrl()" style="background:var(--accent,#7eaacc);color:var(--ink-inverse,#1a1a2e);border:none;border-radius:6px;padding:7px 14px;cursor:pointer;font-size:0.8rem;font-weight:600;white-space:nowrap;">Test URL</button>'
     + '</div>'
     + '<div id="provisioner-test-result" style="margin-top:10px;display:none;border-radius:8px;overflow:hidden;"></div>'
-    + '</div>'
-    + '</div>';
+    + '</div></div>'
 
-  // ── AppConfig Editor
-  var churchOptions = '<option value="">— Select a Church —</option>';
-  _churches.forEach(function(c) {
-    churchOptions += '<option value="' + _e(c.churchId) + '">' + _e(c.churchName || c.shortName) + '</option>';
-  });
-
-  html += '<div class="section-label">AppConfig Editor</div>'
-    + '<div style="background:var(--bg-raised);border:1px solid var(--line,rgba(255,255,255,0.08));border-radius:10px;padding:18px 20px;">'
-    + '<div style="display:flex;gap:8px;align-items:center;margin-bottom:14px;">'
-    + '<select id="appconfig-church-select" onchange="_gcLoadAppConfig()" style="flex:1;font-size:0.85rem;'
-    + 'background:var(--bg,#1a1a2e);border:1px solid var(--line,rgba(255,255,255,0.12));border-radius:6px;'
-    + 'padding:8px 10px;color:var(--ink);outline:none;">'
-    + churchOptions + '</select>'
-    + '<button onclick="_gcLoadAppConfig()" style="background:var(--accent);color:var(--ink-inverse);border:none;'
-    + 'border-radius:6px;padding:8px 14px;cursor:pointer;font-size:0.8rem;font-weight:600;white-space:nowrap;">&#8635; Load</button>'
-    + '</div>'
-    + '<div id="appconfig-editor-body"></div>'
-    + '</div>';
-
-  main.innerHTML = html;
+    // Quick provision panel
+    + '<div class="section-label">Quick Provision</div>'
+    + '<div style="background:var(--bg-raised,#16213e);border:1px solid var(--line,rgba(255,255,255,0.08));border-radius:10px;padding:18px 20px;">'
+    + '<p style="font-size:0.82rem;color:var(--ink-muted,#888);margin-bottom:14px;">Select a registered church and launch the full provisioner flow directly.</p>'
+    + '<div style="display:flex;gap:8px;flex-wrap:wrap;">'
+    + '<button class="btn btn-gold" onclick="_gcProvisionNew()">&#9889; Launch Provisioner</button>'
+    + '</div></div>';
 }
+
 
 // ── Test Provisioner URL ──────────────────────────────────────────────────
 

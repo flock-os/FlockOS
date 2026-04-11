@@ -10526,9 +10526,14 @@ const Modules = (() => {
       const totalOn = allToggleable.filter(k => _isModuleEnabled(k)).length;
 
       let html = '';
+      var _studioDirty = false;
 
       // ── Tab switching ───────────────────────────────────────────────
       Modules._configTab = function(tabId) {
+        if (_studioDirty && _configActiveTab === 'look-feel' && tabId !== 'look-feel') {
+          if (!confirm('You have unsaved Interface Studio changes. Leave without saving?')) return;
+          _studioDirty = false;
+        }
         _configActiveTab = tabId; // persist so reloads restore position
         document.querySelectorAll('.config-tab-panel').forEach(function(p) { p.classList.remove('active'); });
         document.querySelectorAll('.config-tab').forEach(function(t) { t.classList.remove('active'); });
@@ -10540,70 +10545,150 @@ const Modules = (() => {
 
       // ── Tab Navigation ──────────────────────────────────────────────
       html += '<div class="config-tabs-bar">';
-      html += '<button class="config-tab active" data-tab="overview" onclick="Modules._configTab(\'overview\')"><span class="config-tab-icon">\uD83C\uDFE0</span> Overview</button>';
+      html += '<button class="config-tab" data-tab="overview" onclick="Modules._configTab(\'overview\')"><span class="config-tab-icon">\uD83C\uDFE0</span> Overview</button>';
       html += '<button class="config-tab" data-tab="look-feel" onclick="Modules._configTab(\'look-feel\')"><span class="config-tab-icon">\uD83C\uDFA8</span> Look &amp; Feel</button>';
       html += '<button class="config-tab" data-tab="modules" onclick="Modules._configTab(\'modules\')"><span class="config-tab-icon">\uD83E\uDDE9</span> Modules</button>';
       html += '<button class="config-tab" data-tab="admin" onclick="Modules._configTab(\'admin\')"><span class="config-tab-icon">\u2699\uFE0F</span> Administration</button>';
       html += '</div>';
 
       // ══ Tab: Overview ═══════════════════════════════════════════════
-      html += '<div class="config-tab-panel active" data-tab="overview">';
+      html += '<div class="config-tab-panel" data-tab="overview">';
 
-      // ── Overview stat cards ──────────────────────────────────────────
+      // ── Row 1: Quick-stat cards ──────────────────────────────────────
+      var _churchNameRow = rows.find(function(r) { return (r.key || r.configKey) === 'CHURCH_NAME'; });
+      var _churchName = _churchNameRow ? String(_churchNameRow.value || '') : '';
       html += '<div class="config-stat-grid">';
-      html += '<div class="config-stat-card"><div class="config-stat-icon">\uD83C\uDFA8</div><div class="config-stat-value">' + themeList.length + '</div><div class="config-stat-label">Themes Available</div></div>';
-      html += '<div class="config-stat-card"><div class="config-stat-icon">\uD83E\uDDE9</div><div class="config-stat-value">' + totalOn + '</div><div class="config-stat-label">Active Modules</div></div>';
-      html += '<div class="config-stat-card"><div class="config-stat-icon">\uD83D\uDCCB</div><div class="config-stat-value">' + rows.length + '</div><div class="config-stat-label">Config Entries</div></div>';
-      html += '<div class="config-stat-card"><div class="config-stat-icon">\uD83C\uDFF7\uFE0F</div><div class="config-stat-value" style="font-size:1.1rem;">' + _e(currentPrefix) + '</div><div class="config-stat-label">Card Prefix</div></div>';
+      html += '<div class="config-stat-card"><div class="config-stat-icon">&#127981;</div><div class="config-stat-value" style="font-size:' + (_churchName.length > 12 ? '0.9rem' : '1.2rem') + ';">' + (_churchName ? _e(_churchName) : '&#8212;') + '</div><div class="config-stat-label">Church Name</div></div>';
+      html += '<div class="config-stat-card"><div class="config-stat-icon">&#129697;</div><div class="config-stat-value">' + totalOn + ' / ' + allToggleable.length + '</div><div class="config-stat-label">Active Modules</div></div>';
+      html += '<div class="config-stat-card"><div class="config-stat-icon">&#127912;</div><div class="config-stat-value">' + themeList.length + '</div><div class="config-stat-label">Themes</div></div>';
+      html += '<div class="config-stat-card"><div class="config-stat-icon">&#127991;&#65039;</div><div class="config-stat-value" style="font-size:1.1rem;">' + _e(currentPrefix) + '</div><div class="config-stat-label">Card Prefix</div></div>';
       html += '</div>';
 
-      // ── Section 0: Security — Maintenance Mode ───────────────────────
-      // Maintenance status lives in global appConfig/system (not church-scoped)
-      // Render the section with a placeholder, then async-fill once Firestore responds
-      html += '<details class="settings-section settings-accordion">';
-      html += '<summary class="settings-accordion-trigger"><span class="settings-accordion-chevron">&#9654;</span>';
-      html += '<span class="settings-section-icon">\uD83D\uDEE1\uFE0F</span>';
-      html += '<span class="settings-accordion-label">Security</span>';
-      html += '<span class="settings-accordion-count" id="maintenance-badge">…</span>';
-      html += '</summary>';
-      html += '<div class="settings-accordion-body">';
-      html += '<div class="settings-card">';
-      html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">';
-      html += '<div>';
-      html += '<div class="settings-card-label">\uD83D\uDD12 Maintenance Mode</div>';
-      html += '<p class="settings-card-hint" style="margin:4px 0 0;">When enabled, the public portal shows a maintenance page and only Pastor / Admin can access the admin portal.</p>';
+      // ── Row 2: System Health bar ─────────────────────────────────────
+      var _fbReady = typeof UpperRoom !== 'undefined' && UpperRoom.isReady();
+      var _fbMode  = _isFirebaseComms();
+      var _fbProjectId = '';
+      try { if (typeof firebase !== 'undefined' && firebase.app) _fbProjectId = firebase.app().options.projectId || ''; } catch(_) {}
+
+      html += '<div class="cp-health-bar" id="cp-health-bar">';
+
+      // GAS endpoint row — placeholder, filled async
+      html += '<div class="cp-health-row">';
+      html += '<div class="cp-health-icon">&#128196;</div>';
+      html += '<div class="cp-health-body">';
+      html += '<div class="cp-health-label">Database (GAS)</div>';
+      html += '<div class="cp-health-detail" id="cp-gas-url">' + _e((typeof TheVine !== 'undefined' ? (TheVine.flock.endpoint ? TheVine.flock.endpoint() : '') : '').replace('https://script.google.com/macros/s/', '').substring(0, 36) + '…' || 'Not configured') + '</div>';
       html += '</div>';
-      html += '<label class="settings-toggle">';
+      html += '<span class="health-pill health-pill-unknown" id="cp-gas-pill"><span class="health-dot"></span><span id="cp-gas-pill-text">Checking…</span></span>';
+      html += '</div>';
+
+      // Firebase row
+      html += '<div class="cp-health-row">';
+      html += '<div class="cp-health-icon">&#128293;</div>';
+      html += '<div class="cp-health-body">';
+      html += '<div class="cp-health-label">Firebase / Firestore</div>';
+      html += '<div class="cp-health-detail">' + (_fbProjectId ? _e(_fbProjectId) : 'Not initialized') + '</div>';
+      html += '</div>';
+      if (_fbReady && _fbMode) {
+        html += '<span class="health-pill health-pill-ok"><span class="health-dot"></span>Connected</span>';
+      } else if (_fbReady) {
+        html += '<span class="health-pill health-pill-warn"><span class="health-dot"></span>Standby</span>';
+      } else {
+        html += '<span class="health-pill health-pill-unknown"><span class="health-dot"></span>Not loaded</span>';
+      }
+      html += '</div>';
+
+      // Maintenance row — placeholder, filled async
+      html += '<div class="cp-health-row">';
+      html += '<div class="cp-health-icon">&#128737;&#65039;</div>';
+      html += '<div class="cp-health-body">';
+      html += '<div class="cp-health-label">Maintenance Mode</div>';
+      html += '<div class="cp-health-detail">Controls public portal access</div>';
+      html += '</div>';
+      html += '<div style="display:flex;align-items:center;gap:10px;">';
+      html += '<span id="maintenance-badge" style="font-size:0.78rem;color:var(--ink-muted);">…</span>';
+      html += '<label class="settings-toggle" style="margin:0;">';
       html += '<input type="checkbox" id="lockdown-toggle" onchange="Modules.toggleLockdown(this.checked)">';
       html += '<span class="settings-toggle-slider"></span>';
       html += '</label>';
       html += '</div>';
-      html += '<div id="maintenance-active-banner" style="display:none;margin-top:12px;padding:10px 14px;border-radius:8px;background:var(--warning,#c98b2e);color:#fff;font-weight:600;font-size:0.85rem;">\u26A0 MAINTENANCE IS ACTIVE — Public portal is blocked. Only Pastor &amp; Admin can access admin.</div>';
-      html += '</div></div>';
-      html += '</div></details>';
+      html += '</div>';
 
-      // Async-fill maintenance toggle from Firestore
+      html += '</div>'; // close cp-health-bar
+
+      // Maintenance active banner
+      html += '<div id="maintenance-active-banner" style="display:none;margin:0 0 16px;padding:12px 16px;border-radius:10px;background:var(--warning,#c98b2e);color:#fff;font-weight:600;font-size:0.85rem;">&#9888; MAINTENANCE IS ACTIVE — Public portal is blocked. Only Pastor &amp; Admin can access admin.</div>';
+
+      // ── Row 3: System snapshot ───────────────────────────────────────
+      var _commsMode = _fbMode ? 'Firebase (real-time)' : 'Google Apps Script';
+      var _globalThemeLabel = globalTheme === 'default' ? 'Member Choice' : (_e((tmMeta[globalTheme] || {}).label || globalTheme));
+      var _selfReg   = rows.find(function(r) { return (r.key || r.configKey) === 'ALLOW_SELF_REGISTER'; });
+      var _selfRegOn = _selfReg ? String(_selfReg.value || 'FALSE').toUpperCase() === 'TRUE' : false;
+      var _sessionTtl = rows.find(function(r) { return (r.key || r.configKey) === 'SESSION_TTL_HOURS'; });
+      var _sessionTtlVal = _sessionTtl ? String(_sessionTtl.value || '6') : '6';
+      var _adminEmail = rows.find(function(r) { return (r.key || r.configKey) === 'ADMIN_EMAIL'; });
+      var _adminEmailVal = _adminEmail ? String(_adminEmail.value || '') : '';
+
+      html += '<div class="cp-snapshot-grid">';
+      html += '<div class="cp-snapshot-item"><span class="cp-snapshot-label">Data Layer</span><span class="cp-snapshot-value">' + _commsMode + '</span></div>';
+      html += '<div class="cp-snapshot-item"><span class="cp-snapshot-label">Global Theme</span><span class="cp-snapshot-value">' + _globalThemeLabel + '</span></div>';
+      html += '<div class="cp-snapshot-item"><span class="cp-snapshot-label">Self-Registration</span><span class="cp-snapshot-value" style="color:' + (_selfRegOn ? 'var(--success,#4ade80)' : 'var(--ink-muted)') + ';">' + (_selfRegOn ? 'Open' : 'Closed') + '</span></div>';
+      html += '<div class="cp-snapshot-item"><span class="cp-snapshot-label">Session TTL</span><span class="cp-snapshot-value">' + _sessionTtlVal + ' hrs</span></div>';
+      html += '<div class="cp-snapshot-item"><span class="cp-snapshot-label">Admin Email</span><span class="cp-snapshot-value" style="font-size:0.78rem;">' + (_adminEmailVal ? _e(_adminEmailVal) : '<span style="color:var(--warning,#f59e0b);">&#9888; Not set</span>') + '</span></div>';
+      html += '<div class="cp-snapshot-item"><span class="cp-snapshot-label">Config Entries</span><span class="cp-snapshot-value">' + rows.length + '</span></div>';
+      html += '</div>';
+
+      // ── Row 4: Quick actions ─────────────────────────────────────────
+      html += '<div class="cp-quick-actions">';
+      html += '<div class="cp-quick-label">Quick Actions</div>';
+      html += '<div class="cp-quick-btns">';
+      html += '<button class="cp-quick-btn" onclick="Modules._configTab(\'look-feel\')">&#127912; Themes</button>';
+      html += '<button class="cp-quick-btn" onclick="Modules._configTab(\'modules\')">&#129697; Modules</button>';
+      html += '<button class="cp-quick-btn" onclick="Modules._configTab(\'admin\')">&#128268; Connections</button>';
+      html += '<button class="cp-quick-btn" onclick="Modules._runHealthCheck()">&#128225; Run Diagnostics</button>';
+      html += '<button class="cp-quick-btn" onclick="Modules._reloadConfig()">&#128260; Refresh</button>';
+      html += '</div>';
+      html += '</div>';
+
+      html += '</div>'; // close Overview tab
+
+      // Async-fill: GAS health ping + maintenance toggle
       (function() {
+        // GAS health
+        (async function() {
+          var pill = document.getElementById('cp-gas-pill');
+          var pillText = document.getElementById('cp-gas-pill-text');
+          try {
+            var t0 = performance.now();
+            var ok = await TheVine.health('flock');
+            var ms = Math.round(performance.now() - t0);
+            if (pill) { pill.className = ok ? 'health-pill health-pill-ok' : 'health-pill health-pill-fail'; }
+            if (pillText) pillText.textContent = ok ? ms + 'ms' : 'Offline';
+          } catch(e) {
+            if (pill) pill.className = 'health-pill health-pill-fail';
+            if (pillText) pillText.textContent = 'Offline';
+          }
+        })();
+
+        // Maintenance toggle
         if (typeof UpperRoom !== 'undefined' && UpperRoom.getMaintenanceStatus) {
           UpperRoom.getMaintenanceStatus().then(function(data) {
             var active = !!(data && data.maintenance);
             var badge = document.getElementById('maintenance-badge');
-            if (badge) badge.textContent = active ? '\u26A0 MAINTENANCE' : 'Normal';
+            if (badge) badge.textContent = active ? '\u26A0 Maintenance ON' : '\u2714 Normal';
             var cb = document.getElementById('lockdown-toggle');
             if (cb) cb.checked = active;
             var banner = document.getElementById('maintenance-active-banner');
             if (banner) banner.style.display = active ? '' : 'none';
           }).catch(function() {
             var badge = document.getElementById('maintenance-badge');
-            if (badge) badge.textContent = 'Normal';
+            if (badge) badge.textContent = '\u2714 Normal';
           });
         } else {
           var badge = document.getElementById('maintenance-badge');
-          if (badge) badge.textContent = 'Normal';
+          if (badge) badge.textContent = '\u2714 Normal';
         }
       })();
-
-      html += '</div>'; // close Overview tab
 
       // ══ Tab: Look & Feel ════════════════════════════════════════════
       html += '<div class="config-tab-panel" data-tab="look-feel">';
@@ -11042,6 +11127,38 @@ const Modules = (() => {
       // ══ Tab: Administration ═════════════════════════════════════════
       html += '<div class="config-tab-panel" data-tab="admin">';
 
+      // ── Church Identity card ─────────────────────────────────────────
+      // Pull the 5 most critical settings directly from rows for a first-class UI
+      var _idFields = [
+        { key: 'CHURCH_NAME',       label: 'Church Name',    type: 'text',   placeholder: 'e.g. Stronger by Grace',  hint: 'Displayed in the portal header and member cards.' },
+        { key: 'ADMIN_EMAIL',       label: 'Admin Email',    type: 'email',  placeholder: 'e.g. pastor@church.org',  hint: 'Receives system alerts and new member notifications.' },
+        { key: 'CHURCH_TIMEZONE',   label: 'Timezone',       type: 'text',   placeholder: 'e.g. America/New_York',   hint: 'Used for scheduling, calendar events, and reminders.' },
+        { key: 'SESSION_TTL_HOURS', label: 'Session Length', type: 'number', placeholder: '6',                       hint: 'Hours before members are automatically signed out.' },
+        { key: 'MIN_PASSCODE_LENGTH', label: 'Min Passcode', type: 'number', placeholder: '6',                      hint: 'Minimum characters required for member passcodes.' },
+      ];
+      html += '<div class="settings-card" style="margin-bottom:18px;border:1px solid var(--accent,#22d3ee);border-radius:14px;padding:20px 22px;">';
+      html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">';
+      html += '<span style="font-size:1.3rem;">&#127981;</span>';
+      html += '<div><div style="font-weight:700;font-size:1rem;color:var(--ink);">Church Identity</div>';
+      html += '<div style="font-size:0.76rem;color:var(--ink-muted);">Your most critical settings — always visible, never buried.</div></div>';
+      html += '</div>';
+      html += '<div class="cp-identity-grid">';
+      _idFields.forEach(function(f) {
+        var row = rows.find(function(r) { return (r.key || r.configKey) === f.key; });
+        var val = row ? String(row.value != null ? row.value : '') : '';
+        html += '<div class="cp-identity-field">';
+        html += '<label class="cp-identity-label" for="ci-' + f.key + '">' + _e(f.label) + '</label>';
+        html += '<input type="' + f.type + '" id="ci-' + f.key + '" class="settings-input" value="' + _e(val) + '" placeholder="' + _e(f.placeholder) + '" data-ci-key="' + _e(f.key) + '">';
+        html += '<div class="cp-identity-hint">' + _e(f.hint) + '</div>';
+        html += '</div>';
+      });
+      html += '</div>';
+      html += '<div style="display:flex;align-items:center;gap:10px;margin-top:16px;flex-wrap:wrap;">';
+      html += '<button class="btn btn-primary" onclick="Modules._saveIdentity()" style="padding:9px 24px;font-size:0.85rem;">Save Identity</button>';
+      html += '<span id="ci-save-status" style="font-size:0.8rem;color:var(--ink-muted);"></span>';
+      html += '</div>';
+      html += '</div>';
+
       // ── Section 5: System Settings (Accordion) ──────────────────────
       const _cfgCatIcons = { General: '\uD83C\uDFE0', Auth: '\uD83D\uDD10', Modules: '\uD83E\uDDE9', Notifications: '\uD83D\uDD14', Display: '\uD83D\uDCBB', Security: '\uD83D\uDEE1\uFE0F' };
       const _cfgExamples = {
@@ -11084,10 +11201,11 @@ const Modules = (() => {
       html += '<span class="settings-accordion-count">' + rows.length + ' entries</span>';
       html += '</summary>';
       html += '<div class="settings-accordion-body">';
-      html += '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px;">';
+      html += '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px;">';
       html += '<p style="margin:0;font-size:0.82rem;color:var(--ink-muted);">Click any setting to edit its value. Settings are grouped by category.</p>';
       html += '<button onclick="Modules.newConfig()" style="padding:8px 18px;border-radius:8px;border:none;background:var(--accent);color:var(--bg);font-weight:600;font-size:0.82rem;cursor:pointer;">+ Add Setting</button>';
       html += '</div>';
+      html += '<input type="search" id="cfg-search" class="settings-input" placeholder="\uD83D\uDD0D Filter by key, value, or description\u2026" style="width:100%;box-sizing:border-box;margin-bottom:18px;" oninput="Modules._cfgFilter(this.value)">';
 
       _cfgSorted.forEach(cat => {
         const catRows = _cfgGroups[cat];
@@ -11454,9 +11572,7 @@ const Modules = (() => {
       _body(el, html);
 
       // Restore the last active tab (survives every _reload('config') call)
-      if (_configActiveTab && _configActiveTab !== 'overview') {
-        Modules._configTab(_configActiveTab);
-      }
+      Modules._configTab(_configActiveTab || 'overview');
 
       // Hydrate status cards after render
       if (_wsAvailable) { setTimeout(_wellspringRefreshStatus, 100); }
@@ -16067,6 +16183,31 @@ const Modules = (() => {
       + '<input id="wiz-' + name + '" type="' + (type || 'text') + '" style="width:100%;background:rgba(255,255,255,0.07);border:1px solid var(--line);border-radius:6px;padding:8px 12px;color:var(--ink);font-size:max(1rem,16px);font-family:inherit;"></div>';
   }
 
+  // ── Church Identity bulk-save ───────────────────────────────────────────
+  async function _saveIdentity() {
+    var statusEl = document.getElementById('ci-save-status');
+    if (statusEl) statusEl.textContent = 'Saving\u2026';
+    var fields = document.querySelectorAll('[data-ci-key]');
+    var ops = [];
+    fields.forEach(function(inp) {
+      var k = inp.getAttribute('data-ci-key');
+      var v = inp.value.trim();
+      if (!k || v === '') return;
+      ops.push(
+        (_isFirebaseComms() ? UpperRoom.setAppConfig : TheVine.flock.config.set)({ key: k, value: v })
+      );
+    });
+    try {
+      await Promise.all(ops);
+      _toast('Church identity saved!', 'success');
+      if (statusEl) { statusEl.textContent = '\u2714 Saved'; setTimeout(function() { if (statusEl) statusEl.textContent = ''; }, 3000); }
+      _reload('config');
+    } catch(e) {
+      _toast('Error saving identity: ' + e.message, 'danger');
+      if (statusEl) statusEl.textContent = 'Error';
+    }
+  }
+
   function newConfig() {
     _modal('Add / Update Setting', [
       { name: 'key',         label: 'Config Key',  required: true },
@@ -16075,6 +16216,18 @@ const Modules = (() => {
     ], async data => {
       await (_isFirebaseComms() ? UpperRoom.setAppConfig : TheVine.flock.config.set)(data);
       _reload('config');
+    });
+  }
+
+  function _cfgFilter(v) {
+    var term = (v || '').toLowerCase().trim();
+    document.querySelectorAll('.sys-cfg-card').forEach(function(card) {
+      var text = (card.textContent || '').toLowerCase();
+      card.style.display = (!term || text.indexOf(term) !== -1) ? '' : 'none';
+    });
+    document.querySelectorAll('.sys-cfg-group').forEach(function(group) {
+      var visibleCards = group.querySelectorAll('.sys-cfg-card:not([style*="display: none"]):not([style*="display:none"])');
+      group.style.display = visibleCards.length === 0 && term ? 'none' : '';
     });
   }
 
@@ -16187,6 +16340,7 @@ const Modules = (() => {
 
   // ── Interface Studio: live preview ──
   function _studioPreview() {
+    _studioDirty = true;
     var obj = { vars: {}, fonts: {}, sizes: {}, pads: {}, custom: '' };
 
     // Fonts
@@ -16435,6 +16589,7 @@ const Modules = (() => {
       description: 'Interface Studio overrides (fonts, sizes, padding, corners, shadows, custom CSS)',
       category: 'Display'
     }).then(function() {
+      _studioDirty = false;
       _toast('Interface Studio settings saved successfully.');
     }).catch(function(e) {
       _toast('Saved locally but backend save failed: ' + e.message, 'danger');
@@ -16444,6 +16599,7 @@ const Modules = (() => {
   // ── Interface Studio: reset ──
   function _studioReset() {
     if (!confirm('Reset all Interface Studio customizations to defaults? This cannot be undone.')) return;
+    _studioDirty = false;
     Adornment.clearOverrides();
     (_isFirebaseComms() ? UpperRoom.setAppConfig : TheVine.flock.config.set)({
       key: 'INTERFACE_OVERRIDES',
@@ -19629,6 +19785,112 @@ const Modules = (() => {
     if (typeof TheSeason !== 'undefined' && TheSeason.preload) TheSeason.preload();
   }, 1500);
 
+  // ══ Network Admin ═══════════════════════════════════════════════════════
+  // Registry of all known FlockOS deployments — embedded at build time.
+  var _networkChurches = [
+    { id: 'flockos',   name: 'FlockOS',               shortName: 'FlockOS',    version: '3.0', firebaseProject: null,
+      databaseUrl: 'https://script.google.com/macros/s/AKfycbx2pemG039LB609OlVY-OcqLWK75qRV2ZgZNyf4Oc7dGogCR2HC4C__iWUqlG9JfYLt/exec' },
+    { id: 'trinity',   name: 'Trinity Baptist Church', shortName: 'TBC',        version: '3.0', firebaseProject: 'flockos-trinity',
+      databaseUrl: 'https://script.google.com/macros/s/AKfycbwAFp0BQvt0DiDJBjzBrycMripfUHOkP0PwiB_DSXgGVezP_y8jCOVxZWweTp58gai7/exec' },
+    { id: 'theforest', name: 'The Forest',             shortName: 'TheForest',  version: '3.0', firebaseProject: 'flockos-theforest',
+      databaseUrl: 'https://script.google.com/macros/s/AKfycbwH7HY6_HK8NnP2R4IXfhsVQYnyAhWRStV8t5KJwaD7pnga0QKNj1mxwX5OAYwxEKDI/exec' },
+  ];
+
+  function _networkRender(el) {
+    var refreshBtn = '<button onclick="Modules._networkRefresh()" style="padding:7px 16px;border-radius:8px;border:1px solid var(--line);background:none;color:var(--ink);font-size:0.82rem;cursor:pointer;font-family:inherit;">\u21BB Refresh</button>';
+    _shell(el, 'Network Admin', 'Monitor all connected FlockOS church deployments.', refreshBtn);
+
+    var html = '';
+    html += '<div class="cp-snapshot-grid" style="margin-bottom:20px;">';
+    html += '<div class="cp-snapshot-item"><div class="cp-snapshot-label">Deployments</div><div class="cp-snapshot-value">' + _networkChurches.length + '</div></div>';
+    html += '<div class="cp-snapshot-item"><div class="cp-snapshot-label">Online</div><div class="cp-snapshot-value" id="net-count-ok">\u2014</div></div>';
+    html += '<div class="cp-snapshot-item"><div class="cp-snapshot-label">Offline</div><div class="cp-snapshot-value" id="net-count-down">\u2014</div></div>';
+    html += '<div class="cp-snapshot-item"><div class="cp-snapshot-label">Avg Latency</div><div class="cp-snapshot-value" id="net-avg-latency">\u2014</div></div>';
+    html += '</div>';
+
+    html += '<div class="network-grid">';
+    _networkChurches.forEach(function(church) {
+      html += '<div class="network-card" id="net-card-' + _e(church.id) + '">';
+      html += '<div class="network-card-header">';
+      html += '<div><div class="network-card-name">' + _e(church.name) + '</div>';
+      html += '<div class="network-card-id">' + _e(church.shortName) + ' &mdash; v' + _e(church.version) + '</div></div>';
+      html += '<span class="network-pill network-pill-checking" id="net-pill-' + _e(church.id) + '">\u25CF Checking\u2026</span>';
+      html += '</div>';
+      html += '<div class="network-card-meta">';
+      html += '<div class="network-meta-row"><span class="network-meta-label">Firebase</span>';
+      if (church.firebaseProject) {
+        html += '<span class="network-meta-val">' + _e(church.firebaseProject) + '</span>';
+      } else {
+        html += '<span class="network-meta-muted">Not configured</span>';
+      }
+      html += '</div>';
+      html += '<div class="network-meta-row"><span class="network-meta-label">Endpoint</span>';
+      html += '<a href="' + _e(church.databaseUrl) + '" target="_blank" rel="noopener" class="network-meta-link">GAS Script \u2197</a></div>';
+      html += '</div>';
+      html += '<div class="network-card-latency" id="net-latency-' + _e(church.id) + '"></div>';
+      html += '</div>';
+    });
+    html += '</div>';
+
+    _body(el, html);
+
+    // Async ping all endpoints
+    var results = { ok: 0, down: 0, latencies: [] };
+    var pending = _networkChurches.length;
+
+    function _onResult() {
+      pending--;
+      if (pending > 0) return;
+      // Update summary row
+      var countOk  = document.getElementById('net-count-ok');
+      var countDwn = document.getElementById('net-count-down');
+      var avgLat   = document.getElementById('net-avg-latency');
+      if (countOk)  countOk.textContent  = String(results.ok);
+      if (countDwn) countDwn.textContent = String(results.down);
+      if (avgLat)   avgLat.textContent   = results.latencies.length
+        ? Math.round(results.latencies.reduce(function(a, b) { return a + b; }, 0) / results.latencies.length) + 'ms'
+        : '\u2014';
+    }
+
+    _networkChurches.forEach(function(church) {
+      var pill   = document.getElementById('net-pill-' + church.id);
+      var latEl  = document.getElementById('net-latency-' + church.id);
+      var t0     = Date.now();
+      var url    = church.databaseUrl + '?action=health&_nc=' + t0;
+
+      var controller = new AbortController();
+      var timer = setTimeout(function() { controller.abort(); }, 8000);
+
+      fetch(url, { method: 'GET', mode: 'no-cors', cache: 'no-store', signal: controller.signal })
+        .then(function() {
+          clearTimeout(timer);
+          var latency = Date.now() - t0;
+          results.ok++;
+          results.latencies.push(latency);
+          if (pill)  { pill.className = 'network-pill network-pill-ok'; pill.textContent = '\u25CF Online'; }
+          if (latEl) latEl.textContent = latency + 'ms';
+          _onResult();
+        })
+        .catch(function() {
+          clearTimeout(timer);
+          results.down++;
+          if (pill)  { pill.className = 'network-pill network-pill-down'; pill.textContent = '\u25CF Offline'; }
+          if (latEl) latEl.textContent = 'Unreachable';
+          _onResult();
+        });
+    });
+  }
+
+  var _networkEl = null;
+  function _networkRefresh() {
+    if (_networkEl) _networkRender(_networkEl);
+  }
+
+  _def('network', function(el) {
+    _networkEl = el;
+    _networkRender(el);
+  });
+
   return {
     render,
     applyVisibility: _applyModuleVisibility,
@@ -19720,6 +19982,8 @@ const Modules = (() => {
     newUser,
     newConfig,
     saveCardPrefix,
+    _saveIdentity,
+    _cfgFilter,
     _reloadConfig,
     toggleLockdown,
     saveGlobalTheme,

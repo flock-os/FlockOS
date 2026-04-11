@@ -4559,6 +4559,229 @@ details.settings-section.settings-accordion > .settings-accordion-trigger {
 }
 
 /* ══════════════════════════════════════════════════════════════════════════════
+   CONTROL PANEL — OVERVIEW TAB
+   ══════════════════════════════════════════════════════════════════════════════ */
+/* Health bar */
+.cp-health-bar {
+  background: var(--bg-raised, #1a1a2e);
+  border: 1px solid var(--line, #333);
+  border-radius: 14px;
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+.cp-health-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--line, #333);
+  transition: background 0.15s;
+}
+.cp-health-row:last-child { border-bottom: none; }
+.cp-health-row:hover { background: rgba(255,255,255,0.02); }
+.cp-health-icon {
+  font-size: 1.2rem;
+  width: 28px;
+  text-align: center;
+  flex-shrink: 0;
+}
+.cp-health-body { flex: 1; min-width: 0; }
+.cp-health-label {
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--ink, #e0e0e0);
+  margin-bottom: 2px;
+}
+.cp-health-detail {
+  font-size: 0.74rem;
+  color: var(--ink-muted, #888);
+  font-family: monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 320px;
+}
+/* Snapshot grid */
+.cp-snapshot-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 1px;
+  background: var(--line, #333);
+  border: 1px solid var(--line, #333);
+  border-radius: 14px;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+.cp-snapshot-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 16px;
+  background: var(--bg-raised, #1a1a2e);
+  transition: background 0.15s;
+}
+.cp-snapshot-item:hover { background: var(--bg-sunken, rgba(0,0,0,0.2)); }
+.cp-snapshot-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--ink-muted, #888);
+}
+.cp-snapshot-value {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--ink, #e0e0e0);
+  word-break: break-word;
+}
+/* Quick actions */
+.cp-quick-actions {
+  margin-bottom: 24px;
+}
+.cp-quick-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-muted, #888);
+  margin-bottom: 8px;
+}
+.cp-quick-btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.cp-quick-btn {
+  padding: 8px 16px;
+  border: 1px solid var(--line, #333);
+  border-radius: 8px;
+  background: var(--bg-raised, #1a1a2e);
+  color: var(--ink, #e0e0e0);
+  font-size: 0.82rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  white-space: nowrap;
+}
+.cp-quick-btn:hover {
+  border-color: var(--accent, #22d3ee);
+  color: var(--accent, #22d3ee);
+}
+/* Church Identity card */
+.cp-identity-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
+}
+.cp-identity-field { display: flex; flex-direction: column; gap: 5px; }
+.cp-identity-label {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--ink-muted, #888);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.cp-identity-hint {
+  font-size: 0.72rem;
+  color: var(--ink-faint, #666);
+  line-height: 1.4;
+}
+@media (max-width: 600px) {
+  .cp-identity-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 600px) {
+  .cp-health-detail { max-width: 160px; }
+  .cp-snapshot-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   NETWORK ADMIN
+   ══════════════════════════════════════════════════════════════════════════════ */
+.network-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.network-card {
+  background: var(--bg-raised, #1a1a2e);
+  border: 1px solid var(--line, #333);
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: border-color 0.2s;
+}
+.network-card:hover { border-color: var(--accent, #22d3ee); }
+.network-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+.network-card-name {
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--ink, #e0e0e0);
+  line-height: 1.3;
+}
+.network-card-id {
+  font-size: 0.72rem;
+  color: var(--ink-muted, #888);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-top: 2px;
+}
+.network-pill {
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.network-pill-checking { background: rgba(255,255,255,0.07); color: var(--ink-muted,#888); }
+.network-pill-ok       { background: rgba(34,197,94,0.15);  color: #4ade80; }
+.network-pill-down     { background: rgba(239,68,68,0.15);  color: #f87171; }
+.network-card-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.network-meta-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 0.8rem;
+}
+.network-meta-label {
+  font-weight: 700;
+  color: var(--ink-muted, #888);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  min-width: 64px;
+}
+.network-meta-val { color: var(--ink, #e0e0e0); }
+.network-meta-muted { color: var(--ink-faint, #666); font-style: italic; }
+.network-meta-link {
+  color: var(--accent, #22d3ee);
+  text-decoration: none;
+  font-size: 0.78rem;
+}
+.network-meta-link:hover { text-decoration: underline; }
+.network-card-latency {
+  font-size: 0.72rem;
+  color: var(--ink-faint, #666);
+  min-height: 14px;
+}
+@media (max-width: 600px) {
+  .network-grid { grid-template-columns: 1fr; }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
    SETTINGS TAB NAVIGATION
    ══════════════════════════════════════════════════════════════════════════════ */
 .config-tabs-bar {
