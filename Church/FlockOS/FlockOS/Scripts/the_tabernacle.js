@@ -19906,7 +19906,7 @@ const Modules = (() => {
   // Registry of all known FlockOS deployments — embedded at build time.
   var _networkChurches = [
     { id: 'flockos',   name: 'FlockOS',               shortName: 'FlockOS',    version: '3.0', firebaseProject: null,
-      databaseUrl: 'https://script.google.com/macros/s/AKfycbx2pemG039LB609OlVY-OcqLWK75qRV2ZgZNyf4Oc7dGogCR2HC4C__iWUqlG9JfYLt/exec' },
+      databaseUrl: '' },
     { id: 'trinity',   name: 'Trinity Baptist Church', shortName: 'TBC',        version: '3.0', firebaseProject: 'flockos-trinity',
       databaseUrl: 'https://script.google.com/macros/s/AKfycbwAFp0BQvt0DiDJBjzBrycMripfUHOkP0PwiB_DSXgGVezP_y8jCOVxZWweTp58gai7/exec' },
     { id: 'theforest', name: 'The Forest',             shortName: 'TheForest',  version: '3.0', firebaseProject: 'flockos-theforest',

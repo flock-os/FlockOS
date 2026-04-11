@@ -40,7 +40,9 @@ window.FLOCK_FIREBASE_CONFIG = {"apiKey":"AIzaSyCnIbShg2ra1t4EiP3CffsivwvIK-bNu8
   function _uid()    { return _db.collection('_').doc().id; }
 
   function _churchRef() {
-    return _db.collection('churches').doc(_churchId);
+    // Collections live at the root of each church's own Firebase project —
+    // no churches/{churchId}/ nesting needed; the project IS the boundary.
+    return _db;
   }
   var _churchDoc = _churchRef;
   function _convosRef() {
