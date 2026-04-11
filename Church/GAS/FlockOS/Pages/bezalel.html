@@ -971,12 +971,28 @@ function _clearAll() {
 }
 
 function _genPassword() {
-  var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  var arr = new Uint8Array(16);
+  var upper   = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+  var lower   = 'abcdefghjkmnpqrstuvwxyz';
+  var digits  = '23456789';
+  var special = '!@#$%^&*()-_=+[]{}|;:,.<>?';
+  var all     = upper + lower + digits + special;
+  // Guarantee at least one from each charset
+  var required = [
+    upper  [new Uint8Array(1).fill(window.crypto.getRandomValues(new Uint8Array(1))[0])[0] % upper.length],
+    lower  [window.crypto.getRandomValues(new Uint8Array(1))[0] % lower.length],
+    digits [window.crypto.getRandomValues(new Uint8Array(1))[0] % digits.length],
+    special[window.crypto.getRandomValues(new Uint8Array(1))[0] % special.length]
+  ];
+  var arr = new Uint8Array(8);
   window.crypto.getRandomValues(arr);
-  var result = '';
-  for (var i = 0; i < 16; i++) result += chars[arr[i] % chars.length];
-  return result;
+  var result = required;
+  for (var i = 0; i < 8; i++) result.push(all[arr[i] % all.length]);
+  // Fisher-Yates shuffle
+  for (var j = result.length - 1; j > 0; j--) {
+    var k = window.crypto.getRandomValues(new Uint8Array(1))[0] % (j + 1);
+    var tmp = result[j]; result[j] = result[k]; result[k] = tmp;
+  }
+  return result.join('');
 }
 
 function _genFill(inputId) {
