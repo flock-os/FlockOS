@@ -19590,6 +19590,36 @@ const Modules = (() => {
   }
 
   async function _adConnectionCard() {
+    // ── 0. GitHub Issues API ping ─────────────────────────────────────────
+    var ghStatus = 'pending', ghLatency = null, ghErrorDetail = '', ghNote = '';
+    try {
+      var ghT0 = performance.now();
+      var ghResp = await fetch('https://api.github.com/repos/flock-os/FlockOS',
+        { headers: { 'Accept': 'application/vnd.github.v3+json' } });
+      ghLatency = Math.round(performance.now() - ghT0);
+      if (ghResp.ok) {
+        ghStatus = 'online';
+        try {
+          var ghData = await ghResp.json();
+          ghNote = 'Open issues: ' + (ghData.open_issues_count || 0)
+                 + (ghData.private ? ' — private repo' : ' — public repo');
+        } catch (_) {}
+      } else if (ghResp.status === 404) {
+        // Private repo — API is reachable but repo is not publicly visible
+        ghStatus = 'online';
+        ghNote = 'Private repo — API reachable. Token auth handled server-side.';
+      } else if (ghResp.status === 403) {
+        ghStatus = 'degraded';
+        ghErrorDetail = 'GitHub rate-limited or forbidden (HTTP 403)';
+      } else {
+        ghStatus = 'degraded';
+        ghErrorDetail = 'HTTP ' + ghResp.status;
+      }
+    } catch (ghErr) {
+      ghStatus = 'offline';
+      ghErrorDetail = ghErr && ghErr.message ? ghErr.message : 'Network error';
+    }
+
     // ── 1. GAS health ping (FLOCK branch) ────────────────────────────────
     var gasStatus = 'pending', gasLatency = null, gasUrl = '';
     var gasErrorDetail = '';
@@ -19761,6 +19791,17 @@ const Modules = (() => {
           : 'No <code>settings/sync</code> doc found. Add <code>gasEndpoint</code> + <code>syncSecret</code> to enable Type D sync.'
       );
     }
+
+    // GitHub Issues row
+    html += _connRow(
+      'GitHub Issues Sync',
+      '&#128030;',
+      ghStatus,
+      ghLatency,
+      ghErrorDetail,
+      'https://github.com/flock-os/FlockOS/issues',
+      ghNote || 'Problems sync via <code>syncProblems</code> Cloud Function. Token auth is server-side only.'
+    );
 
     // Re-test button
     html += '<div style="margin-top:10px;text-align:right;">'
