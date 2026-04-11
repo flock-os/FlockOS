@@ -485,6 +485,14 @@ const TheShepherd = (() => {
         _ppF('Tags', 'mem_tags', memberRec.tags, 'text'),
         _ppF('Website', 'mem_website', memberRec.website, 'text'));
       html += _ppSec('Ministry & Follow-Up', 'ministry', min);
+
+      // ─ Delete member record (admins only) ─
+      var memDelId = _e(memberRec.id || '');
+      html += '<div style="margin-top:8px;padding:12px 16px;border:1px solid var(--line);border-radius:8px;">';
+      html += '<button type="button" onclick="TheShepherd._deleteMember(\'' + memDelId + '\', \'' + eid + '\')"'
+           + ' style="background:var(--destructive,#c0392b);color:#fff;border:none;border-radius:6px;padding:6px 14px;font-weight:600;cursor:pointer;font-size:0.78rem;">'
+           + '\uD83D\uDDD1\uFE0F Delete Member Record</button>';
+      html += '</div>';
     } else {
       html += _ppSec('Member Record', 'member-none',
         '<p style="color:var(--ink-muted);font-size:0.84rem;">No member record linked to this account.</p>'
@@ -1016,6 +1024,19 @@ const TheShepherd = (() => {
     } catch (e) { alert('Failed: ' + (e.message || e)); }
   }
 
+  async function _deleteMember(memberId, email) {
+    if (!memberId && !email) return;
+    var label = email && email.indexOf('_mid_') !== 0 ? email : (memberId || 'this member');
+    if (!confirm('Permanently DELETE the member record for ' + label + '?\n\nThis removes their record from Members. The login account (if any) is NOT deleted.\n\nThis cannot be undone.')) return;
+    try {
+      await (_isFB() ? UpperRoom.deleteMember(memberId || email) : TheVine.flock.call('members.delete', { id: memberId, targetEmail: email && email.indexOf('_mid_') !== 0 ? email : '' }));
+      _toast('Member record deleted.', 'success');
+      if (typeof TheScrolls !== 'undefined') TheScrolls.log(TheScrolls.TYPES.ADMIN_ACTION, email, 'Deleted member record', { memberId: memberId });
+      // Return to people list since the profile no longer has a member record
+      renderApp(_container);
+    } catch (e) { alert('Failed: ' + (e.message || e)); }
+  }
+
   async function _createCard(email) {
     var p = _ppData[(email || '').toLowerCase()] || {};
     var u = p.user || {};
@@ -1293,6 +1314,7 @@ const TheShepherd = (() => {
     _onGrpChkChange:    _onGrpChkChange,
     _savePerms:         _savePerms,
     _deleteUser: _deleteUser,
+    _deleteMember: _deleteMember,
     _resetPasscode: _resetPasscode,
     _createUserAccount: _createUserAccount,
   };

@@ -174,6 +174,7 @@ const Temple = (() => {
     'users.create':            { api: APIS.FLOCK, minRole: RBAC.admin },
     'users.update':            { api: APIS.FLOCK, minRole: RBAC.admin },
     'users.deactivate':        { api: APIS.FLOCK, minRole: RBAC.admin },
+    'users.delete':            { api: APIS.FLOCK, minRole: RBAC.admin },
     'users.resetPasscode':     { api: APIS.FLOCK, minRole: RBAC.admin },
 
     /* ── ACCESS & CONFIG ─── */
