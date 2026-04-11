@@ -10575,7 +10575,7 @@ const Modules = (() => {
       html += '<div class="cp-health-icon">&#128196;</div>';
       html += '<div class="cp-health-body">';
       html += '<div class="cp-health-label">Database (GAS)</div>';
-      html += '<div class="cp-health-detail" id="cp-gas-url">' + _e((typeof TheVine !== 'undefined' ? (TheVine.flock.endpoint ? TheVine.flock.endpoint() : '') : '').replace('https://script.google.com/macros/s/', '').substring(0, 36) + '…' || 'Not configured') + '</div>';
+      html += '<div class="cp-health-detail" id="cp-gas-url">' + _e((typeof TheVine !== 'undefined' ? (TheVine.endpoints().FLOCK_URL || '') : '').replace('https://script.google.com/macros/s/', '').substring(0, 36) + '…' || 'Not configured') + '</div>';
       html += '</div>';
       html += '<span class="health-pill health-pill-unknown" id="cp-gas-pill"><span class="health-dot"></span><span id="cp-gas-pill-text">Checking…</span></span>';
       html += '</div>';
@@ -19497,7 +19497,7 @@ const Modules = (() => {
     var gasStatus = 'pending', gasLatency = null, gasUrl = '';
     var gasErrorDetail = '';
     try {
-      gasUrl = (typeof TheVine !== 'undefined') ? (TheVine.flock.endpoint() || '') : '';
+      gasUrl = (typeof TheVine !== 'undefined') ? (TheVine.endpoints().FLOCK_URL || '') : '';
       if (!gasUrl || gasUrl === '(not configured)') {
         gasStatus = 'not configured';
       } else {
