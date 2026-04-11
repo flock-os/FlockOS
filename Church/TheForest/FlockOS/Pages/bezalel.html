@@ -19,6 +19,8 @@
   <script defer src="../Scripts/the_wellspring.js"></script>
   <script defer src="../Scripts/firm_foundation.js"></script>
   <script src="bezalel_codex.js"></script>
+  <script src="bezalel_firestoresync_codex.js"></script>
+  <script src="bezalel_synchandler_codex.js"></script>
   <style>
     :root {
       --bg:          #1a1a2e;
@@ -460,7 +462,7 @@
               <button class="gen-btn" onclick="_genFill('f_SYNC_SECRET')" title="Generate 16-char password">&#9889;</button>
               <button class="eye-btn" onclick="_toggleEye('f_SYNC_SECRET', this)">&#128065;</button>
             </div>
-            <span class="field-note">Stored in Firestore at <code>churches/{id}.syncSecret</code></span>
+            <span class="field-note">Stored in Firestore at <code>churches/{id}.syncSecret</code>. If you change this, update both GAS Script Properties <em>and</em> Firestore <code>churches/{id}.syncSecret</code> — they must match or sync calls will be rejected.</span>
           </div>
           <div class="field">
             <label>MASTER_SYNC_SECRET <span class="req">*</span></label>
@@ -469,7 +471,7 @@
               <button class="gen-btn" onclick="_genFill('f_MASTER_SYNC_SECRET')" title="Generate 16-char password">&#9889;</button>
               <button class="eye-btn" onclick="_toggleEye('f_MASTER_SYNC_SECRET', this)">&#128065;</button>
             </div>
-            <span class="field-note">Same value across all churches — from <code>master-api.json</code></span>
+            <span class="field-note">Same value across all churches — from <code>master-api.json</code>. If you change this, update Script Properties on every church's GAS project.</span>
           </div>
           <div class="field span2">
             <label>FIREBASE_SERVICE_ACCOUNT <span class="req">*</span>
@@ -508,6 +510,7 @@
               <button class="gen-btn" onclick="_genFill('f_ADMIN_PASSWORD')" title="Generate 16-char password">&#9889;</button>
               <button class="eye-btn" onclick="_toggleEye('f_ADMIN_PASSWORD', this)">&#128065;</button>
             </div>
+            <span class="field-note">Used only during <code>setupFlockOS()</code>. <strong>Delete from Script Properties immediately after setup.</strong> To reset later, set a new value in Script Properties and run <code>setupFlockOS()</code> again — or update the password hash directly in Firestore.</span>
           </div>
         </div>
       </div>
@@ -555,6 +558,28 @@
 // or Preview to see the first 60 lines here.</div>
       </div>
 
+      <!-- FirestoreSync.gs output -->
+      <div class="output-card" style="margin-bottom:16px;">
+        <div class="output-toolbar">
+          <span class="output-title">&#128196; FirestoreSync.gs — Firestore→Sheet Backup</span>
+          <span id="firestoreSyncLineCt" style="font-size:0.7rem;color:var(--ink-muted);margin-right:auto;"></span>
+          <button class="btn btn-sm btn-gold" onclick="_copyFirestoreSync(this)">&#128203; Copy</button>
+        </div>
+        <div class="output-body" style="color:var(--ink-muted);font-style:italic;min-height:40px;">// Reads Firestore collections → writes to Google Sheet tabs as hourly backup.
+// After pasting: run installFirestoreSyncTrigger() to start the hourly schedule.</div>
+      </div>
+
+      <!-- SyncHandler.gs output -->
+      <div class="output-card" style="margin-bottom:16px;">
+        <div class="output-toolbar">
+          <span class="output-title">&#128196; SyncHandler.gs — Cloud Function Receiver</span>
+          <span id="syncHandlerLineCt" style="font-size:0.7rem;color:var(--ink-muted);margin-right:auto;"></span>
+          <button class="btn btn-sm btn-gold" onclick="_copySyncHandler(this)">&#128203; Copy</button>
+        </div>
+        <div class="output-body" style="color:var(--ink-muted);font-style:italic;min-height:40px;">// Handles sync.write calls from the Cloud Function.
+// Validates SYNC_SECRET and maps Firestore collections to Sheet tabs.</div>
+      </div>
+
       <!-- Setup.gs output -->
       <div class="output-card">
         <div class="output-toolbar">
@@ -593,8 +618,24 @@
             </div>
           </div>
 
-          <div class="step warn">
+          <div class="step">
             <div class="step-num">3</div>
+            <div class="step-body">
+              <strong>Add FirestoreSync.gs</strong>
+              <p>In Apps Script, click <strong>+</strong> to add a new file. Name it <code>FirestoreSync.gs</code>. Paste the copied block in. Save. This handles hourly Firestore → Sheet backups.</p>
+            </div>
+          </div>
+
+          <div class="step">
+            <div class="step-num">4</div>
+            <div class="step-body">
+              <strong>Add SyncHandler.gs</strong>
+              <p>Same — create <code>SyncHandler.gs</code> and paste in the copied block. Save. This receives real-time sync writes from the Cloud Function.</p>
+            </div>
+          </div>
+
+          <div class="step warn">
+            <div class="step-num">5</div>
             <div class="step-body">
               <strong>Set Script Properties</strong>
               <p>Copy the generated block above. Paste it into a new file in Apps Script (e.g., <code>Setup.gs</code>). Save, then run <code>setAllScriptProperties_()</code>. You'll be prompted to authorize.</p>
@@ -602,7 +643,7 @@
           </div>
 
           <div class="step danger">
-            <div class="step-num">4</div>
+            <div class="step-num">6</div>
             <div class="step-body">
               <strong>Delete Setup.gs immediately</strong>
               <p>After the function runs successfully, <strong>delete <code>Setup.gs</code></strong> before you do anything else. It contains plaintext credentials.</p>
@@ -610,7 +651,7 @@
           </div>
 
           <div class="step">
-            <div class="step-num">5</div>
+            <div class="step-num">7</div>
             <div class="step-body">
               <strong>Run <code>setupFlockOS()</code></strong>
               <p>Back in <code>Code.gs</code>, run the <code>setupFlockOS()</code> function. It seeds all defaults and creates the admin user. Check the Execution Log for success.</p>
@@ -618,7 +659,7 @@
           </div>
 
           <div class="step warn">
-            <div class="step-num">6</div>
+            <div class="step-num">8</div>
             <div class="step-body">
               <strong>Delete ADMIN_PASSWORD</strong>
               <p>After setup completes, go to ⚙ Project Settings → Script Properties. Find <code>ADMIN_PASSWORD</code> and <strong>delete it</strong>.</p>
@@ -626,7 +667,7 @@
           </div>
 
           <div class="step">
-            <div class="step-num">7</div>
+            <div class="step-num">9</div>
             <div class="step-body">
               <strong>Deploy as Web App</strong>
               <p>Deploy → New Deployment → Web App. Set "Execute as: Me" and "Who has access: Anyone". Copy the Web App URL.</p>
@@ -634,7 +675,7 @@
           </div>
 
           <div class="step">
-            <div class="step-num">8</div>
+            <div class="step-num">10</div>
             <div class="step-body">
               <strong>Register the URL</strong>
               <p>Paste the Web App URL into <code>CHURCH_APP_URL</code> above, copy the regenerated block, run again (only the URL property will change). Then run <code>registerChurchUrl()</code> in GAS.</p>
@@ -1079,6 +1120,14 @@ function _initCodeGsPanel() {
   if (ct && window.BEZALEL_CODE_GS_LINES) {
     ct.textContent = window.BEZALEL_CODE_GS_LINES.toLocaleString() + ' lines';
   }
+  var fct = document.getElementById('firestoreSyncLineCt');
+  if (fct && window.BEZALEL_FIRESTORESYNC_GS_LINES) {
+    fct.textContent = window.BEZALEL_FIRESTORESYNC_GS_LINES.toLocaleString() + ' lines';
+  }
+  var shct = document.getElementById('syncHandlerLineCt');
+  if (shct && window.BEZALEL_SYNCHANDLER_GS_LINES) {
+    shct.textContent = window.BEZALEL_SYNCHANDLER_GS_LINES.toLocaleString() + ' lines';
+  }
 }
 document.addEventListener('DOMContentLoaded', _initCodeGsPanel);
 
@@ -1126,6 +1175,43 @@ function _codeGsToast(btn, orig) {
   t.textContent = '\u2713 Code.gs copied to clipboard';
   t.classList.add('show');
   setTimeout(function() { t.classList.remove('show'); t.textContent = '\u2713 Copied to clipboard'; }, 2500);
+}
+
+// ── FirestoreSync.gs + SyncHandler.gs output ──────────────────────────────
+function _copyFirestoreSync(btn) {
+  var content = window.BEZALEL_FIRESTORESYNC_GS;
+  if (!content) { alert('FirestoreSync.gs not loaded. Run build_churches.sh to generate bezalel_firestoresync_codex.js first.'); return; }
+  _copyGsFile(btn, content, '\u2713 FirestoreSync.gs copied to clipboard');
+}
+
+function _copySyncHandler(btn) {
+  var content = window.BEZALEL_SYNCHANDLER_GS;
+  if (!content) { alert('SyncHandler.gs not loaded. Run build_churches.sh to generate bezalel_synchandler_codex.js first.'); return; }
+  _copyGsFile(btn, content, '\u2713 SyncHandler.gs copied to clipboard');
+}
+
+function _copyGsFile(btn, content, toastMsg) {
+  var orig = btn ? btn.innerHTML : '';
+  function _done() {
+    if (btn) {
+      btn.innerHTML = '&#10003; Copied!';
+      btn.classList.add('btn-success'); btn.classList.remove('btn-gold');
+      setTimeout(function() { btn.innerHTML = orig; btn.classList.remove('btn-success'); btn.classList.add('btn-gold'); }, 2200);
+    }
+    var t = document.getElementById('toast');
+    t.textContent = toastMsg;
+    t.classList.add('show');
+    setTimeout(function() { t.classList.remove('show'); t.textContent = '\u2713 Copied to clipboard'; }, 2500);
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(content).then(_done);
+  } else {
+    var ta = document.createElement('textarea');
+    ta.value = content;
+    ta.style.cssText = 'position:fixed;opacity:0;pointer-events:none;';
+    document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+    _done();
+  }
 }
 
 function _toggleHistory() {
