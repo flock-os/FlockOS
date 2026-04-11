@@ -26,7 +26,7 @@
       --topbar-h:    56px;
     }
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    html { font-size: 100%; -webkit-text-size-adjust: 100%; }
+    html { font-size: 100%; -webkit-text-size-adjust: 100%; overflow-x: hidden; }
 
     /* ── Matrix Rain Canvas ─────────────────────────────────────────────── */
     #matrixCanvas {
@@ -54,6 +54,7 @@
       color: var(--ink);
       line-height: 1.6;
       min-height: 100vh;
+      overflow-x: hidden;
       position: relative;
       z-index: 2;
       text-shadow: 0 0 6px rgba(0,255,65,0.5);
@@ -215,6 +216,7 @@
     .field textarea {
       font-family: 'Share Tech Mono', 'Courier New', monospace; font-size: 0.73rem;
       resize: vertical; min-height: 80px;
+      word-break: break-all; overflow-wrap: break-word; white-space: pre-wrap;
     }
     .field .secret-wrap { position: relative; display: flex; align-items: center; }
     .field .secret-wrap input { padding-right: 40px; }
