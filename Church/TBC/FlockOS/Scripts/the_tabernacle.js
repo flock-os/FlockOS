@@ -19523,6 +19523,8 @@ const Modules = (() => {
     } catch (_) {}
 
     // ── 3. Sync doc check (Type C vs D) ──────────────────────────────────
+    // Primary: read Firestore settings/sync doc. This may be blocked by security rules
+    // (syncSecret is sensitive), so we fall back to the configured FLOCK_URL.
     var hasSyncDoc = false;
     var syncEndpoint = '';
     if (fbReady && fbMode) {
@@ -19534,11 +19536,16 @@ const Modules = (() => {
             .collection('settings').doc('sync').get();
           if (syncDoc.exists) {
             var sd = syncDoc.data();
-            hasSyncDoc  = !!(sd.gasEndpoint && sd.syncSecret);
+            hasSyncDoc  = !!(sd.gasEndpoint || sd.syncSecret);
             syncEndpoint = sd.gasEndpoint || '';
           }
         }
       } catch (_) {}
+      // Fallback: if Firestore read was blocked by rules, infer from configured GAS endpoint
+      if (!hasSyncDoc && gasUrl) {
+        hasSyncDoc   = true;
+        syncEndpoint = syncEndpoint || gasUrl;
+      }
     }
 
     // ── 4. Determine connection type ─────────────────────────────────────
