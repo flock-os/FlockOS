@@ -14580,7 +14580,8 @@ function handleFirebaseToken(params, auth) {
     claims: {
       email:    email,
       churchId: churchId,
-      role:     role
+      role:     role,
+      isSeed:   isSeedAdmin_(auth)  // seed admin bypass for Firestore rules
     }
   };
 

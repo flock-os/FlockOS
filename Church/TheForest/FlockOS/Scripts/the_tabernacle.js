@@ -16178,6 +16178,36 @@ const Modules = (() => {
       + '<input id="wiz-' + name + '" type="' + (type || 'text') + '" style="width:100%;background:rgba(255,255,255,0.07);border:1px solid var(--line);border-radius:6px;padding:8px 12px;color:var(--ink);font-size:max(1rem,16px);font-family:inherit;"></div>';
   }
 
+  // ── Config write helpers — try Firestore, fall back to GAS on permission denial ─
+  async function _setAppCfg(data) {
+    if (_isFirebaseComms()) {
+      try {
+        return await UpperRoom.setAppConfig(data);
+      } catch (e) {
+        var msg = e && (e.message || e.code || String(e));
+        if (/permission|PERMISSION_DENIED|insufficient/i.test(msg)) {
+          return await TheVine.flock.config.set(data);
+        }
+        throw e;
+      }
+    }
+    return TheVine.flock.config.set(data);
+  }
+  async function _updateAppCfg(data) {
+    if (_isFirebaseComms()) {
+      try {
+        return await UpperRoom.updateAppConfig(data);
+      } catch (e) {
+        var msg = e && (e.message || e.code || String(e));
+        if (/permission|PERMISSION_DENIED|insufficient/i.test(msg)) {
+          return await TheVine.flock.config.update(data);
+        }
+        throw e;
+      }
+    }
+    return TheVine.flock.config.update(data);
+  }
+
   // ── Church Identity bulk-save ───────────────────────────────────────────
   async function _saveIdentity() {
     var statusEl = document.getElementById('ci-save-status');
@@ -16189,7 +16219,7 @@ const Modules = (() => {
       var v = inp.value.trim();
       if (!k || v === '') return;
       ops.push(
-        (_isFirebaseComms() ? UpperRoom.setAppConfig : TheVine.flock.config.set)({ key: k, value: v })
+        _setAppCfg({ key: k, value: v })
       );
     });
     try {
@@ -16209,7 +16239,7 @@ const Modules = (() => {
       { name: 'value',       label: 'Value',       required: true },
       { name: 'description', label: 'Description' },
     ], async data => {
-      await (_isFirebaseComms() ? UpperRoom.setAppConfig : TheVine.flock.config.set)(data);
+      await _setAppCfg(data);
       _reload('config');
     });
   }
@@ -16241,7 +16271,7 @@ const Modules = (() => {
     } else {
       // Fallback: write to church-scoped appConfig (legacy GAS path)
       var val = on ? 'TRUE' : 'FALSE';
-      (_isFirebaseComms() ? UpperRoom.setAppConfig : TheVine.flock.config.set)({ key: 'LOCKDOWN', value: val, description: 'Emergency lockdown — blocks public portal, restricts admin to Pastor/Admin' })
+      _setAppCfg({ key: 'LOCKDOWN', value: val, description: 'Emergency lockdown — blocks public portal, restricts admin to Pastor/Admin' })
         .then(function() {
           _toast(on ? 'LOCKDOWN ACTIVATED — Public portal is now blocked.' : 'Lockdown lifted — site is live again.', 'danger');
           _reload('config');
@@ -16265,7 +16295,7 @@ const Modules = (() => {
     if (!val || !/^[A-Z0-9]{1,10}$/.test(val)) {
       _toast('Prefix must be 1\u201310 alphanumeric characters.', 'warn'); return;
     }
-    (_isFirebaseComms() ? UpperRoom.setAppConfig : TheVine.flock.config.set)({ key: 'CARD_PREFIX', value: val, description: 'Member card number prefix' })
+    _setAppCfg({ key: 'CARD_PREFIX', value: val, description: 'Member card number prefix' })
       .then(() => { _toast('Card prefix saved: ' + val); })
       .catch(e => _toast('Error saving prefix: ' + e.message, 'danger'));
   }
@@ -16274,7 +16304,7 @@ const Modules = (() => {
     const sel = document.getElementById('global-theme-select');
     if (!sel) return;
     const val = sel.value;
-    (_isFirebaseComms() ? UpperRoom.setAppConfig : TheVine.flock.config.set)({ key: 'GLOBAL_THEME', value: val, description: 'Church-wide theme override (default = member choice)' })
+    _setAppCfg({ key: 'GLOBAL_THEME', value: val, description: 'Church-wide theme override (default = member choice)' })
       .then(() => {
         localStorage.setItem('flock_global_theme', val);
         if (val && val !== 'default' && typeof Adornment !== 'undefined') {
@@ -16307,7 +16337,7 @@ const Modules = (() => {
     var val = inp.value;
     localStorage.setItem('flock_font_scale', val);
     document.documentElement.style.fontSize = val + '%';
-    (_isFirebaseComms() ? UpperRoom.setAppConfig : TheVine.flock.config.set)({ key: 'FONT_SCALE', value: val, description: 'Desktop font size scale (percentage, default 100)', category: 'Display' })
+    _setAppCfg({ key: 'FONT_SCALE', value: val, description: 'Desktop font size scale (percentage, default 100)', category: 'Display' })
       .then(function() { _toast('Desktop font size saved: ' + val + '%'); _reload('config'); })
       .catch(function() { _toast('Desktop font size saved: ' + val + '%'); _reload('config'); });
   }
@@ -16318,7 +16348,7 @@ const Modules = (() => {
     var val = inp.value;
     localStorage.setItem('flock_font_scale_mobile', val);
     document.documentElement.style.fontSize = val + '%';
-    (_isFirebaseComms() ? UpperRoom.setAppConfig : TheVine.flock.config.set)({ key: 'FONT_SCALE_MOBILE', value: val, description: 'Mobile font size scale (percentage, default 100)', category: 'Display' })
+    _setAppCfg({ key: 'FONT_SCALE_MOBILE', value: val, description: 'Mobile font size scale (percentage, default 100)', category: 'Display' })
       .then(function() { _toast('Mobile font size saved: ' + val + '%'); _reload('config'); })
       .catch(function() { _toast('Mobile font size saved: ' + val + '%'); _reload('config'); });
   }
@@ -16328,7 +16358,7 @@ const Modules = (() => {
     if (!sel) return;
     var val = sel.value;
     localStorage.setItem('flock_quiz_size', val);
-    (_isFirebaseComms() ? UpperRoom.setAppConfig : TheVine.flock.config.set)({ key: 'QUIZ_SIZE', value: val, description: 'Number of questions per Bible Quiz attempt (0 = all)', category: 'Display' })
+    _setAppCfg({ key: 'QUIZ_SIZE', value: val, description: 'Number of questions per Bible Quiz attempt (0 = all)', category: 'Display' })
       .then(function() { _toast('Quiz size saved: ' + (val === '0' ? 'All Questions' : val + ' questions')); _reload('config'); })
       .catch(function() { _toast('Quiz size saved: ' + (val === '0' ? 'All Questions' : val + ' questions')); _reload('config'); });
   }
@@ -16578,7 +16608,7 @@ const Modules = (() => {
     localStorage.setItem(Adornment.OVERRIDE_LS_KEY, JSON.stringify(obj));
 
     // Persist to backend
-    (_isFirebaseComms() ? UpperRoom.setAppConfig : TheVine.flock.config.set)({
+    _setAppCfg({
       key: 'INTERFACE_OVERRIDES',
       value: JSON.stringify(obj),
       description: 'Interface Studio overrides (fonts, sizes, padding, corners, shadows, custom CSS)',
@@ -16596,7 +16626,7 @@ const Modules = (() => {
     if (!confirm('Reset all Interface Studio customizations to defaults? This cannot be undone.')) return;
     _studioDirty = false;
     Adornment.clearOverrides();
-    (_isFirebaseComms() ? UpperRoom.setAppConfig : TheVine.flock.config.set)({
+    _setAppCfg({
       key: 'INTERFACE_OVERRIDES',
       value: '',
       description: 'Interface Studio overrides (fonts, sizes, padding, corners, shadows, custom CSS)',
@@ -16677,7 +16707,7 @@ const Modules = (() => {
       _toast('Cannot save: API client unavailable.', 'danger');
       return;
     }
-    (_isFirebaseComms() ? UpperRoom.setAppConfig : TheVine.flock.config.set)({ key: 'ALLOW_CUSTOM_THEMES', value: checked ? 'TRUE' : 'FALSE' })
+    _setAppCfg({ key: 'ALLOW_CUSTOM_THEMES', value: checked ? 'TRUE' : 'FALSE' })
       .then(function() {
         localStorage.setItem('flock_allow_custom_themes', checked ? 'TRUE' : 'FALSE');
         _toast(checked ? 'Custom themes enabled for all users.' : 'Custom themes disabled — foundational theme enforced.');
@@ -16692,7 +16722,7 @@ const Modules = (() => {
 
   // ── Twilio: toggle SMS gateway ──
   function _twilioToggle(checked) {
-    (_isFirebaseComms() ? UpperRoom.setAppConfig : TheVine.flock.config.set)({ key: 'TWILIO_ENABLED', value: checked ? 'TRUE' : 'FALSE' })
+    _setAppCfg({ key: 'TWILIO_ENABLED', value: checked ? 'TRUE' : 'FALSE' })
       .then(function() { _toast(checked ? '📱 Twilio SMS gateway enabled.' : '📱 Twilio SMS gateway disabled — using native SMS app.'); })
       .catch(function(e) { _toast('Error saving setting: ' + e.message, 'danger'); });
   }
@@ -16772,7 +16802,7 @@ const Modules = (() => {
     const statusEl = document.getElementById('chunk-save-status');
     if (statusEl) statusEl.textContent = 'Saving\u2026';
     try {
-      await (_isFirebaseComms() ? UpperRoom.setAppConfig : TheVine.flock.config.set)({
+      await _setAppCfg({
         key: 'SHEET_CHUNKS',
         value: JSON.stringify(chunks),
         description: 'Parallel sheet chunk counts per domain (1\u20134)',
@@ -16812,7 +16842,7 @@ const Modules = (() => {
     localStorage.setItem('flock_provisioning', JSON.stringify(obj));
 
     // Persist to backend
-    (_isFirebaseComms() ? UpperRoom.setAppConfig : TheVine.flock.config.set)({
+    _setAppCfg({
       key: 'PROVISIONING_URLS',
       value: JSON.stringify(obj),
       description: 'GAS deployment URL',
@@ -17642,7 +17672,7 @@ const Modules = (() => {
     _edit('config', 'Edit Setting', [
       { name: 'value',       label: 'Value',       required: true },
       { name: 'description', label: 'Description' },
-    ], async p => { p.key = id; await (_isFirebaseComms() ? UpperRoom.setAppConfig : TheVine.flock.config.set)(p); }, id, null);
+    ], async p => { p.key = id; await _setAppCfg(p); }, id, null);
   }
 
   function editPrayer(id) { TheLife.openPrayer(id); }
@@ -19734,8 +19764,8 @@ const Modules = (() => {
     if (window._applyFontScale) window._applyFontScale();
     // Also save to server config if available
     if (typeof TheVine !== 'undefined') {
-      if (dSel) (_isFirebaseComms() ? UpperRoom.updateAppConfig : TheVine.flock.config.update)({ key: 'FONT_SCALE', value: dSel.value }).catch(function(){});
-      if (mSel) (_isFirebaseComms() ? UpperRoom.updateAppConfig : TheVine.flock.config.update)({ key: 'FONT_SCALE_MOBILE', value: mSel.value }).catch(function(){});
+      if (dSel) _updateAppCfg({ key: 'FONT_SCALE', value: dSel.value }).catch(function(){});
+      if (mSel) _updateAppCfg({ key: 'FONT_SCALE_MOBILE', value: mSel.value }).catch(function(){});
     }
     _toast('Font sizes saved.');
   }
