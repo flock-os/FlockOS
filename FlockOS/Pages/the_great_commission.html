@@ -825,8 +825,10 @@ function _gcRegisterChurch() {
     { name: 'adminEmail',  label: 'Admin / Notification Email',            type: 'email',  value: '' },
     { name: 'favicon',     label: 'Favicon filename',                      type: 'text',   value: 'FlockOS_Camo.png' },
     { name: 'portrait',    label: 'Portrait / Logo filename',              type: 'text',   value: 'FlockOS_Camo.png' },
-    { name: 'analyticsId', label: 'Google Analytics ID (G-…)',             type: 'text',   value: '' },
-    { name: 'version',     label: 'Version',                               type: 'text',   value: '1.0' },
+    { name: 'analyticsId',   label: 'Google Analytics ID (G-…)',         type: 'text',     value: '' },
+    { name: 'version',       label: 'Version',                           type: 'text',     value: '1.0' },
+    { name: 'firebaseConfig', label: 'Firebase Config (JSON — paste from Firebase Console → Project Settings)',
+                                                                          type: 'textarea', value: '' },
   ], async function(data) {
     await TheVine.flock.church.create(data);
     _toast('Church registered. Open it to set up the database when ready.', 'success');
@@ -854,10 +856,12 @@ function _gcEditChurch(churchId) {
     { name: 'databaseUrl', label: 'Database URL (GAS Web App)',     type: 'url',    value: c.databaseUrl || '' },
     { name: 'photosUrl',   label: 'Photos Album URL',               type: 'url',    value: c.photosUrl   || '' },
     { name: 'adminEmail',  label: 'Admin / Notification Email',     type: 'email',  value: c.adminEmail  || '' },
-    { name: 'analyticsId', label: 'Google Analytics ID',            type: 'text',   value: c.analyticsId || '' },
-    { name: 'favicon',     label: 'Favicon filename',               type: 'text',   value: c.favicon     || 'FlockOS_Camo.png' },
-    { name: 'portrait',    label: 'Portrait / Logo filename',       type: 'text',   value: c.portrait    || 'FlockOS_Camo.png' },
-    { name: 'version',     label: 'Version',                        type: 'text',   value: c.version     || '1.0' },
+    { name: 'analyticsId',   label: 'Google Analytics ID',          type: 'text',     value: c.analyticsId    || '' },
+    { name: 'favicon',       label: 'Favicon filename',             type: 'text',     value: c.favicon        || 'FlockOS_Camo.png' },
+    { name: 'portrait',      label: 'Portrait / Logo filename',    type: 'text',     value: c.portrait       || 'FlockOS_Camo.png' },
+    { name: 'version',       label: 'Version',                     type: 'text',     value: c.version        || '1.0' },
+    { name: 'firebaseConfig', label: 'Firebase Config (JSON — paste from Firebase Console → Project Settings)',
+                                                                    type: 'textarea', value: c.firebaseConfig  ? JSON.stringify(c.firebaseConfig) : '' },
     { name: 'status',      label: 'Status',                         type: 'select', value: c.status || 'Active',
       options: [
         { value: 'Active',    label: 'Active' },
