@@ -1093,7 +1093,28 @@ function _copyGsFile(btn, content, toastMsg) {
   }
 }
 
-function _genPassword() {\n  var upper   = 'ABCDEFGHJKLMNPQRSTUVWXYZ';\n  var lower   = 'abcdefghjkmnpqrstuvwxyz';\n  var digits  = '23456789';\n  var special = '!@#$%^&*()-_=+[]{}|;:,.<>?';\n  var all     = upper + lower + digits + special;\n  var required = [\n    upper  [window.crypto.getRandomValues(new Uint8Array(1))[0] % upper.length],\n    lower  [window.crypto.getRandomValues(new Uint8Array(1))[0] % lower.length],\n    digits [window.crypto.getRandomValues(new Uint8Array(1))[0] % digits.length],\n    special[window.crypto.getRandomValues(new Uint8Array(1))[0] % special.length]\n  ];\n  var arr = new Uint8Array(8);\n  window.crypto.getRandomValues(arr);\n  var result = required;\n  for (var i = 0; i < 8; i++) result.push(all[arr[i] % all.length]);\n  for (var j = result.length - 1; j > 0; j--) {\n    var k = window.crypto.getRandomValues(new Uint8Array(1))[0] % (j + 1);\n    var tmp = result[j]; result[j] = result[k]; result[k] = tmp;\n  }\n  return result.join('');\n}
+function _genPassword() {
+  var upper   = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+  var lower   = 'abcdefghjkmnpqrstuvwxyz';
+  var digits  = '23456789';
+  var special = '!@#$%^&*()-_=+[]{}|;:,.<>?';
+  var all     = upper + lower + digits + special;
+  var required = [
+    upper  [window.crypto.getRandomValues(new Uint8Array(1))[0] % upper.length],
+    lower  [window.crypto.getRandomValues(new Uint8Array(1))[0] % lower.length],
+    digits [window.crypto.getRandomValues(new Uint8Array(1))[0] % digits.length],
+    special[window.crypto.getRandomValues(new Uint8Array(1))[0] % special.length]
+  ];
+  var arr = new Uint8Array(8);
+  window.crypto.getRandomValues(arr);
+  var result = required;
+  for (var i = 0; i < 8; i++) result.push(all[arr[i] % all.length]);
+  for (var j = result.length - 1; j > 0; j--) {
+    var k = window.crypto.getRandomValues(new Uint8Array(1))[0] % (j + 1);
+    var tmp = result[j]; result[j] = result[k]; result[k] = tmp;
+  }
+  return result.join('');
+}
 
 function _genFill(inputId) {
   var el = document.getElementById(inputId);
