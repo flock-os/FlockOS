@@ -1014,7 +1014,7 @@ function _gcCopyProbeResponse() {
 
 var _REQUIRED_KEYS = [
   'CHURCH_NAME','ADMIN_EMAIL','CHURCH_TIMEZONE','SESSION_TTL_HOURS','MIN_PASSCODE_LENGTH',
-  'SELF_REGISTRATION','GLOBAL_THEME','CARD_PREFIX','LOCKDOWN','DATA_LAYER',
+  'ALLOW_SELF_REGISTER','GLOBAL_THEME','CARD_PREFIX','LOCKDOWN','NOTIFY_NEW_MEMBER',
   'NOTIFY_PRAYER_REQUEST','ITEMS_PER_PAGE','DATE_FORMAT',
 ];
 
@@ -1450,7 +1450,7 @@ function _gcRegisterChurch() {
     { name: 'churchName',  label: 'Church Full Name',                     type: 'text',   required: true },
     { name: 'shortName',   label: 'Short Name — URL slug (e.g. TBC)',     type: 'text',   required: true },
     { name: 'brandName',   label: 'Brand Name (shown in app)',             type: 'text',   value: 'FlockOS' },
-    { name: 'tagline',     label: 'Tagline',                               type: 'text',   value: 'Church Management & Ministry Platform' },
+    { name: 'tagline',     label: 'Tagline',                               type: 'text',   value: 'Ministry Operating System — Free. Offline-capable. Built for every church.' },
     { name: 'themeColor',  label: 'Theme Color',                           type: 'color',  value: '#e8a838' },
     { name: 'bgColor',     label: 'Background Color',                      type: 'color',  value: '#1a1a2e' },
     { name: 'databaseUrl', label: 'Database URL (GAS Web App)',            type: 'url',    value: '' },
@@ -1604,7 +1604,7 @@ function _gcProvisionChurch(churchId) {
       churchName:      c.churchName      || churchId,
       churchShortId:   c.shortName       || churchId,
       brandName:       c.brandName       || c.churchName || '',
-      tagline:         c.tagline         || 'Church Management & Ministry Platform',
+      tagline:         c.tagline         || 'Ministry Operating System — Free. Offline-capable. Built for every church.',
       timezone:        data.timezone     || 'America/Los_Angeles',
       adminEmail:      data.adminEmail   || c.adminEmail || '',
       themeColor:      c.themeColor      || '#e8a838',
