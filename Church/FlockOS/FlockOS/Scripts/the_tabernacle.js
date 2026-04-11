@@ -19994,8 +19994,8 @@ const Modules = (() => {
 
     // ── 5. Build HTML ─────────────────────────────────────────────────────
     function _connRow(label, icon, statusStr, latMs, detail, url, noteHtml) {
-      var isOnline = statusStr === 'online';
-      var isOff    = statusStr === 'offline';
+      var isOnline = statusStr === 'online' || statusStr === 'configured';
+      var isOff    = statusStr === 'offline' || statusStr === 'not configured';
       var dotClr   = isOnline ? 'var(--success,#4ade80)' : isOff ? 'var(--danger,#f87171)' : 'var(--warning,#f59e0b)';
       var dotChar  = isOnline ? '\u25cf' : isOff ? '\u25cf' : '\u25d4';
       var latLabel = latMs !== null ? latMs + 'ms' : '';
