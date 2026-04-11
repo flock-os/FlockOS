@@ -856,9 +856,13 @@ function _esc(str) {
 }
 
 function _escJson(str) {
-  // Already JSON — validate and compact if possible
+  // Compact JSON for embedding in a GS single-quoted string literal.
+  // Must escape backslashes AFTER stringify so \n in private_key becomes \\n
+  // in the GS source → evaluates to \n (two chars) in the stored property
+  // → JSON.parse returns real newlines in private_key. Correct.
   try {
-    return JSON.stringify(JSON.parse(str));
+    var compact = JSON.stringify(JSON.parse(str));
+    return compact.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
   } catch(e) {
     return _esc(str);
   }
@@ -884,7 +888,8 @@ function _buildOutput() {
 
   Object.keys(props).forEach(function(key) {
     var raw = props[key];
-    var escaped = (key === 'FIREBASE_SERVICE_ACCOUNT') ? _escJson(raw) : _esc(raw);
+    var isJson = (key === 'FIREBASE_SERVICE_ACCOUNT' || key === 'TRUTH_SERVICE_ACCOUNT');
+    var escaped = isJson ? _escJson(raw) : _esc(raw);
     lines.push(
       '    <span class="c-key">\'' + _he(key) + '\'</span>'
       + '<span class="c-punct">: </span>'
@@ -926,7 +931,8 @@ function _plainOutput() {
   lines.push('  props.setProperties({');
   Object.keys(props).forEach(function(key) {
     var raw = props[key];
-    var escaped = (key === 'FIREBASE_SERVICE_ACCOUNT') ? _escJson(raw) : _esc(raw);
+    var isJson = (key === 'FIREBASE_SERVICE_ACCOUNT' || key === 'TRUTH_SERVICE_ACCOUNT');
+    var escaped = isJson ? _escJson(raw) : _esc(raw);
     lines.push("    '" + key + "': '" + escaped + "',");
   });
   lines.push('  });');
