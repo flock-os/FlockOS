@@ -377,7 +377,7 @@
     <span>
       <strong>Security reminder:</strong> Secrets entered here never leave your browser.
       Generation is entirely client-side. Do NOT share the generated output — it contains credentials.
-      After running <code>setAllScriptProperties_()</code> in Apps Script, <strong>delete it immediately</strong>.
+      After running <code>setAllScriptProperties()</code> in Apps Script, <strong>delete it immediately</strong>.
     </span>
   </div>
 
@@ -627,7 +627,7 @@
       <!-- Setup.gs output -->
       <div class="output-card">
         <div class="output-toolbar">
-          <span class="output-title">&#128196; Setup.gs — setAllScriptProperties_()</span>
+          <span class="output-title">&#128196; Setup.gs — setAllScriptProperties()</span>
           <button class="btn btn-sm" onclick="_saveConfig(this)" title="Save non-secret config fields to Firestore for later recall">&#128190; Save Config</button>
           <button class="btn btn-sm btn-gold" onclick="_copyOutput(this)">&#128203; Copy</button>
           <button class="btn btn-sm btn-danger" onclick="_clearAll()">&#10006; Clear</button>
@@ -682,7 +682,7 @@
             <div class="step-num">5</div>
             <div class="step-body">
               <strong>Set Script Properties</strong>
-              <p>Copy the generated block above. Paste it into a new file in Apps Script (e.g., <code>Setup.gs</code>). Save, then run <code>setAllScriptProperties_()</code>. You'll be prompted to authorize.</p>
+              <p>Copy the generated block above. Paste it into a new file in Apps Script (e.g., <code>Setup.gs</code>). Save, then run <code>setAllScriptProperties()</code>. You'll be prompted to authorize.</p>
             </div>
           </div>
 
@@ -878,7 +878,7 @@ function _buildOutput() {
 
   var lines = [];
   lines.push('<span class="c-comment">// ── Paste into Apps Script, run ONCE, then delete ──────────</span>');
-  lines.push('<span class="c-kw">function</span> <span class="c-fn">setAllScriptProperties_</span>() {');
+  lines.push('<span class="c-kw">function</span> <span class="c-fn">setAllScriptProperties</span>() {');
   lines.push('  <span class="c-kw">var</span> props = PropertiesService.getScriptProperties();');
   lines.push('  props.setProperties({');
 
@@ -921,7 +921,7 @@ function _plainOutput() {
 
   var lines = [];
   lines.push('// ── Paste into Apps Script, run ONCE, then delete ──────────');
-  lines.push('function setAllScriptProperties_() {');
+  lines.push('function setAllScriptProperties() {');
   lines.push('  var props = PropertiesService.getScriptProperties();');
   lines.push('  props.setProperties({');
   Object.keys(props).forEach(function(key) {
