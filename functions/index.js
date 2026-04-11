@@ -5,50 +5,55 @@
  * corresponding Google Sheet tab via the church's GAS endpoint.
  *
  * Architecture:
+ *   Each church has its OWN Firebase project. Collections live at the root
+ *   of that project — no churches/{churchId}/ nesting needed.
+ *
  *   1. Firestore trigger fires on create/update/delete under
- *      churches/{churchId}/{collection}/{docId}  (and subcollections)
- *   2. Function looks up the church's GAS endpoint URL + sync secret from
- *      churches/{churchId}/settings/sync
+ *      {collection}/{docId}  (and subcollections)
+ *   2. Function looks up the GAS endpoint URL + sync secret from
+ *      settings/sync  (root-level document in this project)
  *   3. POSTs to GAS: ?action=sync.write&syncSecret=...
  *      Body: { collection, operation, docId, data, parentId? }
  *   4. GAS sync.write handler validates the secret, routes to the correct
  *      sheet tab, and performs the row write/update/delete.
  *
- * Setup (per church):
- *   Firestore doc  churches/{churchId}/settings/sync  must contain:
+ * Setup (per church Firebase project):
+ *   Firestore doc  settings/sync  must contain:
  *     {
  *       gasEndpoint: "https://script.google.com/macros/s/.../exec",
  *       syncSecret:  "<shared-secret>"
  *     }
+ *   Run setupFirestoreSync() from the church's GAS project to write this.
+ *
+ * Deploy to each church's project:
+ *   firebase use <project-id>
+ *   firebase deploy --only functions
  */
 
 const { onDocumentWritten } = require("firebase-functions/v2/firestore");
-const { defineSecret }      = require("firebase-functions/params");
 const { initializeApp }     = require("firebase-admin/app");
 const { getFirestore }      = require("firebase-admin/firestore");
 
 initializeApp();
 const db = getFirestore();
 
-// ── Config cache (per church) ──────────────────────────────────────────
-// Avoids reading settings/sync on every single trigger.
-const _configCache = {};          // { churchId: { gasEndpoint, syncSecret, ts } }
-const CONFIG_TTL   = 5 * 60000;  // refresh every 5 min
+// ── Config cache ───────────────────────────────────────────────────────
+// Reads settings/sync once and caches for 5 min.
+let _configCache = null;
+let _configTs    = 0;
+const CONFIG_TTL = 5 * 60000;
 
-async function _getChurchConfig(churchId) {
-  const cached = _configCache[churchId];
-  if (cached && Date.now() - cached.ts < CONFIG_TTL) return cached;
+async function _getConfig() {
+  if (_configCache && Date.now() - _configTs < CONFIG_TTL) return _configCache;
 
-  const doc = await db.collection("churches").doc(churchId)
-    .collection("settings").doc("sync").get();
-
+  const doc = await db.collection("settings").doc("sync").get();
   if (!doc.exists) return null;
   const data = doc.data();
   if (!data.gasEndpoint || !data.syncSecret) return null;
 
-  const config = { gasEndpoint: data.gasEndpoint, syncSecret: data.syncSecret, ts: Date.now() };
-  _configCache[churchId] = config;
-  return config;
+  _configCache = { gasEndpoint: data.gasEndpoint, syncSecret: data.syncSecret };
+  _configTs    = Date.now();
+  return _configCache;
 }
 
 // ── GAS call helper ────────────────────────────────────────────────────
@@ -102,21 +107,21 @@ const TRUTH_COLLECTIONS = new Set([
 ]);
 
 // ── Main trigger: top-level collections ────────────────────────────────
-// Path: churches/{churchId}/{collection}/{docId}
+// Path: {collection}/{docId}  (root-level — each project IS a church)
 exports.syncToSheets = onDocumentWritten(
   {
-    document: "churches/{churchId}/{collection}/{docId}",
+    document: "{collection}/{docId}",
     region: "us-central1",
   },
   async (event) => {
-    const { churchId, collection, docId } = event.params;
+    const { collection, docId } = event.params;
 
     if (SKIP_COLLECTIONS.has(collection)) return;
 
     const op = _opType(event.data);
     if (!op) return;
 
-    const config = await _getChurchConfig(churchId);
+    const config = await _getConfig();
     if (!config) return;  // no sync config → skip silently
 
     const data = op === "delete" ? null : event.data.after.data();
@@ -124,7 +129,7 @@ exports.syncToSheets = onDocumentWritten(
     try {
       await _pushToGAS(config, { collection, operation: op, docId, data });
     } catch (err) {
-      console.error(`[sync] ${churchId}/${collection}/${docId} ${op} FAILED:`, err.message);
+      console.error(`[sync] ${collection}/${docId} ${op} FAILED:`, err.message);
     }
   }
 );
@@ -132,16 +137,16 @@ exports.syncToSheets = onDocumentWritten(
 // ── Subcollection trigger: conversation messages ───────────────────────
 exports.syncMessages = onDocumentWritten(
   {
-    document: "churches/{churchId}/conversations/{convoId}/messages/{msgId}",
+    document: "conversations/{convoId}/messages/{msgId}",
     region: "us-central1",
   },
   async (event) => {
-    const { churchId, convoId, msgId } = event.params;
+    const { convoId, msgId } = event.params;
 
     const op = _opType(event.data);
     if (!op) return;
 
-    const config = await _getChurchConfig(churchId);
+    const config = await _getConfig();
     if (!config) return;
 
     const data = op === "delete" ? null : event.data.after.data();
@@ -155,7 +160,7 @@ exports.syncMessages = onDocumentWritten(
         data,
       });
     } catch (err) {
-      console.error(`[sync] ${churchId}/conversations/${convoId}/messages/${msgId} ${op} FAILED:`, err.message);
+      console.error(`[sync] conversations/${convoId}/messages/${msgId} ${op} FAILED:`, err.message);
     }
   }
 );
@@ -163,16 +168,16 @@ exports.syncMessages = onDocumentWritten(
 // ── Subcollection trigger: group members ───────────────────────────────
 exports.syncGroupMembers = onDocumentWritten(
   {
-    document: "churches/{churchId}/groups/{groupId}/members/{memberId}",
+    document: "groups/{groupId}/members/{memberId}",
     region: "us-central1",
   },
   async (event) => {
-    const { churchId, groupId, memberId } = event.params;
+    const { groupId, memberId } = event.params;
 
     const op = _opType(event.data);
     if (!op) return;
 
-    const config = await _getChurchConfig(churchId);
+    const config = await _getConfig();
     if (!config) return;
 
     const data = op === "delete" ? null : event.data.after.data();
@@ -186,7 +191,7 @@ exports.syncGroupMembers = onDocumentWritten(
         data,
       });
     } catch (err) {
-      console.error(`[sync] ${churchId}/groups/${groupId}/members/${memberId} ${op} FAILED:`, err.message);
+      console.error(`[sync] groups/${groupId}/members/${memberId} ${op} FAILED:`, err.message);
     }
   }
 );
@@ -194,16 +199,16 @@ exports.syncGroupMembers = onDocumentWritten(
 // ── Subcollection trigger: member card links ───────────────────────────
 exports.syncCardLinks = onDocumentWritten(
   {
-    document: "churches/{churchId}/memberCards/{cardId}/links/{linkId}",
+    document: "memberCards/{cardId}/links/{linkId}",
     region: "us-central1",
   },
   async (event) => {
-    const { churchId, cardId, linkId } = event.params;
+    const { cardId, linkId } = event.params;
 
     const op = _opType(event.data);
     if (!op) return;
 
-    const config = await _getChurchConfig(churchId);
+    const config = await _getConfig();
     if (!config) return;
 
     const data = op === "delete" ? null : event.data.after.data();
@@ -217,7 +222,7 @@ exports.syncCardLinks = onDocumentWritten(
         data,
       });
     } catch (err) {
-      console.error(`[sync] ${churchId}/memberCards/${cardId}/links/${linkId} ${op} FAILED:`, err.message);
+      console.error(`[sync] memberCards/${cardId}/links/${linkId} ${op} FAILED:`, err.message);
     }
   }
 );

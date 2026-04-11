@@ -1,6 +1,6 @@
 {
   "firestore": {
-    "rules": "FlockOS/Tools/firestore.rules"
+    "rules": "FlockOS/Tools/Development Scripts/firestore.rules"
   },
   "functions": {
     "source": "functions",
