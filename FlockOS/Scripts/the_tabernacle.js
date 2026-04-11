@@ -19405,12 +19405,16 @@ const Modules = (() => {
         { icon: '&#127925;',       label: 'Music Stand',    nav: 'service-hub' },
         { icon: '&#128197;',       label: 'Calendar',       nav: 'calendar' },
         { icon: '&#128100;',       label: 'Directory',      nav: 'directory' },
-        { icon: '&#128640;',       label: 'Deploy Guide',   nav: 'deployment-guide' },
+        { icon: '&#128640;',       label: 'Deploy Guide',     nav: 'deployment-guide' },
+        { icon: '&#9989;&#65039;',  label: 'Great Commission', href: 'the_great_commission.html' },
       ];
       rightHtml += _adCard('&#128640; Quick Actions',
         '<div style="display:grid;grid-template-columns:1fr 1fr;gap:7px;">'
         + qaButtons.map(function (b) {
-            return '<button onclick="navigate(\'' + b.nav + '\')" style="display:flex;align-items:center;gap:6px;'
+            var action = b.href
+              ? 'window.location.href=\'' + b.href + '\''
+              : 'navigate(\'' + b.nav + '\')'
+            return '<button onclick="' + action + '" style="display:flex;align-items:center;gap:6px;'
               + 'padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:var(--bg);'
               + 'color:var(--ink);cursor:pointer;font-size:0.77rem;font-family:inherit;text-align:left;">'
               + '<span style="font-size:1rem;">' + b.icon + '</span>'
