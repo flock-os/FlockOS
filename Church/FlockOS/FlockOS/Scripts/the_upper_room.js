@@ -1,3 +1,4 @@
+window.FLOCK_FIREBASE_CONFIG = {"apiKey":"AIzaSyBA-fkxjABbwIHn0i6MPiXbGwahfJmuJeo","authDomain":"flockos-notify.firebaseapp.com","projectId":"flockos-notify","storageBucket":"flockos-notify.firebasestorage.app","messagingSenderId":"321766738616","appId":"1:321766738616:web:d2c1c53ad7493fcde4c24d"};
 /* ═══════════════════════════════════════════════════════════════════════
    THE UPPER ROOM — Firebase Firestore Comms Module for FlockOS
    Real-time messaging: DMs, Chat Rooms, Channels, Notifications
