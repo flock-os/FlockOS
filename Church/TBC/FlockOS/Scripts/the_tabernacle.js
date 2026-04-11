@@ -16174,8 +16174,9 @@ const Modules = (() => {
 
   // Helper: wizard input field
   function _wizField(name, label, type) {
+    var ac = type === 'email' ? 'email' : type === 'tel' ? 'tel' : 'off';
     return '<div style="margin-bottom:14px;"><label style="display:block;font-size:0.79rem;color:var(--ink-muted);margin-bottom:4px;">' + label + '</label>'
-      + '<input id="wiz-' + name + '" type="' + (type || 'text') + '" style="width:100%;background:rgba(255,255,255,0.07);border:1px solid var(--line);border-radius:6px;padding:8px 12px;color:var(--ink);font-size:max(1rem,16px);font-family:inherit;"></div>';
+      + '<input id="wiz-' + name + '" type="' + (type || 'text') + '" autocomplete="' + ac + '" style="width:100%;background:rgba(255,255,255,0.07);border:1px solid var(--line);border-radius:6px;padding:8px 12px;color:var(--ink);font-size:max(1rem,16px);font-family:inherit;"></div>';
   }
 
   // ── Config write helpers — try Firestore, fall back to GAS on permission denial ─
