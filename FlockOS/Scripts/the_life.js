@@ -2094,7 +2094,7 @@ const TheLife = (() => {
           try {
             _stat('Creating login account\u2026');
             await TheVine.flock.call('users.create', {
-              email: data.primaryEmail,
+              targetEmail: data.primaryEmail,
               firstName: data.firstName || '',
               lastName: data.lastName || '',
               passcode: acctPassword,
