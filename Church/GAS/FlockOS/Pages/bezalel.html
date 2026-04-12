@@ -578,7 +578,7 @@
             <label>SYNC_SECRET <span class="req">*</span></label>
             <div class="secret-wrap has-gen">
               <input type="password" id="f_SYNC_SECRET" placeholder="Church sync secret" oninput="_update()">
-              <button class="gen-btn" onclick="_genFill('f_SYNC_SECRET')" title="Generate 24-char password">&#9889;</button>
+              <button class="gen-btn" onclick="_genFill('f_SYNC_SECRET')" title="Generate 16-char password">&#9889;</button>
               <button class="eye-btn" onclick="_toggleEye('f_SYNC_SECRET', this)">&#128065;</button>
             </div>
             <span class="field-note">Stored in Firestore at <code>churches/{id}.syncSecret</code>. If you change this, update both GAS Script Properties <em>and</em> Firestore <code>churches/{id}.syncSecret</code> — they must match or sync calls will be rejected.</span>
@@ -587,7 +587,7 @@
             <label>MASTER_SYNC_SECRET <span class="req">*</span></label>
             <div class="secret-wrap has-gen">
               <input type="password" id="f_MASTER_SYNC_SECRET" placeholder="Master override secret" oninput="_update()">
-              <button class="gen-btn" onclick="_genFill('f_MASTER_SYNC_SECRET')" title="Generate 24-char password">&#9889;</button>
+              <button class="gen-btn" onclick="_genFill('f_MASTER_SYNC_SECRET')" title="Generate 16-char password">&#9889;</button>
               <button class="eye-btn" onclick="_toggleEye('f_MASTER_SYNC_SECRET', this)">&#128065;</button>
             </div>
             <span class="field-note">Same value across all churches — from <code>master-api.json</code>. If you change this, update Script Properties on every church's GAS project.</span>
@@ -626,7 +626,7 @@
             <label>ADMIN_PASSWORD <span class="req">*</span></label>
             <div class="secret-wrap has-gen">
               <input type="password" id="f_ADMIN_PASSWORD" placeholder="Initial admin password (change after first login)" oninput="_update()">
-              <button class="gen-btn" onclick="_genFill('f_ADMIN_PASSWORD')" title="Generate 24-char password">&#9889;</button>
+              <button class="gen-btn" onclick="_genFill('f_ADMIN_PASSWORD')" title="Generate 16-char password">&#9889;</button>
               <button class="eye-btn" onclick="_toggleEye('f_ADMIN_PASSWORD', this)">&#128065;</button>
             </div>
             <span class="field-note">Used only during <code>setupFlockOS()</code>. <strong>Delete from Script Properties immediately after setup.</strong> To reset later, set a new value in Script Properties and run <code>setupFlockOS()</code> again — or update the password hash directly in Firestore.</span>
@@ -1077,27 +1077,52 @@ function _genPassword() {
   var upper   = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
   var lower   = 'abcdefghjkmnpqrstuvwxyz';
   var digits  = '23456789';
-  var special = '!@#$%^&*()-_=+[]{}|;:,.<>?';
-  var all     = upper + lower + digits + special;
-  // Guarantee at least two from each charset
-  var required = [
-    upper  [new Uint8Array(1).fill(window.crypto.getRandomValues(new Uint8Array(1))[0])[0] % upper.length],
-    upper  [window.crypto.getRandomValues(new Uint8Array(1))[0] % upper.length],
-    lower  [window.crypto.getRandomValues(new Uint8Array(1))[0] % lower.length],
-    lower  [window.crypto.getRandomValues(new Uint8Array(1))[0] % lower.length],
-    digits [window.crypto.getRandomValues(new Uint8Array(1))[0] % digits.length],
-    digits [window.crypto.getRandomValues(new Uint8Array(1))[0] % digits.length],
-    special[window.crypto.getRandomValues(new Uint8Array(1))[0] % special.length],
-    special[window.crypto.getRandomValues(new Uint8Array(1))[0] % special.length]
-  ];
-  var arr = new Uint8Array(16);
-  window.crypto.getRandomValues(arr);
-  var result = required;
-  for (var i = 0; i < 16; i++) result.push(all[arr[i] % all.length]);
-  // Fisher-Yates shuffle
-  for (var j = result.length - 1; j > 0; j--) {
-    var k = window.crypto.getRandomValues(new Uint8Array(1))[0] % (j + 1);
-    var tmp = result[j]; result[j] = result[k]; result[k] = tmp;
+  var special = '!@#$%&*-_=+?';
+
+  function rand(n) { return window.crypto.getRandomValues(new Uint8Array(1))[0] % n; }
+  function pickN(charset, n) {
+    var out = [];
+    for (var i = 0; i < n; i++) out.push(charset[rand(charset.length)]);
+    return out;
+  }
+  function shuffle(arr) {
+    for (var j = arr.length - 1; j > 0; j--) {
+      var k = rand(j + 1);
+      var t = arr[j]; arr[j] = arr[k]; arr[k] = t;
+    }
+    return arr;
+  }
+
+  // 16 total chars: 3 or 4 specials, rest are upper/lower/digits
+  var nSpec = rand(2) + 3;  // 3 or 4
+  var nNon  = 16 - nSpec;   // 12 or 13
+
+  // Guarantee variety: 2 upper, 2 lower, 2 digits, fill remainder from mixed pool
+  var nonSpecials = shuffle(
+    pickN(upper, 2).concat(pickN(lower, 2)).concat(pickN(digits, 2))
+                   .concat(pickN(upper + lower + digits, nNon - 6))
+  );
+  var specials = shuffle(pickN(special, nSpec));
+
+  // Choose nSpec positions in [0..15] with no two adjacent
+  var available = [];
+  for (var i = 0; i < 16; i++) available.push(i);
+  var positions = [];
+  for (var s = 0; s < nSpec; s++) {
+    if (!available.length) break;
+    var pick = available[rand(available.length)];
+    positions.push(pick);
+    // Remove the chosen position and its neighbours so specials can't be adjacent
+    available = available.filter(function(p) { return p < pick - 1 || p > pick + 1; });
+  }
+  positions.sort(function(a, b) { return a - b; });
+
+  // Build final array
+  var result = new Array(16);
+  for (var p = 0; p < positions.length; p++) result[positions[p]] = specials[p];
+  var ni = 0;
+  for (var fi = 0; fi < 16; fi++) {
+    if (result[fi] === undefined) result[fi] = nonSpecials[ni++];
   }
   return result.join('');
 }

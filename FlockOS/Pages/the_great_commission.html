@@ -594,6 +594,7 @@ function _gcTab(id) {
     else if (id === 'audit')    _gcRenderConfigAudit();
     else if (id === 'appconfig') _gcRenderAppConfigTab();
     else if (id === 'provisioner') _gcRenderProvisioner();
+    else if (id === 'truth')    _gcRenderTruth();
     else if (id === 'vault')    _gcRenderVault();
   }
 }
@@ -632,6 +633,7 @@ function _renderPage() {
     { id:'audit',       label:'&#9989; Config Audit' },
     { id:'appconfig',   label:'&#9889; AppConfig'    },
     { id:'provisioner', label:'&#128736; Provisioner'},
+    { id:'truth',       label:'&#128214; Truth'      },
     { id:'vault',       label:'&#128272; Vault'      },
   ];
   html += '<div class="gc-tabs">';
@@ -1740,6 +1742,91 @@ document.addEventListener('DOMContentLoaded', function() {
 // ════════════════════════════════════════════════════════════════════
 
 var _gcVault = { churchId: null, notes: '', credentials: [] };
+
+// ══════════════════════════════════════════════════════════════════════════
+// TRUTH PUSH — replicate master truth content to all connected churches
+// ══════════════════════════════════════════════════════════════════════════
+
+function _gcRenderTruth() {
+  var panel = document.querySelector('.gc-tab-panel[data-tab="truth"]');
+  if (!panel) return;
+
+  var html = '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px;">'
+    + '<div><div class="section-label" style="margin:0;">Push Truth Content</div>'
+    + '<p style="font-size:0.82rem;color:var(--ink-muted,#888);margin-top:4px;">Replicates all 12 Truth collections from the FlockOS-Truth master Firestore to each church\'s live database. Safe to re-run anytime.</p></div>'
+    + '<button class="btn btn-primary" onclick="_gcPushTruthAll()">&#128214; Push to All Churches</button>'
+    + '</div>';
+
+  if (!_churches.length) {
+    html += '<div class="empty-state"><div class="icon">&#128214;</div><h3>No churches registered yet.</h3></div>';
+  } else {
+    html += '<div class="gc-health-grid" id="truth-grid">';
+    _churches.forEach(function(c) {
+      var cid = _e(c.churchId);
+      html += '<div class="gc-health-card">'
+        + '<div class="gc-health-card-top">'
+        + '<div><div class="gc-health-name">' + _e(c.churchName||c.shortName||cid) + '</div>'
+        + '<div class="gc-health-id">' + _e(c.shortName||cid) + '</div></div>'
+        + '<span class="gc-pill" id="truth-pill-' + cid + '" style="background:rgba(255,255,255,0.06);color:var(--ink-muted,#888);">&#8212; Idle</span>'
+        + '</div>'
+        + '<div class="gc-health-meta">'
+        + '<div class="gc-meta-row"><span class="gc-meta-lbl">Endpoint</span><span class="gc-meta-val">'
+        +   (c.databaseUrl ? '<span style="color:var(--success,#4ade80);">&#10003; Set</span>' : '<span style="color:var(--warning,#fbbd24);">&#9888; Missing</span>')
+        + '</span></div>'
+        + '<div class="gc-meta-row"><span class="gc-meta-lbl">Result</span><span class="gc-meta-val" id="truth-result-' + cid + '">&#8212;</span></div>'
+        + '</div>'
+        + '<div class="gc-health-foot">'
+        + (c.databaseUrl
+            ? '<button class="btn btn-sm btn-primary" onclick="_gcPushTruthOne(\'' + cid + '\')">&#128214; Push Truth</button>'
+            : '<span style="font-size:0.76rem;color:var(--ink-muted);">No endpoint</span>')
+        + '</div></div>';
+    });
+    html += '</div>';
+  }
+
+  panel.innerHTML = html;
+}
+
+async function _gcPushTruthOne(churchId) {
+  var c = _churches.find(function(x) { return x.churchId === churchId; });
+  if (!c || !c.databaseUrl) { _toast('No database URL for ' + churchId, 'danger'); return; }
+
+  var pill   = document.getElementById('truth-pill-' + churchId);
+  var result = document.getElementById('truth-result-' + churchId);
+  if (pill)   { pill.style.background = 'rgba(251,189,36,0.15)'; pill.style.color = '#fbbd24'; pill.textContent = '\u25CF Pushing\u2026'; }
+  if (result) result.textContent = '\u2014';
+
+  try {
+    var url = c.databaseUrl + '?action=truth.push'
+      + '&token=' + encodeURIComponent((_gcSession && _gcSession.token) || '')
+      + '&_nc=' + Date.now();
+    var resp = await fetch(url, { method: 'GET', redirect: 'follow', cache: 'no-store' });
+    var data = await resp.json();
+    if (data.ok) {
+      if (pill)   { pill.style.background = 'rgba(74,222,128,0.12)'; pill.style.color = 'var(--success,#4ade80)'; pill.textContent = '\u25CF Done'; }
+      if (result) result.textContent = data.docs + ' docs';
+      _toast(_e(c.churchName||c.shortName) + ' \u2014 Truth pushed (' + data.docs + ' docs) \u2713', 'success');
+    } else {
+      throw new Error(data.error || 'Unknown error');
+    }
+  } catch (err) {
+    if (pill)   { pill.style.background = 'rgba(248,113,113,0.12)'; pill.style.color = 'var(--danger,#f87171)'; pill.textContent = '\u25CF Failed'; }
+    if (result) result.textContent = err.message || String(err);
+    _toast('Push failed \u2014 ' + _e(c.churchName||c.shortName) + ': ' + (err.message||String(err)), 'danger');
+  }
+}
+
+async function _gcPushTruthAll() {
+  if (!_churches.length) { _toast('No churches registered.', 'danger'); return; }
+  // Ensure Truth tab is rendered first
+  _gcTab('truth');
+  _toast('Pushing Truth to all ' + _churches.length + ' church(es)\u2026');
+  for (var i = 0; i < _churches.length; i++) {
+    if (_churches[i].databaseUrl) {
+      await _gcPushTruthOne(_churches[i].churchId);
+    }
+  }
+}
 
 function _gcRenderVault() {
   var panel = document.querySelector('.gc-tab-panel[data-tab="vault"]');
