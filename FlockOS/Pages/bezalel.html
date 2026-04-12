@@ -168,7 +168,7 @@
       color: var(--ink-muted); font-size: 0.7rem; margin-left: auto;
     }
     .field input, .field textarea, .field select {
-      background: var(--bg-card); border: 1px solid var(--line);
+      background: transparent; border: 1px solid var(--line);
       border-radius: 7px; color: var(--ink); -webkit-text-fill-color: var(--ink);
       font-family: inherit; font-size: 0.84rem; padding: 9px 12px;
       transition: border-color 0.15s; outline: none; width: 100%;
@@ -179,9 +179,16 @@
     .field input:-webkit-autofill,
     .field input:-webkit-autofill:focus {
       -webkit-text-fill-color: var(--ink);
-      -webkit-box-shadow: 0 0 0 1000px var(--bg-card) inset;
+      -webkit-box-shadow: 0 0 0 1000px var(--bg-raised) inset;
       caret-color: var(--ink);
     }
+    .vault-input {
+      background: transparent; border: 1px solid var(--line);
+      border-radius: 6px; color: var(--ink); -webkit-text-fill-color: var(--ink);
+      font-family: inherit; font-size: 0.82rem; padding: 7px 10px;
+      outline: none; width: 100%;
+    }
+    .vault-input:focus { border-color: var(--accent); }
     .field input::placeholder, .field textarea::placeholder { color: var(--ink-muted); opacity: 0.6; }
     .field textarea {
       font-family: 'Noto Mono', 'Courier New', monospace; font-size: 0.75rem;
