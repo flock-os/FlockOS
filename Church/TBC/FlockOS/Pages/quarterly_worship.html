@@ -102,10 +102,9 @@
 
     /* ── Page layout ────────────────────────────────────────────────────── */
     .page-wrap {
-      max-width: 1840px; margin: 0 auto; padding: 22px 18px 64px;
-      display: grid; grid-template-columns: 1fr 300px; gap: 20px; align-items: start;
+      max-width: 100%; padding: 16px 16px 80px;
+      display: flex; flex-direction: column; gap: 14px;
     }
-    @media (max-width:1120px) { .page-wrap { grid-template-columns:1fr; } .sidebar { order:-1; } }
 
     /* ── Cards ──────────────────────────────────────────────────────────── */
     .card {
@@ -439,13 +438,17 @@
   <!-- Page layout -->
   <div class="page-wrap">
 
-    <!-- Left: controls + table -->
-    <div style="display:flex;flex-direction:column;gap:14px;">
-
       <!-- Setup card -->
       <div class="card c-setup">
         <div class="card-head">
           <span class="card-head-title">⛪ Quarterly Worship Schedule</span>
+          <div style="display:flex;align-items:center;gap:16px;font-size:.77rem;color:rgba(224,231,255,.7);">
+            <span><strong id="smTotal" style="color:#e0e7ff;">0</strong> Sundays</span>
+            <span><strong id="smPreach" style="color:#e0e7ff;">0</strong> Preacher</span>
+            <span><strong id="smWorship" style="color:#e0e7ff;">0</strong> Worship</span>
+            <span><strong id="smFull" style="color:#a5f3ae;">0</strong> Complete</span>
+            <span><strong id="smPushed" style="color:#fde68a;">0</strong> Synced</span>
+          </div>
         </div>
         <div class="card-body">
           <div class="controls">
@@ -487,7 +490,15 @@
           <button class="btn btn-danger" id="btnReset" style="font-size:.74rem;">✕ Reset</button>
           <div style="flex:1 1 auto;"></div>
           <button class="btn btn-secondary" id="btnImport">📥 Import CSV</button>
+          <button class="btn btn-secondary" id="btnPull">⬇ Pull from Plans</button>
           <input type="file" id="importFile" accept=".csv,.tsv,.txt" style="display:none">
+          <!-- hidden controls preserved for JS -->
+          <select id="optDup" style="display:none;"><option value="update">Update existing</option><option value="skip">Skip</option></select>
+          <select id="optTheme" style="display:none;"><option value="notes">Notes / Theme column</option><option value="scripture">Scripture column</option><option value="none">Leave blank</option></select>
+          <select id="optPullMerge" style="display:none;"><option value="fill">Fill blanks only</option><option value="overwrite">Overwrite all fields</option><option value="skip">Skip</option></select>
+          <button id="btnPush" style="display:none;"></button>
+          <p id="fbNote" style="display:none;"></p>
+          <p id="pullNote" style="display:none;"></p>
         </div>
       </div>
 
@@ -516,64 +527,6 @@
         </div>
       </div>
 
-    </div><!-- /left -->
-
-    <!-- Sidebar -->
-    <div class="sidebar">
-
-      <div class="card c-summary">
-        <div class="card-head"><span class="card-head-title">📊 Summary</span></div>
-        <div class="card-body" style="display:flex;flex-direction:column;gap:4px;">
-          <div class="stat-row"><span>Total Sundays</span><strong id="smTotal">0</strong></div>
-          <div class="stat-row"><span>Preacher assigned</span><strong id="smPreach">0</strong></div>
-          <div class="stat-row"><span>Worship assigned</span><strong id="smWorship">0</strong></div>
-          <div class="stat-row"><span>Fully complete</span><strong id="smFull">0</strong></div>
-          <div class="stat-row"><span>Pushed to plans</span><strong id="smPushed" class="hi">0</strong></div>
-        </div>
-      </div>
-
-      <div class="card c-push">
-        <div class="card-head"><span class="card-head-title">🚀 Push to Service Plans</span></div>
-        <div class="card-body" style="display:flex;flex-direction:column;gap:12px;">
-          <p style="font-size:.8rem;color:var(--ink-muted);line-height:1.55;">Each dated row creates (or updates) a Service Plan in FlockOS — visible in the Services tab of the Ministry Hub.</p>
-          <div>
-            <label class="lbl" for="optDup">If plan already exists for that date</label>
-            <div class="fw"><select id="optDup" class="fs">
-              <option value="skip">Skip (keep existing)</option>
-              <option value="update">Update existing</option>
-            </select></div>
-          </div>
-          <div>
-            <label class="lbl" for="optTheme">Map sermon title from</label>
-            <div class="fw"><select id="optTheme" class="fs">
-              <option value="notes">Notes / Theme column</option>
-              <option value="scripture">Scripture column</option>
-              <option value="none">— Leave blank —</option>
-            </select></div>
-          </div>
-          <button class="btn btn-gold" id="btnPush" style="width:100%;justify-content:center;">⬆ Push Quarter to Service Plans</button>
-          <p id="fbNote" style="font-size:.76rem;color:var(--ink-muted);text-align:center;display:none;"></p>
-        </div>
-      </div>
-
-      <div class="card c-pull">
-        <div class="card-head"><span class="card-head-title">⬇ Pull from Service Plans</span></div>
-        <div class="card-body" style="display:flex;flex-direction:column;gap:12px;">
-          <p style="font-size:.8rem;color:var(--ink-muted);line-height:1.55;">Sync existing Service Plans for this quarter back into the sheet.</p>
-          <div>
-            <label class="lbl" for="optPullMerge">If row already exists for that date</label>
-            <div class="fw"><select id="optPullMerge" class="fs">
-              <option value="fill">Fill blanks only (keep existing data)</option>
-              <option value="overwrite">Overwrite all fields</option>
-              <option value="skip">Skip (leave sheet unchanged)</option>
-            </select></div>
-          </div>
-          <button class="btn btn-secondary" id="btnPull" style="width:100%;justify-content:center;">⬇ Pull Quarter from Service Plans</button>
-          <p id="pullNote" style="font-size:.76rem;color:var(--ink-muted);text-align:center;display:none;"></p>
-        </div>
-      </div>
-
-    </div><!-- /sidebar -->
   </div><!-- /page-wrap -->
 
   <!-- Push overlay -->
