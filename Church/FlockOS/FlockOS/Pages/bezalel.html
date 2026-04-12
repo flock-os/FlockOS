@@ -535,10 +535,9 @@
           <div class="field">
             <label>CHURCH_TIMEZONE <span class="req">*</span></label>
             <select id="f_CHURCH_TIMEZONE" onchange="_update()">
-              <option value="America/Chicago">America/Chicago</option>
+              <option value="America/Los_Angeles">America/Los_Angeles</option>
               <option value="America/New_York">America/New_York</option>
               <option value="America/Denver">America/Denver</option>
-              <option value="America/Los_Angeles">America/Los_Angeles</option>
               <option value="America/Phoenix">America/Phoenix</option>
               <option value="America/Anchorage">America/Anchorage</option>
               <option value="Pacific/Honolulu">Pacific/Honolulu</option>
@@ -872,28 +871,28 @@ document.addEventListener('DOMContentLoaded', function() {
 var CHURCH_PRESETS = {
   flockos: {
     CHURCH_NAME:           'FlockOS',
-    CHURCH_TIMEZONE:       'America/Chicago',
+    CHURCH_TIMEZONE:       'America/Los_Angeles',
     FIRESTORE_PROJECT_ID:  '',           // flockos has no firebase
     FIRESTORE_CHURCH_ID:   'FlockOS',
     CHURCH_APP_URL:        '',
   },
   tbc: {
     CHURCH_NAME:           'Trinity Baptist Church',
-    CHURCH_TIMEZONE:       'America/Chicago',
+    CHURCH_TIMEZONE:       'America/Los_Angeles',
     FIRESTORE_PROJECT_ID:  'flockos-trinity',
     FIRESTORE_CHURCH_ID:   'TBC',
     CHURCH_APP_URL:        'https://script.google.com/macros/s/AKfycbwAFp0BQvt0DiDJBjzBrycMripfUHOkP0PwiB_DSXgGVezP_y8jCOVxZWweTp58gai7/exec',
   },
   theforest: {
     CHURCH_NAME:           'The Forest',
-    CHURCH_TIMEZONE:       'America/Chicago',
+    CHURCH_TIMEZONE:       'America/Los_Angeles',
     FIRESTORE_PROJECT_ID:  'flockos-theforest',
     FIRESTORE_CHURCH_ID:   'TheForest',
     CHURCH_APP_URL:        'https://script.google.com/macros/s/AKfycbwH7HY6_HK8NnP2R4IXfhsVQYnyAhWRStV8t5KJwaD7pnga0QKNj1mxwX5OAYwxEKDI/exec',
   },
   custom: {
     CHURCH_NAME:           '',
-    CHURCH_TIMEZONE:       'America/Chicago',
+    CHURCH_TIMEZONE:       'America/Los_Angeles',
     FIRESTORE_PROJECT_ID:  '',
     FIRESTORE_CHURCH_ID:   '',
     CHURCH_APP_URL:        '',
@@ -1290,7 +1289,7 @@ function _restoreConfig(d) {
     if (!el) return;
     el.value = d[key] || '';
     // Sync <select> for timezone
-    if (key === 'CHURCH_TIMEZONE' && el.tagName === 'SELECT') el.value = d[key] || 'America/Chicago';
+    if (key === 'CHURCH_TIMEZONE' && el.tagName === 'SELECT') el.value = d[key] || 'America/Los_Angeles';
   });
 
   // Highlight the matching church button if known
