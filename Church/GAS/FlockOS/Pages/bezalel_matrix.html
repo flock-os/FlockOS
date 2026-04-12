@@ -1395,7 +1395,8 @@ function _toggleEye(inputId, btn) {
 
 // ── Auth gate ─────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', function() {
-  if (typeof Adornment !== 'undefined') Adornment.init();
+  // Bezalel has its own hardcoded dark matrix theme — do NOT call Adornment.init()
+  // which would inject fine_linen's light :root variables and override the dark bg.
 
   var session = Nehemiah.guard(); // redirects to login if no session
   if (!session) return;
