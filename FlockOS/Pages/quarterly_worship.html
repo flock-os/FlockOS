@@ -37,7 +37,7 @@
     .topbar {
       position: sticky; top:0; left:0; right:0;
       height: var(--topbar-h);
-      background: var(--bg-raised); border-bottom: 1px solid var(--line);
+      background: var(--bg-raised); border-bottom: 2px solid var(--accent-soft);
       display: flex; align-items: center; padding: 0 20px; z-index:100; gap:12px;
     }
     .topbar-brand { font-size:.95rem; font-weight:700; color:var(--accent); letter-spacing:.04em; white-space:nowrap; }
@@ -62,10 +62,12 @@
     @media (max-width:1120px) { .page-wrap { grid-template-columns:1fr; } .sidebar { order:-1; } }
 
     /* ── Card ───────────────────────────────────────────────────────────── */
-    .card { background:var(--bg-raised); border:1px solid var(--line); border-radius:14px; overflow:hidden; }
+    .card { background:var(--bg-raised); border:1px solid var(--line); border-radius:14px; overflow:hidden; box-shadow:var(--shadow-sm); }
+    .sidebar .card { border-left:3px solid var(--accent); }
     .card-head {
       padding:14px 18px; border-bottom:1px solid var(--line);
       display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;
+      background:var(--bg-sunken);
     }
     .card-head-title { font-family:'Noto Serif',serif; font-size:.95rem; font-weight:700; color:var(--ink); }
     .card-body { padding:18px; }
@@ -90,16 +92,19 @@
       display:inline-flex; align-items:center; gap:5px;
       padding:7px 13px; border-radius:7px; border:0;
       font:inherit; font-size:.8rem; font-weight:600; cursor:pointer;
-      transition:opacity .14s,transform .14s; white-space:nowrap;
+      transition:opacity .14s, transform .14s, background .14s; white-space:nowrap;
     }
-    .btn:hover:not(:disabled) { opacity:.82; transform:translateY(-1px); }
+    .btn:hover:not(:disabled) { opacity:.84; transform:translateY(-1px); }
     .btn:active { transform:translateY(0); }
     .btn:disabled { opacity:.42; cursor:not-allowed; }
-    .btn-primary   { background:linear-gradient(135deg,#0ea5e9,#2563eb); color:#fff; }
-    .btn-secondary { background:var(--bg-sunken); border:1px solid var(--line); color:var(--ink); }
-    .btn-success   { background:linear-gradient(135deg,#16a34a,#22c55e); color:#fff; }
-    .btn-danger    { background:linear-gradient(135deg,#dc2626,#ef4444); color:#fff; }
-    .btn-gold      { background:linear-gradient(135deg,#b45309,#e8a838); color:#fff; }
+    .btn-primary   { background:var(--accent);  color:var(--ink-inverse); box-shadow:0 1px 5px var(--accent-soft); }
+    .btn-primary:hover:not(:disabled)   { background:var(--accent-hover); opacity:1; }
+    .btn-secondary { background:var(--bg-sunken); border:1px solid var(--line-strong); color:var(--ink-muted); }
+    .btn-secondary:hover:not(:disabled) { background:var(--bg-hover); color:var(--ink); }
+    .btn-success   { background:var(--success);  color:#fff; }
+    .btn-danger    { background:var(--danger);   color:#fff; }
+    .btn-gold      { background:var(--gold);     color:#fff; box-shadow:0 1px 5px var(--gold-soft); }
+    .btn-gold:hover:not(:disabled) { filter:brightness(1.08); opacity:1; }
 
     /* ── Action row ─────────────────────────────────────────────────────── */
     .action-row {
@@ -116,9 +121,10 @@
     table { width:100%; border-collapse:separate; border-spacing:0; min-width:1180px; }
     thead th {
       position:sticky; top:0; z-index:5; background:var(--bg-sunken,var(--bg-card));
-      color:var(--ink-muted); font-size:.68rem; letter-spacing:.08em; text-transform:uppercase;
-      font-weight:700; padding:9px 8px; border-bottom:1px solid var(--line-strong); text-align:left; white-space:nowrap;
+      color:var(--accent); font-size:.68rem; letter-spacing:.08em; text-transform:uppercase;
+      font-weight:700; padding:9px 8px; border-bottom:2px solid var(--accent-soft); text-align:left; white-space:nowrap;
     }
+    tbody tr:nth-child(even) td { background:var(--bg-sunken); }
     tbody tr:hover td { background:var(--bg-hover); }
     tbody td { padding:3px 3px; border-bottom:1px solid var(--line); vertical-align:middle; }
     tbody tr:last-child td { border-bottom:0; }
@@ -183,7 +189,7 @@
     .push-box h3 { font-family:'Noto Serif',serif; font-size:1rem; margin-bottom:10px; color:var(--ink); }
     .push-box p  { color:var(--ink-muted); font-size:.84rem; line-height:1.5; }
     .prog-track  { background:var(--line); border-radius:999px; height:5px; margin:16px 0; overflow:hidden; }
-    .prog-fill   { height:100%; background:linear-gradient(90deg,#0ea5e9,#38bdf8); border-radius:999px; transition:width .28s; }
+    .prog-fill   { height:100%; background:linear-gradient(90deg,var(--accent),var(--mint)); border-radius:999px; transition:width .28s; }
     .push-log    { text-align:left; max-height:170px; overflow-y:auto; font-size:.75rem; color:var(--ink-muted); margin-top:10px; }
     .push-log div { padding:2px 0; }
     .push-log .ok   { color:var(--success); }
@@ -255,6 +261,9 @@
           <button class="btn btn-secondary" id="btnAdd">+ Add Row</button>
           <button class="btn btn-secondary" id="btnDup">⧉ Duplicate Last</button>
           <button class="btn btn-danger" id="btnReset" style="font-size:.74rem;">✕ Reset</button>
+          <div style="flex:1 1 auto;"></div>
+          <button class="btn btn-secondary" id="btnImport">📥 Import CSV</button>
+          <input type="file" id="importFile" accept=".csv,.tsv,.txt" style="display:none">
         </div>
       </div>
 
@@ -710,6 +719,97 @@
       saveToFirestore(true);
     }
 
+    /* ── CSV Import ──────────────────────────────────────────────────── */
+    function normalizeHeader(h) {
+      h = (h || '').trim().toLowerCase().replace(/[^a-z]/g, '');
+      if (h === 'date')                                      return 'date';
+      if (h.includes('psalm') || h.includes('introit'))     return 'psalm';
+      if (h.includes('worship'))                            return 'worship';
+      if (h.includes('announc'))                            return 'announce';
+      if (h.includes('prayer'))                             return 'prayer';
+      if (h.includes('preach'))                             return 'preacher';
+      if (h.includes('scripture'))                          return 'scripture';
+      if (h.includes('proverb'))                            return 'proverb';
+      if (h.includes('note') || h.includes('theme'))        return 'notes';
+      return null;
+    }
+
+    function parseCSV(text) {
+      var raw = text.trim().split(/\r?\n/);
+      if (raw.length < 2) return null;
+      var sep = raw[0].includes('\t') ? '\t' : ',';
+
+      function splitLine(line) {
+        if (sep === '\t') return line.split('\t').map(function(c){ return c.trim(); });
+        var cells = [], cell = '', inQ = false;
+        for (var i = 0; i < line.length; i++) {
+          var ch = line[i];
+          if (ch === '"' && !inQ) { inQ = true; continue; }
+          if (ch === '"' && inQ)  {
+            if (line[i+1] === '"') { cell += '"'; i++; } else { inQ = false; }
+            continue;
+          }
+          if (ch === ',' && !inQ) { cells.push(cell.trim()); cell = ''; continue; }
+          cell += ch;
+        }
+        cells.push(cell.trim());
+        return cells;
+      }
+
+      var headers = splitLine(raw[0]).map(normalizeHeader);
+      if (!headers.includes('date') && !headers.some(function(h){ return h && h !== null; })) {
+        return null;
+      }
+      var rows = [];
+      for (var i = 1; i < raw.length; i++) {
+        if (!raw[i].trim()) continue;
+        var cells = splitLine(raw[i]);
+        var row = mkRow('');
+        headers.forEach(function(field, idx) {
+          if (!field) return;
+          var val = (cells[idx] || '').replace(/^"|"$/g, '').trim();
+          if (field === 'date') {
+            /* normalise common date formats to YYYY-MM-DD */
+            if (/^\d{4}-\d{2}-\d{2}$/.test(val)) { row.date = val; return; }
+            var dt = new Date(val);
+            if (!isNaN(dt)) { row.date = isoDate(dt); } else { row.date = val; }
+          } else if (FIELDS.indexOf(field) !== -1) {
+            row[field] = val;
+          }
+        });
+        if (row.date || FIELDS.some(function(f){ return row[f]; })) rows.push(row);
+      }
+      return rows;
+    }
+
+    function handleImportFile(inp) {
+      var file = inp.files[0];
+      if (!file) return;
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        var rows = parseCSV(e.target.result);
+        if (!rows || !rows.length) { toast('No data rows found in file.', 'error'); return; }
+        var byDate = {};
+        S.rows.forEach(function(r){ if (r.date) byDate[r.date] = r; });
+        var added = 0, updated = 0;
+        rows.forEach(function(r) {
+          if (r.date && byDate[r.date]) {
+            FIELDS.forEach(function(f){ if (r[f]) byDate[r.date][f] = r[f]; });
+            updated++;
+          } else {
+            S.rows.push(r);
+            if (r.date) byDate[r.date] = r;
+            added++;
+          }
+        });
+        render(); markDirty();
+        toast('Imported: ' + added + ' new row' + (added !== 1 ? 's' : '') +
+              (updated ? ', ' + updated + ' updated' : ''), 'success');
+      };
+      reader.readAsText(file);
+      inp.value = '';
+    }
+
     /* ── Init + bindings ─────────────────────────────────────────────── */
     function init() {
       /* Set quarter from today */
@@ -737,6 +837,8 @@
         S.rows=[]; S.importedIds={}; render(); markDirty();
       });
       document.getElementById('btnPush').addEventListener('click', pushPlans);
+      document.getElementById('btnImport').addEventListener('click', function(){ document.getElementById('importFile').click(); });
+      document.getElementById('importFile').addEventListener('change', function(){ handleImportFile(this); });
       document.getElementById('po-close').addEventListener('click', function(){
         document.getElementById('push-overlay').classList.remove('open');
       });
