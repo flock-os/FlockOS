@@ -862,39 +862,9 @@
       render(); S.dirty = false;
     }
 
-    /* ── Push to Service Plans ───────────────────────────────────────── */
-    async function pushPlans() {
-      var rows = S.rows.filter(function(r){ return r.date; });
-      if (!rows.length) { toast('No rows with dates to push.', 'error'); return; }
-
-      var fbNote = document.getElementById('fbNote');
-      fbNote.style.display = 'block'; fbNote.textContent = '';
-
-      if (!isFB()) {
-        try { fbNote.textContent = 'Waiting for Firestore…'; await waitFB(10000); }
-        catch(e) { fbNote.style.display='none'; toast('Firestore not available. Save draft locally to not lose your work.', 'error'); return; }
-      }
-      fbNote.style.display = 'none';
-
-      var dupMode  = document.getElementById('optDup').value;
-      var themeCol = document.getElementById('optTheme').value;
-      var svcType  = document.getElementById('qST').value;
-
-      var overlay = document.getElementById('push-overlay');
-      var logDiv  = document.getElementById('po-log');
-      var prog    = document.getElementById('po-prog');
-      var closeBtn= document.getElementById('po-close');
-      overlay.classList.add('open');
-      logDiv.innerHTML = ''; prog.style.width = '0%'; closeBtn.style.display = 'none';
-      document.getElementById('po-title').textContent = 'Pushing to Service Plans…';
-      document.getElementById('po-sub').textContent   = 'Writing to Firestore…';
-
-      function log(msg, cls) {
-        var d = document.createElement('div'); d.className = cls||''; d.textContent = msg;
-        logDiv.appendChild(d); logDiv.scrollTop = logDiv.scrollHeight;
-      }
-
-      /* load existing plans to detect duplicates */
+    /* ── Push core (no UI dependency) ───────────────────────────────── */
+    async function doPush(rows, dupMode, themeCol, svcType, onProgress) {
+      /* load existing plans once to detect duplicates */
       var byDate = {};
       try {
         var existing = await UpperRoom.listServicePlans({ limit: 500 });
@@ -907,11 +877,10 @@
 
       for (var i = 0; i < rows.length; i++) {
         var row = rows[i];
-        prog.style.width = Math.round(((i + 1) / rows.length) * 100) + '%';
-        var dl2 = friendlyDate(row.date);
+        if (onProgress) onProgress(i, rows.length, row);
 
         var sermonTitle = '';
-        if (themeCol === 'notes')      sermonTitle = row.notes    || '';
+        if (themeCol === 'notes')          sermonTitle = row.notes    || '';
         else if (themeCol === 'scripture') sermonTitle = row.scripture || '';
 
         var noteParts = [];
@@ -937,6 +906,98 @@
           if (ex) {
             if (dupMode === 'skip') {
               skipped++; S.importedIds[row.id] = ex.id;
+            } else {
+              payload.id = ex.id;
+              await UpperRoom.updateServicePlan(payload);
+              updated++; S.importedIds[row.id] = ex.id;
+            }
+          } else {
+            var res = await UpperRoom.createServicePlan(payload);
+            created++; S.importedIds[row.id] = res.id;
+          }
+        } catch(err) {
+          failed++;
+        }
+      }
+      return { created: created, updated: updated, skipped: skipped, failed: failed };
+    }
+
+    /* ── Push to Service Plans (manual button — shows overlay) ──────── */
+    async function pushPlans() {
+      var rows = S.rows.filter(function(r){ return r.date; });
+      if (!rows.length) { toast('No rows with dates to push.', 'error'); return; }
+
+      var fbNote = document.getElementById('fbNote');
+      fbNote.style.display = 'block'; fbNote.textContent = '';
+
+      if (!isFB()) {
+        try { fbNote.textContent = 'Waiting for Firestore…'; await waitFB(10000); }
+        catch(e) { fbNote.style.display='none'; toast('Firestore not available.', 'error'); return; }
+      }
+      fbNote.style.display = 'none';
+
+      var dupMode  = document.getElementById('optDup').value;
+      var themeCol = document.getElementById('optTheme').value;
+      var svcType  = document.getElementById('qST').value;
+
+      var overlay  = document.getElementById('push-overlay');
+      var logDiv   = document.getElementById('po-log');
+      var prog     = document.getElementById('po-prog');
+      var closeBtn = document.getElementById('po-close');
+      overlay.classList.add('open');
+      logDiv.innerHTML = ''; prog.style.width = '0%'; closeBtn.style.display = 'none';
+      document.getElementById('po-title').textContent = 'Pushing to Service Plans…';
+      document.getElementById('po-sub').textContent   = 'Writing to Firestore…';
+
+      function log(msg, cls) {
+        var d = document.createElement('div'); d.className = cls||''; d.textContent = msg;
+        logDiv.appendChild(d); logDiv.scrollTop = logDiv.scrollHeight;
+      }
+
+      /* override doPush progress/log to surface in overlay */
+      var byDate = {};
+      try {
+        var existing = await UpperRoom.listServicePlans({ limit: 500 });
+        (existing || []).forEach(function(p){
+          var d = p.serviceDate || p.date || ''; if (d) byDate[d] = p;
+        });
+      } catch(e) { /* non-fatal */ }
+
+      var created = 0, updated = 0, skipped = 0, failed = 0;
+      var dupMode2  = dupMode, themeCol2 = themeCol, svcType2 = svcType;
+
+      for (var i = 0; i < rows.length; i++) {
+        var row = rows[i];
+        prog.style.width = Math.round(((i + 1) / rows.length) * 100) + '%';
+        var dl2 = friendlyDate(row.date);
+
+        var sermonTitle = '';
+        if (themeCol2 === 'notes')          sermonTitle = row.notes    || '';
+        else if (themeCol2 === 'scripture') sermonTitle = row.scripture || '';
+
+        var noteParts = [];
+        if (row.announce) noteParts.push('Announcements: ' + row.announce);
+        if (row.prayer)   noteParts.push('Prayer: '        + row.prayer);
+        if (row.proverb)  noteParts.push('Proverb: '       + row.proverb);
+        if (row.notes && themeCol2 !== 'notes') noteParts.push('Notes: ' + row.notes);
+
+        var payload = {
+          serviceDate:     row.date,
+          serviceType:     svcType2,
+          theme:           row.psalm       || '',
+          sermonTitle:     sermonTitle,
+          scriptureFocus:  row.scripture   || '',
+          worshipLeaderId: row.worship     || '',
+          preacherId:      row.preacher    || '',
+          notes:           noteParts.join('\n'),
+          status:          'Scheduled'
+        };
+
+        try {
+          var ex = byDate[row.date];
+          if (ex) {
+            if (dupMode2 === 'skip') {
+              skipped++; S.importedIds[row.id] = ex.id;
               log('↷ ' + dl2 + ' — skipped (plan exists)', 'skip');
             } else {
               payload.id = ex.id;
@@ -957,7 +1018,7 @@
 
       prog.style.width = '100%';
       document.getElementById('po-title').textContent = 'Done';
-      document.getElementById('po-sub').textContent   =
+      document.getElementById('po-sub').textContent =
         created + ' created, ' + updated + ' updated, ' + skipped + ' skipped, ' + failed + ' failed.';
       closeBtn.style.display = 'inline-flex';
 
@@ -1216,10 +1277,34 @@
         var btn1 = document.getElementById('btnSaveCloseTop');
         var btn2 = document.getElementById('btnSaveCloseBot');
         btn1.disabled = btn2.disabled = true;
+
+        /* 1 — save draft */
         btn1.textContent = btn2.textContent = '…Saving';
-        try {
-          await saveToFirestore(false);
-        } catch(e) { /* saveToFirestore already shows the error */ }
+        setStatus('pending', 'Saving…');
+        try { await saveToFirestore(true); } catch(e) { /* error already shown */ }
+
+        /* 2 — push all dated rows to Service Plans */
+        var rows = S.rows.filter(function(r){ return r.date; });
+        if (rows.length) {
+          btn1.textContent = btn2.textContent = '…Syncing plans';
+          setStatus('pending', 'Syncing service plans…');
+          var themeCol = document.getElementById('optTheme').value;
+          var svcType  = document.getElementById('qST').value;
+          try {
+            var result = await doPush(rows, 'update', themeCol, svcType, function(i, total) {
+              var pct = Math.round(((i + 1) / total) * 100);
+              btn1.textContent = btn2.textContent = '…Syncing ' + pct + '%';
+            });
+            render(); updateSummary();
+            setStatus('ready', 'Synced ' + (result.created + result.updated) + ' plans');
+            /* persist importedIds */
+            saveToFirestore(true);
+          } catch(e) {
+            setStatus('error', 'Sync failed');
+          }
+        }
+
+        /* 3 — navigate back */
         window.location.href = getDashboardUrl();
       }
       document.getElementById('btnSaveCloseTop').addEventListener('click', saveAndClose);
