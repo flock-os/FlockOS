@@ -3563,7 +3563,7 @@
 
   function listTheologyCategories(opts) {
     opts = opts || {};
-    var q = _theoCatsRef().orderBy('order', 'asc').limit(opts.limit || 200);
+    var q = _theoCatsRef().orderBy('sortOrder', 'asc').limit(opts.limit || 200);
     return q.get().then(function(snap) {
       var out = [];
       snap.forEach(function(d) { var o = d.data(); o.id = d.id; out.push(o); });
@@ -3598,7 +3598,7 @@
 
   function listTheologySections(opts) {
     opts = opts || {};
-    var q = _theoSecsRef().orderBy('order', 'asc').limit(opts.limit || 200);
+    var q = _theoSecsRef().orderBy('sortOrder', 'asc').limit(opts.limit || 200);
     return q.get().then(function(snap) {
       var out = [];
       snap.forEach(function(d) { var o = d.data(); o.id = d.id; out.push(o); });
