@@ -531,6 +531,9 @@
         <a class="nav-item" data-view="config" data-module="config" onclick="navigate('config')">
           <span class="icon">&#9881;</span> Settings
         </a>
+        <a class="nav-item" data-view="audit" data-module="audit" onclick="navigate('audit')">
+          <span class="icon">&#128270;</span> Audit Log
+        </a>
         <a class="nav-item" data-view="admin-dashboard" data-module="admin-dashboard" onclick="navigate('admin-dashboard')" style="font-weight:700;">
           <span class="icon">&#128640;</span> Admin Hub
         </a>
@@ -845,8 +848,8 @@ document.querySelectorAll('.nav-item[data-module]').forEach(item => {
 document.querySelectorAll('.nav-item[href="the_pentecost.html"]').forEach(function(item) {
   if (!Nehemiah.can('config')) item.style.display = 'none';
 });
-// Show Great Commission link for seed admin only
-if (session.isSeed) {
+// Show Great Commission link for seed admin or Seed Admin group
+if (session.isSeed || Nehemiah.hasGroup('Seed Admin')) {
   var _gcNav = document.getElementById('nav-great-commission');
   if (_gcNav) _gcNav.style.display = '';
 }

@@ -260,6 +260,7 @@ const Nehemiah = (() => {
     const profile = getProfile();
     if (profile && profile.groups) {
       const groups = String(profile.groups).split(',').map(g => g.trim().toLowerCase());
+      if (groups.indexOf('seed admin') !== -1) return true;
       if (groups.indexOf('lead pastor') !== -1) return true;
       if (groups.indexOf('admin') !== -1) return true;
     }
@@ -289,6 +290,7 @@ const Nehemiah = (() => {
     const profile = getProfile();
     if (profile && profile.groups) {
       const groups = String(profile.groups).split(',').map(g => g.trim().toLowerCase());
+      if (groups.indexOf('seed admin') !== -1) return true;
       if (groups.indexOf('lead pastor') !== -1) return true;
       if (groups.indexOf('admin') !== -1) return true;
     }

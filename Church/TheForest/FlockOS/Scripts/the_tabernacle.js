@@ -11653,9 +11653,15 @@ const Modules = (() => {
   });
 
   // ═══════════════════════════════════════════════════════════════════════
-  // 27. AUDIT  (admin)
+  // 27. AUDIT  (pastor+)
   // ═══════════════════════════════════════════════════════════════════════
   _def('audit', async el => {
+    if (typeof TheVine !== 'undefined' && !TheVine.hasRole('pastor')) {
+      el.innerHTML = '<div style="text-align:center;padding:80px 20px;">'
+        + '<div style="font-size:3rem;margin-bottom:12px;">&#128274;</div>'
+        + '<p style="color:var(--ink-muted);">Pastor access required.</p></div>';
+      return;
+    }
     _shell(el, 'Audit Log', 'System activity, changes & security events.', '');
     try {
       const res  = await TheVine.flock.call('audit.list', { limit: 100 });

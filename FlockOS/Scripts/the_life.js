@@ -60,7 +60,12 @@ const TheLife = (() => {
   // ── Seed-admin / Lead Pastor visibility gate ───────────────────────────
   var _TERMINAL_STATUSES = ['resolved','closed','archived','cancelled','denied','completed','answered','inactive','deleted'];
   function _isSeedAdmin() {
-    try { var s = TheVine.session(); return !!(s && s.isSeed); } catch(e) { return false; }
+    try {
+      var s = TheVine.session();
+      if (s && s.isSeed) return true;
+      if (typeof Nehemiah !== 'undefined' && Nehemiah.hasGroup('Seed Admin')) return true;
+      return false;
+    } catch(e) { return false; }
   }
   function _isLeadPastor() {
     try { return Nehemiah.hasGroup('Lead Pastor'); } catch(e) { return false; }
