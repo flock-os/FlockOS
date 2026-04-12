@@ -158,11 +158,16 @@
     return TheVine.flock.firebase.token({ churchId: _churchId })
       .then(function(res) {
         var token = res && (res.token || res.customToken);
-        if (!token) throw new Error('No custom token returned');
+        if (!token) throw new Error('No custom token returned from GAS');
         return _auth.signInWithCustomToken(token);
       })
       .then(function() {
         _ready = true;
+      })
+      .catch(function(err) {
+        // Re-throw with the Firebase error code included so callers can surface it
+        var code = err && err.code ? ' (' + err.code + ')' : '';
+        throw new Error((err && err.message ? err.message : String(err)) + code);
       });
   }
 
