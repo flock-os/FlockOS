@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>FlockOS — Quarterly Worship Planner</title>
+  <link rel="icon" type="image/png" href="../Images/FlockOS_Camo.png">
+  <link rel="apple-touch-icon" href="../Images/FlockOS_Camo.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;600;700&family=Noto+Serif:wght@700&display=swap" rel="stylesheet">
+  <!-- Firebase + UpperRoom (same stack as the rest of FlockOS) -->
+  <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+  <script defer src="../Scripts/the_upper_room.js"></script>
+  <script defer src="../Scripts/fine_linen.js"></script>
+  <script defer src="../Scripts/the_true_vine.js"></script>
+  <script defer src="../Scripts/the_wellspring.js"></script>
+  <script defer src="../Scripts/firm_foundation.js"></script>
+  <style>
+    :root {
+      --topbar-h: 56px;
+      /* Map Fine Linen aliases used in this file */
+      --bg-card:  var(--bg-sunken, #f0eeea);
+      --warn:     var(--warning,   #946B1C);
+      --warn-soft:var(--warning-soft, rgba(148,107,28,0.12));
+    }
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+    html { font-size:100%; -webkit-text-size-adjust:100%; }
+    body {
+      font-family: 'Noto Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg); color: var(--ink); line-height: 1.6; min-height: 100vh;
+    }
+
+    /* ── Topbar ─────────────────────────────────────────────────────────── */
+    .topbar {
+      position: sticky; top:0; left:0; right:0;
+      height: var(--topbar-h);
+      background: var(--bg-raised); border-bottom: 1px solid var(--line);
+      display: flex; align-items: center; padding: 0 20px; z-index:100; gap:12px;
+    }
+    .topbar-brand { font-size:.95rem; font-weight:700; color:var(--accent); letter-spacing:.04em; white-space:nowrap; }
+    .topbar-brand span { color:var(--gold); font-weight:400; font-size:.76rem; margin-left:8px; }
+    .topbar-sep { color:var(--line-strong); font-size:1.1rem; }
+    .topbar-title { font-size:.85rem; font-weight:600; color:var(--ink-muted); white-space:nowrap; }
+    .topbar-spacer { flex:1 1 auto; }
+    .back-btn {
+      background:none; border:1px solid var(--line); border-radius:6px;
+      color:var(--ink-muted); font-size:.76rem; padding:5px 12px;
+      cursor:pointer; font:inherit; text-decoration:none;
+      transition:border-color .2s, color .2s; display:inline-flex; align-items:center; gap:5px;
+      white-space:nowrap;
+    }
+    .back-btn:hover { border-color:var(--accent); color:var(--accent); }
+
+    /* ── Page layout ────────────────────────────────────────────────────── */
+    .page-wrap {
+      max-width: 1840px; margin:0 auto; padding:20px 18px 52px;
+      display: grid; grid-template-columns: 1fr 296px; gap:18px; align-items:start;
+    }
+    @media (max-width:1120px) { .page-wrap { grid-template-columns:1fr; } .sidebar { order:-1; } }
+
+    /* ── Card ───────────────────────────────────────────────────────────── */
+    .card { background:var(--bg-raised); border:1px solid var(--line); border-radius:14px; overflow:hidden; }
+    .card-head {
+      padding:14px 18px; border-bottom:1px solid var(--line);
+      display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;
+    }
+    .card-head-title { font-family:'Noto Serif',serif; font-size:.95rem; font-weight:700; color:var(--ink); }
+    .card-body { padding:18px; }
+
+    /* ── Controls ───────────────────────────────────────────────────────── */
+    .controls { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:12px; }
+    label.lbl {
+      display:block; font-size:.7rem; letter-spacing:.07em; text-transform:uppercase;
+      color:var(--ink-muted); font-weight:600; margin-bottom:5px;
+    }
+    .fw { background:var(--bg-sunken); border:1px solid var(--line); border-radius:9px; transition:border-color .14s; }
+    .fw:focus-within { border-color:var(--accent); }
+    .fi, .fs {
+      width:100%; background:transparent; border:0; outline:none;
+      color:var(--ink); font:inherit; font-size:.84rem; padding:8px 11px; min-height:36px;
+    }
+    .fi::placeholder { color:var(--ink-faint); }
+    .fs option { background:var(--bg); color:var(--ink); }
+
+    /* ── Buttons ────────────────────────────────────────────────────────── */
+    .btn {
+      display:inline-flex; align-items:center; gap:5px;
+      padding:7px 13px; border-radius:7px; border:0;
+      font:inherit; font-size:.8rem; font-weight:600; cursor:pointer;
+      transition:opacity .14s,transform .14s; white-space:nowrap;
+    }
+    .btn:hover:not(:disabled) { opacity:.82; transform:translateY(-1px); }
+    .btn:active { transform:translateY(0); }
+    .btn:disabled { opacity:.42; cursor:not-allowed; }
+    .btn-primary   { background:linear-gradient(135deg,#0ea5e9,#2563eb); color:#fff; }
+    .btn-secondary { background:var(--bg-sunken); border:1px solid var(--line); color:var(--ink); }
+    .btn-success   { background:linear-gradient(135deg,#16a34a,#22c55e); color:#fff; }
+    .btn-danger    { background:linear-gradient(135deg,#dc2626,#ef4444); color:#fff; }
+    .btn-gold      { background:linear-gradient(135deg,#b45309,#e8a838); color:#fff; }
+
+    /* ── Action row ─────────────────────────────────────────────────────── */
+    .action-row {
+      display:flex; flex-wrap:wrap; gap:7px; align-items:center;
+      padding:12px 18px; border-top:1px solid var(--line);
+    }
+    .action-row-r { margin-left:auto; display:flex; gap:7px; flex-wrap:wrap; }
+
+    /* ── Table ──────────────────────────────────────────────────────────── */
+    .tscroll { overflow-x:auto; overflow-y:auto; max-height:calc(100vh - 290px); }
+    .tscroll::-webkit-scrollbar { width:7px; height:7px; }
+    .tscroll::-webkit-scrollbar-thumb { background:var(--line-strong); border-radius:999px; }
+    .tscroll::-webkit-scrollbar-track { background:transparent; }
+    table { width:100%; border-collapse:separate; border-spacing:0; min-width:1180px; }
+    thead th {
+      position:sticky; top:0; z-index:5; background:var(--bg-sunken,var(--bg-card));
+      color:var(--ink-muted); font-size:.68rem; letter-spacing:.08em; text-transform:uppercase;
+      font-weight:700; padding:9px 8px; border-bottom:1px solid var(--line-strong); text-align:left; white-space:nowrap;
+    }
+    tbody tr:hover td { background:var(--bg-hover); }
+    tbody td { padding:3px 3px; border-bottom:1px solid var(--line); vertical-align:middle; }
+    tbody tr:last-child td { border-bottom:0; }
+
+    /* cell input */
+    .cw { background:transparent; border:1px solid transparent; border-radius:6px; transition:border-color .11s,background .11s; }
+    .cw:focus-within { border-color:var(--accent-soft); background:var(--accent-soft); }
+    .ci {
+      width:100%; background:transparent; border:0; outline:none;
+      color:var(--ink); font:inherit; font-size:.8rem; padding:6px 7px; min-height:32px;
+    }
+    .ci::placeholder { color:var(--ink-faint); }
+    .ci.date-ci { font-weight:600; color:var(--accent); font-size:.78rem; }
+
+    /* row action btns */
+    .row-btns { display:flex; gap:3px; justify-content:flex-end; padding:1px 4px; }
+    .ib {
+      width:26px; height:26px; border-radius:5px; border:1px solid var(--line);
+      background:var(--bg-sunken); color:var(--ink-muted);
+      cursor:pointer; font-size:.74rem; display:flex; align-items:center; justify-content:center;
+      transition:background .11s, color .11s;
+    }
+    .ib:hover { background:var(--bg-hover); color:var(--ink); }
+    .ib.del:hover { background:var(--danger-soft); color:var(--danger); border-color:var(--danger); }
+    .ib.imp { color:var(--success); border-color:transparent; cursor:default; font-size:.68rem; }
+
+    /* ── Sidebar ────────────────────────────────────────────────────────── */
+    .sidebar { display:flex; flex-direction:column; gap:14px; }
+    .stat-row { display:flex; justify-content:space-between; font-size:.83rem; padding:3px 0; }
+    .stat-row span:first-child { color:var(--ink-muted); }
+    .stat-row strong { color:var(--ink); }
+    .stat-row strong.hi { color:var(--success); }
+    .dot { width:8px; height:8px; border-radius:50%; background:var(--ink-muted); flex-shrink:0; }
+    .dot.ready   { background:var(--success); }
+    .dot.pending { background:var(--warn); animation:dpulse .9s ease-in-out infinite; }
+    .dot.error   { background:var(--danger); }
+    @keyframes dpulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+
+    /* ── Toast ──────────────────────────────────────────────────────────── */
+    #toast {
+      position:fixed; bottom:24px; right:20px; z-index:9999;
+      max-width:320px; padding:11px 16px; border-radius:9px;
+      font-size:.84rem; font-weight:600; line-height:1.4; display:none;
+      animation:tin .22s ease;
+    }
+    @keyframes tin { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:none} }
+    #toast.success { background:var(--success-soft); border:1px solid var(--success); color:var(--success); }
+    #toast.error   { background:var(--danger-soft);  border:1px solid var(--danger);  color:var(--danger); }
+    #toast.info    { background:var(--accent-soft);   border:1px solid var(--accent);  color:var(--accent); }
+
+    /* ── Push overlay ───────────────────────────────────────────────────── */
+    #push-overlay {
+      display:none; position:fixed; inset:0; z-index:500;
+      background:rgba(0,0,0,.62); align-items:center; justify-content:center;
+    }
+    #push-overlay.open { display:flex; }
+    .push-box {
+      background:var(--bg-raised); border:1px solid var(--line-strong);
+      border-radius:14px; padding:28px 26px; min-width:340px; max-width:460px;
+      text-align:center;
+    }
+    .push-box h3 { font-family:'Noto Serif',serif; font-size:1rem; margin-bottom:10px; color:var(--ink); }
+    .push-box p  { color:var(--ink-muted); font-size:.84rem; line-height:1.5; }
+    .prog-track  { background:var(--line); border-radius:999px; height:5px; margin:16px 0; overflow:hidden; }
+    .prog-fill   { height:100%; background:linear-gradient(90deg,#0ea5e9,#38bdf8); border-radius:999px; transition:width .28s; }
+    .push-log    { text-align:left; max-height:170px; overflow-y:auto; font-size:.75rem; color:var(--ink-muted); margin-top:10px; }
+    .push-log div { padding:2px 0; }
+    .push-log .ok   { color:var(--success); }
+    .push-log .skip { color:var(--warn); }
+    .push-log .fail { color:var(--danger); }
+  </style>
+</head>
+<body>
+
+  <!-- Topbar -->
+  <div class="topbar">
+    <div class="topbar-brand">FlockOS <span>Worship Planning</span></div>
+    <span class="topbar-sep">›</span>
+    <span class="topbar-title">Quarterly Planner</span>
+    <div class="topbar-spacer"></div>
+    <a href="../Pages/index.html" class="back-btn">← Dashboard</a>
+  </div>
+
+  <!-- Page layout -->
+  <div class="page-wrap">
+
+    <!-- Left: controls + table -->
+    <div style="display:flex;flex-direction:column;gap:14px;">
+
+      <!-- Setup card -->
+      <div class="card">
+        <div class="card-head">
+          <span class="card-head-title">⛪ Quarterly Worship Schedule</span>
+          <div style="display:flex;align-items:center;gap:7px;">
+            <span class="dot" id="sDot"></span>
+            <span id="sMsg" style="font-size:.78rem;color:var(--ink-muted);">Ready</span>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="controls">
+            <div>
+              <label class="lbl" for="qQ">Quarter</label>
+              <div class="fw"><select id="qQ" class="fs">
+                <option value="Q1">Q1 — Jan / Feb / Mar</option>
+                <option value="Q2">Q2 — Apr / May / Jun</option>
+                <option value="Q3">Q3 — Jul / Aug / Sep</option>
+                <option value="Q4">Q4 — Oct / Nov / Dec</option>
+              </select></div>
+            </div>
+            <div>
+              <label class="lbl" for="qY">Year</label>
+              <div class="fw"><input id="qY" class="fi" type="number" min="2020" max="2100" value="2026"></div>
+            </div>
+            <div>
+              <label class="lbl" for="qFS">First Sunday <span style="text-transform:none;font-weight:400;">(optional override)</span></label>
+              <div class="fw"><input id="qFS" class="fi" type="date" title="Pick the first Sunday of your quarter — all other Sundays auto-populate weekly from this date"></div>
+            </div>
+            <div>
+              <label class="lbl" for="qST">Service Type</label>
+              <div class="fw"><select id="qST" class="fs">
+                <option value="Sunday AM">Sunday AM</option>
+                <option value="Sunday PM">Sunday PM</option>
+                <option value="Wednesday">Wednesday</option>
+                <option value="Special">Special</option>
+                <option value="Good Friday">Good Friday</option>
+                <option value="Easter">Easter</option>
+                <option value="Christmas">Christmas</option>
+              </select></div>
+            </div>
+          </div>
+        </div>
+        <div class="action-row">
+          <button class="btn btn-primary" id="btnGen">⟳ Generate Sundays</button>
+          <button class="btn btn-secondary" id="btnAdd">+ Add Row</button>
+          <button class="btn btn-secondary" id="btnDup">⧉ Duplicate Last</button>
+          <button class="btn btn-danger" id="btnReset" style="font-size:.74rem;">✕ Reset</button>
+        </div>
+      </div>
+
+      <!-- Grid card -->
+      <div class="card">
+        <div class="card-head">
+          <span class="card-head-title">Schedule Grid</span>
+          <span style="font-size:.78rem;color:var(--ink-muted);"><span id="rowCt">0</span> Sundays</span>
+        </div>
+        <div class="tscroll">
+          <table>
+            <thead><tr>
+              <th style="min-width:146px;width:146px;">Date</th>
+              <th style="min-width:122px;">Psalm / Introit</th>
+              <th style="min-width:160px;">Worship Leader</th>
+              <th style="min-width:152px;">Announcements</th>
+              <th style="min-width:152px;">Prayer</th>
+              <th style="min-width:160px;">Preacher</th>
+              <th style="min-width:170px;">Scripture</th>
+              <th style="min-width:108px;">Proverb</th>
+              <th style="min-width:170px;">Notes / Theme</th>
+              <th style="min-width:60px;width:60px;"></th>
+            </tr></thead>
+            <tbody id="gridBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div><!-- /left -->
+
+    <!-- Sidebar -->
+    <div class="sidebar">
+
+      <div class="card">
+        <div class="card-head"><span class="card-head-title">📊 Summary</span></div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:4px;">
+          <div class="stat-row"><span>Total Sundays</span><strong id="smTotal">0</strong></div>
+          <div class="stat-row"><span>Preacher assigned</span><strong id="smPreach">0</strong></div>
+          <div class="stat-row"><span>Worship assigned</span><strong id="smWorship">0</strong></div>
+          <div class="stat-row"><span>Fully complete</span><strong id="smFull">0</strong></div>
+          <div class="stat-row"><span>Pushed to plans</span><strong id="smPushed" class="hi">0</strong></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><span class="card-head-title">🚀 Push to Service Plans</span></div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:12px;">
+          <p style="font-size:.8rem;color:var(--ink-muted);line-height:1.55;">Each dated row creates (or updates) a Service Plan in FlockOS — visible in the Services tab of the Ministry Hub.</p>
+          <div>
+            <label class="lbl" for="optDup">If plan already exists for that date</label>
+            <div class="fw"><select id="optDup" class="fs">
+              <option value="skip">Skip (keep existing)</option>
+              <option value="update">Update existing</option>
+            </select></div>
+          </div>
+          <div>
+            <label class="lbl" for="optTheme">Map sermon title from</label>
+            <div class="fw"><select id="optTheme" class="fs">
+              <option value="notes">Notes / Theme column</option>
+              <option value="scripture">Scripture column</option>
+              <option value="none">— Leave blank —</option>
+            </select></div>
+          </div>
+          <button class="btn btn-gold" id="btnPush" style="width:100%;justify-content:center;">⬆ Push Quarter to Service Plans</button>
+          <p id="fbNote" style="font-size:.76rem;color:var(--ink-muted);text-align:center;display:none;"></p>
+        </div>
+      </div>
+
+
+
+    </div><!-- /sidebar -->
+  </div><!-- /page-wrap -->
+
+  <!-- Push overlay -->
+  <div id="push-overlay">
+    <div class="push-box">
+      <h3 id="po-title">Pushing to Service Plans…</h3>
+      <p id="po-sub">Writing records to Firestore.</p>
+      <div class="prog-track"><div class="prog-fill" id="po-prog" style="width:0%"></div></div>
+      <div class="push-log" id="po-log"></div>
+      <button class="btn btn-secondary" id="po-close" style="margin-top:16px;display:none;">Done</button>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast"></div>
+
+  <script>
+  /* ============================================================
+     QuarterlyWorship — FlockOS Quarterly Worship Planner
+     Builds per-Sunday rows; auto-generates dates from first Sunday or
+     standard quarter; pushes to UpperRoom.createServicePlan / updateServicePlan.
+  ============================================================ */
+  if (typeof Adornment !== 'undefined') Adornment.init();
+  (function () {
+    'use strict';
+
+    /* ── Firebase check ──────────────────────────────────────────────── */
+    function isFB() {
+      return typeof UpperRoom !== 'undefined' &&
+             typeof UpperRoom.isReady === 'function' &&
+             UpperRoom.isReady();
+    }
+    function waitFB(ms) {
+      var t0 = Date.now();
+      return new Promise(function (res, rej) {
+        (function tick() {
+          if (isFB()) return res();
+          if (Date.now() - t0 > (ms || 9000)) return rej(new Error('Firestore not ready.'));
+          setTimeout(tick, 300);
+        })();
+      });
+    }
+
+    /* ── UI helpers ──────────────────────────────────────────────────── */
+    function toast(msg, type, dur) {
+      var el = document.getElementById('toast');
+      el.textContent = msg; el.className = type || 'info'; el.style.display = 'block';
+      clearTimeout(el._t); el._t = setTimeout(function () { el.style.display = 'none'; }, dur || 3200);
+    }
+    function setStatus(cls, msg) {
+      document.getElementById('sDot').className = 'dot ' + (cls || '');
+      document.getElementById('sMsg').textContent = msg || 'Ready';
+    }
+    function uid() {
+      if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+      return 'r' + Date.now() + '_' + Math.random().toString(36).slice(2);
+    }
+    function isoDate(d) {
+      var m = d.getMonth() + 1, day = d.getDate();
+      return d.getFullYear() + '-' + (m < 10 ? '0' : '') + m + '-' + (day < 10 ? '0' : '') + day;
+    }
+    function friendlyDate(iso) {
+      if (!iso) return '';
+      var p = iso.split('-').map(Number);
+      return new Date(p[0], p[1] - 1, p[2]).toLocaleDateString(undefined,
+        { weekday:'short', month:'short', day:'numeric', year:'numeric' });
+    }
+
+    /* ── State ───────────────────────────────────────────────────────── */
+    var S = { rows: [], importedIds: {}, dirty: false, saveTimer: null };
+    var FIELDS = ['psalm','worship','announce','prayer','preacher','scripture','proverb','notes'];
+
+    function mkRow(date) {
+      var r = { id: uid(), date: date || '' };
+      FIELDS.forEach(function (f) { r[f] = ''; });
+      return r;
+    }
+
+    /* ── Sunday generation ───────────────────────────────────────────── */
+    function qMonths(q) {
+      return { Q1:[0,1,2], Q2:[3,4,5], Q3:[6,7,8], Q4:[9,10,11] }[q] || [0,1,2];
+    }
+    function quarterSundays(year, q) {
+      var months = qMonths(q), dates = [];
+      months.forEach(function (m) {
+        var d = new Date(year, m, 1);
+        while (d.getDay() !== 0) d.setDate(d.getDate() + 1);
+        while (d.getMonth() === m) { dates.push(isoDate(d)); d.setDate(d.getDate() + 7); }
+      });
+      return dates;
+    }
+    function sundaysFromFirst(firstIso, year, q) {
+      // Build weekly Sundays starting from firstIso through end of last month in quarter
+      var p = firstIso.split('-').map(Number);
+      var cursor = new Date(p[0], p[1] - 1, p[2]);
+      var months = qMonths(q);
+      var endM = months[months.length - 1];
+      var endDate = new Date(year, endM + 1, 0); // last day of last quarter month
+      var dates = [];
+      while (cursor <= endDate) { dates.push(isoDate(cursor)); cursor.setDate(cursor.getDate() + 7); }
+      return dates;
+    }
+
+    /* ── Render ──────────────────────────────────────────────────────── */
+    var PLACEHOLDERS = {
+      psalm:'Psalm 95…', worship:'Volunteer name', announce:'Volunteer name',
+      prayer:'Volunteer name', preacher:'Volunteer name', scripture:'John 3:16',
+      proverb:'Proverbs 3…', notes:'Theme / notes'
+    };
+
+    function render() {
+      var tbody = document.getElementById('gridBody');
+      tbody.innerHTML = '';
+
+      S.rows.forEach(function (row) {
+        var tr = document.createElement('tr');
+        tr.dataset.id = row.id;
+
+        /* Date cell */
+        var dtd = document.createElement('td');
+        var dw  = document.createElement('div'); dw.className = 'cw';
+        var di  = document.createElement('input');
+        di.type = 'date'; di.className = 'ci date-ci'; di.value = row.date || '';
+        di.addEventListener('change', function (e) {
+          var r = rowById(e.target.closest('tr').dataset.id);
+          if (r) { r.date = e.target.value; updateSummary(); markDirty(); }
+        });
+        dw.appendChild(di); dtd.appendChild(dw); tr.appendChild(dtd);
+
+        /* Data field cells */
+        FIELDS.forEach(function (key) {
+          var td = document.createElement('td');
+          var w  = document.createElement('div'); w.className = 'cw';
+          var inp = document.createElement('input');
+          inp.type = 'text'; inp.className = 'ci'; inp.placeholder = PLACEHOLDERS[key] || '';
+          inp.value = row[key] || '';
+          inp.addEventListener('input', function (e) {
+            var r = rowById(e.target.closest('tr').dataset.id);
+            if (r) { r[key] = e.target.value; updateSummary(); markDirty(); }
+          });
+          w.appendChild(inp); td.appendChild(w); tr.appendChild(td);
+        });
+
+        /* Actions */
+        var atd = document.createElement('td');
+        var rb  = document.createElement('div'); rb.className = 'row-btns';
+
+        /* imported check */
+        if (S.importedIds[row.id]) {
+          var ck = document.createElement('button');
+          ck.className = 'ib imp'; ck.title = 'Pushed — plan ' + S.importedIds[row.id]; ck.textContent = '✓';
+          rb.appendChild(ck);
+        }
+
+        var db = document.createElement('button');
+        db.type = 'button'; db.className = 'ib'; db.title = 'Duplicate'; db.textContent = '⧉';
+        db.addEventListener('click', function () { dupRow(row.id); });
+        rb.appendChild(db);
+
+        var xb = document.createElement('button');
+        xb.type = 'button'; xb.className = 'ib del'; xb.title = 'Delete'; xb.textContent = '✕';
+        xb.addEventListener('click', function () { delRow(row.id); });
+        rb.appendChild(xb);
+
+        atd.appendChild(rb); tr.appendChild(atd);
+        tbody.appendChild(tr);
+      });
+
+      document.getElementById('rowCt').textContent = S.rows.length;
+      updateSummary();
+    }
+
+    function rowById(id) { return S.rows.find(function (r) { return r.id === id; }) || null; }
+
+    /* ── Row ops ─────────────────────────────────────────────────────── */
+    function addRow(date) { S.rows.push(mkRow(date || '')); render(); markDirty(); }
+    function delRow(id) {
+      if (!confirm('Remove this row?')) return;
+      S.rows = S.rows.filter(function (r) { return r.id !== id; });
+      render(); markDirty();
+    }
+    function dupRow(id) {
+      var src = rowById(id); if (!src) return;
+      var copy = mkRow(src.date);
+      FIELDS.forEach(function (f) { copy[f] = src[f]; });
+      S.rows.splice(S.rows.indexOf(src) + 1, 0, copy);
+      render(); markDirty();
+    }
+    function dupLast() {
+      if (!S.rows.length) { addRow(); return; }
+      dupRow(S.rows[S.rows.length - 1].id);
+    }
+
+    /* ── Generate ────────────────────────────────────────────────────── */
+    function generate() {
+      var q    = document.getElementById('qQ').value;
+      var year = parseInt(document.getElementById('qY').value, 10) || new Date().getFullYear();
+      var first = document.getElementById('qFS').value;
+
+      var sundays;
+      if (first) {
+        var d = new Date(first + 'T00:00:00');
+        if (d.getDay() !== 0) {
+          toast('That date is not a Sunday (' + ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()] + '). Pick a Sunday.', 'error');
+          return;
+        }
+        sundays = sundaysFromFirst(first, year, q);
+      } else {
+        sundays = quarterSundays(year, q);
+      }
+
+      S.rows = sundays.map(function (iso) { return mkRow(iso); });
+      S.importedIds = {};
+      render(); markDirty();
+      toast('Generated ' + S.rows.length + ' Sundays for ' + q + ' ' + year, 'success');
+    }
+
+    /* ── Summary ─────────────────────────────────────────────────────── */
+    function updateSummary() {
+      document.getElementById('smTotal').textContent  = S.rows.length;
+      document.getElementById('smPreach').textContent = S.rows.filter(function(r){return r.preacher.trim();}).length;
+      document.getElementById('smWorship').textContent= S.rows.filter(function(r){return r.worship.trim();}).length;
+      document.getElementById('smFull').textContent   = S.rows.filter(function(r){
+        return r.date && r.worship.trim() && r.preacher.trim() && r.scripture.trim();
+      }).length;
+      document.getElementById('smPushed').textContent = Object.keys(S.importedIds).length;
+    }
+
+    /* ── Firestore save / load ──────────────────────────────────────── */
+    function draftKey() {
+      return 'flockos_qwp_' + document.getElementById('qQ').value + '_' + document.getElementById('qY').value;
+    }
+    function planRef() {
+      return firebase.firestore().collection('quarterlyPlans').doc(draftKey());
+    }
+    function fmtTs(iso) {
+      if (!iso) return '';
+      try { return new Date(iso).toLocaleString(undefined, {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}); }
+      catch(e) { return ''; }
+    }
+    function markDirty() {
+      S.dirty = true; setStatus('pending', 'Unsaved changes');
+      clearTimeout(S.saveTimer); S.saveTimer = setTimeout(function(){ saveToFirestore(true); }, 1400);
+    }
+    async function saveToFirestore(auto) {
+      if (!isFB()) { setStatus('pending', 'Waiting for cloud…'); return; }
+      try {
+        setStatus('pending', 'Saving…');
+        var ts = new Date().toISOString();
+        await planRef().set({
+          q:   document.getElementById('qQ').value,
+          y:   document.getElementById('qY').value,
+          st:  document.getElementById('qST').value,
+          fs:  document.getElementById('qFS').value,
+          at:  ts,
+          rows: S.rows,
+          importedIds: S.importedIds
+        });
+        S.dirty = false;
+        setStatus('ready', 'Saved · ' + fmtTs(ts));
+        if (!auto) toast('Saved to Firestore', 'success');
+      } catch(e) {
+        setStatus('error', 'Save failed');
+        if (!auto) toast('Save failed: ' + e.message, 'error');
+      }
+    }
+    function applyPlanData(p) {
+      if (p.q)  document.getElementById('qQ').value  = p.q;
+      if (p.y)  document.getElementById('qY').value  = p.y;
+      if (p.st) document.getElementById('qST').value = p.st;
+      document.getElementById('qFS').value = p.fs || '';
+      S.rows = (p.rows || []).map(function(r){
+        var nr = mkRow(r.date); Object.assign(nr, r);
+        if (!nr.id) nr.id = uid(); return nr;
+      });
+      S.importedIds = p.importedIds || {};
+      render(); S.dirty = false;
+    }
+
+    /* ── Push to Service Plans ───────────────────────────────────────── */
+    async function pushPlans() {
+      var rows = S.rows.filter(function(r){ return r.date; });
+      if (!rows.length) { toast('No rows with dates to push.', 'error'); return; }
+
+      var fbNote = document.getElementById('fbNote');
+      fbNote.style.display = 'block'; fbNote.textContent = '';
+
+      if (!isFB()) {
+        try { fbNote.textContent = 'Waiting for Firestore…'; await waitFB(10000); }
+        catch(e) { fbNote.style.display='none'; toast('Firestore not available. Save draft locally to not lose your work.', 'error'); return; }
+      }
+      fbNote.style.display = 'none';
+
+      var dupMode  = document.getElementById('optDup').value;
+      var themeCol = document.getElementById('optTheme').value;
+      var svcType  = document.getElementById('qST').value;
+
+      var overlay = document.getElementById('push-overlay');
+      var logDiv  = document.getElementById('po-log');
+      var prog    = document.getElementById('po-prog');
+      var closeBtn= document.getElementById('po-close');
+      overlay.classList.add('open');
+      logDiv.innerHTML = ''; prog.style.width = '0%'; closeBtn.style.display = 'none';
+      document.getElementById('po-title').textContent = 'Pushing to Service Plans…';
+      document.getElementById('po-sub').textContent   = 'Writing to Firestore…';
+
+      function log(msg, cls) {
+        var d = document.createElement('div'); d.className = cls||''; d.textContent = msg;
+        logDiv.appendChild(d); logDiv.scrollTop = logDiv.scrollHeight;
+      }
+
+      /* load existing plans to detect duplicates */
+      var byDate = {};
+      try {
+        var existing = await UpperRoom.listServicePlans({ limit: 500 });
+        (existing || []).forEach(function(p){
+          var d = p.serviceDate || p.date || ''; if (d) byDate[d] = p;
+        });
+      } catch(e) { /* non-fatal */ }
+
+      var created = 0, updated = 0, skipped = 0, failed = 0;
+
+      for (var i = 0; i < rows.length; i++) {
+        var row = rows[i];
+        prog.style.width = Math.round(((i + 1) / rows.length) * 100) + '%';
+        var dl2 = friendlyDate(row.date);
+
+        var sermonTitle = '';
+        if (themeCol === 'notes')      sermonTitle = row.notes    || '';
+        else if (themeCol === 'scripture') sermonTitle = row.scripture || '';
+
+        var noteParts = [];
+        if (row.announce) noteParts.push('Announcements: ' + row.announce);
+        if (row.prayer)   noteParts.push('Prayer: '        + row.prayer);
+        if (row.proverb)  noteParts.push('Proverb: '       + row.proverb);
+        if (row.notes && themeCol !== 'notes') noteParts.push('Notes: ' + row.notes);
+
+        var payload = {
+          serviceDate:     row.date,
+          serviceType:     svcType,
+          theme:           row.psalm       || '',
+          sermonTitle:     sermonTitle,
+          scriptureFocus:  row.scripture   || '',
+          worshipLeaderId: row.worship     || '',
+          preacherId:      row.preacher    || '',
+          notes:           noteParts.join('\n'),
+          status:          'Scheduled'
+        };
+
+        try {
+          var ex = byDate[row.date];
+          if (ex) {
+            if (dupMode === 'skip') {
+              skipped++; S.importedIds[row.id] = ex.id;
+              log('↷ ' + dl2 + ' — skipped (plan exists)', 'skip');
+            } else {
+              payload.id = ex.id;
+              await UpperRoom.updateServicePlan(payload);
+              updated++; S.importedIds[row.id] = ex.id;
+              log('✎ ' + dl2 + ' — updated', 'ok');
+            }
+          } else {
+            var res = await UpperRoom.createServicePlan(payload);
+            created++; S.importedIds[row.id] = res.id;
+            log('✓ ' + dl2 + ' — created', 'ok');
+          }
+        } catch(err) {
+          failed++;
+          log('✗ ' + dl2 + ' — ' + (err.message || 'unknown error'), 'fail');
+        }
+      }
+
+      prog.style.width = '100%';
+      document.getElementById('po-title').textContent = 'Done';
+      document.getElementById('po-sub').textContent   =
+        created + ' created, ' + updated + ' updated, ' + skipped + ' skipped, ' + failed + ' failed.';
+      closeBtn.style.display = 'inline-flex';
+
+      render(); updateSummary();
+      setStatus('ready', 'Pushed ' + (created + updated) + ' plans');
+      toast('Pushed ' + (created + updated) + ' service plan(s)', 'success');
+      saveToFirestore(true);
+    }
+
+    /* ── Init + bindings ─────────────────────────────────────────────── */
+    function init() {
+      /* Set quarter from today */
+      var now = new Date();
+      var m   = now.getMonth();
+      var q   = m < 3 ? 'Q1' : m < 6 ? 'Q2' : m < 9 ? 'Q3' : 'Q4';
+      document.getElementById('qQ').value = q;
+      document.getElementById('qY').value = now.getFullYear();
+
+      /* Validate first-sunday picker */
+      document.getElementById('qFS').addEventListener('change', function () {
+        var v = this.value; if (!v) return;
+        var d = new Date(v + 'T00:00:00');
+        if (d.getDay() !== 0) {
+          toast('That is a ' + ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()] + ' — please pick a Sunday.', 'error');
+          this.value = '';
+        }
+      });
+
+      document.getElementById('btnGen').addEventListener('click', generate);
+      document.getElementById('btnAdd').addEventListener('click', function(){ addRow(); });
+      document.getElementById('btnDup').addEventListener('click', dupLast);
+      document.getElementById('btnReset').addEventListener('click', function(){
+        if (!confirm('Clear all rows?')) return;
+        S.rows=[]; S.importedIds={}; render(); markDirty();
+      });
+      document.getElementById('btnPush').addEventListener('click', pushPlans);
+      document.getElementById('po-close').addEventListener('click', function(){
+        document.getElementById('push-overlay').classList.remove('open');
+      });
+
+      window.addEventListener('beforeunload', function(e){
+        if (!S.dirty) return; e.preventDefault(); e.returnValue='';
+      });
+
+      /* auto-load from Firestore for current quarter */
+      setStatus('pending', 'Loading…');
+      waitFB(9000).then(function() {
+        return planRef().get();
+      }).then(function(snap) {
+        if (snap && snap.exists) {
+          applyPlanData(snap.data());
+          setStatus('ready', 'Saved · ' + fmtTs(snap.data().at));
+        } else {
+          generate();
+          setStatus('', 'Not yet saved');
+        }
+      }).catch(function() {
+        generate();
+        setStatus('ready', 'Ready');
+      });
+    }
+
+    init();
+  })();
+  </script>
+</body>
+</html>

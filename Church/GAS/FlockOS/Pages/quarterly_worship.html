@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Quarterly Worship Schedule</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Merriweather:wght@700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-1: #020617;
+      --bg-2: #0f172a;
+      --glass: rgba(255,255,255,0.06);
+      --glass-strong: rgba(255,255,255,0.1);
+      --glass-border: rgba(255,255,255,0.12);
+      --text-main: #e5eefc;
+      --text-muted: #93a4bf;
+      --accent: #38bdf8;
+      --accent-soft: rgba(56,189,248,0.16);
+      --good: #22c55e;
+      --warn: #f59e0b;
+      --danger: #ef4444;
+      --shadow: 0 20px 60px rgba(0,0,0,0.35);
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+
+    body {
+      margin: 0;
+      font-family: 'Inter', sans-serif;
+      color: var(--text-main);
+      background:
+        radial-gradient(circle at top center, rgba(56,189,248,0.14), transparent 22%),
+        radial-gradient(circle at 20% 20%, rgba(168,85,247,0.12), transparent 20%),
+        linear-gradient(180deg, var(--bg-2), var(--bg-1));
+      background-attachment: fixed;
+    }
+
+    .glass-panel {
+      background: var(--glass);
+      border: 1px solid var(--glass-border);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      box-shadow: var(--shadow);
+    }
+
+    .field-shell {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 14px;
+      transition: border-color .18s ease, background .18s ease, transform .18s ease;
+    }
+
+    .field-shell:focus-within {
+      border-color: rgba(56,189,248,0.5);
+      background: rgba(255,255,255,0.07);
+    }
+
+    .field,
+    .field-select {
+      width: 100%;
+      background: transparent;
+      border: 0;
+      outline: none;
+      color: var(--text-main);
+      font: inherit;
+      padding: 12px 14px;
+      min-height: 44px;
+    }
+
+    .field::placeholder { color: #7f91ad; }
+    .field-select option { color: #0f172a; }
+
+    .sticky-top {
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+
+    .table-scroll::-webkit-scrollbar { height: 10px; width: 10px; }
+    .table-scroll::-webkit-scrollbar-thumb {
+      background: rgba(255,255,255,0.15);
+      border-radius: 999px;
+    }
+    .table-scroll::-webkit-scrollbar-track { background: transparent; }
+
+    table {
+      border-collapse: separate;
+      border-spacing: 0;
+      width: 100%;
+      min-width: 1400px;
+    }
+
+    thead th {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: rgba(2, 6, 23, 0.9);
+      color: #cbd5e1;
+      font-size: 12px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+
+    th, td {
+      padding: 10px;
+      vertical-align: top;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+
+    tbody tr:hover td {
+      background: rgba(255,255,255,0.02);
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border-radius: 999px;
+      padding: 8px 12px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.08);
+      color: var(--text-muted);
+      font-size: 12px;
+      line-height: 1;
+    }
+
+    .btn {
+      appearance: none;
+      border: 0;
+      cursor: pointer;
+      border-radius: 14px;
+      padding: 11px 16px;
+      color: white;
+      font: inherit;
+      font-weight: 600;
+      transition: transform .18s ease, opacity .18s ease, background .18s ease;
+    }
+
+    .btn:hover { transform: translateY(-1px); }
+    .btn:active { transform: translateY(0); }
+    .btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+    .btn-primary { background: linear-gradient(135deg, #0ea5e9, #2563eb); }
+    .btn-secondary { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1); }
+    .btn-good { background: linear-gradient(135deg, #16a34a, #22c55e); }
+    .btn-warn { background: linear-gradient(135deg, #d97706, #f59e0b); }
+    .btn-danger { background: linear-gradient(135deg, #dc2626, #ef4444); }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: #64748b;
+      box-shadow: 0 0 0 4px rgba(100,116,139,0.16);
+      flex: 0 0 auto;
+    }
+
+    .status-dot.ready { background: #22c55e; box-shadow: 0 0 0 4px rgba(34,197,94,0.16); }
+    .status-dot.pending { background: #f59e0b; box-shadow: 0 0 0 4px rgba(245,158,11,0.16); }
+    .status-dot.error { background: #ef4444; box-shadow: 0 0 0 4px rgba(239,68,68,0.16); }
+
+    .mini-label {
+      font-size: 11px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+      display: block;
+    }
+
+    .section-title {
+      font-family: 'Merriweather', serif;
+      font-size: 1.15rem;
+      margin: 0;
+      color: #f8fbff;
+    }
+
+    .helper-text {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    .row-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+
+    .icon-btn {
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.04);
+      color: #dbeafe;
+      border-radius: 12px;
+      width: 38px;
+      height: 38px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+
+    .icon-btn:hover { background: rgba(255,255,255,0.09); }
+
+    .muted-link {
+      color: #7dd3fc;
+      text-decoration: none;
+    }
+
+    .muted-link:hover { text-decoration: underline; }
+
+    @media (max-width: 1024px) {
+      .controls-grid { grid-template-columns: 1fr !important; }
+      .header-stack { flex-direction: column; align-items: flex-start !important; }
+      .button-wrap { width: 100%; flex-wrap: wrap; }
+    }
+  </style>
+</head>
+<body>
+  <div class="sticky-top border-b border-white/5 bg-slate-950/50">
+    <div class="max-w-[1800px] mx-auto px-4 md:px-6 py-4">
+      <div class="glass-panel rounded-3xl px-5 py-4 flex items-start justify-between gap-4 header-stack">
+        <div>
+          <div class="flex items-center gap-2 mb-2">
+            <span class="pill">Quarterly Planner</span>
+            <span class="pill"><span id="quarterBadge">Q2 2026</span></span>
+          </div>
+          <h1 class="section-title text-2xl md:text-3xl">Quarterly Worship Schedule</h1>
+          <p class="helper-text mt-2 max-w-3xl">
+            Build your quarter, assign each role, save locally while editing, and wire the save/load actions into either Firestore or Google Apps Script when you import this into your site.
+          </p>
+        </div>
+
+        <div class="flex items-center gap-3 mt-1">
+          <div class="pill">
+            <span id="saveIndicator" class="status-dot ready"></span>
+            <span id="saveMessage">Ready</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <main class="max-w-[1800px] mx-auto px-4 md:px-6 py-6 space-y-6">
+
+    <section class="glass-panel rounded-3xl p-5 md:p-6">
+      <div class="grid grid-cols-1 xl:grid-cols-[1.25fr_1fr] gap-6 controls-grid">
+        <div>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label class="mini-label" for="quarterSelect">Quarter</label>
+              <div class="field-shell">
+                <select id="quarterSelect" class="field-select">
+                  <option value="Q1">Q1</option>
+                  <option value="Q2" selected>Q2</option>
+                  <option value="Q3">Q3</option>
+                  <option value="Q4">Q4</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <label class="mini-label" for="yearInput">Year</label>
+              <div class="field-shell">
+                <input id="yearInput" class="field" type="number" min="2020" max="2100" value="2026" />
+              </div>
+            </div>
+            <div>
+              <label class="mini-label" for="defaultServiceTime">Service Time Label</label>
+              <div class="field-shell">
+                <input id="defaultServiceTime" class="field" type="text" value="Sunday Morning" placeholder="Sunday Morning" />
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-4 flex gap-3 flex-wrap button-wrap">
+            <button id="generateQuarterBtn" class="btn btn-primary">Generate Quarter Sundays</button>
+            <button id="addBlankRowBtn" class="btn btn-secondary">Add Blank Row</button>
+            <button id="duplicateLastBtn" class="btn btn-secondary">Duplicate Last Row</button>
+            <button id="resetQuarterBtn" class="btn btn-danger">Reset Current Table</button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="mini-label" for="searchInput">Quick Filter</label>
+            <div class="field-shell">
+              <input id="searchInput" class="field" type="text" placeholder="Filter by preacher, worship, scripture, date..." />
+            </div>
+          </div>
+          <div>
+            <label class="mini-label" for="storageKeyInput">Local Draft Key</label>
+            <div class="field-shell">
+              <input id="storageKeyInput" class="field" type="text" value="worship_schedule_Q2_2026" />
+            </div>
+          </div>
+          <div class="md:col-span-2 flex gap-3 flex-wrap button-wrap">
+            <button id="saveLocalBtn" class="btn btn-good">Save Draft Locally</button>
+            <button id="loadLocalBtn" class="btn btn-secondary">Load Draft</button>
+            <button id="exportJsonBtn" class="btn btn-secondary">Export JSON</button>
+            <button id="exportCsvBtn" class="btn btn-warn">Export CSV</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-6">
+      <div class="glass-panel rounded-3xl overflow-hidden">
+        <div class="px-5 py-4 border-b border-white/5 flex items-center justify-between gap-3 header-stack">
+          <div>
+            <h2 class="section-title">Schedule Grid</h2>
+            <p class="helper-text mt-1">Each row represents one service date. Keep the role names or later swap them for dropdowns from your member directory.</p>
+          </div>
+          <div class="pill"><span id="rowCount">0</span> rows</div>
+        </div>
+
+        <div class="table-scroll overflow-auto max-h-[70vh]">
+          <table>
+            <thead>
+              <tr>
+                <th style="min-width:160px;">Date</th>
+                <th style="min-width:130px;">Psalm</th>
+                <th style="min-width:190px;">Worship</th>
+                <th style="min-width:190px;">Announce</th>
+                <th style="min-width:190px;">Prayer</th>
+                <th style="min-width:190px;">Preacher</th>
+                <th style="min-width:260px;">Scripture</th>
+                <th style="min-width:140px;">Proverb</th>
+                <th style="min-width:200px;">Notes</th>
+                <th style="min-width:96px; text-align:right;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="scheduleBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <aside class="space-y-6">
+        <section class="glass-panel rounded-3xl p-5">
+          <h3 class="section-title">Summary</h3>
+          <div class="mt-4 space-y-3 text-sm">
+            <div class="flex items-center justify-between">
+              <span class="text-slate-300">Total Sundays</span>
+              <strong id="summaryTotal">0</strong>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="text-slate-300">Assigned Preachers</span>
+              <strong id="summaryPreachers">0</strong>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="text-slate-300">Assigned Worship</span>
+              <strong id="summaryWorship">0</strong>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="text-slate-300">Completed Rows</span>
+              <strong id="summaryCompleted">0</strong>
+            </div>
+          </div>
+        </section>
+
+        <section class="glass-panel rounded-3xl p-5">
+          <h3 class="section-title">Data Hooks</h3>
+          <p class="helper-text mt-3">
+            This page already works standalone with local drafts. When you import it, replace the stubbed methods in the script:
+          </p>
+          <div class="mt-3 text-sm leading-7 text-slate-300">
+            <div><code>saveToFirestore(rows)</code></div>
+            <div><code>loadFromFirestore()</code></div>
+            <div><code>saveToGAS(rows)</code></div>
+            <div><code>loadFromGAS()</code></div>
+          </div>
+          <p class="helper-text mt-3">
+            The row object shape is stable, so you can map it cleanly into Firestore documents, or a GAS sheet / endpoint payload.
+          </p>
+        </section>
+
+        <section class="glass-panel rounded-3xl p-5">
+          <h3 class="section-title">Suggested Next Step</h3>
+          <p class="helper-text mt-3">
+            Once this is inside your site, the best upgrade is to replace the role text inputs with searchable member dropdowns sourced from your existing people directory. That turns this from a form into a real workflow screen.
+          </p>
+        </section>
+      </aside>
+    </section>
+  </main>
+
+  <template id="rowTemplate">
+    <tr data-row>
+      <td>
+        <div class="field-shell">
+          <input class="field" data-key="date" type="date" />
+        </div>
+      </td>
+      <td>
+        <div class="field-shell">
+          <input class="field" data-key="psalm" type="text" placeholder="Psalm 95" />
+        </div>
+      </td>
+      <td>
+        <div class="field-shell">
+          <input class="field" data-key="worship" type="text" placeholder="Worship leader" />
+        </div>
+      </td>
+      <td>
+        <div class="field-shell">
+          <input class="field" data-key="announce" type="text" placeholder="Announcements" />
+        </div>
+      </td>
+      <td>
+        <div class="field-shell">
+          <input class="field" data-key="prayer" type="text" placeholder="Prayer" />
+        </div>
+      </td>
+      <td>
+        <div class="field-shell">
+          <input class="field" data-key="preacher" type="text" placeholder="Preacher" />
+        </div>
+      </td>
+      <td>
+        <div class="field-shell">
+          <input class="field" data-key="scripture" type="text" placeholder="John 3:16" />
+        </div>
+      </td>
+      <td>
+        <div class="field-shell">
+          <input class="field" data-key="proverb" type="text" placeholder="Proverbs 3" />
+        </div>
+      </td>
+      <td>
+        <div class="field-shell">
+          <input class="field" data-key="notes" type="text" placeholder="Extra notes" />
+        </div>
+      </td>
+      <td>
+        <div class="row-actions">
+          <button class="icon-btn" type="button" data-action="duplicate" title="Duplicate row">⧉</button>
+          <button class="icon-btn" type="button" data-action="delete" title="Delete row">✕</button>
+        </div>
+      </td>
+    </tr>
+  </template>
+
+  <script>
+    const appState = {
+      rows: [],
+      filteredRows: [],
+      isDirty: false,
+      autosaveTimer: null,
+      filterText: ''
+    };
+
+    const defaultSeedRows = [
+      '2026-04-05',
+      '2026-04-12',
+      '2026-04-19',
+      '2026-04-26',
+      '2026-05-03',
+      '2026-05-10',
+      '2026-05-17',
+      '2026-05-24',
+      '2026-05-31',
+      '2026-06-07',
+      '2026-06-14',
+      '2026-06-21',
+      '2026-06-28'
+    ].map(date => createEmptyRow({ date }));
+
+    const els = {
+      scheduleBody: document.getElementById('scheduleBody'),
+      rowTemplate: document.getElementById('rowTemplate'),
+      searchInput: document.getElementById('searchInput'),
+      quarterSelect: document.getElementById('quarterSelect'),
+      yearInput: document.getElementById('yearInput'),
+      quarterBadge: document.getElementById('quarterBadge'),
+      rowCount: document.getElementById('rowCount'),
+      summaryTotal: document.getElementById('summaryTotal'),
+      summaryPreachers: document.getElementById('summaryPreachers'),
+      summaryWorship: document.getElementById('summaryWorship'),
+      summaryCompleted: document.getElementById('summaryCompleted'),
+      storageKeyInput: document.getElementById('storageKeyInput'),
+      saveIndicator: document.getElementById('saveIndicator'),
+      saveMessage: document.getElementById('saveMessage'),
+      defaultServiceTime: document.getElementById('defaultServiceTime')
+    };
+
+    function createEmptyRow(overrides = {}) {
+      return {
+        id: crypto.randomUUID ? crypto.randomUUID() : `row_${Date.now()}_${Math.random().toString(16).slice(2)}`,
+        serviceLabel: els?.defaultServiceTime?.value || 'Sunday Morning',
+        date: '',
+        psalm: '',
+        worship: '',
+        announce: '',
+        prayer: '',
+        preacher: '',
+        scripture: '',
+        proverb: '',
+        notes: '',
+        ...overrides
+      };
+    }
+
+    function safeDateLabel(iso) {
+      if (!iso) return '';
+      const [y, m, d] = iso.split('-').map(Number);
+      const dt = new Date(y, (m || 1) - 1, d || 1);
+      return dt.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    function updateSaveStatus(state, message) {
+      els.saveIndicator.className = 'status-dot';
+      if (state === 'ready') els.saveIndicator.classList.add('ready');
+      if (state === 'pending') els.saveIndicator.classList.add('pending');
+      if (state === 'error') els.saveIndicator.classList.add('error');
+      els.saveMessage.textContent = message;
+    }
+
+    function setDirty(value = true) {
+      appState.isDirty = value;
+      updateSaveStatus(value ? 'pending' : 'ready', value ? 'Unsaved changes' : 'Ready');
+      if (value) queueAutoLocalSave();
+    }
+
+    function queueAutoLocalSave() {
+      clearTimeout(appState.autosaveTimer);
+      appState.autosaveTimer = setTimeout(() => {
+        saveDraftLocally(true);
+      }, 700);
+    }
+
+    function render() {
+      const query = appState.filterText.trim().toLowerCase();
+      const sourceRows = appState.rows;
+      const rows = !query
+        ? sourceRows
+        : sourceRows.filter(row => Object.values(row).join(' ').toLowerCase().includes(query));
+
+      appState.filteredRows = rows;
+      els.scheduleBody.innerHTML = '';
+
+      rows.forEach(row => {
+        const fragment = els.rowTemplate.content.cloneNode(true);
+        const tr = fragment.querySelector('tr');
+        tr.dataset.id = row.id;
+
+        tr.querySelectorAll('[data-key]').forEach(input => {
+          const key = input.dataset.key;
+          input.value = row[key] || '';
+          input.addEventListener('input', (e) => {
+            row[key] = e.target.value;
+            updateSummaries();
+            setDirty(true);
+          });
+        });
+
+        tr.querySelector('[data-action="duplicate"]').addEventListener('click', () => duplicateRow(row.id));
+        tr.querySelector('[data-action="delete"]').addEventListener('click', () => deleteRow(row.id));
+
+        els.scheduleBody.appendChild(fragment);
+      });
+
+      els.rowCount.textContent = String(rows.length);
+      updateSummaries();
+      updateQuarterBadge();
+    }
+
+    function updateSummaries() {
+      const total = appState.rows.length;
+      const preacherCount = appState.rows.filter(r => r.preacher.trim()).length;
+      const worshipCount = appState.rows.filter(r => r.worship.trim()).length;
+      const completed = appState.rows.filter(r => (
+        r.date.trim() && r.worship.trim() && r.announce.trim() && r.prayer.trim() && r.preacher.trim() && r.scripture.trim()
+      )).length;
+
+      els.summaryTotal.textContent = total;
+      els.summaryPreachers.textContent = preacherCount;
+      els.summaryWorship.textContent = worshipCount;
+      els.summaryCompleted.textContent = completed;
+    }
+
+    function updateQuarterBadge() {
+      const q = els.quarterSelect.value;
+      const y = els.yearInput.value || new Date().getFullYear();
+      els.quarterBadge.textContent = `${q} ${y}`;
+    }
+
+    function addRow(row = createEmptyRow()) {
+      appState.rows.push(row);
+      render();
+      setDirty(true);
+    }
+
+    function deleteRow(id) {
+      appState.rows = appState.rows.filter(r => r.id !== id);
+      render();
+      setDirty(true);
+    }
+
+    function duplicateRow(id) {
+      const source = appState.rows.find(r => r.id === id);
+      if (!source) return;
+      const copy = createEmptyRow({ ...source, id: undefined, date: source.date, notes: source.notes });
+      appState.rows.splice(appState.rows.indexOf(source) + 1, 0, copy);
+      render();
+      setDirty(true);
+    }
+
+    function duplicateLastRow() {
+      if (!appState.rows.length) return addRow();
+      const last = appState.rows[appState.rows.length - 1];
+      const copy = createEmptyRow({ ...last, id: undefined, date: '', notes: '' });
+      appState.rows.push(copy);
+      render();
+      setDirty(true);
+    }
+
+    function getQuarterMonths(quarter) {
+      const map = {
+        Q1: [0, 1, 2],
+        Q2: [3, 4, 5],
+        Q3: [6, 7, 8],
+        Q4: [9, 10, 11]
+      };
+      return map[quarter] || [0, 1, 2];
+    }
+
+    function getSundaysForQuarter(year, quarter) {
+      const months = getQuarterMonths(quarter);
+      const dates = [];
+
+      months.forEach(monthIndex => {
+        const cursor = new Date(year, monthIndex, 1);
+        const end = new Date(year, monthIndex + 1, 0);
+        while (cursor <= end) {
+          if (cursor.getDay() === 0) {
+            const iso = new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate())
+              .toISOString()
+              .slice(0, 10);
+            dates.push(iso);
+          }
+          cursor.setDate(cursor.getDate() + 1);
+        }
+      });
+
+      return dates;
+    }
+
+    function generateQuarterRows() {
+      const quarter = els.quarterSelect.value;
+      const year = Number(els.yearInput.value || new Date().getFullYear());
+      const sundays = getSundaysForQuarter(year, quarter);
+      appState.rows = sundays.map(date => createEmptyRow({ date, serviceLabel: els.defaultServiceTime.value || 'Sunday Morning' }));
+      els.storageKeyInput.value = `worship_schedule_${quarter}_${year}`;
+      render();
+      setDirty(true);
+    }
+
+    function resetTable() {
+      if (!confirm('Reset the current table? This clears the visible schedule rows.')) return;
+      appState.rows = [];
+      render();
+      setDirty(true);
+    }
+
+    function saveDraftLocally(isAuto = false) {
+      try {
+        const key = els.storageKeyInput.value.trim() || 'worship_schedule_draft';
+        const payload = {
+          quarter: els.quarterSelect.value,
+          year: els.yearInput.value,
+          serviceLabel: els.defaultServiceTime.value,
+          updatedAt: new Date().toISOString(),
+          rows: appState.rows
+        };
+        localStorage.setItem(key, JSON.stringify(payload));
+        appState.isDirty = false;
+        updateSaveStatus('ready', isAuto ? 'Auto-saved locally' : 'Saved locally');
+      } catch (err) {
+        console.error(err);
+        updateSaveStatus('error', 'Local save failed');
+      }
+    }
+
+    function loadDraftLocally() {
+      try {
+        const key = els.storageKeyInput.value.trim() || 'worship_schedule_draft';
+        const raw = localStorage.getItem(key);
+        if (!raw) {
+          updateSaveStatus('error', 'No saved draft found');
+          return;
+        }
+        const payload = JSON.parse(raw);
+        els.quarterSelect.value = payload.quarter || 'Q2';
+        els.yearInput.value = payload.year || '2026';
+        els.defaultServiceTime.value = payload.serviceLabel || 'Sunday Morning';
+        appState.rows = Array.isArray(payload.rows) ? payload.rows.map(row => createEmptyRow(row)) : [];
+        render();
+        appState.isDirty = false;
+        updateSaveStatus('ready', 'Draft loaded');
+      } catch (err) {
+        console.error(err);
+        updateSaveStatus('error', 'Load failed');
+      }
+    }
+
+    function exportJSON() {
+      const payload = {
+        quarter: els.quarterSelect.value,
+        year: els.yearInput.value,
+        serviceLabel: els.defaultServiceTime.value,
+        rows: appState.rows
+      };
+      downloadFile(
+        JSON.stringify(payload, null, 2),
+        `${els.storageKeyInput.value.trim() || 'worship_schedule'}.json`,
+        'application/json'
+      );
+    }
+
+    function csvEscape(value) {
+      const stringValue = String(value ?? '');
+      if (/[",\n]/.test(stringValue)) {
+        return `"${stringValue.replace(/"/g, '""')}"`;
+      }
+      return stringValue;
+    }
+
+    function exportCSV() {
+      const headers = ['serviceLabel', 'date', 'dateLabel', 'psalm', 'worship', 'announce', 'prayer', 'preacher', 'scripture', 'proverb', 'notes'];
+      const lines = [headers.join(',')];
+      appState.rows.forEach(row => {
+        const values = [
+          row.serviceLabel || '',
+          row.date || '',
+          safeDateLabel(row.date),
+          row.psalm || '',
+          row.worship || '',
+          row.announce || '',
+          row.prayer || '',
+          row.preacher || '',
+          row.scripture || '',
+          row.proverb || '',
+          row.notes || ''
+        ];
+        lines.push(values.map(csvEscape).join(','));
+      });
+
+      downloadFile(lines.join('\n'), `${els.storageKeyInput.value.trim() || 'worship_schedule'}.csv`, 'text/csv;charset=utf-8;');
+    }
+
+    function downloadFile(content, filename, mimeType) {
+      const blob = new Blob([content], { type: mimeType });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    // --------------------------------------
+    // FIRESTORE / GAS HOOKS FOR YOUR IMPORT
+    // --------------------------------------
+
+    async function saveToFirestore(rows) {
+      console.log('Replace saveToFirestore(rows) with your real Firestore write logic.', rows);
+      return { ok: true };
+    }
+
+    async function loadFromFirestore() {
+      console.log('Replace loadFromFirestore() with your real Firestore read logic.');
+      return [];
+    }
+
+    async function saveToGAS(rows) {
+      console.log('Replace saveToGAS(rows) with your GAS endpoint fetch.', rows);
+      return { ok: true };
+    }
+
+    async function loadFromGAS() {
+      console.log('Replace loadFromGAS() with your GAS fetch loader.');
+      return [];
+    }
+
+    function bindUI() {
+      document.getElementById('generateQuarterBtn').addEventListener('click', generateQuarterRows);
+      document.getElementById('addBlankRowBtn').addEventListener('click', () => addRow());
+      document.getElementById('duplicateLastBtn').addEventListener('click', duplicateLastRow);
+      document.getElementById('resetQuarterBtn').addEventListener('click', resetTable);
+      document.getElementById('saveLocalBtn').addEventListener('click', () => saveDraftLocally(false));
+      document.getElementById('loadLocalBtn').addEventListener('click', loadDraftLocally);
+      document.getElementById('exportJsonBtn').addEventListener('click', exportJSON);
+      document.getElementById('exportCsvBtn').addEventListener('click', exportCSV);
+
+      els.searchInput.addEventListener('input', (e) => {
+        appState.filterText = e.target.value;
+        render();
+      });
+
+      els.quarterSelect.addEventListener('change', () => {
+        updateQuarterBadge();
+        els.storageKeyInput.value = `worship_schedule_${els.quarterSelect.value}_${els.yearInput.value || new Date().getFullYear()}`;
+      });
+
+      els.yearInput.addEventListener('input', () => {
+        updateQuarterBadge();
+        els.storageKeyInput.value = `worship_schedule_${els.quarterSelect.value}_${els.yearInput.value || new Date().getFullYear()}`;
+      });
+
+      els.defaultServiceTime.addEventListener('input', () => setDirty(true));
+
+      window.addEventListener('beforeunload', (e) => {
+        if (!appState.isDirty) return;
+        e.preventDefault();
+        e.returnValue = '';
+      });
+    }
+
+    function init() {
+      bindUI();
+      appState.rows = defaultSeedRows.map(row => createEmptyRow(row));
+      render();
+      updateSaveStatus('ready', 'Ready');
+    }
+
+    init();
+  </script>
+</body>
+</html>

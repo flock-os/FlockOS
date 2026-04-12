@@ -2558,6 +2558,61 @@ window.FLOCK_CHURCH_ID = "tbc";
     });
   }
 
+  function deleteSong(id) {
+    if (!id) throw new Error('id required');
+    return _songsRef().doc(id).delete().then(function() { return { success: true }; });
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     SONG ARRANGEMENTS
+     ══════════════════════════════════════════════════════════════════ */
+
+  function _songArrsRef() { return _churchDoc().collection('songArrangements'); }
+
+  function listSongArrangements(opts) {
+    opts = opts || {};
+    if (!opts.songId) return Promise.resolve([]);
+    return _songArrsRef()
+      .where('songId', '==', opts.songId)
+      .orderBy('createdAt', 'asc')
+      .get().then(function(snap) {
+        var out = [];
+        snap.forEach(function(d) { var o = d.data(); o.id = d.id; out.push(o); });
+        return out;
+      });
+  }
+
+  function getSongWithArrangements(id) {
+    return Promise.all([getSong(id), listSongArrangements({ songId: id })]).then(function(res) {
+      var song = res[0];
+      song.arrangements = res[1];
+      return song;
+    });
+  }
+
+  function createSongArrangement(data) {
+    data.createdAt = _now();
+    data.createdBy = _userEmail;
+    return _songArrsRef().add(data).then(function(ref) {
+      return { id: ref.id, success: true };
+    });
+  }
+
+  function updateSongArrangement(data) {
+    var id = data.id; if (!id) throw new Error('id required');
+    delete data.id;
+    data.updatedAt = _now();
+    data.updatedBy = _userEmail;
+    return _songArrsRef().doc(id).update(data).then(function() {
+      return { id: id, success: true };
+    });
+  }
+
+  function deleteSongArrangement(id) {
+    if (!id) throw new Error('id required');
+    return _songArrsRef().doc(id).delete().then(function() { return { success: true }; });
+  }
+
   /* ══════════════════════════════════════════════════════════════════
      SERMONS
      ══════════════════════════════════════════════════════════════════ */
@@ -4462,10 +4517,18 @@ window.FLOCK_CHURCH_ID = "tbc";
     updateServicePlan:  updateServicePlan,
 
     // Songs
-    listSongs:          listSongs,
-    getSong:            getSong,
-    createSong:         createSong,
-    updateSong:         updateSong,
+    listSongs:               listSongs,
+    getSong:                 getSong,
+    createSong:              createSong,
+    updateSong:              updateSong,
+    deleteSong:              deleteSong,
+
+    // Song Arrangements
+    listSongArrangements:    listSongArrangements,
+    getSongWithArrangements: getSongWithArrangements,
+    createSongArrangement:   createSongArrangement,
+    updateSongArrangement:   updateSongArrangement,
+    deleteSongArrangement:   deleteSongArrangement,
 
     // Sermons
     listSermons:        listSermons,

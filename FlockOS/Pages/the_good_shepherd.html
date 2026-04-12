@@ -461,6 +461,9 @@
         <a class="nav-item" data-view="my-flock" data-module="my-flock" onclick="navigate('my-flock')" style="font-weight:700;">
           <span class="icon">&#128101;</span> Flock Dashboard
         </a>
+        <a class="nav-item" href="quarterly_worship.html">
+          <span class="icon">&#128197;</span> Quarterly Planner
+        </a>
         <a class="nav-item" data-view="comms" data-module="comms" onclick="navigate('comms')">
           <span class="icon">&#9993;</span> Messages
         </a>
@@ -933,6 +936,7 @@ _collapseNavGroups();
     { view: 'comms',        icon: '&#9993;',  title: 'Messages',     desc: 'Inbox & notifications',  role: 'volunteer', zone: 'gates' },
     { view: 'todo',         icon: '&#9744;',  title: 'Tasks',        desc: 'My to-do list',          role: 'volunteer', zone: 'gates' },
     { view: 'my-flock',     icon: '&#128101;',title: 'My Flock',     desc: 'Your assigned members',  role: 'care',      zone: 'courts' },
+    { view: '_quarterly',   icon: '&#128197;',title: 'Quarterly Planner', desc: 'Plan worship & volunteers by quarter', role: 'volunteer', zone: 'courts', href: 'quarterly_worship.html' },
     { view: 'compassion',   icon: '&#128149;', title: 'Compassion',    desc: 'Aid requests & resources',       role: 'care',      zone: 'courts' },
     { view: 'prayer-admin', icon: '&#128591;', title: 'Prayer',        desc: 'Requests & responses',           role: 'care',      zone: 'courts' },
     { view: 'attendance',   icon: '&#10003;',  title: 'Attendance',    desc: 'Track & history',                role: 'volunteer', zone: 'courts' },
@@ -1002,7 +1006,11 @@ _collapseNavGroups();
                      + '<div class="card-desc">Add a new person to the flock</div>';
       } else {
         el.setAttribute('data-view', c.view);
-        el.onclick = () => navigate(c.view);
+        if (c.href) {
+          el.onclick = () => { window.location.href = c.href; };
+        } else {
+          el.onclick = () => navigate(c.view);
+        }
         el.innerHTML = '<div class="card-icon">' + c.icon + '</div>'
                      + '<div class="card-title">' + c.title + '</div>'
                      + '<div class="card-desc">' + c.desc + '</div>';

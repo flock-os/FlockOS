@@ -245,6 +245,51 @@ function msEnsureStyles() {
 // ENTRY POINT
 // ══════════════════════════════════════════════════════════════════════════════
 
+// ── Firestore dual-path helper ───────────────────────────────
+function _msFB() {
+    return typeof UpperRoom !== 'undefined' && typeof UpperRoom.isReady === 'function' && UpperRoom.isReady();
+}
+
+// ── Semitone interval between two key names (shortest path) ─────────────────
+// Returns an integer -6..+6
+function msKeyInterval(fromKey, toKey) {
+    if (!fromKey || !toKey || fromKey === toKey) return 0;
+    var fromIdx = _MS_SHARPS.indexOf(fromKey);
+    if (fromIdx === -1) fromIdx = _MS_FLATS.indexOf(fromKey);
+    var toIdx = _MS_SHARPS.indexOf(toKey);
+    if (toIdx === -1) toIdx = _MS_FLATS.indexOf(toKey);
+    if (fromIdx === -1 || toIdx === -1) return 0;
+    var diff = toIdx - fromIdx;
+    if (diff > 6)  diff -= 12;
+    if (diff < -6) diff += 12;
+    return diff;
+}
+
+// ── Resolve the best chord content for a song+arrangement ────────────────────
+// Priority: 1) arr.lyricsWithChords (already in arr.key)
+//           2) song.chordSheet      (auto-transposed from song.chordSheetKey → arr.key)
+// extraSemitones: any additional real-time semitone shift requested by the user.
+function msResolveChordContent(song, arr, extraSemitones) {
+    var extra = extraSemitones || 0;
+    song  = song  || {};
+    arr   = arr   || {};
+
+    // Arrangement has its own chord chart stored in arr.key
+    if (arr.lyricsWithChords) {
+        return msTransposeChordPro(arr.lyricsWithChords, extra);
+    }
+
+    // Fall back to song-level master chord sheet
+    if (song.chordSheet) {
+        var sourceKey = song.chordSheetKey || song.defaultKey || 'C';
+        var targetKey = arr.key || song.defaultKey || 'C';
+        var autoSemitones = msKeyInterval(sourceKey, targetKey);
+        return msTransposeChordPro(song.chordSheet, autoSemitones + extra);
+    }
+
+    return null;
+}
+
 window.openMusicStandApp = function openMusicStandApp() {
     msEnsureStyles();
 
@@ -353,9 +398,14 @@ async function msLoadSongs() {
     msRenderSongsTab();
 
     try {
-        var data = await msApiCall('songs.list', { activeOnly: 'false' });
-        if (!data) return;
-        musicStandAppState.songs = data.rows || [];
+        var rows;
+        if (_msFB()) {
+            rows = await UpperRoom.listSongs();
+        } else {
+            var data = await msApiCall('songs.list', { activeOnly: 'false' });
+            rows = data ? (data.rows || []) : [];
+        }
+        musicStandAppState.songs = rows;
         musicStandAppState.loaded = true;
         _msSongsLoadedAt = Date.now();
     } catch (err) {
@@ -389,6 +439,7 @@ function msRenderSongsTab() {
     var html =
         '<div class="ms-search-bar">' +
             '<input type="text" class="ms-input ms-search-input" id="ms-song-search" placeholder="Search songs by title or artist..." value="' + msEscapeHtml(musicStandAppState.filter) + '">' +
+            '<button class="ms-btn ms-btn-secondary" id="ms-import-song-btn" style="white-space:nowrap;">&#x29C9; SongSelect</button>' +
             '<button class="ms-btn ms-btn-primary" id="ms-add-song-btn">+ Add Song</button>' +
         '</div>';
 
@@ -421,7 +472,7 @@ function msRenderSongsTab() {
                 '<td>' + (s.active === 'TRUE' ? '<span style="color:#22c55e;">Yes</span>' : '<span style="color:#94a3b8;">No</span>') + '</td>' +
                 '<td>' +
                     '<button class="ms-btn ms-btn-secondary ms-btn-sm ms-edit-song" data-row-index="' + s.index + '" data-song-idx="' + i + '">Edit</button> ' +
-                    '<button class="ms-btn ms-btn-danger ms-btn-sm ms-delete-song" data-row-index="' + s.index + '" data-title="' + msEscapeHtml(s.title) + '">Delete</button>' +
+                    '<button class="ms-btn ms-btn-danger ms-btn-sm ms-delete-song" data-row-index="' + s.index + '" data-song-id="' + msEscapeHtml(s.id || '') + '" data-title="' + msEscapeHtml(s.title) + '">Delete</button>' +
                 '</td>' +
             '</tr>';
         }
@@ -452,6 +503,11 @@ function msRenderSongsTab() {
             _msActiveEditRow = null;
             msOpenSongEditor(null);
         });
+    }
+
+    var importBtn = document.getElementById('ms-import-song-btn');
+    if (importBtn) {
+        importBtn.addEventListener('click', function() { msOpenSongSelectImport(); });
     }
 
     // Song title links → detail view
@@ -492,8 +548,9 @@ function msRenderSongsTab() {
     panel.querySelectorAll('.ms-delete-song').forEach(function(btn) {
         btn.addEventListener('click', function() {
             var rowIndex = btn.getAttribute('data-row-index');
-            var title = btn.getAttribute('data-title');
-            msDeleteSong(Number(rowIndex), title);
+            var songId   = btn.getAttribute('data-song-id');
+            var title    = btn.getAttribute('data-title');
+            msDeleteSong(Number(rowIndex), title, songId);
         });
     });
 }
@@ -513,14 +570,22 @@ async function msOpenSongDetail(song) {
         return;
     }
 
-    // Fetch full song with arrangements via songs.get
+    // Fetch full song with arrangements
     try {
-        var data = await msApiCall('songs.get', { songId: song.id });
-        if (!data) return;
-        musicStandAppState.currentSong = data.row;
-        musicStandAppState.arrangements = data.row.arrangements || [];
-        data.row._ts = Date.now();
-        _msSongDetailCache[song.id] = data.row;
+        if (_msFB() && song.id) {
+            var full = await UpperRoom.getSongWithArrangements(song.id);
+            full._ts = Date.now();
+            musicStandAppState.currentSong = full;
+            musicStandAppState.arrangements = full.arrangements || [];
+            _msSongDetailCache[song.id] = full;
+        } else {
+            var data = await msApiCall('songs.get', { songId: song.id });
+            if (!data) return;
+            musicStandAppState.currentSong = data.row;
+            musicStandAppState.arrangements = data.row.arrangements || [];
+            data.row._ts = Date.now();
+            _msSongDetailCache[song.id] = data.row;
+        }
     } catch (err) {
         console.error('MusicStand: failed to load song detail', err);
     }
@@ -592,7 +657,7 @@ function msRenderSongDetail() {
                 '<div style="display:flex; gap:6px; flex-wrap:wrap;">' +
                     '<button class="ms-btn ms-btn-secondary ms-btn-sm ms-view-arr" data-arr-idx="' + i + '">View</button>' +
                     '<button class="ms-btn ms-btn-secondary ms-btn-sm ms-edit-arr" data-arr-idx="' + i + '">Edit</button>' +
-                    '<button class="ms-btn ms-btn-danger ms-btn-sm ms-delete-arr" data-row-index="' + arr.index + '" data-arr-name="' + msEscapeHtml(arr.name) + '">Delete</button>' +
+                    '<button class="ms-btn ms-btn-danger ms-btn-sm ms-delete-arr" data-row-index="' + arr.index + '" data-arr-id="' + msEscapeHtml(arr.id || '') + '" data-arr-name="' + msEscapeHtml(arr.name) + '">Delete</button>' +
                 '</div>' +
             '</div>';
         }
@@ -639,7 +704,8 @@ function msRenderSongDetail() {
         btn.addEventListener('click', function() {
             var rowIndex = Number(btn.getAttribute('data-row-index'));
             var name = btn.getAttribute('data-arr-name');
-            msDeleteArrangement(rowIndex, name);
+            var arrId = btn.getAttribute('data-arr-id');
+            msDeleteArrangement(rowIndex, name, arrId);
         });
     });
 }
@@ -659,7 +725,7 @@ function msShowArrangementView(arr) {
 
     function renderModalBody(semitones) {
         var displayKey = msTransposeChord(originalKey, semitones) || originalKey;
-        var transposedText = arr.lyricsWithChords ? msTransposeChordPro(arr.lyricsWithChords, semitones) : null;
+        var transposedText = msResolveChordContent(song, arr, semitones);
         var soundingKey = capoFret ? msCapoSoundingKey(displayKey, capoFret) : displayKey;
 
         modal.innerHTML =
@@ -693,9 +759,10 @@ function msShowArrangementView(arr) {
         });
 
         document.getElementById('ms-arr-pdf-btn').addEventListener('click', function() {
+            var resolvedContent = msResolveChordContent(song, arr, currentSemitones);
             var pdfArr = Object.assign({}, arr, {
                 key: msTransposeChord(originalKey, currentSemitones) || originalKey,
-                lyricsWithChords: arr.lyricsWithChords ? msTransposeChordPro(arr.lyricsWithChords, currentSemitones) : arr.lyricsWithChords
+                lyricsWithChords: resolvedContent || (arr.lyricsWithChords ? msTransposeChordPro(arr.lyricsWithChords, currentSemitones) : arr.lyricsWithChords)
             });
             msExportArrangementPDF(song, pdfArr);
         });
@@ -785,8 +852,14 @@ function msOpenSongEditor(song) {
             '</div>' +
 
             '<div class="ms-form-group">' +
-                '<label class="ms-label" for="ms-f-lyrics">Lyrics</label>' +
-                '<textarea class="ms-input ms-textarea" id="ms-f-lyrics" rows="8" placeholder="Paste full lyrics here...">' + msEscapeHtml(s.lyrics || '') + '</textarea>' +
+                '<label class="ms-label" for="ms-f-chord-sheet">&#127925; Chord Sheet &mdash; Original Key (' + msEscapeHtml(s.defaultKey || s.chordSheetKey || 'C') + ')</label>' +
+                '<textarea class="ms-input ms-textarea" id="ms-f-chord-sheet" rows="12" style="font-family:monospace;font-size:0.88rem;" placeholder="[G]Amazing [C]grace how [G]sweet the sound&#10;That [G]saved a [Em]wretch like [D]me&#10;&#10;{comment: Chorus}&#10;[G]My chains are [D]gone I\'ve been set [Em]free">' + msEscapeHtml(s.chordSheet || '') + '</textarea>' +
+                '<p style="color:#64748b;font-size:0.8rem;margin:4px 0 0 0;">Store in the song\'s <strong>original key</strong>. Arrangements will auto-transpose from this when they have no chart of their own. Uses ChordPro format: <code style="color:#22d3ee;">[G]word</code>.</p>' +
+            '</div>' +
+
+            '<div class="ms-form-group">' +
+                '<label class="ms-label" for="ms-f-lyrics">Lyrics (plain, no chords)</label>' +
+                '<textarea class="ms-input ms-textarea" id="ms-f-lyrics" rows="5" placeholder="Paste plain lyrics here (no chords)...">' + msEscapeHtml(s.lyrics || '') + '</textarea>' +
             '</div>' +
 
             '<div class="ms-form-group">' +
@@ -831,18 +904,21 @@ async function msSaveSong(isEdit) {
         return;
     }
 
+    var keyVal = document.getElementById('ms-f-key').value;
     var payload = {
-        title:         titleVal,
-        artist:        (document.getElementById('ms-f-artist').value || '').trim(),
-        defaultKey:    document.getElementById('ms-f-key').value,
-        tempoBpm:      document.getElementById('ms-f-bpm').value || '0',
-        timeSignature: document.getElementById('ms-f-time').value,
-        ccliNumber:    (document.getElementById('ms-f-ccli').value || '').trim(),
-        genre:         (document.getElementById('ms-f-genre').value || '').trim(),
-        durationMin:   document.getElementById('ms-f-duration').value || '0',
-        tags:          (document.getElementById('ms-f-tags').value || '').trim(),
-        lyrics:        document.getElementById('ms-f-lyrics').value || '',
-        notes:         (document.getElementById('ms-f-notes').value || '').trim()
+        title:          titleVal,
+        artist:         (document.getElementById('ms-f-artist').value || '').trim(),
+        defaultKey:     keyVal,
+        chordSheetKey:  keyVal,
+        chordSheet:     document.getElementById('ms-f-chord-sheet').value || '',
+        tempoBpm:       document.getElementById('ms-f-bpm').value || '0',
+        timeSignature:  document.getElementById('ms-f-time').value,
+        ccliNumber:     (document.getElementById('ms-f-ccli').value || '').trim(),
+        genre:          (document.getElementById('ms-f-genre').value || '').trim(),
+        durationMin:    document.getElementById('ms-f-duration').value || '0',
+        tags:           (document.getElementById('ms-f-tags').value || '').trim(),
+        lyrics:         document.getElementById('ms-f-lyrics').value || '',
+        notes:          (document.getElementById('ms-f-notes').value || '').trim()
     };
 
     var saveBtn = document.getElementById('ms-song-save');
@@ -851,10 +927,19 @@ async function msSaveSong(isEdit) {
 
     try {
         if (isEdit && _msActiveEditRow) {
-            payload.rowIndex = String(_msActiveEditRow.index);
-            await msApiCall('songs.update', payload);
+            if (_msFB()) {
+                await UpperRoom.updateSong(Object.assign({ id: _msActiveEditRow.id }, payload));
+            } else {
+                payload.rowIndex = String(_msActiveEditRow.index);
+                await msApiCall('songs.update', payload);
+            }
         } else {
-            await msApiCall('songs.create', payload);
+            if (_msFB()) {
+                if (!payload.active) payload.active = 'TRUE';
+                await UpperRoom.createSong(payload);
+            } else {
+                await msApiCall('songs.create', payload);
+            }
         }
         msCloseSongEditor();
         _msSongsLoadedAt = 0;
@@ -867,11 +952,15 @@ async function msSaveSong(isEdit) {
     }
 }
 
-async function msDeleteSong(rowIndex, title) {
+async function msDeleteSong(rowIndex, title, songId) {
     if (!confirm('Delete "' + title + '"? This cannot be undone.')) return;
 
     try {
-        await msApiCall('songs.delete', { rowIndex: String(rowIndex) });
+        if (_msFB() && songId) {
+            await UpperRoom.deleteSong(songId);
+        } else {
+            await msApiCall('songs.delete', { rowIndex: String(rowIndex) });
+        }
         _msSongsLoadedAt = 0;
         _msSongDetailCache = {};
         await msLoadSongs();
@@ -931,7 +1020,7 @@ function msOpenArrEditor(arr) {
             '<div class="ms-form-group">' +
                 '<label class="ms-label" for="ms-af-chords">Lyrics with Chords (ChordPro format)</label>' +
                 '<textarea class="ms-input ms-textarea" id="ms-af-chords" rows="12" placeholder="[G]Amazing [C]grace how [G]sweet the sound&#10;That [G]saved a [Em]wretch like [D]me">' + msEscapeHtml(a.lyricsWithChords || '') + '</textarea>' +
-                '<p style="color:#64748b; font-size:0.8rem; margin:4px 0 0 0;">Use [Chord] before the syllable, e.g. [Am]Hello [G]world</p>' +
+                '<p style="color:#64748b; font-size:0.8rem; margin:4px 0 0 0;">Use [Chord] before the syllable, e.g. [Am]Hello [G]world. <strong style="color:#22d3ee;">Leave blank</strong> to auto-derive from the song\'s original-key chord sheet, transposed to this arrangement\'s key.</p>' +
             '</div>' +
 
             '<div class="ms-form-group">' +
@@ -999,10 +1088,18 @@ async function msSaveArrangement(isEdit) {
 
     try {
         if (isEdit && _msArrEditRow) {
-            payload.rowIndex = String(_msArrEditRow.index);
-            await msApiCall('arrangements.update', payload);
+            if (_msFB()) {
+                await UpperRoom.updateSongArrangement(Object.assign({ id: _msArrEditRow.id }, payload));
+            } else {
+                payload.rowIndex = String(_msArrEditRow.index);
+                await msApiCall('arrangements.update', payload);
+            }
         } else {
-            await msApiCall('arrangements.create', payload);
+            if (_msFB()) {
+                await UpperRoom.createSongArrangement(payload);
+            } else {
+                await msApiCall('arrangements.create', payload);
+            }
         }
         msCloseArrEditor();
         if (song.id) delete _msSongDetailCache[song.id];
@@ -1014,11 +1111,15 @@ async function msSaveArrangement(isEdit) {
     }
 }
 
-async function msDeleteArrangement(rowIndex, name) {
+async function msDeleteArrangement(rowIndex, name, arrId) {
     if (!confirm('Delete arrangement "' + name + '"? This cannot be undone.')) return;
 
     try {
-        await msApiCall('arrangements.delete', { rowIndex: String(rowIndex) });
+        if (_msFB() && arrId) {
+            await UpperRoom.deleteSongArrangement(arrId);
+        } else {
+            await msApiCall('arrangements.delete', { rowIndex: String(rowIndex) });
+        }
         var song = musicStandAppState.currentSong;
         if (song && song.id) delete _msSongDetailCache[song.id];
         if (song) await msOpenSongDetail(song);
@@ -1159,9 +1260,10 @@ function msRenderStandView() {
         // Transposition controls
         html += msTransposeControls(originalKey, displayKey, capoFret, 'ms-sv');
 
-        // Show chord chart (transposed)
-        if (arr && arr.lyricsWithChords) {
-            html += '<div class="ms-chord-display">' + msRenderChordPro(msTransposeChordPro(arr.lyricsWithChords, semitones)) + '</div>';
+        // Show chord chart — priority: ChordPro (arr or auto-transposed from song.chordSheet) / arr plain chart / lyrics
+        var resolvedChords = msResolveChordContent(song, arr, semitones);
+        if (resolvedChords) {
+            html += '<div class="ms-chord-display">' + msRenderChordPro(resolvedChords) + '</div>';
         } else if (arr && arr.chordChart) {
             html += '<div class="ms-chord-display">' + msEscapeHtml(arr.chordChart) + '</div>';
         } else if (song.lyrics) {
@@ -1654,7 +1756,8 @@ async function msExportSetlistPDF() {
             y += 16;
 
             // Content
-            var content = (arr && arr.lyricsWithChords) || (arr && arr.chordChart) || song.lyrics || '';
+            var rawContent = msResolveChordContent(song, arr, 0);
+            var content = rawContent || (arr && arr.chordChart) || song.lyrics || '';
             var contentLines = msChordProToPlainText(content);
 
             doc.setFont('courier', 'normal');
@@ -1794,4 +1897,161 @@ function msInstrumentOptions(selected) {
         html += '<option value="' + instruments[i] + '"' + (instruments[i] === selected ? ' selected' : '') + '>' + instruments[i] + '</option>';
     }
     return html;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// SONGSELECT IMPORT
+// Paste-and-parse ChordPro from CCLI SongSelect, Planning Center, or any
+// ChordPro source. Stores the song in its original key so every arrangement
+// can auto-transpose from it.
+// ══════════════════════════════════════════════════════════════════════════════
+
+function msOpenSongSelectImport() {
+    var overlay = document.getElementById('ms-song-overlay');
+    var modal   = document.getElementById('ms-song-modal');
+    if (!overlay || !modal) return;
+
+    modal.innerHTML =
+        '<div class="ms-modal-header">' +
+            '<h3 class="ms-modal-title">&#x29C9; Import from SongSelect / ChordPro</h3>' +
+            '<button class="ms-close-btn" id="ms-import-close">&times;</button>' +
+        '</div>' +
+        '<p style="color:#94a3b8;font-size:0.9rem;margin:0 0 14px 0;">Paste a ChordPro chord chart from CCLI SongSelect, Planning Center, or any ChordPro source. The song will be saved in its <strong style="color:#22d3ee;">original key</strong> and can be transposed at any time.</p>' +
+        '<div class="ms-form-group">' +
+            '<label class="ms-label" for="ms-import-text">Paste Chord Chart</label>' +
+            '<textarea class="ms-input ms-textarea" id="ms-import-text" rows="16" style="font-family:monospace;font-size:0.85rem;" placeholder="{title: Amazing Grace}&#10;{artist: John Newton}&#10;{key: G}&#10;{ccli: 4768151}&#10;&#10;{comment: Verse 1}&#10;[G]Amazing [C]grace how [G]sweet the sound&#10;That [G]saved a [Em]wretch like [D]me..."></textarea>' +
+        '</div>' +
+        '<div id="ms-import-preview" style="display:none;"></div>' +
+        '<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:12px;">' +
+            '<button class="ms-btn ms-btn-secondary" id="ms-import-cancel">Cancel</button>' +
+            '<button class="ms-btn ms-btn-secondary" id="ms-import-parse">Preview Parse</button>' +
+            '<button class="ms-btn ms-btn-primary" id="ms-import-save" style="display:none;">Save to Library</button>' +
+        '</div>';
+
+    overlay.classList.add('ms-visible');
+    overlay.setAttribute('aria-hidden', 'false');
+
+    document.getElementById('ms-import-close').addEventListener('click', function() { msCloseSongEditor(); });
+    document.getElementById('ms-import-cancel').addEventListener('click', function() { msCloseSongEditor(); });
+    overlay.addEventListener('click', function(e) { if (e.target === overlay) msCloseSongEditor(); });
+
+    var _parsed = null;
+
+    document.getElementById('ms-import-parse').addEventListener('click', function() {
+        var text = document.getElementById('ms-import-text').value;
+        _parsed = msParseSongSelect(text);
+        var preview = document.getElementById('ms-import-preview');
+        var saveBtn = document.getElementById('ms-import-save');
+
+        if (!_parsed.title && !_parsed.chordSheet) {
+            preview.style.display = 'block';
+            preview.innerHTML = '<div style="color:#f87171;padding:12px;background:rgba(239,68,68,0.1);border-radius:8px;margin-bottom:12px;">Could not detect song data. Make sure you paste valid ChordPro content.</div>';
+            saveBtn.style.display = 'none';
+            return;
+        }
+
+        preview.style.display = 'block';
+        preview.innerHTML =
+            '<div style="background:rgba(34,211,238,0.08);border:1px solid rgba(34,211,238,0.2);border-radius:10px;padding:14px;margin-bottom:12px;">' +
+                '<div style="font-weight:700;color:#22d3ee;font-size:0.8rem;text-transform:uppercase;margin-bottom:10px;">Parsed Preview</div>' +
+                '<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 20px;font-size:0.9rem;">' +
+                    '<span style="color:#94a3b8;">Title</span><span style="color:#fff;">' + msEscapeHtml(_parsed.title || '—') + '</span>' +
+                    '<span style="color:#94a3b8;">Artist</span><span style="color:#fff;">' + msEscapeHtml(_parsed.artist || '—') + '</span>' +
+                    '<span style="color:#94a3b8;">Original Key</span><span style="color:#22d3ee;font-weight:700;">' + msEscapeHtml(_parsed.key || '—') + '</span>' +
+                    '<span style="color:#94a3b8;">CCLI #</span><span style="color:#fff;">' + msEscapeHtml(_parsed.ccliNumber || '—') + '</span>' +
+                    '<span style="color:#94a3b8;">Tempo</span><span style="color:#fff;">' + msEscapeHtml(_parsed.bpm || '—') + '</span>' +
+                    '<span style="color:#94a3b8;">Time Signature</span><span style="color:#fff;">' + msEscapeHtml(_parsed.timeSignature || '—') + '</span>' +
+                    '<span style="color:#94a3b8;">Sections detected</span><span style="color:#fff;">' + (_parsed.sections || 0) + '</span>' +
+                '</div>' +
+            '</div>';
+        saveBtn.style.display = '';
+    });
+
+    document.getElementById('ms-import-save').addEventListener('click', async function() {
+        if (!_parsed) return;
+        var saveBtn = document.getElementById('ms-import-save');
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Saving...';
+        try {
+            await msSaveImportedSong(_parsed);
+            msCloseSongEditor();
+            _msSongsLoadedAt = 0;
+            _msSongDetailCache = {};
+            await msLoadSongs();
+        } catch (err) {
+            console.error('MusicStand: SongSelect import failed', err);
+            saveBtn.disabled = false;
+            saveBtn.textContent = 'Save to Library';
+        }
+    });
+}
+
+function msParseSongSelect(text) {
+    var result = { title: '', artist: '', key: '', ccliNumber: '', bpm: '', timeSignature: '', capo: '', chordSheet: text, sections: 0 };
+    if (!text) return result;
+
+    var lines = text.split('\n');
+
+    for (var i = 0; i < lines.length; i++) {
+        var line = lines[i];
+        // Parse ChordPro directives like {title: Amazing Grace}
+        var m = line.match(/^\{([\w\-]+):\s*(.+?)\s*\}$/i);
+        if (m) {
+            var key = m[1].toLowerCase();
+            var val = m[2].trim();
+            if (key === 'title' || key === 't')                           result.title = val;
+            else if (key === 'artist' || key === 'a' || key === 'composer') result.artist = val;
+            else if (key === 'key')                                        result.key = val;
+            else if (key === 'capo')                                       result.capo = val;
+            else if (key === 'tempo' || key === 'bpm')                     result.bpm = val;
+            else if (key === 'time')                                       result.timeSignature = val;
+            else if (key === 'ccli')                                       result.ccliNumber = val;
+            else if (key === 'comment' || key === 'c')                     result.sections++;
+        }
+    }
+
+    // Count {comment:} directives if we didn't accumulate them above
+    var commentCount = (text.match(/^\{c(?:omment)?:/gim) || []).length;
+    if (commentCount > result.sections) result.sections = commentCount;
+
+    // If no section headings found, count blank-line-separated chord blocks
+    if (!result.sections) {
+        var blocks = text.split(/\n\s*\n/);
+        result.sections = blocks.filter(function(b) { return b.trim() && /\[[A-G][#b]?/.test(b); }).length;
+    }
+
+    // If no title found from directives, try the first short non-chord non-directive line
+    if (!result.title) {
+        for (var j = 0; j < Math.min(lines.length, 5); j++) {
+            var l = lines[j].trim();
+            if (l && !l.startsWith('{') && !l.startsWith('[') && l.length < 80) {
+                result.title = l;
+                break;
+            }
+        }
+    }
+
+    return result;
+}
+
+async function msSaveImportedSong(parsed) {
+    var payload = {
+        title:          parsed.title || 'Imported Song',
+        artist:         parsed.artist || '',
+        defaultKey:     parsed.key || 'C',
+        chordSheetKey:  parsed.key || 'C',
+        chordSheet:     parsed.chordSheet || '',
+        ccliNumber:     parsed.ccliNumber || '',
+        tempoBpm:       parsed.bpm || '0',
+        timeSignature:  parsed.timeSignature || '4/4',
+        active:         'TRUE',
+        notes:          'Imported from SongSelect / ChordPro'
+    };
+    if (parsed.capo) payload.capo = parsed.capo;
+
+    if (_msFB()) {
+        await UpperRoom.createSong(payload);
+    } else {
+        await msApiCall('songs.create', payload);
+    }
 }
