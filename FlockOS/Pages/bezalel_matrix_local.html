@@ -1115,21 +1115,48 @@ function _genPassword() {
   var upper   = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
   var lower   = 'abcdefghjkmnpqrstuvwxyz';
   var digits  = '23456789';
-  var special = '!@#$%^&*()-_=+[]{}|;:,.<>?';
-  var all     = upper + lower + digits + special;
-  var required = [
-    upper  [window.crypto.getRandomValues(new Uint8Array(1))[0] % upper.length],
-    lower  [window.crypto.getRandomValues(new Uint8Array(1))[0] % lower.length],
-    digits [window.crypto.getRandomValues(new Uint8Array(1))[0] % digits.length],
-    special[window.crypto.getRandomValues(new Uint8Array(1))[0] % special.length]
-  ];
-  var arr = new Uint8Array(8);
-  window.crypto.getRandomValues(arr);
-  var result = required;
-  for (var i = 0; i < 8; i++) result.push(all[arr[i] % all.length]);
-  for (var j = result.length - 1; j > 0; j--) {
-    var k = window.crypto.getRandomValues(new Uint8Array(1))[0] % (j + 1);
-    var tmp = result[j]; result[j] = result[k]; result[k] = tmp;
+  var special = '.-_=+';  // clean, readable separators
+
+  function rand(n) { return window.crypto.getRandomValues(new Uint8Array(1))[0] % n; }
+  function pickN(charset, n) {
+    var out = [];
+    for (var i = 0; i < n; i++) out.push(charset[rand(charset.length)]);
+    return out;
+  }
+  function shuffle(arr) {
+    for (var j = arr.length - 1; j > 0; j--) {
+      var k = rand(j + 1);
+      var t = arr[j]; arr[j] = arr[k]; arr[k] = t;
+    }
+    return arr;
+  }
+
+  var nSpec = rand(2) + 3;  // 3 or 4 specials
+  var nNon  = 16 - nSpec;
+
+  var nonSpecials = shuffle(
+    pickN(upper, 2).concat(pickN(lower, 2)).concat(pickN(digits, 2))
+                   .concat(pickN(upper + lower + digits, nNon - 6))
+  );
+  var specials = shuffle(pickN(special, nSpec));
+
+  // Place specials at non-adjacent positions
+  var available = [];
+  for (var i = 0; i < 16; i++) available.push(i);
+  var positions = [];
+  for (var s = 0; s < nSpec; s++) {
+    if (!available.length) break;
+    var pick = available[rand(available.length)];
+    positions.push(pick);
+    available = available.filter(function(p) { return p < pick - 1 || p > pick + 1; });
+  }
+  positions.sort(function(a, b) { return a - b; });
+
+  var result = new Array(16);
+  for (var p = 0; p < positions.length; p++) result[positions[p]] = specials[p];
+  var ni = 0;
+  for (var fi = 0; fi < 16; fi++) {
+    if (result[fi] === undefined) result[fi] = nonSpecials[ni++];
   }
   return result.join('');
 }
