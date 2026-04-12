@@ -212,7 +212,7 @@
       color: var(--ink-muted); font-size: 0.68rem; margin-left: auto;
     }
     .field input, .field textarea, .field select {
-      background: var(--bg-card); border: 1px solid var(--line);
+      background: transparent; border: 1px solid var(--line);
       border-radius: 3px; color: var(--ink); -webkit-text-fill-color: var(--ink);
       font-family: 'Share Tech Mono', 'Courier New', monospace;
       font-size: 0.84rem; padding: 9px 12px;
@@ -226,7 +226,7 @@
     .field input:-webkit-autofill,
     .field input:-webkit-autofill:focus {
       -webkit-text-fill-color: var(--ink);
-      -webkit-box-shadow: 0 0 0 1000px var(--bg-card) inset;
+      -webkit-box-shadow: 0 0 0 1000px var(--bg-raised) inset;
       caret-color: var(--ink);
     }
     .field input::placeholder, .field textarea::placeholder {
@@ -443,7 +443,7 @@
     .vault-col-title { font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-muted); margin-bottom: 8px; }
     .vault-cred-row { display: flex; align-items: center; gap: 5px; margin-bottom: 5px; }
     .vault-input {
-      flex: 1; background: var(--bg-raised); border: 1px solid var(--line);
+      flex: 1; background: transparent; border: 1px solid var(--line);
       color: var(--ink); font-family: inherit; font-size: 0.78rem;
       padding: 5px 8px; border-radius: 2px; min-width: 0;
     }

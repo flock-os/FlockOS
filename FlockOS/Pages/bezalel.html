@@ -136,7 +136,7 @@
     .church-btn {
       display: flex; flex-direction: column; align-items: center; gap: 5px;
       padding: 14px 10px; border-radius: 9px;
-      border: 2px solid var(--line); background: var(--bg-card);
+      border: 2px solid var(--line); background: transparent;
       color: var(--ink-muted); cursor: pointer; font-family: inherit;
       font-size: 0.82rem; font-weight: 600; transition: all 0.18s;
       text-align: center;
@@ -353,6 +353,84 @@
     }
     .history-item-del:hover { color: var(--danger); }
     .history-empty { padding: 16px; text-align: center; color: var(--ink-muted); font-size: 0.8rem; }
+
+    /* ── Vault Panel ───────────────────────────────────────────────────── */
+    .vault-panel {
+      background: var(--bg-raised); border: 1px solid var(--line);
+      border-radius: 10px; margin-bottom: 16px; overflow: hidden;
+    }
+    .vault-toggle {
+      width: 100%; display: flex; align-items: center; gap: 10px;
+      padding: 13px 16px; background: none; border: none; border-radius: 0;
+      cursor: pointer; font-family: inherit; color: var(--ink);
+      text-align: left; transition: background 0.14s;
+    }
+    .vault-toggle:hover { background: rgba(255,255,255,0.04); }
+    .vtitle { font-size: 0.82rem; font-weight: 700; flex: 1; }
+    .vbadge {
+      font-size: 0.68rem; background: var(--accent-soft); color: var(--accent);
+      border-radius: 4px; padding: 2px 7px; font-weight: 600;
+    }
+    .vchevron { font-size: 0.7rem; color: var(--ink-muted); transition: transform 0.2s; }
+    .vault-toggle.open .vchevron { transform: rotate(180deg); }
+    .vault-body {
+      display: none; padding: 14px 16px 16px;
+      border-top: 1px solid var(--line);
+    }
+    .vault-body.open { display: block; }
+    .vault-layout {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 14px;
+    }
+    @media (max-width: 680px) { .vault-layout { grid-template-columns: 1fr; } }
+    .vault-col-title {
+      font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.07em; color: var(--ink-muted); margin-bottom: 8px;
+    }
+    .vault-meta { font-size: 0.68rem; color: var(--ink-muted); margin-top: 6px; }
+    .vault-cred-row {
+      display: grid; grid-template-columns: 1fr 1fr auto auto;
+      gap: 5px; margin-bottom: 6px; align-items: center;
+    }
+    .vault-eye-btn {
+      background: none; border: 1px solid var(--line); border-radius: 5px;
+      color: var(--ink-muted); cursor: pointer; font-size: 0.72rem; font-weight: 600;
+      padding: 6px 10px; font-family: inherit; line-height: 1;
+      transition: all 0.14s; white-space: nowrap;
+    }
+    .vault-eye-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .vault-del-btn {
+      background: none; border: 1px solid rgba(248,113,113,0.3);
+      border-radius: 5px; color: var(--danger); cursor: pointer;
+      font-size: 0.72rem; font-weight: 600; padding: 6px 10px;
+      font-family: inherit; line-height: 1; transition: all 0.14s;
+      white-space: nowrap;
+    }
+    .vault-del-btn:hover { background: rgba(248,113,113,0.12); border-color: var(--danger); }
+    .vault-add-btn {
+      background: none; border: 1px dashed var(--line); border-radius: 6px;
+      color: var(--ink-muted); cursor: pointer; font-size: 0.78rem;
+      padding: 6px 14px; font-family: inherit; transition: all 0.14s;
+    }
+    .vault-add-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .vault-actions {
+      display: flex; gap: 8px; flex-wrap: wrap;
+      margin-top: 14px; border-top: 1px solid var(--line); padding-top: 12px;
+    }
+    .vault-save-btn {
+      background: var(--gold-soft); border: 1px solid rgba(232,168,56,0.35);
+      color: var(--gold); border-radius: 7px; padding: 9px 18px;
+      font-family: inherit; font-size: 0.82rem; font-weight: 600;
+      cursor: pointer; transition: all 0.16s;
+    }
+    .vault-save-btn:hover { background: var(--gold); color: var(--bg); }
+    .vault-save-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .vault-autofill-btn {
+      background: var(--accent-soft); border: 1px solid rgba(126,170,204,0.25);
+      color: var(--accent); border-radius: 7px; padding: 9px 16px;
+      font-family: inherit; font-size: 0.82rem; font-weight: 600;
+      cursor: pointer; transition: all 0.16s;
+    }
+    .vault-autofill-btn:hover { background: var(--accent); color: var(--bg); }
 
     /* ── Warning banner ────────────────────────────────────────────────── */
     .warn-banner {
@@ -1266,7 +1344,11 @@ function _loadVault() {
         } else { meta.textContent = snap.exists ? '' : 'No vault record yet.'; }
       }
       _vaultRenderCreds();
-      if (panel) panel.style.display = '';
+      if (panel) { panel.style.display = ''; }
+      var body = document.getElementById('vaultBody');
+      var tog  = document.getElementById('vaultToggle');
+      if (body) body.classList.add('open');
+      if (tog)  tog.classList.add('open');
       var badge = document.getElementById('vaultBadge');
       if (badge) {
         var count = _VAULT.credentials.length;
@@ -1289,8 +1371,8 @@ function _vaultRenderCreds() {
     return '<div class="vault-cred-row">'
       + '<input class="vault-input" value="' + _he(c.label) + '" placeholder="Label" oninput="_vaultCredChange(' + i + ',\'label\',this.value)">'
       + '<input class="vault-input" type="' + (c._hidden ? 'password' : 'text') + '" value="' + _he(c.value) + '" placeholder="Value" oninput="_vaultCredChange(' + i + ',\'value\',this.value)">'
-      + '<button class="vault-eye-btn" onclick="_vaultToggleHide(' + i + ')">' + (c._hidden ? '&#128065;' : '&#128683;') + '</button>'
-      + '<button class="vault-del-btn" onclick="_vaultRemoveRow(' + i + ')">&times;</button>'
+      + '<button class="vault-eye-btn" onclick="_vaultToggleHide(' + i + ')" title="Show or hide value">' + (c._hidden ? '&#128065; Show' : '&#128274; Hide') + '</button>'
+      + '<button class="vault-del-btn" onclick="_vaultRemoveRow(' + i + ')" title="Delete this credential">&#128465; Delete</button>'
       + '</div>';
   }).join('');
 }
@@ -1305,7 +1387,12 @@ function _vaultAddRow() {
   var ct = document.getElementById('vault-creds');
   if (ct) { var ins = ct.querySelectorAll('.vault-input'); if (ins.length) ins[ins.length - 2].focus(); }
 }
-function _vaultRemoveRow(i) { _VAULT.credentials.splice(i, 1); _vaultRenderCreds(); }
+function _vaultRemoveRow(i) {
+  var label = (_VAULT.credentials[i] && _VAULT.credentials[i].label) ? _VAULT.credentials[i].label : 'this credential';
+  if (!confirm('Delete "' + label + '"? This cannot be undone until you save.')) return;
+  _VAULT.credentials.splice(i, 1);
+  _vaultRenderCreds();
+}
 
 function _vaultAutoFill(onlyEmpty) {
   _VAULT.credentials.forEach(function(c) {
