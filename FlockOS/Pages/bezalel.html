@@ -1077,7 +1077,7 @@ function _genPassword() {
   var upper   = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
   var lower   = 'abcdefghjkmnpqrstuvwxyz';
   var digits  = '23456789';
-  var special = '!@#$%&*-_=+?';
+  var special = '.-_=+';  // clean, readable separators
 
   function rand(n) { return window.crypto.getRandomValues(new Uint8Array(1))[0] % n; }
   function pickN(charset, n) {
