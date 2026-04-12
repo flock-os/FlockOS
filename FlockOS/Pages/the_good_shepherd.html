@@ -1247,21 +1247,26 @@ function navigate(viewName) {
   var _adBar = document.getElementById('ad-back-bar');
   if (_adBar && viewName === 'admin-dashboard') _adBar.remove();
 
+  // Guard: confirm the target view div exists before touching any active states
+  const target = document.getElementById('view-' + viewName);
+  if (!target) {
+    console.warn('navigate: no view div for "' + viewName + '" — falling back to dashboard');
+    if (viewName !== 'dashboard') navigate('dashboard');
+    return;
+  }
+
   document.querySelectorAll('.module-view').forEach(v => v.classList.remove('active'));
 
-  const target = document.getElementById('view-' + viewName);
-  if (target) {
-    target.classList.add('active');
+  target.classList.add('active');
 
-    // Always force a fresh render — lets users tap the nav to reset a broken view
-    delete target.dataset.loaded;
+  // Always force a fresh render — lets users tap the nav to reset a broken view
+  delete target.dataset.loaded;
 
-    if (viewName !== 'dashboard') {
-      if (viewName === 'photos') {
-        if (typeof window._renderPhotos === 'function') window._renderPhotos(target);
-      } else if (typeof Modules !== 'undefined') {
-        Modules.render(viewName, target, session);
-      }
+  if (viewName !== 'dashboard') {
+    if (viewName === 'photos') {
+      if (typeof window._renderPhotos === 'function') window._renderPhotos(target);
+    } else if (typeof Modules !== 'undefined') {
+      Modules.render(viewName, target, session);
     }
   }
 

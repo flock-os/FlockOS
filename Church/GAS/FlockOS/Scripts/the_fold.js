@@ -124,6 +124,11 @@ const TheFold = (() => {
          + ';font-size:0.84rem;cursor:pointer;font-family:inherit;transition:all .15s;">'
          + labels[key] + ' <span style="font-size:0.72rem;opacity:0.7;">(' + counts[key] + ')</span></button>';
     });
+    h += '<a href="quarterly_worship.html"'
+       + ' style="padding:10px 18px;border:none;background:transparent;color:var(--ink);'
+       + 'border-radius:8px 8px 0 0;font-weight:500;font-size:0.84rem;cursor:pointer;'
+       + 'font-family:inherit;transition:all .15s;text-decoration:none;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;">'
+       + '\uD83D\uDCC5 Quarterly Planner</a>';
     h += '</div>';
 
     // Panels

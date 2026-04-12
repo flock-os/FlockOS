@@ -20253,6 +20253,14 @@ const Modules = (() => {
     el.dataset.loaded = '1';
     Promise.resolve(_reg[name](el, session)).catch(err => {
       console.error('Module error [' + name + ']:', err);
+      // Show a visible error state so the user never sees a silent white page
+      el.innerHTML =
+        '<div style="padding:48px 24px;text-align:center;">'
+        + '<div style="font-size:2.4rem;margin-bottom:12px;">&#9888;&#65039;</div>'
+        + '<h2 style="font-size:1rem;font-weight:700;color:var(--danger);margin-bottom:8px;">This module could not load</h2>'
+        + '<p style="font-size:0.84rem;color:var(--ink-muted);max-width:420px;margin:0 auto 20px;line-height:1.6;">' + _e(err && err.message ? err.message : 'An unexpected error occurred.') + '</p>'
+        + '<button onclick="navigate(\'' + name + '\')" style="background:var(--accent);color:var(--ink-inverse);border:none;border-radius:7px;padding:8px 18px;font:inherit;font-weight:600;cursor:pointer;">&#8635; Retry</button>'
+        + '</div>';
     });
     return true;
   }
