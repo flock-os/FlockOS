@@ -467,7 +467,22 @@
         </div>
       </div>
 
-
+      <div class="card">
+        <div class="card-head"><span class="card-head-title">⬇ Pull from Service Plans</span></div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:12px;">
+          <p style="font-size:.8rem;color:var(--ink-muted);line-height:1.55;">Sync existing Service Plans for this quarter back into the sheet.</p>
+          <div>
+            <label class="lbl" for="optPullMerge">If row already exists for that date</label>
+            <div class="fw"><select id="optPullMerge" class="fs">
+              <option value="fill">Fill blanks only (keep existing data)</option>
+              <option value="overwrite">Overwrite all fields</option>
+              <option value="skip">Skip (leave sheet unchanged)</option>
+            </select></div>
+          </div>
+          <button class="btn btn-secondary" id="btnPull" style="width:100%;justify-content:center;">⬇ Pull Quarter from Service Plans</button>
+          <p id="pullNote" style="font-size:.76rem;color:var(--ink-muted);text-align:center;display:none;"></p>
+        </div>
+      </div>
 
     </div><!-- /sidebar -->
   </div><!-- /page-wrap -->
@@ -493,6 +508,7 @@
      standard quarter; pushes to UpperRoom.createServicePlan / updateServicePlan.
   ============================================================ */
   if (typeof Adornment !== 'undefined') Adornment.init();
+  if (typeof Nehemiah !== 'undefined') Nehemiah.guard();
   (function () {
     'use strict';
 
@@ -854,6 +870,120 @@
       saveToFirestore(true);
     }
 
+    /* ── Pull from Service Plans ─────────────────────────────────────── */
+    async function pullPlans() {
+      var pullNote = document.getElementById('pullNote');
+      pullNote.style.display = 'block'; pullNote.textContent = '';
+
+      if (!isFB()) {
+        try { pullNote.textContent = 'Waiting for Firestore…'; await waitFB(10000); }
+        catch(e) { pullNote.style.display='none'; toast('Firestore not available.', 'error'); return; }
+      }
+      pullNote.textContent = 'Loading service plans…';
+
+      var mergeMode = document.getElementById('optPullMerge').value;
+      var q    = document.getElementById('qQ').value;
+      var year = parseInt(document.getElementById('qY').value, 10) || new Date().getFullYear();
+
+      /* quarter date range */
+      var months = qMonths(q);
+      var qStart = year + '-' + String(months[0] + 1).padStart(2,'0') + '-01';
+      var lastM  = months[months.length - 1];
+      var lastDay = new Date(year, lastM + 1, 0).getDate();
+      var qEnd   = year + '-' + String(lastM + 1).padStart(2,'0') + '-' + String(lastDay).padStart(2,'0');
+
+      var plans = [];
+      try {
+        var res = await UpperRoom.listServicePlans({ limit: 500 });
+        plans = (res || []).filter(function(p) {
+          var d = p.serviceDate || p.date || '';
+          return d >= qStart && d <= qEnd;
+        });
+      } catch(e) {
+        pullNote.style.display = 'none';
+        toast('Could not load service plans: ' + (e.message || e), 'error');
+        return;
+      }
+
+      if (!plans.length) {
+        pullNote.style.display = 'none';
+        toast('No service plans found for ' + q + ' ' + year, 'info');
+        return;
+      }
+
+      /* build lookup of existing sheet rows by date */
+      var byDate = {};
+      S.rows.forEach(function(r){ if (r.date) byDate[r.date] = r; });
+
+      /* helper: parse concatenated notes back into fields */
+      function parseNotes(raw) {
+        var out = { announce:'', prayer:'', proverb:'', notes:'' };
+        if (!raw) return out;
+        var lines = raw.split('\n');
+        lines.forEach(function(line) {
+          if      (/^Announcements:\s*/i.test(line)) out.announce = line.replace(/^Announcements:\s*/i,'').trim();
+          else if (/^Prayer:\s*/i.test(line))        out.prayer   = line.replace(/^Prayer:\s*/i,'').trim();
+          else if (/^Proverb:\s*/i.test(line))       out.proverb  = line.replace(/^Proverb:\s*/i,'').trim();
+          else if (/^Notes:\s*/i.test(line))         out.notes    = line.replace(/^Notes:\s*/i,'').trim();
+        });
+        return out;
+      }
+
+      function applyField(row, key, val, mode) {
+        if (!val) return;
+        if (mode === 'overwrite')         row[key] = val;
+        else if (mode === 'fill' && !row[key]) row[key] = val;
+        /* skip: do nothing */
+      }
+
+      var added = 0, merged = 0, skipped = 0;
+
+      plans.forEach(function(p) {
+        var date = p.serviceDate || p.date || '';
+        if (!date) return;
+        var parsed = parseNotes(p.notes || p.description || '');
+
+        var existing = byDate[date];
+        if (existing) {
+          if (mergeMode === 'skip') { skipped++; return; }
+          applyField(existing, 'psalm',     p.theme           || '', mergeMode);
+          applyField(existing, 'scripture', p.scriptureFocus  || '', mergeMode);
+          applyField(existing, 'worship',   p.worshipLeaderId || p.worshipLeader || '', mergeMode);
+          applyField(existing, 'preacher',  p.preacherId      || p.preacher      || '', mergeMode);
+          applyField(existing, 'notes',     p.sermonTitle     || '', mergeMode);
+          applyField(existing, 'announce',  parsed.announce,         mergeMode);
+          applyField(existing, 'prayer',    parsed.prayer,           mergeMode);
+          applyField(existing, 'proverb',   parsed.proverb,          mergeMode);
+          merged++;
+        } else {
+          var nr = mkRow(date);
+          nr.psalm     = p.theme           || '';
+          nr.scripture = p.scriptureFocus  || '';
+          nr.worship   = p.worshipLeaderId || p.worshipLeader || '';
+          nr.preacher  = p.preacherId      || p.preacher      || '';
+          nr.notes     = p.sermonTitle     || '';
+          nr.announce  = parsed.announce;
+          nr.prayer    = parsed.prayer;
+          nr.proverb   = parsed.proverb;
+          S.rows.push(nr);
+          byDate[date] = nr;
+          added++;
+        }
+      });
+
+      /* re-sort rows by date */
+      S.rows.sort(function(a, b) { return (a.date || '') < (b.date || '') ? -1 : (a.date || '') > (b.date || '') ? 1 : 0; });
+
+      render(); markDirty();
+      pullNote.style.display = 'none';
+
+      var msg = [];
+      if (added)   msg.push(added   + ' new row' + (added   !== 1 ? 's' : '') + ' added');
+      if (merged)  msg.push(merged  + ' row' + (merged  !== 1 ? 's' : '') + ' merged');
+      if (skipped) msg.push(skipped + ' skipped');
+      toast('Pull complete: ' + (msg.join(', ') || 'nothing to do'), 'success');
+    }
+
     /* ── CSV Import ──────────────────────────────────────────────────── */
     function normalizeHeader(h) {
       h = (h || '').trim().toLowerCase().replace(/[^a-z]/g, '');
@@ -972,6 +1102,7 @@
         S.rows=[]; S.importedIds={}; render(); markDirty();
       });
       document.getElementById('btnPush').addEventListener('click', pushPlans);
+      document.getElementById('btnPull').addEventListener('click', pullPlans);
       document.getElementById('btnImport').addEventListener('click', function(){ document.getElementById('importFile').click(); });
       document.getElementById('importFile').addEventListener('change', function(){ handleImportFile(this); });
       document.getElementById('po-close').addEventListener('click', function(){
