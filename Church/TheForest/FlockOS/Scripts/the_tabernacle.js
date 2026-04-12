@@ -19937,19 +19937,25 @@ const Modules = (() => {
     }
 
     // ── 2. Firebase / Firestore status ───────────────────────────────────
-    // Actively attempt auth if UpperRoom hasn't connected yet (re-test recovery).
-    if (typeof UpperRoom !== 'undefined' && !UpperRoom.isReady()) {
-      try {
-        await UpperRoom.init();
-        await UpperRoom.authenticate();
-      } catch (_) { /* best-effort — status read below reflects outcome */ }
+    var fbAuthError = '';
+    if (typeof UpperRoom !== 'undefined') {
+      if (!UpperRoom.isReady()) {
+        try {
+          await UpperRoom.init();
+          await UpperRoom.authenticate();
+        } catch (fbErr) {
+          fbAuthError = fbErr && fbErr.message ? fbErr.message : String(fbErr);
+        }
+      }
+      // Always force a fresh comms-mode read during a connection test so
+      // stale 'sheets' values from a failed page-load attempt are cleared.
+      if (UpperRoom.isReady()) {
+        _commsMode = null;
+        try { await _loadCommsMode(); } catch (_) {}
+      }
     }
     var fbReady = typeof UpperRoom !== 'undefined' && UpperRoom.isReady();
     var fbMode  = _isFirebaseComms();
-    // Refresh comms mode now that we may have just authenticated
-    if (fbReady && _commsMode === null) {
-      try { await _loadCommsMode(); } catch (_) {}
-    }
     var fbProjectId = '';
     try {
       if (typeof firebase !== 'undefined' && firebase.app) {
@@ -20079,7 +20085,7 @@ const Modules = (() => {
         '&#128293;',
         'not connected',
         null,
-        '',
+        fbAuthError || 'Auth failed — see browser console for details.',
         fbProjectId || '',
         'Firebase is not initialized or not authenticated in this session.'
       );
