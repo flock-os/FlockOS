@@ -20,7 +20,7 @@
   <script defer src="../Scripts/firm_foundation.js"></script>
   <style>
     :root {
-      --topbar-h: 60px;
+      --topbar-h: 58px;
       --bg:            #f0f4ff;
       --bg-raised:     #ffffff;
       --bg-sunken:     #eaeffc;
@@ -57,7 +57,7 @@
 
     /* ── Accent bar ─────────────────────────────────────────────────────── */
     #rainbowBar {
-      height: 4px;
+      height: 3px;
       background: linear-gradient(90deg, #4f46e5, #7c3aed, #2563eb);
     }
 
@@ -66,30 +66,39 @@
       position: sticky; top:0; left:0; right:0;
       height: var(--topbar-h);
       background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
-      border-bottom: none;
-      box-shadow: 0 2px 16px rgba(30,27,75,0.30);
-      display: flex; align-items: center; padding: 0 22px; z-index:100; gap:12px;
+      box-shadow: 0 2px 14px rgba(30,27,75,0.30);
+      display: flex; align-items: center; padding: 0 18px; z-index:100; gap:10px;
     }
     .topbar-brand {
       font-size: 1.0rem; font-weight: 800; color: #e0e7ff;
       letter-spacing: .05em; white-space: nowrap;
     }
     .topbar-brand span {
-      font-size: .74rem; font-weight: 400; color: rgba(199,210,254,.72);
-      margin-left: 8px;
+      font-size: .74rem; font-weight: 400; color: rgba(199,210,254,.65); margin-left:6px;
     }
-    .topbar-sep { color: rgba(255,255,255,.3); font-size: 1rem; }
-    .topbar-title { font-size: .85rem; font-weight: 600; color: rgba(255,255,255,.80); white-space: nowrap; }
+    .topbar-sep { color: rgba(255,255,255,.25); font-size:.9rem; }
+    .topbar-title { font-size:.84rem; font-weight:600; color:rgba(255,255,255,.75); white-space:nowrap; }
     .topbar-spacer { flex: 1 1 auto; }
-    .back-btn {
-      background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.28);
-      border-radius: 7px; color: rgba(255,255,255,.85);
-      font-size: .76rem; padding: 5px 13px;
-      cursor: pointer; font: inherit; text-decoration: none;
-      transition: background .18s; display: inline-flex; align-items: center; gap: 5px;
-      white-space: nowrap;
+    /* Sync status inline */
+    .sync-pill {
+      display: flex; align-items: center; gap: 6px;
+      background: rgba(0,0,0,.22); border: 1px solid rgba(255,255,255,.12);
+      border-radius: 20px; padding: 4px 12px; white-space: nowrap;
     }
-    .back-btn:hover { background:rgba(255,255,255,.22); border-color:rgba(255,255,255,.5); color:#fff; }
+    .sync-pill #sMsg { font-size: .70rem; font-weight: 700; color: rgba(224,231,255,.72); }
+    /* Save & Close button */
+    .btn-save-close {
+      background: linear-gradient(135deg, #059669, #0d9488);
+      border: 0; border-radius: 8px; color: #fff;
+      font: inherit; font-size: .80rem; font-weight: 700;
+      padding: 7px 18px; cursor: pointer;
+      box-shadow: 0 2px 10px rgba(5,150,105,.30);
+      transition: opacity .14s, transform .12s, box-shadow .14s;
+      display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+    }
+    .btn-save-close:hover { opacity:.88; transform:translateY(-1px); box-shadow:0 4px 16px rgba(5,150,105,.44); }
+    .btn-save-close:active { transform:translateY(0); }
+    .btn-save-close:disabled { opacity:.4; cursor:not-allowed; transform:none; }
 
     /* ── Page layout ────────────────────────────────────────────────────── */
     .page-wrap {
@@ -333,8 +342,10 @@
     html[data-matrix="1"] .topbar-brand span { -webkit-text-fill-color:#00aa2a !important; color:#00aa2a !important; }
     html[data-matrix="1"] .topbar-title,
     html[data-matrix="1"] .topbar-sep { color:#00aa2a !important; text-shadow:0 0 6px rgba(0,255,65,0.5) !important; }
-    html[data-matrix="1"] .back-btn { background:rgba(0,20,0,.5) !important; border-color:rgba(0,255,65,.28) !important; color:#00aa2a !important; }
-    html[data-matrix="1"] .back-btn:hover { color:#00ff41 !important; box-shadow:0 0 8px rgba(0,255,65,.3) !important; }
+    html[data-matrix="1"] .sync-pill { background:rgba(0,8,0,.7) !important; border-color:rgba(0,255,65,.18) !important; }
+    html[data-matrix="1"] .sync-pill #sMsg { color:#00aa2a !important; }
+    html[data-matrix="1"] .btn-save-close { background:linear-gradient(135deg,#003310,#00ff41) !important; color:#000 !important; box-shadow:0 0 10px rgba(0,255,65,.35) !important; }
+    html[data-matrix="1"] .bottom-bar { background:rgba(0,8,0,.94) !important; border-top-color:rgba(0,255,65,.25) !important; }
     html[data-matrix="1"] .card { border-color:rgba(0,255,65,0.22) !important; box-shadow:0 0 14px rgba(0,255,65,.07) !important; }
     html[data-matrix="1"] .card-head,
     html[data-matrix="1"] .c-setup .card-head, html[data-matrix="1"] .c-grid .card-head,
@@ -380,15 +391,27 @@
     html[data-matrix="1"] .mt-dot { background:#00ff41 !important; box-shadow:0 0 7px rgba(0,255,65,.95) !important; }
     html[data-matrix="1"] .lbl { color:var(--ink-muted); text-shadow:0 0 4px rgba(0,255,65,.4); }
     html[data-matrix="1"] #matrixCanvas { display:block !important; }
+    html[data-matrix="1"] #matrixCanvas { display:block !important; }
 
-    /* ── Matrix canvas + z-ordering ─────────────────────────────────────── */
+    /* ── Bottom bar ────────────────────────────────────────────────────── */
+    .bottom-bar {
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 90;
+      background: var(--bg-raised);
+      border-top: 1px solid var(--line-strong);
+      padding: 12px 20px;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 -2px 14px rgba(30,27,75,.10);
+    }
     #matrixCanvas {
       display:none; position:fixed; top:0; left:0; width:100%; height:100%;
       z-index:0; opacity:0.15; pointer-events:none;
     }
-    .topbar, .page-wrap, #push-overlay, #toast { position:relative; z-index:2; }
+    html[data-matrix="1"] #matrixCanvas { display:block !important; }
+    .topbar, .page-wrap, #push-overlay, #toast, .bottom-bar { position:relative; z-index:2; }
     .topbar { position:sticky; z-index:100; }
     #rainbowBar { position:relative; z-index:2; }
+    /* add padding so last row of table isn't hidden behind bottom-bar */
+    .page-wrap { padding-bottom: 80px; }
   </style>
 </head>
 <body>
@@ -405,8 +428,12 @@
     <span class="topbar-sep">›</span>
     <span class="topbar-title">Quarterly Planner</span>
     <div class="topbar-spacer"></div>
+    <div class="sync-pill">
+      <span class="dot" id="sDot"></span>
+      <span id="sMsg">Loading…</span>
+    </div>
+    <button class="btn-save-close" id="btnSaveCloseTop">✓ Save &amp; Close</button>
     <button class="matrix-toggle" id="matrixToggle" title="Toggle matrix mode"><span class="mt-dot"></span>MATRIX</button>
-    <a href="../Pages/index.html" class="back-btn">← Dashboard</a>
   </div>
 
   <!-- Page layout -->
@@ -419,10 +446,6 @@
       <div class="card c-setup">
         <div class="card-head">
           <span class="card-head-title">⛪ Quarterly Worship Schedule</span>
-          <div style="display:flex;align-items:center;gap:7px;">
-            <span class="dot" id="sDot"></span>
-            <span id="sMsg" style="font-size:.78rem;color:var(--ink-muted);">Ready</span>
-          </div>
         </div>
         <div class="card-body">
           <div class="controls">
@@ -566,6 +589,11 @@
 
   <!-- Toast -->
   <div id="toast"></div>
+
+  <!-- Bottom save bar -->
+  <div class="bottom-bar">
+    <button class="btn-save-close" id="btnSaveCloseBot" style="padding:10px 32px;font-size:.88rem;">✓ Save &amp; Close</button>
+  </div>
 
   <script>
   /* ============================================================
@@ -1177,6 +1205,25 @@
       document.getElementById('po-close').addEventListener('click', function(){
         document.getElementById('push-overlay').classList.remove('open');
       });
+
+      function getDashboardUrl() {
+        var p = new URLSearchParams(window.location.search).get('from');
+        if (p === 'public') return '../../index.html';
+        if (document.referrer && document.referrer.indexOf('index.html') !== -1) return document.referrer;
+        return '../Pages/index.html';
+      }
+      async function saveAndClose() {
+        var btn1 = document.getElementById('btnSaveCloseTop');
+        var btn2 = document.getElementById('btnSaveCloseBot');
+        btn1.disabled = btn2.disabled = true;
+        btn1.textContent = btn2.textContent = '…Saving';
+        try {
+          await saveToFirestore(false);
+        } catch(e) { /* saveToFirestore already shows the error */ }
+        window.location.href = getDashboardUrl();
+      }
+      document.getElementById('btnSaveCloseTop').addEventListener('click', saveAndClose);
+      document.getElementById('btnSaveCloseBot').addEventListener('click', saveAndClose);
 
       window.addEventListener('beforeunload', function(e){
         if (!S.dirty) return; e.preventDefault(); e.returnValue='';
