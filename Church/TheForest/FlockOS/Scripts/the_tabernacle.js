@@ -19937,8 +19937,19 @@ const Modules = (() => {
     }
 
     // ── 2. Firebase / Firestore status ───────────────────────────────────
+    // Actively attempt auth if UpperRoom hasn't connected yet (re-test recovery).
+    if (typeof UpperRoom !== 'undefined' && !UpperRoom.isReady()) {
+      try {
+        await UpperRoom.init();
+        await UpperRoom.authenticate();
+      } catch (_) { /* best-effort — status read below reflects outcome */ }
+    }
     var fbReady = typeof UpperRoom !== 'undefined' && UpperRoom.isReady();
     var fbMode  = _isFirebaseComms();
+    // Refresh comms mode now that we may have just authenticated
+    if (fbReady && _commsMode === null) {
+      try { await _loadCommsMode(); } catch (_) {}
+    }
     var fbProjectId = '';
     try {
       if (typeof firebase !== 'undefined' && firebase.app) {
