@@ -774,7 +774,7 @@
     }
 
     /* ── Generate ────────────────────────────────────────────────────── */
-    function generate() {
+    function generate(silent) {
       var q    = document.getElementById('qQ').value;
       var year = parseInt(document.getElementById('qY').value, 10) || new Date().getFullYear();
       var first = document.getElementById('qFS').value;
@@ -793,8 +793,11 @@
 
       S.rows = sundays.map(function (iso) { return mkRow(iso); });
       S.importedIds = {};
-      render(); markDirty();
-      toast('Generated ' + S.rows.length + ' Sundays for ' + q + ' ' + year, 'success');
+      render();
+      if (!silent) {
+        markDirty();
+        toast('Generated ' + S.rows.length + ' Sundays for ' + q + ' ' + year, 'success');
+      }
     }
 
     /* ── Summary ─────────────────────────────────────────────────────── */
@@ -1323,12 +1326,12 @@
           applyPlanData(snap.data());
           setStatus('ready', 'Saved · ' + fmtTs(snap.data().at));
         } else {
-          generate();
+          generate(true); /* silent — no auto-save for a blank new quarter */
           setStatus('', 'Not yet saved');
         }
       }).catch(function() {
-        generate();
-        setStatus('ready', 'Ready');
+        generate(true); /* silent — Firebase unavailable, don't hammer it */
+        setStatus('', 'Offline');
       });
     }
 
