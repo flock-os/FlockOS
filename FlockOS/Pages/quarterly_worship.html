@@ -835,7 +835,10 @@
       clearTimeout(S.saveTimer); S.saveTimer = setTimeout(function(){ saveToFirestore(true); }, 1400);
     }
     async function saveToFirestore(auto) {
-      if (!isFB()) { setStatus('pending', 'Waiting for cloud…'); return; }
+      if (!isFB()) {
+        setStatus('pending', 'Waiting for cloud…');
+        try { await waitFB(14000); } catch(e) { setStatus('error', 'Cloud unavailable — changes not saved'); return; }
+      }
       try {
         setStatus('pending', 'Saving…');
         var ts = new Date().toISOString();
