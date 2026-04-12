@@ -1,4 +1,5 @@
 window.FLOCK_FIREBASE_CONFIG = {"apiKey":"AIzaSyCnIbShg2ra1t4EiP3CffsivwvIK-bNu8M","authDomain":"flockos-theforest.firebaseapp.com","projectId":"flockos-theforest","storageBucket":"flockos-theforest.firebasestorage.app","messagingSenderId":"476522944133","appId":"1:476522944133:web:29ad5d19cf5a84c11b7bec","measurementId":"G-WMGPRHXP0Q"};
+window.FLOCK_CHURCH_ID = "theforest";
 /* ═══════════════════════════════════════════════════════════════════════
    THE UPPER ROOM — Firebase Firestore Comms Module for FlockOS
    Real-time messaging: DMs, Chat Rooms, Channels, Notifications
@@ -169,6 +170,8 @@ window.FLOCK_FIREBASE_CONFIG = {"apiKey":"AIzaSyCnIbShg2ra1t4EiP3CffsivwvIK-bNu8
 
   /* ── Resolve churchId from page/config ────────────────────────── */
   function _resolveChurchId() {
+    // Try build-injected church ID (window.FLOCK_CHURCH_ID set by build_churches.sh)
+    if (typeof window.FLOCK_CHURCH_ID === 'string' && window.FLOCK_CHURCH_ID) return window.FLOCK_CHURCH_ID;
     // Try manifest short_name
     try {
       var meta = document.querySelector('meta[name="church-id"]');

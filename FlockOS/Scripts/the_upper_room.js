@@ -168,6 +168,8 @@
 
   /* ── Resolve churchId from page/config ────────────────────────── */
   function _resolveChurchId() {
+    // Try build-injected church ID (window.FLOCK_CHURCH_ID set by build_churches.sh)
+    if (typeof window.FLOCK_CHURCH_ID === 'string' && window.FLOCK_CHURCH_ID) return window.FLOCK_CHURCH_ID;
     // Try manifest short_name
     try {
       var meta = document.querySelector('meta[name="church-id"]');
