@@ -1725,19 +1725,18 @@ const TheLife = (() => {
     if (!_fpOutId) return;
     var rec = (_cache.allOutreach || []).find(function(c) { return c.id === _fpOutId; }) || {};
     var name = [rec.firstName, rec.lastName].filter(Boolean).join(' ') || rec.name || 'this contact';
-    if (!confirm('Archive ' + name + '? They will no longer appear in active outreach lists.')) return;
-    try {
+    var _undo = (typeof Modules !== 'undefined' && Modules._undoAction) || function(msg, fn) { fn(); };
+    _undo(name + ' archived', async function() {
       var upd = { id: _fpOutId, status: 'Archived' };
-      if (rec.email) upd.contactEmail = rec.email; // preserve contact email; avoid auth email injection overwriting it
+      if (rec.email) upd.contactEmail = rec.email;
       await (_isFB() ? UpperRoom.updateOutreachContact(upd) : TheVine.flock.outreach.contacts.update(upd));
       delete _cache.allOutreach;
       if (typeof TheVine !== 'undefined' && TheVine.cache) {
         TheVine.cache.invalidate('life:outreach');
         TheVine.cache.invalidate('tab:outreach');
       }
-      _toast('Contact archived.', 'success');
       backToHub();
-    } catch (e) { _toast('Archive failed: ' + (e.message || e), 'error'); }
+    });
   }
 
 

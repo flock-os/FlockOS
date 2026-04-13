@@ -1300,8 +1300,8 @@ const Modules = (() => {
 
     if (onDelete) {
       document.getElementById('ml-modal-del').onclick = async () => {
-        if (!confirm('Delete this record? This cannot be undone.')) return;
-        try { await onDelete(); m.remove(); } catch (err) { _toast(err.message || 'Delete failed.', 'danger'); }
+        m.remove();
+        _undoAction('Record deleted', onDelete);
       };
     }
   }
@@ -1989,13 +1989,12 @@ const Modules = (() => {
   }
 
   async function _albumDelete(id) {
-    if (!confirm('Delete this album? This cannot be undone.')) return;
-    try {
+    _undoAction('Album deleted', async function() {
       await (_isFirebaseComms() ? UpperRoom.deleteAlbum(id) : TheVine.flock.albums.delete({ id }));
       _invalidateCache('albums');
       const el = document.getElementById('view-albums');
       if (el) { el.dataset.loaded = ''; _reg['albums'](el); }
-    } catch (e) { _toast('Error: ' + e.message, 'danger'); }
+    });
   }
 
 
@@ -6767,15 +6766,12 @@ const Modules = (() => {
   }
 
   async function deleteMessage(id, cache) {
-    if (!confirm('Delete this message?')) return;
-    var b = document.querySelector('#view-comms #ml-body');
-    if (b) b.innerHTML = _spinner();
-    try {
+    _undoAction('Message deleted', async function() {
       if (_isFirebaseComms()) { await UpperRoom.deleteConversation(id); }
       else { await TheVine.flock.comms.messages.delete({ id }); }
       _commsOpenMsg = null;
       _reload('comms');
-    } catch (e) { _toast(e.message || 'Delete failed.', 'danger'); }
+    });
   }
 
   // Archive an inbox message (move to archived state)
@@ -6949,11 +6945,12 @@ const Modules = (() => {
   }
 
   async function _threadArchive(id) {
-    if (!confirm('Archive this thread?')) return;
-    if (_isFirebaseComms()) { await UpperRoom.archiveConversation(id); }
-    else { await TheVine.flock.comms.threads.archive({ id: id }); }
-    _invalidateCache('comms-threads');
-    commsView('threads');
+    _undoAction('Thread archived', async function() {
+      if (_isFirebaseComms()) { await UpperRoom.archiveConversation(id); }
+      else { await TheVine.flock.comms.threads.archive({ id: id }); }
+      _invalidateCache('comms-threads');
+      commsView('threads');
+    });
   }
 
   async function _threadMuteToggle(id, isMuted) {
@@ -7184,12 +7181,10 @@ const Modules = (() => {
 
   // ── Delete a Firebase thread/room (pastor/admin or creator) ────────────
   async function _deleteFirebaseThread(id) {
-    if (!confirm('Delete this conversation and all its messages? This cannot be undone.')) return;
-    try {
+    _undoAction('Conversation deleted', async function() {
       await UpperRoom.deleteConversation(id);
-      _toast('Conversation deleted.');
       commsView(_commsTab || 'threads');
-    } catch (e) { _toast('Delete failed: ' + e.message, 'danger'); }
+    });
   }
 
   async function commsView(tab) {
@@ -7890,13 +7885,12 @@ const Modules = (() => {
   }
 
   async function _channelDelete(id) {
-    if (!confirm('Delete this channel? This cannot be undone.')) return;
-    try {
+    _undoAction('Channel deleted', async function() {
       if (_isFirebaseComms()) { await UpperRoom.deleteConversation(id); }
       else { await TheVine.flock.comms.channels.delete({ id }); }
       _invalidateCache('comms-channels');
       commsView('channels');
-    } catch (e) { _toast('Error: ' + e.message, 'danger'); }
+    });
   }
 
   async function _channelPost(id) {
@@ -9394,17 +9388,17 @@ const Modules = (() => {
   }
 
   function _mcLinkDelete(id) {
-    if (!confirm('Delete this link?')) return;
-    (_isFirebaseComms() ? UpperRoom.deleteCardLink({ id }) : TheVine.flock.memberCards.links.delete({ id }))
-      .then(() => { _toast('Link deleted.'); memberCardsView('mycard'); })
-      .catch(e  => _toast('Error: ' + e.message));
+    _undoAction('Link deleted', function() {
+      return (_isFirebaseComms() ? UpperRoom.deleteCardLink({ id }) : TheVine.flock.memberCards.links.delete({ id }))
+        .then(function() { memberCardsView('mycard'); });
+    });
   }
 
   function _mcArchive(id) {
-    if (!confirm('Archive this member card?')) return;
-    (_isFirebaseComms() ? UpperRoom.memberCardsArchive({ id }) : TheVine.flock.memberCards.archive({ id }))
-      .then(() => { _toast('Card archived.'); _invalidateCache('memberCards.list'); memberCardsView('cards'); })
-      .catch(e  => _toast('Error: ' + e.message));
+    _undoAction('Member card archived', function() {
+      return (_isFirebaseComms() ? UpperRoom.memberCardsArchive({ id }) : TheVine.flock.memberCards.archive({ id }))
+        .then(function() { _invalidateCache('memberCards.list'); memberCardsView('cards'); });
+    });
   }
 
   function _mcBulkProvision() {
@@ -18214,19 +18208,17 @@ const Modules = (() => {
   }
 
   async function _markPrayerAnswered(id) {
-    if (!confirm('Mark this prayer as answered? Praise God!')) return;
-    try {
+    var modal = document.getElementById('fl-my-prayer');
+    if (modal) modal.remove();
+    _undoAction('\uD83D\uDE4F Prayer marked as answered!', async function() {
       if (_isFirebaseComms()) { await UpperRoom.updatePrayer(id, { status: 'Answered' }); }
       else { await TheVine.flock.prayer.update({ id: id, status: 'Answered' }); }
-      var modal = document.getElementById('fl-my-prayer');
-      if (modal) modal.remove();
-      _toast('\uD83D\uDE4F Prayer marked as answered!');
       var activeModule = document.querySelector('.module-active');
       if (activeModule) {
         var modId = activeModule.getAttribute('data-module');
         if (modId) _reload(modId);
       }
-    } catch (e) { _toast('Update failed: ' + (e.message || e), 'danger'); }
+    });
   }
 
   // ── Member-facing care case detail view (view/edit own care cases) ──
@@ -18384,18 +18376,16 @@ const Modules = (() => {
   }
 
   async function _markCareResolved(id) {
-    if (!confirm('Mark this care case as resolved?')) return;
-    try {
+    var modal = document.getElementById('fl-my-care');
+    if (modal) modal.remove();
+    _undoAction('Care case resolved', async function() {
       await (_isFirebaseComms() ? UpperRoom.resolveCareCase(id) : TheVine.flock.care.resolve({ id: id }));
-      var modal = document.getElementById('fl-my-care');
-      if (modal) modal.remove();
-      _toast('Care case resolved!');
       var activeModule = document.querySelector('.module-active');
       if (activeModule) {
         var modId = activeModule.getAttribute('data-module');
         if (modId) _reload(modId);
       }
-    } catch (e) { _toast('Update failed: ' + (e.message || e), 'danger'); }
+    });
   }
 
   // ── Group detail view (view group info + member roster) ──
@@ -20639,6 +20629,7 @@ const Modules = (() => {
     _edit,
     _table,
     _toast,
+    _undoAction,
     _statusBadge,
     _bibleLink,
     _rows,
