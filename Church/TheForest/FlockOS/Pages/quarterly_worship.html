@@ -822,20 +822,31 @@
 
     /* ── Push core (no UI dependency) ───────────────────────────────── */
     /* ── Build service plan payload from a quarterly row ────────────── */
-    function buildPayload(row, svcType) {
-      return {
+    function buildPayload(row, svcType, isUpdate) {
+      var p = {
         serviceDate:     row.date,
         serviceType:     svcType,
-        sermonTitle:     row.notes     || '',
-        theme:           row.psalm     || '',
-        scriptureFocus:  row.scripture || '',
-        worshipLeader:   row.worship   || '',
-        preacher:        row.preacher  || '',
-        announcements:   row.announce  || '',
-        prayer:          row.prayer    || '',
-        proverb:         row.proverb   || '',
         status:          'Scheduled'
       };
+      /* Map quarterly row fields → service plan fields.
+         When updating an existing plan, only include fields that have
+         actual content so we don't overwrite dashboard-entered values
+         with blanks. When creating, include everything. */
+      var map = {
+        notes:     'sermonTitle',
+        psalm:     'theme',
+        scripture: 'scriptureFocus',
+        worship:   'worshipLeader',
+        preacher:  'preacher',
+        announce:  'announcements',
+        prayer:    'prayer',
+        proverb:   'proverb'
+      };
+      Object.keys(map).forEach(function(rowKey) {
+        var val = (row[rowKey] || '').trim();
+        if (val || !isUpdate) p[map[rowKey]] = val;
+      });
+      return p;
     }
 
     async function doPush(rows, dupMode, svcType, onProgress) {
@@ -854,19 +865,19 @@
         var row = rows[i];
         if (onProgress) onProgress(i, rows.length, row);
 
-        var payload = buildPayload(row, svcType);
-
         try {
           var ex = byDate[row.date];
           if (ex) {
             if (dupMode === 'skip') {
               skipped++; S.importedIds[row.id] = ex.id;
             } else {
+              var payload = buildPayload(row, svcType, true);
               payload.id = ex.id;
               await UpperRoom.updateServicePlan(payload);
               updated++; S.importedIds[row.id] = ex.id;
             }
           } else {
+            var payload = buildPayload(row, svcType, false);
             var res = await UpperRoom.createServicePlan(payload);
             created++; S.importedIds[row.id] = res.id;
           }
