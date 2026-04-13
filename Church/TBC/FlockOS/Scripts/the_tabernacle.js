@@ -20948,7 +20948,7 @@ const Modules = (() => {
    *   • TTL is backend-aware: 30s for Firestore, 2min for GAS.
    */
   function render(name, el, session) {
-    console.log('[FLOCK-DEBUG] render("' + name + '") called — _commsMode=' + _commsMode + ', perfBackend=' + _perfProfile.backend + ', session=' + !!(session && session.email));
+    console.log('[FLOCK-DEBUG] render("' + name + '") called — _commsMode=' + _commsMode + ', session=' + !!(session && session.email));
     if (!_reg[name]) { console.warn('[FLOCK-DEBUG] render("' + name + '") — NOT REGISTERED'); return false; }
     if (!_isModuleEnabled(name)) { console.warn('[FLOCK-DEBUG] render("' + name + '") — DISABLED'); return false; }
 
@@ -20961,7 +20961,7 @@ const Modules = (() => {
     // Serve from view cache if fresh — instant navigation
     var cached = _viewCacheGet(name);
     if (cached) {
-      console.log('[FLOCK-DEBUG] render("' + name + '") — SERVING FROM CACHE (age=' + (Date.now() - (_viewCache[name] ? _viewCache[name].ts : 0)) + 'ms)');
+      console.log('[FLOCK-DEBUG] render("' + name + '") — SERVING FROM CACHE');
       el.innerHTML = cached;
       el.dataset.loaded = '1';
       return true;
@@ -20969,30 +20969,20 @@ const Modules = (() => {
 
     el.dataset.loaded = '1';
 
-    // Show spinner with adaptive delay (Firestore: slight delay, GAS: immediate)
-    var spinnerShown = false;
-    var spinnerTimer = null;
-    if (_perfProfile.spinnerDelay > 0) {
-      spinnerTimer = setTimeout(function() { if (!spinnerShown) { spinnerShown = true; el.innerHTML = _spinner(); } }, _perfProfile.spinnerDelay);
-    } else {
-      el.innerHTML = _spinner();
-      spinnerShown = true;
-    }
+    // Do NOT show an external spinner here — each view handler manages its
+    // own loading state via _shell() / _body(). An external spinner races
+    // with _shell() and can overwrite the view's real DOM.
 
     var _renderStart = Date.now();
-    console.log('[FLOCK-DEBUG] render("' + name + '") — waiting for _loadCommsMode…');
-    _loadCommsMode().catch(function(e) { console.error('[FLOCK-DEBUG] render("' + name + '") _loadCommsMode failed:', e); }).then(function() {
-      console.log('[FLOCK-DEBUG] render("' + name + '") — _loadCommsMode done (' + (Date.now() - _renderStart) + 'ms), _commsMode=' + _commsMode + ', executing view handler…');
+    _loadCommsMode().catch(function() {}).then(function() {
+      console.log('[FLOCK-DEBUG] render("' + name + '") — executing view handler…');
       return _reg[name](el, session);
     }).then(function() {
-      console.log('[FLOCK-DEBUG] render("' + name + '") — view handler COMPLETE (' + (Date.now() - _renderStart) + 'ms)');
-      if (spinnerTimer) clearTimeout(spinnerTimer);
+      console.log('[FLOCK-DEBUG] render("' + name + '") — COMPLETE (' + (Date.now() - _renderStart) + 'ms)');
       // Cache the rendered view for quick re-navigation
       _viewCacheSet(name, el);
     }).catch(err => {
-      if (spinnerTimer) clearTimeout(spinnerTimer);
-      console.error('[FLOCK-DEBUG] render("' + name + '") — CAUGHT ERROR (' + (Date.now() - _renderStart) + 'ms):', err);
-      console.error('Module error [' + name + ']:', err);
+      console.error('[FLOCK-DEBUG] render("' + name + '") — ERROR:', err);
       el.innerHTML =
         '<div style="padding:48px 24px;text-align:center;">'
         + '<div style="font-size:2.4rem;margin-bottom:12px;">&#9888;&#65039;</div>'
