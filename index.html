@@ -514,6 +514,9 @@
         <a class="nav-item" data-view="support" onclick="navigate('support')">
           <span class="icon">&#127838;</span> Support
         </a>
+        <a class="nav-item" data-view="changelog" onclick="navigate('changelog')">
+          <span class="icon">&#128220;</span> What's New
+        </a>
       </div>
     </div>
 
@@ -645,6 +648,9 @@
     <div class="module-view" id="view-deployment-guide"></div>
     <div class="module-view" id="view-tools"></div>
     <div class="module-view" id="view-service-hub"></div>
+
+    <!-- What's New / Changelog -->
+    <div class="module-view" id="view-changelog"></div>
 
     <!-- Support view -->
     <div class="module-view" id="view-support">
@@ -888,7 +894,9 @@ function navigate(viewName) {
     }
     delete target.dataset.loaded;
 
-    if (viewName !== 'dashboard') {
+    if (viewName === 'changelog') {
+      _renderChangelog(target);
+    } else if (viewName !== 'dashboard') {
       if (typeof Modules !== 'undefined') {
         var session = (typeof TheVine !== 'undefined' && TheVine.session()) || null;
         Modules.render(viewName, target, session);
@@ -973,6 +981,82 @@ setTimeout(function() {
 
 window.navigate = navigate;
 window.toggleSidebar = toggleSidebar;
+
+// ── What's New / Changelog ─────────────────────────────────────────────────
+var FLOCKOS_CHANGELOG_VERSION = '3.18';
+var _changelogEntries = [
+  {
+    version: '3.18', date: 'June 2025', title: 'Analytics, Undo & Polish',
+    items: [
+      'Dashboard analytics: attendance trend arrows, giving pledge target bar, open care cases with priority breakdown, active prayer count',
+      'Undo/Redo for destructive actions — 5-second toast with progress bar lets you cancel deletes, archives, and status changes',
+      'Smoke test harness now self-bootstraps scripts for standalone testing',
+      'Improved loading states, accessibility labels, and form validation across all modules',
+      'Performance optimizations: lazy module rendering, debounced search, image lazy-loading',
+      'Global error handler captures unhandled exceptions with context'
+    ]
+  },
+  {
+    version: '3.17', date: 'May 2025', title: 'Foundation & Reliability',
+    items: [
+      'Service worker cache versioning and stale-cache cleanup',
+      'Console.log cleanup — removed 60+ stray debug statements',
+      'Fixed async/timeout race conditions in 7 modules',
+      'Removed dead code across codebase',
+      'Notification routing fixes for prayer and care alerts',
+      'Prayer pagination for large request lists',
+      'Truth module database wiring corrections'
+    ]
+  },
+  {
+    version: '3.16', date: 'April 2025', title: 'Care & Communications',
+    items: [
+      'Pastoral care hub with case management, priority levels, and caregiver assignment',
+      'Threaded messaging with rich text, attachments, and notification badges',
+      'Member cards with custom prefixes and QR code generation',
+      'Compassion request tracking and outreach campaign management'
+    ]
+  }
+];
+
+function _renderChangelog(el) {
+  var html = '<div style="max-width:680px;margin:0 auto;padding:32px 24px 80px;">'
+    + '<div style="text-align:center;padding:24px 0 28px;">'
+    + '<div style="font-size:2.4rem;margin-bottom:10px;">&#128220;</div>'
+    + '<h1 style="font-size:1.65rem;font-weight:700;color:var(--accent);margin-bottom:8px;">What\'s New</h1>'
+    + '<p style="color:var(--ink-muted);font-size:0.88rem;">FlockOS release notes and improvements</p>'
+    + '</div>';
+  _changelogEntries.forEach(function(entry) {
+    var isCurrent = entry.version === FLOCKOS_CHANGELOG_VERSION;
+    html += '<div style="border:1px solid ' + (isCurrent ? 'var(--gold)' : 'var(--line)') + ';border-radius:var(--radius-md,12px);padding:20px;margin-bottom:16px;'
+      + (isCurrent ? 'background:linear-gradient(135deg,var(--accent-soft,rgba(126,170,204,0.08)),var(--gold-soft,rgba(212,184,112,0.06)));' : 'background:var(--bg-raised);') + '">' 
+      + '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">'
+      + '<span style="background:var(--accent);color:#fff;font-size:0.72rem;font-weight:700;padding:2px 8px;border-radius:10px;">v' + entry.version + '</span>'
+      + '<span style="color:var(--ink-muted);font-size:0.82rem;">' + entry.date + '</span>'
+      + (isCurrent ? '<span style="color:var(--gold);font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;">Current</span>' : '')
+      + '</div>'
+      + '<h3 style="font-size:1.05rem;font-weight:700;color:var(--ink);margin-bottom:10px;">' + entry.title + '</h3>'
+      + '<ul style="margin:0;padding-left:18px;color:var(--ink-muted);font-size:0.88rem;line-height:1.7;">';
+    entry.items.forEach(function(item) { html += '<li>' + item + '</li>'; });
+    html += '</ul></div>';
+  });
+  html += '</div>';
+  el.innerHTML = html;
+  try { localStorage.setItem('flockos_changelog_seen', FLOCKOS_CHANGELOG_VERSION); } catch(_) {}
+}
+
+(function _checkChangelogBump() {
+  try {
+    var seen = localStorage.getItem('flockos_changelog_seen') || '';
+    if (seen !== FLOCKOS_CHANGELOG_VERSION) {
+      var navEl = document.querySelector('.nav-item[data-view="changelog"]');
+      if (navEl) {
+        navEl.insertAdjacentHTML('beforeend',
+          ' <span id="changelog-badge" style="background:var(--gold);color:#fff;font-size:0.6rem;font-weight:700;padding:1px 5px;border-radius:8px;vertical-align:top;">NEW</span>');
+      }
+    }
+  } catch(_) {}
+})();
 
 }); /* DOMContentLoaded */
 </script>
