@@ -25,6 +25,9 @@
   <meta name="twitter:card" content="summary_large_image">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://www.gstatic.com">
+  <link rel="preconnect" href="https://firestore.googleapis.com">
+  <link rel="dns-prefetch" href="https://firestore.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;600;700&family=Noto+Sans+Hebrew:wght@400;600;700&family=Noto+Serif:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
   <style>
     :root {
@@ -312,9 +315,92 @@
     .toggle-row-label .icon { font-size: 1.1rem; opacity: 0.7; }
     .toggle-row-label .name { font-weight: 600; }
 
+    /* ── Offline / Connectivity Banner ── */
+    #offlineBanner {
+      display: none; position: fixed; top: 0; left: 0; right: 0; z-index: 99999;
+      background: #e65100; color: #fff; text-align: center; padding: 8px 16px;
+      font-size: 0.85rem; font-weight: 600; box-shadow: 0 2px 8px rgba(0,0,0,.25);
+      transition: transform .3s ease;
+    }
+    #offlineBanner.show { display: block; }
+    #offlineBanner .retry-btn {
+      background: rgba(255,255,255,.2); border: 1px solid rgba(255,255,255,.5);
+      color: #fff; padding: 3px 12px; border-radius: 4px; margin-left: 12px;
+      cursor: pointer; font-size: 0.8rem;
+    }
+    #offlineBanner .retry-btn:hover { background: rgba(255,255,255,.35); }
+
   </style>
 </head>
 <body>
+
+<!-- ═══ GLOBAL ERROR HANDLER ═══ -->
+<script>
+(function() {
+  var _errCount = 0;
+  var _MAX_ERRS = 5;
+
+  function _showErrToast(msg) {
+    if (_errCount >= _MAX_ERRS) return;
+    _errCount++;
+    var t = document.createElement('div');
+    t.style.cssText = 'position:fixed;bottom:' + (16 + (_errCount - 1) * 56) + 'px;right:16px;z-index:99998;'
+      + 'background:#c62828;color:#fff;padding:12px 18px;border-radius:10px;font-size:0.82rem;'
+      + 'box-shadow:0 4px 16px rgba(0,0,0,.3);max-width:380px;font-family:inherit;animation:fadeIn .2s;';
+    t.innerHTML = '<strong>Something went wrong</strong><br>' + msg
+      + '<button onclick="this.parentNode.remove()" style="position:absolute;top:6px;right:10px;background:none;border:none;color:#fff;font-size:1.1rem;cursor:pointer;">&times;</button>';
+    document.body.appendChild(t);
+    setTimeout(function() { if (t.parentNode) t.remove(); _errCount = Math.max(0, _errCount - 1); }, 8000);
+  }
+
+  window.onerror = function(msg, src, line, col, err) {
+    if (!src || src.indexOf('extension') !== -1) return;
+    var label = (err && err.message) || String(msg);
+    if (label.length > 120) label = label.substring(0, 117) + '\u2026';
+    _showErrToast(label);
+  };
+
+  window.onunhandledrejection = function(ev) {
+    var reason = ev && ev.reason;
+    var msg = (reason && reason.message) || String(reason || 'Unknown async error');
+    if (msg.indexOf('AbortError') !== -1 || msg.indexOf('cancelled') !== -1) return;
+    if (msg.length > 120) msg = msg.substring(0, 117) + '\u2026';
+    _showErrToast(msg);
+  };
+})();
+</script>
+
+<!-- ═══ ACCESSIBILITY LAYER ═══ -->
+<a href="#main" style="position:absolute;left:-9999px;top:0;z-index:100000;background:#6366f1;color:#fff;padding:8px 16px;border-radius:0 0 6px 0;font-size:0.85rem;text-decoration:none;" onfocus="this.style.left='0'" onblur="this.style.left='-9999px'">Skip to content</a>
+<div id="a11y-live" aria-live="polite" aria-atomic="true" style="position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden;"></div>
+<script>
+(function() {
+  document.addEventListener('keydown', function(e) {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    var t = e.target;
+    if (!t || !t.onclick) return;
+    var tag = t.tagName;
+    if (tag === 'BUTTON' || tag === 'A' || tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+    e.preventDefault();
+    t.click();
+  });
+  document.addEventListener('keydown', function(e) {
+    if (e.key !== 'Escape') return;
+    var modal = document.getElementById('fl-modal');
+    if (modal) modal.remove();
+  });
+  window._a11yAnnounce = function(msg) {
+    var el = document.getElementById('a11y-live');
+    if (el) { el.textContent = ''; setTimeout(function() { el.textContent = msg; }, 100); }
+  };
+})();
+</script>
+
+<!-- ═══ OFFLINE / CONNECTIVITY BANNER ═══ -->
+<div id="offlineBanner">
+  <span id="offlineMsg">You appear to be offline. Some features may be unavailable.</span>
+  <button class="retry-btn" onclick="location.reload()">Retry</button>
+</div>
 
 <!-- ═══ SPLASH SCREEN ═══ -->
 <div id="splash">
@@ -848,6 +934,21 @@ window.navigate = navigate;
 window.toggleSidebar = toggleSidebar;
 
 }); /* DOMContentLoaded */
+</script>
+<script>
+/* ── Offline / Connectivity Detection ── */
+(function() {
+  var banner = document.getElementById('offlineBanner');
+  var msg    = document.getElementById('offlineMsg');
+  function show(text) { msg.textContent = text; banner.classList.add('show'); }
+  function hide()     { banner.classList.remove('show'); }
+  function check()    { if (!navigator.onLine) show('You appear to be offline. Some features may be unavailable.'); else hide(); }
+  window.addEventListener('offline', function() { show('You appear to be offline. Some features may be unavailable.'); });
+  window.addEventListener('online',  function() { hide(); });
+  check();
+  window._showConnBanner = show;
+  window._hideConnBanner = hide;
+})();
 </script>
 </body>
 </html>

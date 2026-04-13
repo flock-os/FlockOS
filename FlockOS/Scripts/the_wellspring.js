@@ -493,7 +493,7 @@ const TheWellspring = (() => {
     if (typeof TheVine !== 'undefined') {
       TheVine.configure({ LOCAL_RESOLVER: resolve });
     }
-    console.log('[Wellspring] Local data mode ENABLED — "Whoever drinks this water will never thirst." John 4:14');
+    if (localStorage.getItem('FLOCKOS_DEBUG')) console.log('[Wellspring] Local data mode ENABLED');
   }
 
   function disable() {
@@ -502,7 +502,7 @@ const TheWellspring = (() => {
     if (typeof TheVine !== 'undefined') {
       TheVine.configure({ LOCAL_RESOLVER: null });
     }
-    console.log('[Wellspring] Local data mode DISABLED — returning to cloud.');
+    if (localStorage.getItem('FLOCKOS_DEBUG')) console.log('[Wellspring] Local data mode DISABLED');
   }
 
   function isActive() {

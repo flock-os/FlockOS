@@ -16,6 +16,9 @@
   <meta name="twitter:card" content="summary_large_image">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://www.gstatic.com">
+  <link rel="preconnect" href="https://firestore.googleapis.com">
+  <link rel="dns-prefetch" href="https://firestore.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;600;700&family=Noto+Sans+Hebrew:wght@400;600;700&family=Noto+Serif:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
   <style>
     :root {
@@ -398,9 +401,159 @@
       0%   { background-position: 100% 0; }
       100% { background-position: -100% 0; }
     }
+    /* ── Offline / Connectivity Banner ── */
+    #offlineBanner {
+      display: none; position: fixed; top: 0; left: 0; right: 0; z-index: 99999;
+      background: #e65100; color: #fff; text-align: center; padding: 8px 16px;
+      font-size: 0.85rem; font-weight: 600; box-shadow: 0 2px 8px rgba(0,0,0,.25);
+      transition: transform .3s ease;
+    }
+    #offlineBanner.show { display: block; }
+    #offlineBanner .retry-btn {
+      background: rgba(255,255,255,.2); border: 1px solid rgba(255,255,255,.5);
+      color: #fff; padding: 3px 12px; border-radius: 4px; margin-left: 12px;
+      cursor: pointer; font-size: 0.8rem;
+    }
+    #offlineBanner .retry-btn:hover { background: rgba(255,255,255,.35); }
+
+    /* ── Performance: Reusable utility classes to reduce inline style duplication ── */
+    .fl-btn { background:var(--accent);color:var(--ink-inverse);border:none;border-radius:6px;padding:6px 14px;font-size:0.8rem;cursor:pointer;font-family:inherit; }
+    .fl-btn-lg { background:var(--accent);color:var(--ink-inverse);border:none;border-radius:7px;padding:8px 16px;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit; }
+    .fl-card { background:var(--bg-sunken);border:1px solid var(--line);border-radius:10px;overflow:hidden; }
+    .fl-card-raised { background:var(--bg-raised);border:1px solid var(--line);border-radius:10px;padding:16px; }
+    .fl-input { width:100%;background:rgba(255,255,255,0.07);border:1px solid var(--line);border-radius:6px;padding:8px 12px;color:var(--ink);font-size:max(1rem,16px);font-family:inherit; }
+    .fl-filter { padding:7px 10px;border:1px solid var(--line);border-radius:7px;background:var(--bg-raised);color:var(--ink);font-size:0.78rem;font-family:inherit; }
+    .fl-lbl { font-size:0.78rem;font-weight:600;color:var(--ink-muted);display:block;margin-bottom:4px; }
+    .fl-link-sm { font-size:0.78rem;color:var(--accent);text-decoration:none;padding:4px 10px;border:1px solid var(--line);border-radius:5px; }
+
+    /* ── Performance: Containment for module views ── */
+    .module-view { contain: content; }
+    .module-view:not(.active) { display: none; }
   </style>
 </head>
 <body>
+
+<!-- ═══ GLOBAL ERROR HANDLER ═══ -->
+<script>
+(function() {
+  var _errCount = 0;
+  var _MAX_ERRS = 5; // prevent toast spam
+
+  function _showErrToast(msg) {
+    if (_errCount >= _MAX_ERRS) return;
+    _errCount++;
+    var t = document.createElement('div');
+    t.style.cssText = 'position:fixed;bottom:' + (16 + (_errCount - 1) * 56) + 'px;right:16px;z-index:99998;'
+      + 'background:#c62828;color:#fff;padding:12px 18px;border-radius:10px;font-size:0.82rem;'
+      + 'box-shadow:0 4px 16px rgba(0,0,0,.3);max-width:380px;font-family:inherit;animation:fadeIn .2s;';
+    t.innerHTML = '<strong>Something went wrong</strong><br>' + msg
+      + '<button onclick="this.parentNode.remove()" style="position:absolute;top:6px;right:10px;background:none;border:none;color:#fff;font-size:1.1rem;cursor:pointer;">&times;</button>';
+    document.body.appendChild(t);
+    setTimeout(function() { if (t.parentNode) t.remove(); _errCount = Math.max(0, _errCount - 1); }, 8000);
+  }
+
+  window.onerror = function(msg, src, line, col, err) {
+    // Ignore browser extension errors and cross-origin script errors
+    if (!src || src.indexOf('extension') !== -1) return;
+    var label = (err && err.message) || String(msg);
+    if (label.length > 120) label = label.substring(0, 117) + '\u2026';
+    _showErrToast(label);
+    // Log to Firestore if UpperRoom is available
+    if (typeof UpperRoom !== 'undefined' && UpperRoom.logError) {
+      try { UpperRoom.logError({ message: String(msg), source: src, line: line, col: col, stack: err && err.stack }); } catch (_) {}
+    }
+  };
+
+  window.onunhandledrejection = function(ev) {
+    var reason = ev && ev.reason;
+    var msg = (reason && reason.message) || String(reason || 'Unknown async error');
+    // Suppress known non-critical rejections
+    if (msg.indexOf('AbortError') !== -1 || msg.indexOf('cancelled') !== -1) return;
+    if (msg.length > 120) msg = msg.substring(0, 117) + '\u2026';
+    _showErrToast(msg);
+    if (typeof UpperRoom !== 'undefined' && UpperRoom.logError) {
+      try { UpperRoom.logError({ message: msg, stack: reason && reason.stack }); } catch (_) {}
+    }
+  };
+})();
+</script>
+
+<!-- ═══ ACCESSIBILITY LAYER ═══ -->
+<a href="#main" style="position:absolute;left:-9999px;top:0;z-index:100000;background:var(--accent,#6366f1);color:#fff;padding:8px 16px;border-radius:0 0 6px 0;font-size:0.85rem;text-decoration:none;" onfocus="this.style.left='0'" onblur="this.style.left='-9999px'">Skip to content</a>
+<div id="a11y-live" aria-live="polite" aria-atomic="true" style="position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden;"></div>
+<script>
+(function() {
+  /* ── Keyboard support for non-semantic clickable elements ──
+     Any element with an onclick that isn't already a <button>, <a>, or <input>
+     gets Enter/Space activation and tabindex="0" via delegation. */
+  document.addEventListener('keydown', function(e) {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    var t = e.target;
+    if (!t || !t.onclick) return;
+    var tag = t.tagName;
+    if (tag === 'BUTTON' || tag === 'A' || tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+    e.preventDefault();
+    t.click();
+  });
+
+  /* ── Escape key → close modals ── */
+  document.addEventListener('keydown', function(e) {
+    if (e.key !== 'Escape') return;
+    var modal = document.getElementById('fl-modal');
+    if (modal) { modal.remove(); return; }
+    // Also close any overlay with data-closeable
+    var ov = document.querySelector('[data-closeable]');
+    if (ov) ov.remove();
+  });
+
+  /* ── Focus trap for modals ──
+     Watches for fl-modal appearing and traps Tab within it. */
+  var _trapActive = false;
+  var _FOCUSABLE = 'button, [href], input:not([type=hidden]), select, textarea, [tabindex]:not([tabindex="-1"])';
+
+  document.addEventListener('keydown', function(e) {
+    if (e.key !== 'Tab') return;
+    var modal = document.getElementById('fl-modal');
+    if (!modal) return;
+    var focusable = modal.querySelectorAll(_FOCUSABLE);
+    if (!focusable.length) return;
+    var first = focusable[0];
+    var last = focusable[focusable.length - 1];
+    if (e.shiftKey) {
+      if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+    } else {
+      if (document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }
+  });
+
+  /* ── Auto-focus first input when modal opens ── */
+  var _obs = new MutationObserver(function(mutations) {
+    for (var i = 0; i < mutations.length; i++) {
+      for (var j = 0; j < mutations[i].addedNodes.length; j++) {
+        var n = mutations[i].addedNodes[j];
+        if (n.id === 'fl-modal' || (n.querySelector && n.querySelector('#fl-modal'))) {
+          var modal = n.id === 'fl-modal' ? n : n.querySelector('#fl-modal');
+          var inp = modal.querySelector('input, select, textarea');
+          if (inp) setTimeout(function() { inp.focus(); }, 50);
+        }
+      }
+    }
+  });
+  _obs.observe(document.body || document.documentElement, { childList: true, subtree: true });
+
+  /* ── Announce toasts to screen readers ── */
+  window._a11yAnnounce = function(msg) {
+    var el = document.getElementById('a11y-live');
+    if (el) { el.textContent = ''; setTimeout(function() { el.textContent = msg; }, 100); }
+  };
+})();
+</script>
+
+<!-- ═══ OFFLINE / CONNECTIVITY BANNER ═══ -->
+<div id="offlineBanner">
+  <span id="offlineMsg">You appear to be offline. Some features may be unavailable.</span>
+  <button class="retry-btn" onclick="location.reload()">Retry</button>
+</div>
 
 <!-- ═══ SPLASH SCREEN ═══ -->
 <div id="splash">
@@ -409,8 +562,8 @@
 </div>
 
   <!-- ═══ TOP BAR ═══ -->
-  <div class="topbar">
-    <button class="topbar-toggle" id="menuToggle" onclick="toggleSidebar()">&#9776;</button>
+  <header class="topbar" role="banner">
+    <button class="topbar-toggle" id="menuToggle" onclick="toggleSidebar()" aria-label="Toggle navigation menu">&#9776;</button>
     <div class="topbar-brand">FlockOS <span>Admin</span></div>
     <div class="topbar-user">
       <div class="notif-wrap" id="notifWrap">
@@ -434,10 +587,10 @@
       <span class="name" id="userName"></span>
       <button class="logout-btn" onclick="Nehemiah.logout()">Sign Out</button>
     </div>
-  </div>
+  </header>
 
   <!-- ═══ SIDEBAR ═══ -->
-  <nav class="sidebar" id="sidebar">
+  <nav class="sidebar" id="sidebar" aria-label="Main navigation">
 
     <!-- ── The Gates — outer court, entry & overview ──────────── -->
     <div class="nav-group" data-zone="gates">
@@ -560,7 +713,7 @@
   </nav>
 
   <!-- ═══ MAIN CONTENT ═══ -->
-  <div class="main" id="main">
+  <main class="main" id="main" role="main">
 
     <!-- Dashboard -->
     <div class="module-view active" id="view-dashboard">
@@ -730,7 +883,7 @@
 
       </div>
     </div>
-  </div>
+  </main>
 
 <!-- ═══ SCRIPTS ═══ -->
 <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
@@ -1431,7 +1584,7 @@ async function notifClick(id) {
     mission: 'missions', missions: 'missions',
     sermon: 'sermons', sermons: 'sermons',
     song: 'songs', songs: 'songs', music: 'songs',
-    service: 'services', services: 'services',
+    service: 'services', services: 'services', 'service-plan': 'services',
     group: 'groups', groups: 'groups',
     attendance: 'attendance',
     discipleship: 'discipleship',
@@ -1442,7 +1595,13 @@ async function notifClick(id) {
     audit: 'audit',
     system: 'config', config: 'config',
     theology: 'theology',
-    statistics: 'statistics'
+    statistics: 'statistics',
+    quarterly: 'services', 'quarterly-planner': 'services',
+    bezalel: 'config', sync: 'config',
+    photo: 'photos', photos: 'photos', album: 'photos',
+    'member-card': 'directory', card: 'directory',
+    pledge: 'giving', certificate: 'discipleship',
+    reading: 'learning', devotional: 'learning', quiz: 'learning'
   };
 
   // Check notification fields for a target view
@@ -1572,6 +1731,22 @@ window.dismissNotif = dismissNotif;
 
 }); /* DOMContentLoaded */
 
+</script>
+<script>
+/* ── Offline / Connectivity Detection ── */
+(function() {
+  var banner = document.getElementById('offlineBanner');
+  var msg    = document.getElementById('offlineMsg');
+  function show(text) { msg.textContent = text; banner.classList.add('show'); }
+  function hide()     { banner.classList.remove('show'); }
+  function check()    { if (!navigator.onLine) show('You appear to be offline. Some features may be unavailable.'); else hide(); }
+  window.addEventListener('offline', function() { show('You appear to be offline. Some features may be unavailable.'); });
+  window.addEventListener('online',  function() { hide(); });
+  check();
+  // Expose for other modules to show timeout/error banners
+  window._showConnBanner = show;
+  window._hideConnBanner = hide;
+})();
 </script>
 <script>
 if ('serviceWorker' in navigator) {

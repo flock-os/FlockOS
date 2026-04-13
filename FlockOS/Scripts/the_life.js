@@ -109,9 +109,23 @@ const TheLife = (() => {
     else { window.open('sms:' + encodeURIComponent(phone.replace(/[^\d+]/g, '')) + (body ? '?body=' + encodeURIComponent(body) : '')); }
   }
 
+  // ── Form validation helpers ─────────────────────────────────────────────
+  var _EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  function _validEmail(v) { return _EMAIL_RE.test(String(v || '').trim()); }
+  function _validPhone(v) { return String(v || '').replace(/[^\d]/g, '').length >= 7; }
+  function _validDate(v)  { return !isNaN(Date.parse(v)); }
+  function _requireField(val, label) {
+    if (!String(val || '').trim()) { _toast(label + ' is required.', 'warn'); return false; }
+    return true;
+  }
+
   // ── Local data cache ────────────────────────────────────────────────────
   var _cache = {};
   var _memberDirPromise = null;
+
+  // ── Pagination state ────────────────────────────────────────────────────
+  var _PANEL_PAGE_SIZE = 25;
+  var _prayerPage = 0;
 
   // ── TTL-aware fetch: serves warm data via TheVine.nurture() ─────────────
   var _TTL_CARE = 60000;   // Pastoral data: 60 sec fresh window
@@ -870,6 +884,10 @@ const TheLife = (() => {
     delete data.createdAt;
     delete data.updatedAt;
 
+    // Validate required fields
+    if (!_requireField(data.careType || data['Care Type'], 'Care Type')) { if (btn) { btn.disabled = false; btn.textContent = '\uD83D\uDCBE Save Care Case'; } return; }
+    if (!_requireField(data.memberId || data['Member ID'] || data.memberName || data['Member Name'], 'Member')) { if (btn) { btn.disabled = false; btn.textContent = '\uD83D\uDCBE Save Care Case'; } return; }
+
     try {
       if (_fpCareId) {
         data.id = _fpCareId;
@@ -1237,6 +1255,9 @@ const TheLife = (() => {
       });
     }
     data.id = _fpPrayerId;
+
+    // Validate — at minimum, prayer text should exist
+    if (!_requireField(data.prayerText || data['Prayer Text'], 'Prayer Text')) { if (btn) { btn.disabled = false; btn.textContent = '\uD83D\uDCBE Save'; } return; }
 
     try {
       _stat('Updating prayer\u2026');
@@ -1646,6 +1667,13 @@ const TheLife = (() => {
     delete data.updatedAt;
     delete data.lastContact; // read-only; backend sets this via follow-up log, not direct update
 
+    // Validate required fields
+    if (!_requireField(data.name || data.firstName || data['First Name'], 'Contact Name')) { if (btn) { btn.disabled = false; btn.textContent = '\uD83D\uDCBE Save'; } return; }
+    // Validate email format if provided
+    if (data.email && !_validEmail(data.email)) { _toast('Please enter a valid email address.', 'warn'); if (btn) { btn.disabled = false; btn.textContent = '\uD83D\uDCBE Save'; } return; }
+    // Validate phone format if provided
+    if (data.phone && !_validPhone(data.phone)) { _toast('Phone number must be at least 7 digits.', 'warn'); if (btn) { btn.disabled = false; btn.textContent = '\uD83D\uDCBE Save'; } return; }
+
     try {
       if (_fpOutId) {
         data.id = _fpOutId;
@@ -2040,6 +2068,20 @@ const TheLife = (() => {
       return;
     }
 
+    // Validate email format if provided
+    if (data.primaryEmail && !_validEmail(data.primaryEmail)) {
+      if (btn) { btn.disabled = false; btn.textContent = '\uD83D\uDCBE ' + (_fpMemberId ? 'Save Member' : 'Create Member'); }
+      alert('Please enter a valid email address.');
+      return;
+    }
+
+    // Validate phone format if provided
+    if (data.phone && !_validPhone(data.phone)) {
+      if (btn) { btn.disabled = false; btn.textContent = '\uD83D\uDCBE ' + (_fpMemberId ? 'Save Member' : 'Create Member'); }
+      alert('Phone number must be at least 7 digits.');
+      return;
+    }
+
     // Validate account fields if creating account
     if (createAcct) {
       if (!data.primaryEmail) {
@@ -2306,8 +2348,15 @@ const TheLife = (() => {
 
   function _buildPrayerPanel(rows) {
     if (!rows.length) return _flockEmpty('\uD83D\uDE4F', 'No prayer requests. All caught up!');
+    var total = rows.length;
+    var pages = Math.ceil(total / _PANEL_PAGE_SIZE);
+    if (_prayerPage >= pages) _prayerPage = pages - 1;
+    if (_prayerPage < 0) _prayerPage = 0;
+    var start = _prayerPage * _PANEL_PAGE_SIZE;
+    var page  = rows.slice(start, start + _PANEL_PAGE_SIZE);
+
     var h = '<div class="flock-card-grid">';
-    rows.forEach(function(r) {
+    page.forEach(function(r) {
       var rid    = _e(String(r.id || r.ID || ''));
       var name   = _e(r.submitterName || r['Submitter Name'] || 'Anonymous');
       var prayer = _e(r.prayerText || r['Prayer Text'] || '');
@@ -2332,7 +2381,21 @@ const TheLife = (() => {
       });
     });
     h += '</div>';
+    // Pagination controls (only when > 1 page)
+    if (pages > 1) {
+      h += '<div style="display:flex;justify-content:center;align-items:center;gap:12px;padding:12px 0;font-size:0.85rem;">';
+      h += '<button class="btn-sm" onclick="TheLife._prayerPageNav(-1)"' + (_prayerPage === 0 ? ' disabled' : '') + '>&laquo; Prev</button>';
+      h += '<span>' + (start + 1) + '–' + Math.min(start + _PANEL_PAGE_SIZE, total) + ' of ' + total + '</span>';
+      h += '<button class="btn-sm" onclick="TheLife._prayerPageNav(1)"' + (_prayerPage >= pages - 1 ? ' disabled' : '') + '>Next &raquo;</button>';
+      h += '</div>';
+    }
     return h;
+  }
+
+  function _prayerPageNav(delta) {
+    _prayerPage += delta;
+    var panel = document.getElementById('flock-p-prayer');
+    if (panel) panel.innerHTML = _buildPrayerPanel(_cache.allPrayer || []);
   }
 
   function _buildCompassionPanel(rows) {
@@ -2995,6 +3058,7 @@ const TheLife = (() => {
         allDisciple: [], isPastorPlus: isPastorPlus, isCareRole: isCareRole,
       };
       _cache.allPrayer = allPrayer;
+      _prayerPage = 0;  // reset pagination on fresh data
       _cache.allCompassion = allCompassion;
       _cache.allOutreach = allOutreach;
       _cache.care = Nehemiah.can('care.view-all') ? allCare : myCases;
@@ -3720,6 +3784,7 @@ const TheLife = (() => {
     openPrayer:      openPrayer,
     savePrayer:      savePrayer,
     sendPrayerReply: sendPrayerReply,
+    _prayerPageNav:  _prayerPageNav,
 
     // Full-page editors: Compassion
     openCompassion:  openCompassion,

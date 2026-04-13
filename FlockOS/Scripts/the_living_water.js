@@ -11,7 +11,7 @@
      • Offline  → serve cached shell; API calls return offline fallback
    ══════════════════════════════════════════════════════════════════════════════ */
 
-const CACHE_VERSION = 'flockos-v3.17';
+const CACHE_VERSION = 'flockos-v3.18';
 const API_CACHE     = 'flockos-api-v1';
 
 // ── App Shell: pre-cached on install ────────────────────────────────────────
@@ -37,6 +37,10 @@ const APP_SHELL = [
   './FlockOS/Pages/the_call_to_forgive.html',
   './FlockOS/Pages/prayerful_action.html',
   './FlockOS/Pages/the_invitation.html',
+  './FlockOS/Pages/About_FlockOS.html',
+  './FlockOS/Pages/Learn%20More.html',
+  './FlockOS/Pages/quarterly_worship.html',
+  './FlockOS/Pages/bezalel.html',
 
   // ── Icons / images ──────────────────────────────────────────────────────
   './FlockOS/Images/FlockOS_Camo.png',
@@ -59,6 +63,9 @@ const APP_SHELL = [
   './FlockOS/Scripts/the_shofar.js',
   './FlockOS/Scripts/the_trumpet.js',
   './FlockOS/Scripts/the_commission.js',
+  './FlockOS/Scripts/the_truth.js',
+  './FlockOS/Scripts/the_upper_room.js',
+  './FlockOS/Scripts/the_pagans.js',
 ];
 
 // Google Apps Script endpoints (network-first)

@@ -1175,12 +1175,15 @@ const Modules = (() => {
     m.id = id;
     m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:1000;'
                     + 'display:flex;align-items:center;justify-content:center;padding:40px 20px;';
+    m.setAttribute('role', 'dialog');
+    m.setAttribute('aria-modal', 'true');
+    m.setAttribute('aria-label', title.replace(/<[^>]*>/g, ''));
     m.innerHTML =
       '<div style="background:var(--bg-raised);border:1px solid var(--line);border-radius:12px;'
       + 'padding:28px;width:100%;max-width:520px;max-height:85vh;overflow-y:auto;">'
       + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">'
       + '<h2 style="font-size:1rem;color:var(--accent);">' + title + '</h2>'
-      + '<button id="ml-modal-x" style="background:none;border:none;color:var(--ink-muted);font-size:1.4rem;cursor:pointer;line-height:1;">&#x2715;</button>'
+      + '<button id="ml-modal-x" aria-label="Close" style="background:none;border:none;color:var(--ink-muted);font-size:1.4rem;cursor:pointer;line-height:1;">&#x2715;</button>'
       + '</div>'
       + '<form id="ml-modal-form">' + fHtml
       + '<div style="display:flex;gap:10px;margin-top:8px;">'
@@ -6303,6 +6306,7 @@ const Modules = (() => {
         const answer    = r['Answer Content'] || '';
         const quote     = r['Quote Text'] || '';
         const refText   = r['Reference Text'] || '';
+        const refUrl    = r['Reference URL'] || '';
         const searchText = (question + ' ' + cat + ' ' + answer + ' ' + quote + ' ' + refText).toLowerCase();
 
         // Pill: use category color from sheet as inline style
@@ -6328,8 +6332,8 @@ const Modules = (() => {
           html += '</div>';
         }
 
-        // Scripture card — quote text + reference pills together
-        if (quote || refText) {
+        // Scripture card — quote text + reference pills + external source link
+        if (quote || refText || refUrl) {
           html += '<div class="browse-detail-card browse-card-gold">';
           html += '<div class="browse-detail-head"><span class="browse-detail-icon">&#128220;</span><span class="browse-detail-label">Scripture</span></div>';
           if (quote) html += '<div class="browse-detail-body">' + _paras(quote) + '</div>';
@@ -6338,6 +6342,11 @@ const Modules = (() => {
             refText.split(/[;,]+/).map(r => r.trim()).filter(Boolean).forEach(ref => {
               html += _biblePill(ref, 'pill-accent');
             });
+            html += '</div>';
+          }
+          if (refUrl) {
+            html += '<div style="padding:4px 14px 14px;font-size:0.78rem;">';
+            html += '<a href="' + _e(refUrl) + '" target="_blank" rel="noopener noreferrer" style="color:var(--accent);text-decoration:underline;">&#128279; Source Reference</a>';
             html += '</div>';
           }
           html += '</div>';
