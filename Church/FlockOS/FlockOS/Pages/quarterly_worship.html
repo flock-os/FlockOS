@@ -111,6 +111,7 @@
       font-weight: 700 !important;
       box-shadow: 0 2px 10px rgba(5,150,105,.30);
       transition: opacity .14s, transform .12s;
+      padding: 6px 14px !important;
     }
     .btn-save:hover { opacity:.88; transform:translateY(-1px); }
     .btn-save:disabled { opacity:.5; cursor:not-allowed; transform:none; }
@@ -129,15 +130,15 @@
       border-radius: 16px; overflow: hidden; box-shadow: var(--shadow-sm);
     }
     .card-head {
-      padding: 14px 20px;
+      padding: 11px 18px;
       background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
       border-bottom: none;
-      display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+      display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;
     }
     .card-head-title { font-family:'Noto Serif',serif; font-size:.95rem; font-weight:700; color:#e0e7ff; }
     .card-head * { color: rgba(224,231,255,.85) !important; -webkit-text-fill-color: unset !important; }
     .card-head .card-head-title { color: #e0e7ff !important; }
-    .card-body { padding: 20px; }
+    .card-body { padding: 16px 18px; }
 
 
 
@@ -158,10 +159,11 @@
 
     /* ── Buttons ────────────────────────────────────────────────────────── */
     .btn {
-      display:inline-flex; align-items:center; gap:5px;
-      padding:8px 14px; border-radius:8px; border:0;
-      font:inherit; font-size:.8rem; font-weight:700; cursor:pointer;
+      display:inline-flex; align-items:center; gap:4px;
+      padding:6px 11px; border-radius:7px; border:0;
+      font:inherit; font-size:.74rem; font-weight:700; cursor:pointer;
       transition:opacity .14s, transform .12s, box-shadow .14s; white-space:nowrap;
+      line-height:1.1;
     }
     .btn:hover:not(:disabled) { opacity:.86; transform:translateY(-1px); }
     .btn:active { transform:translateY(0); }
@@ -193,17 +195,22 @@
 
     /* ── Action row ─────────────────────────────────────────────────────── */
     .action-row {
-      display:flex; flex-wrap:wrap; gap:8px; align-items:center;
-      padding:13px 20px; border-top:1px solid var(--line); background:var(--bg-sunken);
+      display:flex; flex-wrap:nowrap; gap:6px; align-items:center;
+      padding:9px 16px; border-top:1px solid var(--line); background:var(--bg-sunken);
+      overflow-x:auto; overflow-y:hidden;
     }
-    .action-row-r { margin-left:auto; display:flex; gap:8px; flex-wrap:wrap; }
+    .action-row::-webkit-scrollbar { height:0; }
+    .action-row .divider {
+      width:1px; height:22px; background:var(--line-strong); margin:0 4px; flex-shrink:0;
+    }
+    .action-row-r { margin-left:auto; display:flex; gap:6px; flex-shrink:0; }
 
     /* ── Table ──────────────────────────────────────────────────────────── */
     .tscroll { overflow-x:auto; overflow-y:auto; max-height:calc(100vh - 290px); }
     .tscroll::-webkit-scrollbar { width:7px; height:7px; }
     .tscroll::-webkit-scrollbar-thumb { background:rgba(79,70,229,.30); border-radius:999px; }
     .tscroll::-webkit-scrollbar-track { background:transparent; }
-    table { width:100%; border-collapse:separate; border-spacing:0; min-width:1180px; }
+    table { width:100%; border-collapse:separate; border-spacing:0; min-width:1060px; }
     thead th {
       position:sticky; top:0; z-index:5;
       background: #1e1b4b;
@@ -462,11 +469,11 @@
       <div class="card c-setup">
         <div class="card-head">
           <span class="card-head-title">⛪ Quarterly Worship Schedule</span>
-          <div style="display:flex;align-items:center;gap:16px;font-size:.77rem;color:rgba(224,231,255,.7);">
-            <span><strong id="smTotal" style="color:#e0e7ff;">0</strong> Sundays</span>
-            <span><strong id="smPreach" style="color:#e0e7ff;">0</strong> Preacher</span>
+          <div style="display:flex;align-items:center;gap:12px;font-size:.72rem;color:rgba(224,231,255,.7);">
+            <span><strong id="smTotal" style="color:#e0e7ff;">0</strong> Sun</span>
+            <span><strong id="smPreach" style="color:#e0e7ff;">0</strong> Preach</span>
             <span><strong id="smWorship" style="color:#e0e7ff;">0</strong> Worship</span>
-            <span><strong id="smFull" style="color:#a5f3ae;">0</strong> Complete</span>
+            <span><strong id="smFull" style="color:#a5f3ae;">0</strong> Full</span>
             <span><strong id="smPushed" style="color:#fde68a;">0</strong> Synced</span>
           </div>
         </div>
@@ -504,17 +511,17 @@
           </div>
         </div>
         <div class="action-row">
-          <button class="btn btn-primary" id="btnGen">⟳ Generate Sundays</button>
-          <button class="btn btn-secondary" id="btnAdd">+ Add Row</button>
-          <button class="btn btn-secondary" id="btnDup">⧉ Duplicate Last</button>
-          <button class="btn btn-danger" id="btnReset" style="font-size:.74rem;">✕ Reset</button>
-          <button class="btn btn-save" id="btnSave">💾 Save</button>
-          <div style="flex:1 1 auto;"></div>
-          <button class="btn btn-secondary" id="btnImport">📥 Import File</button>
-          <button class="btn btn-secondary" id="btnGSheet">📊 Google Sheet</button>
-          <button class="btn btn-secondary" id="btnExportDrive">📤 Export to Drive</button>
-          <button class="btn btn-secondary" id="btnPull">⬇ Pull from Plans</button>
-          <button class="btn btn-primary" id="btnPush">⬆ Push Selected to Plans</button>
+          <button class="btn btn-primary" id="btnGen" title="Generate Sunday dates for the selected quarter">⟳ Generate</button>
+          <button class="btn btn-secondary" id="btnAdd" title="Add a blank row">+ Row</button>
+          <button class="btn btn-secondary" id="btnDup" title="Duplicate the last row">⧉ Dup</button>
+          <button class="btn btn-danger" id="btnReset" title="Clear all rows">✕</button>
+          <span class="divider"></span>
+          <button class="btn btn-save" id="btnSave" title="Save to cloud">💾 Save</button>
+          <button class="btn btn-secondary" id="btnImport" title="Import from CSV/XLSX file">📥 Import</button>
+          <button class="btn btn-secondary" id="btnExportDrive" title="Export as CSV or to Google Drive">📤 Export</button>
+          <span class="divider"></span>
+          <button class="btn btn-secondary" id="btnPull" title="Pull service plans into this grid">⬇ Pull</button>
+          <button class="btn btn-primary" id="btnPush" title="Push selected rows to service plans">⬆ Push</button>
           <input type="file" id="importFile" accept=".csv,.tsv,.txt,.xlsx,.xls" style="display:none">
           <!-- hidden controls preserved for JS -->
           <select id="optDup" style="display:none;"><option value="update">Update existing</option><option value="skip">Skip</option></select>
@@ -533,17 +540,17 @@
         <div class="tscroll">
           <table>
             <thead><tr>
-              <th style="min-width:146px;width:146px;">Date</th>
-              <th style="min-width:122px;">Psalm / Introit</th>
-              <th style="min-width:160px;">Worship Leader</th>
-              <th style="min-width:152px;">Announcements</th>
-              <th style="min-width:152px;">Prayer</th>
-              <th style="min-width:160px;">Preacher</th>
-              <th style="min-width:170px;">Scripture</th>
-              <th style="min-width:108px;">Proverb</th>
-              <th style="min-width:170px;">Notes / Theme</th>
+              <th style="min-width:130px;width:130px;">Date</th>
+              <th style="min-width:110px;">Psalm</th>
+              <th style="min-width:130px;">Worship</th>
+              <th style="min-width:130px;">Announce</th>
+              <th style="min-width:130px;">Prayer</th>
+              <th style="min-width:130px;">Preacher</th>
+              <th style="min-width:150px;">Scripture</th>
+              <th style="min-width:100px;">Proverb</th>
+              <th style="min-width:150px;">Theme</th>
               <th style="min-width:36px;width:36px;text-align:center;"><input type="checkbox" class="push-ck" id="ckAll" title="Select / deselect all for push"></th>
-              <th style="min-width:60px;width:60px;"></th>
+              <th style="min-width:50px;width:50px;"></th>
             </tr></thead>
             <tbody id="gridBody"></tbody>
           </table>
@@ -1443,7 +1450,7 @@
       document.getElementById('btnSave').addEventListener('click', manualSave);
       document.getElementById('btnImport').addEventListener('click', function(){ document.getElementById('importFile').click(); });
       document.getElementById('importFile').addEventListener('change', function(){ handleImportFile(this); });
-      document.getElementById('btnGSheet').addEventListener('click', importGoogleSheet);
+      if (document.getElementById('btnGSheet')) document.getElementById('btnGSheet').addEventListener('click', importGoogleSheet);
       document.getElementById('btnExportDrive').addEventListener('click', exportToDrive);
       document.getElementById('po-close').addEventListener('click', function(){
         document.getElementById('push-overlay').classList.remove('open');

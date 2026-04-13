@@ -2279,6 +2279,13 @@ const Modules = (() => {
   var _svcActivePlanId  = null;   // compat alias
   var _svcActivePlanTitle = '';   // compat alias
 
+  // Parse "YYYY-MM-DD" as local date (not UTC)
+  function _localDate(s) {
+    if (!s) return new Date(NaN);
+    var p = String(s).split('T')[0].split('-');
+    return new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
+  }
+
   // Detail-view tab button helper
   function _svTab(label, tab) {
     var active = _svcTab === tab;
@@ -2302,19 +2309,19 @@ const Modules = (() => {
     } catch(e) { _body(el, _errHtml(e.message)); return; }
 
     rows.sort(function(a, b) {
-      return new Date(a.serviceDate || a.date || 0) - new Date(b.serviceDate || b.date || 0);
+      return _localDate(a.serviceDate || a.date) - _localDate(b.serviceDate || b.date);
     });
     var _today = new Date(); _today.setHours(0,0,0,0);
     var upcoming = rows.filter(function(r) {
-      var d = new Date(r.serviceDate || r.date || 0); return !r.serviceDate || d >= _today;
+      var d = _localDate(r.serviceDate || r.date); return !r.serviceDate || d >= _today;
     });
     var past = rows.filter(function(r) {
-      var d = new Date(r.serviceDate || r.date || 0); return r.serviceDate && d < _today;
+      var d = _localDate(r.serviceDate || r.date); return r.serviceDate && d < _today;
     }).reverse();
 
     function _svcRowCard(r) {
       var rid   = _e(String(r.id || ''));
-      var d     = new Date(r.serviceDate || r.date || '');
+      var d     = _localDate(r.serviceDate || r.date);
       var ok    = !isNaN(d.getTime()) && r.serviceDate;
       var label = (_e((r.serviceType || 'Sunday Service') + (r.serviceDate ? ' \u2014 ' + r.serviceDate : ''))).replace(/'/g,'&#39;');
       return '<div style="display:flex;align-items:center;gap:14px;padding:14px 18px;border-bottom:1px solid var(--line);'
@@ -2393,7 +2400,7 @@ const Modules = (() => {
     _dataCache['svc-items']   = items;
     _dataCache['svc-setlist'] = setlistRows;
 
-    var d2 = new Date(planData.serviceDate || planData.date || '');
+    var d2 = _localDate(planData.serviceDate || planData.date);
     var dOk = !isNaN(d2.getTime()) && planData.serviceDate;
     var dateStr = dOk ? d2.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric' })
                       : (planData.serviceDate || 'No Date Set');
@@ -19661,8 +19668,8 @@ const Modules = (() => {
       // Process services
       const allServices = _rows(svcRes);
       const upcoming = allServices
-        .filter(r => { const d = new Date(r.serviceDate || r.date || 0); return d >= today; })
-        .sort((a, b) => new Date(a.serviceDate || a.date || 0) - new Date(b.serviceDate || b.date || 0))
+        .filter(r => { const d = _localDate(r.serviceDate || r.date); return !isNaN(d) && d >= today; })
+        .sort((a, b) => _localDate(a.serviceDate || a.date) - _localDate(b.serviceDate || b.date))
         .slice(0, 5);
       const nextSvc = upcoming[0];
 
@@ -19673,7 +19680,7 @@ const Modules = (() => {
         return s === 'OPEN' || s === 'PENDING' || s === 'UNASSIGNED' || !r.status;
       });
       const scheduledThisMonth = allVols.filter(r => {
-        const d = new Date(r.scheduledDate || r.serviceDate || r.date || 0);
+        const d = _localDate(r.scheduledDate || r.serviceDate || r.date);
         return d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
       });
 
@@ -20115,17 +20122,17 @@ const Modules = (() => {
       var in7  = new Date(now.getTime() +  7 * 24 * 60 * 60 * 1000);
 
       var upcoming = events.filter(function (e) {
-        var d = new Date(e.eventDate || e.startDate || e.date || '');
+        var d = _localDate(e.eventDate || e.startDate || e.date);
         return !isNaN(d.getTime()) && d >= now && d <= in14;
       }).sort(function (a, b) {
-        return new Date(a.eventDate || a.startDate || a.date || 0)
-             - new Date(b.eventDate || b.startDate || b.date || 0);
+        return _localDate(a.eventDate || a.startDate || a.date)
+             - _localDate(b.eventDate || b.startDate || b.date);
       });
 
       var cutoff30 = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
       var giving30 = 0;
       givings.forEach(function (g) {
-        var d = new Date(g.date || g.transactionDate || g.createdAt || '');
+        var d = _localDate(g.date || g.transactionDate || g.createdAt);
         if (!isNaN(d.getTime()) && d >= cutoff30) giving30 += Number(g.amount || 0);
       });
 
@@ -20170,16 +20177,16 @@ const Modules = (() => {
 
       // This week's events
       var next7Events = events.filter(function (e) {
-        var d = new Date(e.eventDate || e.startDate || e.date || '');
+        var d = _localDate(e.eventDate || e.startDate || e.date);
         return !isNaN(d.getTime()) && d >= now && d <= in7;
       }).sort(function (a, b) {
-        return new Date(a.eventDate || a.startDate || a.date || 0)
-             - new Date(b.eventDate || b.startDate || b.date || 0);
+        return _localDate(a.eventDate || a.startDate || a.date)
+             - _localDate(b.eventDate || b.startDate || b.date);
       }).slice(0, 6);
       if (next7Events.length) {
         leftHtml += _adCard('&#128197; This Week\u2019s Events',
           next7Events.map(function (e) {
-            var d = new Date(e.eventDate || e.startDate || e.date || '');
+            var d = _localDate(e.eventDate || e.startDate || e.date);
             var dayLabel = isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
             return '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);">'
               + '<div style="min-width:52px;text-align:center;background:var(--bg-sunken);border-radius:8px;padding:4px 6px;flex-shrink:0;">'
