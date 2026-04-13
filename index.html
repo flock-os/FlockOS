@@ -340,19 +340,49 @@
 (function() {
   var _errCount = 0;
   var _MAX_ERRS = 5;
+  var _isStandalone = window.matchMedia('(display-mode: standalone)').matches
+                   || window.navigator.standalone === true;
 
-  function _showErrToast(msg) {
+  // Persist errors in sessionStorage so they survive SW-triggered reloads
+  function _storeError(msg) {
+    try {
+      var stored = JSON.parse(sessionStorage.getItem('_flockErrors') || '[]');
+      stored.push({ msg: msg, ts: Date.now() });
+      if (stored.length > 10) stored = stored.slice(-10);
+      sessionStorage.setItem('_flockErrors', JSON.stringify(stored));
+    } catch (_) {}
+  }
+
+  function _showErrToast(msg, fromStorage) {
     if (_errCount >= _MAX_ERRS) return;
     _errCount++;
+    if (!fromStorage) _storeError(msg);
     var t = document.createElement('div');
     t.style.cssText = 'position:fixed;bottom:' + (16 + (_errCount - 1) * 56) + 'px;right:16px;z-index:99998;'
       + 'background:#c62828;color:#fff;padding:12px 18px;border-radius:10px;font-size:0.82rem;'
-      + 'box-shadow:0 4px 16px rgba(0,0,0,.3);max-width:380px;font-family:inherit;animation:fadeIn .2s;';
+      + 'box-shadow:0 4px 16px rgba(0,0,0,.3);max-width:380px;font-family:inherit;animation:fadeIn .2s;'
+      + 'user-select:text;-webkit-user-select:text;';
     t.innerHTML = '<strong>Something went wrong</strong><br>' + msg
       + '<button onclick="this.parentNode.remove()" style="position:absolute;top:6px;right:10px;background:none;border:none;color:#fff;font-size:1.1rem;cursor:pointer;">&times;</button>';
     document.body.appendChild(t);
-    setTimeout(function() { if (t.parentNode) t.remove(); _errCount = Math.max(0, _errCount - 1); }, 8000);
+    // In standalone PWA mode: keep toast until tapped (no dev tools available)
+    // In browser: auto-dismiss after 8s
+    if (_isStandalone) {
+      t.onclick = function(e) { if (e.target.tagName !== 'BUTTON') { t.remove(); _errCount = Math.max(0, _errCount - 1); } };
+    } else {
+      setTimeout(function() { if (t.parentNode) t.remove(); _errCount = Math.max(0, _errCount - 1); }, 8000);
+    }
   }
+
+  // Re-show errors that were stored before a SW reload
+  try {
+    var stored = JSON.parse(sessionStorage.getItem('_flockErrors') || '[]');
+    if (stored.length) {
+      sessionStorage.removeItem('_flockErrors');
+      var cutoff = Date.now() - 10000;
+      stored.forEach(function(e) { if (e.ts > cutoff) _showErrToast(e.msg, true); });
+    }
+  } catch (_) {}
 
   window.onerror = function(msg, src, line, col, err) {
     if (!src || src.indexOf('extension') !== -1) return;

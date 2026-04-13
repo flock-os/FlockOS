@@ -20651,6 +20651,7 @@ const Modules = (() => {
       // stale 'sheets' values from a failed page-load attempt are cleared.
       if (UpperRoom.isReady()) {
         _commsMode = null;
+        _commsModePromise = null;
         try { await _loadCommsMode(); } catch (_) {}
       }
     }
@@ -21531,6 +21532,7 @@ const Modules = (() => {
     toggleFullscreen,
     _viewCacheInvalidate,
     _perfProfile,
+    _adRefreshConnCard,
 
   };
 
