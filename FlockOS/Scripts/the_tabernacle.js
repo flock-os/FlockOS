@@ -11214,8 +11214,8 @@ const Modules = (() => {
         if (rows.length === 0) {
           _configSource = 'defaults';
           rows = _DEFAULT_APP_CONFIG.slice();
-          // Seed Firestore in background — don't await
-          rows.forEach(function(r) { UpperRoom.setAppConfig(r).catch(function() {}); });
+          // Seed Firestore — await so data persists before render
+          await Promise.all(rows.map(function(r) { return UpperRoom.setAppConfig(r).catch(function() {}); }));
         }
       } else {
         _configSource = 'gas';
