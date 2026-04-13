@@ -119,6 +119,12 @@ window.FLOCK_CHURCH_ID = "tbc";
     }
     _db   = firebase.firestore();
     _auth = firebase.auth();
+
+    // Safari's WebChannel streaming transport can stall for ~30s on collection
+    // queries before falling back to long polling. This setting detects the
+    // stall and falls back immediately instead of waiting for the timeout.
+    try { _db.settings({ experimentalAutoDetectLongPolling: true, merge: true }); } catch (_) {}
+
     console.log('[FLOCK-DEBUG] UpperRoom.init() — Firestore and Auth initialized, churchId=' + _resolveChurchId());
 
     // Resolve churchId early so _churchRef() works even before authenticate()
@@ -167,28 +173,39 @@ window.FLOCK_CHURCH_ID = "tbc";
     // Determine churchId from page context
     _churchId = _resolveChurchId();
 
-    // If already signed in, verify custom claims are still present.
-    if (_auth.currentUser) {
-      console.log('[FLOCK-DEBUG] UpperRoom.authenticate() — already signed in, checking claims…');
-      return _withTimeout(
-        _auth.currentUser.getIdTokenResult()
-          .then(function(result) {
-            console.log('[FLOCK-DEBUG] UpperRoom.authenticate() — claims: churchId=' + (result.claims ? result.claims.churchId : 'NONE') + ', role=' + (result.claims ? result.claims.role : 'NONE'));
-            if (result.claims && result.claims.churchId) {
-              _ready = true;
-              return;  // claims intact — no re-auth needed
-            }
-            // Claims lost after token refresh — get a fresh custom token
-            console.log('[FLOCK-DEBUG] UpperRoom.authenticate() — claims LOST, re-minting…');
-            return _mintAndSignIn();
-          }),
-        30000, 'Firebase authentication'
-      );
-    }
+    // Wait for Firebase Auth to finish restoring any persisted session from
+    // IndexedDB. currentUser is null until this resolves, even if the user
+    // was previously signed in.
+    return new Promise(function(resolve, reject) {
+      var _unsub = _auth.onAuthStateChanged(function(user) {
+        _unsub(); // only need the first callback
+        console.log('[FLOCK-DEBUG] UpperRoom.authenticate() — onAuthStateChanged fired, user=' + (user ? user.uid : 'null'));
 
-    // Not signed in at all — get a custom token
-    console.log('[FLOCK-DEBUG] UpperRoom.authenticate() — not signed in, calling _mintAndSignIn()…');
-    return _mintAndSignIn();
+        if (user) {
+          // Firebase persisted a session — verify custom claims are still present
+          console.log('[FLOCK-DEBUG] UpperRoom.authenticate() — restored user, checking claims…');
+          _withTimeout(
+            user.getIdTokenResult()
+              .then(function(result) {
+                console.log('[FLOCK-DEBUG] UpperRoom.authenticate() — claims: churchId=' + (result.claims ? result.claims.churchId : 'NONE') + ', role=' + (result.claims ? result.claims.role : 'NONE'));
+                if (result.claims && result.claims.churchId) {
+                  _ready = true;
+                  console.log('[FLOCK-DEBUG] UpperRoom.authenticate() — FAST PATH: reusing persisted session (no GAS call)');
+                  return;  // claims intact — no re-auth needed
+                }
+                // Claims lost after token refresh — get a fresh custom token
+                console.log('[FLOCK-DEBUG] UpperRoom.authenticate() — claims LOST, re-minting…');
+                return _mintAndSignIn();
+              }),
+            30000, 'Firebase authentication'
+          ).then(resolve).catch(reject);
+        } else {
+          // No persisted session — full sign-in via GAS
+          console.log('[FLOCK-DEBUG] UpperRoom.authenticate() — not signed in, calling _mintAndSignIn()…');
+          _mintAndSignIn().then(resolve).catch(reject);
+        }
+      });
+    });
   }
 
   /* ── Mint a fresh custom token from GAS and sign in ────────────── */

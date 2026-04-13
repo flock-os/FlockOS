@@ -2950,11 +2950,13 @@ const TheLife = (() => {
             : _fetch('directory', () => _isFB() ? UpperRoom.listMemberCards() : TheVine.flock.memberCards.directory()),
         _fetch('care', () => _isFB() ? UpperRoom.listCareCases({ limit: 100 }) : TheVine.flock.care.list({ limit: 100 })),
         _fetch('followUps', () => _isFB() ? UpperRoom.careFollowUpsDue() : TheVine.flock.care.followUps.due({})),
-        _fetch('prayer', () => _isFB() ? UpperRoom.listPrayers({ limit: 100, allUsers: true }) : TheVine.flock.prayer.list({ limit: 100 })),
         _fetch('compassion', () => _isFB() ? UpperRoom.listCompassionRequests({ limit: 50 }) : TheVine.flock.compassion.requests.list({ limit: 50 })),
         _fetch('outreach', () => _isFB() ? UpperRoom.listOutreachContacts({ limit: 50 }) : TheVine.flock.outreach.contacts.list({ limit: 50 })),
         _ensureDir(),
       ];
+      // Fire prayer query independently — can be very slow on Firestore cold start
+      var _prayerPromise = _fetch('prayer', () => _isFB() ? UpperRoom.listPrayers({ limit: 100, allUsers: true }) : TheVine.flock.prayer.list({ limit: 100 }));
+
       var results = await Promise.allSettled(fetches);
 
       var val = function(i) { return results[i].status === 'fulfilled' ? results[i].value : null; };
@@ -2982,9 +2984,9 @@ const TheLife = (() => {
             });
       var allCare       = _filterClosed(_rows(val(1)));
       var fuRows        = _rows(val(2));
-      var allPrayer     = _filterClosed(_rows(val(3)), 'Status');
-      var allCompassion = _filterClosed(_rows(val(4)));
-      var allOutreach   = _filterClosed(_rows(val(5)));
+      var allPrayer     = [];  // placeholder — filled async when prayer query resolves
+      var allCompassion = _filterClosed(_rows(val(3)));
+      var allOutreach   = _filterClosed(_rows(val(4)));
 
       if (isPastorPlus && rawFlock.length) {
         _cache.memberDir = rawFlock;
@@ -3077,9 +3079,9 @@ const TheLife = (() => {
         html += _flockKpi(allOpenCases.length, 'Care Cases',
           allOpenCases.length ? 'warn' : 'success',
           "TheLife.openApp('care','care')");
-        html += _flockKpi(newPrayers.length, 'Prayers',
-          newPrayers.length ? 'danger' : 'success',
-          "TheLife.openApp('care','prayer')");
+        html += '<span id="flock-kpi-prayers-all">' + _flockKpi('\u2026', 'Prayers',
+          'success',
+          "TheLife.openApp('care','prayer')") + '</span>';
         html += _flockKpi(pendingCompassion.length, 'Compassion',
           pendingCompassion.length ? 'warn' : 'success',
           "TheLife.openApp('care','compassion')");
@@ -3099,9 +3101,9 @@ const TheLife = (() => {
         html += _flockKpi(openCases.length, 'Care Cases',
           openCases.length ? 'warn' : 'success',
           "TheLife.openApp('care','care')");
-        html += _flockKpi(myNewPrayers.length, 'Prayers',
-          myNewPrayers.length ? 'danger' : 'success',
-          "TheLife.openApp('care','prayer')");
+        html += '<span id="flock-kpi-prayers-my">' + _flockKpi('\u2026', 'Prayers',
+          'success',
+          "TheLife.openApp('care','prayer')") + '</span>';
         html += _flockKpi(myPendingCompassion.length, 'Compassion',
           myPendingCompassion.length ? 'warn' : 'success',
           "TheLife.openApp('care','compassion')");
@@ -3119,9 +3121,9 @@ const TheLife = (() => {
         html += _flockKpi(fuRows.length, 'Follow-Ups Due',
           fuRows.length ? 'danger' : 'success',
           "TheLife.openApp('care','followups')");
-        html += _flockKpi(newPrayers.length, 'New Prayers',
-          newPrayers.length ? 'danger' : 'success',
-          "TheLife.openApp('care','prayer')");
+        html += '<span id="flock-kpi-prayers-all">' + _flockKpi('\u2026', 'New Prayers',
+          'success',
+          "TheLife.openApp('care','prayer')") + '</span>';
         html += _flockKpi(pendingCompassion.length, 'Compassion',
           pendingCompassion.length ? 'warn' : 'success',
           "TheLife.openApp('care','compassion')");
@@ -3204,6 +3206,40 @@ const TheLife = (() => {
 
       html += '</div>'; // end flock-hub
       _hubBody(html);
+
+      // ── Async prayer KPI backfill ──
+      _prayerPromise.then(function(res) {
+        var prayerRows = _filterClosed(_rows(res), 'Status');
+        _cache.allPrayer = prayerRows;
+        _flockData.allPrayer = prayerRows;
+
+        var newP = prayerRows.filter(function(r) {
+          var s = (r.status || r['Status'] || '').toLowerCase();
+          return s === 'new' || s === 'pending' || s === 'in progress' || s === '';
+        });
+        _flockData.newPrayers = newP;
+
+        // Update "ALL OPEN" prayer KPI
+        var allEl = document.getElementById('flock-kpi-prayers-all');
+        if (allEl) allEl.innerHTML = _flockKpi(newP.length, isPastorPlus ? 'Prayers' : 'New Prayers',
+          newP.length ? 'danger' : 'success', "TheLife.openApp('care','prayer')");
+
+        // Update "MY OPEN" prayer KPI (pastor view only)
+        if (isPastorPlus) {
+          var myP = prayerRows.filter(function(r) {
+            return _isMe(r.assignedTo) || _isMe(r.respondedBy);
+          });
+          var myNewP = myP.filter(function(r) {
+            var s = (r.status || r['Status'] || '').toLowerCase();
+            return s === 'new' || s === 'pending' || s === 'in progress' || s === '';
+          });
+          _flockData.myNewPrayers = myNewP;
+          _flockData.myPrayers = myP;
+          var myEl = document.getElementById('flock-kpi-prayers-my');
+          if (myEl) myEl.innerHTML = _flockKpi(myNewP.length, 'Prayers',
+            myNewP.length ? 'danger' : 'success', "TheLife.openApp('care','prayer')");
+        }
+      }).catch(function() {});
 
       // ── Background: secondary fetches ──
       Promise.allSettled([

@@ -43,7 +43,7 @@ const APP_SHELL = [
   './FlockOS/Pages/bezalel.html',
 
   // ── Icons / images ──────────────────────────────────────────────────────
-  './FlockOS/Images/FlockOS_Camo.png',
+  './FlockOS/Images/FlockOS_ODCamo.png',
 
   // ── JS modules ───────────────────────────────────────────────
   './FlockOS/Scripts/firm_foundation.js',
@@ -218,8 +218,8 @@ self.addEventListener('push', (event) => {
   const title = data.title || data.notification?.title || 'FlockOS';
   const options = {
     body:    data.body    || data.notification?.body    || '',
-    icon:    data.icon    || data.notification?.icon    || '/FlockOS/Images/FlockOS_Camo.png',
-    badge:   data.badge   || '/FlockOS/Images/FlockOS_Camo.png',
+    icon:    data.icon    || data.notification?.icon    || '/FlockOS/Images/FlockOS_ODCamo.png',
+    badge:   data.badge   || '/FlockOS/Images/FlockOS_ODCamo.png',
     tag:     data.tag     || 'flockos-push',
     data:    data.data    || data.click_action ? { url: data.click_action } : {},
     vibrate: [100, 50, 100],
