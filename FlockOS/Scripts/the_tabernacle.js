@@ -19683,6 +19683,80 @@ const Modules = (() => {
     try { tasks = JSON.parse(localStorage.getItem(_ADMIN_TASKS_KEY) || '[]'); } catch (_) { tasks = []; }
 
     // ── Render skeleton instantly ────────────────────────────────────────
+    // Paint the full UI shell with local-only content first, then fill
+    // server-dependent sections (KPIs, care, events, etc.) progressively.
+
+    // Quick Actions grid
+    var qaButtons = [
+      { icon: '&#9881;&#65039;', label: 'Settings',         nav: 'config' },
+      { icon: '&#128101;',       label: 'Users',             nav: 'users' },
+      { icon: '&#128202;',       label: 'Statistics',        nav: 'statistics' },
+      { icon: '&#128196;',       label: 'Reports',           nav: 'reports' },
+      { icon: '&#128270;',       label: 'Audit Log',         nav: 'audit' },
+      { icon: '&#128030;',       label: 'Problems',          nav: 'problems' },
+      { icon: '&#128591;',       label: 'Prayers',           nav: 'prayer-admin' },
+      { icon: '&#127925;',       label: 'Music Stand',       nav: 'service-hub' },
+      { icon: '&#128197;',       label: 'Calendar',          nav: 'calendar' },
+      { icon: '&#128100;',       label: 'Directory',         nav: 'directory' },
+      { icon: '&#128640;',       label: 'Deploy Guide',      nav: 'deployment-guide' },
+      { icon: '&#9989;&#65039;', label: 'Great Commission',  href: 'the_great_commission.html' },
+      { icon: '&#9881;&#65039;', label: 'Generate Deploy',   href: 'bezalel.html' },
+    ];
+    var qaHtml = _adCard('&#128640; Quick Actions',
+      '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:7px;">'
+      + qaButtons.map(function (b) {
+          var action = b.href
+            ? 'window.location.href=\'' + b.href + '\''
+            : 'Modules._adGoTo(\'' + b.nav + '\',\'' + b.label + '\')'
+          return '<button onclick="' + action + '" style="display:flex;align-items:center;gap:6px;'
+            + 'padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:var(--bg);'
+            + 'color:var(--ink);cursor:pointer;font-size:0.77rem;font-family:inherit;text-align:left;">'
+            + '<span style="font-size:1rem;">' + b.icon + '</span>'
+            + _e(b.label) + '</button>';
+        }).join('')
+      + '</div>');
+
+    var connHtml = '<div id="ad-conn-card">' + _adCard('&#128268; Database Connection',
+      '<div style="font-size:0.78rem;color:var(--ink-muted);padding:4px 0;">Checking connection\u2026</div>') + '</div>';
+
+    // Scratchpad + Quick Tasks (local data only)
+    var scratchHtml = _adCard('&#128221; Scratchpad',
+      '<textarea id="ad-scratch" rows="5" style="width:100%;background:var(--bg);color:var(--ink);'
+      + 'border:1px solid var(--line);border-radius:8px;padding:10px;font-size:0.83rem;font-family:inherit;'
+      + 'resize:vertical;box-sizing:border-box;" placeholder="Quick notes, thoughts, reminders\u2026">'
+      + _e(scratch) + '</textarea>'
+      + '<button onclick="Modules._adSaveScratch()" style="margin-top:8px;padding:7px 18px;border-radius:8px;'
+      + 'border:none;background:var(--accent);color:var(--ink-inverse);font-weight:600;font-size:0.8rem;cursor:pointer;font-family:inherit;">Save Notes</button>');
+
+    var tasksHtml = _adCard('&#9745; Quick Tasks',
+      '<div style="display:flex;gap:6px;margin-bottom:10px;">'
+      + '<input id="ad-task-input" type="text" placeholder="Add a task\u2026" style="flex:1;padding:8px 10px;'
+      + 'border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font-size:0.83rem;box-sizing:border-box;"'
+      + ' onkeydown="if(event.key===\'Enter\')Modules._adAddTask()">'
+      + '<button onclick="Modules._adAddTask()" style="padding:8px 14px;border-radius:8px;border:none;'
+      + 'background:var(--accent);color:var(--ink-inverse);font-weight:600;cursor:pointer;font-size:0.83rem;font-family:inherit;">+</button>'
+      + '</div>'
+      + '<div id="ad-task-list" style="max-height:220px;overflow-y:auto;">' + _adRenderTasks(tasks) + '</div>');
+
+    // Font size config (local data only)
+    var curDesktop  = localStorage.getItem('flock_font_scale') || '100';
+    var curMobile   = localStorage.getItem('flock_font_scale_mobile') || '100';
+    var sizeOptions = ['75','90','100','110','125','150'];
+    var mkOpts = function (cur) {
+      return sizeOptions.map(function (sz) {
+        return '<option value="' + sz + '"' + (cur === sz ? ' selected' : '') + '>' + sz + '%' + (sz === '100' ? ' \u2013 Default' : '') + '</option>';
+      }).join('');
+    };
+    var fontHtml = _adCard('&#128295; Display &amp; Font Size',
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">'
+      + '<div><label style="font-size:0.75rem;font-weight:600;color:var(--ink-muted);display:block;margin-bottom:4px;">&#128421; Desktop</label>'
+      + '<select id="ad-font-desktop" style="width:100%;padding:7px 8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font-size:0.82rem;font-family:inherit;">' + mkOpts(curDesktop) + '</select></div>'
+      + '<div><label style="font-size:0.75rem;font-weight:600;color:var(--ink-muted);display:block;margin-bottom:4px;">&#128241; Mobile</label>'
+      + '<select id="ad-font-mobile" style="width:100%;padding:7px 8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font-size:0.82rem;font-family:inherit;">' + mkOpts(curMobile) + '</select></div>'
+      + '</div>'
+      + '<button onclick="Modules._adSaveFontSize()" style="margin-top:10px;padding:7px 18px;border-radius:8px;border:none;background:var(--accent);color:var(--ink-inverse);font-weight:600;font-size:0.8rem;cursor:pointer;font-family:inherit;">Save Font Sizes</button>');
+
+    // Paint full skeleton — KPIs and data cards are placeholders
     el.innerHTML = '<div id="ad-root" style="max-width:1100px;margin:0 auto;padding:20px 16px;">'
       + '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;'
       + 'margin-bottom:20px;padding:20px 24px;background:linear-gradient(135deg,var(--accent-soft),var(--lilac-soft));'
@@ -19694,27 +19768,101 @@ const Modules = (() => {
       + '<div style="font-size:0.72rem;font-style:italic;color:var(--ink-muted);max-width:300px;text-align:right;line-height:1.55;">'
       + '&ldquo;Whatever you do, work at it with all your heart.&rdquo; &mdash; Col\u00a03:23'
       + '</div></div>'
-      + '<div id="ad-kpis" style="margin-bottom:18px;">' + _spinner() + '</div>'
-      + '<div id="ad-body" style="display:flex;flex-direction:column;gap:16px;">' + _spinner() + '</div>'
+      + '<div id="ad-kpis" style="margin-bottom:18px;"><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;">'
+      + _adKpi('Active Members', '\u2026', 'var(--ink-muted)', '&#128101;')
+      + '<div id="ad-kpi-prayer">' + _adKpi('Open Prayers', '\u2026', 'var(--ink-muted)', '&#128591;') + '</div>'
+      + _adKpi('Urgent Care', '\u2026', 'var(--ink-muted)', '&#10084;')
+      + _adKpi('Open Compassion', '\u2026', 'var(--ink-muted)', '&#128230;')
+      + _adKpi('Events (14d)', '\u2026', 'var(--ink-muted)', '&#128197;')
+      + _adKpi('Giving (30d)', '\u2026', 'var(--ink-muted)', '&#128176;')
+      + '</div></div>'
+      + '<div id="ad-body" style="display:flex;flex-direction:column;gap:16px;">'
+      + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">'
+      + '<div>' + qaHtml + '</div>'
+      + '<div>' + connHtml + '</div>'
+      + '</div>'
+      + '<style>@media(max-width:700px){#ad-body>div:first-child{grid-template-columns:1fr !important}.ad-pair{grid-template-columns:1fr !important}}</style>'
+      + '<div id="ad-data-cards">' + _spinner() + '</div>'
+      + '<div class="ad-pair" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">'
+      + '<div>' + scratchHtml + '</div>'
+      + '<div>' + tasksHtml + '</div>'
+      + '</div>'
+      + fontHtml
+      + '</div>'
       + '</div>';
 
-    // Fire prayer query independently — can be slow on Firestore cold start
+    // ── Async: connection card ──────────────────────────────────────────
+    _adRefreshConnCard();
+
+    // ── Async: fire all data queries in background, fill DOM when ready ─
     var _prayerPromise = (_isFirebaseComms() ? UpperRoom.listPrayers({ limit: 500 }) : TheVine.flock.prayer.list({ limit: 500 })).catch(function () { return null; });
 
-    try {
-      var results = await Promise.all([
-        (_isFirebaseComms() ? UpperRoom.listMembers({ limit: 2000 }) : TheVine.flock.members.list({ limit: 2000 })).catch(function () { return null; }),
-        (_isFirebaseComms() ? UpperRoom.listCareCases({ limit: 500 }) : TheVine.flock.care.list({ limit: 500 })).catch(function () { return null; }),
-        (_isFirebaseComms() ? UpperRoom.listCompassionRequests({ limit: 200 }) : TheVine.flock.compassion.requests.list({ limit: 200 })).catch(function () { return null; }),
-        (_isFirebaseComms() ? UpperRoom.listEvents({ limit: 100 }) : TheVine.flock.events.list({ limit: 100 })).catch(function () { return null; }),
-        (_isFirebaseComms() ? UpperRoom.listGiving({ limit: 200 }) : TheVine.flock.giving.list({ limit: 200 })).catch(function () { return null; }),
-        TheVine.flock.call('audit.list', { limit: 30 }).catch(function () { return null; }),
-        TheVine.flock.todo.list({ limit: 300 }).catch(function () { return null; }),
-        (typeof firebase !== 'undefined' ? firebase.firestore().collection('problems')
-          .where('status', 'in', ['Open', 'In Progress'])
-          .orderBy('createdAt', 'desc').limit(50).get() : Promise.resolve(null)).catch(function () { return null; }),
-      ]);
+    // Fill prayer KPI independently
+    _prayerPromise.then(function (res) {
+      var prayers = _rows(res);
+      var count = prayers.filter(function (p) {
+        return !['answered','closed','archived'].includes(String(p.status || '').toLowerCase());
+      }).length;
+      var pEl = document.getElementById('ad-kpi-prayer');
+      if (pEl) pEl.innerHTML = _adKpi('Open Prayers', count, count > 0 ? 'var(--lilac)' : 'var(--ink-muted)', '&#128591;');
+    });
 
+    // Church Vault card — seed admin only (async)
+    if (_isSeedAdmin()) {
+      var _vCid = '';
+      try { _vCid = UpperRoom.churchId() || ''; } catch(_e_) {}
+      if (_vCid) {
+        firebase.firestore().collection('churchVault').doc(_vCid).get().then(function(snap) {
+          var vaultEl = document.getElementById('ad-vault-card');
+          if (!vaultEl) return;
+          var data = snap.exists ? snap.data() : {};
+          var notes = data.notes || '';
+          var creds = data.credentials || [];
+          var html = '';
+          if (notes) {
+            html += '<div style="font-size:0.82rem;color:var(--ink);white-space:pre-wrap;word-break:break-word;margin-bottom:10px;padding:8px;background:var(--bg-alt,var(--bg));border-radius:6px;border:1px solid var(--line);">' + _e(notes) + '</div>';
+          }
+          if (creds.length) {
+            html += '<div style="display:flex;flex-direction:column;gap:5px;">';
+            creds.forEach(function(c) {
+              html += '<div style="display:flex;align-items:center;gap:7px;font-size:0.81rem;">'
+                + '<span style="font-weight:600;color:var(--ink);min-width:110px;flex-shrink:0;">' + _e(c.label || '') + '</span>'
+                + '<span style="font-family:monospace;color:var(--ink-muted);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + _e(c.value || '') + '">\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022</span>'
+                + '<button onclick="var s=this.previousElementSibling;s.textContent=s.textContent===\'' + _e(c.value || '').replace(/'/g,"\\'") + '\'?\'\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\':\'' + _e(c.value || '').replace(/'/g,"\\'") + '\'" style="padding:2px 8px;font-size:0.72rem;border:1px solid var(--line);border-radius:4px;background:none;color:var(--ink);cursor:pointer;">Show</button>'
+                + '</div>';
+            });
+            html += '</div>';
+          }
+          if (!notes && !creds.length) html = '<div style="font-size:0.78rem;color:var(--ink-muted);">No vault record for this church yet.</div>';
+          if (data.updatedAt && data.updatedBy) {
+            var vd = data.updatedAt.toDate ? data.updatedAt.toDate() : new Date(data.updatedAt);
+            html += '<div style="font-size:0.7rem;color:var(--ink-muted);margin-top:8px;">Saved ' + vd.toLocaleDateString() + ' by ' + _e(data.updatedBy) + '</div>';
+          }
+          html += '<div style="margin-top:10px;"><a href="the_great_commission.html#vault" style="font-size:0.78rem;color:var(--accent);">Edit in Great Commission \u2197</a></div>';
+          vaultEl.innerHTML = _adCard('&#128272; Church Vault', html);
+        }).catch(function(vaultErr) {
+          console.error('[FLOCK-DEBUG] Church Vault read failed:', vaultErr);
+          var card = document.getElementById('ad-vault-card');
+          if (card) card.innerHTML = _adCard('&#128272; Church Vault',
+            '<div style="font-size:0.78rem;color:var(--danger);">&#9888;&#65039; Could not load vault: '
+            + _e(vaultErr && vaultErr.message ? vaultErr.message : 'Permission denied') + '</div>');
+        });
+      }
+    }
+
+    // Main data queries — fill KPIs and data cards when ready (non-blocking)
+    Promise.all([
+      (_isFirebaseComms() ? UpperRoom.listMembers({ limit: 2000 }) : TheVine.flock.members.list({ limit: 2000 })).catch(function () { return null; }),
+      (_isFirebaseComms() ? UpperRoom.listCareCases({ limit: 500 }) : TheVine.flock.care.list({ limit: 500 })).catch(function () { return null; }),
+      (_isFirebaseComms() ? UpperRoom.listCompassionRequests({ limit: 200 }) : TheVine.flock.compassion.requests.list({ limit: 200 })).catch(function () { return null; }),
+      (_isFirebaseComms() ? UpperRoom.listEvents({ limit: 100 }) : TheVine.flock.events.list({ limit: 100 })).catch(function () { return null; }),
+      (_isFirebaseComms() ? UpperRoom.listGiving({ limit: 200 }) : TheVine.flock.giving.list({ limit: 200 })).catch(function () { return null; }),
+      TheVine.flock.call('audit.list', { limit: 30 }).catch(function () { return null; }),
+      TheVine.flock.todo.list({ limit: 300 }).catch(function () { return null; }),
+      (typeof firebase !== 'undefined' ? firebase.firestore().collection('problems')
+        .where('status', 'in', ['Open', 'In Progress'])
+        .orderBy('createdAt', 'desc').limit(50).get() : Promise.resolve(null)).catch(function () { return null; }),
+    ]).then(function (results) {
       var members      = _rows(results[0]);
       var careCases    = _rows(results[1]);
       var compassions  = _rows(results[2]);
@@ -19728,8 +19876,6 @@ const Modules = (() => {
       var activeMembers = members.filter(function (m) {
         return !['inactive','archived','removed'].includes(String(m.status || '').toLowerCase());
       }).length || members.length;
-
-      var openPrayer = '\u2026'; // placeholder — updates when prayer query resolves
 
       var urgentCare = careCases.filter(function (c) {
         return String(c.priority || '').toLowerCase() === 'urgent'
@@ -19763,12 +19909,12 @@ const Modules = (() => {
         return t.dueDate && new Date(t.dueDate) < now;
       });
 
-      // ── KPI Ribbon ───────────────────────────────────────────────────────
+      // ── Fill KPI Ribbon ──────────────────────────────────────────────────
       var kpiEl = document.getElementById('ad-kpis');
       if (kpiEl) {
         kpiEl.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;">'
           + _adKpi('Active Members',  activeMembers,                    'var(--accent)',              '&#128101;')
-          + '<div id="ad-kpi-prayer">' + _adKpi('Open Prayers', openPrayer, 'var(--ink-muted)', '&#128591;') + '</div>'
+          + '<div id="ad-kpi-prayer">' + _adKpi('Open Prayers', '\u2026', 'var(--ink-muted)', '&#128591;') + '</div>'
           + _adKpi('Urgent Care',     urgentCare,    urgentCare  > 0  ? 'var(--danger)' : 'var(--ink-muted)', '&#10084;')
           + _adKpi('Open Compassion', openCompassion, openCompassion > 0 ? 'var(--peach)' : 'var(--ink-muted)', '&#128230;')
           + _adKpi('Events (14d)',    upcoming.length,                  'var(--mint)',                '&#128197;')
@@ -19776,57 +19922,8 @@ const Modules = (() => {
           + '</div>';
       }
 
-      // ── Async prayer KPI fill ─────────────────────────────────────────
-      _prayerPromise.then(function (res) {
-        var prayers = _rows(res);
-        var count = prayers.filter(function (p) {
-          return !['answered','closed','archived'].includes(String(p.status || '').toLowerCase());
-        }).length;
-        var pEl = document.getElementById('ad-kpi-prayer');
-        if (pEl) pEl.innerHTML = _adKpi('Open Prayers', count, count > 0 ? 'var(--lilac)' : 'var(--ink-muted)', '&#128591;');
-      });
-
-      // ── Single-column body (no sidebar) ─────────────────────────────────
-      var bodyHtml = '';
-
-      // Quick Actions grid + Connection card — side-by-side on desktop
-      var qaButtons = [
-        { icon: '&#9881;&#65039;', label: 'Settings',         nav: 'config' },
-        { icon: '&#128101;',       label: 'Users',             nav: 'users' },
-        { icon: '&#128202;',       label: 'Statistics',        nav: 'statistics' },
-        { icon: '&#128196;',       label: 'Reports',           nav: 'reports' },
-        { icon: '&#128270;',       label: 'Audit Log',         nav: 'audit' },
-        { icon: '&#128030;',       label: 'Problems',          nav: 'problems' },
-        { icon: '&#128591;',       label: 'Prayers',           nav: 'prayer-admin' },
-        { icon: '&#127925;',       label: 'Music Stand',       nav: 'service-hub' },
-        { icon: '&#128197;',       label: 'Calendar',          nav: 'calendar' },
-        { icon: '&#128100;',       label: 'Directory',         nav: 'directory' },
-        { icon: '&#128640;',       label: 'Deploy Guide',      nav: 'deployment-guide' },
-        { icon: '&#9989;&#65039;', label: 'Great Commission',  href: 'the_great_commission.html' },
-        { icon: '&#9881;&#65039;', label: 'Generate Deploy',   href: 'bezalel.html' },
-      ];
-      var qaHtml = _adCard('&#128640; Quick Actions',
-        '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:7px;">'
-        + qaButtons.map(function (b) {
-            var action = b.href
-              ? 'window.location.href=\'' + b.href + '\''
-              : 'Modules._adGoTo(\'' + b.nav + '\',\'' + b.label + '\')'
-            return '<button onclick="' + action + '" style="display:flex;align-items:center;gap:6px;'
-              + 'padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:var(--bg);'
-              + 'color:var(--ink);cursor:pointer;font-size:0.77rem;font-family:inherit;text-align:left;">'
-              + '<span style="font-size:1rem;">' + b.icon + '</span>'
-              + _e(b.label) + '</button>';
-          }).join('')
-        + '</div>');
-
-      var connHtml = '<div id="ad-conn-card">' + _adCard('&#128268; Database Connection',
-        '<div style="font-size:0.78rem;color:var(--ink-muted);padding:4px 0;">Checking connection\u2026</div>') + '</div>';
-
-      bodyHtml += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">'
-        + '<div>' + qaHtml + '</div>'
-        + '<div>' + connHtml + '</div>'
-        + '</div>'
-        + '<style>@media(max-width:700px){#ad-body>div:first-child{grid-template-columns:1fr !important}}</style>';
+      // ── Fill data cards ──────────────────────────────────────────────────
+      var cardsHtml = '';
 
       // Urgent care alert
       var urgentCaseRows = careCases.filter(function (c) {
@@ -19834,7 +19931,7 @@ const Modules = (() => {
           && !['closed','resolved','archived'].includes(String(c.status || '').toLowerCase());
       }).slice(0, 5);
       if (urgentCaseRows.length) {
-        bodyHtml += _adCard('&#128680; Urgent Care Cases',
+        cardsHtml += _adCard('&#128680; Urgent Care Cases',
           urgentCaseRows.map(function (c) {
             return '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);">'
               + '<div>'
@@ -19902,18 +19999,16 @@ const Modules = (() => {
         + '</div>';
       var problemsHtml = _adCard('&#128030; Open Problems (' + openProblems.length + ')', problemRows);
 
-      // Events + Problems — side-by-side on desktop
       if (eventsHtml || problemsHtml) {
-        bodyHtml += '<div class="ad-pair" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">'
+        cardsHtml += '<div class="ad-pair" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">'
           + '<div>' + (eventsHtml || '') + '</div>'
           + '<div>' + problemsHtml + '</div>'
-          + '</div>'
-          + '<style>@media(max-width:700px){.ad-pair{grid-template-columns:1fr !important}}</style>';
+          + '</div>';
       }
 
       // Overdue tasks
       if (overdueTodos.length) {
-        bodyHtml += _adCard('&#9888;&#65039; Overdue Tasks (' + overdueTodos.length + ')',
+        cardsHtml += _adCard('&#9888;&#65039; Overdue Tasks (' + overdueTodos.length + ')',
           overdueTodos.slice(0, 5).map(function (t) {
             var due = t.dueDate ? new Date(t.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
             return '<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--line);">'
@@ -19951,104 +20046,26 @@ const Modules = (() => {
             + (when ? '<div style="font-size:0.67rem;color:var(--ink-faint);white-space:nowrap;padding-left:4px;">' + _e(when) + '</div>' : '')
             + '</div>';
         }).join('');
-        bodyHtml += _adCard('&#128336; Recent Activity', '<div style="max-height:260px;overflow-y:auto;">' + feedItems + '</div>');
+        cardsHtml += _adCard('&#128336; Recent Activity', '<div style="max-height:260px;overflow-y:auto;">' + feedItems + '</div>');
       }
 
-      // Church Vault card — seed admin only
+      // Vault placeholder (async-filled above)
       if (_isSeedAdmin()) {
-        var _vCid = '';
-        try { _vCid = UpperRoom.churchId() || ''; } catch(_e_) {}
-        if (_vCid) {
-          bodyHtml += '<div id="ad-vault-card">' + _adCard('&#128272; Church Vault',
+        var _vc = '';
+        try { _vc = UpperRoom.churchId() || ''; } catch(_) {}
+        if (_vc) {
+          cardsHtml += '<div id="ad-vault-card">' + _adCard('&#128272; Church Vault',
             '<div style="font-size:0.78rem;color:var(--ink-muted);padding:4px 0;">Loading vault\u2026</div>') + '</div>';
-          firebase.firestore().collection('churchVault').doc(_vCid).get().then(function(snap) {
-            var data = snap.exists ? snap.data() : {};
-            var notes = data.notes || '';
-            var creds = data.credentials || [];
-            var html = '';
-            if (notes) {
-              html += '<div style="font-size:0.82rem;color:var(--ink);white-space:pre-wrap;word-break:break-word;margin-bottom:10px;padding:8px;background:var(--bg-alt,var(--bg));border-radius:6px;border:1px solid var(--line);">' + _e(notes) + '</div>';
-            }
-            if (creds.length) {
-              html += '<div style="display:flex;flex-direction:column;gap:5px;">';
-              creds.forEach(function(c) {
-                html += '<div style="display:flex;align-items:center;gap:7px;font-size:0.81rem;">'
-                  + '<span style="font-weight:600;color:var(--ink);min-width:110px;flex-shrink:0;">' + _e(c.label || '') + '</span>'
-                  + '<span style="font-family:monospace;color:var(--ink-muted);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + _e(c.value || '') + '">\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022</span>'
-                  + '<button onclick="var s=this.previousElementSibling;s.textContent=s.textContent===\'' + _e(c.value || '').replace(/'/g,"\\'") + '\'?\'\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\':\'' + _e(c.value || '').replace(/'/g,"\\'") + '\'" style="padding:2px 8px;font-size:0.72rem;border:1px solid var(--line);border-radius:4px;background:none;color:var(--ink);cursor:pointer;">Show</button>'
-                  + '</div>';
-              });
-              html += '</div>';
-            }
-            if (!notes && !creds.length) html = '<div style="font-size:0.78rem;color:var(--ink-muted);">No vault record for this church yet.</div>';
-            if (data.updatedAt && data.updatedBy) {
-              var vd = data.updatedAt.toDate ? data.updatedAt.toDate() : new Date(data.updatedAt);
-              html += '<div style="font-size:0.7rem;color:var(--ink-muted);margin-top:8px;">Saved ' + vd.toLocaleDateString() + ' by ' + _e(data.updatedBy) + '</div>';
-            }
-            html += '<div style="margin-top:10px;"><a href="the_great_commission.html#vault" style="font-size:0.78rem;color:var(--accent);">Edit in Great Commission \u2197</a></div>';
-            var card = document.getElementById('ad-vault-card');
-            if (card) card.innerHTML = _adCard('&#128272; Church Vault', html);
-          }).catch(function(vaultErr) {
-            console.error('[FLOCK-DEBUG] Church Vault read failed:', vaultErr);
-            var card = document.getElementById('ad-vault-card');
-            if (card) card.innerHTML = _adCard('&#128272; Church Vault',
-              '<div style="font-size:0.78rem;color:var(--danger);">&#9888;&#65039; Could not load vault: '
-              + _e(vaultErr && vaultErr.message ? vaultErr.message : 'Permission denied') + '</div>');
-          });
         }
       }
 
-      // Scratchpad + Quick Tasks — side-by-side on desktop
-      var scratchHtml = _adCard('&#128221; Scratchpad',
-        '<textarea id="ad-scratch" rows="5" style="width:100%;background:var(--bg);color:var(--ink);'
-        + 'border:1px solid var(--line);border-radius:8px;padding:10px;font-size:0.83rem;font-family:inherit;'
-        + 'resize:vertical;box-sizing:border-box;" placeholder="Quick notes, thoughts, reminders\u2026">'
-        + _e(scratch) + '</textarea>'
-        + '<button onclick="Modules._adSaveScratch()" style="margin-top:8px;padding:7px 18px;border-radius:8px;'
-        + 'border:none;background:var(--accent);color:var(--ink-inverse);font-weight:600;font-size:0.8rem;cursor:pointer;font-family:inherit;">Save Notes</button>');
-
-      var tasksHtml = _adCard('&#9745; Quick Tasks',
-        '<div style="display:flex;gap:6px;margin-bottom:10px;">'
-        + '<input id="ad-task-input" type="text" placeholder="Add a task\u2026" style="flex:1;padding:8px 10px;'
-        + 'border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font-size:0.83rem;box-sizing:border-box;"'
-        + ' onkeydown="if(event.key===\'Enter\')Modules._adAddTask()">'
-        + '<button onclick="Modules._adAddTask()" style="padding:8px 14px;border-radius:8px;border:none;'
-        + 'background:var(--accent);color:var(--ink-inverse);font-weight:600;cursor:pointer;font-size:0.83rem;font-family:inherit;">+</button>'
-        + '</div>'
-        + '<div id="ad-task-list" style="max-height:220px;overflow-y:auto;">' + _adRenderTasks(tasks) + '</div>');
-
-      bodyHtml += '<div class="ad-pair" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">'
-        + '<div>' + scratchHtml + '</div>'
-        + '<div>' + tasksHtml + '</div>'
-        + '</div>';
-
-      // Font size config (condensed)
-      var curDesktop  = localStorage.getItem('flock_font_scale') || '100';
-      var curMobile   = localStorage.getItem('flock_font_scale_mobile') || '100';
-      var sizeOptions = ['75','90','100','110','125','150'];
-      var mkOpts = function (cur) {
-        return sizeOptions.map(function (sz) {
-          return '<option value="' + sz + '"' + (cur === sz ? ' selected' : '') + '>' + sz + '%' + (sz === '100' ? ' \u2013 Default' : '') + '</option>';
-        }).join('');
-      };
-      bodyHtml += _adCard('&#128295; Display &amp; Font Size',
-        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">'
-        + '<div><label style="font-size:0.75rem;font-weight:600;color:var(--ink-muted);display:block;margin-bottom:4px;">&#128421; Desktop</label>'
-        + '<select id="ad-font-desktop" style="width:100%;padding:7px 8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font-size:0.82rem;font-family:inherit;">' + mkOpts(curDesktop) + '</select></div>'
-        + '<div><label style="font-size:0.75rem;font-weight:600;color:var(--ink-muted);display:block;margin-bottom:4px;">&#128241; Mobile</label>'
-        + '<select id="ad-font-mobile" style="width:100%;padding:7px 8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font-size:0.82rem;font-family:inherit;">' + mkOpts(curMobile) + '</select></div>'
-        + '</div>'
-        + '<button onclick="Modules._adSaveFontSize()" style="margin-top:10px;padding:7px 18px;border-radius:8px;border:none;background:var(--accent);color:var(--ink-inverse);font-weight:600;font-size:0.8rem;cursor:pointer;font-family:inherit;">Save Font Sizes</button>');
-
-      document.getElementById('ad-body').innerHTML = bodyHtml;
-
-      // Resolve and render the connection card asynchronously after DOM paint
-      _adRefreshConnCard();
-
-    } catch (e) {
-      var errEl = document.getElementById('ad-body');
-      if (errEl) errEl.innerHTML = _errHtml(e.message);
-    }
+      var dataEl = document.getElementById('ad-data-cards');
+      if (dataEl) dataEl.innerHTML = cardsHtml || '<div style="font-size:0.82rem;color:var(--ink-muted);padding:8px 0;">No data cards to display.</div>';
+    }).catch(function (e) {
+      console.error('[FLOCK-DEBUG] Admin Hub data load error:', e);
+      var dataEl = document.getElementById('ad-data-cards');
+      if (dataEl) dataEl.innerHTML = _errHtml(e.message);
+    });
   });
 
   // ── Connection diagnostics card — resolves asynchronously ──────────────
