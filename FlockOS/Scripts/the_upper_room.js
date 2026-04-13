@@ -94,6 +94,7 @@
 
   /* ── Init ─────────────────────────────────────────────────────────── */
   function init(config) {
+    console.log('[FLOCK-DEBUG] UpperRoom.init() called — _initialized=' + _initialized);
     if (_initialized) return Promise.resolve();
     _initialized = true;
 
@@ -102,17 +103,21 @@
 
     // Firebase SDK must be loaded
     if (typeof firebase === 'undefined' || !firebase.firestore) {
-      console.warn('[UpperRoom] Firebase SDK not loaded');
+      console.warn('[FLOCK-DEBUG] UpperRoom.init() — Firebase SDK NOT LOADED');
       _initialized = false;
       return Promise.reject(new Error('Firebase SDK not available'));
     }
 
     // Initialize Firebase app (idempotent)
     if (!firebase.apps.length) {
+      console.log('[FLOCK-DEBUG] UpperRoom.init() — initializing Firebase app, projectId=' + (FIREBASE_CONFIG ? FIREBASE_CONFIG.projectId : 'NONE'));
       firebase.initializeApp(FIREBASE_CONFIG);
+    } else {
+      console.log('[FLOCK-DEBUG] UpperRoom.init() — Firebase app already exists, projectId=' + firebase.apps[0].options.projectId);
     }
     _db   = firebase.firestore();
     _auth = firebase.auth();
+    console.log('[FLOCK-DEBUG] UpperRoom.init() — Firestore and Auth initialized, churchId=' + _resolveChurchId());
 
     // Resolve churchId early so _churchRef() works even before authenticate()
     _churchId = _resolveChurchId();
@@ -140,6 +145,7 @@
 
   /* ── Authenticate via Custom Token from Apps Script ────────────── */
   function authenticate() {
+    console.log('[FLOCK-DEBUG] UpperRoom.authenticate() called — _ready=' + _ready + ', hasCurrentUser=' + !!(_auth && _auth.currentUser));
     // Get session from FlockOS auth
     var session = null;
     if (typeof Nehemiah !== 'undefined' && Nehemiah.getSession) {
@@ -148,28 +154,30 @@
       session = TheVine.session();
     }
     if (!session || !session.email) {
+      console.error('[FLOCK-DEBUG] UpperRoom.authenticate() — NO SESSION, rejecting');
       return Promise.reject(new Error('No FlockOS session'));
     }
 
     _userEmail = session.email;
     _userName  = session.displayName || session.email;
+    console.log('[FLOCK-DEBUG] UpperRoom.authenticate() — email=' + _userEmail + ', churchId=' + _resolveChurchId());
 
     // Determine churchId from page context
     _churchId = _resolveChurchId();
 
     // If already signed in, verify custom claims are still present.
-    // Custom token claims (churchId, role) are NOT persisted through
-    // ID token refresh — after ~1 hour the refreshed token loses them,
-    // causing Firestore rules to reject with "missing permissions."
     if (_auth.currentUser) {
+      console.log('[FLOCK-DEBUG] UpperRoom.authenticate() — already signed in, checking claims…');
       return _withTimeout(
         _auth.currentUser.getIdTokenResult()
           .then(function(result) {
+            console.log('[FLOCK-DEBUG] UpperRoom.authenticate() — claims: churchId=' + (result.claims ? result.claims.churchId : 'NONE') + ', role=' + (result.claims ? result.claims.role : 'NONE'));
             if (result.claims && result.claims.churchId) {
               _ready = true;
               return;  // claims intact — no re-auth needed
             }
             // Claims lost after token refresh — get a fresh custom token
+            console.log('[FLOCK-DEBUG] UpperRoom.authenticate() — claims LOST, re-minting…');
             return _mintAndSignIn();
           }),
         30000, 'Firebase authentication'
@@ -177,21 +185,28 @@
     }
 
     // Not signed in at all — get a custom token
+    console.log('[FLOCK-DEBUG] UpperRoom.authenticate() — not signed in, calling _mintAndSignIn()…');
     return _mintAndSignIn();
   }
 
   /* ── Mint a fresh custom token from GAS and sign in ────────────── */
   function _mintAndSignIn() {
+    console.log('[FLOCK-DEBUG] _mintAndSignIn() calling TheVine.flock.firebase.token({ churchId: ' + _churchId + ' })…');
+    var _mintStart = Date.now();
     return TheVine.flock.firebase.token({ churchId: _churchId })
       .then(function(res) {
         var token = res && (res.token || res.customToken);
+        console.log('[FLOCK-DEBUG] _mintAndSignIn() token received in ' + (Date.now() - _mintStart) + 'ms — hasToken=' + !!token + ', tokenLength=' + (token ? token.length : 0));
         if (!token) throw new Error('No custom token returned from GAS');
+        console.log('[FLOCK-DEBUG] _mintAndSignIn() calling signInWithCustomToken…');
         return _auth.signInWithCustomToken(token);
       })
       .then(function() {
         _ready = true;
+        console.log('[FLOCK-DEBUG] _mintAndSignIn() SUCCESS — _ready=true, uid=' + (_auth.currentUser ? _auth.currentUser.uid : 'N/A'));
       })
       .catch(function(err) {
+        console.error('[FLOCK-DEBUG] _mintAndSignIn() FAILED:', err);
         // Re-throw with the Firebase error code included so callers can surface it
         var code = err && err.code ? ' (' + err.code + ')' : '';
         throw new Error((err && err.message ? err.message : String(err)) + code);
@@ -505,13 +520,19 @@
 
   /* ── App-level settings (comms mode per church) ─────────────────────── */
   function getCommsMode() {
+    console.log('[FLOCK-DEBUG] UpperRoom.getCommsMode() querying settings/app…');
+    var _gcmStart = Date.now();
     return _churchRef().collection('settings').doc('app')
       .get()
       .then(function(doc) {
-        if (!doc.exists) return 'firebase';
-        return doc.data().commsMode || 'firebase';
+        var mode = !doc.exists ? 'firebase' : (doc.data().commsMode || 'firebase');
+        console.log('[FLOCK-DEBUG] UpperRoom.getCommsMode() RESULT: ' + mode + ' (exists=' + doc.exists + ', ' + (Date.now() - _gcmStart) + 'ms)');
+        return mode;
       })
-      .catch(function() { return 'firebase'; });
+      .catch(function(err) {
+        console.error('[FLOCK-DEBUG] UpperRoom.getCommsMode() ERROR:', err);
+        return 'firebase';
+      });
   }
 
   function setCommsMode(mode) {
@@ -703,6 +724,7 @@
 
   function listPrayers(opts) {
     opts = opts || {};
+    console.log('[FLOCK-DEBUG] UpperRoom.listPrayers() called — allUsers=' + !!opts.allUsers + ', _userEmail=' + _userEmail + ', _ready=' + _ready + ', hasDb=' + !!_db);
     var q = _prayersRef();
     // Filter by current user's email unless opts.allUsers is set (admin/pastor).
     // Firestore rules require createdBy == userEmail() or isConfidential != true;
@@ -712,6 +734,8 @@
       q = q.where('createdBy', '==', _userEmail);
     }
     q = q.orderBy('submittedAt', 'desc').limit(opts.limit || 300);
+    console.log('[FLOCK-DEBUG] UpperRoom.listPrayers() executing query…');
+    var _lpStart = Date.now();
     return q.get().then(function(snap) {
       var results = [];
       snap.forEach(function(doc) {
@@ -719,6 +743,7 @@
         d.id = doc.id;
         results.push(d);
       });
+      console.log('[FLOCK-DEBUG] UpperRoom.listPrayers() DONE: ' + results.length + ' rows in ' + (Date.now() - _lpStart) + 'ms');
       return results;
     });
   }
@@ -2931,6 +2956,7 @@
 
   function listJournal(opts) {
     opts = opts || {};
+    console.log('[FLOCK-DEBUG] UpperRoom.listJournal() called — allUsers=' + !!opts.allUsers + ', _userEmail=' + _userEmail + ', _ready=' + _ready + ', hasDb=' + !!_db);
     var q = _journalRef();
     // Filter by current user's email unless opts.allUsers is set (admin backup).
     // Firestore rules require createdBy == userEmail() for non-pastor users;
@@ -2940,9 +2966,12 @@
       q = q.where('createdBy', '==', _userEmail);
     }
     q = q.orderBy('createdAt', 'desc').limit(opts.limit || 200);
+    console.log('[FLOCK-DEBUG] UpperRoom.listJournal() executing query…');
+    var _ljStart = Date.now();
     return q.get().then(function(snap) {
       var out = [];
       snap.forEach(function(d) { var o = d.data(); o.id = d.id; out.push(o); });
+      console.log('[FLOCK-DEBUG] UpperRoom.listJournal() DONE: ' + out.length + ' rows in ' + (Date.now() - _ljStart) + 'ms');
       return out;
     });
   }

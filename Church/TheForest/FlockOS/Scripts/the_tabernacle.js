@@ -6877,16 +6877,28 @@ const Modules = (() => {
   var _commsModePromise = null;  // shared promise so all callers wait for the same load
 
   async function _loadCommsMode() {
-    if (_commsMode !== null) return;
-    if (_commsModePromise) { await _commsModePromise; return; }
+    console.log('[FLOCK-DEBUG] _loadCommsMode() called — _commsMode=' + _commsMode + ', hasPromise=' + !!_commsModePromise);
+    if (_commsMode !== null) { console.log('[FLOCK-DEBUG] _loadCommsMode() already resolved: ' + _commsMode); return; }
+    if (_commsModePromise) { console.log('[FLOCK-DEBUG] _loadCommsMode() waiting on existing promise…'); await _commsModePromise; console.log('[FLOCK-DEBUG] _loadCommsMode() existing promise done: ' + _commsMode); return; }
     _commsModePromise = (async function() {
       try {
-        if (typeof UpperRoom === 'undefined') { _commsMode = 'sheets'; return; }
+        console.log('[FLOCK-DEBUG] _loadCommsMode() starting fresh — UpperRoom defined=' + (typeof UpperRoom !== 'undefined'));
+        if (typeof UpperRoom === 'undefined') { _commsMode = 'sheets'; console.log('[FLOCK-DEBUG] _loadCommsMode() → sheets (no UpperRoom)'); return; }
+        console.log('[FLOCK-DEBUG] _loadCommsMode() calling UpperRoom.init()…');
         await UpperRoom.init();
-        if (!UpperRoom.isReady()) await UpperRoom.authenticate();
+        console.log('[FLOCK-DEBUG] _loadCommsMode() init done, isReady=' + UpperRoom.isReady());
+        if (!UpperRoom.isReady()) {
+          console.log('[FLOCK-DEBUG] _loadCommsMode() calling UpperRoom.authenticate()…');
+          await UpperRoom.authenticate();
+          console.log('[FLOCK-DEBUG] _loadCommsMode() authenticate done, isReady=' + UpperRoom.isReady());
+        }
+        console.log('[FLOCK-DEBUG] _loadCommsMode() calling UpperRoom.getCommsMode()…');
         _commsMode = await UpperRoom.getCommsMode();
+        console.log('[FLOCK-DEBUG] _loadCommsMode() RESOLVED: ' + _commsMode);
       } catch (err) {
+        console.error('[FLOCK-DEBUG] _loadCommsMode() ERROR:', err);
         _commsMode = (typeof UpperRoom !== 'undefined' && UpperRoom.isReady()) ? 'firebase' : 'sheets';
+        console.log('[FLOCK-DEBUG] _loadCommsMode() fallback: ' + _commsMode);
       }
     })();
     await _commsModePromise;
@@ -12898,9 +12910,11 @@ const Modules = (() => {
 
 
   _def('prayer', async (el, session) => {
+    console.log('[FLOCK-DEBUG] prayer view START — _commsMode=' + _commsMode + ', _isFirebaseComms()=' + _isFirebaseComms() + ', UpperRoom.isReady=' + (typeof UpperRoom !== 'undefined' ? UpperRoom.isReady() : 'N/A'));
     _shell(el, '', '', '');
     try {
       const isLoggedIn = !!(session && session.email);
+      console.log('[FLOCK-DEBUG] prayer: isLoggedIn=' + isLoggedIn);
 
       let html = '<div style="max-width:680px;margin:0 auto;">';
 
@@ -12942,12 +12956,15 @@ const Modules = (() => {
 
       // --- My prayer cards ---
       let rows;
+      console.log('[FLOCK-DEBUG] prayer: fetching via ' + (_isFirebaseComms() ? 'Firestore' : 'GAS'));
+      var _pStart = Date.now();
       if (_isFirebaseComms()) {
         rows = await UpperRoom.listPrayers({ limit: 200 });
       } else {
         const res  = await TheVine.flock.call('prayer.listPublic', { limit: 200 }, { skipAuth: true });
         rows = _filterClosed(_rows(res), 'Status');
       }
+      console.log('[FLOCK-DEBUG] prayer: fetch complete in ' + (Date.now() - _pStart) + 'ms — rows=' + (rows ? rows.length : 'null'));
 
       const userEmail = isLoggedIn ? session.email.toLowerCase() : '';
       const myPrayers = userEmail
@@ -13162,6 +13179,7 @@ const Modules = (() => {
   var _urDevIdx = 0;
 
   _def('upper-room', async (el, session) => {
+    console.log('[FLOCK-DEBUG] upper-room view START');
     _shell(el, '', '', '');
     // Self-resolve session if not passed (public portal doesn't inject it)
     if (!session && typeof TheVine !== 'undefined' && TheVine.session) {
@@ -13169,41 +13187,43 @@ const Modules = (() => {
     }
     const isLoggedIn = !!(session && session.email);
     const userEmail  = isLoggedIn ? session.email.toLowerCase() : '';
+    console.log('[FLOCK-DEBUG] upper-room: isLoggedIn=' + isLoggedIn + ', _commsMode=' + _commsMode + ', UpperRoom.isReady=' + (typeof UpperRoom !== 'undefined' ? UpperRoom.isReady() : 'N/A'));
 
     // ── Ensure Firebase comms mode and auth are fully resolved ────────────────
-    // Fixes two race conditions for logged-in users:
-    //   1. Page-load: _loadCommsMode() may not have completed when the user first
-    //      navigates here, leaving _commsMode null → private data silently falls
-    //      back to GAS (which trails Firestore by up to an hour).
-    //   2. Mid-session: Firebase auto-refreshes ID tokens ~hourly; the
-    //      onIdTokenChanged listener sets _ready=false while re-minting custom
-    //      claims, causing Firestore permission errors that resolve as empty arrays.
     if (isLoggedIn) {
       if (_commsMode === null) {
-        await _loadCommsMode().catch(function() {});
+        console.log('[FLOCK-DEBUG] upper-room: _commsMode is null, calling _loadCommsMode…');
+        await _loadCommsMode().catch(function(e) { console.error('[FLOCK-DEBUG] upper-room: _loadCommsMode error:', e); });
+        console.log('[FLOCK-DEBUG] upper-room: _loadCommsMode done → _commsMode=' + _commsMode);
       }
       if (_isFirebaseComms() && typeof UpperRoom !== 'undefined' && !UpperRoom.isReady()) {
+        console.log('[FLOCK-DEBUG] upper-room: Firebase mode but UpperRoom not ready, retrying auth…');
         try {
           await UpperRoom.init();
           await UpperRoom.authenticate();
-        } catch (retryErr) { /* auth retry failed — fetch will fall through to GAS */ }
+          console.log('[FLOCK-DEBUG] upper-room: auth retry succeeded, isReady=' + UpperRoom.isReady());
+        } catch (retryErr) { console.error('[FLOCK-DEBUG] upper-room: auth retry FAILED:', retryErr); }
       }
     }
 
     try {
+      console.log('[FLOCK-DEBUG] upper-room: starting data fetches — _isFirebaseComms()=' + _isFirebaseComms());
+      var _urFetchStart = Date.now();
       // ── Parallel fetch: public data always, private data only when logged in ──
       const publicFetches = [
         _publicFetch('devotionals', function() { return UpperRoom.listAppContent('devotionals'); }, function() { return TheVine.app.devotionals(); }),
         _publicFetch('reading',     function() { return UpperRoom.listAppContent('reading'); },     function() { return TheVine.app.reading(); }),
       ];
       const privateFetches = isLoggedIn ? [
-        _fetch('journal',    () => _isFirebaseComms() ? UpperRoom.listJournal({ limit: 200 }) : TheVine.flock.journal.list({ limit: 200 })).catch(() => []),
-        _fetch('prayer',     () => _isFirebaseComms() ? UpperRoom.listPrayers({ limit: 200 }) : TheVine.flock.prayer.list({ limit: 200 })).catch(() => []),
-        _fetch('care',       () => _isFirebaseComms() ? UpperRoom.listCareCases({ limit: 200 }) : TheVine.flock.care.list({ limit: 200 })).catch(() => []),
-        _fetch('compassion', () => _isFirebaseComms() ? UpperRoom.listCompassionRequests({ limit: 200 }) : TheVine.flock.compassion.requests.list({ limit: 200 })).catch(() => []),
-        _fetch('contacts',   () => _isFirebaseComms() ? UpperRoom.listContacts({ limit: 500 }) : TheVine.flock.contacts.list({ limit: 500 })).catch(() => []),
+        _fetch('journal',    () => { console.log('[FLOCK-DEBUG] upper-room: fetching journal via ' + (_isFirebaseComms() ? 'Firestore' : 'GAS')); return _isFirebaseComms() ? UpperRoom.listJournal({ limit: 200 }) : TheVine.flock.journal.list({ limit: 200 }); }).catch(e => { console.error('[FLOCK-DEBUG] upper-room: journal fetch ERROR:', e); return []; }),
+        _fetch('prayer',     () => { console.log('[FLOCK-DEBUG] upper-room: fetching prayer via ' + (_isFirebaseComms() ? 'Firestore' : 'GAS')); return _isFirebaseComms() ? UpperRoom.listPrayers({ limit: 200 }) : TheVine.flock.prayer.list({ limit: 200 }); }).catch(e => { console.error('[FLOCK-DEBUG] upper-room: prayer fetch ERROR:', e); return []; }),
+        _fetch('care',       () => { console.log('[FLOCK-DEBUG] upper-room: fetching care via ' + (_isFirebaseComms() ? 'Firestore' : 'GAS')); return _isFirebaseComms() ? UpperRoom.listCareCases({ limit: 200 }) : TheVine.flock.care.list({ limit: 200 }); }).catch(e => { console.error('[FLOCK-DEBUG] upper-room: care fetch ERROR:', e); return []; }),
+        _fetch('compassion', () => { console.log('[FLOCK-DEBUG] upper-room: fetching compassion via ' + (_isFirebaseComms() ? 'Firestore' : 'GAS')); return _isFirebaseComms() ? UpperRoom.listCompassionRequests({ limit: 200 }) : TheVine.flock.compassion.requests.list({ limit: 200 }); }).catch(e => { console.error('[FLOCK-DEBUG] upper-room: compassion fetch ERROR:', e); return []; }),
+        _fetch('contacts',   () => { console.log('[FLOCK-DEBUG] upper-room: fetching contacts via ' + (_isFirebaseComms() ? 'Firestore' : 'GAS')); return _isFirebaseComms() ? UpperRoom.listContacts({ limit: 500 }) : TheVine.flock.contacts.list({ limit: 500 }); }).catch(e => { console.error('[FLOCK-DEBUG] upper-room: contacts fetch ERROR:', e); return []; }),
       ] : [];
+      console.log('[FLOCK-DEBUG] upper-room: awaiting ' + publicFetches.length + ' public + ' + privateFetches.length + ' private fetches…');
       const allResults = await Promise.all([...publicFetches, ...privateFetches]);
+      console.log('[FLOCK-DEBUG] upper-room: ALL FETCHES DONE in ' + (Date.now() - _urFetchStart) + 'ms — results: ' + allResults.map(function(r,i){ return '[' + i + ']=' + (Array.isArray(r) ? r.length + ' rows' : typeof r); }).join(', '));
 
       const devRaw  = allResults[0];
       const readRaw = allResults[1];
@@ -13760,10 +13780,14 @@ const Modules = (() => {
   // 28b. JOURNAL  (readonly+ — personal journal entries)
   // ═══════════════════════════════════════════════════════════════════════
   _def('journal', async el => {
+    console.log('[FLOCK-DEBUG] journal view START — _commsMode=' + _commsMode + ', _isFirebaseComms()=' + _isFirebaseComms() + ', UpperRoom.isReady=' + (typeof UpperRoom !== 'undefined' ? UpperRoom.isReady() : 'N/A'));
     _shell(el, 'Journal', 'Personal journal — pray, study & reflect',
       _btn('+ New Entry', "Modules.newJournal()"));
     try {
+      console.log('[FLOCK-DEBUG] journal: fetching via ' + (_isFirebaseComms() ? 'Firestore (UpperRoom.listJournal)' : 'GAS (TheVine.flock.journal.list)'));
+      var _jStart = Date.now();
       const res  = await (_isFirebaseComms() ? UpperRoom.listJournal({ limit: 200 }) : TheVine.flock.journal.list({ limit: 200 }));
+      console.log('[FLOCK-DEBUG] journal: fetch complete in ' + (Date.now() - _jStart) + 'ms — res type=' + typeof res + ', isArray=' + Array.isArray(res) + ', length=' + (res ? (res.length || 'N/A') : 'null'));
       const rows = _rows(res);
       _dataCache['journal'] = rows;
 
@@ -20924,8 +20948,9 @@ const Modules = (() => {
    *   • TTL is backend-aware: 30s for Firestore, 2min for GAS.
    */
   function render(name, el, session) {
-    if (!_reg[name]) return false;
-    if (!_isModuleEnabled(name)) return false;
+    console.log('[FLOCK-DEBUG] render("' + name + '") called — _commsMode=' + _commsMode + ', perfBackend=' + _perfProfile.backend + ', session=' + !!(session && session.email));
+    if (!_reg[name]) { console.warn('[FLOCK-DEBUG] render("' + name + '") — NOT REGISTERED'); return false; }
+    if (!_isModuleEnabled(name)) { console.warn('[FLOCK-DEBUG] render("' + name + '") — DISABLED'); return false; }
 
     // Resolve backend profile on first render (session is known by now)
     _perfDetect();
@@ -20936,6 +20961,7 @@ const Modules = (() => {
     // Serve from view cache if fresh — instant navigation
     var cached = _viewCacheGet(name);
     if (cached) {
+      console.log('[FLOCK-DEBUG] render("' + name + '") — SERVING FROM CACHE (age=' + (Date.now() - (_viewCache[name] ? _viewCache[name].ts : 0)) + 'ms)');
       el.innerHTML = cached;
       el.dataset.loaded = '1';
       return true;
@@ -20953,14 +20979,19 @@ const Modules = (() => {
       spinnerShown = true;
     }
 
-    _loadCommsMode().catch(function() {}).then(function() {
+    var _renderStart = Date.now();
+    console.log('[FLOCK-DEBUG] render("' + name + '") — waiting for _loadCommsMode…');
+    _loadCommsMode().catch(function(e) { console.error('[FLOCK-DEBUG] render("' + name + '") _loadCommsMode failed:', e); }).then(function() {
+      console.log('[FLOCK-DEBUG] render("' + name + '") — _loadCommsMode done (' + (Date.now() - _renderStart) + 'ms), _commsMode=' + _commsMode + ', executing view handler…');
       return _reg[name](el, session);
     }).then(function() {
+      console.log('[FLOCK-DEBUG] render("' + name + '") — view handler COMPLETE (' + (Date.now() - _renderStart) + 'ms)');
       if (spinnerTimer) clearTimeout(spinnerTimer);
       // Cache the rendered view for quick re-navigation
       _viewCacheSet(name, el);
     }).catch(err => {
       if (spinnerTimer) clearTimeout(spinnerTimer);
+      console.error('[FLOCK-DEBUG] render("' + name + '") — CAUGHT ERROR (' + (Date.now() - _renderStart) + 'ms):', err);
       console.error('Module error [' + name + ']:', err);
       el.innerHTML =
         '<div style="padding:48px 24px;text-align:center;">'
