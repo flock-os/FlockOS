@@ -117,6 +117,12 @@
     }
     _db   = firebase.firestore();
     _auth = firebase.auth();
+
+    // Safari's WebChannel streaming transport can stall for ~30s on collection
+    // queries before falling back to long polling. This setting detects the
+    // stall and falls back immediately instead of waiting for the timeout.
+    try { _db.settings({ experimentalAutoDetectLongPolling: true, merge: true }); } catch (_) {}
+
     console.log('[FLOCK-DEBUG] UpperRoom.init() — Firestore and Auth initialized, churchId=' + _resolveChurchId());
 
     // Resolve churchId early so _churchRef() works even before authenticate()
