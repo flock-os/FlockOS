@@ -12658,6 +12658,36 @@ const Modules = (() => {
       }
     }
 
+    // ── Paint hero skeleton instantly — no network needed ────────────────
+    var now      = new Date();
+    var hour     = now.getHours();
+    var greeting = hour < 12 ? 'Good Morning' : hour < 17 ? 'Good Afternoon' : 'Good Evening';
+    var firstName = isLoggedIn
+      ? (session.name || session.displayName || session.email || '').split(/[\s@]/)[0]
+      : '';
+    var dateOpts = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+    var todayStr = now.toLocaleDateString('en-US', dateOpts);
+
+    var skeleton = '<div class="ur-container">';
+    skeleton += '<div class="ur-hero">';
+    skeleton += '<div class="ur-hero-candle">&#128367;</div>';
+    skeleton += '<h1 class="ur-hero-title">The Upper Room</h1>';
+    skeleton += '<p class="ur-hero-greeting">' + _e(greeting) + (firstName ? ', ' + _e(firstName) : '') + '</p>';
+    skeleton += '<p class="ur-hero-date">' + _e(todayStr) + '</p>';
+    skeleton += '</div>';
+    skeleton += '<div class="ur-nav" id="ur-nav">';
+    skeleton += '<button class="ur-nav-tab" onclick="document.getElementById(\'ur-devotional\')&&document.getElementById(\'ur-devotional\').scrollIntoView({behavior:\'smooth\',block:\'start\'})"><span>&#9729;</span> Devotional</button>';
+    skeleton += '<button class="ur-nav-tab" onclick="document.getElementById(\'ur-reading\')&&document.getElementById(\'ur-reading\').scrollIntoView({behavior:\'smooth\',block:\'start\'})"><span>&#128214;</span> Reading</button>';
+    if (isLoggedIn) skeleton += '<button class="ur-nav-tab" onclick="document.getElementById(\'ur-journal\')&&document.getElementById(\'ur-journal\').scrollIntoView({behavior:\'smooth\',block:\'start\'})"><span>&#128221;</span> Journal</button>';
+    skeleton += '<button class="ur-nav-tab" onclick="document.getElementById(\'ur-prayer\')&&document.getElementById(\'ur-prayer\').scrollIntoView({behavior:\'smooth\',block:\'start\'})"><span>&#128591;</span> Prayer</button>';
+    if (isLoggedIn) skeleton += '<button class="ur-nav-tab" onclick="document.getElementById(\'ur-pulse\')&&document.getElementById(\'ur-pulse\').scrollIntoView({behavior:\'smooth\',block:\'start\'})"><span>&#9673;</span> Pulse</button>';
+    skeleton += '</div>';
+    skeleton += '<div id="ur-content">' + _spinner() + '</div>';
+    skeleton += '</div>';
+    el.innerHTML = skeleton;
+
+    // ── Load all data in background, build full content when ready ────
+    (async function _loadUpperRoom() {
     try {
       console.log('[FLOCK-DEBUG] upper-room: starting data fetches — _isFirebaseComms()=' + _isFirebaseComms());
       var _urFetchStart = Date.now();
@@ -12766,31 +12796,34 @@ const Modules = (() => {
       const answeredCount = myPrayers.filter(p => (p['Status'] || p.status || '').toLowerCase() === 'answered').length;
       const activeCount   = myPrayers.length - answeredCount;
 
-      // ── Build HTML ──
-      let h = '<div class="ur-container">';
-
-      // ═══ HERO BANNER ═══
-      h += '<div class="ur-hero">';
-      h += '<div class="ur-hero-candle">&#128367;</div>';
-      h += '<h1 class="ur-hero-title">The Upper Room</h1>';
-      h += '<p class="ur-hero-greeting">' + _e(greeting) + (firstName ? ', ' + _e(firstName) : '') + '</p>';
-      h += '<p class="ur-hero-date">' + _e(todayStr) + '</p>';
+      // ── Update hero with scripture verse if available ──
       if (todayDevFinal['Scripture']) {
-        h += '<p class="ur-hero-verse">&ldquo;' + _bibleLink(todayDevFinal['Scripture']) + '&rdquo;</p>';
+        var heroEl = el.querySelector('.ur-hero');
+        if (heroEl) {
+          var vp = document.createElement('p');
+          vp.className = 'ur-hero-verse';
+          vp.innerHTML = '&ldquo;' + _bibleLink(todayDevFinal['Scripture']) + '&rdquo;';
+          heroEl.appendChild(vp);
+        }
       }
-      h += '</div>';
 
-      // ═══ SECTION NAV TABS ═══
-      h += '<div class="ur-nav" id="ur-nav">';
-      h += '<button class="ur-nav-tab" onclick="document.getElementById(\'ur-devotional\').scrollIntoView({behavior:\'smooth\',block:\'start\'})"><span>&#9729;</span> Devotional</button>';
-      if (hasReading) h += '<button class="ur-nav-tab" onclick="document.getElementById(\'ur-reading\').scrollIntoView({behavior:\'smooth\',block:\'start\'})"><span>&#128214;</span> Reading</button>';
-      if (isLoggedIn) h += '<button class="ur-nav-tab" onclick="document.getElementById(\'ur-journal\').scrollIntoView({behavior:\'smooth\',block:\'start\'})"><span>&#128221;</span> Journal</button>';
-      h += '<button class="ur-nav-tab" onclick="document.getElementById(\'ur-prayer\').scrollIntoView({behavior:\'smooth\',block:\'start\'})"><span>&#128591;</span> Prayer</button>';
-      if (myCare.length || myCompassion.length) {
-        h += '<button class="ur-nav-tab" onclick="document.getElementById(\'ur-care\').scrollIntoView({behavior:\'smooth\',block:\'start\'})"><span>&#10084;</span> My Care</button>';
+      // ── Update nav with conditional tabs ──
+      var navEl = document.getElementById('ur-nav');
+      if (navEl) {
+        var navHtml = '';
+        navHtml += '<button class="ur-nav-tab" onclick="document.getElementById(\'ur-devotional\').scrollIntoView({behavior:\'smooth\',block:\'start\'})"><span>&#9729;</span> Devotional</button>';
+        if (hasReading) navHtml += '<button class="ur-nav-tab" onclick="document.getElementById(\'ur-reading\').scrollIntoView({behavior:\'smooth\',block:\'start\'})"><span>&#128214;</span> Reading</button>';
+        if (isLoggedIn) navHtml += '<button class="ur-nav-tab" onclick="document.getElementById(\'ur-journal\').scrollIntoView({behavior:\'smooth\',block:\'start\'})"><span>&#128221;</span> Journal</button>';
+        navHtml += '<button class="ur-nav-tab" onclick="document.getElementById(\'ur-prayer\').scrollIntoView({behavior:\'smooth\',block:\'start\'})"><span>&#128591;</span> Prayer</button>';
+        if (myCare.length || myCompassion.length) {
+          navHtml += '<button class="ur-nav-tab" onclick="document.getElementById(\'ur-care\').scrollIntoView({behavior:\'smooth\',block:\'start\'})"><span>&#10084;</span> My Care</button>';
+        }
+        if (isLoggedIn) navHtml += '<button class="ur-nav-tab" onclick="document.getElementById(\'ur-pulse\').scrollIntoView({behavior:\'smooth\',block:\'start\'})"><span>&#9673;</span> Pulse</button>';
+        navEl.innerHTML = navHtml;
       }
-      if (isLoggedIn) h += '<button class="ur-nav-tab" onclick="document.getElementById(\'ur-pulse\').scrollIntoView({behavior:\'smooth\',block:\'start\'})"><span>&#9673;</span> Pulse</button>';
-      h += '</div>';
+
+      // ── Build content HTML (sections only — hero+nav already painted) ──
+      let h = '';
 
       // ═══ 1. TODAY'S DEVOTIONAL ═══
       h += '<section class="ur-section" id="ur-devotional">';
@@ -13168,10 +13201,15 @@ const Modules = (() => {
       h += '</div></div>';
 
       h += '</div>'; // end ur-container
-      el.innerHTML = h;
+
+      var contentEl = document.getElementById('ur-content');
+      if (contentEl) contentEl.innerHTML = h;
     } catch (e) {
-      _body(el, _errHtml(e.message));
+      var contentEl2 = document.getElementById('ur-content');
+      if (contentEl2) contentEl2.innerHTML = _errHtml(e.message);
+      else _body(el, _errHtml(e.message));
     }
+    })();
   });
 
   // ── Upper Room: save journal entry ──
