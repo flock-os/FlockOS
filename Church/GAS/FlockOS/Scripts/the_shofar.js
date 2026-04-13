@@ -723,52 +723,67 @@ function msShowArrangementView(arr) {
     var capoFret = Number(arr.capo) || 0;
     var currentSemitones = 0;
 
-    function renderModalBody(semitones) {
-        var displayKey = msTransposeChord(originalKey, semitones) || originalKey;
-        var transposedText = msResolveChordContent(song, arr, semitones);
-        var soundingKey = capoFret ? msCapoSoundingKey(displayKey, capoFret) : displayKey;
-
-        modal.innerHTML =
-            '<div class="ms-modal-header">' +
-                '<h3 class="ms-modal-title">' + msEscapeHtml(songTitle) + ' \u2014 ' + msEscapeHtml(arr.name) + '</h3>' +
-                '<button class="ms-close-btn" id="ms-arr-view-close">&times;</button>' +
-            '</div>' +
-            '<div class="ms-stand-meta">' +
-                '<span class="ms-stand-badge">Key: ' + msEscapeHtml(displayKey) + (semitones !== 0 ? ' <span style="color:#94a3b8;font-size:0.8em;">(orig: ' + msEscapeHtml(originalKey) + ')</span>' : '') + '</span>' +
-                (capoFret ? '<span class="ms-stand-badge">Capo ' + capoFret + ' \u2192 sounds: ' + msEscapeHtml(soundingKey) + '</span>' : '') +
-                '<span class="ms-stand-badge">' + msEscapeHtml(arr.instrument || 'Guitar') + '</span>' +
-            '</div>' +
-            msTransposeControls(originalKey, displayKey, capoFret, 'ms-av') +
-            (transposedText ?
-                '<div class="ms-chord-display">' + msRenderChordPro(transposedText) + '</div>'
-            : arr.chordChart ?
-                '<div class="ms-chord-display">' + msEscapeHtml(arr.chordChart) + '</div>'
-            : '<p style="color:#94a3b8; text-align:center;">No chord chart available.</p>') +
-            '<div style="text-align:right; margin-top:12px;">' +
-                '<button class="ms-btn ms-btn-secondary" id="ms-arr-pdf-btn">Export PDF</button>' +
-            '</div>';
-
-        msBindTransposeControls(originalKey, semitones, capoFret, 'ms-av', function(newSemitones) {
-            currentSemitones = newSemitones;
-            renderModalBody(newSemitones);
-        });
-
-        document.getElementById('ms-arr-view-close').addEventListener('click', function() {
-            overlay.classList.remove('ms-visible');
-            overlay.setAttribute('aria-hidden', 'true');
-        });
-
-        document.getElementById('ms-arr-pdf-btn').addEventListener('click', function() {
-            var resolvedContent = msResolveChordContent(song, arr, currentSemitones);
-            var pdfArr = Object.assign({}, arr, {
-                key: msTransposeChord(originalKey, currentSemitones) || originalKey,
-                lyricsWithChords: resolvedContent || (arr.lyricsWithChords ? msTransposeChordPro(arr.lyricsWithChords, currentSemitones) : arr.lyricsWithChords)
-            });
-            msExportArrangementPDF(song, pdfArr);
-        });
+    function buildChordHtml(semitones) {
+        var text = msResolveChordContent(song, arr, semitones);
+        if (text) return msRenderChordPro(text);
+        if (arr.chordChart) return '<span class="ms-lyric-line">' + msEscapeHtml(arr.chordChart) + '</span>';
+        return '<p style="color:#94a3b8; text-align:center;">No chord chart available.</p>';
     }
 
-    renderModalBody(0);
+    var initKey = originalKey;
+    var initSounding = capoFret ? msCapoSoundingKey(initKey, capoFret) : initKey;
+
+    // Build the modal once — only chord content and key badge are updated on transpose
+    modal.innerHTML =
+        '<div class="ms-modal-header">' +
+            '<h3 class="ms-modal-title">' + msEscapeHtml(songTitle) + ' \u2014 ' + msEscapeHtml(arr.name) + '</h3>' +
+            '<button class="ms-close-btn" id="ms-arr-view-close">&times;</button>' +
+        '</div>' +
+        '<div class="ms-stand-meta">' +
+            '<span class="ms-stand-badge" id="ms-av-key-badge">Key: ' + msEscapeHtml(initKey) + '</span>' +
+            (capoFret ? '<span class="ms-stand-badge">Capo ' + capoFret + ' \u2192 sounds: <span id="ms-av-sounding-key">' + msEscapeHtml(initSounding) + '</span></span>' : '') +
+            '<span class="ms-stand-badge">' + msEscapeHtml(arr.instrument || 'Guitar') + '</span>' +
+        '</div>' +
+        msTransposeControls(originalKey, initKey, capoFret, 'ms-av') +
+        '<div class="ms-chord-display" id="ms-av-chord-content">' + buildChordHtml(0) + '</div>' +
+        '<div style="text-align:right; margin-top:12px;">' +
+            '<button class="ms-btn ms-btn-secondary" id="ms-arr-pdf-btn">Export PDF</button>' +
+        '</div>';
+
+    // Transpose: only update chord content and key badge — no full rebuild
+    msBindTransposeControls(originalKey, 0, capoFret, 'ms-av', function(newSemitones) {
+        currentSemitones = newSemitones;
+        var newKey = msTransposeChord(originalKey, newSemitones) || originalKey;
+
+        var chordDiv = document.getElementById('ms-av-chord-content');
+        if (chordDiv) chordDiv.innerHTML = buildChordHtml(newSemitones);
+
+        var keyBadge = document.getElementById('ms-av-key-badge');
+        if (keyBadge) {
+            keyBadge.innerHTML = 'Key: ' + msEscapeHtml(newKey) +
+                (newSemitones !== 0 ? ' <span style="color:#94a3b8;font-size:0.8em;">(orig: ' + msEscapeHtml(originalKey) + ')</span>' : '');
+        }
+
+        if (capoFret) {
+            var soundingSpan = document.getElementById('ms-av-sounding-key');
+            if (soundingSpan) soundingSpan.textContent = msCapoSoundingKey(newKey, capoFret);
+        }
+    });
+
+    document.getElementById('ms-arr-view-close').addEventListener('click', function() {
+        overlay.classList.remove('ms-visible');
+        overlay.setAttribute('aria-hidden', 'true');
+    });
+
+    document.getElementById('ms-arr-pdf-btn').addEventListener('click', function() {
+        var resolvedContent = msResolveChordContent(song, arr, currentSemitones);
+        var pdfArr = Object.assign({}, arr, {
+            key: msTransposeChord(originalKey, currentSemitones) || originalKey,
+            lyricsWithChords: resolvedContent || (arr.lyricsWithChords ? msTransposeChordPro(arr.lyricsWithChords, currentSemitones) : arr.lyricsWithChords)
+        });
+        msExportArrangementPDF(song, pdfArr);
+    });
+
     overlay.classList.add('ms-visible');
     overlay.setAttribute('aria-hidden', 'false');
 
@@ -1249,10 +1264,10 @@ function msRenderStandView() {
                 '<h2 class="ms-stand-song-title">' + msEscapeHtml(song.title) + '</h2>' +
             '</div>' +
             '<div class="ms-stand-meta">' +
-                '<span class="ms-stand-badge">Key: ' + msEscapeHtml(displayKey) + (semitones !== 0 ? ' <span style="font-size:0.8em;opacity:0.7;">(orig: ' + msEscapeHtml(originalKey) + ')</span>' : '') + '</span>' +
+                '<span class="ms-stand-badge" id="ms-sv-key-badge">Key: ' + msEscapeHtml(displayKey) + (semitones !== 0 ? ' <span style="font-size:0.8em;opacity:0.7;">(orig: ' + msEscapeHtml(originalKey) + ')</span>' : '') + '</span>' +
                 (song.tempoBpm ? '<span class="ms-stand-badge">' + song.tempoBpm + ' BPM</span>' : '') +
                 (song.timeSignature ? '<span class="ms-stand-badge">' + msEscapeHtml(song.timeSignature) + '</span>' : '') +
-                (capoFret ? '<span class="ms-stand-badge">Capo ' + capoFret + ' \u2192 sounds: ' + msEscapeHtml(soundingKey) + '</span>' : '') +
+                (capoFret ? '<span class="ms-stand-badge">Capo ' + capoFret + ' \u2192 sounds: <span id="ms-sv-sounding-key">' + msEscapeHtml(soundingKey) + '</span></span>' : '') +
                 (arr && arr.instrument ? '<span class="ms-stand-badge">' + msEscapeHtml(arr.instrument) + '</span>' : '') +
                 (song.artist ? '<span class="ms-stand-badge">' + msEscapeHtml(song.artist) + '</span>' : '') +
             '</div>';
@@ -1263,13 +1278,13 @@ function msRenderStandView() {
         // Show chord chart — priority: ChordPro (arr or auto-transposed from song.chordSheet) / arr plain chart / lyrics
         var resolvedChords = msResolveChordContent(song, arr, semitones);
         if (resolvedChords) {
-            html += '<div class="ms-chord-display">' + msRenderChordPro(resolvedChords) + '</div>';
+            html += '<div class="ms-chord-display" id="ms-sv-chord-content">' + msRenderChordPro(resolvedChords) + '</div>';
         } else if (arr && arr.chordChart) {
-            html += '<div class="ms-chord-display">' + msEscapeHtml(arr.chordChart) + '</div>';
+            html += '<div class="ms-chord-display" id="ms-sv-chord-content">' + msEscapeHtml(arr.chordChart) + '</div>';
         } else if (song.lyrics) {
-            html += '<div class="ms-chord-display">' + msEscapeHtml(song.lyrics) + '</div>';
+            html += '<div class="ms-chord-display" id="ms-sv-chord-content">' + msEscapeHtml(song.lyrics) + '</div>';
         } else {
-            html += '<div class="ms-card" style="text-align:center;"><p style="color:#94a3b8;">No chord chart or lyrics available for this song.</p></div>';
+            html += '<div class="ms-card" id="ms-sv-chord-content" style="text-align:center;"><p style="color:#94a3b8;">No chord chart or lyrics available for this song.</p></div>';
         }
 
         // Navigation
@@ -1359,7 +1374,37 @@ function msRenderStandView() {
         })();
         msBindTransposeControls(svOrigKey, musicStandAppState.standSemitones[idx] || 0, svCapo, 'ms-sv', function(newSemitones) {
             musicStandAppState.standSemitones[idx] = newSemitones;
-            msRenderStandView();
+            var newKey = msTransposeChord(svOrigKey, newSemitones) || svOrigKey;
+            var ci = songItems[idx];
+
+            // Update chord content only — no full page re-render
+            var chordDiv = document.getElementById('ms-sv-chord-content');
+            if (chordDiv && ci) {
+                var newResolved = msResolveChordContent(ci.song, ci.arrangement, newSemitones);
+                if (newResolved) {
+                    chordDiv.className = 'ms-chord-display';
+                    chordDiv.innerHTML = msRenderChordPro(newResolved);
+                } else if (ci.arrangement && ci.arrangement.chordChart) {
+                    chordDiv.className = 'ms-chord-display';
+                    chordDiv.innerHTML = msEscapeHtml(ci.arrangement.chordChart);
+                } else if (ci.song && ci.song.lyrics) {
+                    chordDiv.className = 'ms-chord-display';
+                    chordDiv.innerHTML = msEscapeHtml(ci.song.lyrics);
+                }
+            }
+
+            // Update key badge
+            var keyBadge = document.getElementById('ms-sv-key-badge');
+            if (keyBadge) {
+                keyBadge.innerHTML = 'Key: ' + msEscapeHtml(newKey) +
+                    (newSemitones !== 0 ? ' <span style="font-size:0.8em;opacity:0.7;">(orig: ' + msEscapeHtml(svOrigKey) + ')</span>' : '');
+            }
+
+            // Update sounding key
+            if (svCapo) {
+                var soundingSpan = document.getElementById('ms-sv-sounding-key');
+                if (soundingSpan) soundingSpan.textContent = msCapoSoundingKey(newKey, svCapo);
+            }
         });
     }
 
