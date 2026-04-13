@@ -2680,7 +2680,9 @@ const TheLife = (() => {
 
     var h = '<div class="fp-editor">';
     h += '<div class="fp-topbar"><button class="fp-back" onclick="TheLife.backToHub()">\u2190 My Flock</button>'
-       + '<h2 class="fp-title">\u2764\uFE0F Care \u0026 Outreach</h2></div>';
+       + '<h2 class="fp-title">\u2764\uFE0F Care \u0026 Outreach</h2>'
+       + '<button onclick="TheLife._careSummaryPrint()" style="margin-left:auto;background:var(--accent);color:var(--ink-inverse);border:none;border-radius:6px;padding:6px 14px;font-weight:600;font-size:0.78rem;cursor:pointer;font-family:inherit;">📦 Print Summary</button>'
+       + '</div>';
 
     // KPI strip
     h += '<div class="flock-kpi-row" style="margin-bottom:14px;">';
@@ -3740,6 +3742,51 @@ const TheLife = (() => {
 
 
   // ══════════════════════════════════════════════════════════════════════════
+  // PDF / PRINT
+  // ══════════════════════════════════════════════════════════════════════════
+
+  /** Print care cases summary report via Modules._printReport */
+  async function _careSummaryPrint() {
+    var _pr = (typeof Modules !== 'undefined' && Modules._printReport) ? Modules._printReport : null;
+    if (!_pr) { alert('Print not available.'); return; }
+    var _esc = function(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; };
+    var toast = (typeof Modules !== 'undefined' && Modules._toast) ? Modules._toast : function() {};
+    toast('Preparing care summary…', 'info');
+    try {
+      var res = await (_isFB() ? UpperRoom.listCareCases({}) : TheVine.flock.care.list({}));
+      var rows = _rows(res);
+      var open = rows.filter(function(c) { var s = (c.status || '').toLowerCase(); return s !== 'resolved' && s !== 'closed'; });
+      var resolved = rows.length - open.length;
+      var priorities = { urgent: 0, high: 0, normal: 0, low: 0 };
+      open.forEach(function(c) {
+        var p = (c.priority || 'normal').toLowerCase();
+        if (p === 'urgent' || p === 'critical') priorities.urgent++;
+        else if (p === 'high') priorities.high++;
+        else if (p === 'low') priorities.low++;
+        else priorities.normal++;
+      });
+      var statsHtml = '<div class="rpt-stats">'
+        + '<div class="rpt-stat"><div class="rpt-stat-label">Open Cases</div><div class="rpt-stat-value">' + open.length + '</div></div>'
+        + '<div class="rpt-stat"><div class="rpt-stat-label">Resolved</div><div class="rpt-stat-value">' + resolved + '</div></div>'
+        + '<div class="rpt-stat"><div class="rpt-stat-label">Urgent / High</div><div class="rpt-stat-value">' + (priorities.urgent + priorities.high) + '</div></div>'
+        + '<div class="rpt-stat"><div class="rpt-stat-label">Total Cases</div><div class="rpt-stat-value">' + rows.length + '</div></div>'
+        + '</div>';
+      var sorted = open.concat(rows.filter(function(c) { var s = (c.status || '').toLowerCase(); return s === 'resolved' || s === 'closed'; }));
+      var html = '<table><thead><tr><th>Member</th><th>Care Type</th><th>Priority</th><th>Status</th><th>Opened</th><th>Summary</th></tr></thead><tbody>';
+      sorted.forEach(function(c) {
+        html += '<tr><td>' + _esc(_memberName(c.memberId) || c.memberId || '') + '</td>'
+          + '<td>' + _esc(c.careType || c.type || '') + '</td>'
+          + '<td>' + _esc(c.priority || '') + '</td>'
+          + '<td>' + _esc(c.status || '') + '</td>'
+          + '<td>' + _esc(c.openedDate || c.createdAt || '') + '</td>'
+          + '<td>' + _esc((c.summary || '').substring(0, 60)) + '</td></tr>';
+      });
+      html += '</tbody></table>';
+      _pr('Care Summary Report', statsHtml + html, { landscape: true });
+    } catch (e) { toast('Error: ' + e.message, 'danger'); }
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
   // PUBLIC API
   // ══════════════════════════════════════════════════════════════════════════
 
@@ -3778,6 +3825,7 @@ const TheLife = (() => {
     viewMemberFromCase:   viewMemberFromCase,
     showFollowUps:        showFollowUps,
     loadMemberCareHistory: loadMemberCareHistory,
+    _careSummaryPrint:     _careSummaryPrint,
 
     // Full-page editors: Prayer
     openPrayer:      openPrayer,

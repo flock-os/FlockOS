@@ -100,6 +100,9 @@ self.addEventListener('fetch', (event) => {
   // Skip non-GET (POST, etc.) — let them go to network
   if (event.request.method !== 'GET') return;
 
+  // Skip unsupported schemes (chrome-extension://, etc.)
+  if (!url.protocol.startsWith('http')) return;
+
   // ── API calls → network-first, cache fallback ──────────────────────────
   if (API_HOSTS.some(h => url.hostname.includes(h))) {
     event.respondWith(networkFirstAPI(event.request));
@@ -199,4 +202,41 @@ self.addEventListener('message', (event) => {
   if (event.data === 'clearCache') {
     caches.keys().then(keys => keys.forEach(k => caches.delete(k)));
   }
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// PUSH NOTIFICATIONS (FCM / Web Push)
+// ══════════════════════════════════════════════════════════════════════════════
+
+self.addEventListener('push', (event) => {
+  let data = {};
+  try { data = event.data ? event.data.json() : {}; } catch (_) {}
+
+  const title = data.title || data.notification?.title || 'FlockOS';
+  const options = {
+    body:    data.body    || data.notification?.body    || '',
+    icon:    data.icon    || data.notification?.icon    || '/FlockOS/Images/FlockOS_Camo.png',
+    badge:   data.badge   || '/FlockOS/Images/FlockOS_Camo.png',
+    tag:     data.tag     || 'flockos-push',
+    data:    data.data    || data.click_action ? { url: data.click_action } : {},
+    vibrate: [100, 50, 100],
+    actions: data.actions || [],
+  };
+
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const url = (event.notification.data && event.notification.data.url) || '/FlockOS/Pages/the_good_shepherd.html';
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+      for (const client of windowClients) {
+        if (client.url.includes('the_good_shepherd') && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      return clients.openWindow(url);
+    })
+  );
 });

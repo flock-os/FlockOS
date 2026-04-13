@@ -957,6 +957,7 @@
 <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging-compat.js"></script>
 <script defer src="../Scripts/the_upper_room.js"></script>
 <script defer src="../Scripts/fine_linen.js"></script>
 <script defer src="../Scripts/the_true_vine.js"></script>
@@ -1046,6 +1047,70 @@ if (!session) throw new Error('Not authenticated');
       .catch(function() {}); // fail open
   }
 })();
+
+// ══════════════════════════════════════════════════════════════════════════════
+// PUSH NOTIFICATIONS — FCM Web Push
+// ══════════════════════════════════════════════════════════════════════════════
+
+var _pushSubscribed = false;
+
+/**
+ * Request notification permission and subscribe to FCM.
+ * Stores FCM token in Firestore pushTokens/{email} for backend to send to.
+ */
+async function _pushSubscribe() {
+  if (_pushSubscribed) return;
+  try {
+    if (!('Notification' in window) || !('serviceWorker' in navigator)) return;
+    if (typeof firebase === 'undefined' || !firebase.messaging) return;
+
+    var permission = Notification.permission;
+    if (permission === 'denied') return;
+
+    if (permission === 'default') {
+      permission = await Notification.requestPermission();
+      if (permission !== 'granted') return;
+    }
+
+    var messaging = firebase.messaging();
+    // Use the existing service worker registration
+    var swReg = await navigator.serviceWorker.ready;
+    messaging.useServiceWorker(swReg);
+
+    var token = await messaging.getToken({
+      vapidKey: 'BNoLlbGU7a7SB9EJYDUhDH3FnIvpUc-Ecp8Y-x3kLCAWGcTh4Gk_bHp8MYTFiU_7Y9Cc3VfgAiVkGbFqS7f27I'
+    });
+    if (!token) return;
+
+    // Store token in Firestore
+    var db = firebase.firestore();
+    var email = session && session.email ? session.email : null;
+    if (!email || !db) return;
+
+    await db.collection('pushTokens').doc(email).set({
+      token:     token,
+      email:     email,
+      name:      session.displayName || session.name || '',
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      platform:  navigator.userAgent.includes('Mobile') ? 'mobile' : 'desktop',
+    }, { merge: true });
+
+    _pushSubscribed = true;
+
+    // Foreground message handler
+    messaging.onMessage(function(payload) {
+      var n = payload.notification || payload.data || {};
+      if (typeof Modules !== 'undefined' && Modules._toast) {
+        Modules._toast((n.title || 'Notification') + (n.body ? ': ' + n.body : ''), 'info');
+      }
+    });
+  } catch (e) {
+    console.warn('Push subscribe error:', e);
+  }
+}
+
+// Auto-subscribe after 3s delay (non-blocking)
+setTimeout(function() { _pushSubscribe(); }, 3000);
 
 // ── Populate Top Bar ───────────────────────────────────────────────────────
 const _firstName = (session.displayName || '').split(' ')[0] || session.email;
@@ -1529,9 +1594,6 @@ function _renderChangelog(el) {
           ' <span id="changelog-badge" style="background:var(--gold);color:#fff;font-size:0.6rem;font-weight:700;padding:1px 5px;border-radius:8px;vertical-align:top;">NEW</span>');
       }
     }
-  } catch(_) {}
-})();
-
   } catch(_) {}
 })();
 

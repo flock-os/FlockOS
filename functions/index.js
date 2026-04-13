@@ -31,8 +31,10 @@
  */
 
 const { onDocumentWritten } = require("firebase-functions/v2/firestore");
+const { onSchedule }       = require("firebase-functions/v2/scheduler");
 const { initializeApp }     = require("firebase-admin/app");
 const { getFirestore }      = require("firebase-admin/firestore");
+const { getMessaging }      = require("firebase-admin/messaging");
 const { defineSecret }      = require("firebase-functions/params");
 const { onCall }            = require("firebase-functions/v2/https");
 
@@ -478,3 +480,205 @@ async function _pushConfigKeyToAllChurches(key, value, description, category) {
 
   return results;
 }
+
+// ══════════════════════════════════════════════════════════════════════════
+// PUSH NOTIFICATIONS — send push via FCM
+// ══════════════════════════════════════════════════════════════════════════
+
+/**
+ * sendPushNotification — Callable Cloud Function
+ * Sends push notification to specified user(s) or all subscribed users.
+ * Reads FCM tokens from pushTokens/{email} collection.
+ *
+ * @param {object} data
+ * @param {string} data.title   - notification title
+ * @param {string} data.body    - notification body
+ * @param {string[]} [data.recipients] - array of emails; omit for broadcast
+ * @param {string} [data.icon]  - notification icon URL
+ * @param {string} [data.click_action] - URL to open on click
+ * @param {string} [data.tag]   - notification tag for dedup
+ */
+exports.sendPushNotification = onCall(async (request) => {
+  const data = request.data || {};
+  if (!data.title) throw new Error("title is required");
+
+  const messaging = getMessaging();
+  let tokens = [];
+
+  if (data.recipients && Array.isArray(data.recipients) && data.recipients.length > 0) {
+    // Send to specific users
+    const snapshots = await Promise.all(
+      data.recipients.map(email => db.collection("pushTokens").doc(email).get())
+    );
+    snapshots.forEach(snap => {
+      if (snap.exists && snap.data().token) tokens.push(snap.data().token);
+    });
+  } else {
+    // Broadcast to all subscribed users
+    const allTokens = await db.collection("pushTokens").get();
+    allTokens.forEach(doc => {
+      if (doc.data().token) tokens.push(doc.data().token);
+    });
+  }
+
+  if (!tokens.length) return { sent: 0, message: "No push tokens found" };
+
+  const message = {
+    notification: {
+      title: data.title,
+      body:  data.body || "",
+    },
+    data: {
+      title:        data.title || "",
+      body:         data.body  || "",
+      click_action: data.click_action || "",
+      tag:          data.tag   || "flockos-push",
+    },
+    tokens: tokens,
+  };
+
+  const result = await messaging.sendEachForMulticast(message);
+
+  // Clean up invalid tokens
+  if (result.failureCount > 0) {
+    const invalidTokens = [];
+    result.responses.forEach((resp, idx) => {
+      if (!resp.success && resp.error &&
+          (resp.error.code === "messaging/invalid-registration-token" ||
+           resp.error.code === "messaging/registration-token-not-registered")) {
+        invalidTokens.push(tokens[idx]);
+      }
+    });
+    if (invalidTokens.length > 0) {
+      const batch = db.batch();
+      const allDocs = await db.collection("pushTokens").where("token", "in", invalidTokens).get();
+      allDocs.forEach(doc => batch.delete(doc.ref));
+      await batch.commit().catch(() => {});
+    }
+  }
+
+  return { sent: result.successCount, failed: result.failureCount };
+});
+
+/**
+ * Firestore trigger: auto-send push for high-priority care cases.
+ * Fires when a care case is created with priority Critical or High.
+ */
+exports.pushOnCriticalCare = onDocumentWritten("care/{docId}", async (event) => {
+  const after = event.data?.after?.data();
+  const before = event.data?.before?.data();
+  if (!after) return; // deleted
+
+  // Only trigger on new cases or priority escalation to Critical/High
+  const priority = (after.priority || "").toLowerCase();
+  if (priority !== "critical" && priority !== "high" && priority !== "urgent") return;
+
+  // Don't re-trigger if priority didn't change
+  if (before && (before.priority || "").toLowerCase() === priority) return;
+
+  const messaging = getMessaging();
+
+  // Get all pastor+ role tokens (or fall back to all tokens)
+  const allTokens = await db.collection("pushTokens").get();
+  const tokens = [];
+  allTokens.forEach(doc => {
+    if (doc.data().token) tokens.push(doc.data().token);
+  });
+
+  if (!tokens.length) return;
+
+  await messaging.sendEachForMulticast({
+    notification: {
+      title: "⚠️ " + (priority === "critical" || priority === "urgent" ? "URGENT" : "High Priority") + " Care Case",
+      body:  (after.careType || "Care case") + " — " + (after.summary || "").substring(0, 80),
+    },
+    data: {
+      click_action: "/FlockOS/Pages/the_good_shepherd.html",
+      tag: "care-" + event.params.docId,
+    },
+    tokens: tokens,
+  }).catch(err => console.error("[pushOnCriticalCare]", err.message));
+});
+
+// ══════════════════════════════════════════════════════════════════════════
+// SCHEDULED EXPORTS — runs every Monday at 7 AM UTC
+// Checks scheduledReports collection for due reports, fetches data via
+// the church's GAS endpoint, and sends summary emails via push notification.
+// ══════════════════════════════════════════════════════════════════════════
+
+exports.processScheduledReports = onSchedule("every monday 07:00", async () => {
+  const now = new Date();
+  const dayOfMonth = now.getDate();
+  const month = now.getMonth();
+  const weekOfYear = Math.ceil((now - new Date(now.getFullYear(), 0, 1)) / (7 * 86400000));
+
+  const snap = await db.collection("scheduledReports").where("enabled", "==", true).get();
+  if (snap.empty) { console.log("[scheduledReports] No active schedules."); return; }
+
+  for (const doc of snap.docs) {
+    const sched = doc.data();
+    const freq = (sched.frequency || "").toLowerCase();
+
+    // Check if this schedule is due
+    let isDue = false;
+    if (freq === "weekly") isDue = true; // every Monday
+    else if (freq === "biweekly") isDue = weekOfYear % 2 === 0;
+    else if (freq === "monthly") isDue = dayOfMonth <= 7; // first Monday of month
+    else if (freq === "quarterly") isDue = dayOfMonth <= 7 && (month % 3 === 0);
+
+    if (!isDue) continue;
+
+    const recipients = sched.recipients || [];
+    if (!recipients.length) continue;
+
+    console.log(`[scheduledReports] Processing: ${sched.reportType} → ${recipients.join(", ")}`);
+
+    try {
+      // Fetch report data from GAS endpoint
+      const config = await _getConfig();
+      if (!config || !config.gasEndpoint) {
+        console.warn("[scheduledReports] No GAS endpoint configured.");
+        continue;
+      }
+
+      const resp = await fetch(config.gasEndpoint + "?action=report." + sched.reportType + "&days=30", {
+        method: "GET",
+        redirect: "follow",
+      });
+      const reportData = await resp.json().catch(() => ({}));
+
+      // Send push notification to each recipient with report summary
+      const messaging = getMessaging();
+      const tokens = [];
+      for (const email of recipients) {
+        const tokenDoc = await db.collection("pushTokens").doc(email).get();
+        if (tokenDoc.exists && tokenDoc.data().token) tokens.push(tokenDoc.data().token);
+      }
+
+      if (tokens.length) {
+        const reportName = sched.reportName || sched.reportType || "Report";
+        const summary = reportData.summary || reportData.message || "Your scheduled report is ready.";
+        await messaging.sendEachForMulticast({
+          notification: {
+            title: "📊 " + reportName,
+            body: typeof summary === "string" ? summary.substring(0, 200) : "Report generated — open FlockOS to view.",
+          },
+          data: {
+            click_action: "/FlockOS/Pages/the_good_shepherd.html",
+            tag: "scheduled-" + doc.id,
+          },
+          tokens: tokens,
+        });
+      }
+
+      // Update last-run timestamp
+      await db.collection("scheduledReports").doc(doc.id).update({
+        lastRun: new Date().toISOString(),
+      });
+
+      console.log(`[scheduledReports] ✓ ${sched.reportType} sent to ${tokens.length} devices`);
+    } catch (err) {
+      console.error(`[scheduledReports] ✗ ${sched.reportType}: ${err.message}`);
+    }
+  }
+});
