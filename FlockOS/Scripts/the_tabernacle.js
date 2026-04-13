@@ -16673,6 +16673,10 @@ const Modules = (() => {
     var resultEl = document.getElementById('master-config-push-result');
     if (resultEl) resultEl.innerHTML = '<span style="color:var(--ink-muted);">&#128640; Pushing to all churches\u2026</span>';
     try {
+      if (typeof firebase === 'undefined' || typeof firebase.functions !== 'function') {
+        if (resultEl) resultEl.innerHTML = '<span style="color:var(--danger);">Firebase Functions SDK not loaded. Add firebase-functions-compat.js to your page.</span>';
+        return;
+      }
       var pushFn = firebase.functions().httpsCallable('pushAllMasterConfig');
       var result = await pushFn({});
       var data   = result.data;
