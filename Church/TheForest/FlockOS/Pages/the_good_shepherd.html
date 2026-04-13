@@ -1075,10 +1075,10 @@ async function _pushSubscribe() {
     var messaging = firebase.messaging();
     // Use the existing service worker registration
     var swReg = await navigator.serviceWorker.ready;
-    messaging.useServiceWorker(swReg);
 
     var token = await messaging.getToken({
-      vapidKey: 'BNoLlbGU7a7SB9EJYDUhDH3FnIvpUc-Ecp8Y-x3kLCAWGcTh4Gk_bHp8MYTFiU_7Y9Cc3VfgAiVkGbFqS7f27I'
+      vapidKey: 'BNoLlbGU7a7SB9EJYDUhDH3FnIvpUc-Ecp8Y-x3kLCAWGcTh4Gk_bHp8MYTFiU_7Y9Cc3VfgAiVkGbFqS7f27I',
+      serviceWorkerRegistration: swReg
     });
     if (!token) return;
 
