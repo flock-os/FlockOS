@@ -12903,6 +12903,7 @@ const Modules = (() => {
   _def('prayer', async (el, session) => {
     _shell(el, '', '', '');
     try {
+      await _loadCommsMode();
       const isLoggedIn = !!(session && session.email);
 
       let html = '<div style="max-width:680px;margin:0 auto;">';
@@ -13766,6 +13767,7 @@ const Modules = (() => {
     _shell(el, 'Journal', 'Personal journal — pray, study & reflect',
       _btn('+ New Entry', "Modules.newJournal()"));
     try {
+      await _loadCommsMode();
       const res  = await (_isFirebaseComms() ? UpperRoom.listJournal({ limit: 200 }) : TheVine.flock.journal.list({ limit: 200 }));
       const rows = _rows(res);
       _dataCache['journal'] = rows;

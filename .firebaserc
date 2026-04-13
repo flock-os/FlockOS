@@ -1,5 +1,8 @@
 {
   "projects": {
-    "default": "flockos-notify"
+    "default": "flockos-notify",
+    "flockos": "flockos-notify",
+    "theforest": "flockos-theforest",
+    "tbc": "flockos-trinity"
   }
 }
