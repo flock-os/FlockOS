@@ -4825,12 +4825,8 @@ details.settings-section.settings-accordion > .settings-accordion-trigger {
 .config-tab-icon {
   font-size: 1rem;
 }
-.config-tab-panel {
-  display: none;
+#settings-content {
   animation: configFadeIn 0.25s ease;
-}
-.config-tab-panel.active {
-  display: block;
 }
 @keyframes configFadeIn {
   from { opacity: 0; transform: translateY(6px); }
