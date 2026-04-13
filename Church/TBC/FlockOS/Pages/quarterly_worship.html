@@ -226,6 +226,9 @@
     .ib:hover { background:var(--bg-hover); color:var(--accent); border-color:var(--accent); }
     .ib.del:hover { background:var(--danger-soft); color:var(--danger); border-color:var(--danger); }
     .ib.imp { color:var(--success); border-color:var(--success); background:var(--success-soft); cursor:default; font-size:.68rem; }
+    /* push-select checkbox */
+    .push-ck { width:16px; height:16px; accent-color:var(--accent); cursor:pointer; margin:0; }
+    th .push-ck { vertical-align:middle; }
 
     /* ── Sidebar ────────────────────────────────────────────────────────── */
     .sidebar { display:flex; flex-direction:column; gap:16px; }
@@ -493,11 +496,11 @@
           <button class="btn btn-secondary" id="btnImport">📥 Import File</button>
           <button class="btn btn-secondary" id="btnGSheet">📊 Google Sheet</button>
           <button class="btn btn-secondary" id="btnPull">⬇ Pull from Plans</button>
+          <button class="btn btn-primary" id="btnPush">⬆ Push Selected to Plans</button>
           <input type="file" id="importFile" accept=".csv,.tsv,.txt,.xlsx,.xls" style="display:none">
           <!-- hidden controls preserved for JS -->
           <select id="optDup" style="display:none;"><option value="update">Update existing</option><option value="skip">Skip</option></select>
           <select id="optPullMerge" style="display:none;"><option value="fill">Fill blanks only</option><option value="overwrite">Overwrite all fields</option><option value="skip">Skip</option></select>
-          <button id="btnPush" style="display:none;"></button>
           <p id="fbNote" style="display:none;"></p>
           <p id="pullNote" style="display:none;"></p>
         </div>
@@ -521,6 +524,7 @@
               <th style="min-width:170px;">Scripture</th>
               <th style="min-width:108px;">Proverb</th>
               <th style="min-width:170px;">Notes / Theme</th>
+              <th style="min-width:36px;width:36px;text-align:center;"><input type="checkbox" class="push-ck" id="ckAll" title="Select / deselect all for push"></th>
               <th style="min-width:60px;width:60px;"></th>
             </tr></thead>
             <tbody id="gridBody"></tbody>
@@ -692,6 +696,15 @@
         xb.type = 'button'; xb.className = 'ib del'; xb.title = 'Delete'; xb.textContent = '✕';
         xb.addEventListener('click', function () { delRow(row.id); });
         rb.appendChild(xb);
+
+        /* Push checkbox */
+        var pktd = document.createElement('td'); pktd.style.textAlign = 'center';
+        var pk = document.createElement('input');
+        pk.type = 'checkbox'; pk.className = 'push-ck'; pk.dataset.id = row.id;
+        pk.title = 'Select for push';
+        if (row.date) pk.checked = true; /* default: check rows that have dates */
+        pktd.appendChild(pk);
+        tr.insertBefore(pktd, atd);
 
         atd.appendChild(rb); tr.appendChild(atd);
         tbody.appendChild(tr);
@@ -890,8 +903,13 @@
 
     /* ── Push to Service Plans (manual button — shows overlay) ──────── */
     async function pushPlans() {
-      var rows = S.rows.filter(function(r){ return r.date; });
-      if (!rows.length) { toast('No rows with dates to push.', 'error'); return; }
+      /* collect only checked rows */
+      var checkedIds = {};
+      document.querySelectorAll('#gridBody .push-ck:checked').forEach(function(cb) {
+        checkedIds[cb.dataset.id] = true;
+      });
+      var rows = S.rows.filter(function(r){ return r.date && checkedIds[r.id]; });
+      if (!rows.length) { toast('No rows selected to push. Check the boxes for the rows you want.', 'error'); return; }
 
       var fbNote = document.getElementById('fbNote');
       fbNote.style.display = 'block'; fbNote.textContent = '';
@@ -1242,6 +1260,10 @@
       });
       document.getElementById('btnPush').addEventListener('click', pushPlans);
       document.getElementById('btnPull').addEventListener('click', pullPlans);
+      document.getElementById('ckAll').addEventListener('change', function() {
+        var on = this.checked;
+        document.querySelectorAll('#gridBody .push-ck').forEach(function(cb){ cb.checked = on; });
+      });
       document.getElementById('btnImport').addEventListener('click', function(){ document.getElementById('importFile').click(); });
       document.getElementById('importFile').addEventListener('change', function(){ handleImportFile(this); });
       document.getElementById('btnGSheet').addEventListener('click', importGoogleSheet);
@@ -1265,27 +1287,7 @@
         setStatus('pending', 'Saving…');
         try { await saveToFirestore(true); } catch(e) { /* error already shown */ }
 
-        /* 2 — push all dated rows to Service Plans */
-        var rows = S.rows.filter(function(r){ return r.date; });
-        if (rows.length) {
-          btn1.textContent = btn2.textContent = '…Syncing plans';
-          setStatus('pending', 'Syncing service plans…');
-          var svcType  = document.getElementById('qST').value;
-          try {
-            var result = await doPush(rows, 'update', svcType, function(i, total) {
-              var pct = Math.round(((i + 1) / total) * 100);
-              btn1.textContent = btn2.textContent = '…Syncing ' + pct + '%';
-            });
-            render(); updateSummary();
-            setStatus('ready', 'Synced ' + (result.created + result.updated) + ' plans');
-            /* persist importedIds */
-            saveToFirestore(true);
-          } catch(e) {
-            setStatus('error', 'Sync failed');
-          }
-        }
-
-        /* 3 — navigate back */
+        /* 2 — navigate back */
         window.location.href = getDashboardUrl();
       }
       document.getElementById('btnSaveCloseTop').addEventListener('click', saveAndClose);
