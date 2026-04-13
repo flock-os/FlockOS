@@ -20262,10 +20262,12 @@ const Modules = (() => {
       + '</div>'
       + '</div>';
 
+    // Fire prayer query independently — can be slow on Firestore cold start
+    var _prayerPromise = (_isFirebaseComms() ? UpperRoom.listPrayers({ limit: 500 }) : TheVine.flock.prayer.list({ limit: 500 })).catch(function () { return null; });
+
     try {
       var results = await Promise.all([
         (_isFirebaseComms() ? UpperRoom.listMembers({ limit: 2000 }) : TheVine.flock.members.list({ limit: 2000 })).catch(function () { return null; }),
-        (_isFirebaseComms() ? UpperRoom.listPrayers({ limit: 500 }) : TheVine.flock.prayer.list({ limit: 500 })).catch(function () { return null; }),
         (_isFirebaseComms() ? UpperRoom.listCareCases({ limit: 500 }) : TheVine.flock.care.list({ limit: 500 })).catch(function () { return null; }),
         (_isFirebaseComms() ? UpperRoom.listCompassionRequests({ limit: 200 }) : TheVine.flock.compassion.requests.list({ limit: 200 })).catch(function () { return null; }),
         (_isFirebaseComms() ? UpperRoom.listEvents({ limit: 100 }) : TheVine.flock.events.list({ limit: 100 })).catch(function () { return null; }),
@@ -20278,23 +20280,20 @@ const Modules = (() => {
       ]);
 
       var members      = _rows(results[0]);
-      var prayers      = _rows(results[1]);
-      var careCases    = _rows(results[2]);
-      var compassions  = _rows(results[3]);
-      var events       = _rows(results[4]);
-      var givings      = _rows(results[5]);
-      var audits       = _rows(results[6]);
-      var todos        = _rows(results[7]);
-      var openProblems = results[8] ? results[8].docs.map(function(d) { return Object.assign({ _id: d.id }, d.data()); }) : [];
+      var careCases    = _rows(results[1]);
+      var compassions  = _rows(results[2]);
+      var events       = _rows(results[3]);
+      var givings      = _rows(results[4]);
+      var audits       = _rows(results[5]);
+      var todos        = _rows(results[6]);
+      var openProblems = results[7] ? results[7].docs.map(function(d) { return Object.assign({ _id: d.id }, d.data()); }) : [];
 
       // ── KPI calculations ─────────────────────────────────────────────────
       var activeMembers = members.filter(function (m) {
         return !['inactive','archived','removed'].includes(String(m.status || '').toLowerCase());
       }).length || members.length;
 
-      var openPrayer = prayers.filter(function (p) {
-        return !['answered','closed','archived'].includes(String(p.status || '').toLowerCase());
-      }).length;
+      var openPrayer = '\u2026'; // placeholder — updates when prayer query resolves
 
       var urgentCare = careCases.filter(function (c) {
         return String(c.priority || '').toLowerCase() === 'urgent'
@@ -20333,13 +20332,23 @@ const Modules = (() => {
       if (kpiEl) {
         kpiEl.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;">'
           + _adKpi('Active Members',  activeMembers,                    'var(--accent)',              '&#128101;')
-          + _adKpi('Open Prayers',    openPrayer,    openPrayer  > 0  ? 'var(--lilac)' : 'var(--ink-muted)', '&#128591;')
+          + '<div id="ad-kpi-prayer">' + _adKpi('Open Prayers', openPrayer, 'var(--ink-muted)', '&#128591;') + '</div>'
           + _adKpi('Urgent Care',     urgentCare,    urgentCare  > 0  ? 'var(--danger)' : 'var(--ink-muted)', '&#10084;')
           + _adKpi('Open Compassion', openCompassion, openCompassion > 0 ? 'var(--peach)' : 'var(--ink-muted)', '&#128230;')
           + _adKpi('Events (14d)',    upcoming.length,                  'var(--mint)',                '&#128197;')
           + _adKpi('Giving (30d)',    '$' + Number(giving30).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), 'var(--success)', '&#128176;')
           + '</div>';
       }
+
+      // ── Async prayer KPI fill ─────────────────────────────────────────
+      _prayerPromise.then(function (res) {
+        var prayers = _rows(res);
+        var count = prayers.filter(function (p) {
+          return !['answered','closed','archived'].includes(String(p.status || '').toLowerCase());
+        }).length;
+        var pEl = document.getElementById('ad-kpi-prayer');
+        if (pEl) pEl.innerHTML = _adKpi('Open Prayers', count, count > 0 ? 'var(--lilac)' : 'var(--ink-muted)', '&#128591;');
+      });
 
       // ── Left Column ──────────────────────────────────────────────────────
       var leftHtml = '';
