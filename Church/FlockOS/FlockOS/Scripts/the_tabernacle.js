@@ -20483,7 +20483,13 @@ const Modules = (() => {
             html += '<div style="margin-top:10px;"><a href="the_great_commission.html#vault" style="font-size:0.78rem;color:var(--accent);">Edit in Great Commission \u2197</a></div>';
             var card = document.getElementById('ad-vault-card');
             if (card) card.innerHTML = _adCard('&#128272; Church Vault', html);
-          }).catch(function() {});
+          }).catch(function(vaultErr) {
+            console.error('[FLOCK-DEBUG] Church Vault read failed:', vaultErr);
+            var card = document.getElementById('ad-vault-card');
+            if (card) card.innerHTML = _adCard('&#128272; Church Vault',
+              '<div style="font-size:0.78rem;color:var(--danger);">&#9888;&#65039; Could not load vault: '
+              + _e(vaultErr && vaultErr.message ? vaultErr.message : 'Permission denied') + '</div>');
+          });
         }
       }
 
