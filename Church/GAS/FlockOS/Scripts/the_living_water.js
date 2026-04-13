@@ -11,7 +11,7 @@
      • Offline  → serve cached shell; API calls return offline fallback
    ══════════════════════════════════════════════════════════════════════════════ */
 
-const CACHE_VERSION = 'flockos-v3.18';
+const CACHE_VERSION = 'flockos-v3.19';
 const API_CACHE     = 'flockos-api-v1';
 
 // ── App Shell: pre-cached on install ────────────────────────────────────────
@@ -90,6 +90,9 @@ self.addEventListener('activate', (event) => {
           .map(k => caches.delete(k))
       )
     ).then(() => self.clients.claim())
+     .then(() => self.clients.matchAll({ type: 'window' }).then(clients => {
+       clients.forEach(client => client.postMessage({ type: 'SW_UPDATED', version: CACHE_VERSION }));
+     }))
   );
 });
 

@@ -2950,7 +2950,7 @@ const TheLife = (() => {
             : _fetch('directory', () => _isFB() ? UpperRoom.listMemberCards() : TheVine.flock.memberCards.directory()),
         _fetch('care', () => _isFB() ? UpperRoom.listCareCases({ limit: 100 }) : TheVine.flock.care.list({ limit: 100 })),
         _fetch('followUps', () => _isFB() ? UpperRoom.careFollowUpsDue() : TheVine.flock.care.followUps.due({})),
-        _fetch('prayer', () => _isFB() ? UpperRoom.listPrayers({ limit: 100 }) : TheVine.flock.prayer.list({ limit: 100 })),
+        _fetch('prayer', () => _isFB() ? UpperRoom.listPrayers({ limit: 100, allUsers: true }) : TheVine.flock.prayer.list({ limit: 100 })),
         _fetch('compassion', () => _isFB() ? UpperRoom.listCompassionRequests({ limit: 50 }) : TheVine.flock.compassion.requests.list({ limit: 50 })),
         _fetch('outreach', () => _isFB() ? UpperRoom.listOutreachContacts({ limit: 50 }) : TheVine.flock.outreach.contacts.list({ limit: 50 })),
         _ensureDir(),

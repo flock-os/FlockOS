@@ -27,6 +27,124 @@ const Modules = (() => {
     window._applyFontScale = apply;
   })();
 
+  // ── Adaptive Performance Layer ──────────────────────────────────────────
+  // Tunes caching, timeouts, and UX based on the active backend.
+  // Firestore is fast (sub-second reads) → tight timeouts, short cache, instant UX.
+  // GAS is slow (2-8s cold starts)       → generous timeouts, longer cache, patient UX.
+  var _perfProfile = {
+    backend:       null,    // 'firebase' | 'gas' — null until resolved
+    cacheTTL:      60000,   // default: 1 minute (overridden once backend is known)
+    spinnerDelay:  0,       // ms before showing spinner (Firestore = 150ms, GAS = 0)
+  };
+
+  // View-level data cache: avoids redundant Firestore/GAS fetches when
+  // the user navigates away and back within the TTL window.
+  var _viewCache = {};  // { viewName: { html, ts } }
+
+  function _perfDetect() {
+    // Already resolved
+    if (_perfProfile.backend) return;
+
+    // Check if UpperRoom (Firestore layer) is loaded and authenticated
+    var fb = typeof UpperRoom !== 'undefined' && UpperRoom.isReady && UpperRoom.isReady();
+    var gas = typeof TheVine !== 'undefined' && TheVine.config && TheVine.config().FLOCK_URL;
+
+    if (fb) {
+      _perfProfile.backend      = 'firebase';
+      _perfProfile.cacheTTL     = 30000;   // 30s — Firestore is fast, keep cache short
+      _perfProfile.spinnerDelay = 120;     // slight delay before spinner (most reads < 120ms)
+    } else if (gas) {
+      _perfProfile.backend      = 'gas';
+      _perfProfile.cacheTTL     = 120000;  // 2 min — GAS is slow, cache longer
+      _perfProfile.spinnerDelay = 0;       // show spinner immediately (expect wait)
+    }
+  }
+
+  /**
+   * Check if a cached view is still fresh.
+   * Returns the cached HTML string if valid, or null if stale/missing.
+   */
+  function _viewCacheGet(viewName) {
+    var entry = _viewCache[viewName];
+    if (!entry) return null;
+    if (Date.now() - entry.ts > _perfProfile.cacheTTL) {
+      delete _viewCache[viewName];
+      return null;
+    }
+    return entry.html;
+  }
+
+  /**
+   * Store the rendered HTML for a view so re-navigation is instant.
+   */
+  function _viewCacheSet(viewName, el) {
+    if (!el) return;
+    _viewCache[viewName] = { html: el.innerHTML, ts: Date.now() };
+  }
+
+  /**
+   * Invalidate a specific view cache (e.g. after a create/edit/delete).
+   */
+  function _viewCacheInvalidate(viewName) {
+    if (viewName) delete _viewCache[viewName];
+    else _viewCache = {};  // clear all if no name given
+  }
+
+  // ── Auto-init Firestore DB ──────────────────────────────────────────────
+  // On a brand-new Firestore project the appConfig collection is empty.
+  // Detect this once, seed defaults, and show a friendly init message.
+  var _dbInitChecked = false;
+  var _dbInitializing = false;
+
+  function _ensureDbInitialized() {
+    if (_dbInitChecked || _dbInitializing) return Promise.resolve();
+    if (!_isFirebaseComms()) { _dbInitChecked = true; return Promise.resolve(); }
+    if (typeof UpperRoom === 'undefined' || !UpperRoom.isReady || !UpperRoom.isReady()) {
+      _dbInitChecked = true; return Promise.resolve();
+    }
+
+    _dbInitializing = true;
+    return UpperRoom.listAppConfig()
+      .then(function(res) {
+        var rows = res && res.forEach ? [] : [];
+        if (res && res.forEach) { res.forEach(function(r) { rows.push(r); }); }
+        else if (Array.isArray(res)) { rows = res; }
+        if (rows.length > 0) { _dbInitChecked = true; _dbInitializing = false; return; }
+
+        // Empty DB — seed defaults
+        var seedRows = _DEFAULT_APP_CONFIG.slice();
+        var writes = seedRows.map(function(r) { return UpperRoom.setAppConfig(r).catch(function() {}); });
+
+        // Show initialization overlay
+        var overlay = document.createElement('div');
+        overlay.id = 'db-init-overlay';
+        overlay.style.cssText = 'position:fixed;inset:0;z-index:999999;display:flex;flex-direction:column;'
+          + 'align-items:center;justify-content:center;background:var(--bg,#1a1a2e);color:var(--ink,#e0e0e0);'
+          + 'text-align:center;padding:40px 24px;font-family:Georgia,serif;';
+        overlay.innerHTML =
+          '<div style="font-size:3.5rem;margin-bottom:20px;">\u2699\uFE0F</div>'
+          + '<h1 style="font-size:1.5rem;font-weight:700;color:var(--accent,#e8a838);margin:0 0 16px;">'
+          + 'Database Being Initialized</h1>'
+          + '<p style="font-size:1.05rem;max-width:440px;line-height:1.7;color:var(--ink-muted,#aaa);">'
+          + 'Your church database is being set up for the first time. '
+          + 'Please check back in a few minutes.</p>'
+          + '<p style="margin-top:28px;font-size:0.82rem;color:var(--ink-muted,#777);font-style:italic;">'
+          + '\u201CUnless the Lord builds the house, the builders labor in vain.\u201D \u2014 Psalm 127:1</p>';
+        document.body.appendChild(overlay);
+
+        return Promise.all(writes).then(function() {
+          _dbInitChecked = true;
+          _dbInitializing = false;
+          // Auto-dismiss after 5 seconds so admin can continue
+          setTimeout(function() {
+            var ov = document.getElementById('db-init-overlay');
+            if (ov) ov.remove();
+          }, 5000);
+        });
+      })
+      .catch(function() { _dbInitChecked = true; _dbInitializing = false; });
+  }
+
   // ── XSS-safe HTML escape ────────────────────────────────────────────────
   function _e(s) {
     if (s === null || s === undefined) return '';
@@ -11411,6 +11529,8 @@ const Modules = (() => {
       html += '</div></details>';
 
       // ── Section 3: Interface Studio (admin) ─────────────────────────
+      // Lazy-load studio fonts when this accordion opens
+      if (typeof Adornment !== 'undefined' && Adornment.loadStudioFonts) Adornment.loadStudioFonts();
       var _ov;
       try { _ov = JSON.parse(localStorage.getItem(Adornment.OVERRIDE_LS_KEY) || '{}'); } catch(e) { _ov = {}; }
       if (!_ov.vars)  _ov.vars  = {};
@@ -20799,14 +20919,50 @@ const Modules = (() => {
    * Render a module into the given element.
    * Called by navigate() in index.html.
    * Returns true if a module renderer was found, false otherwise.
+   *
+   * Adaptive behavior:
+   *   • If a fresh cached copy exists (within TTL), show it instantly
+   *     and skip the network fetch. The user can pull-to-refresh or
+   *     re-tap the nav to force a fresh load.
+   *   • TTL is backend-aware: 30s for Firestore, 2min for GAS.
    */
   function render(name, el, session) {
     if (!_reg[name]) return false;
     if (!_isModuleEnabled(name)) return false;
+
+    // Resolve backend profile on first render (session is known by now)
+    _perfDetect();
+
+    // Auto-initialize empty Firestore DB on first render
+    if (!_dbInitChecked) _ensureDbInitialized();
+
+    // Serve from view cache if fresh — instant navigation
+    var cached = _viewCacheGet(name);
+    if (cached) {
+      el.innerHTML = cached;
+      el.dataset.loaded = '1';
+      return true;
+    }
+
     el.dataset.loaded = '1';
-    Promise.resolve(_reg[name](el, session)).catch(err => {
+
+    // Show spinner with adaptive delay (Firestore: slight delay, GAS: immediate)
+    var spinnerShown = false;
+    var spinnerTimer = null;
+    if (_perfProfile.spinnerDelay > 0) {
+      spinnerTimer = setTimeout(function() { if (!spinnerShown) { spinnerShown = true; el.innerHTML = _spinner(); } }, _perfProfile.spinnerDelay);
+    } else {
+      el.innerHTML = _spinner();
+      spinnerShown = true;
+    }
+
+    Promise.resolve(_reg[name](el, session)).then(function() {
+      if (spinnerTimer) clearTimeout(spinnerTimer);
+      // Cache the rendered view for quick re-navigation
+      _viewCacheSet(name, el);
+    }).catch(err => {
+      if (spinnerTimer) clearTimeout(spinnerTimer);
       console.error('Module error [' + name + ']:', err);
-      // Show a visible error state so the user never sees a silent white page
       el.innerHTML =
         '<div style="padding:48px 24px;text-align:center;">'
         + '<div style="font-size:2.4rem;margin-bottom:12px;">&#9888;&#65039;</div>'
@@ -21353,6 +21509,8 @@ const Modules = (() => {
     showCardQR,
     geoCheckin,
     toggleFullscreen,
+    _viewCacheInvalidate,
+    _perfProfile,
 
   };
 

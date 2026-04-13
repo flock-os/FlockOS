@@ -217,8 +217,8 @@ const TheWell = (() => {
     ],
     flock: [
       { tab: 'Members',                 call: () => _isFB() ? UpperRoom.listMembers({ limit: _BACKUP_LIMIT }) : TheVine.flock.members.list({ limit: _BACKUP_LIMIT }) },
-      { tab: 'PrayerRequests',          call: () => _isFB() ? UpperRoom.listPrayers({ limit: _BACKUP_LIMIT }) : TheVine.flock.prayer.list({ limit: _BACKUP_LIMIT }) },
-      { tab: 'JournalEntries',          call: () => _isFB() ? UpperRoom.listJournal({ limit: _BACKUP_LIMIT }) : TheVine.flock.journal.list({ limit: _BACKUP_LIMIT }) },
+      { tab: 'PrayerRequests',          call: () => _isFB() ? UpperRoom.listPrayers({ limit: _BACKUP_LIMIT, allUsers: true }) : TheVine.flock.prayer.list({ limit: _BACKUP_LIMIT }) },
+      { tab: 'JournalEntries',          call: () => _isFB() ? UpperRoom.listJournal({ limit: _BACKUP_LIMIT, allUsers: true }) : TheVine.flock.journal.list({ limit: _BACKUP_LIMIT }) },
       { tab: 'ContactLog',              call: () => _isFB() ? UpperRoom.listContacts({ limit: _BACKUP_LIMIT }) : TheVine.flock.contacts.list({ limit: _BACKUP_LIMIT }) },
       { tab: 'PastoralNotes',           call: () => _isFB() ? UpperRoom.listPastoralNotes({ limit: _BACKUP_LIMIT }) : TheVine.flock.notes.list({ limit: _BACKUP_LIMIT }) },
       { tab: 'Milestones',              call: () => _isFB() ? UpperRoom.listMilestones({ limit: _BACKUP_LIMIT }) : TheVine.flock.milestones.list({ limit: _BACKUP_LIMIT }) },

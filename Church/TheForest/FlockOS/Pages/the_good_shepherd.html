@@ -375,9 +375,10 @@
       background: #ffffff;
       display: flex; flex-direction: column;
       align-items: center; justify-content: center;
-      transition: opacity 0.6s ease;
+      transition: opacity 0.3s ease;
     }
-    #splash.fade-out { opacity: 0; pointer-events: none; }
+    #splash.fade-out { opacity: 0; pointer-events: none; animation: none; }
+    #splash.fade-out * { animation: none !important; }
     #splash .splash-bg {
       max-width: 96%;
       max-height: 80vh;
@@ -397,7 +398,7 @@
       background: linear-gradient(90deg, #c47a0a, #e8a838 30%, #f5c26b 50%, #e8a838 70%, #c47a0a);
       background-size: 300% 100%;
       border-radius: 4px;
-      animation: splash-progress 3.5s ease-in-out forwards, splash-wash 2s ease-in-out infinite;
+      animation: splash-progress 2.5s ease-in-out forwards, splash-wash 2s ease-in-out infinite;
     }
     @keyframes splash-progress {
       0%   { width: 0; }
@@ -928,7 +929,6 @@
 <script defer src="../Scripts/the_upper_room.js"></script>
 <script defer src="../Scripts/fine_linen.js"></script>
 <script defer src="../Scripts/the_true_vine.js"></script>
-<script defer src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script defer src="../Scripts/the_wellspring.js"></script>
 <script defer src="../Scripts/the_well.js"></script>
 <script defer src="../Scripts/firm_foundation.js"></script>
@@ -951,12 +951,17 @@ document.addEventListener('DOMContentLoaded', function() {
 Adornment.init();
 if (typeof TheVine !== 'undefined' && TheVine.lifecycle) TheVine.lifecycle.start();
 
-// ── Splash logo: use CHURCH_LOGO from AppConfig (synced to localStorage by admin) ────
+// ── Splash logo: use CHURCH_LOGO from AppConfig, fallback to favicon ─────
 (function() {
+  var img = document.getElementById('church-splash-logo');
+  if (!img) return;
   var logo = localStorage.getItem('flock_church_logo');
   if (logo) {
-    var img = document.getElementById('church-splash-logo');
-    if (img) img.src = '../Images/' + logo;
+    img.src = logo.indexOf('://') !== -1 ? logo : '../Images/' + logo;
+  } else {
+    var iconLink = document.querySelector('link[rel="apple-touch-icon"]')
+                || document.querySelector('link[rel="icon"]');
+    if (iconLink && iconLink.href) img.src = iconLink.href;
   }
 })();
 
@@ -968,7 +973,7 @@ function _dismissSplash() {
   var splash = document.getElementById('splash');
   if (!splash) return;
   splash.classList.add('fade-out');
-  setTimeout(function() { splash.remove(); }, 600);
+  setTimeout(function() { splash.remove(); }, 350);
 }
 
 // Poll until key modules are ready (Firestore + scripts ≈ 1-2s)
@@ -976,11 +981,11 @@ var _splashPoll = setInterval(function() {
   if (typeof Modules !== 'undefined') { clearInterval(_splashPoll); _dismissSplash(); }
 }, 150);
 
-// Safety net: dismiss after 4s even if scripts stall
+// Safety net: dismiss after 2.5s even if scripts stall
 setTimeout(function() {
   clearInterval(_splashPoll);
   _dismissSplash();
-}, 4000);
+}, 2500);
 
 // ── Auth Gate ──────────────────────────────────────────────────────────────
 const session = Nehemiah.guard();
@@ -1917,7 +1922,11 @@ function navigate(viewName) {
 
   target.classList.add('active');
 
-  // Always force a fresh render — lets users tap the nav to reset a broken view
+  // If user re-taps the current view, bust the cache so they get a fresh fetch.
+  // Otherwise, Modules.render() will serve from its adaptive view cache if fresh.
+  if (viewName === currentView && typeof Modules !== 'undefined' && Modules._viewCacheInvalidate) {
+    Modules._viewCacheInvalidate(viewName);
+  }
   delete target.dataset.loaded;
 
   if (viewName !== 'dashboard') {
@@ -2317,7 +2326,28 @@ window.dismissNotif = dismissNotif;
 </script>
 <script>
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('../../the_living_water.js').catch(function() {});
+  var _swRefreshing = false;
+
+  // Listen for the SW telling us it just activated a new version
+  navigator.serviceWorker.addEventListener('message', function(event) {
+    if (event.data && event.data.type === 'SW_UPDATED') {
+      if (_swRefreshing) return;
+      if (typeof TheWellspring !== 'undefined' && TheWellspring.status && TheWellspring.status().active) return;
+      _swRefreshing = true;
+      window.location.reload();
+    }
+  });
+
+  navigator.serviceWorker.addEventListener('controllerchange', function() {
+    if (_swRefreshing) return;
+    if (typeof TheWellspring !== 'undefined' && TheWellspring.status && TheWellspring.status().active) return;
+    _swRefreshing = true;
+    window.location.reload();
+  });
+  navigator.serviceWorker.register('../../the_living_water.js').then(function(reg) {
+    // Check for updates every time the app is opened (covers installed PWAs)
+    reg.update().catch(function() {});
+  }).catch(function() {});
 }
 </script>
 </body>

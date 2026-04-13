@@ -42,8 +42,9 @@ const Adornment = (() => {
   /* ─── CSS ─────────────────────────────────────────────────────────────────── */
 
   const CSS = `
-/* ─── GOOGLE FONTS — Greek & Hebrew + Studio fonts ──────────────────────────── */
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;600;700&family=Noto+Sans+Hebrew:wght@400;600;700&family=Noto+Serif:ital,wght@0,400;0,700;1,400&family=Lora:ital,wght@0,400;0,700;1,400&family=Merriweather:ital,wght@0,400;0,700;1,400&family=Montserrat:wght@400;600;700&family=Nunito:wght@400;600;700&family=Open+Sans:wght@400;600;700&family=Poppins:wght@400;600;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=PT+Serif:ital,wght@0,400;0,700;1,400&family=Raleway:wght@400;600;700&family=Roboto:wght@400;500;700&family=Roboto+Slab:wght@400;600;700&family=Source+Sans+3:wght@400;600;700&family=Work+Sans:wght@400;600;700&display=swap');
+/* ─── STUDIO FONTS — loaded on demand via Adornment.loadStudioFonts() ────── */
+/* Core fonts (Noto Sans, Noto Sans Hebrew, Noto Serif) are loaded via <link>
+   in the HTML head. Studio/theme fonts below are injected only when needed. */
 
 /* ─── RESET & BASE ─────────────────────────────────────────────────────────── */
 
@@ -5821,6 +5822,33 @@ details.settings-section.settings-accordion > .settings-accordion-trigger {
     localStorage.removeItem(OVERRIDE_LS_KEY);
   }
 
+  // ── Lazy Studio Font Loader ─────────────────────────────────────────────
+  // Core fonts (Noto Sans, Hebrew, Serif) are in the HTML <link>.
+  // Studio/theme fonts are loaded on-demand when the theme picker opens.
+  var _studioFontsLoaded = false;
+  function loadStudioFonts() {
+    if (_studioFontsLoaded) return;
+    _studioFontsLoaded = true;
+    var link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = 'https://fonts.googleapis.com/css2?'
+      + 'family=Lora:ital,wght@0,400;0,700;1,400'
+      + '&family=Merriweather:ital,wght@0,400;0,700;1,400'
+      + '&family=Montserrat:wght@400;600;700'
+      + '&family=Nunito:wght@400;600;700'
+      + '&family=Open+Sans:wght@400;600;700'
+      + '&family=Poppins:wght@400;600;700'
+      + '&family=Playfair+Display:ital,wght@0,400;0,700;1,400'
+      + '&family=PT+Serif:ital,wght@0,400;0,700;1,400'
+      + '&family=Raleway:wght@400;600;700'
+      + '&family=Roboto:wght@400;500;700'
+      + '&family=Roboto+Slab:wght@400;600;700'
+      + '&family=Source+Sans+3:wght@400;600;700'
+      + '&family=Work+Sans:wght@400;600;700'
+      + '&display=swap';
+    document.head.appendChild(link);
+  }
+
   return {
     themes:    THEMES,
     themeMeta: THEME_META,
@@ -5831,6 +5859,7 @@ details.settings-section.settings-accordion > .settings-accordion-trigger {
     applyOverrides,
     loadOverrides,
     clearOverrides,
+    loadStudioFonts,
     OVERRIDE_LS_KEY: OVERRIDE_LS_KEY
   };
 

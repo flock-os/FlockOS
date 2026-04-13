@@ -31,9 +31,10 @@
       background: #ffffff;
       display: flex; flex-direction: column;
       align-items: center; justify-content: center;
-      transition: opacity 0.6s ease;
+      transition: opacity 0.3s ease;
     }
-    #splash.fade-out { opacity: 0; pointer-events: none; }
+    #splash.fade-out { opacity: 0; pointer-events: none; animation: none; }
+    #splash.fade-out * { animation: none !important; }
     #splash .splash-bg {
       max-width: 96%;
       max-height: 80vh;
@@ -53,7 +54,7 @@
       background: linear-gradient(90deg, #c47a0a, #e8a838 30%, #f5c26b 50%, #e8a838 70%, #c47a0a);
       background-size: 300% 100%;
       border-radius: 4px;
-      animation: splash-progress 9s ease-in-out forwards, splash-wash 2s ease-in-out infinite;
+      animation: splash-progress 3s ease-in-out forwards, splash-wash 2s ease-in-out infinite;
     }
     @keyframes splash-progress {
       0%   { width: 0; }
@@ -700,7 +701,6 @@
 <script defer src="FlockOS/Scripts/the_upper_room.js"></script>
 <script defer src="FlockOS/Scripts/fine_linen.js"></script>
 <script defer src="FlockOS/Scripts/the_true_vine.js"></script>
-<script defer src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script defer src="FlockOS/Scripts/the_wellspring.js"></script>
 <script defer src="FlockOS/Scripts/the_well.js"></script>
 <script defer src="FlockOS/Scripts/the_tabernacle.js"></script>
@@ -720,12 +720,17 @@ window.addEventListener('scroll', function() {
 document.addEventListener('DOMContentLoaded', function() {
 Adornment.init();
 
-// ── Splash logo: use CHURCH_LOGO from AppConfig (synced to localStorage by admin) ────
+// ── Splash logo: use CHURCH_LOGO from AppConfig, fallback to favicon ─────
 (function() {
+  var img = document.getElementById('church-hero-logo');
+  if (!img) return;
   var logo = localStorage.getItem('flock_church_logo');
   if (logo) {
-    var img = document.getElementById('church-hero-logo');
-    if (img) img.src = 'FlockOS/Images/' + logo;
+    img.src = logo.indexOf('://') !== -1 ? logo : 'FlockOS/Images/' + logo;
+  } else {
+    var iconLink = document.querySelector('link[rel="apple-touch-icon"]')
+                || document.querySelector('link[rel="icon"]');
+    if (iconLink && iconLink.href) img.src = iconLink.href;
   }
 })();
 
@@ -836,7 +841,11 @@ function navigate(viewName) {
   if (target) {
     target.classList.add('active');
 
-    // Always force a fresh render — lets users tap the nav to reset a broken view
+    // If user re-taps the current view, bust the cache so they get a fresh fetch.
+    // Otherwise, Modules.render() will serve from its adaptive view cache if fresh.
+    if (viewName === currentView && typeof Modules !== 'undefined' && Modules._viewCacheInvalidate) {
+      Modules._viewCacheInvalidate(viewName);
+    }
     delete target.dataset.loaded;
 
     if (viewName !== 'dashboard') {
@@ -872,7 +881,7 @@ function _dismissSplash() {
   var splash = document.getElementById('splash');
   if (!splash) return;
   splash.classList.add('fade-out');
-  setTimeout(function() { splash.remove(); }, 600);
+  setTimeout(function() { splash.remove(); }, 350);
 }
 
 // Poll until maintenance check resolves (Firestore ≈ 100ms)
@@ -880,11 +889,12 @@ var _splashPoll = setInterval(function() {
   if (_lockdownResolved && !_isLockedDown) { clearInterval(_splashPoll); _dismissSplash(); }
 }, 150);
 
-// Safety net: dismiss after 4s even if check somehow stalls
+// Safety net: adaptive timeout — Firestore should resolve in <1s
+// but GAS-only deployments may take longer
 setTimeout(function() {
   clearInterval(_splashPoll);
   if (!_isLockedDown) _dismissSplash();
-}, 4000);
+}, 2000);
 
 // ── Auto-navigate to public card if ?m= query param is present ──────────
 (function() {

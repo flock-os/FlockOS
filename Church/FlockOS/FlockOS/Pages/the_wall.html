@@ -454,10 +454,18 @@ document.addEventListener('DOMContentLoaded', function() {
     var el = document.getElementById('form-church-display');
     if (name && el) el.textContent = name;
 
+    var img = document.getElementById('wall-logo');
+    if (!img) return;
+
+    // Priority: 1) church logo from config, 2) favicon/app icon, 3) default (already in HTML)
     var logo = localStorage.getItem('flock_church_logo');
     if (logo) {
-      var img = document.getElementById('wall-logo');
-      if (img) img.src = '../Images/' + logo;
+      img.src = logo.indexOf('://') !== -1 ? logo : '../Images/' + logo;
+    } else {
+      // Use the page's favicon — each deployment sets its own icon in <link rel="icon">
+      var iconLink = document.querySelector('link[rel="apple-touch-icon"]')
+                  || document.querySelector('link[rel="icon"]');
+      if (iconLink && iconLink.href) img.src = iconLink.href;
     }
   })();
 
@@ -598,7 +606,22 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 <script>
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('../../the_living_water.js').catch(function() {});
+  var _swRefreshing = false;
+  navigator.serviceWorker.addEventListener('controllerchange', function() {
+    if (_swRefreshing) return;
+    _swRefreshing = true;
+    window.location.reload();
+  });
+  navigator.serviceWorker.addEventListener('message', function(event) {
+    if (event.data && event.data.type === 'SW_UPDATED') {
+      if (_swRefreshing) return;
+      _swRefreshing = true;
+      window.location.reload();
+    }
+  });
+  navigator.serviceWorker.register('../../the_living_water.js').then(function(reg) {
+    reg.update().catch(function() {});
+  }).catch(function() {});
 }
 </script>
 

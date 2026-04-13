@@ -36,7 +36,7 @@ window.FLOCK_CHURCH_ID = "tbc";
   var _unreadRoom = 0;      // unread room count
 
   /* ── Timeout constant ───────────────────────────────────────────── */
-  var FIRESTORE_TIMEOUT_MS = 20000; // 20 seconds for Firestore one-shot reads
+  var FIRESTORE_TIMEOUT_MS = 8000; // 8 seconds — Firestore reads are typically sub-second
 
   /* ── Helpers ──────────────────────────────────────────────────────── */
   function _now()    { return firebase.firestore.FieldValue.serverTimestamp(); }
@@ -705,7 +705,15 @@ window.FLOCK_CHURCH_ID = "tbc";
 
   function listPrayers(opts) {
     opts = opts || {};
-    var q = _prayersRef().orderBy('submittedAt', 'desc').limit(opts.limit || 300);
+    var q = _prayersRef();
+    // Filter by current user's email unless opts.allUsers is set (admin/pastor).
+    // Firestore rules require createdBy == userEmail() or isConfidential != true;
+    // without a matching .where(), the query is rejected for non-pastor users
+    // and the .catch(() => []) silently returns an empty array.
+    if (!opts.allUsers && _userEmail) {
+      q = q.where('createdBy', '==', _userEmail);
+    }
+    q = q.orderBy('submittedAt', 'desc').limit(opts.limit || 300);
     return q.get().then(function(snap) {
       var results = [];
       snap.forEach(function(doc) {
@@ -2926,6 +2934,13 @@ window.FLOCK_CHURCH_ID = "tbc";
   function listJournal(opts) {
     opts = opts || {};
     var q = _journalRef();
+    // Filter by current user's email unless opts.allUsers is set (admin backup).
+    // Firestore rules require createdBy == userEmail() for non-pastor users;
+    // without this .where(), the query is rejected with "permission denied"
+    // and the .catch(() => []) silently returns an empty array.
+    if (!opts.allUsers && _userEmail) {
+      q = q.where('createdBy', '==', _userEmail);
+    }
     q = q.orderBy('createdAt', 'desc').limit(opts.limit || 200);
     return q.get().then(function(snap) {
       var out = [];
