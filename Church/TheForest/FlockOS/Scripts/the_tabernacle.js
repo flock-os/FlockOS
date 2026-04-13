@@ -12205,7 +12205,7 @@ const Modules = (() => {
   // 27. AUDIT  (pastor+)
   // ═══════════════════════════════════════════════════════════════════════
   _def('audit', async el => {
-    if (typeof TheVine !== 'undefined' && !TheVine.hasRole('pastor')) {
+    if (typeof TheVine !== 'undefined' && !TheVine.hasRole('pastor') && !(typeof Nehemiah !== 'undefined' && (Nehemiah.hasGroup('Master') || Nehemiah.hasGroup('Seed Admin') || Nehemiah.hasGroup('Lead Pastor')))) {
       el.innerHTML = '<div style="text-align:center;padding:80px 20px;">'
         + '<div style="font-size:3rem;margin-bottom:12px;">&#128274;</div>'
         + '<p style="color:var(--ink-muted);">Pastor access required.</p></div>';
@@ -19913,6 +19913,7 @@ const Modules = (() => {
       var role = String(s.role || '').toLowerCase();
       if (role === 'admin' || role === 'pastor') hasAccess = true;
       if (s.permissions && s.permissions.deploymentGuide) hasAccess = true;
+      if (typeof Nehemiah !== 'undefined' && (Nehemiah.hasGroup('Master') || Nehemiah.hasGroup('Seed Admin') || Nehemiah.hasGroup('Lead Pastor'))) hasAccess = true;
     }
     if (!hasAccess) {
       el.innerHTML = '<div style="max-width:480px;margin:80px auto;text-align:center;padding:0 20px;">'
@@ -20827,7 +20828,7 @@ const Modules = (() => {
   // ══════════════════════════════════════════════════════════════════════════
   _def('problems', async function(el, session) {
     var s = session || (typeof TheVine !== 'undefined' ? TheVine.session() : null);
-    if (!s || !TheVine.hasRole('admin')) {
+    if (!s || (!TheVine.hasRole('admin') && !(typeof Nehemiah !== 'undefined' && (Nehemiah.hasGroup('Master') || Nehemiah.hasGroup('Seed Admin') || Nehemiah.hasGroup('Lead Pastor'))))) {
       el.innerHTML = '<div style="text-align:center;padding:80px 20px;">'
         + '<div style="font-size:3rem;margin-bottom:12px;">&#128274;</div>'
         + '<p style="color:var(--ink-muted);">Admin access required.</p></div>';
