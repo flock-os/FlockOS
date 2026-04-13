@@ -784,7 +784,7 @@
       S.dirty = true; setStatus('pending', 'Unsaved changes');
       clearTimeout(S.saveTimer); S.saveTimer = setTimeout(function(){ saveToFirestore(true); }, 1400);
     }
-    async function saveToFirestore(auto) {
+    async function saveToFirestore(auto, _retry) {
       if (!isFB()) {
         setStatus('pending', 'Waiting for cloud…');
         try { await waitFB(14000); } catch(e) { setStatus('error', 'Cloud unavailable — changes not saved'); return; }
@@ -805,6 +805,12 @@
         setStatus('ready', 'Saved · ' + fmtTs(ts));
         if (!auto) toast('Saved to Firestore', 'success');
       } catch(e) {
+        /* Permission errors often mean custom claims expired — re-auth once */
+        if (!_retry && typeof UpperRoom !== 'undefined' && UpperRoom.authenticate) {
+          setStatus('pending', 'Re-authenticating…');
+          try { await UpperRoom.authenticate(); return saveToFirestore(auto, true); }
+          catch(_) { /* fall through to error */ }
+        }
         setStatus('error', 'Save failed');
         if (!auto) toast('Save failed: ' + e.message, 'error');
       }
