@@ -499,6 +499,8 @@
     // Ignore browser extension errors and cross-origin script errors
     if (!src || src.indexOf('extension') !== -1) return;
     var label = (err && err.message) || String(msg);
+    // Suppress notification permission errors (Safari throws outside user gesture)
+    if (label.indexOf('Notification') !== -1 || label.indexOf('user gesture') !== -1) return;
     if (label.length > 120) label = label.substring(0, 117) + '\u2026';
     _showErrToast(label);
     // Log to Firestore if UpperRoom is available
@@ -1090,12 +1092,9 @@ async function _pushSubscribe() {
     if (typeof firebase === 'undefined' || !firebase.messaging) return;
 
     var permission = Notification.permission;
-    if (permission === 'denied') return;
-
-    if (permission === 'default') {
-      permission = await Notification.requestPermission();
-      if (permission !== 'granted') return;
-    }
+    // Only auto-subscribe if already granted — requesting from non-gesture
+    // throws in Safari and flashes a red error toast.
+    if (permission !== 'granted') return;
 
     var messaging = firebase.messaging();
     // Use the existing service worker registration
