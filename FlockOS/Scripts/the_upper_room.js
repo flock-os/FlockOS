@@ -2540,6 +2540,16 @@
     });
   }
 
+  function deleteAllServicePlans() {
+    return _servicePlansRef().get().then(function(snap) {
+      var batch = _db.batch();
+      var count = 0;
+      snap.forEach(function(doc) { batch.delete(doc.ref); count++; });
+      if (count === 0) return { deleted: 0 };
+      return batch.commit().then(function() { return { deleted: count }; });
+    });
+  }
+
   /* ══════════════════════════════════════════════════════════════════
      SONGS
      ══════════════════════════════════════════════════════════════════ */
@@ -4557,8 +4567,9 @@
     // Service Plans
     listServicePlans:   listServicePlans,
     getServicePlan:     getServicePlan,
-    createServicePlan:  createServicePlan,
-    updateServicePlan:  updateServicePlan,
+    createServicePlan:      createServicePlan,
+    updateServicePlan:      updateServicePlan,
+    deleteAllServicePlans:  deleteAllServicePlans,
 
     // Songs
     listSongs:               listSongs,

@@ -920,8 +920,8 @@
          actual content so we don't overwrite dashboard-entered values
          with blanks. When creating, include everything. */
       var map = {
-        notes:     'sermonTitle',
-        psalm:     'theme',
+        notes:     'theme',
+        psalm:     'psalmReader',
         scripture: 'scriptureFocus',
         worship:   'worshipLeader',
         preacher:  'preacher',
@@ -1097,22 +1097,22 @@
         var existing = byDate[date];
         if (existing) {
           if (mergeMode === 'skip') { skipped++; return; }
-          applyField(existing, 'psalm',     p.theme           || '', mergeMode);
+          applyField(existing, 'notes',     p.theme           || '', mergeMode);
+          applyField(existing, 'psalm',     p.psalmReader     || '', mergeMode);
           applyField(existing, 'scripture', p.scriptureFocus  || '', mergeMode);
           applyField(existing, 'worship',   p.worshipLeader   || '', mergeMode);
           applyField(existing, 'preacher',  p.preacher        || '', mergeMode);
-          applyField(existing, 'notes',     p.sermonTitle     || '', mergeMode);
           applyField(existing, 'announce',  p.announcements   || '', mergeMode);
           applyField(existing, 'prayer',    p.prayer          || '', mergeMode);
           applyField(existing, 'proverb',   p.proverb         || '', mergeMode);
           merged++;
         } else {
           var nr = mkRow(date);
-          nr.psalm     = p.theme           || '';
+          nr.notes     = p.theme           || '';
+          nr.psalm     = p.psalmReader     || '';
           nr.scripture = p.scriptureFocus  || '';
           nr.worship   = p.worshipLeader   || '';
           nr.preacher  = p.preacher        || '';
-          nr.notes     = p.sermonTitle     || '';
           nr.announce  = p.announcements   || '';
           nr.prayer    = p.prayer          || '';
           nr.proverb   = p.proverb         || '';

@@ -179,6 +179,338 @@ const Modules = (() => {
     setTimeout(function() { t.remove(); }, 3000);
   }
 
+  /**
+   * Deferred-action with undo toast.
+   * Shows a toast with an Undo button; executes `action()` after `delay` ms
+   * unless the user clicks Undo. Returns a Promise that resolves true if
+   * the action executed, false if undone.
+   *
+   * @param {string} msg   - e.g. "Album deleted"
+   * @param {function():Promise} action - the destructive operation
+   * @param {object} [opts]
+   * @param {number} [opts.delay=5000] - ms before action fires
+   * @param {function} [opts.onUndo]   - optional callback when undone
+   */
+  function _undoAction(msg, action, opts) {
+    opts = opts || {};
+    var delay = opts.delay || 5000;
+    var cancelled = false;
+    var executed = false;
+
+    return new Promise(function(resolve) {
+      var t = document.createElement('div');
+      t.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:10000;'
+        + 'background:var(--bg-raised,#1a1d26);color:var(--ink,#e8e8ed);border:1px solid var(--line,#333);'
+        + 'border-radius:10px;padding:12px 20px;display:flex;align-items:center;gap:14px;'
+        + 'box-shadow:0 8px 32px rgba(0,0,0,.4);font-size:0.85rem;font-family:inherit;'
+        + 'animation:fadeIn .2s;min-width:260px;max-width:420px;';
+
+      // Progress bar
+      var bar = document.createElement('div');
+      bar.style.cssText = 'position:absolute;bottom:0;left:0;height:3px;background:var(--accent,#6366f1);'
+        + 'border-radius:0 0 10px 10px;width:100%;transition:width ' + delay + 'ms linear;';
+
+      var msgSpan = document.createElement('span');
+      msgSpan.style.cssText = 'flex:1;';
+      msgSpan.textContent = msg;
+
+      var undoBtn = document.createElement('button');
+      undoBtn.textContent = 'Undo';
+      undoBtn.style.cssText = 'background:none;border:1px solid var(--accent,#6366f1);color:var(--accent,#6366f1);'
+        + 'border-radius:6px;padding:4px 14px;font-size:0.82rem;font-weight:700;cursor:pointer;'
+        + 'font-family:inherit;white-space:nowrap;';
+
+      t.appendChild(msgSpan);
+      t.appendChild(undoBtn);
+      t.appendChild(bar);
+      document.body.appendChild(t);
+
+      // Start countdown animation
+      requestAnimationFrame(function() { bar.style.width = '0%'; });
+
+      var timer = setTimeout(async function() {
+        if (cancelled) return;
+        executed = true;
+        t.remove();
+        try {
+          await action();
+          _toast(msg, 'success');
+          resolve(true);
+        } catch (e) {
+          _toast(e.message || 'Action failed', 'danger');
+          resolve(false);
+        }
+      }, delay);
+
+      undoBtn.onclick = function() {
+        cancelled = true;
+        clearTimeout(timer);
+        t.remove();
+        _toast('Undone', 'info');
+        if (opts.onUndo) opts.onUndo();
+        resolve(false);
+      };
+    });
+  }
+
+  /**
+   * Open a print-friendly window for PDF export via browser print.
+   * @param {string} title - Report title
+   * @param {string} bodyHtml - HTML content (tables, stats, etc.)
+   * @param {object} [opts] - subtitle, churchName, landscape
+   */
+  function _printReport(title, bodyHtml, opts) {
+    opts = opts || {};
+    var churchName = opts.churchName || (typeof session !== 'undefined' && session.churchName) || '';
+    var subtitle = opts.subtitle || '';
+    var orientation = opts.landscape ? '@page { size: landscape; }' : '';
+    var w = window.open('', '_blank', 'width=900,height=700');
+    if (!w) { _toast('Pop-up blocked — please allow pop-ups.', 'warn'); return; }
+    w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>' + title + '</title>'
+      + '<style>'
+      + orientation
+      + '* { margin: 0; padding: 0; box-sizing: border-box; }'
+      + 'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #1a1a1a; padding: 32px 40px; font-size: 11pt; line-height: 1.5; }'
+      + '.rpt-header { border-bottom: 2px solid #d4b870; padding-bottom: 12px; margin-bottom: 20px; }'
+      + '.rpt-header h1 { font-size: 18pt; font-weight: 700; color: #1a1a1a; margin-bottom: 2px; }'
+      + '.rpt-header .rpt-church { font-size: 10pt; color: #666; }'
+      + '.rpt-header .rpt-sub { font-size: 9pt; color: #888; margin-top: 4px; }'
+      + '.rpt-stats { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }'
+      + '.rpt-stat { border: 1px solid #ddd; border-radius: 6px; padding: 8px 14px; }'
+      + '.rpt-stat-label { font-size: 8pt; text-transform: uppercase; letter-spacing: 0.05em; color: #888; font-weight: 700; }'
+      + '.rpt-stat-value { font-size: 14pt; font-weight: 800; }'
+      + 'table { width: 100%; border-collapse: collapse; font-size: 9pt; margin-top: 8px; }'
+      + 'th { text-align: left; font-weight: 700; border-bottom: 2px solid #333; padding: 6px 8px; font-size: 8pt; text-transform: uppercase; letter-spacing: 0.04em; }'
+      + 'td { padding: 5px 8px; border-bottom: 1px solid #e0e0e0; }'
+      + 'tr:nth-child(even) { background: #fafafa; }'
+      + '.rpt-footer { margin-top: 24px; font-size: 8pt; color: #aaa; text-align: center; border-top: 1px solid #ddd; padding-top: 10px; }'
+      + '@media print { body { padding: 0; } .rpt-noprint { display: none !important; } }'
+      + '</style></head><body>'
+      + '<div class="rpt-header">'
+      + '<h1>' + title + '</h1>'
+      + (churchName ? '<div class="rpt-church">' + churchName + '</div>' : '')
+      + (subtitle ? '<div class="rpt-sub">' + subtitle + '</div>' : '')
+      + '<div class="rpt-sub">Generated ' + new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) + '</div>'
+      + '</div>'
+      + bodyHtml
+      + '<div class="rpt-footer">Generated by FlockOS &mdash; flockos.com</div>'
+      + '<div class="rpt-noprint" style="text-align:center;margin-top:20px;">'
+      + '<button onclick="window.print()" style="padding:10px 28px;font-size:11pt;border:none;background:#4a90d9;color:#fff;border-radius:6px;cursor:pointer;font-weight:600;">Print / Save as PDF</button>'
+      + '</div>'
+      + '</body></html>');
+    w.document.close();
+    // Auto-focus print dialog after a short delay for rendering
+    setTimeout(function() { w.focus(); }, 300);
+  }
+
+  /** Export the current report view to a print-friendly PDF window */
+  function _rptPrintReport() {
+    var output = document.getElementById('rpt-output');
+    if (!output) return;
+    var title = 'FlockOS Report';
+    var h3 = output.querySelector('h3');
+    if (h3) title = h3.textContent.trim();
+    // Gather stat cards
+    var statsHtml = '';
+    var statDivs = output.querySelectorAll('[style*="inline-block"]');
+    if (statDivs.length) {
+      statsHtml = '<div class="rpt-stats">';
+      statDivs.forEach(function(s) {
+        var label = s.querySelector('[style*="uppercase"]');
+        var value = s.querySelector('[style*="font-size:1.3"]') || s.querySelector('[style*="font-weight:800"]');
+        if (label && value) {
+          statsHtml += '<div class="rpt-stat"><div class="rpt-stat-label">' + label.textContent + '</div>'
+            + '<div class="rpt-stat-value">' + value.textContent + '</div></div>';
+        }
+      });
+      statsHtml += '</div>';
+    }
+    // Gather table
+    var tbl = output.querySelector('table');
+    var tableHtml = tbl ? tbl.outerHTML : '';
+    _printReport(title, statsHtml + tableHtml);
+  }
+
+  /** Print giving statement for a member */
+  function _givingStatementPrint() {
+    var resultEl = document.getElementById('stmt-result');
+    if (!resultEl || !resultEl.innerHTML.trim()) { _toast('Generate a statement first.', 'warn'); return; }
+    var memberName = resultEl.querySelector('[style*="font-weight:700"]');
+    var yearLabel = resultEl.querySelector('[style*="color:var(--ink-muted)"]');
+    var title = 'Giving Statement';
+    var subtitle = '';
+    if (memberName) title = memberName.textContent.trim() + ' — Giving Statement';
+    if (yearLabel) subtitle = yearLabel.textContent.trim();
+    // Gather stats and table
+    var statsHtml = '';
+    var stats = resultEl.querySelectorAll('[style*="inline-block"]');
+    if (stats.length) {
+      statsHtml = '<div class="rpt-stats">';
+      stats.forEach(function(s) {
+        var lbl = s.querySelector('[style*="uppercase"]');
+        var val = s.querySelector('[style*="font-weight:800"]') || s.querySelector('[style*="font-size:1.3"]');
+        if (lbl && val) {
+          statsHtml += '<div class="rpt-stat"><div class="rpt-stat-label">' + lbl.textContent + '</div>'
+            + '<div class="rpt-stat-value">' + val.textContent + '</div></div>';
+        }
+      });
+      statsHtml += '</div>';
+    }
+    var tbl = resultEl.querySelector('table');
+    _printReport(title, statsHtml + (tbl ? tbl.outerHTML : ''), { subtitle: subtitle });
+  }
+
+  /** Print member directory */
+  async function _directoryPrint() {
+    _toast('Preparing directory…', 'info');
+    var rows = await _ensureMemberDir();
+    if (!rows.length) { _toast('No members found.', 'warn'); return; }
+    var html = '<table><thead><tr><th>#</th><th>Name</th><th>Email</th><th>Phone</th><th>Status</th></tr></thead><tbody>';
+    rows.forEach(function(r) {
+      var name = [r.preferredName || r.firstName, r.lastName].filter(Boolean).join(' ');
+      html += '<tr><td>' + (r.memberNumber || '') + '</td>'
+        + '<td>' + _e(name) + '</td>'
+        + '<td>' + _e(r.email || r.primaryEmail || '') + '</td>'
+        + '<td>' + _e(r.cellPhone || r.homePhone || '') + '</td>'
+        + '<td>' + _e(r.status || r.visibility || '') + '</td></tr>';
+    });
+    html += '</tbody></table>';
+    _printReport('Member Directory', '<div class="rpt-stats"><div class="rpt-stat"><div class="rpt-stat-label">Total Members</div><div class="rpt-stat-value">' + rows.length + '</div></div></div>' + html, { landscape: true });
+  }
+
+  /** Print attendance report */
+  async function _attendancePrint() {
+    _toast('Preparing attendance report…', 'info');
+    var res = await _fetch('attendance', function() { return _isFirebaseComms() ? UpperRoom.listAttendance({ limit: 500 }) : TheVine.flock.attendance.list({ limit: 500 }); });
+    var rows = _rows(res);
+    if (!rows.length) { _toast('No attendance data.', 'warn'); return; }
+    rows.sort(function(a, b) { return (b.date || b.serviceDate || '').localeCompare(a.date || a.serviceDate || ''); });
+    var total = rows.reduce(function(s, r) { return s + (Number(r.total) || 0); }, 0);
+    var avg = rows.length ? Math.round(total / rows.length) : 0;
+    var statsHtml = '<div class="rpt-stats">'
+      + '<div class="rpt-stat"><div class="rpt-stat-label">Records</div><div class="rpt-stat-value">' + rows.length + '</div></div>'
+      + '<div class="rpt-stat"><div class="rpt-stat-label">Average</div><div class="rpt-stat-value">' + avg + '</div></div>'
+      + '<div class="rpt-stat"><div class="rpt-stat-label">Total</div><div class="rpt-stat-value">' + total.toLocaleString() + '</div></div>'
+      + '</div>';
+    var html = '<table><thead><tr><th>Date</th><th>Service / Event</th><th>Adults</th><th>Children</th><th>Total</th><th>Notes</th></tr></thead><tbody>';
+    rows.forEach(function(r) {
+      html += '<tr><td>' + _e(r.date || r.serviceDate || '') + '</td>'
+        + '<td>' + _e(r.serviceType || r.eventName || r.name || '') + '</td>'
+        + '<td>' + (r.adults != null ? r.adults : '') + '</td>'
+        + '<td>' + (r.children != null ? r.children : '') + '</td>'
+        + '<td>' + (r.total != null ? r.total : '') + '</td>'
+        + '<td>' + _e(r.notes || '') + '</td></tr>';
+    });
+    html += '</tbody></table>';
+    _printReport('Attendance Report', statsHtml + html, { landscape: true });
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // REAL-TIME COLLABORATION PRESENCE
+  // Uses Firestore collection 'presence' to show who is editing what.
+  // Heartbeat every 30s; auto-expire stale entries after 90s.
+  // ══════════════════════════════════════════════════════════════════════════
+
+  var _presenceRef   = null;   // current Firestore doc ref
+  var _presenceUnsub = null;   // current onSnapshot unsubscribe
+  var _presenceTimer = null;   // heartbeat interval
+  var _presenceKey   = null;   // 'type_id' key of current edit
+
+  function _getFirestore() {
+    try { return typeof firebase !== 'undefined' && firebase.firestore ? firebase.firestore() : null; } catch (_) { return null; }
+  }
+
+  function _getSessionUser() {
+    try {
+      var s = (typeof Nehemiah !== 'undefined' && Nehemiah.getSession) ? Nehemiah.getSession() : null;
+      return s && s.email ? { email: s.email, name: s.displayName || s.name || s.email } : null;
+    } catch (_) { return null; }
+  }
+
+  /** Start presence tracking when editing a record */
+  function _presenceStart(recordType, recordId) {
+    _presenceStop(); // clear any previous
+    var db = _getFirestore();
+    var user = _getSessionUser();
+    if (!db || !user || !recordType || !recordId) return;
+    _presenceKey = recordType + '_' + recordId;
+    _presenceRef = db.collection('presence').doc(_presenceKey + '_' + user.email.replace(/[^a-zA-Z0-9]/g, '_'));
+    var data = {
+      recordType: recordType,
+      recordId:   String(recordId),
+      email:      user.email,
+      name:       user.name,
+      heartbeat:  firebase.firestore.FieldValue.serverTimestamp(),
+    };
+    _presenceRef.set(data).catch(function() {});
+    // Heartbeat every 30s
+    _presenceTimer = setInterval(function() {
+      if (_presenceRef) _presenceRef.update({ heartbeat: firebase.firestore.FieldValue.serverTimestamp() }).catch(function() {});
+    }, 30000);
+  }
+
+  /** Stop presence tracking */
+  function _presenceStop() {
+    if (_presenceTimer) { clearInterval(_presenceTimer); _presenceTimer = null; }
+    if (_presenceRef) { _presenceRef.delete().catch(function() {}); _presenceRef = null; }
+    if (_presenceUnsub) { _presenceUnsub(); _presenceUnsub = null; }
+    _presenceKey = null;
+  }
+
+  /**
+   * Watch who is editing a record. Returns an unsubscribe function.
+   * @param {string} recordType - e.g. 'member', 'care', 'event'
+   * @param {string} recordId
+   * @param {function(Array<{name,email}>)} onChange - called with list of other editors
+   */
+  function _presenceWatch(recordType, recordId, onChange) {
+    var db = _getFirestore();
+    var user = _getSessionUser();
+    if (!db || !recordType || !recordId) { onChange([]); return function() {}; }
+    var key = recordType + '_' + recordId;
+    var cutoff = Date.now() - 90000; // 90s stale threshold
+    return db.collection('presence')
+      .where('recordType', '==', recordType)
+      .where('recordId', '==', String(recordId))
+      .onSnapshot(function(snap) {
+        var editors = [];
+        snap.forEach(function(doc) {
+          var d = doc.data();
+          if (!d || !d.email) return;
+          // Skip self
+          if (user && d.email === user.email) return;
+          // Skip stale (>90s without heartbeat)
+          var hb = d.heartbeat && d.heartbeat.toMillis ? d.heartbeat.toMillis() : (d.heartbeat || 0);
+          if (hb && hb < cutoff) { doc.ref.delete().catch(function() {}); return; }
+          editors.push({ name: d.name || d.email, email: d.email });
+        });
+        onChange(editors);
+      }, function() { onChange([]); });
+  }
+
+  /** Render an inline badge showing active editors */
+  function _presenceBadge(editors) {
+    if (!editors || !editors.length) return '';
+    var names = editors.map(function(e) { return _e(e.name); }).join(', ');
+    return '<div style="display:inline-flex;align-items:center;gap:6px;background:rgba(248,168,56,0.12);'
+      + 'border:1px solid rgba(248,168,56,0.3);border-radius:6px;padding:4px 10px;font-size:0.76rem;'
+      + 'color:var(--gold,#e8a838);margin-bottom:8px;animation:_presencePulse 2s infinite;">'
+      + '<span style="width:8px;height:8px;border-radius:50%;background:var(--gold);display:inline-block;"></span>'
+      + names + (editors.length === 1 ? ' is' : ' are') + ' also editing this record'
+      + '</div>';
+  }
+
+  // Auto-cleanup on page unload
+  if (typeof window !== 'undefined') {
+    window.addEventListener('beforeunload', _presenceStop);
+    // Add pulse keyframes once
+    try {
+      var _pStyle = document.createElement('style');
+      _pStyle.textContent = '@keyframes _presencePulse{0%,100%{opacity:1}50%{opacity:0.6}}';
+      document.head.appendChild(_pStyle);
+    } catch (_) {}
+  }
+
   function _statusBadge(val) {
     const t = String(val || '').toUpperCase();
     if (['TRUE','ACTIVE','OPEN','PUBLISHED','DELIVERED','COMPLETE','YES','APPROVED'].includes(t))
@@ -916,14 +1248,26 @@ const Modules = (() => {
       if (!r.id && _dataCache[module]) {
         r = (_dataCache[module] || []).find(x => (x.id || x.email) === id) || {};
       }
-      _modal(title, fields.map(f => ({
+      // Start collaboration presence tracking
+      _presenceStart(module, id);
+      // Check for other editors and prepend badge
+      var presenceField = { name: '_presence', type: 'html', html: '<div id="edit-presence-badge"></div>' };
+      var editFields = [presenceField].concat(fields.map(f => ({
         ...f, value: r[f.name] != null ? String(r[f.name]) : (f.value || '')
-      })), async data => {
+      })));
+      _modal(title, editFields, async data => {
+        delete data._presence;
         data.id = id;
+        _presenceStop();
         await updateFn(data);
         _reload(module);
       });
-    } catch (e) { _toast(e.message || 'Error loading record.', 'danger'); }
+      // Watch for other editors in real-time
+      _presenceUnsub = _presenceWatch(module, id, function(editors) {
+        var el = document.getElementById('edit-presence-badge');
+        if (el) el.innerHTML = _presenceBadge(editors);
+      });
+    } catch (e) { _presenceStop(); _toast(e.message || 'Error loading record.', 'danger'); }
   }
 
   // ── Delegated click handler for editable table rows ────────────────────
@@ -1175,12 +1519,15 @@ const Modules = (() => {
     m.id = id;
     m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:1000;'
                     + 'display:flex;align-items:center;justify-content:center;padding:40px 20px;';
+    m.setAttribute('role', 'dialog');
+    m.setAttribute('aria-modal', 'true');
+    m.setAttribute('aria-label', title.replace(/<[^>]*>/g, ''));
     m.innerHTML =
       '<div style="background:var(--bg-raised);border:1px solid var(--line);border-radius:12px;'
       + 'padding:28px;width:100%;max-width:520px;max-height:85vh;overflow-y:auto;">'
       + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">'
       + '<h2 style="font-size:1rem;color:var(--accent);">' + title + '</h2>'
-      + '<button id="ml-modal-x" style="background:none;border:none;color:var(--ink-muted);font-size:1.4rem;cursor:pointer;line-height:1;">&#x2715;</button>'
+      + '<button id="ml-modal-x" aria-label="Close" style="background:none;border:none;color:var(--ink-muted);font-size:1.4rem;cursor:pointer;line-height:1;">&#x2715;</button>'
       + '</div>'
       + '<form id="ml-modal-form">' + fHtml
       + '<div style="display:flex;gap:10px;margin-top:8px;">'
@@ -1197,8 +1544,8 @@ const Modules = (() => {
 
     document.body.appendChild(m);
 
-    document.getElementById('ml-modal-x').onclick = () => m.remove();
-    m.addEventListener('click', e => { if (e.target === m) m.remove(); });
+    document.getElementById('ml-modal-x').onclick = () => { _presenceStop(); m.remove(); };
+    m.addEventListener('click', e => { if (e.target === m) { _presenceStop(); m.remove(); } });
 
     document.getElementById('ml-modal-form').addEventListener('submit', async e => {
       e.preventDefault();
@@ -1223,8 +1570,8 @@ const Modules = (() => {
 
     if (onDelete) {
       document.getElementById('ml-modal-del').onclick = async () => {
-        if (!confirm('Delete this record? This cannot be undone.')) return;
-        try { await onDelete(); m.remove(); } catch (err) { _toast(err.message || 'Delete failed.', 'danger'); }
+        m.remove();
+        _undoAction('Record deleted', onDelete);
       };
     }
   }
@@ -1444,7 +1791,7 @@ const Modules = (() => {
       return;
     }
     _shell(el, 'Directory', 'Member cards & contact list.',
-      _btn('&#128075; Welcome Visitor', "Modules.onboardMember()") + ' ' + _btn('+ New Person', "Modules.newUser()"));
+      _btn('&#128075; Welcome Visitor', "Modules.onboardMember()") + ' ' + _btn('+ New Person', "Modules.newUser()") + ' ' + _btn('📦 Print', "Modules._directoryPrint()"));
     try {
       const rows = await _ensureMemberDir();
       _dataCache['directory'] = rows;
@@ -1521,7 +1868,8 @@ const Modules = (() => {
   _def('attendance', async el => {
     _shell(el, 'Attendance', 'Track weekly service & event attendance.',
       _btn('+ Record', "Modules.newAttendance()") +
-      _btn('Export Summary', "Modules.attendanceSummary()", false));
+      _btn('Export Summary', "Modules.attendanceSummary()", false) +
+      ' ' + _btn('📦 Print', "Modules._attendancePrint()"));
     try {
       const [listRes, sumRes] = await Promise.all([
         _fetch('attendance', () => _isFirebaseComms() ? UpperRoom.listAttendance({ limit: 500 }) : TheVine.flock.attendance.list({ limit: 500 })),
@@ -1912,13 +2260,12 @@ const Modules = (() => {
   }
 
   async function _albumDelete(id) {
-    if (!confirm('Delete this album? This cannot be undone.')) return;
-    try {
+    _undoAction('Album deleted', async function() {
       await (_isFirebaseComms() ? UpperRoom.deleteAlbum(id) : TheVine.flock.albums.delete({ id }));
       _invalidateCache('albums');
       const el = document.getElementById('view-albums');
       if (el) { el.dataset.loaded = ''; _reg['albums'](el); }
-    } catch (e) { _toast('Error: ' + e.message, 'danger'); }
+    });
   }
 
 
@@ -2069,11 +2416,12 @@ const Modules = (() => {
       + '</div></div>'
       + (function() {
         var details = [];
-        if (planData.worshipLeader)  details.push({ icon:'&#128100;', label:'Worship Leader', val:planData.worshipLeader });
-        if (planData.preacher)       details.push({ icon:'&#127908;', label:'Preacher',       val:planData.preacher });
-        if (planData.announcements)  details.push({ icon:'&#128226;', label:'Announcements',  val:planData.announcements });
-        if (planData.prayer)         details.push({ icon:'&#128591;', label:'Prayer',          val:planData.prayer });
-        if (planData.proverb)        details.push({ icon:'&#128216;', label:'Proverb',         val:planData.proverb });
+        if (planData.psalmReader)    details.push({ icon:'&#128220;', label:'Psalm',           val:planData.psalmReader });
+        if (planData.worshipLeader)  details.push({ icon:'&#128100;', label:'Worship',         val:planData.worshipLeader });
+        if (planData.announcements)  details.push({ icon:'&#128226;', label:'Announcements',   val:planData.announcements });
+        if (planData.prayer)         details.push({ icon:'&#128591;', label:'Prayer',           val:planData.prayer });
+        if (planData.preacher)       details.push({ icon:'&#127908;', label:'Preacher',         val:planData.preacher });
+        if (planData.proverb)        details.push({ icon:'&#128216;', label:'Proverb',          val:planData.proverb });
         if (!details.length) return '';
         return '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line);">'
           + details.map(function(d) {
@@ -2272,15 +2620,23 @@ const Modules = (() => {
       { name: 'serviceType', label: 'Service Type', type: 'select',
         options: ['Sunday Morning','Sunday Evening','Wednesday','Special','Conference','Other'],
         value: r.serviceType || '' },
-      { name: 'serviceDate',  label: 'Date',         type: 'date',     value: r.serviceDate || r.date || '' },
-      { name: 'sermonTitle',  label: 'Sermon Title', value: r.sermonTitle || '' },
-      { name: 'theme',        label: 'Theme',        value: r.theme || '' },
-      { name: 'status',       label: 'Status',       type: 'select',
-        options: ['Draft','Confirmed','Completed'],   value: r.status || 'Draft' },
-      { name: 'notes',        label: 'Notes',        type: 'textarea', rows: 2, value: r.notes || '' },
+      { name: 'serviceDate',  label: 'Date',          type: 'date',     value: r.serviceDate || r.date || '' },
+      { name: 'psalmReader',  label: 'Psalm',         value: r.psalmReader || '' },
+      { name: 'worshipLeader',label: 'Worship',       value: r.worshipLeader || '' },
+      { name: 'announcements',label: 'Announcements', value: r.announcements || '' },
+      { name: 'prayer',       label: 'Prayer',        value: r.prayer || '' },
+      { name: 'preacher',     label: 'Preacher',      value: r.preacher || '' },
+      { name: 'scriptureFocus',label:'Scripture',      value: r.scriptureFocus || '' },
+      { name: 'proverb',      label: 'Proverb',       value: r.proverb || '' },
+      { name: 'sermonTitle',  label: 'Sermon Title',  value: r.sermonTitle || '' },
+      { name: 'theme',        label: 'Theme',         value: r.theme || '' },
+      { name: 'status',       label: 'Status',        type: 'select',
+        options: ['Draft','Scheduled','Confirmed','Completed'], value: r.status || 'Draft' },
+      { name: 'notes',        label: 'Notes',         type: 'textarea', rows: 2, value: r.notes || '' },
     ], async function(data) {
       data.id = _svcViewPlanId;
-      await TheVine.flock.servicePlans.update(data);
+      if (_isFirebaseComms()) await UpperRoom.updateServicePlan(data);
+      else await TheVine.flock.servicePlans.update(data);
       _invalidateCache('services');
       _svcViewPlanData = null;
       servicesView('order');
@@ -6303,6 +6659,7 @@ const Modules = (() => {
         const answer    = r['Answer Content'] || '';
         const quote     = r['Quote Text'] || '';
         const refText   = r['Reference Text'] || '';
+        const refUrl    = r['Reference URL'] || '';
         const searchText = (question + ' ' + cat + ' ' + answer + ' ' + quote + ' ' + refText).toLowerCase();
 
         // Pill: use category color from sheet as inline style
@@ -6328,8 +6685,8 @@ const Modules = (() => {
           html += '</div>';
         }
 
-        // Scripture card — quote text + reference pills together
-        if (quote || refText) {
+        // Scripture card — quote text + reference pills + external source link
+        if (quote || refText || refUrl) {
           html += '<div class="browse-detail-card browse-card-gold">';
           html += '<div class="browse-detail-head"><span class="browse-detail-icon">&#128220;</span><span class="browse-detail-label">Scripture</span></div>';
           if (quote) html += '<div class="browse-detail-body">' + _paras(quote) + '</div>';
@@ -6338,6 +6695,11 @@ const Modules = (() => {
             refText.split(/[;,]+/).map(r => r.trim()).filter(Boolean).forEach(ref => {
               html += _biblePill(ref, 'pill-accent');
             });
+            html += '</div>';
+          }
+          if (refUrl) {
+            html += '<div style="padding:4px 14px 14px;font-size:0.78rem;">';
+            html += '<a href="' + _e(refUrl) + '" target="_blank" rel="noopener noreferrer" style="color:var(--accent);text-decoration:underline;">&#128279; Source Reference</a>';
             html += '</div>';
           }
           html += '</div>';
@@ -6684,15 +7046,12 @@ const Modules = (() => {
   }
 
   async function deleteMessage(id, cache) {
-    if (!confirm('Delete this message?')) return;
-    var b = document.querySelector('#view-comms #ml-body');
-    if (b) b.innerHTML = _spinner();
-    try {
+    _undoAction('Message deleted', async function() {
       if (_isFirebaseComms()) { await UpperRoom.deleteConversation(id); }
       else { await TheVine.flock.comms.messages.delete({ id }); }
       _commsOpenMsg = null;
       _reload('comms');
-    } catch (e) { _toast(e.message || 'Delete failed.', 'danger'); }
+    });
   }
 
   // Archive an inbox message (move to archived state)
@@ -6866,11 +7225,12 @@ const Modules = (() => {
   }
 
   async function _threadArchive(id) {
-    if (!confirm('Archive this thread?')) return;
-    if (_isFirebaseComms()) { await UpperRoom.archiveConversation(id); }
-    else { await TheVine.flock.comms.threads.archive({ id: id }); }
-    _invalidateCache('comms-threads');
-    commsView('threads');
+    _undoAction('Thread archived', async function() {
+      if (_isFirebaseComms()) { await UpperRoom.archiveConversation(id); }
+      else { await TheVine.flock.comms.threads.archive({ id: id }); }
+      _invalidateCache('comms-threads');
+      commsView('threads');
+    });
   }
 
   async function _threadMuteToggle(id, isMuted) {
@@ -7101,12 +7461,10 @@ const Modules = (() => {
 
   // ── Delete a Firebase thread/room (pastor/admin or creator) ────────────
   async function _deleteFirebaseThread(id) {
-    if (!confirm('Delete this conversation and all its messages? This cannot be undone.')) return;
-    try {
+    _undoAction('Conversation deleted', async function() {
       await UpperRoom.deleteConversation(id);
-      _toast('Conversation deleted.');
       commsView(_commsTab || 'threads');
-    } catch (e) { _toast('Delete failed: ' + e.message, 'danger'); }
+    });
   }
 
   async function commsView(tab) {
@@ -7807,13 +8165,12 @@ const Modules = (() => {
   }
 
   async function _channelDelete(id) {
-    if (!confirm('Delete this channel? This cannot be undone.')) return;
-    try {
+    _undoAction('Channel deleted', async function() {
       if (_isFirebaseComms()) { await UpperRoom.deleteConversation(id); }
       else { await TheVine.flock.comms.channels.delete({ id }); }
       _invalidateCache('comms-channels');
       commsView('channels');
-    } catch (e) { _toast('Error: ' + e.message, 'danger'); }
+    });
   }
 
   async function _channelPost(id) {
@@ -9311,17 +9668,17 @@ const Modules = (() => {
   }
 
   function _mcLinkDelete(id) {
-    if (!confirm('Delete this link?')) return;
-    (_isFirebaseComms() ? UpperRoom.deleteCardLink({ id }) : TheVine.flock.memberCards.links.delete({ id }))
-      .then(() => { _toast('Link deleted.'); memberCardsView('mycard'); })
-      .catch(e  => _toast('Error: ' + e.message));
+    _undoAction('Link deleted', function() {
+      return (_isFirebaseComms() ? UpperRoom.deleteCardLink({ id }) : TheVine.flock.memberCards.links.delete({ id }))
+        .then(function() { memberCardsView('mycard'); });
+    });
   }
 
   function _mcArchive(id) {
-    if (!confirm('Archive this member card?')) return;
-    (_isFirebaseComms() ? UpperRoom.memberCardsArchive({ id }) : TheVine.flock.memberCards.archive({ id }))
-      .then(() => { _toast('Card archived.'); _invalidateCache('memberCards.list'); memberCardsView('cards'); })
-      .catch(e  => _toast('Error: ' + e.message));
+    _undoAction('Member card archived', function() {
+      return (_isFirebaseComms() ? UpperRoom.memberCardsArchive({ id }) : TheVine.flock.memberCards.archive({ id }))
+        .then(function() { _invalidateCache('memberCards.list'); memberCardsView('cards'); });
+    });
   }
 
   function _mcBulkProvision() {
@@ -9411,7 +9768,8 @@ const Modules = (() => {
     _body(el, '<div id="rpt-dashboard" style="margin-bottom:24px;"></div>'
             + dateBar
             + '<div class="card-grid">' + cards + '</div>'
-            + '<div id="rpt-output" style="margin-top:28px;"></div>');
+            + '<div id="rpt-output" style="margin-top:28px;"></div>'
+            + _scheduledExportsPanel());
 
     // ── Load dashboard KPIs ─────────────────────────────────────────────
     const dash = document.getElementById('rpt-dashboard');
@@ -9437,6 +9795,138 @@ const Modules = (() => {
       }
     }
   });
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // SCHEDULED EXPORTS — configure automated email reports
+  // ══════════════════════════════════════════════════════════════════════════
+
+  var _schedules = [];
+
+  function _scheduledExportsPanel() {
+    return '<div style="margin-top:36px;border-top:1px solid var(--line);padding-top:24px;">'
+      + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">'
+      + '<div><h3 style="font-size:0.95rem;margin:0;">📅 Scheduled Reports</h3>'
+      + '<p style="font-size:0.78rem;color:var(--ink-muted);margin:4px 0 0;">Automated email delivery of reports on a recurring schedule.</p></div>'
+      + '<button class="fl-btn" onclick="Modules._scheduleAdd()" style="background:var(--accent);color:var(--ink-inverse);border:none;border-radius:6px;padding:6px 14px;font-weight:600;font-size:0.78rem;cursor:pointer;">+ Add Schedule</button>'
+      + '</div>'
+      + '<div id="sched-list">' + _spinner() + '</div>'
+      + '</div>';
+  }
+
+  async function _scheduleLoad() {
+    var el = document.getElementById('sched-list');
+    if (!el) return;
+    try {
+      var db = typeof firebase !== 'undefined' && firebase.firestore ? firebase.firestore() : null;
+      if (!db) { el.innerHTML = '<p style="font-size:0.82rem;color:var(--ink-muted);">Scheduled exports require Firebase.</p>'; return; }
+      var snap = await db.collection('scheduledReports').get();
+      _schedules = [];
+      snap.forEach(function(doc) { _schedules.push(Object.assign({ id: doc.id }, doc.data())); });
+      _scheduleRender();
+    } catch (e) { el.innerHTML = _errHtml(e.message); }
+  }
+
+  function _scheduleRender() {
+    var el = document.getElementById('sched-list');
+    if (!el) return;
+    if (!_schedules.length) {
+      el.innerHTML = '<p style="font-size:0.82rem;color:var(--ink-muted);">No scheduled reports configured. Click <strong>+ Add Schedule</strong> to create one.</p>';
+      return;
+    }
+    var html = '<table class="fl-table" style="width:100%;font-size:0.82rem;"><thead><tr>'
+      + '<th>Report</th><th>Frequency</th><th>Recipients</th><th>Status</th><th></th></tr></thead><tbody>';
+    _schedules.forEach(function(s) {
+      html += '<tr>'
+        + '<td>' + _e(s.reportName || s.reportType || '') + '</td>'
+        + '<td>' + _e(s.frequency || '') + '</td>'
+        + '<td>' + _e((s.recipients || []).join(', ')) + '</td>'
+        + '<td>' + (s.enabled !== false ? _badge('Active', 'success') : _badge('Paused', 'warn')) + '</td>'
+        + '<td><button class="fl-btn" onclick="Modules._scheduleEdit(\'' + _e(s.id) + '\')" style="font-size:0.72rem;padding:3px 8px;background:none;border:1px solid var(--line);border-radius:4px;color:var(--ink);cursor:pointer;">Edit</button>'
+        + ' <button class="fl-btn" onclick="Modules._scheduleDelete(\'' + _e(s.id) + '\')" style="font-size:0.72rem;padding:3px 8px;background:none;border:1px solid var(--danger);border-radius:4px;color:var(--danger);cursor:pointer;">✕</button></td>'
+        + '</tr>';
+    });
+    html += '</tbody></table>';
+    el.innerHTML = html;
+  }
+
+  function _scheduleAdd() {
+    _modal('Add Scheduled Report', [
+      { name: 'reportType', label: 'Report', type: 'select', required: true, options: [
+        { value: 'attendanceTrend', label: 'Attendance Trend' },
+        { value: 'givingSummary',   label: 'Giving Summary' },
+        { value: 'memberGrowth',    label: 'Member Growth' },
+        { value: 'careOverview',    label: 'Care Overview' },
+        { value: 'inactiveMembers', label: 'Inactive Members' },
+        { value: 'prayerOverview',  label: 'Prayer Overview' },
+      ]},
+      { name: 'frequency', label: 'Frequency', type: 'select', required: true, options: [
+        { value: 'weekly',    label: 'Weekly (Monday)' },
+        { value: 'biweekly',  label: 'Bi-weekly' },
+        { value: 'monthly',   label: 'Monthly (1st)' },
+        { value: 'quarterly', label: 'Quarterly' },
+      ]},
+      { name: 'recipients', label: 'Recipients (comma-separated emails)', type: 'text', required: true },
+      { name: 'reportName', label: 'Display Name (optional)', type: 'text' },
+    ], async function(data) {
+      var db = typeof firebase !== 'undefined' && firebase.firestore ? firebase.firestore() : null;
+      if (!db) throw new Error('Firebase required');
+      data.recipients = (data.recipients || '').split(',').map(function(e) { return e.trim(); }).filter(Boolean);
+      data.enabled = true;
+      data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+      data.createdBy = (typeof Nehemiah !== 'undefined' && Nehemiah.getSession && Nehemiah.getSession()) ? Nehemiah.getSession().email : '';
+      await db.collection('scheduledReports').add(data);
+      _toast('Schedule created ✓');
+      _scheduleLoad();
+    });
+  }
+
+  function _scheduleEdit(id) {
+    var s = _schedules.find(function(x) { return x.id === id; });
+    if (!s) return;
+    _modal('Edit Scheduled Report', [
+      { name: 'reportType', label: 'Report', type: 'select', value: s.reportType, options: [
+        { value: 'attendanceTrend', label: 'Attendance Trend' },
+        { value: 'givingSummary',   label: 'Giving Summary' },
+        { value: 'memberGrowth',    label: 'Member Growth' },
+        { value: 'careOverview',    label: 'Care Overview' },
+        { value: 'inactiveMembers', label: 'Inactive Members' },
+        { value: 'prayerOverview',  label: 'Prayer Overview' },
+      ]},
+      { name: 'frequency', label: 'Frequency', type: 'select', value: s.frequency, options: [
+        { value: 'weekly',    label: 'Weekly (Monday)' },
+        { value: 'biweekly',  label: 'Bi-weekly' },
+        { value: 'monthly',   label: 'Monthly (1st)' },
+        { value: 'quarterly', label: 'Quarterly' },
+      ]},
+      { name: 'recipients', label: 'Recipients (comma-separated)', type: 'text', value: (s.recipients || []).join(', ') },
+      { name: 'reportName', label: 'Display Name', type: 'text', value: s.reportName || '' },
+      { name: 'enabled', label: 'Enabled', type: 'select', value: s.enabled !== false ? 'true' : 'false', options: [
+        { value: 'true', label: 'Active' }, { value: 'false', label: 'Paused' },
+      ]},
+    ], async function(data) {
+      var db = typeof firebase !== 'undefined' && firebase.firestore ? firebase.firestore() : null;
+      if (!db) throw new Error('Firebase required');
+      data.recipients = (data.recipients || '').split(',').map(function(e) { return e.trim(); }).filter(Boolean);
+      data.enabled = data.enabled === 'true';
+      await db.collection('scheduledReports').doc(id).update(data);
+      _toast('Schedule updated ✓');
+      _scheduleLoad();
+    });
+  }
+
+  async function _scheduleDelete(id) {
+    if (!confirm('Remove this scheduled report?')) return;
+    try {
+      var db = typeof firebase !== 'undefined' && firebase.firestore ? firebase.firestore() : null;
+      if (!db) throw new Error('Firebase required');
+      await db.collection('scheduledReports').doc(id).delete();
+      _toast('Schedule removed.');
+      _scheduleLoad();
+    } catch (e) { _toast(e.message, 'danger'); }
+  }
+
+  // Auto-load schedules when reports panel is rendered
+  setTimeout(function() { _scheduleLoad(); }, 500);
 
   // ── Reports date-range helpers ──────────────────────────────────────────
   function _rptPreset() {
@@ -15240,6 +15730,8 @@ const Modules = (() => {
         html += '<p style="font-size:0.85rem;color:var(--ink-muted);">No gifts recorded for this year.</p>';
       }
       html += '</div>';
+      html += '<div style="text-align:right;margin-top:10px;"><button type="button" onclick="Modules._givingStatementPrint()" '
+        + 'style="background:var(--accent);color:var(--ink-inverse);border:none;border-radius:6px;padding:6px 16px;font-weight:600;font-size:0.8rem;cursor:pointer;font-family:inherit;">📦 Print / PDF</button></div>';
       resultEl.innerHTML = html;
     } catch (e) {
       if (resultEl) resultEl.innerHTML = '<p style="color:var(--danger);font-size:0.85rem;">Error: ' + _e(e.message) + '</p>';
@@ -15390,8 +15882,10 @@ const Modules = (() => {
     function _rHeader() {
       return '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:16px;">'
         + '<h3 style="color:var(--gold);font-size:0.95rem;margin:0;">' + _e(title) + periodLabel + '</h3>'
+        + '<div style="display:flex;gap:6px;">'
+        + '<button onclick="Modules._rptPrintReport()" style="font-size:0.74rem;padding:5px 12px;border:1px solid var(--line);border-radius:6px;background:none;color:var(--ink-muted);cursor:pointer;font-family:inherit;">&#128438; PDF</button>'
         + '<button onclick="Modules._rptExportTable()" style="font-size:0.74rem;padding:5px 12px;border:1px solid var(--line);border-radius:6px;background:none;color:var(--ink-muted);cursor:pointer;font-family:inherit;">\u2b07 Export CSV</button>'
-        + '</div>';
+        + '</div></div>';
     }
 
     try {
@@ -18131,19 +18625,17 @@ const Modules = (() => {
   }
 
   async function _markPrayerAnswered(id) {
-    if (!confirm('Mark this prayer as answered? Praise God!')) return;
-    try {
+    var modal = document.getElementById('fl-my-prayer');
+    if (modal) modal.remove();
+    _undoAction('\uD83D\uDE4F Prayer marked as answered!', async function() {
       if (_isFirebaseComms()) { await UpperRoom.updatePrayer(id, { status: 'Answered' }); }
       else { await TheVine.flock.prayer.update({ id: id, status: 'Answered' }); }
-      var modal = document.getElementById('fl-my-prayer');
-      if (modal) modal.remove();
-      _toast('\uD83D\uDE4F Prayer marked as answered!');
       var activeModule = document.querySelector('.module-active');
       if (activeModule) {
         var modId = activeModule.getAttribute('data-module');
         if (modId) _reload(modId);
       }
-    } catch (e) { _toast('Update failed: ' + (e.message || e), 'danger'); }
+    });
   }
 
   // ── Member-facing care case detail view (view/edit own care cases) ──
@@ -18301,18 +18793,16 @@ const Modules = (() => {
   }
 
   async function _markCareResolved(id) {
-    if (!confirm('Mark this care case as resolved?')) return;
-    try {
+    var modal = document.getElementById('fl-my-care');
+    if (modal) modal.remove();
+    _undoAction('Care case resolved', async function() {
       await (_isFirebaseComms() ? UpperRoom.resolveCareCase(id) : TheVine.flock.care.resolve({ id: id }));
-      var modal = document.getElementById('fl-my-care');
-      if (modal) modal.remove();
-      _toast('Care case resolved!');
       var activeModule = document.querySelector('.module-active');
       if (activeModule) {
         var modId = activeModule.getAttribute('data-module');
         if (modId) _reload(modId);
       }
-    } catch (e) { _toast('Update failed: ' + (e.message || e), 'danger'); }
+    });
   }
 
   // ── Group detail view (view group info + member roster) ──
@@ -20556,9 +21046,22 @@ const Modules = (() => {
     _edit,
     _table,
     _toast,
+    _undoAction,
     _statusBadge,
     _bibleLink,
     _rows,
+    _printReport,
+    _rptPrintReport,
+    _givingStatementPrint,
+    _directoryPrint,
+    _attendancePrint,
+    _presenceStart,
+    _presenceStop,
+    _presenceWatch,
+    _presenceBadge,
+    _scheduleAdd,
+    _scheduleEdit,
+    _scheduleDelete,
 
     // Exposed create actions (called from inline onclick in module HTML)
     newGroup,

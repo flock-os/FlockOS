@@ -35,10 +35,34 @@ window.FLOCK_CHURCH_ID = "tbc";
   var _unreadDM   = 0;      // unread DM count
   var _unreadRoom = 0;      // unread room count
 
+  /* ── Timeout constant ───────────────────────────────────────────── */
+  var FIRESTORE_TIMEOUT_MS = 20000; // 20 seconds for Firestore one-shot reads
+
   /* ── Helpers ──────────────────────────────────────────────────────── */
   function _now()    { return firebase.firestore.FieldValue.serverTimestamp(); }
   function _ts(d)    { return d && d.toDate ? d.toDate() : (d ? new Date(d) : new Date()); }
   function _uid()    { return _db.collection('_').doc().id; }
+
+  /**
+   * Wrap any promise with a timeout.  If the promise doesn't settle
+   * within `ms` milliseconds, reject with a user-friendly message.
+   * @param {Promise} p   — the underlying promise (e.g. Firestore .get())
+   * @param {number}  ms  — timeout in ms (default FIRESTORE_TIMEOUT_MS)
+   * @param {string}  label — optional context for the error message
+   */
+  function _withTimeout(p, ms, label) {
+    ms = ms || FIRESTORE_TIMEOUT_MS;
+    return Promise.race([
+      p,
+      new Promise(function(_, reject) {
+        setTimeout(function() {
+          reject(new Error(
+            (label || 'Request') + ' timed out after ' + (ms / 1000) + 's. Check your connection and try again.'
+          ));
+        }, ms);
+      })
+    ]);
+  }
 
   function _churchRef() {
     // Collections live at the root of each church's own Firebase project —
@@ -140,15 +164,18 @@ window.FLOCK_CHURCH_ID = "tbc";
     // ID token refresh — after ~1 hour the refreshed token loses them,
     // causing Firestore rules to reject with "missing permissions."
     if (_auth.currentUser) {
-      return _auth.currentUser.getIdTokenResult()
-        .then(function(result) {
-          if (result.claims && result.claims.churchId) {
-            _ready = true;
-            return;  // claims intact — no re-auth needed
-          }
-          // Claims lost after token refresh — get a fresh custom token
-          return _mintAndSignIn();
-        });
+      return _withTimeout(
+        _auth.currentUser.getIdTokenResult()
+          .then(function(result) {
+            if (result.claims && result.claims.churchId) {
+              _ready = true;
+              return;  // claims intact — no re-auth needed
+            }
+            // Claims lost after token refresh — get a fresh custom token
+            return _mintAndSignIn();
+          }),
+        30000, 'Firebase authentication'
+      );
     }
 
     // Not signed in at all — get a custom token
@@ -2515,6 +2542,16 @@ window.FLOCK_CHURCH_ID = "tbc";
     });
   }
 
+  function deleteAllServicePlans() {
+    return _servicePlansRef().get().then(function(snap) {
+      var batch = _db.batch();
+      var count = 0;
+      snap.forEach(function(doc) { batch.delete(doc.ref); count++; });
+      if (count === 0) return { deleted: 0 };
+      return batch.commit().then(function() { return { deleted: count }; });
+    });
+  }
+
   /* ══════════════════════════════════════════════════════════════════
      SONGS
      ══════════════════════════════════════════════════════════════════ */
@@ -4263,6 +4300,25 @@ window.FLOCK_CHURCH_ID = "tbc";
     });
   }
 
+  /* ── Error Telemetry ──────────────────────────────────────────────── */
+  function logError(data) {
+    if (!_db || !_ready) return;
+    try {
+      _churchRef().collection('errors').add({
+        message:   String(data.message || '').substring(0, 500),
+        source:    String(data.source || '').substring(0, 200),
+        line:      data.line || null,
+        col:       data.col || null,
+        stack:     String(data.stack || '').substring(0, 2000),
+        userEmail: _userEmail || '',
+        churchId:  _churchId || '',
+        url:       window.location.href.substring(0, 200),
+        userAgent: navigator.userAgent.substring(0, 200),
+        timestamp: _now()
+      });
+    } catch (_) {}
+  }
+
   /* ══════════════════════════════════════════════════════════════════
      PUBLIC API — window.UpperRoom
      ══════════════════════════════════════════════════════════════════ */
@@ -4513,8 +4569,9 @@ window.FLOCK_CHURCH_ID = "tbc";
     // Service Plans
     listServicePlans:   listServicePlans,
     getServicePlan:     getServicePlan,
-    createServicePlan:  createServicePlan,
-    updateServicePlan:  updateServicePlan,
+    createServicePlan:      createServicePlan,
+    updateServicePlan:      updateServicePlan,
+    deleteAllServicePlans:  deleteAllServicePlans,
 
     // Songs
     listSongs:               listSongs,
@@ -4790,7 +4847,10 @@ window.FLOCK_CHURCH_ID = "tbc";
     reportsDashboard:       reportsDashboard,
 
     // Utility
-    timeAgo:        _timeAgo
+    timeAgo:        _timeAgo,
+
+    // Error telemetry
+    logError:       logError
   };
 
   // ── Auto-initialize on load (Firebase SDK is loaded before this script) ──

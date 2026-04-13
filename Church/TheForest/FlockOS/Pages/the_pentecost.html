@@ -400,7 +400,7 @@
 
 <!-- SECTION 0: PROJECT STATUS -->
 <section id="status">
-  <h2><span class="num">Status</span> Project Status &mdash; April 10, 2026</h2>
+  <h2><span class="num">Status</span> Project Status &mdash; April 12, 2026</h2>
   <div class="gospel">"The LORD is my rock and my fortress." &mdash; Psalm 18:2</div>
 
   <h3>What Has Been Built</h3>
@@ -417,7 +417,7 @@
       <td>The Wall (Auth Gate)</td>
       <td><code>FlockOS/Scripts/firm_foundation.js</code></td>
       <td><span class="badge badge-success">Done</span></td>
-      <td>Auth guard module. Nehemiah.guard(), hasRole(), login(), logout(), register(). Fixed TheVine.session() call patterns throughout.</td>
+      <td>559 lines. Auth guard module. Nehemiah.guard(), hasRole(), login(), logout(), register(). Fixed TheVine.session() call patterns throughout.</td>
     </tr>
     <tr>
       <td>Login Page</td>
@@ -435,13 +435,13 @@
       <td>Module System (the_tabernacle.js)</td>
       <td><code>FlockOS/Scripts/the_tabernacle.js</code></td>
       <td><span class="badge badge-success">Done</span></td>
-      <td>19,451 lines. 48+ module renderers with full CRUD, card-based and table-based views, shared helpers, generic <code>_modal()</code> and <code>_edit()</code> form system. Card-based message inbox/detail view, notification bell integration, Daily Devotional unified page, The Upper Room spiritual dashboard. Dual-backend routing via <code>_isFirebaseComms()</code>. Delegates to 6 external IIFEs: TheSeasons, TheLife, TheWay, TheHarvest, TheShepherd, TheFold.</td>
+      <td>20,812 lines. 48+ module renderers with full CRUD, card-based and table-based views, shared helpers, generic <code>_modal()</code> and <code>_edit()</code> form system. Card-based message inbox/detail view, notification bell integration, Daily Devotional unified page, The Upper Room spiritual dashboard. Dual-backend routing via <code>_isFirebaseComms()</code>. Delegates to 6 external IIFEs: TheSeasons, TheLife, TheWay, TheHarvest, TheShepherd, TheFold.</td>
     </tr>
     <tr>
       <td>CSS Theme System (fine_linen.js)</td>
       <td><code>FlockOS/Scripts/fine_linen.js</code></td>
       <td><span class="badge badge-success">Done</span></td>
-      <td>5,614 lines. 14 themes (light, dark, and flag), full CSS framework, pills/badges, cards, tables, responsive layout. iOS zoom prevention (all inputs 16px). Dynamic theming across all pages including deployment guide. Interface Studio override engine.</td>
+      <td>5,837 lines. 14 themes (light, dark, and flag), full CSS framework, pills/badges, cards, tables, responsive layout. iOS zoom prevention (all inputs 16px). Dynamic theming across all pages including deployment guide. Interface Studio override engine.</td>
     </tr>
 
     <!-- BACKEND FIXES -->
@@ -614,7 +614,7 @@
       <td>My Flock Portal Module</td>
       <td><code>FlockOS/Scripts/the_life.js</code></td>
       <td><span class="badge badge-success">Done</span></td>
-      <td>Extracted from the_tabernacle.js into its own IIFE module (2,176 lines). Pastoral command hub: full-page member editor, care case editor, prayer editor, compassion editor, outreach editor. Registered as <code>my-flock</code> module in the_tabernacle.js.</td>
+      <td>Extracted from the_tabernacle.js into its own IIFE module (3,747 lines). Pastoral command hub: full-page member editor, care case editor, prayer editor, compassion editor, outreach editor. Registered as <code>my-flock</code> module in the_tabernacle.js.</td>
     </tr>
     <tr>
       <td>Role-Aware Hub</td>
@@ -640,7 +640,7 @@
       <td>UpperRoom (Firestore Layer)</td>
       <td><code>FlockOS/Scripts/the_upper_room.js</code></td>
       <td><span class="badge badge-success">Done</span></td>
-      <td>4,576 lines. Complete Firestore data layer: real-time messaging (DMs, chat rooms, channels, notifications), journal, prayer, devotionals, members, care, compassion, outreach, discipleship, theology, music, events, attendance, groups, giving, milestones, contacts, ministry members, service plans, learning, statistics, and more. Per-church Firebase config override. Firebase Auth session management.</td>
+      <td>4,797 lines. Complete Firestore data layer: real-time messaging (DMs, chat rooms, channels, notifications), journal, prayer, devotionals, members, care, compassion, outreach, discipleship, theology, music, events, attendance, groups, giving, milestones, contacts, ministry members, service plans, learning, statistics, and more. Per-church Firebase config override. Firebase Auth session management.</td>
     </tr>
     <tr>
       <td>Dual-Backend Routing</td>
@@ -837,7 +837,7 @@ python3 -m http.server 8080</code></pre>
 &boxvr;&boxh;&boxh; index.html                       &larr; Main app shell (copy from Pages)
 &boxvr;&boxh;&boxh; Learn More.html                  &larr; Learn more page (copy from Pages)
 &boxvr;&boxh;&boxh; manifest.json                    &larr; PWA manifest (standalone, start_url)
-&boxvr;&boxh;&boxh; the_living_water.js              &larr; Service worker (cache v3.0, copy from Scripts)
+&boxvr;&boxh;&boxh; the_living_water.js              &larr; Service worker (cache v3.17, copy from Scripts)
 &boxvr;&boxh;&boxh; FlockOS/                         &larr; All source &amp; reference files
 &boxv;   &boxv;
 &boxv;   &boxvr;&boxh;&boxh; Images/                      &larr; Logo and image assets
@@ -853,6 +853,9 @@ python3 -m http.server 8080</code></pre>
 &boxv;   &boxv;   &boxvr;&boxh;&boxh; the_generations.html     &larr; Generational church dynamics
 &boxv;   &boxv;   &boxvr;&boxh;&boxh; the_anatomy_of_worship.html &larr; Worship anatomy guide
 &boxv;   &boxv;   &boxvr;&boxh;&boxh; prayerful_action.html    &larr; Prayerful action guide
+&boxv;   &boxv;   &boxvr;&boxh;&boxh; quarterly_worship.html   &larr; Quarterly worship scheduler (1,382 lines)
+&boxv;   &boxv;   &boxvr;&boxh;&boxh; bezalel.html             &larr; Bezalel matrix (Firestore sync tool)
+&boxv;   &boxv;   &boxvr;&boxh;&boxh; the_great_commission.html &larr; Seed-admin Church Command Center
 &boxv;   &boxv;   &boxur;&boxh;&boxh; the_invitation.html      &larr; Invitation page
 &boxv;   &boxv;
 &boxv;   &boxvr;&boxh;&boxh; Scripts/                     &larr; Production JavaScript (served via GitHub Pages)
@@ -860,7 +863,7 @@ python3 -m http.server 8080</code></pre>
 &boxv;   &boxv;   &boxvr;&boxh;&boxh; the_cornerstone.js       &larr; Architecture registry: APIs, actions, routes, RBAC
 &boxv;   &boxv;   &boxvr;&boxh;&boxh; the_true_vine.js         &larr; TheVine: centralized API client + key normalization
 &boxv;   &boxv;   &boxvr;&boxh;&boxh; firm_foundation.js       &larr; Auth guard, session, role enforcement
-&boxv;   &boxv;   &boxvr;&boxh;&boxh; the_upper_room.js        &larr; UpperRoom: Firestore data layer (4,576 lines)
+&boxv;   &boxv;   &boxvr;&boxh;&boxh; the_upper_room.js        &larr; UpperRoom: Firestore data layer (4,797 lines)
 &boxv;   &boxv;   &boxvr;&boxh;&boxh; the_wellspring.js        &larr; TheWellspring: offline IndexedDB data layer
 &boxv;   &boxv;   &boxvr;&boxh;&boxh; the_well.js              &larr; Backup, restore &amp; template system
 &boxv;   &boxv;   &boxvr;&boxh;&boxh; the_tabernacle.js        &larr; 48+ module renderers / nav / routing
@@ -876,7 +879,7 @@ python3 -m http.server 8080</code></pre>
 &boxv;   &boxv;   &boxvr;&boxh;&boxh; the_trumpet.js           &larr; Notification system
 &boxv;   &boxv;   &boxvr;&boxh;&boxh; the_pagans.js            &larr; Public-facing content helpers
 &boxv;   &boxv;   &boxvr;&boxh;&boxh; the_commission.js        &larr; Deployment automation blueprint
-&boxv;   &boxv;   &boxvr;&boxh;&boxh; the_truth.js             &larr; Reserved placeholder (John 8:32)
+&boxv;   &boxv;   &boxvr;&boxh;&boxh; the_truth.js             &larr; Content Editor: CRUD for all APP content tabs (618 lines)
 &boxv;   &boxv;   &boxur;&boxh;&boxh; the_living_water.js      &larr; Service worker source
 &boxv;   &boxv;
 &boxv;   &boxur;&boxh;&boxh; Tools/                       &larr; Backend source &amp; deployment reference (git-ignored)

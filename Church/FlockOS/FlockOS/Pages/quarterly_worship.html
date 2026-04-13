@@ -85,8 +85,15 @@
       display: flex; align-items: center; gap: 6px;
       background: rgba(0,0,0,.22); border: 1px solid rgba(255,255,255,.12);
       border-radius: 20px; padding: 4px 12px; white-space: nowrap;
+      transition: background .3s, border-color .3s;
     }
+    .sync-pill:has(.dot.ready)  { background: rgba(5,150,105,.25); border-color: rgba(5,150,105,.4); }
+    .sync-pill:has(.dot.error)  { background: rgba(220,38,38,.3); border-color: rgba(220,38,38,.5); }
+    .sync-pill:has(.dot.pending){ background: rgba(217,119,6,.25); border-color: rgba(217,119,6,.4); }
     .sync-pill #sMsg { font-size: .70rem; font-weight: 700; color: rgba(224,231,255,.72); }
+    .sync-pill:has(.dot.ready) #sMsg  { color: #6ee7b7; }
+    .sync-pill:has(.dot.error) #sMsg  { color: #fca5a5; }
+    .sync-pill:has(.dot.pending) #sMsg { color: #fcd34d; }
     /* Save & Close button */
     .btn-save-close {
       background: linear-gradient(135deg, #059669, #0d9488);
@@ -98,6 +105,15 @@
       display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
     }
     .btn-save-close:hover { opacity:.88; transform:translateY(-1px); box-shadow:0 4px 16px rgba(5,150,105,.44); }
+    .btn-save {
+      background: linear-gradient(135deg, #059669, #0d9488) !important;
+      color: #fff !important; border: 0 !important;
+      font-weight: 700 !important;
+      box-shadow: 0 2px 10px rgba(5,150,105,.30);
+      transition: opacity .14s, transform .12s;
+    }
+    .btn-save:hover { opacity:.88; transform:translateY(-1px); }
+    .btn-save:disabled { opacity:.5; cursor:not-allowed; transform:none; }
     .btn-save-close:active { transform:translateY(0); }
     .btn-save-close:disabled { opacity:.4; cursor:not-allowed; transform:none; }
 
@@ -492,9 +508,11 @@
           <button class="btn btn-secondary" id="btnAdd">+ Add Row</button>
           <button class="btn btn-secondary" id="btnDup">⧉ Duplicate Last</button>
           <button class="btn btn-danger" id="btnReset" style="font-size:.74rem;">✕ Reset</button>
+          <button class="btn btn-save" id="btnSave">💾 Save</button>
           <div style="flex:1 1 auto;"></div>
           <button class="btn btn-secondary" id="btnImport">📥 Import File</button>
           <button class="btn btn-secondary" id="btnGSheet">📊 Google Sheet</button>
+          <button class="btn btn-secondary" id="btnExportDrive">📤 Export to Drive</button>
           <button class="btn btn-secondary" id="btnPull">⬇ Pull from Plans</button>
           <button class="btn btn-primary" id="btnPush">⬆ Push Selected to Plans</button>
           <input type="file" id="importFile" accept=".csv,.tsv,.txt,.xlsx,.xls" style="display:none">
@@ -671,7 +689,11 @@
           inp.value = row[key] || '';
           inp.addEventListener('input', function (e) {
             var r = rowById(e.target.closest('tr').dataset.id);
-            if (r) { r[key] = e.target.value; updateSummary(); markDirty(); }
+            if (r) {
+              /* Sanitize: strip HTML tags to prevent XSS */
+              r[key] = e.target.value.replace(/<[^>]*>/g, '');
+              updateSummary(); markDirty();
+            }
           });
           w.appendChild(inp); td.appendChild(w); tr.appendChild(td);
         });
@@ -785,14 +807,54 @@
       try { return new Date(iso).toLocaleString(undefined, {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}); }
       catch(e) { return ''; }
     }
+
+    /* ── localStorage fallback ─────────────────────────────────────── */
+    function _localKey() { return 'flockos_qwp_local_' + draftKey(); }
+    function _saveLocal() {
+      try {
+        var payload = {
+          q:   document.getElementById('qQ').value,
+          y:   document.getElementById('qY').value,
+          st:  document.getElementById('qST').value,
+          fs:  document.getElementById('qFS').value,
+          at:  new Date().toISOString(),
+          rows: S.rows,
+          importedIds: S.importedIds
+        };
+        localStorage.setItem(_localKey(), JSON.stringify(payload));
+      } catch(e) { /* storage full — non-fatal */ }
+    }
+    function _loadLocal() {
+      try {
+        var raw = localStorage.getItem(_localKey());
+        return raw ? JSON.parse(raw) : null;
+      } catch(e) { return null; }
+    }
+    function _clearLocal() {
+      try { localStorage.removeItem(_localKey()); } catch(e) { /* non-fatal */ }
+    }
+
+    /* ── Save status tracking ─────────────────────────────────────── */
+    var _saveAttempts = 0;
+    var _MAX_RETRIES = 3;
+    var _lastSavedTs = null;
+
     function markDirty() {
       S.dirty = true; setStatus('pending', 'Unsaved changes');
+      _saveLocal(); /* always persist locally immediately */
       clearTimeout(S.saveTimer); S.saveTimer = setTimeout(function(){ saveToFirestore(true); }, 1400);
     }
-    async function saveToFirestore(auto, _retry) {
+
+    async function saveToFirestore(auto, _retryCount) {
+      _retryCount = _retryCount || 0;
       if (!isFB()) {
         setStatus('pending', 'Connecting…');
-        try { await ensureFB(); } catch(e) { setStatus('error', 'Cloud unavailable — changes not saved'); return; }
+        try { await ensureFB(); } catch(e) {
+          setStatus('error', 'Cloud unavailable — saved locally');
+          _saveLocal();
+          if (!auto) toast('Firestore unavailable. Your work is saved locally and will sync when connection restores.', 'warning', 5000);
+          return;
+        }
       }
       try {
         setStatus('pending', 'Saving…');
@@ -807,17 +869,29 @@
           importedIds: S.importedIds
         });
         S.dirty = false;
-        setStatus('ready', 'Saved · ' + fmtTs(ts));
-        if (!auto) toast('Saved to Firestore', 'success');
+        _saveAttempts = 0;
+        _lastSavedTs = ts;
+        _clearLocal(); /* Firestore has the data — clear local backup */
+        setStatus('ready', '✓ Saved · ' + fmtTs(ts));
+        if (!auto) toast('Saved to Firestore ✓', 'success');
       } catch(e) {
         /* Permission errors often mean custom claims expired — re-auth once */
-        if (!_retry && typeof UpperRoom !== 'undefined' && UpperRoom.authenticate) {
+        if (_retryCount === 0 && typeof UpperRoom !== 'undefined' && UpperRoom.authenticate) {
           setStatus('pending', 'Re-authenticating…');
-          try { await UpperRoom.authenticate(); return saveToFirestore(auto, true); }
-          catch(_) { /* fall through to error */ }
+          try { await UpperRoom.authenticate(); return saveToFirestore(auto, 1); }
+          catch(_) { /* fall through to retry */ }
         }
-        setStatus('error', 'Save failed');
-        if (!auto) toast('Save failed: ' + e.message, 'error');
+        /* Retry with exponential backoff */
+        if (_retryCount < _MAX_RETRIES) {
+          var delay = Math.pow(2, _retryCount) * 1000; /* 1s, 2s, 4s */
+          setStatus('pending', 'Retrying save (' + (_retryCount + 1) + '/' + _MAX_RETRIES + ')…');
+          await new Promise(function(r){ setTimeout(r, delay); });
+          return saveToFirestore(auto, _retryCount + 1);
+        }
+        /* All retries exhausted */
+        _saveLocal();
+        setStatus('error', '✗ Save failed — saved locally');
+        toast('Firestore save failed after ' + _MAX_RETRIES + ' attempts. Your work is saved locally.', 'error', 6000);
       }
     }
     function applyPlanData(p) {
@@ -846,8 +920,8 @@
          actual content so we don't overwrite dashboard-entered values
          with blanks. When creating, include everything. */
       var map = {
-        notes:     'sermonTitle',
-        psalm:     'theme',
+        notes:     'theme',
+        psalm:     'psalmReader',
         scripture: 'scriptureFocus',
         worship:   'worshipLeader',
         preacher:  'preacher',
@@ -866,7 +940,15 @@
       /* load existing plans once to detect duplicates */
       var byDate = {};
       try {
-        var existing = await UpperRoom.listServicePlans({ limit: 500 });
+        /* Query only plans in the current quarter's date range instead of all 500 */
+        var q    = document.getElementById('qQ').value;
+        var year = parseInt(document.getElementById('qY').value, 10) || new Date().getFullYear();
+        var months = qMonths(q);
+        var qStart = year + '-' + String(months[0] + 1).padStart(2,'0') + '-01';
+        var lastM  = months[months.length - 1];
+        var lastDay = new Date(year, lastM + 1, 0).getDate();
+        var qEnd   = year + '-' + String(lastM + 1).padStart(2,'0') + '-' + String(lastDay).padStart(2,'0');
+        var existing = await UpperRoom.listServicePlans({ startDate: qStart, endDate: qEnd, limit: 200 });
         (existing || []).forEach(function(p){
           var d = p.serviceDate || p.date || ''; if (d) byDate[d] = p;
         });
@@ -978,7 +1060,7 @@
 
       var plans = [];
       try {
-        var res = await UpperRoom.listServicePlans({ limit: 500 });
+        var res = await UpperRoom.listServicePlans({ startDate: qStart, endDate: qEnd, limit: 200 });
         plans = (res || []).filter(function(p) {
           var d = p.serviceDate || p.date || '';
           return d >= qStart && d <= qEnd;
@@ -1015,22 +1097,22 @@
         var existing = byDate[date];
         if (existing) {
           if (mergeMode === 'skip') { skipped++; return; }
-          applyField(existing, 'psalm',     p.theme           || '', mergeMode);
+          applyField(existing, 'notes',     p.theme           || '', mergeMode);
+          applyField(existing, 'psalm',     p.psalmReader     || '', mergeMode);
           applyField(existing, 'scripture', p.scriptureFocus  || '', mergeMode);
           applyField(existing, 'worship',   p.worshipLeader   || '', mergeMode);
           applyField(existing, 'preacher',  p.preacher        || '', mergeMode);
-          applyField(existing, 'notes',     p.sermonTitle     || '', mergeMode);
           applyField(existing, 'announce',  p.announcements   || '', mergeMode);
           applyField(existing, 'prayer',    p.prayer          || '', mergeMode);
           applyField(existing, 'proverb',   p.proverb         || '', mergeMode);
           merged++;
         } else {
           var nr = mkRow(date);
-          nr.psalm     = p.theme           || '';
+          nr.notes     = p.theme           || '';
+          nr.psalm     = p.psalmReader     || '';
           nr.scripture = p.scriptureFocus  || '';
           nr.worship   = p.worshipLeader   || '';
           nr.preacher  = p.preacher        || '';
-          nr.notes     = p.sermonTitle     || '';
           nr.announce  = p.announcements   || '';
           nr.prayer    = p.prayer          || '';
           nr.proverb   = p.proverb         || '';
@@ -1232,6 +1314,100 @@
       inp.value = '';
     }
 
+    /* ── Manual Save ────────────────────────────────────────────────── */
+    async function manualSave() {
+      var btn = document.getElementById('btnSave');
+      btn.disabled = true; btn.textContent = '…Saving';
+      _saveLocal();
+      await saveToFirestore(false);
+      btn.disabled = false; btn.textContent = '💾 Save';
+    }
+
+    /* ── Export to Google Drive ───────────────────────────────────────── */
+    async function exportToDrive() {
+      var btn = document.getElementById('btnExportDrive');
+      btn.disabled = true; btn.textContent = '…Exporting';
+
+      var q    = document.getElementById('qQ').value;
+      var year = document.getElementById('qY').value;
+      var svcType = document.getElementById('qST').value;
+
+      /* Build CSV content */
+      var headers = ['Date','Psalm / Introit','Worship Leader','Announcements','Prayer','Preacher','Scripture','Proverb','Notes / Theme'];
+      var csvRows = [headers.join(',')];
+      S.rows.forEach(function(row) {
+        var cells = [
+          row.date,
+          row.psalm, row.worship, row.announce, row.prayer,
+          row.preacher, row.scripture, row.proverb, row.notes
+        ].map(function(v) {
+          var s = (v || '').replace(/"/g, '""');
+          return '"' + s + '"';
+        });
+        csvRows.push(cells.join(','));
+      });
+      var csvContent = csvRows.join('\n');
+      var blob = new Blob([csvContent], { type: 'text/csv' });
+
+      /* Try Google Drive Picker / gapi if available, otherwise fallback to download */
+      var fileName = 'FlockOS_' + q + '_' + year + '_' + svcType.replace(/\s+/g,'_') + '.csv';
+
+      /* Check for Google Identity Services */
+      if (typeof google !== 'undefined' && google.accounts && google.accounts.oauth2) {
+        try {
+          await _uploadToDrive(blob, fileName);
+          btn.disabled = false; btn.textContent = '📤 Export to Drive';
+          return;
+        } catch(e) {
+          /* Fall through to download */
+        }
+      }
+
+      /* Fallback: direct download as CSV (user can upload to Drive manually) */
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url; a.download = fileName; a.style.display = 'none';
+      document.body.appendChild(a); a.click();
+      setTimeout(function() { URL.revokeObjectURL(url); a.remove(); }, 500);
+      toast('Downloaded ' + fileName + ' — upload to Google Drive or open with Sheets.', 'success', 5000);
+      btn.disabled = false; btn.textContent = '📤 Export to Drive';
+    }
+
+    /* Google Drive upload via access token */
+    async function _uploadToDrive(blob, fileName) {
+      /* Use tokenClient if gapi is loaded */
+      var tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: (typeof FLOCKOS_GOOGLE_CLIENT_ID !== 'undefined') ? FLOCKOS_GOOGLE_CLIENT_ID : '',
+        scope: 'https://www.googleapis.com/auth/drive.file',
+        callback: function() {} /* set below */
+      });
+
+      var accessToken = await new Promise(function(resolve, reject) {
+        tokenClient.callback = function(resp) {
+          if (resp.error) reject(new Error(resp.error));
+          else resolve(resp.access_token);
+        };
+        tokenClient.requestAccessToken();
+      });
+
+      /* Multipart upload */
+      var metadata = { name: fileName, mimeType: 'application/vnd.google-apps.spreadsheet' };
+      var form = new FormData();
+      form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+      form.append('file', blob);
+
+      var resp = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&convert=true', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + accessToken },
+        body: form
+      });
+      if (!resp.ok) throw new Error('Drive upload failed: ' + resp.status);
+      var data = await resp.json();
+      toast('Exported to Google Drive as Spreadsheet ✓', 'success', 4000);
+      /* Open in new tab */
+      window.open('https://docs.google.com/spreadsheets/d/' + data.id, '_blank');
+    }
+
     /* ── Init + bindings ─────────────────────────────────────────────── */
     function init() {
       /* Set quarter from today */
@@ -1264,9 +1440,11 @@
         var on = this.checked;
         document.querySelectorAll('#gridBody .push-ck').forEach(function(cb){ cb.checked = on; });
       });
+      document.getElementById('btnSave').addEventListener('click', manualSave);
       document.getElementById('btnImport').addEventListener('click', function(){ document.getElementById('importFile').click(); });
       document.getElementById('importFile').addEventListener('change', function(){ handleImportFile(this); });
       document.getElementById('btnGSheet').addEventListener('click', importGoogleSheet);
+      document.getElementById('btnExportDrive').addEventListener('click', exportToDrive);
       document.getElementById('po-close').addEventListener('click', function(){
         document.getElementById('push-overlay').classList.remove('open');
       });
@@ -1280,10 +1458,11 @@
         var btn2 = document.getElementById('btnSaveCloseBot');
         btn1.disabled = btn2.disabled = true;
 
-        /* 1 — save draft */
+        /* 1 — save draft (local backup first, then Firestore) */
         btn1.textContent = btn2.textContent = '…Saving';
         setStatus('pending', 'Saving…');
-        try { await saveToFirestore(true); } catch(e) { /* error already shown */ }
+        _saveLocal();
+        try { await saveToFirestore(false); } catch(e) { /* error already shown, local backup is safe */ }
 
         /* 2 — navigate back */
         window.location.href = getDashboardUrl();
@@ -1292,25 +1471,59 @@
       document.getElementById('btnSaveCloseBot').addEventListener('click', saveAndClose);
 
       window.addEventListener('beforeunload', function(e){
+        if (S.dirty) _saveLocal(); /* last-chance local save */
         if (!S.dirty) return; e.preventDefault(); e.returnValue='';
       });
 
-      /* auto-load from Firestore for current quarter */
+      /* Periodic Firestore reconnect — if we're in "saved locally" state, retry every 30s */
+      setInterval(function() {
+        if (!S.dirty) return;
+        if (isFB()) saveToFirestore(true);
+      }, 30000);
+
+      /* auto-load from Firestore for current quarter, with localStorage fallback */
       setStatus('pending', 'Loading…');
-      ensureFB().then(function() {
-        return planRef().get();
-      }).then(function(snap) {
-        if (snap && snap.exists) {
-          applyPlanData(snap.data());
-          setStatus('ready', 'Saved · ' + fmtTs(snap.data().at));
-        } else {
-          generate(true);
-          setStatus('', 'Not yet saved');
+      (async function loadPlan() {
+        var localData = _loadLocal();
+        try {
+          await ensureFB();
+          var snap = await planRef().get();
+          if (snap && snap.exists) {
+            var fbData = snap.data();
+            /* If local backup is newer than Firestore, prefer local */
+            if (localData && localData.at && fbData.at && localData.at > fbData.at) {
+              applyPlanData(localData);
+              setStatus('pending', 'Recovered unsaved changes — syncing…');
+              toast('Recovered unsaved local changes. Saving to cloud…', 'info', 4000);
+              await saveToFirestore(true);
+            } else {
+              applyPlanData(fbData);
+              _clearLocal();
+              setStatus('ready', '✓ Saved · ' + fmtTs(fbData.at));
+            }
+          } else if (localData && localData.rows && localData.rows.length) {
+            /* No Firestore doc but we have local data */
+            applyPlanData(localData);
+            setStatus('pending', 'Recovered local data — syncing…');
+            toast('Loaded from local backup. Saving to cloud…', 'info', 4000);
+            await saveToFirestore(true);
+          } else {
+            generate(true);
+            setStatus('', 'Not yet saved');
+          }
+        } catch(e) {
+          /* Firestore unavailable — use local backup or generate fresh */
+          if (localData && localData.rows && localData.rows.length) {
+            applyPlanData(localData);
+            setStatus('error', 'Offline — loaded from local backup');
+            toast('Working offline. Changes will save locally until Firestore reconnects.', 'warning', 5000);
+          } else {
+            generate(true);
+            setStatus('error', 'Offline — working locally');
+            toast('Firestore unavailable. Your edits are saved locally.', 'warning', 4000);
+          }
         }
-      }).catch(function() {
-        generate(true);
-        setStatus('', 'Offline — working locally');
-      });
+      })();
     }
 
     if (document.readyState === 'loading') {

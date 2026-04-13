@@ -11,7 +11,7 @@
      • Offline  → serve cached shell; API calls return offline fallback
    ══════════════════════════════════════════════════════════════════════════════ */
 
-const CACHE_VERSION = 'flockos-v3.17';
+const CACHE_VERSION = 'flockos-v3.18';
 const API_CACHE     = 'flockos-api-v1';
 
 // ── App Shell: pre-cached on install ────────────────────────────────────────
@@ -37,6 +37,10 @@ const APP_SHELL = [
   './FlockOS/Pages/the_call_to_forgive.html',
   './FlockOS/Pages/prayerful_action.html',
   './FlockOS/Pages/the_invitation.html',
+  './FlockOS/Pages/About_FlockOS.html',
+  './FlockOS/Pages/Learn%20More.html',
+  './FlockOS/Pages/quarterly_worship.html',
+  './FlockOS/Pages/bezalel.html',
 
   // ── Icons / images ──────────────────────────────────────────────────────
   './FlockOS/Images/FlockOS_Camo.png',
@@ -59,6 +63,9 @@ const APP_SHELL = [
   './FlockOS/Scripts/the_shofar.js',
   './FlockOS/Scripts/the_trumpet.js',
   './FlockOS/Scripts/the_commission.js',
+  './FlockOS/Scripts/the_truth.js',
+  './FlockOS/Scripts/the_upper_room.js',
+  './FlockOS/Scripts/the_pagans.js',
 ];
 
 // Google Apps Script endpoints (network-first)
@@ -92,6 +99,9 @@ self.addEventListener('fetch', (event) => {
 
   // Skip non-GET (POST, etc.) — let them go to network
   if (event.request.method !== 'GET') return;
+
+  // Skip unsupported schemes (chrome-extension://, etc.)
+  if (!url.protocol.startsWith('http')) return;
 
   // ── API calls → network-first, cache fallback ──────────────────────────
   if (API_HOSTS.some(h => url.hostname.includes(h))) {
@@ -192,4 +202,41 @@ self.addEventListener('message', (event) => {
   if (event.data === 'clearCache') {
     caches.keys().then(keys => keys.forEach(k => caches.delete(k)));
   }
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// PUSH NOTIFICATIONS (FCM / Web Push)
+// ══════════════════════════════════════════════════════════════════════════════
+
+self.addEventListener('push', (event) => {
+  let data = {};
+  try { data = event.data ? event.data.json() : {}; } catch (_) {}
+
+  const title = data.title || data.notification?.title || 'FlockOS';
+  const options = {
+    body:    data.body    || data.notification?.body    || '',
+    icon:    data.icon    || data.notification?.icon    || '/FlockOS/Images/FlockOS_Camo.png',
+    badge:   data.badge   || '/FlockOS/Images/FlockOS_Camo.png',
+    tag:     data.tag     || 'flockos-push',
+    data:    data.data    || data.click_action ? { url: data.click_action } : {},
+    vibrate: [100, 50, 100],
+    actions: data.actions || [],
+  };
+
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const url = (event.notification.data && event.notification.data.url) || '/FlockOS/Pages/the_good_shepherd.html';
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+      for (const client of windowClients) {
+        if (client.url.includes('the_good_shepherd') && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      return clients.openWindow(url);
+    })
+  );
 });

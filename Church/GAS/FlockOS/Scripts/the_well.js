@@ -262,7 +262,7 @@ const TheWell = (() => {
     return cols;
   }
 
-  function _log(msg) { console.log('[TheWell] ' + msg); }
+  function _log(msg) { if (localStorage.getItem('FLOCKOS_DEBUG')) console.log('[TheWell] ' + msg); }
 
   function _rows(res) {
     if (!res) return [];

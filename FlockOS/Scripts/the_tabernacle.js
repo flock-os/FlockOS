@@ -2416,11 +2416,12 @@ const Modules = (() => {
       + '</div></div>'
       + (function() {
         var details = [];
-        if (planData.worshipLeader)  details.push({ icon:'&#128100;', label:'Worship Leader', val:planData.worshipLeader });
-        if (planData.preacher)       details.push({ icon:'&#127908;', label:'Preacher',       val:planData.preacher });
-        if (planData.announcements)  details.push({ icon:'&#128226;', label:'Announcements',  val:planData.announcements });
-        if (planData.prayer)         details.push({ icon:'&#128591;', label:'Prayer',          val:planData.prayer });
-        if (planData.proverb)        details.push({ icon:'&#128216;', label:'Proverb',         val:planData.proverb });
+        if (planData.psalmReader)    details.push({ icon:'&#128220;', label:'Psalm',           val:planData.psalmReader });
+        if (planData.worshipLeader)  details.push({ icon:'&#128100;', label:'Worship',         val:planData.worshipLeader });
+        if (planData.announcements)  details.push({ icon:'&#128226;', label:'Announcements',   val:planData.announcements });
+        if (planData.prayer)         details.push({ icon:'&#128591;', label:'Prayer',           val:planData.prayer });
+        if (planData.preacher)       details.push({ icon:'&#127908;', label:'Preacher',         val:planData.preacher });
+        if (planData.proverb)        details.push({ icon:'&#128216;', label:'Proverb',          val:planData.proverb });
         if (!details.length) return '';
         return '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line);">'
           + details.map(function(d) {
@@ -2619,15 +2620,23 @@ const Modules = (() => {
       { name: 'serviceType', label: 'Service Type', type: 'select',
         options: ['Sunday Morning','Sunday Evening','Wednesday','Special','Conference','Other'],
         value: r.serviceType || '' },
-      { name: 'serviceDate',  label: 'Date',         type: 'date',     value: r.serviceDate || r.date || '' },
-      { name: 'sermonTitle',  label: 'Sermon Title', value: r.sermonTitle || '' },
-      { name: 'theme',        label: 'Theme',        value: r.theme || '' },
-      { name: 'status',       label: 'Status',       type: 'select',
-        options: ['Draft','Confirmed','Completed'],   value: r.status || 'Draft' },
-      { name: 'notes',        label: 'Notes',        type: 'textarea', rows: 2, value: r.notes || '' },
+      { name: 'serviceDate',  label: 'Date',          type: 'date',     value: r.serviceDate || r.date || '' },
+      { name: 'psalmReader',  label: 'Psalm',         value: r.psalmReader || '' },
+      { name: 'worshipLeader',label: 'Worship',       value: r.worshipLeader || '' },
+      { name: 'announcements',label: 'Announcements', value: r.announcements || '' },
+      { name: 'prayer',       label: 'Prayer',        value: r.prayer || '' },
+      { name: 'preacher',     label: 'Preacher',      value: r.preacher || '' },
+      { name: 'scriptureFocus',label:'Scripture',      value: r.scriptureFocus || '' },
+      { name: 'proverb',      label: 'Proverb',       value: r.proverb || '' },
+      { name: 'sermonTitle',  label: 'Sermon Title',  value: r.sermonTitle || '' },
+      { name: 'theme',        label: 'Theme',         value: r.theme || '' },
+      { name: 'status',       label: 'Status',        type: 'select',
+        options: ['Draft','Scheduled','Confirmed','Completed'], value: r.status || 'Draft' },
+      { name: 'notes',        label: 'Notes',         type: 'textarea', rows: 2, value: r.notes || '' },
     ], async function(data) {
       data.id = _svcViewPlanId;
-      await TheVine.flock.servicePlans.update(data);
+      if (_isFirebaseComms()) await UpperRoom.updateServicePlan(data);
+      else await TheVine.flock.servicePlans.update(data);
       _invalidateCache('services');
       _svcViewPlanData = null;
       servicesView('order');

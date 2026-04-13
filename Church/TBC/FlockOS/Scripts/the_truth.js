@@ -179,6 +179,7 @@ const TheTruth = (() => {
         { k: 'Short Title',    label: 'Short Title',       type: 'text',     required: true },
         { k: 'Quote Text',     label: 'Quote / Objection', type: 'textarea' },
         { k: 'Reference Text', label: 'Scripture',         type: 'text' },
+        { k: 'Reference URL',  label: 'Source Reference URL', type: 'text' },
         { k: 'Answer Content', label: 'Answer / Response', type: 'textarea' },
       ]
     },

@@ -109,9 +109,23 @@ const TheLife = (() => {
     else { window.open('sms:' + encodeURIComponent(phone.replace(/[^\d+]/g, '')) + (body ? '?body=' + encodeURIComponent(body) : '')); }
   }
 
+  // ── Form validation helpers ─────────────────────────────────────────────
+  var _EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  function _validEmail(v) { return _EMAIL_RE.test(String(v || '').trim()); }
+  function _validPhone(v) { return String(v || '').replace(/[^\d]/g, '').length >= 7; }
+  function _validDate(v)  { return !isNaN(Date.parse(v)); }
+  function _requireField(val, label) {
+    if (!String(val || '').trim()) { _toast(label + ' is required.', 'warn'); return false; }
+    return true;
+  }
+
   // ── Local data cache ────────────────────────────────────────────────────
   var _cache = {};
   var _memberDirPromise = null;
+
+  // ── Pagination state ────────────────────────────────────────────────────
+  var _PANEL_PAGE_SIZE = 25;
+  var _prayerPage = 0;
 
   // ── TTL-aware fetch: serves warm data via TheVine.nurture() ─────────────
   var _TTL_CARE = 60000;   // Pastoral data: 60 sec fresh window
@@ -870,6 +884,10 @@ const TheLife = (() => {
     delete data.createdAt;
     delete data.updatedAt;
 
+    // Validate required fields
+    if (!_requireField(data.careType || data['Care Type'], 'Care Type')) { if (btn) { btn.disabled = false; btn.textContent = '\uD83D\uDCBE Save Care Case'; } return; }
+    if (!_requireField(data.memberId || data['Member ID'] || data.memberName || data['Member Name'], 'Member')) { if (btn) { btn.disabled = false; btn.textContent = '\uD83D\uDCBE Save Care Case'; } return; }
+
     try {
       if (_fpCareId) {
         data.id = _fpCareId;
@@ -1237,6 +1255,9 @@ const TheLife = (() => {
       });
     }
     data.id = _fpPrayerId;
+
+    // Validate — at minimum, prayer text should exist
+    if (!_requireField(data.prayerText || data['Prayer Text'], 'Prayer Text')) { if (btn) { btn.disabled = false; btn.textContent = '\uD83D\uDCBE Save'; } return; }
 
     try {
       _stat('Updating prayer\u2026');
@@ -1646,6 +1667,13 @@ const TheLife = (() => {
     delete data.updatedAt;
     delete data.lastContact; // read-only; backend sets this via follow-up log, not direct update
 
+    // Validate required fields
+    if (!_requireField(data.name || data.firstName || data['First Name'], 'Contact Name')) { if (btn) { btn.disabled = false; btn.textContent = '\uD83D\uDCBE Save'; } return; }
+    // Validate email format if provided
+    if (data.email && !_validEmail(data.email)) { _toast('Please enter a valid email address.', 'warn'); if (btn) { btn.disabled = false; btn.textContent = '\uD83D\uDCBE Save'; } return; }
+    // Validate phone format if provided
+    if (data.phone && !_validPhone(data.phone)) { _toast('Phone number must be at least 7 digits.', 'warn'); if (btn) { btn.disabled = false; btn.textContent = '\uD83D\uDCBE Save'; } return; }
+
     try {
       if (_fpOutId) {
         data.id = _fpOutId;
@@ -1697,19 +1725,18 @@ const TheLife = (() => {
     if (!_fpOutId) return;
     var rec = (_cache.allOutreach || []).find(function(c) { return c.id === _fpOutId; }) || {};
     var name = [rec.firstName, rec.lastName].filter(Boolean).join(' ') || rec.name || 'this contact';
-    if (!confirm('Archive ' + name + '? They will no longer appear in active outreach lists.')) return;
-    try {
+    var _undo = (typeof Modules !== 'undefined' && Modules._undoAction) || function(msg, fn) { fn(); };
+    _undo(name + ' archived', async function() {
       var upd = { id: _fpOutId, status: 'Archived' };
-      if (rec.email) upd.contactEmail = rec.email; // preserve contact email; avoid auth email injection overwriting it
+      if (rec.email) upd.contactEmail = rec.email;
       await (_isFB() ? UpperRoom.updateOutreachContact(upd) : TheVine.flock.outreach.contacts.update(upd));
       delete _cache.allOutreach;
       if (typeof TheVine !== 'undefined' && TheVine.cache) {
         TheVine.cache.invalidate('life:outreach');
         TheVine.cache.invalidate('tab:outreach');
       }
-      _toast('Contact archived.', 'success');
       backToHub();
-    } catch (e) { _toast('Archive failed: ' + (e.message || e), 'error'); }
+    });
   }
 
 
@@ -2040,6 +2067,20 @@ const TheLife = (() => {
       return;
     }
 
+    // Validate email format if provided
+    if (data.primaryEmail && !_validEmail(data.primaryEmail)) {
+      if (btn) { btn.disabled = false; btn.textContent = '\uD83D\uDCBE ' + (_fpMemberId ? 'Save Member' : 'Create Member'); }
+      alert('Please enter a valid email address.');
+      return;
+    }
+
+    // Validate phone format if provided
+    if (data.phone && !_validPhone(data.phone)) {
+      if (btn) { btn.disabled = false; btn.textContent = '\uD83D\uDCBE ' + (_fpMemberId ? 'Save Member' : 'Create Member'); }
+      alert('Phone number must be at least 7 digits.');
+      return;
+    }
+
     // Validate account fields if creating account
     if (createAcct) {
       if (!data.primaryEmail) {
@@ -2306,8 +2347,15 @@ const TheLife = (() => {
 
   function _buildPrayerPanel(rows) {
     if (!rows.length) return _flockEmpty('\uD83D\uDE4F', 'No prayer requests. All caught up!');
+    var total = rows.length;
+    var pages = Math.ceil(total / _PANEL_PAGE_SIZE);
+    if (_prayerPage >= pages) _prayerPage = pages - 1;
+    if (_prayerPage < 0) _prayerPage = 0;
+    var start = _prayerPage * _PANEL_PAGE_SIZE;
+    var page  = rows.slice(start, start + _PANEL_PAGE_SIZE);
+
     var h = '<div class="flock-card-grid">';
-    rows.forEach(function(r) {
+    page.forEach(function(r) {
       var rid    = _e(String(r.id || r.ID || ''));
       var name   = _e(r.submitterName || r['Submitter Name'] || 'Anonymous');
       var prayer = _e(r.prayerText || r['Prayer Text'] || '');
@@ -2332,7 +2380,21 @@ const TheLife = (() => {
       });
     });
     h += '</div>';
+    // Pagination controls (only when > 1 page)
+    if (pages > 1) {
+      h += '<div style="display:flex;justify-content:center;align-items:center;gap:12px;padding:12px 0;font-size:0.85rem;">';
+      h += '<button class="btn-sm" onclick="TheLife._prayerPageNav(-1)"' + (_prayerPage === 0 ? ' disabled' : '') + '>&laquo; Prev</button>';
+      h += '<span>' + (start + 1) + '–' + Math.min(start + _PANEL_PAGE_SIZE, total) + ' of ' + total + '</span>';
+      h += '<button class="btn-sm" onclick="TheLife._prayerPageNav(1)"' + (_prayerPage >= pages - 1 ? ' disabled' : '') + '>Next &raquo;</button>';
+      h += '</div>';
+    }
     return h;
+  }
+
+  function _prayerPageNav(delta) {
+    _prayerPage += delta;
+    var panel = document.getElementById('flock-p-prayer');
+    if (panel) panel.innerHTML = _buildPrayerPanel(_cache.allPrayer || []);
   }
 
   function _buildCompassionPanel(rows) {
@@ -2618,7 +2680,9 @@ const TheLife = (() => {
 
     var h = '<div class="fp-editor">';
     h += '<div class="fp-topbar"><button class="fp-back" onclick="TheLife.backToHub()">\u2190 My Flock</button>'
-       + '<h2 class="fp-title">\u2764\uFE0F Care \u0026 Outreach</h2></div>';
+       + '<h2 class="fp-title">\u2764\uFE0F Care \u0026 Outreach</h2>'
+       + '<button onclick="TheLife._careSummaryPrint()" style="margin-left:auto;background:var(--accent);color:var(--ink-inverse);border:none;border-radius:6px;padding:6px 14px;font-weight:600;font-size:0.78rem;cursor:pointer;font-family:inherit;">📦 Print Summary</button>'
+       + '</div>';
 
     // KPI strip
     h += '<div class="flock-kpi-row" style="margin-bottom:14px;">';
@@ -2995,6 +3059,7 @@ const TheLife = (() => {
         allDisciple: [], isPastorPlus: isPastorPlus, isCareRole: isCareRole,
       };
       _cache.allPrayer = allPrayer;
+      _prayerPage = 0;  // reset pagination on fresh data
       _cache.allCompassion = allCompassion;
       _cache.allOutreach = allOutreach;
       _cache.care = Nehemiah.can('care.view-all') ? allCare : myCases;
@@ -3677,6 +3742,51 @@ const TheLife = (() => {
 
 
   // ══════════════════════════════════════════════════════════════════════════
+  // PDF / PRINT
+  // ══════════════════════════════════════════════════════════════════════════
+
+  /** Print care cases summary report via Modules._printReport */
+  async function _careSummaryPrint() {
+    var _pr = (typeof Modules !== 'undefined' && Modules._printReport) ? Modules._printReport : null;
+    if (!_pr) { alert('Print not available.'); return; }
+    var _esc = function(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; };
+    var toast = (typeof Modules !== 'undefined' && Modules._toast) ? Modules._toast : function() {};
+    toast('Preparing care summary…', 'info');
+    try {
+      var res = await (_isFB() ? UpperRoom.listCareCases({}) : TheVine.flock.care.list({}));
+      var rows = _rows(res);
+      var open = rows.filter(function(c) { var s = (c.status || '').toLowerCase(); return s !== 'resolved' && s !== 'closed'; });
+      var resolved = rows.length - open.length;
+      var priorities = { urgent: 0, high: 0, normal: 0, low: 0 };
+      open.forEach(function(c) {
+        var p = (c.priority || 'normal').toLowerCase();
+        if (p === 'urgent' || p === 'critical') priorities.urgent++;
+        else if (p === 'high') priorities.high++;
+        else if (p === 'low') priorities.low++;
+        else priorities.normal++;
+      });
+      var statsHtml = '<div class="rpt-stats">'
+        + '<div class="rpt-stat"><div class="rpt-stat-label">Open Cases</div><div class="rpt-stat-value">' + open.length + '</div></div>'
+        + '<div class="rpt-stat"><div class="rpt-stat-label">Resolved</div><div class="rpt-stat-value">' + resolved + '</div></div>'
+        + '<div class="rpt-stat"><div class="rpt-stat-label">Urgent / High</div><div class="rpt-stat-value">' + (priorities.urgent + priorities.high) + '</div></div>'
+        + '<div class="rpt-stat"><div class="rpt-stat-label">Total Cases</div><div class="rpt-stat-value">' + rows.length + '</div></div>'
+        + '</div>';
+      var sorted = open.concat(rows.filter(function(c) { var s = (c.status || '').toLowerCase(); return s === 'resolved' || s === 'closed'; }));
+      var html = '<table><thead><tr><th>Member</th><th>Care Type</th><th>Priority</th><th>Status</th><th>Opened</th><th>Summary</th></tr></thead><tbody>';
+      sorted.forEach(function(c) {
+        html += '<tr><td>' + _esc(_memberName(c.memberId) || c.memberId || '') + '</td>'
+          + '<td>' + _esc(c.careType || c.type || '') + '</td>'
+          + '<td>' + _esc(c.priority || '') + '</td>'
+          + '<td>' + _esc(c.status || '') + '</td>'
+          + '<td>' + _esc(c.openedDate || c.createdAt || '') + '</td>'
+          + '<td>' + _esc((c.summary || '').substring(0, 60)) + '</td></tr>';
+      });
+      html += '</tbody></table>';
+      _pr('Care Summary Report', statsHtml + html, { landscape: true });
+    } catch (e) { toast('Error: ' + e.message, 'danger'); }
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
   // PUBLIC API
   // ══════════════════════════════════════════════════════════════════════════
 
@@ -3715,11 +3825,13 @@ const TheLife = (() => {
     viewMemberFromCase:   viewMemberFromCase,
     showFollowUps:        showFollowUps,
     loadMemberCareHistory: loadMemberCareHistory,
+    _careSummaryPrint:     _careSummaryPrint,
 
     // Full-page editors: Prayer
     openPrayer:      openPrayer,
     savePrayer:      savePrayer,
     sendPrayerReply: sendPrayerReply,
+    _prayerPageNav:  _prayerPageNav,
 
     // Full-page editors: Compassion
     openCompassion:  openCompassion,
