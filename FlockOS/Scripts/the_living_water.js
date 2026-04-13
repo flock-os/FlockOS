@@ -11,7 +11,7 @@
      • Offline  → serve cached shell; API calls return offline fallback
    ══════════════════════════════════════════════════════════════════════════════ */
 
-const CACHE_VERSION = 'flockos-v3.19';
+const CACHE_VERSION = 'flockos-v3.20';
 const API_CACHE     = 'flockos-api-v1';
 
 // ── App Shell: pre-cached on install ────────────────────────────────────────
@@ -75,7 +75,17 @@ const API_HOSTS = ['script.google.com', 'script.googleusercontent.com'];
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_VERSION)
-      .then(cache => cache.addAll(APP_SHELL))
+      .then(cache => {
+        // Cache each resource individually so one 404 doesn't fail the
+        // entire install and cause a restart loop.
+        return Promise.all(
+          APP_SHELL.map(url =>
+            cache.add(url).catch(err => {
+              console.warn('[SW] Failed to cache:', url, err.message || err);
+            })
+          )
+        );
+      })
       .then(() => self.skipWaiting())
   );
 });
@@ -90,9 +100,14 @@ self.addEventListener('activate', (event) => {
           .map(k => caches.delete(k))
       )
     ).then(() => self.clients.claim())
-     .then(() => self.clients.matchAll({ type: 'window' }).then(clients => {
-       clients.forEach(client => client.postMessage({ type: 'SW_UPDATED', version: CACHE_VERSION }));
-     }))
+     .then(() => {
+       // Tell all open tabs/PWA windows to reload so they pick up new code.
+       // This ensures even the FIRST reopen after a deploy gets the update,
+       // before the new controllerchange listener is in place.
+       self.clients.matchAll({ type: 'window' }).then(clients => {
+         clients.forEach(client => client.postMessage({ type: 'SW_UPDATED', version: CACHE_VERSION }));
+       });
+     })
   );
 });
 
@@ -103,8 +118,17 @@ self.addEventListener('fetch', (event) => {
   // Skip non-GET (POST, etc.) — let them go to network
   if (event.request.method !== 'GET') return;
 
-  // Skip unsupported schemes (chrome-extension://, etc.)
-  if (!url.protocol.startsWith('http')) return;
+  // ── Firebase / Firestore — never intercept ─────────────────────────────
+  // The Firestore SDK uses long-poll / streaming connections that must not
+  // be cached or intercepted by the service worker.
+  if (url.hostname.includes('firestore.googleapis.com') ||
+      url.hostname.includes('firebase.googleapis.com') ||
+      url.hostname.includes('firebaseinstallations.googleapis.com') ||
+      url.hostname.includes('identitytoolkit.googleapis.com') ||
+      url.hostname.includes('securetoken.googleapis.com') ||
+      url.hostname.includes('www.gstatic.com')) {
+    return;  // let the browser handle it natively
+  }
 
   // ── API calls → network-first, cache fallback ──────────────────────────
   if (API_HOSTS.some(h => url.hostname.includes(h))) {
@@ -205,41 +229,4 @@ self.addEventListener('message', (event) => {
   if (event.data === 'clearCache') {
     caches.keys().then(keys => keys.forEach(k => caches.delete(k)));
   }
-});
-
-// ══════════════════════════════════════════════════════════════════════════════
-// PUSH NOTIFICATIONS (FCM / Web Push)
-// ══════════════════════════════════════════════════════════════════════════════
-
-self.addEventListener('push', (event) => {
-  let data = {};
-  try { data = event.data ? event.data.json() : {}; } catch (_) {}
-
-  const title = data.title || data.notification?.title || 'FlockOS';
-  const options = {
-    body:    data.body    || data.notification?.body    || '',
-    icon:    data.icon    || data.notification?.icon    || '/FlockOS/Images/FlockOS_Camo.png',
-    badge:   data.badge   || '/FlockOS/Images/FlockOS_Camo.png',
-    tag:     data.tag     || 'flockos-push',
-    data:    data.data    || data.click_action ? { url: data.click_action } : {},
-    vibrate: [100, 50, 100],
-    actions: data.actions || [],
-  };
-
-  event.waitUntil(self.registration.showNotification(title, options));
-});
-
-self.addEventListener('notificationclick', (event) => {
-  event.notification.close();
-  const url = (event.notification.data && event.notification.data.url) || '/FlockOS/Pages/the_good_shepherd.html';
-  event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
-      for (const client of windowClients) {
-        if (client.url.includes('the_good_shepherd') && 'focus' in client) {
-          return client.focus();
-        }
-      }
-      return clients.openWindow(url);
-    })
-  );
 });

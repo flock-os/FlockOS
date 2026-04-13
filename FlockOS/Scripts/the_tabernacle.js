@@ -1959,6 +1959,9 @@ const Modules = (() => {
   _def('groups', async el => {
     _shell(el, 'Small Groups', 'Community groups, life groups & Bible studies.',
       _btn('+ New Group', "Modules.newGroup()"));
+
+    // ── Background async — fetch data and fill table when ready ──────────
+    (async function _loadGroups() {
     try {
       const res  = await _fetch('groups', () => _isFirebaseComms() ? UpperRoom.listGroups() : TheVine.flock.groups.list());
       const rows = _rows(res);
@@ -1989,6 +1992,7 @@ const Modules = (() => {
         { editFn: 'editGroup', ids: rows.map(r => r.id), tableId: 'groups-table' }
       ));
     } catch (e) { _body(el, _errHtml(e.message)); }
+    })();
   });
 
   function _groupsFilter(q) {
@@ -11793,6 +11797,9 @@ const Modules = (() => {
       return;
     }
     _shell(el, 'Audit Log', 'System activity, changes & security events.', '');
+
+    // ── Background async — fetch data and fill table when ready ──────────
+    (async function _loadAudit() {
     try {
       const res  = await TheVine.flock.call('audit.list', { limit: 100 });
       const rows = _rows(res);
@@ -11807,6 +11814,7 @@ const Modules = (() => {
         ])
       ));
     } catch (e) { _body(el, _errHtml(e.message)); }
+    })();
   });
 
 
@@ -20185,12 +20193,15 @@ const Modules = (() => {
           fbAuthError = fbErr && fbErr.message ? fbErr.message : String(fbErr);
         }
       }
-      // Always force a fresh comms-mode read during a connection test so
-      // stale 'sheets' values from a failed page-load attempt are cleared.
+      // Re-read comms mode during connection test to clear stale values,
+      // but preserve the current value as fallback if the refresh fails.
       if (UpperRoom.isReady()) {
+        var _prevMode = _commsMode;
         _commsMode = null;
         _commsModePromise = null;
-        try { await _loadCommsMode(); } catch (_) {}
+        try { await _loadCommsMode(); } catch (_) {
+          if (!_commsMode && _prevMode) _commsMode = _prevMode;
+        }
       }
     }
     var fbReady = typeof UpperRoom !== 'undefined' && UpperRoom.isReady();
