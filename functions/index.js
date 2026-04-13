@@ -251,7 +251,11 @@ exports.syncProblems = onDocumentWritten(
       const before = event.data.before.data() || {};
       // If before had no issueNumber and after has one, this is the write-back — skip
       if (!before.githubIssueNumber && data.githubIssueNumber) return;
+      // If this write came from the inbound GitHub sync, don't push back to GitHub
+      if (data._syncSource === "github") return;
     }
+    // Skip creates from the inbound GitHub sync
+    if (op === "create" && data._syncSource === "github") return;
 
     const title  = data.title || "(Untitled Problem)";
     const body   = _buildProblemBody(data);
@@ -682,3 +686,99 @@ exports.processScheduledReports = onSchedule("every monday 07:00", async () => {
     }
   }
 });
+
+// ── GitHub Issues → Firestore sync (inbound) ────────────────────────────
+// Runs every hour. Fetches all open issues from the GitHub repo and
+// upserts them into the Firestore `problems` collection.  Also marks
+// Firestore problems as "Closed" if the linked issue was closed on GitHub.
+exports.syncGitHubInbound = onSchedule(
+  {
+    schedule:  "every 60 minutes",
+    region:    "us-central1",
+    secrets:   [GITHUB_TOKEN],
+    timeoutSeconds: 120,
+  },
+  async () => {
+    const token = GITHUB_TOKEN.value();
+    if (!token) { console.warn("[syncGitHubInbound] No GITHUB_TOKEN"); return; }
+
+    const REPO = "flock-os/FlockOS";
+    const API  = "https://api.github.com";
+    const headers = {
+      "Authorization":        "Bearer " + token,
+      "Accept":               "application/vnd.github+json",
+      "X-GitHub-Api-Version": "2022-11-28",
+    };
+
+    // 1. Fetch all open issues from GitHub (paginated)
+    let ghIssues = [];
+    let page = 1;
+    while (true) {
+      const resp = await fetch(
+        `${API}/repos/${REPO}/issues?state=open&per_page=100&page=${page}`,
+        { headers }
+      );
+      if (!resp.ok) {
+        console.error(`[syncGitHubInbound] GitHub API error: ${resp.status}`);
+        return;
+      }
+      const batch = await resp.json();
+      // Filter out pull requests (GitHub API returns PRs in /issues too)
+      ghIssues = ghIssues.concat(batch.filter(i => !i.pull_request));
+      if (batch.length < 100) break;
+      page++;
+    }
+
+    // 2. Build a map of existing Firestore problems keyed by githubIssueNumber
+    const snap = await db.collection("problems").get();
+    const byIssueNum = {};
+    snap.docs.forEach(d => {
+      const data = d.data();
+      if (data.githubIssueNumber) byIssueNum[data.githubIssueNumber] = { id: d.id, data };
+    });
+
+    const openNums = new Set();
+
+    // 3. Upsert GitHub issues into Firestore
+    for (const issue of ghIssues) {
+      openNums.add(issue.number);
+      const existing = byIssueNum[issue.number];
+
+      const priority = (issue.labels || []).find(l => l.name && l.name.startsWith("priority:"));
+      const problemData = {
+        title:             issue.title,
+        description:       issue.body || "",
+        status:            "Open",
+        priority:          priority ? priority.name.replace("priority:", "").charAt(0).toUpperCase() + priority.name.replace("priority:", "").slice(1) : "Medium",
+        githubIssueNumber: issue.number,
+        githubIssueUrl:    issue.html_url,
+        createdBy:         issue.user ? issue.user.login : "GitHub",
+        updatedAt:         issue.updated_at,
+        _syncSource:       "github",
+      };
+
+      if (existing) {
+        // Only update if GitHub issue was modified after our last sync
+        if (existing.data.updatedAt !== issue.updated_at) {
+          await db.collection("problems").doc(existing.id).update(problemData);
+        }
+      } else {
+        // New issue — create in Firestore
+        problemData.createdAt = issue.created_at;
+        await db.collection("problems").add(problemData);
+      }
+    }
+
+    // 4. Close Firestore problems whose linked GitHub issue is no longer open
+    for (const [num, entry] of Object.entries(byIssueNum)) {
+      if (!openNums.has(Number(num)) && entry.data.status !== "Closed") {
+        await db.collection("problems").doc(entry.id).update({
+          status: "Closed",
+          _syncSource: "github",
+        });
+      }
+    }
+
+    console.log(`[syncGitHubInbound] ✓ ${ghIssues.length} open issues synced, ${Object.keys(byIssueNum).length} existing tracked`);
+  }
+);
