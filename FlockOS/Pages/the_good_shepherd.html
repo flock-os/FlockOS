@@ -316,15 +316,10 @@
     @keyframes spin { to { transform: rotate(360deg); } }
 
     /* ── Admin Dashboard Body ───────────────────────────────────────────── */
-    .ad-body {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(0, 320px);
-      gap: 16px;
-    }
+    /* Layout is now single-column, built inline in the_tabernacle.js */
 
     /* ── Responsive ────────────────────────────────────────────────────── */
     @media (max-width: 860px) {
-      .ad-body { grid-template-columns: 1fr; }
     }
     @media (max-width: 768px) {
       :root { --sidebar-w: 0px; }

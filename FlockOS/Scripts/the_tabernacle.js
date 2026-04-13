@@ -19695,10 +19695,7 @@ const Modules = (() => {
       + '&ldquo;Whatever you do, work at it with all your heart.&rdquo; &mdash; Col\u00a03:23'
       + '</div></div>'
       + '<div id="ad-kpis" style="margin-bottom:18px;">' + _spinner() + '</div>'
-      + '<div id="ad-body" class="ad-body">'
-      + '<div id="ad-left" style="min-width:0;">' + _spinner() + '</div>'
-      + '<div id="ad-right" style="min-width:0;">' + _spinner() + '</div>'
-      + '</div>'
+      + '<div id="ad-body" style="display:flex;flex-direction:column;gap:16px;">' + _spinner() + '</div>'
       + '</div>';
 
     // Fire prayer query independently — can be slow on Firestore cold start
@@ -19789,8 +19786,47 @@ const Modules = (() => {
         if (pEl) pEl.innerHTML = _adKpi('Open Prayers', count, count > 0 ? 'var(--lilac)' : 'var(--ink-muted)', '&#128591;');
       });
 
-      // ── Left Column ──────────────────────────────────────────────────────
-      var leftHtml = '';
+      // ── Single-column body (no sidebar) ─────────────────────────────────
+      var bodyHtml = '';
+
+      // Quick Actions grid + Connection card — side-by-side on desktop
+      var qaButtons = [
+        { icon: '&#9881;&#65039;', label: 'Settings',         nav: 'config' },
+        { icon: '&#128101;',       label: 'Users',             nav: 'users' },
+        { icon: '&#128202;',       label: 'Statistics',        nav: 'statistics' },
+        { icon: '&#128196;',       label: 'Reports',           nav: 'reports' },
+        { icon: '&#128270;',       label: 'Audit Log',         nav: 'audit' },
+        { icon: '&#128030;',       label: 'Problems',          nav: 'problems' },
+        { icon: '&#128591;',       label: 'Prayers',           nav: 'prayer-admin' },
+        { icon: '&#127925;',       label: 'Music Stand',       nav: 'service-hub' },
+        { icon: '&#128197;',       label: 'Calendar',          nav: 'calendar' },
+        { icon: '&#128100;',       label: 'Directory',         nav: 'directory' },
+        { icon: '&#128640;',       label: 'Deploy Guide',      nav: 'deployment-guide' },
+        { icon: '&#9989;&#65039;', label: 'Great Commission',  href: 'the_great_commission.html' },
+        { icon: '&#9881;&#65039;', label: 'Generate Deploy',   href: 'bezalel.html' },
+      ];
+      var qaHtml = _adCard('&#128640; Quick Actions',
+        '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:7px;">'
+        + qaButtons.map(function (b) {
+            var action = b.href
+              ? 'window.location.href=\'' + b.href + '\''
+              : 'Modules._adGoTo(\'' + b.nav + '\',\'' + b.label + '\')'
+            return '<button onclick="' + action + '" style="display:flex;align-items:center;gap:6px;'
+              + 'padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:var(--bg);'
+              + 'color:var(--ink);cursor:pointer;font-size:0.77rem;font-family:inherit;text-align:left;">'
+              + '<span style="font-size:1rem;">' + b.icon + '</span>'
+              + _e(b.label) + '</button>';
+          }).join('')
+        + '</div>');
+
+      var connHtml = '<div id="ad-conn-card">' + _adCard('&#128268; Database Connection',
+        '<div style="font-size:0.78rem;color:var(--ink-muted);padding:4px 0;">Checking connection\u2026</div>') + '</div>';
+
+      bodyHtml += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">'
+        + '<div>' + qaHtml + '</div>'
+        + '<div>' + connHtml + '</div>'
+        + '</div>'
+        + '<style>@media(max-width:700px){#ad-body>div:first-child{grid-template-columns:1fr !important}}</style>';
 
       // Urgent care alert
       var urgentCaseRows = careCases.filter(function (c) {
@@ -19798,7 +19834,7 @@ const Modules = (() => {
           && !['closed','resolved','archived'].includes(String(c.status || '').toLowerCase());
       }).slice(0, 5);
       if (urgentCaseRows.length) {
-        leftHtml += _adCard('&#128680; Urgent Care Cases',
+        bodyHtml += _adCard('&#128680; Urgent Care Cases',
           urgentCaseRows.map(function (c) {
             return '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);">'
               + '<div>'
@@ -19810,7 +19846,8 @@ const Modules = (() => {
           }).join(''));
       }
 
-      // This week's events
+      // Events + Problems — side-by-side on desktop
+      var eventsHtml = '';
       var next7Events = events.filter(function (e) {
         var d = _localDate(e.eventDate || e.startDate || e.date);
         return !isNaN(d.getTime()) && d >= now && d <= in7;
@@ -19819,7 +19856,7 @@ const Modules = (() => {
              - _localDate(b.eventDate || b.startDate || b.date);
       }).slice(0, 6);
       if (next7Events.length) {
-        leftHtml += _adCard('&#128197; This Week\u2019s Events',
+        eventsHtml = _adCard('&#128197; This Week\u2019s Events',
           next7Events.map(function (e) {
             var d = _localDate(e.eventDate || e.startDate || e.date);
             var dayLabel = isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
@@ -19836,9 +19873,47 @@ const Modules = (() => {
           }).join(''));
       }
 
+      // Open Problems
+      var pBadgeColor  = { Critical: 'var(--danger)', High: 'var(--danger)', Medium: 'var(--warning,#f59e0b)', Low: 'var(--ink-muted)' };
+      var pStatusColor = { 'Open': 'var(--danger)', 'In Progress': 'var(--warning,#f59e0b)' };
+      var problemRows = openProblems.slice(0, 6).map(function(p) {
+        var pColor = pBadgeColor[p.priority]  || 'var(--ink-muted)';
+        var sColor = pStatusColor[p.status]   || 'var(--ink-muted)';
+        var ghLink = p.githubIssueNumber
+          ? ' <a href="https://github.com/flock-os/FlockOS/issues/' + _e(String(p.githubIssueNumber)) + '" target="_blank" rel="noopener noreferrer" style="color:var(--accent);font-size:0.72rem;">#' + _e(String(p.githubIssueNumber)) + ' \u2197</a>'
+          : '';
+        return '<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--line);">'
+          + '<div style="width:7px;height:7px;border-radius:50%;background:' + pColor + ';flex-shrink:0;"></div>'
+          + '<div style="flex:1;min-width:0;">'
+          + '<div style="font-size:0.84rem;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _e(p.title || '\u2014') + ghLink + '</div>'
+          + '<div style="font-size:0.71rem;color:' + pColor + ';">' + _e(p.priority || '') + (p.assignedTo ? '<span style="color:var(--ink-muted);"> \u2022 ' + _e(p.assignedTo) + '</span>' : '') + '</div>'
+          + '</div>'
+          + '<span style="font-size:0.68rem;padding:2px 7px;border-radius:12px;background:' + sColor + ';color:#fff;white-space:nowrap;">' + _e(p.status || '') + '</span>'
+          + '</div>';
+      }).join('');
+      if (!openProblems.length) {
+        problemRows = '<div style="font-size:0.82rem;color:var(--ink-muted);padding:6px 0;">\u2705 No open problems.</div>';
+      } else if (openProblems.length > 6) {
+        problemRows += '<div style="font-size:0.73rem;color:var(--ink-muted);padding:5px 0;">' + (openProblems.length - 6) + ' more\u2026</div>';
+      }
+      problemRows += '<div style="margin-top:10px;display:flex;gap:6px;">'
+        + '<button onclick="Modules._problemsNew()" style="padding:6px 14px;border-radius:8px;border:none;background:var(--accent);color:var(--ink-inverse);font-weight:600;font-size:0.78rem;cursor:pointer;font-family:inherit;">+ New Problem</button>'
+        + '<button onclick="Modules._adGoTo(\'problems\',\'Problems\')" style="padding:6px 14px;border-radius:8px;border:1px solid var(--line);background:none;color:var(--ink);font-size:0.78rem;cursor:pointer;font-family:inherit;">View All \u2197</button>'
+        + '</div>';
+      var problemsHtml = _adCard('&#128030; Open Problems (' + openProblems.length + ')', problemRows);
+
+      // Events + Problems — side-by-side on desktop
+      if (eventsHtml || problemsHtml) {
+        bodyHtml += '<div class="ad-pair" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">'
+          + '<div>' + (eventsHtml || '') + '</div>'
+          + '<div>' + problemsHtml + '</div>'
+          + '</div>'
+          + '<style>@media(max-width:700px){.ad-pair{grid-template-columns:1fr !important}}</style>';
+      }
+
       // Overdue tasks
       if (overdueTodos.length) {
-        leftHtml += _adCard('&#9888;&#65039; Overdue Tasks (' + overdueTodos.length + ')',
+        bodyHtml += _adCard('&#9888;&#65039; Overdue Tasks (' + overdueTodos.length + ')',
           overdueTodos.slice(0, 5).map(function (t) {
             var due = t.dueDate ? new Date(t.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
             return '<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--line);">'
@@ -19849,69 +19924,42 @@ const Modules = (() => {
           }).join(''));
       }
 
-      // Scratchpad
-      leftHtml += _adCard('&#128221; Scratchpad',
-        '<textarea id="ad-scratch" rows="5" style="width:100%;background:var(--bg);color:var(--ink);'
-        + 'border:1px solid var(--line);border-radius:8px;padding:10px;font-size:0.83rem;font-family:inherit;'
-        + 'resize:vertical;box-sizing:border-box;" placeholder="Quick notes, thoughts, reminders\u2026">'
-        + _e(scratch) + '</textarea>'
-        + '<button onclick="Modules._adSaveScratch()" style="margin-top:8px;padding:7px 18px;border-radius:8px;'
-        + 'border:none;background:var(--accent);color:var(--ink-inverse);font-weight:600;font-size:0.8rem;cursor:pointer;font-family:inherit;">Save Notes</button>');
-
-      // Quick Tasks
-      leftHtml += _adCard('&#9745; Quick Tasks',
-        '<div style="display:flex;gap:6px;margin-bottom:10px;">'
-        + '<input id="ad-task-input" type="text" placeholder="Add a task\u2026" style="flex:1;padding:8px 10px;'
-        + 'border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font-size:0.83rem;box-sizing:border-box;"'
-        + ' onkeydown="if(event.key===\'Enter\')Modules._adAddTask()">'
-        + '<button onclick="Modules._adAddTask()" style="padding:8px 14px;border-radius:8px;border:none;'
-        + 'background:var(--accent);color:var(--ink-inverse);font-weight:600;cursor:pointer;font-size:0.83rem;font-family:inherit;">+</button>'
-        + '</div>'
-        + '<div id="ad-task-list" style="max-height:220px;overflow-y:auto;">' + _adRenderTasks(tasks) + '</div>');
-
-      // ── Right Column ─────────────────────────────────────────────────────
-      var rightHtml = '';
-
-      // Connection type card — async, rendered into placeholder after initial paint
-      rightHtml += '<div id="ad-conn-card">' + _adCard('&#128268; Database Connection',
-        '<div style="font-size:0.78rem;color:var(--ink-muted);padding:4px 0;">Checking connection\u2026</div>') + '</div>';
-
-      // Quick Actions grid
-      var qaButtons = [
-        { icon: '&#9881;&#65039;', label: 'Settings',         nav: 'config' },
-        { icon: '&#128101;',       label: 'Users',             nav: 'users' },
-        { icon: '&#128202;',       label: 'Statistics',        nav: 'statistics' },
-        { icon: '&#128196;',       label: 'Reports',           nav: 'reports' },
-        { icon: '&#128270;',       label: 'Audit Log',         nav: 'audit' },
-        { icon: '&#128030;',       label: 'Problems',          nav: 'problems' },
-        { icon: '&#128591;',       label: 'Prayers',           nav: 'prayer-admin' },
-        { icon: '&#127925;',       label: 'Music Stand',       nav: 'service-hub' },
-        { icon: '&#128197;',       label: 'Calendar',          nav: 'calendar' },
-        { icon: '&#128100;',       label: 'Directory',         nav: 'directory' },
-        { icon: '&#128640;',       label: 'Deploy Guide',      nav: 'deployment-guide' },
-        { icon: '&#9989;&#65039;', label: 'Great Commission',  href: 'the_great_commission.html' },
-        { icon: '&#9881;&#65039;', label: 'Generate Deploy',   href: 'bezalel.html' },
-      ];
-      rightHtml += _adCard('&#128640; Quick Actions',
-        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:7px;">'
-        + qaButtons.map(function (b) {
-            var action = b.href
-              ? 'window.location.href=\'' + b.href + '\''
-              : 'Modules._adGoTo(\'' + b.nav + '\',\'' + b.label + '\')'
-            return '<button onclick="' + action + '" style="display:flex;align-items:center;gap:6px;'
-              + 'padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:var(--bg);'
-              + 'color:var(--ink);cursor:pointer;font-size:0.77rem;font-family:inherit;text-align:left;">'
-              + '<span style="font-size:1rem;">' + b.icon + '</span>'
-              + _e(b.label) + '</button>';
-          }).join('')
-        + '</div>');
+      // Recent Activity (audit log)
+      if (audits.length) {
+        var feedItems = audits.slice(0, 14).map(function (a) {
+          var action = String(a.action || a.event || a.type || '').replace(/\./g, ' ');
+          var actor  = _e(a.actorName || a.actor || a.email || a.performedBy || '');
+          var target = _e(String(a.targetName || a.target || a.details || '').substring(0, 52));
+          var ts     = a.timestamp || a.createdAt || a.date || '';
+          var when   = '';
+          if (ts) {
+            var tdiff = Math.round((now - new Date(ts)) / 60000);
+            if (!isNaN(tdiff)) {
+              when = tdiff < 1 ? 'just now'
+                   : tdiff < 60 ? tdiff + 'm ago'
+                   : tdiff < 1440 ? Math.round(tdiff / 60) + 'h ago'
+                   : Math.round(tdiff / 1440) + 'd ago';
+            }
+          }
+          return '<div style="display:flex;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);">'
+            + '<div style="width:6px;height:6px;border-radius:50%;background:var(--accent);margin-top:5px;flex-shrink:0;"></div>'
+            + '<div style="flex:1;min-width:0;">'
+            + '<div style="font-size:0.78rem;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'
+            + _e(action) + (actor ? ' \u2022 ' + actor : '') + '</div>'
+            + (target ? '<div style="font-size:0.71rem;color:var(--ink-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + target + '</div>' : '')
+            + '</div>'
+            + (when ? '<div style="font-size:0.67rem;color:var(--ink-faint);white-space:nowrap;padding-left:4px;">' + _e(when) + '</div>' : '')
+            + '</div>';
+        }).join('');
+        bodyHtml += _adCard('&#128336; Recent Activity', '<div style="max-height:260px;overflow-y:auto;">' + feedItems + '</div>');
+      }
 
       // Church Vault card — seed admin only
       if (_isSeedAdmin()) {
         var _vCid = '';
         try { _vCid = UpperRoom.churchId() || ''; } catch(_e_) {}
         if (_vCid) {
-          rightHtml += '<div id="ad-vault-card">' + _adCard('&#128272; Church Vault',
+          bodyHtml += '<div id="ad-vault-card">' + _adCard('&#128272; Church Vault',
             '<div style="font-size:0.78rem;color:var(--ink-muted);padding:4px 0;">Loading vault\u2026</div>') + '</div>';
           firebase.firestore().collection('churchVault').doc(_vCid).get().then(function(snap) {
             var data = snap.exists ? snap.data() : {};
@@ -19950,64 +19998,29 @@ const Modules = (() => {
         }
       }
 
-      // Open Problems card — inline on the dashboard
-      var pBadgeColor  = { Critical: 'var(--danger)', High: 'var(--danger)', Medium: 'var(--warning,#f59e0b)', Low: 'var(--ink-muted)' };
-      var pStatusColor = { 'Open': 'var(--danger)', 'In Progress': 'var(--warning,#f59e0b)' };
-      var problemRows = openProblems.slice(0, 6).map(function(p) {
-        var pColor = pBadgeColor[p.priority]  || 'var(--ink-muted)';
-        var sColor = pStatusColor[p.status]   || 'var(--ink-muted)';
-        var ghLink = p.githubIssueNumber
-          ? ' <a href="https://github.com/flock-os/FlockOS/issues/' + _e(String(p.githubIssueNumber)) + '" target="_blank" rel="noopener noreferrer" style="color:var(--accent);font-size:0.72rem;">#' + _e(String(p.githubIssueNumber)) + ' \u2197</a>'
-          : '';
-        return '<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--line);">'
-          + '<div style="width:7px;height:7px;border-radius:50%;background:' + pColor + ';flex-shrink:0;"></div>'
-          + '<div style="flex:1;min-width:0;">'
-          + '<div style="font-size:0.84rem;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _e(p.title || '\u2014') + ghLink + '</div>'
-          + '<div style="font-size:0.71rem;color:' + pColor + ';">' + _e(p.priority || '') + (p.assignedTo ? '<span style="color:var(--ink-muted);"> \u2022 ' + _e(p.assignedTo) + '</span>' : '') + '</div>'
-          + '</div>'
-          + '<span style="font-size:0.68rem;padding:2px 7px;border-radius:12px;background:' + sColor + ';color:#fff;white-space:nowrap;">' + _e(p.status || '') + '</span>'
-          + '</div>';
-      }).join('');
-      if (!openProblems.length) {
-        problemRows = '<div style="font-size:0.82rem;color:var(--ink-muted);padding:6px 0;">\u2705 No open problems.</div>';
-      } else if (openProblems.length > 6) {
-        problemRows += '<div style="font-size:0.73rem;color:var(--ink-muted);padding:5px 0;">' + (openProblems.length - 6) + ' more\u2026</div>';
-      }
-      problemRows += '<div style="margin-top:10px;display:flex;gap:6px;">'
-        + '<button onclick="Modules._problemsNew()" style="padding:6px 14px;border-radius:8px;border:none;background:var(--accent);color:var(--ink-inverse);font-weight:600;font-size:0.78rem;cursor:pointer;font-family:inherit;">+ New Problem</button>'
-        + '<button onclick="Modules._adGoTo(\'problems\',\'Problems\')" style="padding:6px 14px;border-radius:8px;border:1px solid var(--line);background:none;color:var(--ink);font-size:0.78rem;cursor:pointer;font-family:inherit;">View All \u2197</button>'
-        + '</div>';
-      rightHtml += _adCard('&#128030; Open Problems (' + openProblems.length + ')', problemRows);
+      // Scratchpad + Quick Tasks — side-by-side on desktop
+      var scratchHtml = _adCard('&#128221; Scratchpad',
+        '<textarea id="ad-scratch" rows="5" style="width:100%;background:var(--bg);color:var(--ink);'
+        + 'border:1px solid var(--line);border-radius:8px;padding:10px;font-size:0.83rem;font-family:inherit;'
+        + 'resize:vertical;box-sizing:border-box;" placeholder="Quick notes, thoughts, reminders\u2026">'
+        + _e(scratch) + '</textarea>'
+        + '<button onclick="Modules._adSaveScratch()" style="margin-top:8px;padding:7px 18px;border-radius:8px;'
+        + 'border:none;background:var(--accent);color:var(--ink-inverse);font-weight:600;font-size:0.8rem;cursor:pointer;font-family:inherit;">Save Notes</button>');
 
-      // Recent Activity (audit log)
-      if (audits.length) {
-        var feedItems = audits.slice(0, 14).map(function (a) {
-          var action = String(a.action || a.event || a.type || '').replace(/\./g, ' ');
-          var actor  = _e(a.actorName || a.actor || a.email || a.performedBy || '');
-          var target = _e(String(a.targetName || a.target || a.details || '').substring(0, 52));
-          var ts     = a.timestamp || a.createdAt || a.date || '';
-          var when   = '';
-          if (ts) {
-            var tdiff = Math.round((now - new Date(ts)) / 60000);
-            if (!isNaN(tdiff)) {
-              when = tdiff < 1 ? 'just now'
-                   : tdiff < 60 ? tdiff + 'm ago'
-                   : tdiff < 1440 ? Math.round(tdiff / 60) + 'h ago'
-                   : Math.round(tdiff / 1440) + 'd ago';
-            }
-          }
-          return '<div style="display:flex;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);">'
-            + '<div style="width:6px;height:6px;border-radius:50%;background:var(--accent);margin-top:5px;flex-shrink:0;"></div>'
-            + '<div style="flex:1;min-width:0;">'
-            + '<div style="font-size:0.78rem;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'
-            + _e(action) + (actor ? ' \u2022 ' + actor : '') + '</div>'
-            + (target ? '<div style="font-size:0.71rem;color:var(--ink-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + target + '</div>' : '')
-            + '</div>'
-            + (when ? '<div style="font-size:0.67rem;color:var(--ink-faint);white-space:nowrap;padding-left:4px;">' + _e(when) + '</div>' : '')
-            + '</div>';
-        }).join('');
-        rightHtml += _adCard('&#128336; Recent Activity', '<div style="max-height:260px;overflow-y:auto;">' + feedItems + '</div>');
-      }
+      var tasksHtml = _adCard('&#9745; Quick Tasks',
+        '<div style="display:flex;gap:6px;margin-bottom:10px;">'
+        + '<input id="ad-task-input" type="text" placeholder="Add a task\u2026" style="flex:1;padding:8px 10px;'
+        + 'border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font-size:0.83rem;box-sizing:border-box;"'
+        + ' onkeydown="if(event.key===\'Enter\')Modules._adAddTask()">'
+        + '<button onclick="Modules._adAddTask()" style="padding:8px 14px;border-radius:8px;border:none;'
+        + 'background:var(--accent);color:var(--ink-inverse);font-weight:600;cursor:pointer;font-size:0.83rem;font-family:inherit;">+</button>'
+        + '</div>'
+        + '<div id="ad-task-list" style="max-height:220px;overflow-y:auto;">' + _adRenderTasks(tasks) + '</div>');
+
+      bodyHtml += '<div class="ad-pair" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">'
+        + '<div>' + scratchHtml + '</div>'
+        + '<div>' + tasksHtml + '</div>'
+        + '</div>';
 
       // Font size config (condensed)
       var curDesktop  = localStorage.getItem('flock_font_scale') || '100';
@@ -20018,7 +20031,7 @@ const Modules = (() => {
           return '<option value="' + sz + '"' + (cur === sz ? ' selected' : '') + '>' + sz + '%' + (sz === '100' ? ' \u2013 Default' : '') + '</option>';
         }).join('');
       };
-      rightHtml += _adCard('&#128295; Display &amp; Font Size',
+      bodyHtml += _adCard('&#128295; Display &amp; Font Size',
         '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">'
         + '<div><label style="font-size:0.75rem;font-weight:600;color:var(--ink-muted);display:block;margin-bottom:4px;">&#128421; Desktop</label>'
         + '<select id="ad-font-desktop" style="width:100%;padding:7px 8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font-size:0.82rem;font-family:inherit;">' + mkOpts(curDesktop) + '</select></div>'
@@ -20027,14 +20040,13 @@ const Modules = (() => {
         + '</div>'
         + '<button onclick="Modules._adSaveFontSize()" style="margin-top:10px;padding:7px 18px;border-radius:8px;border:none;background:var(--accent);color:var(--ink-inverse);font-weight:600;font-size:0.8rem;cursor:pointer;font-family:inherit;">Save Font Sizes</button>');
 
-      document.getElementById('ad-left').innerHTML  = leftHtml;
-      document.getElementById('ad-right').innerHTML = rightHtml;
+      document.getElementById('ad-body').innerHTML = bodyHtml;
 
       // Resolve and render the connection card asynchronously after DOM paint
       _adRefreshConnCard();
 
     } catch (e) {
-      var errEl = document.getElementById('ad-left');
+      var errEl = document.getElementById('ad-body');
       if (errEl) errEl.innerHTML = _errHtml(e.message);
     }
   });
