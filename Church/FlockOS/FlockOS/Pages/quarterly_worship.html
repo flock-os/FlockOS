@@ -566,6 +566,10 @@
              UpperRoom.isReady();
     }
     function waitFB(ms) {
+      /* Kick off authenticate() once if UpperRoom exists but isn't ready */
+      if (typeof UpperRoom !== 'undefined' && !isFB()) {
+        try { UpperRoom.authenticate(); } catch(_){}
+      }
       var t0 = Date.now();
       return new Promise(function (res, rej) {
         (function tick() {
