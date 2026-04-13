@@ -11204,67 +11204,75 @@ const Modules = (() => {
   _def('config', async el => {
     _shell(el, 'Settings', 'Configure your church portal.',
       _btn('\uD83D\uDD04 Refresh', 'Modules._reloadConfig()'));
-    try {
-      // ── FIRESTORE-FIRST: no GAS waterfall ─────────────────────────
-      var rows = [];
-      var _configSource = 'firebase';
-      if (_isFirebaseComms()) {
-        var fbRes = await UpperRoom.listAppConfig().catch(function() { return null; });
-        rows = fbRes ? _rows(fbRes) : [];
-        if (rows.length === 0) {
-          _configSource = 'defaults';
-          rows = _DEFAULT_APP_CONFIG.slice();
-          // Seed Firestore — await so data persists before render
-          await Promise.all(rows.map(function(r) { return UpperRoom.setAppConfig(r).catch(function() {}); }));
+
+    // ── Paint sidebar layout INSTANTLY — data loads in background ────
+    var tabs = [
+      { id: 'overview',   icon: '\uD83D\uDCCA', label: 'Overview' },
+      { id: 'identity',   icon: '\u26EA',        label: 'Church Identity' },
+      { id: 'appearance', icon: '\uD83C\uDFA8',  label: 'Appearance' },
+      { id: 'modules',    icon: '\uD83E\uDDE9',  label: 'Modules' },
+      { id: 'database',   icon: '\uD83D\uDDC4',  label: 'Database' },
+      { id: 'advanced',   icon: '\u2699\uFE0F',  label: 'All Settings' },
+    ];
+    if (_isFirebaseComms()) tabs.push({ id: 'master', icon: '\uD83C\uDF10', label: 'Master Config' });
+
+    var s = '<div class="stg-layout">';
+    s += '<nav class="stg-sidebar" role="navigation">';
+    tabs.forEach(function(t) {
+      s += '<button class="stg-nav-item" data-tab="' + t.id + '" onclick="Modules._settingsTab(\'' + t.id + '\')">';
+      s += '<span class="stg-nav-icon">' + t.icon + '</span>';
+      s += '<span class="stg-nav-label">' + t.label + '</span>';
+      s += '</button>';
+    });
+    s += '</nav>';
+    s += '<main class="stg-main" id="settings-content">' + _spinner() + '</main>';
+    s += '</div>';
+
+    _body(el, s);
+
+    // ── Load config data in background, then render active tab ──────
+    (async function _loadConfigData() {
+      try {
+        var rows = [];
+        var _configSource = 'firebase';
+        if (_isFirebaseComms()) {
+          var fbRes = await UpperRoom.listAppConfig().catch(function() { return null; });
+          rows = fbRes ? _rows(fbRes) : [];
+          if (rows.length === 0) {
+            _configSource = 'defaults';
+            rows = _DEFAULT_APP_CONFIG.slice();
+            // Seed Firestore — fire-and-forget so UI isn't blocked
+            Promise.all(rows.map(function(r) { return UpperRoom.setAppConfig(r).catch(function() {}); }));
+          }
+        } else {
+          _configSource = 'gas';
+          var gasRes = await TheVine.flock.config.list().catch(function() { return null; });
+          rows = gasRes ? _rows(gasRes) : [];
+          if (rows.length === 0) {
+            _configSource = 'defaults';
+            rows = _DEFAULT_APP_CONFIG.slice();
+          }
         }
-      } else {
-        _configSource = 'gas';
-        var gasRes = await TheVine.flock.config.list().catch(function() { return null; });
-        rows = gasRes ? _rows(gasRes) : [];
-        if (rows.length === 0) {
-          _configSource = 'defaults';
-          rows = _DEFAULT_APP_CONFIG.slice();
-        }
+
+        _dataCache['config'] = rows;
+        _cfgD.rows = rows;
+        _cfgD.configSource = _configSource;
+        _cfgD.seededDefaults = _configSource === 'defaults';
+        _cfgD.studioDirty = false;
+
+        // Sync display keys to localStorage
+        var sk = { FONT_SCALE: 'flock_font_scale', FONT_SCALE_MOBILE: 'flock_font_scale_mobile', QUIZ_SIZE: 'flock_quiz_size', CHURCH_LOGO: 'flock_church_logo' };
+        rows.forEach(function(r) { var k = r.key || r.configKey || ''; if (sk[k] && r.value != null) localStorage.setItem(sk[k], String(r.value)); });
+        if (window._applyFontScale) window._applyFontScale();
+
+        // Render active tab now that data is ready
+        _settingsTab(_configActiveTab || 'overview');
+
+      } catch (e) {
+        var content = document.getElementById('settings-content');
+        if (content) content.innerHTML = _errHtml(e.message);
       }
-
-      _dataCache['config'] = rows;
-      _cfgD.rows = rows;
-      _cfgD.configSource = _configSource;
-      _cfgD.seededDefaults = _configSource === 'defaults';
-      _cfgD.studioDirty = false;
-
-      // Sync display keys to localStorage
-      var sk = { FONT_SCALE: 'flock_font_scale', FONT_SCALE_MOBILE: 'flock_font_scale_mobile', QUIZ_SIZE: 'flock_quiz_size', CHURCH_LOGO: 'flock_church_logo' };
-      rows.forEach(function(r) { var k = r.key || r.configKey || ''; if (sk[k] && r.value != null) localStorage.setItem(sk[k], String(r.value)); });
-      if (window._applyFontScale) window._applyFontScale();
-
-      // ── Build sidebar layout ──────────────────────────────────────
-      var tabs = [
-        { id: 'overview',   icon: '\uD83D\uDCCA', label: 'Overview' },
-        { id: 'identity',   icon: '\u26EA',        label: 'Church Identity' },
-        { id: 'appearance', icon: '\uD83C\uDFA8',  label: 'Appearance' },
-        { id: 'modules',    icon: '\uD83E\uDDE9',  label: 'Modules' },
-        { id: 'database',   icon: '\uD83D\uDDC4',  label: 'Database' },
-        { id: 'advanced',   icon: '\u2699\uFE0F',  label: 'All Settings' },
-      ];
-      if (_isFirebaseComms()) tabs.push({ id: 'master', icon: '\uD83C\uDF10', label: 'Master Config' });
-
-      var s = '<div class="stg-layout">';
-      s += '<nav class="stg-sidebar" role="navigation">';
-      tabs.forEach(function(t) {
-        s += '<button class="stg-nav-item" data-tab="' + t.id + '" onclick="Modules._settingsTab(\'' + t.id + '\')">';
-        s += '<span class="stg-nav-icon">' + t.icon + '</span>';
-        s += '<span class="stg-nav-label">' + t.label + '</span>';
-        s += '</button>';
-      });
-      s += '</nav>';
-      s += '<main class="stg-main" id="settings-content"></main>';
-      s += '</div>';
-
-      _body(el, s);
-      _settingsTab(_configActiveTab || 'overview');
-
-    } catch (e) { _body(el, _errHtml(e.message)); }
+    })();
   });
 
   // ════════════════════════════════════════════════════════════════════════
