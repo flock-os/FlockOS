@@ -137,7 +137,9 @@ const TheHarvest = (() => {
   }
   function _isAdmin() {
     var s = _getSession();
-    return s && (s.role === 'admin' || s.role === 'superadmin' || (s.roleLevel != null && s.roleLevel >= 2));
+    if (s && (s.role === 'admin' || s.role === 'superadmin' || (s.roleLevel != null && s.roleLevel >= 2))) return true;
+    if (typeof Nehemiah !== 'undefined' && (Nehemiah.hasGroup('Master') || Nehemiah.hasGroup('Seed Admin') || Nehemiah.hasGroup('Lead Pastor'))) return true;
+    return false;
   }
 
   // ── Modal / edit helpers (delegate to the_tabernacle.js) ────────────────

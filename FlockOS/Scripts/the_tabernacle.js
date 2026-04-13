@@ -553,7 +553,12 @@ const Modules = (() => {
   // Terminal statuses hidden from everyone except the first seed admin.
   var _TERMINAL_STATUSES = ['resolved','closed','archived','cancelled','denied','completed','answered','inactive','deleted'];
   function _isSeedAdmin() {
-    try { var s = TheVine.session(); return !!(s && s.isSeed); } catch(e) { return false; }
+    try {
+      var s = TheVine.session();
+      if (s && s.isSeed) return true;
+      if (typeof Nehemiah !== 'undefined' && (Nehemiah.hasGroup('Seed Admin') || Nehemiah.hasGroup('Master') || Nehemiah.hasGroup('Lead Pastor'))) return true;
+      return false;
+    } catch(e) { return false; }
   }
   function _filterClosed(rows, statusKey) {
     if (_isSeedAdmin()) return rows;
@@ -2084,7 +2089,7 @@ const Modules = (() => {
         const sermons = _rows(serRes);
         _dataCache['sermons'] = sermons;
         const session  = Nehemiah.getSession ? Nehemiah.getSession() : {};
-        const isPastor = (session.roleLevel >= 4) || /^(pastor|admin)$/i.test(session.role || '');
+        const isPastor = (session.roleLevel >= 4) || /^(pastor|admin)$/i.test(session.role || '') || (typeof Nehemiah !== 'undefined' && (Nehemiah.hasGroup('Master') || Nehemiah.hasGroup('Seed Admin') || Nehemiah.hasGroup('Lead Pastor')));
         const _decisionColor = d => {
           if (!d) return 'var(--ink-muted)';
           if (/approved/i.test(d)) return 'var(--success, #2da44e)';
@@ -7373,7 +7378,7 @@ const Modules = (() => {
     var session = null;
     try { session = (typeof Nehemiah !== 'undefined') ? Nehemiah.getSession() : null; } catch(_) {}
     var myEmail = session && session.email ? session.email : '';
-    var canDeleteAll = session && ((session.roleLevel >= 4) || /^(pastor|admin|seed)$/i.test(session.role || ''));
+    var canDeleteAll = session && ((session.roleLevel >= 4) || /^(pastor|admin|seed)$/i.test(session.role || '') || (typeof Nehemiah !== 'undefined' && (Nehemiah.hasGroup('Master') || Nehemiah.hasGroup('Seed Admin') || Nehemiah.hasGroup('Lead Pastor'))));
 
     if (!msgs.length) {
       container.innerHTML = '<div style="text-align:center;padding:40px 0;color:var(--ink-muted);font-size:0.85rem;">'
@@ -7799,7 +7804,7 @@ const Modules = (() => {
           (async function() {
             try {
               var _tSess = (typeof Nehemiah !== 'undefined' && Nehemiah.getSession) ? Nehemiah.getSession() : {};
-              var _tCanDel = (_tSess.roleLevel >= 4) || /^(pastor|admin|seed)$/i.test(_tSess.role || '');
+              var _tCanDel = (_tSess.roleLevel >= 4) || /^(pastor|admin|seed)$/i.test(_tSess.role || '') || (typeof Nehemiah !== 'undefined' && (Nehemiah.hasGroup('Master') || Nehemiah.hasGroup('Seed Admin') || Nehemiah.hasGroup('Lead Pastor')));
               UpperRoom.listenConversations('thread', function(threads) {
                 var container = document.getElementById('comms-thread-list');
                 if (!container) return;

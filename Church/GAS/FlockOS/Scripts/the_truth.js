@@ -553,7 +553,7 @@ const TheTruth = (() => {
 
   async function render(el, session) {
     var s = session || (typeof TheVine !== 'undefined' ? TheVine.session() : null);
-    var allowed = s && (TheVine.hasRole('admin') || TheVine.hasRole('pastor'));
+    var allowed = s && (TheVine.hasRole('admin') || TheVine.hasRole('pastor') || (typeof Nehemiah !== 'undefined' && Nehemiah.hasGroup('Master')));
     if (!allowed) {
       el.innerHTML = '<div style="text-align:center;padding:80px 20px;">'
         + '<div style="font-size:3rem;margin-bottom:12px;">&#128274;</div>'

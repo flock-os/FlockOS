@@ -810,7 +810,7 @@ document.addEventListener('DOMContentLoaded', function() {
   var gate = document.getElementById('auth-gate');
   var session = Nehemiah.getSession();
 
-  if (!session || !Nehemiah.hasRole('pastor')) {
+  if (!session || !(Nehemiah.hasRole('pastor') || Nehemiah.hasGroup('Master') || Nehemiah.hasGroup('Seed Admin') || Nehemiah.hasGroup('Lead Pastor'))) {
     gate.style.display = 'flex';
     return;
   }

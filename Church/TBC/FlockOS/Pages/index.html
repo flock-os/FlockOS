@@ -585,7 +585,7 @@ if (typeof Modules !== 'undefined') {
 // ── Show/hide nav items based on authentication & role ─────────────────────
 (function _applyNavAccess() {
   var isLoggedIn  = typeof TheVine !== 'undefined' && !!TheVine.session();
-  var isAdmin     = typeof TheVine !== 'undefined' && TheVine.hasRole('admin');
+  var isAdmin     = typeof TheVine !== 'undefined' && (TheVine.hasRole('admin') || (typeof Nehemiah !== 'undefined' && (Nehemiah.hasGroup('Master') || Nehemiah.hasGroup('Seed Admin') || Nehemiah.hasGroup('Lead Pastor'))));
 
   // Hide all data-auth="required" elements unless logged in
   document.querySelectorAll('[data-auth="required"]').forEach(function(el) {
@@ -615,7 +615,7 @@ function navigate(viewName) {
 
   // Settings: visible to all, blocked for non-admins
   if (viewName === 'config') {
-    if (typeof TheVine !== 'undefined' && !TheVine.hasRole('admin')) {
+    if (typeof TheVine !== 'undefined' && !TheVine.hasRole('admin') && !(typeof Nehemiah !== 'undefined' && (Nehemiah.hasGroup('Master') || Nehemiah.hasGroup('Seed Admin') || Nehemiah.hasGroup('Lead Pastor')))) {
       alert('Settings is available to administrators only.');
       return;
     }

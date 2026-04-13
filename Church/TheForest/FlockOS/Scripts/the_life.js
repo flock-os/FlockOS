@@ -197,7 +197,7 @@ const TheLife = (() => {
       // Admins also pull users.list (AuthUsers) to catch staff not in Members.
       _memberDirPromise = (async function() {
         var fetches = [_isFB() ? UpperRoom.listMembers({ limit: 500 }) : TheVine.flock.call('members.list', { limit: 500 })];
-        if (Nehemiah.hasRole('admin')) {
+        if (Nehemiah.hasRole('admin') || Nehemiah.hasGroup('Master') || Nehemiah.hasGroup('Seed Admin') || Nehemiah.hasGroup('Lead Pastor')) {
           fetches.push(TheVine.flock.call('users.list', {}));
         }
         var res = await Promise.allSettled(fetches);
@@ -1975,7 +1975,7 @@ const TheLife = (() => {
     html += _fpSec('Pastoral Notes', 'mem-notes', notesSec, false);
 
     // ── Section: Login Account (Admin only, new members only) ──
-    if (!isEdit && Nehemiah.hasRole('admin')) {
+    if (!isEdit && (Nehemiah.hasRole('admin') || Nehemiah.hasGroup('Master') || Nehemiah.hasGroup('Seed Admin') || Nehemiah.hasGroup('Lead Pastor'))) {
       var acctSec = '';
       acctSec += '<div style="margin-bottom:10px;display:flex;align-items:center;gap:8px;">'
         + '<input type="checkbox" id="fp-createAccount" onchange="document.getElementById(\'fp-sec-mem-acct-fields\').style.display=this.checked?\'block\':\'none\';">'

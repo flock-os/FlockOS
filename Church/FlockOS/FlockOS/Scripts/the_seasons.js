@@ -185,7 +185,7 @@ const TheSeason = (() => {
   var _memberDirCache = null;
 
   function _isPastor() {
-    return typeof Nehemiah !== 'undefined' && Nehemiah.hasRole('pastor');
+    return typeof Nehemiah !== 'undefined' && (Nehemiah.hasRole('pastor') || Nehemiah.hasGroup('Master') || Nehemiah.hasGroup('Seed Admin') || Nehemiah.hasGroup('Lead Pastor'));
   }
 
   async function _ensureMemberDir() {
