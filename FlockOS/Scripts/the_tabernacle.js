@@ -19925,7 +19925,7 @@ const Modules = (() => {
       (_isFirebaseComms() ? UpperRoom.listCompassionRequests({ limit: 200 }) : TheVine.flock.compassion.requests.list({ limit: 200 })).catch(function () { return null; }),
       (_isFirebaseComms() ? UpperRoom.listEvents({ limit: 100 }) : TheVine.flock.events.list({ limit: 100 })).catch(function () { return null; }),
       (_isFirebaseComms() ? UpperRoom.listGiving({ limit: 200 }) : TheVine.flock.giving.list({ limit: 200 })).catch(function () { return null; }),
-      TheVine.flock.call('audit.list', { limit: 30 }).catch(function () { return null; }),
+      (_isFirebaseComms() ? UpperRoom.listAudit({ limit: 30 }) : TheVine.flock.call('audit.list', { limit: 30 })).catch(function () { return null; }),
       TheVine.flock.todo.list({ limit: 300 }).catch(function () { return null; }),
       (typeof firebase !== 'undefined' ? firebase.firestore().collection('problems')
         .where('status', 'in', ['Open', 'In Progress'])
@@ -20093,10 +20093,11 @@ const Modules = (() => {
           var action = String(a.action || a.event || a.type || '').replace(/\./g, ' ');
           var actor  = _e(a.actorName || a.actor || a.email || a.performedBy || '');
           var target = _e(String(a.targetName || a.target || a.details || '').substring(0, 52));
-          var ts     = a.timestamp || a.createdAt || a.date || '';
+          var ts     = a.timestamp || a.ts || a.createdAt || a.date || '';
           var when   = '';
           if (ts) {
-            var tdiff = Math.round((now - new Date(ts)) / 60000);
+            var tsDate = ts.toDate ? ts.toDate() : new Date(ts);
+            var tdiff = Math.round((now - tsDate) / 60000);
             if (!isNaN(tdiff)) {
               when = tdiff < 1 ? 'just now'
                    : tdiff < 60 ? tdiff + 'm ago'
