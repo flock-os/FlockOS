@@ -18,6 +18,7 @@
   <script defer src="../Scripts/the_true_vine.js"></script>
   <script defer src="../Scripts/the_wellspring.js"></script>
   <script defer src="../Scripts/firm_foundation.js"></script>
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
   <style>
     :root {
       --topbar-h: 58px;
@@ -489,9 +490,10 @@
           <button class="btn btn-secondary" id="btnDup">⧉ Duplicate Last</button>
           <button class="btn btn-danger" id="btnReset" style="font-size:.74rem;">✕ Reset</button>
           <div style="flex:1 1 auto;"></div>
-          <button class="btn btn-secondary" id="btnImport">📥 Import CSV</button>
+          <button class="btn btn-secondary" id="btnImport">📥 Import File</button>
+          <button class="btn btn-secondary" id="btnGSheet">📊 Google Sheet</button>
           <button class="btn btn-secondary" id="btnPull">⬇ Pull from Plans</button>
-          <input type="file" id="importFile" accept=".csv,.tsv,.txt" style="display:none">
+          <input type="file" id="importFile" accept=".csv,.tsv,.txt,.xlsx,.xls" style="display:none">
           <!-- hidden controls preserved for JS -->
           <select id="optDup" style="display:none;"><option value="update">Update existing</option><option value="skip">Skip</option></select>
           <select id="optTheme" style="display:none;"><option value="notes">Notes / Theme column</option><option value="scripture">Scripture column</option><option value="none">Leave blank</option></select>
@@ -559,25 +561,16 @@
   (function () {
     'use strict';
 
-    /* ── Firebase check ──────────────────────────────────────────────── */
+    /* ── Firebase — use dashboard session (promise-based) ────────────── */
+    var _fbReady = false;
     function isFB() {
-      return typeof UpperRoom !== 'undefined' &&
-             typeof UpperRoom.isReady === 'function' &&
-             UpperRoom.isReady();
+      return _fbReady || (typeof UpperRoom !== 'undefined' &&
+             typeof UpperRoom.isReady === 'function' && UpperRoom.isReady());
     }
-    function waitFB(ms) {
-      /* Kick off authenticate() once if UpperRoom exists but isn't ready */
-      if (typeof UpperRoom !== 'undefined' && !isFB()) {
-        try { UpperRoom.authenticate(); } catch(_){}
-      }
-      var t0 = Date.now();
-      return new Promise(function (res, rej) {
-        (function tick() {
-          if (isFB()) return res();
-          if (Date.now() - t0 > (ms || 9000)) return rej(new Error('Firestore not ready.'));
-          setTimeout(tick, 300);
-        })();
-      });
+    function ensureFB() {
+      if (isFB()) { _fbReady = true; return Promise.resolve(); }
+      if (typeof UpperRoom === 'undefined') return Promise.reject(new Error('UpperRoom not loaded'));
+      return UpperRoom.authenticate().then(function() { _fbReady = true; });
     }
 
     /* ── UI helpers ──────────────────────────────────────────────────── */
@@ -786,8 +779,8 @@
     }
     async function saveToFirestore(auto, _retry) {
       if (!isFB()) {
-        setStatus('pending', 'Waiting for cloud…');
-        try { await waitFB(14000); } catch(e) { setStatus('error', 'Cloud unavailable — changes not saved'); return; }
+        setStatus('pending', 'Connecting…');
+        try { await ensureFB(); } catch(e) { setStatus('error', 'Cloud unavailable — changes not saved'); return; }
       }
       try {
         setStatus('pending', 'Saving…');
@@ -897,7 +890,7 @@
       fbNote.style.display = 'block'; fbNote.textContent = '';
 
       if (!isFB()) {
-        try { fbNote.textContent = 'Waiting for Firestore…'; await waitFB(10000); }
+        try { fbNote.textContent = 'Connecting…'; await ensureFB(); }
         catch(e) { fbNote.style.display='none'; toast('Firestore not available.', 'error'); return; }
       }
       fbNote.style.display = 'none';
@@ -1000,7 +993,7 @@
       pullNote.style.display = 'block'; pullNote.textContent = '';
 
       if (!isFB()) {
-        try { pullNote.textContent = 'Waiting for Firestore…'; await waitFB(10000); }
+        try { pullNote.textContent = 'Connecting…'; await ensureFB(); }
         catch(e) { pullNote.style.display='none'; toast('Firestore not available.', 'error'); return; }
       }
       pullNote.textContent = 'Loading service plans…';
@@ -1110,16 +1103,16 @@
 
     /* ── CSV Import ──────────────────────────────────────────────────── */
     function normalizeHeader(h) {
-      h = (h || '').trim().toLowerCase().replace(/[^a-z]/g, '');
-      if (h === 'date')                                      return 'date';
-      if (h.includes('psalm') || h.includes('introit'))     return 'psalm';
-      if (h.includes('worship'))                            return 'worship';
-      if (h.includes('announc'))                            return 'announce';
-      if (h.includes('prayer'))                             return 'prayer';
-      if (h.includes('preach'))                             return 'preacher';
-      if (h.includes('scripture'))                          return 'scripture';
-      if (h.includes('proverb'))                            return 'proverb';
-      if (h.includes('note') || h.includes('theme'))        return 'notes';
+      h = (h || '').trim().toLowerCase();
+      if (/^date|service\s*date|sunday/i.test(h))              return 'date';
+      if (/psalm|introit|call.?to.?worship/i.test(h))          return 'psalm';
+      if (/worship|song\s*lead|music/i.test(h))                return 'worship';
+      if (/announc|mc|emcee|host/i.test(h))                    return 'announce';
+      if (/prayer|pray|intercessi/i.test(h))                   return 'prayer';
+      if (/preach|speak|serm|pastor|minister/i.test(h))        return 'preacher';
+      if (/scripture|text|reading|passage|bible/i.test(h))     return 'scripture';
+      if (/proverb/i.test(h))                                  return 'proverb';
+      if (/note|theme|topic|title|subject/i.test(h))           return 'notes';
       return null;
     }
 
@@ -1171,31 +1164,101 @@
       return rows;
     }
 
+    /* ── Parse xlsx via SheetJS ───────────────────────────────────────── */
+    function parseXLSX(arrayBuffer) {
+      if (typeof XLSX === 'undefined') { toast('XLSX library not loaded.', 'error'); return null; }
+      var wb = XLSX.read(arrayBuffer, { type: 'array', cellDates: true });
+      var ws = wb.Sheets[wb.SheetNames[0]];
+      var json = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, dateNF: 'yyyy-mm-dd' });
+      if (!json || json.length < 2) return null;
+      var headers = json[0].map(normalizeHeader);
+      if (!headers.includes('date') && !headers.some(function(h){ return h; })) return null;
+      var rows = [];
+      for (var i = 1; i < json.length; i++) {
+        var cells = json[i]; if (!cells || !cells.length) continue;
+        var row = mkRow('');
+        headers.forEach(function(field, idx) {
+          if (!field) return;
+          var val = String(cells[idx] || '').trim();
+          if (field === 'date') {
+            if (/^\d{4}-\d{2}-\d{2}/.test(val)) { row.date = val.slice(0,10); return; }
+            var dt = new Date(val);
+            if (!isNaN(dt)) { row.date = isoDate(dt); } else { row.date = val; }
+          } else if (FIELDS.indexOf(field) !== -1) { row[field] = val; }
+        });
+        if (row.date || FIELDS.some(function(f){ return row[f]; })) rows.push(row);
+      }
+      return rows;
+    }
+
+    /* ── Google Sheets URL → CSV export ─────────────────────────────── */
+    function importGoogleSheet() {
+      var url = prompt('Paste the Google Sheets URL:');
+      if (!url) return;
+      /* Convert share/edit URL to CSV export */
+      var m = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+      if (!m) { toast('Not a valid Google Sheets URL.', 'error'); return; }
+      var csvUrl = 'https://docs.google.com/spreadsheets/d/' + m[1] + '/export?format=csv';
+      /* extract gid if present */
+      var gid = url.match(/gid=(\d+)/);
+      if (gid) csvUrl += '&gid=' + gid[1];
+      setStatus('pending', 'Fetching sheet…');
+      fetch(csvUrl).then(function(r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.text();
+      }).then(function(text) {
+        var rows = parseCSV(text);
+        if (!rows || !rows.length) { toast('No data rows found in sheet.', 'error'); setStatus('', ''); return; }
+        mergeImportedRows(rows);
+        setStatus('ready', 'Sheet imported');
+      }).catch(function(e) {
+        toast('Could not fetch sheet — make sure it\'s shared as "Anyone with the link".', 'error');
+        setStatus('', '');
+      });
+    }
+
+    /* ── Common import merge logic ──────────────────────────────────── */
+    function mergeImportedRows(rows) {
+      var byDate = {};
+      S.rows.forEach(function(r){ if (r.date) byDate[r.date] = r; });
+      var added = 0, updated = 0;
+      rows.forEach(function(r) {
+        if (r.date && byDate[r.date]) {
+          FIELDS.forEach(function(f){ if (r[f]) byDate[r.date][f] = r[f]; });
+          updated++;
+        } else {
+          S.rows.push(r);
+          if (r.date) byDate[r.date] = r;
+          added++;
+        }
+      });
+      render(); markDirty();
+      toast('Imported: ' + added + ' new row' + (added !== 1 ? 's' : '') +
+            (updated ? ', ' + updated + ' updated' : ''), 'success');
+    }
+
     function handleImportFile(inp) {
       var file = inp.files[0];
       if (!file) return;
-      var reader = new FileReader();
-      reader.onload = function(e) {
-        var rows = parseCSV(e.target.result);
-        if (!rows || !rows.length) { toast('No data rows found in file.', 'error'); return; }
-        var byDate = {};
-        S.rows.forEach(function(r){ if (r.date) byDate[r.date] = r; });
-        var added = 0, updated = 0;
-        rows.forEach(function(r) {
-          if (r.date && byDate[r.date]) {
-            FIELDS.forEach(function(f){ if (r[f]) byDate[r.date][f] = r[f]; });
-            updated++;
-          } else {
-            S.rows.push(r);
-            if (r.date) byDate[r.date] = r;
-            added++;
-          }
-        });
-        render(); markDirty();
-        toast('Imported: ' + added + ' new row' + (added !== 1 ? 's' : '') +
-              (updated ? ', ' + updated + ' updated' : ''), 'success');
-      };
-      reader.readAsText(file);
+      var ext = file.name.split('.').pop().toLowerCase();
+
+      if (ext === 'xlsx' || ext === 'xls') {
+        var reader = new FileReader();
+        reader.onload = function(e) {
+          var rows = parseXLSX(e.target.result);
+          if (!rows || !rows.length) { toast('No data rows found in file.', 'error'); return; }
+          mergeImportedRows(rows);
+        };
+        reader.readAsArrayBuffer(file);
+      } else {
+        var reader2 = new FileReader();
+        reader2.onload = function(e) {
+          var rows = parseCSV(e.target.result);
+          if (!rows || !rows.length) { toast('No data rows found in file.', 'error'); return; }
+          mergeImportedRows(rows);
+        };
+        reader2.readAsText(file);
+      }
       inp.value = '';
     }
 
@@ -1229,6 +1292,7 @@
       document.getElementById('btnPull').addEventListener('click', pullPlans);
       document.getElementById('btnImport').addEventListener('click', function(){ document.getElementById('importFile').click(); });
       document.getElementById('importFile').addEventListener('change', function(){ handleImportFile(this); });
+      document.getElementById('btnGSheet').addEventListener('click', importGoogleSheet);
       document.getElementById('po-close').addEventListener('click', function(){
         document.getElementById('push-overlay').classList.remove('open');
       });
@@ -1282,19 +1346,19 @@
 
       /* auto-load from Firestore for current quarter */
       setStatus('pending', 'Loading…');
-      waitFB(9000).then(function() {
+      ensureFB().then(function() {
         return planRef().get();
       }).then(function(snap) {
         if (snap && snap.exists) {
           applyPlanData(snap.data());
           setStatus('ready', 'Saved · ' + fmtTs(snap.data().at));
         } else {
-          generate(true); /* silent — no auto-save for a blank new quarter */
+          generate(true);
           setStatus('', 'Not yet saved');
         }
       }).catch(function() {
-        generate(true); /* silent — Firebase unavailable, don't hammer it */
-        setStatus('', 'Offline');
+        generate(true);
+        setStatus('', 'Offline — working locally');
       });
     }
 
