@@ -704,7 +704,7 @@
         pk.title = 'Select for push';
         if (row.date) pk.checked = true; /* default: check rows that have dates */
         pktd.appendChild(pk);
-        tr.insertBefore(pktd, atd);
+        tr.appendChild(pktd);
 
         atd.appendChild(rb); tr.appendChild(atd);
         tbody.appendChild(tr);
