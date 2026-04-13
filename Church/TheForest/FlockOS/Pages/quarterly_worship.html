@@ -1129,17 +1129,35 @@
     function importGoogleSheet() {
       var url = prompt('Paste the Google Sheets URL:');
       if (!url) return;
-      /* Convert share/edit URL to CSV export */
       var m = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
       if (!m) { toast('Not a valid Google Sheets URL.', 'error'); return; }
-      var csvUrl = 'https://docs.google.com/spreadsheets/d/' + m[1] + '/export?format=csv';
-      /* extract gid if present */
+      var sheetId = m[1];
       var gid = url.match(/gid=(\d+)/);
-      if (gid) csvUrl += '&gid=' + gid[1];
+      /* Two endpoints — gviz is more reliable for public sheets */
+      var gvizUrl = 'https://docs.google.com/spreadsheets/d/' + sheetId +
+                    '/gviz/tq?tqx=out:csv' + (gid ? '&gid=' + gid[1] : '');
+      var exportUrl = 'https://docs.google.com/spreadsheets/d/' + sheetId +
+                      '/export?format=csv' + (gid ? '&gid=' + gid[1] : '');
+
+      function tryFetchCSV(csvUrl) {
+        return fetch(csvUrl).then(function(r) {
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          var ct = (r.headers.get('content-type') || '').toLowerCase();
+          if (ct.indexOf('html') !== -1) throw new Error('Got HTML instead of CSV');
+          return r.text();
+        }).then(function(text) {
+          /* Guard: if Google returned an HTML page despite content-type */
+          var trimmed = text.trim();
+          if (trimmed.charAt(0) === '<' || /^<!doctype/i.test(trimmed))
+            throw new Error('Got HTML instead of CSV');
+          return text;
+        });
+      }
+
       setStatus('pending', 'Fetching sheet…');
-      fetch(csvUrl).then(function(r) {
-        if (!r.ok) throw new Error('HTTP ' + r.status);
-        return r.text();
+      tryFetchCSV(gvizUrl).catch(function() {
+        /* fallback to export endpoint */
+        return tryFetchCSV(exportUrl);
       }).then(function(text) {
         var rows = parseCSV(text);
         if (!rows || !rows.length) { toast('No data rows found in sheet.', 'error'); setStatus('', ''); return; }
