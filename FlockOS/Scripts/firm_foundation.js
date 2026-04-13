@@ -274,6 +274,7 @@ const Nehemiah = (() => {
     const groups = _getGroups();
     if (groups.indexOf('seed admin') !== -1) return true;
     if (groups.indexOf('lead pastor') !== -1) return true;
+    if (groups.indexOf('master') !== -1) return true;
     if (groups.indexOf('admin') !== -1) return true;
     if (groups.indexOf('timothy') !== -1) return true;
     // Specific module grant via permissions map
@@ -303,6 +304,7 @@ const Nehemiah = (() => {
     const groups = _getGroups();
     if (groups.indexOf('seed admin') !== -1) return true;
     if (groups.indexOf('lead pastor') !== -1) return true;
+    if (groups.indexOf('master') !== -1) return true;
     if (groups.indexOf('admin') !== -1) return true;
     if (groups.indexOf('timothy') !== -1) return true;
     if (session.permissions && typeof session.permissions === 'object') {

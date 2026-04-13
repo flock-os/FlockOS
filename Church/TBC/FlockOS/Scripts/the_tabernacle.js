@@ -1199,7 +1199,14 @@ const Modules = (() => {
   function _applyModuleVisibility() {
     document.querySelectorAll('.nav-item[data-view]').forEach(item => {
       const view = item.getAttribute('data-view');
-      if (_protectedModules.indexOf(view) !== -1) return;
+      if (_protectedModules.indexOf(view) !== -1) {
+        // Most protected modules are always shown, but admin-gated ones respect canAccess
+        if (view === 'admin-dashboard') {
+          var _adAccess = typeof Nehemiah !== 'undefined' ? Nehemiah.canAccess('admin-dashboard') : true;
+          item.style.display = _adAccess ? '' : 'none';
+        }
+        return;
+      }
       // Admin module toggle wins first
       if (!_isModuleEnabled(view)) { item.style.display = 'none'; return; }
       // Permission gate: if the item has a data-module key, check canAccess
@@ -10598,6 +10605,16 @@ const Modules = (() => {
           { key: 'church',             label: 'Church Profile',        desc: 'View church profile and settings.',                                   risk: 'high' },
           { key: 'church.edit',        label: 'Edit Church Profile',   desc: 'Modify church profile information.',                                  risk: 'critical' },
         ]},
+        { group: 'Admin Dashboard', items: [
+          { key: 'admin-dashboard',              label: 'Admin Hub Access',         desc: 'Access the Admin Hub — KPIs, oversight cards, scratchpad, and system-level reporting.', risk: 'critical' },
+          { key: 'admin-dashboard.kpis',         label: 'KPI Overview',             desc: 'View live KPI ribbon: member count, open prayers, urgent care, giving, and events.',     risk: 'high' },
+          { key: 'admin-dashboard.care',         label: 'Urgent Care Panel',        desc: 'View urgent care cases surfaced on the Admin Hub.',                                       risk: 'critical' },
+          { key: 'admin-dashboard.giving',       label: 'Giving Summary',           desc: 'View 30-day giving totals and trends on the Admin Hub.',                                  risk: 'critical' },
+          { key: 'admin-dashboard.events',       label: 'Events Panel',             desc: 'View upcoming events listed on the Admin Hub.',                                           risk: 'low' },
+          { key: 'admin-dashboard.audit',        label: 'Recent Activity Log',      desc: 'View the recent activity feed on the Admin Hub.',                                         risk: 'high' },
+          { key: 'admin-dashboard.issues',       label: 'Open Issues Panel',        desc: 'View open support issues and problems on the Admin Hub.',                                 risk: 'medium' },
+          { key: 'admin-dashboard.scratchpad',   label: 'Admin Scratchpad',         desc: 'Access and edit the admin scratchpad and task list.',                                     risk: 'low' },
+        ]},
       ];
 
       var _riskMeta = {
@@ -10833,7 +10850,7 @@ const Modules = (() => {
       gh += '</div></div>';
 
       // Critical confirmation (shown only when a critical group is checked)
-      var anyCrit = ['admin', 'lead pastor', 'allmail'].some(function(g) { return currentGroups.indexOf(g) !== -1; });
+      var anyCrit = ['admin', 'lead pastor', 'master', 'allmail'].some(function(g) { return currentGroups.indexOf(g) !== -1; });
       gh += '<div id="grp-critical-confirm" style="' + (anyCrit ? '' : 'display:none;')
          + 'border:2px solid #dc2626;border-radius:10px;background:#dc262610;padding:16px 18px;margin-bottom:14px;">';
       gh += '<div style="font-weight:800;color:#dc2626;font-size:0.8rem;letter-spacing:0.06em;margin-bottom:10px;">'
@@ -10884,7 +10901,7 @@ const Modules = (() => {
 
     // ═══ SECTION: Spiritual Care History (Lead Pastor / Seed Admin only) ═══
     var _ppIsLeadPastor = false;
-    try { _ppIsLeadPastor = Nehemiah.hasGroup('Lead Pastor'); } catch(_e_) {}
+    try { _ppIsLeadPastor = Nehemiah.hasGroup('Lead Pastor') || Nehemiah.hasGroup('Master'); } catch(_e_) {}
     var _ppIsSeedAdmin = false;
     try { var _ppSess = TheVine.session(); _ppIsSeedAdmin = !!(_ppSess && _ppSess.isSeed); } catch(_e_) {}
     if ((_ppIsLeadPastor || _ppIsSeedAdmin) && memberRec) {
@@ -18377,7 +18394,7 @@ const Modules = (() => {
       groups: ['timothy', 'finance', 'pastoralmail', 'womens leader'] },
     { key: 'critical', label: 'Critical', color: '#dc2626', bg: '#dc262618',
       desc: 'Full permission bypass and/or all PII email types.',
-      groups: ['admin', 'lead pastor', 'allmail'] },
+      groups: ['admin', 'lead pastor', 'master', 'allmail'] },
   ];
 
   var _GRP_PREREQS = {
@@ -18385,6 +18402,7 @@ const Modules = (() => {
     'timothy':      ['elder', 'caremail', 'prayermail'],
     'pastoralmail': ['elder'],
     'lead pastor':  ['timothy', 'pastoralmail'],
+    'master':       ['timothy', 'pastoralmail'],
     'allmail':      ['caremail', 'prayermail', 'pastoralmail', 'finance'],
   };
 
@@ -18406,6 +18424,7 @@ const Modules = (() => {
     'womens leader': { label: "Women's Leader",        desc: 'Recognized by backend \u2014 reserved for future routing' },
     'admin':         { label: 'Admin',                 desc: 'Full permission bypass \u2014 elevates to level 5 at login' },
     'lead pastor':   { label: 'Lead Pastor',           desc: 'Full bypass + all pastoral emails. Pulls: timothy, pastoralmail' },
+    'master':        { label: 'Master',                 desc: 'Full bypass — treated as seed admin. Sees all notes, cases, modules. Pulls: timothy, pastoralmail' },
     'allmail':       { label: 'All Mail',              desc: 'ALL notification types. Pulls: caremail, prayermail, pastoralmail, finance' },
     'nopimail':      { label: 'No PII Mail',           desc: 'Soft block \u2014 removed from auto-routing; own CNP opt-in still honored' },
     'limitpii':      { label: 'Limit PII (Hard Block)',desc: 'HARD OVERRIDE \u2014 blocks ALL PII email delivery regardless of role, group, or CNP opt-in' },
@@ -18419,7 +18438,7 @@ const Modules = (() => {
   function _grpUpdateCritConfirm() {
     var box = document.getElementById('grp-critical-confirm');
     if (!box) return;
-    var anyCrit = ['admin', 'lead pastor', 'allmail'].some(function(g) {
+    var anyCrit = ['admin', 'lead pastor', 'master', 'allmail'].some(function(g) {
       var cb = _grpCb(g); return cb && cb.checked;
     });
     box.style.display = anyCrit ? '' : 'none';
@@ -20051,7 +20070,8 @@ const Modules = (() => {
 
   _def('admin-dashboard', async (el, session) => {
     var s = session || (typeof TheVine !== 'undefined' ? TheVine.session() : null);
-    if (!s || !TheVine.hasRole('admin')) {
+    var _hasAdminAccess = s && (typeof Nehemiah !== 'undefined' ? Nehemiah.canAccess('admin-dashboard') : TheVine.hasRole('admin'));
+    if (!_hasAdminAccess) {
       el.innerHTML = '<div style="text-align:center;padding:80px 20px;">'
         + '<div style="font-size:3rem;margin-bottom:12px;">&#128274;</div>'
         + '<p style="color:var(--ink-muted);">Admin access required.</p></div>';

@@ -10850,7 +10850,7 @@ const Modules = (() => {
       gh += '</div></div>';
 
       // Critical confirmation (shown only when a critical group is checked)
-      var anyCrit = ['admin', 'lead pastor', 'allmail'].some(function(g) { return currentGroups.indexOf(g) !== -1; });
+      var anyCrit = ['admin', 'lead pastor', 'master', 'allmail'].some(function(g) { return currentGroups.indexOf(g) !== -1; });
       gh += '<div id="grp-critical-confirm" style="' + (anyCrit ? '' : 'display:none;')
          + 'border:2px solid #dc2626;border-radius:10px;background:#dc262610;padding:16px 18px;margin-bottom:14px;">';
       gh += '<div style="font-weight:800;color:#dc2626;font-size:0.8rem;letter-spacing:0.06em;margin-bottom:10px;">'
@@ -10901,7 +10901,7 @@ const Modules = (() => {
 
     // ═══ SECTION: Spiritual Care History (Lead Pastor / Seed Admin only) ═══
     var _ppIsLeadPastor = false;
-    try { _ppIsLeadPastor = Nehemiah.hasGroup('Lead Pastor'); } catch(_e_) {}
+    try { _ppIsLeadPastor = Nehemiah.hasGroup('Lead Pastor') || Nehemiah.hasGroup('Master'); } catch(_e_) {}
     var _ppIsSeedAdmin = false;
     try { var _ppSess = TheVine.session(); _ppIsSeedAdmin = !!(_ppSess && _ppSess.isSeed); } catch(_e_) {}
     if ((_ppIsLeadPastor || _ppIsSeedAdmin) && memberRec) {
@@ -18394,7 +18394,7 @@ const Modules = (() => {
       groups: ['timothy', 'finance', 'pastoralmail', 'womens leader'] },
     { key: 'critical', label: 'Critical', color: '#dc2626', bg: '#dc262618',
       desc: 'Full permission bypass and/or all PII email types.',
-      groups: ['admin', 'lead pastor', 'allmail'] },
+      groups: ['admin', 'lead pastor', 'master', 'allmail'] },
   ];
 
   var _GRP_PREREQS = {
@@ -18402,6 +18402,7 @@ const Modules = (() => {
     'timothy':      ['elder', 'caremail', 'prayermail'],
     'pastoralmail': ['elder'],
     'lead pastor':  ['timothy', 'pastoralmail'],
+    'master':       ['timothy', 'pastoralmail'],
     'allmail':      ['caremail', 'prayermail', 'pastoralmail', 'finance'],
   };
 
@@ -18423,6 +18424,7 @@ const Modules = (() => {
     'womens leader': { label: "Women's Leader",        desc: 'Recognized by backend \u2014 reserved for future routing' },
     'admin':         { label: 'Admin',                 desc: 'Full permission bypass \u2014 elevates to level 5 at login' },
     'lead pastor':   { label: 'Lead Pastor',           desc: 'Full bypass + all pastoral emails. Pulls: timothy, pastoralmail' },
+    'master':        { label: 'Master',                 desc: 'Full bypass — treated as seed admin. Sees all notes, cases, modules. Pulls: timothy, pastoralmail' },
     'allmail':       { label: 'All Mail',              desc: 'ALL notification types. Pulls: caremail, prayermail, pastoralmail, finance' },
     'nopimail':      { label: 'No PII Mail',           desc: 'Soft block \u2014 removed from auto-routing; own CNP opt-in still honored' },
     'limitpii':      { label: 'Limit PII (Hard Block)',desc: 'HARD OVERRIDE \u2014 blocks ALL PII email delivery regardless of role, group, or CNP opt-in' },
@@ -18436,7 +18438,7 @@ const Modules = (() => {
   function _grpUpdateCritConfirm() {
     var box = document.getElementById('grp-critical-confirm');
     if (!box) return;
-    var anyCrit = ['admin', 'lead pastor', 'allmail'].some(function(g) {
+    var anyCrit = ['admin', 'lead pastor', 'master', 'allmail'].some(function(g) {
       var cb = _grpCb(g); return cb && cb.checked;
     });
     box.style.display = anyCrit ? '' : 'none';

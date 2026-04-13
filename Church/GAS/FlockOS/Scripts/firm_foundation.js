@@ -250,25 +250,38 @@ const Nehemiah = (() => {
    * @param {string} moduleKey — e.g. 'events', 'giving', 'users'
    * @returns {boolean}
    */
+  /**
+   * Returns the user's group list as a lowercase array.
+   * Checks both session.groups and profile.groups so it works regardless
+   * of whether the server embeds groups in the session token or the profile.
+   */
+  function _getGroups() {
+    const session = getSession();
+    const profile = getProfile();
+    const raw = (session && session.groups) || (profile && profile.groups) || '';
+    if (!raw) return [];
+    return String(raw).split(',').map(g => g.trim().toLowerCase()).filter(Boolean);
+  }
+
   function canAccess(moduleKey) {
     const session = getSession();
     if (!session) return false;
-    // Seed admin and Lead Pastor always have full access — they can see everything
+    // Seed admin always has full access
     if (session.isSeed) return true;
-    // Admin role (level 5) always has full access — group assignment is a notification profile only
+    // Admin role (level 5) always has full access
     if ((session.roleLevel || 0) >= 5) return true;
-    const profile = getProfile();
-    if (profile && profile.groups) {
-      const groups = String(profile.groups).split(',').map(g => g.trim().toLowerCase());
-      if (groups.indexOf('seed admin') !== -1) return true;
-      if (groups.indexOf('lead pastor') !== -1) return true;
-      if (groups.indexOf('admin') !== -1) return true;
-    }
-    // If the server provided a permissions map, use it
+    // Group-based master overrides — checked against both session and profile
+    const groups = _getGroups();
+    if (groups.indexOf('seed admin') !== -1) return true;
+    if (groups.indexOf('lead pastor') !== -1) return true;
+    if (groups.indexOf('master') !== -1) return true;
+    if (groups.indexOf('admin') !== -1) return true;
+    if (groups.indexOf('timothy') !== -1) return true;
+    // Specific module grant via permissions map
     if (session.permissions && typeof session.permissions === 'object') {
       return session.permissions[moduleKey] === true;
     }
-    // No permissions map — deny everything (need-to-know model)
+    // No permissions map — deny (need-to-know model)
     return false;
   }
 
@@ -283,17 +296,17 @@ const Nehemiah = (() => {
   function can(capability) {
     const session = getSession();
     if (!session) return false;
-    // Seed admin and Lead Pastor always have full access — they cannot be locked out
+    // Seed admin always has full access
     if (session.isSeed) return true;
-    // Admin role (level 5) always has full access — group assignment is a notification profile only
+    // Admin role (level 5) always has full access
     if ((session.roleLevel || 0) >= 5) return true;
-    const profile = getProfile();
-    if (profile && profile.groups) {
-      const groups = String(profile.groups).split(',').map(g => g.trim().toLowerCase());
-      if (groups.indexOf('seed admin') !== -1) return true;
-      if (groups.indexOf('lead pastor') !== -1) return true;
-      if (groups.indexOf('admin') !== -1) return true;
-    }
+    // Group-based master overrides
+    const groups = _getGroups();
+    if (groups.indexOf('seed admin') !== -1) return true;
+    if (groups.indexOf('lead pastor') !== -1) return true;
+    if (groups.indexOf('master') !== -1) return true;
+    if (groups.indexOf('admin') !== -1) return true;
+    if (groups.indexOf('timothy') !== -1) return true;
     if (session.permissions && typeof session.permissions === 'object') {
       // Exact match
       if (session.permissions[capability] === true) return true;
@@ -314,10 +327,7 @@ const Nehemiah = (() => {
    * @param {string} groupName — e.g. 'Lead Pastor'
    */
   function hasGroup(groupName) {
-    const profile = getProfile();
-    if (!profile || !profile.groups) return false;
-    const groups = String(profile.groups).split(',').map(g => g.trim().toLowerCase());
-    return groups.indexOf(String(groupName).toLowerCase()) !== -1;
+    return _getGroups().indexOf(String(groupName).toLowerCase()) !== -1;
   }
 
   /**
@@ -354,9 +364,21 @@ const Nehemiah = (() => {
     }
 
     // TheVine.john.auth.login already saves the session internally.
-    // Cache profile if returned.
+    // Cache profile if returned with the login response.
     if (result.profile) {
       try { sessionStorage.setItem('flock_auth_profile', JSON.stringify(result.profile)); } catch (_) {}
+    }
+
+    // If the login response didn't include a profile (or didn't include groups),
+    // fetch it now — before redirecting — so group-based permission checks work
+    // synchronously on the next page.
+    if (!result.profile || !result.profile.groups) {
+      try {
+        const prof = await TheVine.john.auth.profile({});
+        if (prof && (prof.groups || prof.permissions)) {
+          try { sessionStorage.setItem('flock_auth_profile', JSON.stringify(prof)); } catch (_) {}
+        }
+      } catch (_) { /* best-effort — app will re-try on load */ }
     }
 
     // Authenticate with Firebase Auth immediately so subsequent pages

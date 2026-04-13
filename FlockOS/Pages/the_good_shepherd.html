@@ -1007,7 +1007,7 @@ if (!session) throw new Error('Not authenticated');
   if (session.isSeed) return;
   if (typeof Nehemiah !== 'undefined') {
     if (Nehemiah.hasGroup('Seed Admin') || Nehemiah.hasGroup('Lead Pastor') ||
-        Nehemiah.hasGroup('Admin') || Nehemiah.hasGroup('Timothy')) return;
+        Nehemiah.hasGroup('Master') || Nehemiah.hasGroup('Admin') || Nehemiah.hasGroup('Timothy')) return;
   }
 
   function _blockAdmin() {
@@ -1124,7 +1124,7 @@ document.querySelectorAll('.nav-item[href="the_pentecost.html"]').forEach(functi
   if (!Nehemiah.can('config')) item.style.display = 'none';
 });
 // Show Great Commission link for seed admin or Seed Admin group
-if (session.isSeed || Nehemiah.hasGroup('Seed Admin')) {
+if (session.isSeed || Nehemiah.hasGroup('Seed Admin') || Nehemiah.hasGroup('Master')) {
   var _gcNav = document.getElementById('nav-great-commission');
   if (_gcNav) _gcNav.style.display = '';
 }

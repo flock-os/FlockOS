@@ -64,11 +64,12 @@ const TheLife = (() => {
       var s = TheVine.session();
       if (s && s.isSeed) return true;
       if (typeof Nehemiah !== 'undefined' && Nehemiah.hasGroup('Seed Admin')) return true;
+      if (typeof Nehemiah !== 'undefined' && Nehemiah.hasGroup('Master')) return true;
       return false;
     } catch(e) { return false; }
   }
   function _isLeadPastor() {
-    try { return Nehemiah.hasGroup('Lead Pastor'); } catch(e) { return false; }
+    try { return Nehemiah.hasGroup('Lead Pastor') || Nehemiah.hasGroup('Master'); } catch(e) { return false; }
   }
   function _canViewNotes() {
     return _isSeedAdmin() || _isLeadPastor();
