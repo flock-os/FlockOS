@@ -1272,10 +1272,8 @@
       });
 
       function getDashboardUrl() {
-        var p = new URLSearchParams(window.location.search).get('from');
-        if (p === 'public') return '../../index.html';
-        if (document.referrer && document.referrer.indexOf('index.html') !== -1) return document.referrer;
-        return '../Pages/index.html';
+        if (document.referrer && document.referrer.indexOf('the_good_shepherd') !== -1) return document.referrer;
+        return 'the_good_shepherd.html';
       }
       async function saveAndClose() {
         var btn1 = document.getElementById('btnSaveCloseTop');
