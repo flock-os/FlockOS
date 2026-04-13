@@ -138,6 +138,12 @@
     .card-head-title { font-family:'Noto Serif',serif; font-size:.95rem; font-weight:700; color:#e0e7ff; }
     .card-head * { color: rgba(224,231,255,.85) !important; -webkit-text-fill-color: unset !important; }
     .card-head .card-head-title { color: #e0e7ff !important; }
+    .qnav { background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.18); border-radius:6px;
+      padding:3px 9px; font-size:.78rem; font-weight:700; color:#e0e7ff !important; cursor:pointer;
+      transition:background .15s; line-height:1.2; font-family:inherit; }
+    .qnav:hover { background:rgba(255,255,255,.22); }
+    .qnav-group { display:flex; align-items:center; gap:6px; }
+    .qnav-label { font-size:.74rem; font-weight:600; color:rgba(224,231,255,.7) !important; white-space:nowrap; }
     .card-body { padding: 16px 18px; }
 
 
@@ -468,7 +474,12 @@
       <!-- Setup card -->
       <div class="card c-setup">
         <div class="card-head">
-          <span class="card-head-title">⛪ Quarterly Worship Schedule</span>
+          <div class="qnav-group">
+            <button class="qnav" id="btnPrevQ" title="Previous quarter">◀</button>
+            <span class="card-head-title">⛪ Quarterly Worship Schedule</span>
+            <button class="qnav" id="btnNextQ" title="Next quarter">▶</button>
+            <span class="qnav-label" id="qNavLabel"></span>
+          </div>
           <div style="display:flex;align-items:center;gap:12px;font-size:.72rem;color:rgba(224,231,255,.7);">
             <span><strong id="smTotal" style="color:#e0e7ff;">0</strong> Sun</span>
             <span><strong id="smPreach" style="color:#e0e7ff;">0</strong> Preach</span>
@@ -788,6 +799,53 @@
       if (!silent) {
         markDirty();
         toast('Generated ' + S.rows.length + ' Sundays for ' + q + ' ' + year, 'success');
+      }
+    }
+
+    /* ── Quarter navigation ──────────────────────────────────────────── */
+    var QLIST = ['Q1','Q2','Q3','Q4'];
+    function updateQNavLabel() {
+      var el = document.getElementById('qNavLabel');
+      if (el) el.textContent = document.getElementById('qQ').value + ' ' + document.getElementById('qY').value;
+    }
+    async function navigateQuarter(dir) {
+      /* 1 — auto-save current quarter if dirty */
+      if (S.dirty) {
+        _saveLocal();
+        try { await saveToFirestore(true); } catch(e) { /* local backup is safe */ }
+      }
+      /* 2 — compute new quarter + year */
+      var qi = QLIST.indexOf(document.getElementById('qQ').value);
+      var yr = parseInt(document.getElementById('qY').value, 10) || new Date().getFullYear();
+      qi += dir;
+      if (qi > 3) { qi = 0; yr++; }
+      if (qi < 0) { qi = 3; yr--; }
+      document.getElementById('qQ').value = QLIST[qi];
+      document.getElementById('qY').value = yr;
+      document.getElementById('qFS').value = '';
+      updateQNavLabel();
+
+      /* 3 — try to load saved data for this quarter */
+      var loaded = false;
+      if (isFB()) {
+        try {
+          var snap = await planRef().get();
+          if (snap.exists) { applyPlanData(snap.data()); loaded = true; setStatus('ready', '✓ Loaded ' + QLIST[qi] + ' ' + yr); }
+        } catch(e) { /* fall through */ }
+      }
+      if (!loaded) {
+        var local = _loadLocal();
+        if (local && local.rows && local.rows.length) {
+          applyPlanData(local); loaded = true;
+          setStatus('ready', 'Loaded from local backup');
+        }
+      }
+      /* 4 — no saved data → generate blank Sundays for the quarter */
+      if (!loaded) {
+        generate(true);
+        S.dirty = false;
+        setStatus('ready', 'Generated ' + QLIST[qi] + ' ' + yr + ' — no saved data');
+        toast('No saved plan for ' + QLIST[qi] + ' ' + yr + ' — generated blank Sundays', 'info');
       }
     }
 
@@ -1423,6 +1481,14 @@
       var q   = m < 3 ? 'Q1' : m < 6 ? 'Q2' : m < 9 ? 'Q3' : 'Q4';
       document.getElementById('qQ').value = q;
       document.getElementById('qY').value = now.getFullYear();
+      updateQNavLabel();
+
+      /* Quarter navigation */
+      document.getElementById('btnPrevQ').addEventListener('click', function(){ navigateQuarter(-1); });
+      document.getElementById('btnNextQ').addEventListener('click', function(){ navigateQuarter(1); });
+      /* Update label when dropdowns change manually */
+      document.getElementById('qQ').addEventListener('change', updateQNavLabel);
+      document.getElementById('qY').addEventListener('change', updateQNavLabel);
 
       /* Validate first-sunday picker */
       document.getElementById('qFS').addEventListener('change', function () {

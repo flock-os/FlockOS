@@ -2380,19 +2380,30 @@ const Modules = (() => {
     var TYPE_ICONS = { Worship:'&#127925;', Prayer:'&#128591;', Scripture:'&#128214;', Sermon:'&#128228;',
       Offering:'&#128176;', Announcement:'&#128226;', Communion:'&#127838;', Baptism:'&#128167;', Benediction:'&#128330;', Other:'&#8226;' };
 
+    // Show spinner immediately so the user sees feedback
+    el.innerHTML = '<div style="max-width:900px;margin:0 auto;padding:60px 16px;text-align:center;">'
+      + '<div style="display:inline-block;width:32px;height:32px;border:3px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:spin .6s linear infinite;"></div>'
+      + '<div style="margin-top:12px;font-size:0.82rem;color:var(--ink-muted);">Loading service plan…</div></div>';
+
     var planData, items, setlistRows;
     try {
       if (!_svcViewPlanData) {
         var pr = _isFirebaseComms()
-          ? await UpperRoom.listServicePlans({ id: planId, limit: 1 }).catch(() => null)
-          : await TheVine.flock.servicePlans.list({ id: planId, limit: 1 }).catch(() => null);
-        _svcViewPlanData = pr ? (_rows(pr)[0] || {}) : {};
+          ? await UpperRoom.getServicePlan(planId).catch(() => null)
+          : await TheVine.flock.servicePlans.list({ id: planId, limit: 1 }).then(r => (_rows(r)[0] || null)).catch(() => null);
+        _svcViewPlanData = pr || {};
       }
       planData = _svcViewPlanData;
-      var _par = await Promise.all([
-        TheVine.flock.serviceItems.list({ planId: planId }).catch(() => ({})),
-        TheVine.flock.call('setlistSongs.list', { planId: planId }).catch(() => ({})),
-      ]);
+      var _par;
+      if (_isFirebaseComms()) {
+        // Firestore mode: items/setlist not yet in Firestore — skip the slow GAS call
+        _par = [{}, {}];
+      } else {
+        _par = await Promise.all([
+          TheVine.flock.serviceItems.list({ planId: planId }).catch(() => ({})),
+          TheVine.flock.call('setlistSongs.list', { planId: planId }).catch(() => ({})),
+        ]);
+      }
       items       = _rows(_par[0]);
       setlistRows = _rows(_par[1]);
     } catch(e) { el.innerHTML = _errHtml(e.message); return; }
