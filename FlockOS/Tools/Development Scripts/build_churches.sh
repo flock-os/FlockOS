@@ -382,6 +382,12 @@ open(sys.argv[1], 'w').write(cleaned)
     fi
   fi
 
+  # 3b-vi. Truth Editor — church deployments edit their OWN Firestore, not flockos-truth
+  GS_FILE_TRUTH="$OUT/FlockOS/Pages/the_good_shepherd.html"
+  if [ -f "$GS_FILE_TRUTH" ]; then
+    sed -i '' 's|<script defer src="../Scripts/the_truth.js"></script>|<script>window.FLOCK_TRUTH_USE_LOCAL = true;</script>\n<script defer src="../Scripts/the_truth.js"></script>|' "$GS_FILE_TRUTH"
+  fi
+
   # 3c. Title/meta replacement — ALL HTML files
   find "$OUT" -name '*.html' -type f | while read -r file; do
     sed -i '' \
