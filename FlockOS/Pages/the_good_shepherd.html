@@ -331,27 +331,9 @@
       .topbar-toggle { display: block; }
       .sidebar { transform: translateX(-260px); width: 260px; }
       .sidebar.open { transform: translateX(0); }
-      .main { margin-left: 0; padding: 16px 10px 80px; }
+      .main { margin-left: 0; padding: 16px 10px 24px; }
       .card-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
       /* Data-table, topbar-user, notif-bell mobile sizes → fine_linen.js */
-
-      /* ── Bottom Tab Bar (Mobile) ──────────────────────────────────── */
-      .mobile-tab-bar {
-        display: flex !important;
-        position: fixed; bottom: 0; left: 0; right: 0; z-index: 9999;
-        background: var(--bg-raised); border-top: 1px solid var(--line);
-        padding: 4px 0 env(safe-area-inset-bottom, 4px);
-        justify-content: space-around; align-items: center;
-      }
-      .mobile-tab-bar .tab-item {
-        display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
-        padding: 8px 10px; min-height: 48px; min-width: 44px;
-        color: var(--ink-muted); font-size: 0.62rem;
-        text-decoration: none; cursor: pointer; -webkit-tap-highlight-color: transparent;
-        transition: color 0.15s;
-      }
-      .mobile-tab-bar .tab-item.active { color: var(--accent); }
-      .mobile-tab-bar .tab-icon { font-size: 1.2rem; line-height: 1; }
 
       /* ── Pull-to-Refresh ──────────────────────────────────────────── */
       .ptr-indicator {
@@ -932,25 +914,6 @@
 
   </main>
 
-  <!-- Mobile Bottom Tab Bar (hidden on desktop via CSS) -->
-  <nav class="mobile-tab-bar" style="display:none;" id="mobileTabBar" aria-label="Mobile navigation">
-    <a class="tab-item active" data-tab="dashboard" onclick="_mobileNav('dashboard')">
-      <span class="tab-icon">&#127968;</span>Home
-    </a>
-    <a class="tab-item" data-tab="prayer" onclick="_mobileNav('prayer')">
-      <span class="tab-icon">&#128591;</span>Prayer
-    </a>
-    <a class="tab-item" data-tab="comms" onclick="_mobileNav('comms')">
-      <span class="tab-icon">&#9993;</span>Messages
-    </a>
-    <a class="tab-item" data-tab="events" onclick="_mobileNav('events')">
-      <span class="tab-icon">&#128197;</span>Events
-    </a>
-    <a class="tab-item" data-tab="more" onclick="toggleSidebar()">
-      <span class="tab-icon">&#9776;</span>More
-    </a>
-  </nav>
-
   <!-- Pull-to-Refresh indicator -->
   <div class="ptr-indicator" id="ptrIndicator">&#8635; Release to refresh</div>
 
@@ -1020,10 +983,32 @@ setTimeout(function() {
 const session = Nehemiah.guard();
 if (!session) throw new Error('Not authenticated');
 
+// ── Hydrate profile (groups, permissions) if not already cached ───────────
+// Login guarantees this is populated, but guard() (e.g. Firebase fallback)
+// may restore a session without a profile. Re-fetch async just in case.
+(function() {
+  var _prof = Nehemiah.getProfile();
+  if (!_prof || !_prof.groups) {
+    TheVine.flock.auth.profile({}).then(function(r) {
+      if (r && (r.groups || r.permissions)) {
+        try { sessionStorage.setItem('flock_auth_profile', JSON.stringify(r)); } catch(_) {}
+        // Re-run module visibility now that we have group data
+        if (typeof Modules !== 'undefined' && Modules.applyVisibility) Modules.applyVisibility();
+      }
+    }).catch(function() {});
+  }
+})();
+
 // ── Lockdown Gate (Pastoral roles bypass) ──────────────────────────────────
 (function() {
   var role = (session.role || '').toLowerCase();
   if (role === 'care' || role === 'leader' || role === 'pastor' || role === 'admin') return;
+  // Group-based bypass — privileged groups get full access regardless of role
+  if (session.isSeed) return;
+  if (typeof Nehemiah !== 'undefined') {
+    if (Nehemiah.hasGroup('Seed Admin') || Nehemiah.hasGroup('Lead Pastor') ||
+        Nehemiah.hasGroup('Admin') || Nehemiah.hasGroup('Timothy')) return;
+  }
 
   function _blockAdmin() {
     document.body.innerHTML =
@@ -1954,23 +1939,12 @@ function navigate(viewName) {
   _lastRenderTime = Date.now();
   document.getElementById('sidebar').classList.remove('open');
 
-  // Sync mobile tab bar to wherever we actually landed
-  document.querySelectorAll('.mobile-tab-bar .tab-item').forEach(function(t) {
-    t.classList.toggle('active', t.dataset.tab === currentView);
-  });
-
   // Schedule background refresh if the user stays on this view
   _scheduleAutoRefresh(viewName);
 }
 
 function toggleSidebar() {
   document.getElementById('sidebar').classList.toggle('open');
-}
-
-// ── Mobile Tab Bar Navigation ──────────────────────────────────────────────
-function _mobileNav(view) {
-  navigate(view);
-  _haptic();
 }
 
 // ── Haptic Feedback ────────────────────────────────────────────────────────

@@ -1073,6 +1073,13 @@ const TheSeason = (() => {
     return html;
   }
 
+  /* ──── Time helper ────────────────────────────────────────────────── */
+  function _calTimeToMins(t) {
+    if (!t) return 0;
+    var parts = String(t).split(':');
+    return parseInt(parts[0], 10) * 60 + (parseInt(parts[1] || '0', 10));
+  }
+
   /* ──── WEEK VIEW ──────────────────────────────────────────────────── */
   function _calWeekGrid() {
     var ws = _calWeekStart(_calDate);
@@ -1080,36 +1087,75 @@ const TheSeason = (() => {
     var s = _calSettings();
     var startHour = parseInt(s.workStart || '6', 10);
     var endHour   = parseInt(s.workEnd || '22', 10);
+    var HOUR_H    = 60; // px per hour
+    var totalH    = (endHour - startHour) * HOUR_H;
 
-    var html = '<div style="display:grid;grid-template-columns:50px repeat(7,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;">';
+    // Outer wrapper: header row + body row using CSS grid
+    var html = '<div style="display:grid;grid-template-columns:50px repeat(7,1fr);gap:1px;background:var(--line);'
+      + 'border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;">';
 
+    // ── Header row ──
     html += '<div style="background:var(--bg-raised);padding:4px;"></div>';
     for (var d = 0; d < 7; d++) {
       var wd = new Date(ws);
       wd.setDate(wd.getDate() + d);
       var isToday = _calFmt(wd) === today;
-      html += '<div style="background:' + (isToday ? 'var(--accent)' : 'var(--bg-raised)') + ';color:' + (isToday ? 'var(--ink-inverse)' : 'var(--ink)') + ';text-align:center;padding:6px 2px;font-size:0.72rem;font-weight:700;">'
+      html += '<div style="background:' + (isToday ? 'var(--accent)' : 'var(--bg-raised)') + ';color:'
+        + (isToday ? 'var(--ink-inverse)' : 'var(--ink)') + ';text-align:center;padding:6px 2px;font-size:0.72rem;font-weight:700;">'
         + _calDayName(wd) + ' ' + wd.getDate() + '</div>';
     }
 
-    for (var h = startHour; h <= endHour; h++) {
-      var hourLabel = h === 0 ? '12a' : h < 12 ? h + 'a' : h === 12 ? '12p' : (h - 12) + 'p';
-      html += '<div style="background:var(--bg);font-size:0.62rem;color:var(--ink-muted);padding:2px 4px;text-align:right;border-top:1px solid var(--line);">' + hourLabel + '</div>';
-      for (var d2 = 0; d2 < 7; d2++) {
-        var wd2 = new Date(ws);
-        wd2.setDate(wd2.getDate() + d2);
-        var ds = _calFmt(wd2);
-        var hourEvents = _calEventsForDate(ds).filter(function(ev) {
-          if (!ev.time) return h === startHour;
-          var evH = parseInt(ev.time.split(':')[0], 10);
-          return evH === h;
-        });
-        html += '<div style="background:var(--bg);min-height:38px;padding:1px;border-top:1px solid var(--line);'
-          + 'cursor:pointer;" onclick="Modules.calDayClick(\'' + ds + '\')">';
-        hourEvents.forEach(function(ev) { html += _calPill(ev, true); });
-        html += '</div>';
-      }
+    // ── Time-label column ──
+    var timeLabels = '';
+    for (var h = startHour; h < endHour; h++) {
+      var lbl = h === 0 ? '12a' : h < 12 ? h + 'a' : h === 12 ? '12p' : (h - 12) + 'p';
+      timeLabels += '<div style="height:' + HOUR_H + 'px;font-size:0.62rem;color:var(--ink-muted);'
+        + 'padding:2px 4px;text-align:right;border-top:1px solid var(--line);box-sizing:border-box;">' + lbl + '</div>';
     }
+    html += '<div style="background:var(--bg-raised);">' + timeLabels + '</div>';
+
+    // ── 7 day columns: absolutely-positioned events ──
+    for (var d2 = 0; d2 < 7; d2++) {
+      var wd2 = new Date(ws);
+      wd2.setDate(wd2.getDate() + d2);
+      var ds = _calFmt(wd2);
+      var dayEvs = _calEventsForDate(ds);
+      var timedEvs = dayEvs.filter(function(ev) { return ev.time; });
+
+      // Hour boundary lines
+      var bgLines = '';
+      for (var hl = 0; hl < (endHour - startHour); hl++) {
+        bgLines += '<div style="position:absolute;left:0;right:0;top:' + (hl * HOUR_H) + 'px;'
+          + 'border-top:1px solid var(--line);"></div>';
+      }
+
+      // Event blocks
+      var evBlocks = '';
+      timedEvs.forEach(function(ev) {
+        var startMins = _calTimeToMins(ev.time);
+        var endMins   = ev.endTime ? _calTimeToMins(ev.endTime) : startMins + 60;
+        var topPx     = (startMins - startHour * 60) * (HOUR_H / 60);
+        var heightPx  = Math.max(18, (endMins - startMins) * (HOUR_H / 60));
+        if (topPx < 0) { heightPx += topPx; topPx = 0; }
+        if (topPx >= totalH) return;
+        heightPx = Math.min(heightPx, totalH - topPx);
+        var bg = ev.color || (_calColors && _calColors[ev.type]) || 'var(--accent)';
+        evBlocks += '<div onclick="event.stopPropagation();Modules.calEventDetail(\'' + _e(ev.id || '') + '\',\''
+          + _e(ev.title || '') + '\',\'' + ev.date + '\')" title="' + _e(ev.title || '') + '"'
+          + ' style="position:absolute;left:2px;right:2px;top:' + topPx.toFixed(1) + 'px;height:' + heightPx.toFixed(1) + 'px;'
+          + 'background:' + bg + ';border-radius:3px;padding:2px 4px;overflow:hidden;cursor:pointer;'
+          + 'box-sizing:border-box;z-index:1;opacity:0.92;">'
+          + '<div style="font-size:0.6rem;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'
+          + _e(ev.title || '') + '</div>'
+          + (heightPx > 30 && ev.time ? '<div style="font-size:0.58rem;color:rgba(255,255,255,0.85);">'
+            + ev.time.substring(0,5) + (ev.endTime ? '–' + ev.endTime.substring(0,5) : '') + '</div>' : '')
+          + '</div>';
+      });
+
+      html += '<div style="position:relative;height:' + totalH + 'px;background:var(--bg);cursor:pointer;"'
+        + ' onclick="Modules.calDayClick(\'' + ds + '\')">' + bgLines + evBlocks + '</div>';
+    }
+
     html += '</div>';
     return html;
   }
@@ -1123,34 +1169,71 @@ const TheSeason = (() => {
     var s = _calSettings();
     var startHour = parseInt(s.workStart || '6', 10);
     var endHour   = parseInt(s.workEnd || '22', 10);
+    var HOUR_H    = 60; // px per hour
+    var totalH    = (endHour - startHour) * HOUR_H;
 
     var html = '<div style="text-align:center;margin-bottom:12px;">'
       + '<div style="font-size:1.6rem;font-weight:800;color:' + (isToday ? 'var(--accent)' : 'var(--ink)') + ';">'
       + _calDate.toLocaleString('default', { weekday: 'long' }) + '</div>'
-      + '<div style="font-size:0.85rem;color:var(--ink-muted);">' + _calDate.toLocaleDateString('default', { month: 'long', day: 'numeric', year: 'numeric' }) + '</div>'
+      + '<div style="font-size:0.85rem;color:var(--ink-muted);">'
+      + _calDate.toLocaleDateString('default', { month: 'long', day: 'numeric', year: 'numeric' }) + '</div>'
       + '</div>';
 
-    html += '<div style="border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;">';
-    for (var h = startHour; h <= endHour; h++) {
-      var hourLabel = h === 0 ? '12 AM' : h < 12 ? h + ' AM' : h === 12 ? '12 PM' : (h - 12) + ' PM';
-      var hourEvents = dayEvents.filter(function(ev) {
-        if (!ev.time) return h === startHour;
-        return parseInt(ev.time.split(':')[0], 10) === h;
-      });
-      html += '<div style="display:flex;border-top:1px solid var(--line);min-height:48px;">';
-      html += '<div style="width:65px;flex-shrink:0;font-size:0.72rem;color:var(--ink-muted);padding:6px 8px;text-align:right;background:var(--bg-raised);">' + hourLabel + '</div>';
-      html += '<div style="flex:1;padding:3px 6px;">';
-      hourEvents.forEach(function(ev) { html += _calPill(ev, false); });
-      html += '</div></div>';
-    }
-
+    // All-day / unscheduled events
     var unscheduled = dayEvents.filter(function(ev) { return !ev.time; });
     if (unscheduled.length) {
-      html += '<div style="padding:8px 12px;border-top:2px solid var(--accent);background:var(--bg-raised);">';
-      html += '<div style="font-size:0.72rem;font-weight:700;color:var(--accent);margin-bottom:4px;">All Day / Unscheduled</div>';
+      html += '<div style="padding:8px 12px;border:1px solid var(--line);border-radius:var(--radius);'
+        + 'margin-bottom:8px;background:var(--bg-raised);">';
+      html += '<div style="font-size:0.72rem;font-weight:700;color:var(--accent);margin-bottom:4px;">All Day</div>';
       unscheduled.forEach(function(ev) { html += _calPill(ev, false); });
       html += '</div>';
     }
+
+    // Time grid
+    html += '<div style="display:flex;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;">';
+
+    // Time labels column
+    html += '<div style="width:65px;flex-shrink:0;background:var(--bg-raised);border-right:1px solid var(--line);">';
+    for (var h = startHour; h < endHour; h++) {
+      var hourLabel = h === 0 ? '12 AM' : h < 12 ? h + ' AM' : h === 12 ? '12 PM' : (h - 12) + ' PM';
+      html += '<div style="height:' + HOUR_H + 'px;font-size:0.72rem;color:var(--ink-muted);'
+        + 'padding:4px 8px;text-align:right;border-top:1px solid var(--line);box-sizing:border-box;">' + hourLabel + '</div>';
+    }
+    html += '</div>';
+
+    // Event column (absolutely positioned)
+    var bgLines = '';
+    for (var hl = 0; hl < (endHour - startHour); hl++) {
+      bgLines += '<div style="position:absolute;left:0;right:0;top:' + (hl * HOUR_H) + 'px;'
+        + 'border-top:1px solid var(--line);"></div>';
+    }
+
+    var timedEvs = dayEvents.filter(function(ev) { return ev.time; });
+    var evBlocks = '';
+    timedEvs.forEach(function(ev) {
+      var startMins = _calTimeToMins(ev.time);
+      var endMins   = ev.endTime ? _calTimeToMins(ev.endTime) : startMins + 60;
+      var topPx     = (startMins - startHour * 60) * (HOUR_H / 60);
+      var heightPx  = Math.max(22, (endMins - startMins) * (HOUR_H / 60));
+      if (topPx < 0) { heightPx += topPx; topPx = 0; }
+      if (topPx >= totalH) return;
+      heightPx = Math.min(heightPx, totalH - topPx);
+      var bg = ev.color || (_calColors && _calColors[ev.type]) || 'var(--accent)';
+      evBlocks += '<div onclick="Modules.calEventDetail(\'' + _e(ev.id || '') + '\',\''
+        + _e(ev.title || '') + '\',\'' + ev.date + '\')"'
+        + ' style="position:absolute;left:6px;right:6px;top:' + topPx.toFixed(1) + 'px;height:' + heightPx.toFixed(1) + 'px;'
+        + 'background:' + bg + ';border-radius:6px;padding:5px 10px;overflow:hidden;cursor:pointer;'
+        + 'box-sizing:border-box;z-index:1;opacity:0.93;">'
+        + '<div style="font-size:0.84rem;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'
+        + _e(ev.title || '') + '</div>'
+        + (heightPx > 36 && ev.time ? '<div style="font-size:0.72rem;color:rgba(255,255,255,0.85);">'
+          + _fmtTime12(ev.time) + (ev.endTime ? ' \u2013 ' + _fmtTime12(ev.endTime) : '') + '</div>' : '')
+        + (heightPx > 52 && ev.location ? '<div style="font-size:0.7rem;color:rgba(255,255,255,0.75);">' + _e(ev.location) + '</div>' : '')
+        + '</div>';
+    });
+
+    html += '<div style="flex:1;position:relative;height:' + totalH + 'px;background:var(--bg);">'
+      + bgLines + evBlocks + '</div>';
     html += '</div>';
     return html;
   }

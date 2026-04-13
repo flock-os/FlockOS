@@ -1199,7 +1199,14 @@ const Modules = (() => {
   function _applyModuleVisibility() {
     document.querySelectorAll('.nav-item[data-view]').forEach(item => {
       const view = item.getAttribute('data-view');
-      if (_protectedModules.indexOf(view) !== -1) return;
+      if (_protectedModules.indexOf(view) !== -1) {
+        // Most protected modules are always shown, but admin-gated ones respect canAccess
+        if (view === 'admin-dashboard') {
+          var _adAccess = typeof Nehemiah !== 'undefined' ? Nehemiah.canAccess('admin-dashboard') : true;
+          item.style.display = _adAccess ? '' : 'none';
+        }
+        return;
+      }
       // Admin module toggle wins first
       if (!_isModuleEnabled(view)) { item.style.display = 'none'; return; }
       // Permission gate: if the item has a data-module key, check canAccess
@@ -10597,6 +10604,16 @@ const Modules = (() => {
           { key: 'bulk.export',        label: 'Bulk Export',           desc: 'Export data in bulk to files.',                                      risk: 'critical' },
           { key: 'church',             label: 'Church Profile',        desc: 'View church profile and settings.',                                   risk: 'high' },
           { key: 'church.edit',        label: 'Edit Church Profile',   desc: 'Modify church profile information.',                                  risk: 'critical' },
+        ]},
+        { group: 'Admin Dashboard', items: [
+          { key: 'admin-dashboard',              label: 'Admin Hub Access',         desc: 'Access the Admin Hub — KPIs, oversight cards, scratchpad, and system-level reporting.', risk: 'critical' },
+          { key: 'admin-dashboard.kpis',         label: 'KPI Overview',             desc: 'View live KPI ribbon: member count, open prayers, urgent care, giving, and events.',     risk: 'high' },
+          { key: 'admin-dashboard.care',         label: 'Urgent Care Panel',        desc: 'View urgent care cases surfaced on the Admin Hub.',                                       risk: 'critical' },
+          { key: 'admin-dashboard.giving',       label: 'Giving Summary',           desc: 'View 30-day giving totals and trends on the Admin Hub.',                                  risk: 'critical' },
+          { key: 'admin-dashboard.events',       label: 'Events Panel',             desc: 'View upcoming events listed on the Admin Hub.',                                           risk: 'low' },
+          { key: 'admin-dashboard.audit',        label: 'Recent Activity Log',      desc: 'View the recent activity feed on the Admin Hub.',                                         risk: 'high' },
+          { key: 'admin-dashboard.issues',       label: 'Open Issues Panel',        desc: 'View open support issues and problems on the Admin Hub.',                                 risk: 'medium' },
+          { key: 'admin-dashboard.scratchpad',   label: 'Admin Scratchpad',         desc: 'Access and edit the admin scratchpad and task list.',                                     risk: 'low' },
         ]},
       ];
 
@@ -20051,7 +20068,8 @@ const Modules = (() => {
 
   _def('admin-dashboard', async (el, session) => {
     var s = session || (typeof TheVine !== 'undefined' ? TheVine.session() : null);
-    if (!s || !TheVine.hasRole('admin')) {
+    var _hasAdminAccess = s && (typeof Nehemiah !== 'undefined' ? Nehemiah.canAccess('admin-dashboard') : TheVine.hasRole('admin'));
+    if (!_hasAdminAccess) {
       el.innerHTML = '<div style="text-align:center;padding:80px 20px;">'
         + '<div style="font-size:3rem;margin-bottom:12px;">&#128274;</div>'
         + '<p style="color:var(--ink-muted);">Admin access required.</p></div>';
