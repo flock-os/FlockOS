@@ -7684,6 +7684,20 @@ const Modules = (() => {
       _commsOpenMsg = null;
     }
 
+    // ── Progressive: paint tab bar shell instantly, load data in background ──
+    var _placeholderTabBar = '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;">'
+      + _commsTabBtn('Inbox',           'inbox')
+      + _commsTabBtn('Sent',            'sent')
+      + _commsTabBtn('Rooms',            'rooms')
+      + _commsTabBtn('Threads',         'threads')
+      + _commsTabBtn('Channels',        'channels')
+      + _commsTabBtn('Templates',       'templates')
+      + _commsTabBtn('Broadcasts',      'broadcasts')
+      + _commsTabBtn('🔔 Notifications','notifications')
+      + _commsTabBtn('⚙ Prefs',         'notifPrefs')
+      + '</div>';
+    _body(el, _placeholderTabBar + _spinner());
+
     // Tab-level data fetcher — Firebase mode skips inbox/sent/threads/rooms (handled inline)
     var tabFetcher;
     if (_fb) {
