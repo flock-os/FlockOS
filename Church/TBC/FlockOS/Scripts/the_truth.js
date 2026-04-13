@@ -1,10 +1,13 @@
 /* ══════════════════════════════════════════════════════════════════════════════
-   THE TRUTH — FlockOS Matthew Content Editor
-   Full CRUD interface for all Matthew (APP) public-content tabs:
+   THE TRUTH — FlockOS Content Editor (Firestore-backed)
+   Full CRUD interface for all public-content tabs:
    Books, Genealogy, Counseling, Devotionals, Reading Plan, Lexicon,
    Heart Check, Mirror, Quiz, Apologetics.
 
-   Depends on: Modules (the_tabernacle.js), TheVine (the_true_vine.js)
+   Data source:
+     ROOT deployment → flockos-truth Firestore (the seed database)
+     Church deployments → each church's own Firestore project
+       (set window.FLOCK_TRUTH_USE_LOCAL = true before loading this script)
 
    Restricted to: Pastor + Admin roles only.
 
@@ -51,14 +54,6 @@ const TheTruth = (() => {
     alert(msg);
   }
 
-  function _rows(raw) {
-    if (typeof Modules !== 'undefined' && Modules._rows) return Modules._rows(raw);
-    if (!raw) return [];
-    if (Array.isArray(raw)) return raw;
-    if (raw.rows && Array.isArray(raw.rows)) return raw.rows;
-    return [];
-  }
-
   // ── State ─────────────────────────────────────────────────────────────────
 
   var _tab     = 'books';
@@ -66,121 +61,167 @@ const TheTruth = (() => {
   var _allRows = {};   // full cached row set per tab key; cleared on save/delete
   var PAGE_SIZE = 50;
 
-  // ── Tab definitions ───────────────────────────────────────────────────────
+  // ── Firestore connection ──────────────────────────────────────────────────
+  // ROOT: connects to flockos-truth (the seed database) via secondary Firebase app.
+  // Churches: set window.FLOCK_TRUTH_USE_LOCAL = true to reuse UpperRoom's Firebase.
+
+  var TRUTH_CONFIG = {
+    apiKey:            'AIzaSyBZIZpYixNDpeRagDF_SozCvC8lJKTubHY',
+    authDomain:        'flockos-truth.firebaseapp.com',
+    projectId:         'flockos-truth',
+    storageBucket:     'flockos-truth.firebasestorage.app',
+    messagingSenderId: '102743161422',
+    appId:             '1:102743161422:web:a81ca3c70b13546962611f'
+  };
+
+  var _truthDb    = null;
+  var _truthReady = false;
+
+  async function _initTruth() {
+    if (_truthReady) return;
+    if (typeof firebase === 'undefined') throw new Error('Firebase SDK not loaded');
+
+    if (window.FLOCK_TRUTH_USE_LOCAL) {
+      // Church deployment: reuse the existing Firebase app (UpperRoom's project)
+      _truthDb = firebase.firestore();
+    } else {
+      // ROOT: secondary Firebase app for flockos-truth (the seed database)
+      var truthApp = null;
+      try { truthApp = firebase.app('truth'); } catch (_) {}
+      if (!truthApp) truthApp = firebase.initializeApp(TRUTH_CONFIG, 'truth');
+      _truthDb = firebase.firestore(truthApp);
+      try { _truthDb.settings({ experimentalAutoDetectLongPolling: true, merge: true }); } catch (_) {}
+
+      // Sign in anonymously for write access
+      var truthAuth = firebase.auth(truthApp);
+      if (!truthAuth.currentUser) {
+        await truthAuth.signInAnonymously();
+      }
+    }
+    _truthReady = true;
+  }
+
+  // ── Tab definitions (Firestore field names) ───────────────────────────────
+  // Each field's `k` matches the Firestore document field name exactly.
 
   var TABS = [
-    { key: 'books', name: 'Books', api: 'books', idField: 'Book Name',
-      listCols: ['Book Name', 'Testament', 'Genre'],
+    { key: 'books', name: 'Books', idField: 'bookName',
+      listCols: ['bookName', 'testament', 'genre'],
       fields: [
-        { k: 'Book Name',             label: 'Book Name',             type: 'text',     required: true },
-        { k: 'Testament',             label: 'Testament',             type: 'select',   opts: ['Old', 'New'] },
-        { k: 'Genre',                 label: 'Genre',                 type: 'text' },
-        { k: 'Type',                  label: 'Type',                  type: 'text' },
-        { k: 'Summary',               label: 'Summary',               type: 'textarea' },
-        { k: 'Core Theology',         label: 'Core Theology',         type: 'textarea' },
-        { k: 'Practical Application', label: 'Practical Application', type: 'textarea' },
+        { k: 'bookName',             label: 'Book Name',             type: 'text',     required: true },
+        { k: 'testament',            label: 'Testament',             type: 'select',   opts: ['Old', 'New'] },
+        { k: 'genre',                label: 'Genre',                 type: 'text' },
+        { k: 'summary',              label: 'Summary',               type: 'textarea' },
+        { k: 'coreTheology',         label: 'Core Theology',         type: 'textarea' },
+        { k: 'practicalApplication', label: 'Practical Application', type: 'textarea' },
       ]
     },
-    { key: 'genealogy', name: 'Genealogy', api: 'genealogy', idField: 'Name',
-      listCols: ['Name', 'Title', 'Lifespan'],
+    { key: 'genealogy', name: 'Genealogy', idField: 'name',
+      listCols: ['name', 'title', 'lifespan'],
       fields: [
-        { k: 'Name',      label: 'Name',                       type: 'text',     required: true },
-        { k: 'Title',     label: 'Title / Role',               type: 'text' },
-        { k: 'Meaning',   label: 'Name Meaning',               type: 'text' },
-        { k: 'Lifespan',  label: 'Lifespan',                   type: 'text' },
-        { k: 'Bio',       label: 'Biography',                  type: 'textarea' },
-        { k: 'Reference', label: 'Scripture Reference',        type: 'text' },
-        { k: 'Children',  label: 'Children (comma-separated)', type: 'text' },
+        { k: 'name',      label: 'Name',                       type: 'text',     required: true },
+        { k: 'title',     label: 'Title / Role',               type: 'text' },
+        { k: 'meaning',   label: 'Name Meaning',               type: 'text' },
+        { k: 'lifespan',  label: 'Lifespan',                   type: 'text' },
+        { k: 'bio',       label: 'Biography',                  type: 'textarea' },
+        { k: 'reference', label: 'Scripture Reference',        type: 'text' },
+        { k: 'children',  label: 'Children (comma-separated)', type: 'text' },
       ]
     },
-    { key: 'counseling', name: 'Counseling', api: 'counseling', idField: 'Title',
-      listCols: ['Title', 'Definition'],
+    { key: 'counseling', name: 'Counseling', idField: 'title',
+      listCols: ['title', 'definition'],
       fields: [
-        { k: 'Title',      label: 'Title',                       type: 'text',     required: true },
-        { k: 'Color',      label: 'Color (hex, e.g. #6366f1)',   type: 'text' },
-        { k: 'Icon',       label: 'Icon (emoji)',                type: 'text' },
-        { k: 'Definition', label: 'Definition',                  type: 'textarea' },
-        { k: 'Scriptures', label: 'Scriptures',                  type: 'textarea' },
-        { k: 'Steps',      label: 'Steps (semicolon-separated)', type: 'textarea' },
+        { k: 'title',      label: 'Title',                       type: 'text',     required: true },
+        { k: 'color',      label: 'Color (hex, e.g. #6366f1)',   type: 'text' },
+        { k: 'icon',       label: 'Icon (emoji)',                type: 'text' },
+        { k: 'definition', label: 'Definition',                  type: 'textarea' },
+        { k: 'scriptures', label: 'Scriptures',                  type: 'textarea' },
+        { k: 'steps',      label: 'Steps (semicolon-separated)', type: 'textarea' },
       ]
     },
-    { key: 'devotionals', name: 'Devotionals', api: 'devotionals', idField: 'Date',
-      listCols: ['Date', 'Title', 'Theme'],
+    { key: 'devotionals', name: 'Devotionals', idField: 'date',
+      listCols: ['date', 'title', 'theme'],
       fields: [
-        { k: 'Date',       label: 'Date (YYYY-MM-DD)',      type: 'text',     required: true },
-        { k: 'Title',      label: 'Title',                  type: 'text',     required: true },
-        { k: 'Scripture',  label: 'Scripture Reference',    type: 'text' },
-        { k: 'Theme',      label: 'Theme',                  type: 'text' },
-        { k: 'Reflection', label: 'Reflection',             type: 'textarea' },
-        { k: 'Prayer',     label: 'Prayer',                 type: 'textarea' },
-        { k: 'Question',   label: 'Reflection Question',    type: 'textarea' },
+        { k: 'date',       label: 'Date (YYYY-MM-DD)',      type: 'text',     required: true },
+        { k: 'title',      label: 'Title',                  type: 'text',     required: true },
+        { k: 'scripture',  label: 'Scripture Reference',    type: 'text' },
+        { k: 'theme',      label: 'Theme',                  type: 'text' },
+        { k: 'reflection', label: 'Reflection',             type: 'textarea' },
+        { k: 'prayer',     label: 'Prayer',                 type: 'textarea' },
+        { k: 'question',   label: 'Reflection Question',    type: 'textarea' },
       ]
     },
-    { key: 'reading', name: 'Reading Plan', api: 'reading', idField: '_rowIndex',
-      listCols: ['_rowIndex', 'Old Testament', 'New Testament'],
+    { key: 'reading', name: 'Reading Plan', idField: '_rowIndex',
+      listCols: ['_rowIndex', 'oldTestament', 'newTestament'],
       fields: [
-        { k: '_rowIndex',     label: 'Day # (1\u2013365)', type: 'number',   required: true },
-        { k: 'Old Testament', label: 'Old Testament',      type: 'text' },
-        { k: 'New Testament', label: 'New Testament',      type: 'text' },
-        { k: 'Psalms',        label: 'Psalms',             type: 'text' },
-        { k: 'Proverbs',      label: 'Proverbs',           type: 'text' },
+        { k: '_rowIndex',    label: 'Day # (1\u2013365)', type: 'number',   required: true },
+        { k: 'oldTestament', label: 'Old Testament',      type: 'text' },
+        { k: 'newTestament', label: 'New Testament',      type: 'text' },
+        { k: 'psalms',       label: 'Psalms',             type: 'text' },
+        { k: 'proverbs',     label: 'Proverbs',           type: 'text' },
       ]
     },
-    { key: 'words', name: 'Lexicon', api: 'words', idField: 'Original',
-      listCols: ['Original', 'English', 'Category'],
+    { key: 'words', name: 'Lexicon', idField: 'original',
+      listCols: ['original', 'english', 'theme'],
       fields: [
-        { k: 'Original',    label: 'Original Word (Hebrew/Greek)', type: 'text',     required: true },
-        { k: 'English',     label: 'English Translation',          type: 'text' },
-        { k: 'Definition',  label: 'Definition',                   type: 'textarea' },
-        { k: 'Category',    label: 'Category',                     type: 'text' },
-        { k: 'Testament',   label: 'Testament',                    type: 'select',   opts: ['Old', 'New'] },
-        { k: 'Usage Count', label: 'Usage Count',                  type: 'number' },
-        { k: 'Question ID', label: 'Question ID',                  type: 'text' },
+        { k: 'original',        label: 'Original Word (Hebrew/Greek)', type: 'text',     required: true },
+        { k: 'english',         label: 'English Translation',          type: 'text' },
+        { k: 'strongs',         label: "Strong\u2019s Number",         type: 'text' },
+        { k: 'transliteration', label: 'Transliteration',              type: 'text' },
+        { k: 'definition',      label: 'Definition',                   type: 'textarea' },
+        { k: 'nuance',          label: 'Nuance',                       type: 'textarea' },
+        { k: 'theme',           label: 'Theme / Category',             type: 'text' },
+        { k: 'testament',       label: 'Testament',                    type: 'select',   opts: ['Old', 'New'] },
       ]
     },
-    { key: 'heart', name: 'Heart Check', api: 'heart', idField: 'Question ID',
-      listCols: ['Question ID', 'Category', 'Question'],
+    { key: 'heart', name: 'Heart Check', idField: 'questionId',
+      listCols: ['questionId', 'category', 'question'],
       fields: [
-        { k: 'Question ID',  label: 'Question ID', type: 'text',     required: true },
-        { k: 'Category',     label: 'Category',    type: 'text' },
-        { k: 'Question',     label: 'Question',    type: 'textarea', required: true },
-        { k: 'Scripture',    label: 'Scripture',   type: 'text' },
-        { k: 'Prescription', label: 'Prescription',type: 'textarea' },
+        { k: 'questionId',     label: 'Question ID',   type: 'text',     required: true },
+        { k: 'category',       label: 'Category',      type: 'text' },
+        { k: 'chartAxis',      label: 'Chart Axis',    type: 'text' },
+        { k: 'question',       label: 'Question',      type: 'textarea', required: true },
+        { k: 'verseReference', label: 'Scripture',     type: 'text' },
+        { k: 'prescription',   label: 'Prescription',  type: 'textarea' },
       ]
     },
-    { key: 'mirror', name: 'Mirror', api: 'mirror', idField: 'Category Title',
-      listCols: ['Category Title', 'Chart Label'],
+    { key: 'mirror', name: 'Mirror', idField: 'categoryTitle',
+      listCols: ['categoryTitle', 'chartLabel'],
       fields: [
-        { k: 'Category Title', label: 'Category Title', type: 'text',     required: true },
-        { k: 'Category Intro', label: 'Category Intro', type: 'textarea' },
-        { k: 'Chart Label',    label: 'Chart Label',    type: 'text' },
-        { k: 'Content',        label: 'Content',        type: 'textarea' },
+        { k: 'categoryId',    label: 'Category ID',    type: 'text' },
+        { k: 'categoryTitle', label: 'Category Title',  type: 'text',     required: true },
+        { k: 'color',         label: 'Color',           type: 'text' },
+        { k: 'chartLabel',    label: 'Chart Label',     type: 'text' },
+        { k: 'questionId',    label: 'Question ID',     type: 'text' },
+        { k: 'question',      label: 'Question',        type: 'textarea' },
+        { k: 'prescription',  label: 'Prescription',    type: 'textarea' },
+        { k: 'scripture',     label: 'Scripture',       type: 'text' },
       ]
     },
-    { key: 'quiz', name: 'Quiz', api: 'quiz', idField: 'Question',
-      listCols: ['Category', 'Question', 'Difficulty'],
+    { key: 'quiz', name: 'Quiz', idField: 'question',
+      listCols: ['quizId', 'question', 'correctAnswer'],
       fields: [
-        { k: 'Question',       label: 'Question',            type: 'textarea', required: true },
-        { k: 'Category',       label: 'Category',            type: 'text' },
-        { k: 'Difficulty',     label: 'Difficulty',          type: 'select',   opts: ['Easy', 'Medium', 'Hard'] },
-        { k: 'Option A',       label: 'Option A',            type: 'text',     required: true },
-        { k: 'Option B',       label: 'Option B',            type: 'text',     required: true },
-        { k: 'Option C',       label: 'Option C',            type: 'text' },
-        { k: 'Option D',       label: 'Option D',            type: 'text' },
-        { k: 'Correct Answer', label: 'Correct Answer',      type: 'select',   opts: ['A', 'B', 'C', 'D'] },
-        { k: 'Reference',      label: 'Scripture Reference', type: 'text' },
+        { k: 'quizId',         label: 'Quiz ID',             type: 'text' },
+        { k: 'question',       label: 'Question',            type: 'textarea', required: true },
+        { k: 'optionA',        label: 'Option A',            type: 'text',     required: true },
+        { k: 'optionB',        label: 'Option B',            type: 'text',     required: true },
+        { k: 'optionC',        label: 'Option C',            type: 'text' },
+        { k: 'optionD',        label: 'Option D',            type: 'text' },
+        { k: 'correctAnswer',  label: 'Correct Answer',      type: 'select',   opts: ['A', 'B', 'C', 'D'] },
+        { k: 'reference',      label: 'Scripture Reference', type: 'text' },
       ]
     },
-    { key: 'apologetics', name: 'Apologetics', api: 'apologetics', idField: 'Short Title',
-      listCols: ['Category Title', 'Short Title'],
+    { key: 'apologetics', name: 'Apologetics', idField: 'shortTitle',
+      listCols: ['categoryTitle', 'shortTitle'],
       fields: [
-        { k: 'Category Title', label: 'Category Title',    type: 'text',     required: true },
-        { k: 'Category Intro', label: 'Category Intro',    type: 'textarea' },
-        { k: 'Short Title',    label: 'Short Title',       type: 'text',     required: true },
-        { k: 'Quote Text',     label: 'Quote / Objection', type: 'textarea' },
-        { k: 'Reference Text', label: 'Scripture',         type: 'text' },
-        { k: 'Reference URL',  label: 'Source Reference URL', type: 'text' },
-        { k: 'Answer Content', label: 'Answer / Response', type: 'textarea' },
+        { k: 'categoryId',    label: 'Category ID',       type: 'text' },
+        { k: 'categoryTitle', label: 'Category Title',    type: 'text',     required: true },
+        { k: 'categoryColor', label: 'Category Color',    type: 'text' },
+        { k: 'categoryIntro', label: 'Category Intro',    type: 'textarea' },
+        { k: 'questionId',    label: 'Question ID',       type: 'text' },
+        { k: 'questionTitle', label: 'Question Title',    type: 'text' },
+        { k: 'shortTitle',    label: 'Short Title',       type: 'text',     required: true },
+        { k: 'answerContent', label: 'Answer / Response', type: 'textarea' },
       ]
     },
   ];
@@ -223,6 +264,13 @@ const TheTruth = (() => {
     return el ? el.value : '';
   }
 
+  // ── Firestore document ID helpers ─────────────────────────────────────────
+
+  function _docId(tab, data) {
+    var id = String(data[tab.idField] || '').trim();
+    return id.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '') || ('doc_' + Date.now());
+  }
+
   // ── Public: open add/edit modal ────────────────────────────────────────────
 
   function openEditor(item, tabKey) {
@@ -245,8 +293,8 @@ const TheTruth = (() => {
       + '</div>'
       + '<div style="flex:1;overflow-y:auto;padding:20px 22px;">';
 
-    if (!isNew) {
-      html += '<input type="hidden" id="tt-orig-id" value="' + _e(String(item[tab.idField] || '')) + '" />';
+    if (!isNew && item._docId) {
+      html += '<input type="hidden" id="tt-orig-docid" value="' + _e(item._docId) + '" />';
     }
     html += fieldsHtml;
     html += '</div>'
@@ -258,7 +306,7 @@ const TheTruth = (() => {
     document.body.insertAdjacentHTML('beforeend', html);
   }
 
-  // ── Public: save (create or update) ───────────────────────────────────────
+  // ── Public: save (create or update) — writes directly to Firestore ────────
 
   async function save(tabKey, isNew) {
     var tab  = _getTab(tabKey);
@@ -267,20 +315,26 @@ const TheTruth = (() => {
       var f = tab.fields[fi];
       var v = _readField(f);
       if (f.required && !String(v).trim()) { _toast(f.label + ' is required.', 'warn'); return; }
+      // Skip synthetic _rowIndex from Firestore writes
+      if (f.k === '_rowIndex') continue;
       data[f.k] = v;
     }
 
-    if (!isNew) {
-      var origEl = document.getElementById('tt-orig-id');
-      if (origEl) data['_origId'] = origEl.value;
-    }
-
-    var action = 'app.' + tab.api + (isNew ? '.create' : '.update');
     try {
-      await TheVine.flock.call(action, data);
+      await _initTruth();
+      var col = _truthDb.collection(tab.key);
+
+      if (isNew) {
+        var newDocId = _docId(tab, data);
+        await col.doc(newDocId).set(data);
+      } else {
+        var origEl = document.getElementById('tt-orig-docid');
+        var docRef = origEl ? col.doc(origEl.value) : col.doc(_docId(tab, data));
+        await docRef.set(data, { merge: true });
+      }
+
       var modal = document.getElementById('tt-modal');
       if (modal) modal.remove();
-      if (typeof Modules !== 'undefined' && Modules._dataCache) delete Modules._dataCache['ca-' + tab.key];
       delete _allRows[tab.key];   // force fresh fetch on next render
       _toast((isNew ? 'Created' : 'Updated') + ' successfully.', 'success');
       var panel = document.querySelector('.tt-panel[data-key="' + tab.key + '"]');
@@ -290,18 +344,15 @@ const TheTruth = (() => {
     }
   }
 
-  // ── Public: delete ─────────────────────────────────────────────────────────
+  // ── Public: delete — deletes directly from Firestore ───────────────────────
 
-  async function del(tabKey, idEncoded) {
+  async function del(tabKey, docId) {
     if (!confirm('Delete this item? This cannot be undone.')) return;
-    var tab   = _getTab(tabKey);
-    var idVal = decodeURIComponent(idEncoded);
-    var body  = {};
-    body[tab.idField] = idVal;
+    var tab = _getTab(tabKey);
     try {
-      await TheVine.flock.call('app.' + tab.api + '.delete', body);
-      if (typeof Modules !== 'undefined' && Modules._dataCache) delete Modules._dataCache['ca-' + tab.key];
-      delete _allRows[tab.key];   // force fresh fetch on next render
+      await _initTruth();
+      await _truthDb.collection(tab.key).doc(decodeURIComponent(docId)).delete();
+      delete _allRows[tab.key];
       _toast('Deleted.', 'success');
       var panel = document.querySelector('.tt-panel[data-key="' + tab.key + '"]');
       if (panel) renderList(panel, tab.key);
@@ -317,34 +368,31 @@ const TheTruth = (() => {
     var ACBTN = 'padding:6px 14px;border-radius:8px;border:1px solid var(--accent);background:var(--accent);color:var(--ink-inverse);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;';
     var html = '<div style="display:flex;align-items:center;justify-content:center;gap:6px;padding:16px 0 4px;flex-wrap:wrap;">';
 
-    // Prev
     if (pg <= 1) {
       html += '<button disabled style="' + BTN + 'opacity:0.35;cursor:default;">&larr; Prev</button>';
     } else {
       html += '<button onclick="TheTruth.goPage(\'' + tabKey + '\',' + (pg - 1) + ')" style="' + BTN + '">&larr; Prev</button>';
     }
 
-    // Page number buttons with ellipsis
     var pages = [];
     if (totalPages <= 7) {
       for (var i = 1; i <= totalPages; i++) pages.push(i);
     } else {
       pages.push(1);
-      if (pg > 3) pages.push('…');
+      if (pg > 3) pages.push('\u2026');
       var lo = Math.max(2, pg - 1), hi = Math.min(totalPages - 1, pg + 1);
       for (var j = lo; j <= hi; j++) pages.push(j);
-      if (pg < totalPages - 2) pages.push('…');
+      if (pg < totalPages - 2) pages.push('\u2026');
       pages.push(totalPages);
     }
     pages.forEach(function(p) {
-      if (p === '…') {
-        html += '<span style="color:var(--ink-muted);padding:0 2px;">…</span>';
+      if (p === '\u2026') {
+        html += '<span style="color:var(--ink-muted);padding:0 2px;">\u2026</span>';
       } else {
         html += '<button onclick="TheTruth.goPage(\'' + tabKey + '\',' + p + ')" style="' + (p === pg ? ACBTN : BTN) + '">' + p + '</button>';
       }
     });
 
-    // Next
     if (pg >= totalPages) {
       html += '<button disabled style="' + BTN + 'opacity:0.35;cursor:default;">Next &rarr;</button>';
     } else {
@@ -356,10 +404,6 @@ const TheTruth = (() => {
   }
 
   // ── Private: render a row set into container ───────────────────────────────
-  // rows      = the rows to display (page slice or filtered set)
-  // totalAll  = total unfiltered count (for the search placeholder and count line)
-  // pg        = current page (1-based); null when rendering a filtered result set
-  // totalPages= total pages (or 0 when rendering filtered results)
 
   function _renderRows(container, tab, rows, totalAll, pg, totalPages) {
     if (!rows.length) {
@@ -370,6 +414,15 @@ const TheTruth = (() => {
     var countLabel = (pg != null)
       ? (rows.length + ' item' + (rows.length !== 1 ? 's' : '') + (totalPages > 1 ? ' \u2014 page ' + pg + ' of ' + totalPages : ''))
       : (rows.length + ' result' + (rows.length !== 1 ? 's' : '') + ' of ' + totalAll);
+
+    // Column header label — use the field label instead of raw camelCase key
+    function _colLabel(col) {
+      if (col === '_rowIndex') return 'Day #';
+      for (var ti = 0; ti < tab.fields.length; ti++) {
+        if (tab.fields[ti].k === col) return tab.fields[ti].label;
+      }
+      return col.replace(/([A-Z])/g, ' $1').replace(/^./, function(c) { return c.toUpperCase(); });
+    }
 
     var html = '<div class="browse-search" style="margin-bottom:10px;">'
       + '<span class="browse-search-icon">&#128269;</span>'
@@ -382,15 +435,13 @@ const TheTruth = (() => {
     html += '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:0.84rem;" id="tt-table-' + tab.key + '">';
     html += '<thead><tr style="background:var(--bg-sunken);">';
     tab.listCols.forEach(function(col) {
-      var lbl = col === '_rowIndex' ? 'Day #' : col;
-      html += '<th style="padding:9px 12px;text-align:left;font-weight:700;font-size:0.72rem;text-transform:uppercase;letter-spacing:0.05em;color:var(--ink-muted);white-space:nowrap;border-bottom:1px solid var(--line);">' + _e(lbl) + '</th>';
+      html += '<th style="padding:9px 12px;text-align:left;font-weight:700;font-size:0.72rem;text-transform:uppercase;letter-spacing:0.05em;color:var(--ink-muted);white-space:nowrap;border-bottom:1px solid var(--line);">' + _e(_colLabel(col)) + '</th>';
     });
     html += '<th style="padding:9px 12px;text-align:right;font-weight:700;font-size:0.72rem;text-transform:uppercase;letter-spacing:0.05em;color:var(--ink-muted);border-bottom:1px solid var(--line);">Actions</th>';
     html += '</tr></thead><tbody>';
 
-    rows.forEach(function(row, idx) {
-      var idVal   = String(row[tab.idField] || idx);
-      var idEnc   = encodeURIComponent(idVal);
+    rows.forEach(function(row) {
+      var docId   = row._docId || '';
       var rowJson = _e(JSON.stringify(row));
 
       html += '<tr class="tt-row" '
@@ -404,42 +455,45 @@ const TheTruth = (() => {
       html += '<td style="padding:9px 12px;text-align:right;white-space:nowrap;vertical-align:middle;">'
         + '<button data-row="' + rowJson + '" data-tab="' + tab.key + '" onclick="TheTruth.editFromTable(this)" '
         + 'style="padding:5px 12px;border-radius:7px;border:1px solid var(--accent);color:var(--accent);background:transparent;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;margin-right:6px;">Edit</button>'
-        + '<button onclick="TheTruth.del(\'' + _e(tab.key) + '\',\'' + _e(idEnc) + '\')" '
+        + '<button onclick="TheTruth.del(\'' + _e(tab.key) + '\',\'' + _e(encodeURIComponent(docId)) + '\')" '
         + 'style="padding:5px 12px;border-radius:7px;border:1px solid var(--danger,#e05);color:var(--danger,#e05);background:transparent;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;">Delete</button>'
         + '</td></tr>';
     });
 
     html += '</tbody></table></div>';
 
-    // Pagination controls (only when showing a page slice, not filtered results)
     if (pg != null && totalPages > 1) {
       html += _paginationHtml(tab.key, pg, totalPages);
     }
 
     container.innerHTML = html;
 
-    // Restore search query if user was filtering before a refresh
     var srchEl = document.getElementById('tt-search-' + tab.key);
     if (srchEl && _filterQuery[tab.key]) srchEl.value = _filterQuery[tab.key];
   }
 
-  // ── Public: render list (lazy-loaded per tab, paginated) ─────────────────
+  // ── Public: render list (lazy-loaded per tab, paginated) — Firestore ─────
 
   async function renderList(container, tabKey, page) {
     var tab = _getTab(tabKey);
     var pg  = (page != null) ? page : (_pages[tab.key] || 1);
     _pages[tab.key] = pg;
 
-    // Fetch and cache all rows if not already loaded
+    // Fetch and cache all rows from Firestore if not already loaded
     if (!_allRows[tab.key]) {
       container.innerHTML = _spinner();
       try {
-        var apiMethod = TheVine.app[tab.api];
-        if (typeof apiMethod !== 'function') throw new Error('API method not found: ' + tab.api);
-        var raw = await apiMethod();
-        _allRows[tab.key] = _rows(raw).map(function(r, i) {
-          if (tab.key === 'reading') r['_rowIndex'] = String(i + 1);
-          return r;
+        await _initTruth();
+        var snap = await _truthDb.collection(tab.key).get();
+        _allRows[tab.key] = snap.docs.map(function(doc, i) {
+          var d = doc.data();
+          d._docId = doc.id;
+          // For reading plan: synthesize row index from doc ID (day_001 → 1)
+          if (tab.key === 'reading') {
+            var m = doc.id.match(/(\d+)/);
+            d._rowIndex = m ? String(parseInt(m[1], 10)) : String(i + 1);
+          }
+          return d;
         });
       } catch (e) {
         container.innerHTML = _errHtml(e.message);
@@ -449,14 +503,12 @@ const TheTruth = (() => {
 
     var all        = _allRows[tab.key];
     var totalPages = Math.ceil(all.length / PAGE_SIZE);
-    // Clamp page to valid range
     pg = Math.max(1, Math.min(pg, totalPages || 1));
     _pages[tab.key] = pg;
 
     var start    = (pg - 1) * PAGE_SIZE;
     var pageRows = all.slice(start, start + PAGE_SIZE);
 
-    // If a filter is active, show filtered results instead of the page slice
     if (_filterQuery[tab.key]) {
       var q = _filterQuery[tab.key].toLowerCase();
       var filtered = all.filter(function(row) {
@@ -471,7 +523,7 @@ const TheTruth = (() => {
   // ── Public: go to a specific page ─────────────────────────────────────────
 
   function goPage(tabKey, page) {
-    _filterQuery[tabKey] = '';   // clear any active filter when navigating pages
+    _filterQuery[tabKey] = '';
     _pages[tabKey] = page;
     var panel = document.querySelector('.tt-panel[data-key="' + tabKey + '"]');
     if (panel) renderList(panel, tabKey, page);
@@ -488,7 +540,7 @@ const TheTruth = (() => {
 
   // ── Filter query state (per tab) ──────────────────────────────────────────
 
-  var _filterQuery = {};   // last search string per tab key
+  var _filterQuery = {};
 
   // ── Public: filter ────────────────────────────────────────────────────────
 
@@ -503,7 +555,6 @@ const TheTruth = (() => {
     if (!panel) return;
 
     if (!q) {
-      // Restore paginated view
       _renderRows(panel, tab, all.slice((_pages[key] - 1) * PAGE_SIZE, _pages[key] * PAGE_SIZE),
         all.length, _pages[key], Math.ceil(all.length / PAGE_SIZE));
       return;
@@ -517,7 +568,6 @@ const TheTruth = (() => {
     });
     _renderRows(panel, tab, filtered, all.length, null, null);
 
-    // Restore the typed value (innerHTML wipes the input)
     var srchEl = document.getElementById('tt-search-' + key);
     if (srchEl && srchEl.value !== q) srchEl.value = q;
   }
@@ -561,12 +611,13 @@ const TheTruth = (() => {
       return;
     }
 
-    // Header
+    // Header — show project indicator for ROOT so admin knows they're editing the seed
     var tab = _getTab(_tab);
+    var projectLabel = window.FLOCK_TRUTH_USE_LOCAL ? '' : ' <span style="font-size:0.72rem;color:var(--ink-muted);font-weight:500;">(flockos-truth seed)</span>';
     el.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:20px;">'
       + '<div>'
-      + '<h1 style="font-size:1.4rem;font-weight:800;margin:0 0 2px;color:var(--ink);">&#9998; Content Editor</h1>'
-      + '<p style="font-size:0.82rem;color:var(--ink-muted);margin:0;">Add, edit, and update every field across all Matthew APP content.</p>'
+      + '<h1 style="font-size:1.4rem;font-weight:800;margin:0 0 2px;color:var(--ink);">&#9998; Content Editor' + projectLabel + '</h1>'
+      + '<p style="font-size:0.82rem;color:var(--ink-muted);margin:0;">Add, edit, and update truth content across all categories.</p>'
       + '</div>'
       + '<button id="tt-add-btn" onclick="TheTruth.openEditor(null,TheTruth.currentTab())" '
       + 'style="padding:9px 18px;border-radius:10px;border:none;background:var(--accent);color:var(--ink-inverse);'

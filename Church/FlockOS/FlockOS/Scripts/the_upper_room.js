@@ -4036,12 +4036,15 @@ window.FLOCK_CHURCH_ID = "flockos";
 
   function setAppConfig(data) {
     var key = data.key;
-    return _appConfigRef().doc(key).set({
+    var doc = {
       key: key,
       value: data.value != null ? data.value : '',
       updatedAt: _ts(),
       updatedBy: _userEmail
-    }, { merge: true });
+    };
+    if (data.description) doc.description = data.description;
+    if (data.category)    doc.category    = data.category;
+    return _appConfigRef().doc(key).set(doc, { merge: true });
   }
 
   function updateAppConfig(data) {

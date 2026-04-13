@@ -11,7 +11,7 @@
      • Offline  → serve cached shell; API calls return offline fallback
    ══════════════════════════════════════════════════════════════════════════════ */
 
-const CACHE_VERSION = 'flockos-v3.19';
+const CACHE_VERSION = 'flockos-v3.20';
 const API_CACHE     = 'flockos-api-v1';
 
 // ── App Shell: pre-cached on install ────────────────────────────────────────
@@ -75,7 +75,17 @@ const API_HOSTS = ['script.google.com', 'script.googleusercontent.com'];
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_VERSION)
-      .then(cache => cache.addAll(APP_SHELL))
+      .then(cache => {
+        // Cache each resource individually so one 404 doesn't fail the
+        // entire install and cause a restart loop.
+        return Promise.all(
+          APP_SHELL.map(url =>
+            cache.add(url).catch(err => {
+              console.warn('[SW] Failed to cache:', url, err.message || err);
+            })
+          )
+        );
+      })
       .then(() => self.skipWaiting())
   );
 });
@@ -107,6 +117,18 @@ self.addEventListener('fetch', (event) => {
 
   // Skip non-GET (POST, etc.) — let them go to network
   if (event.request.method !== 'GET') return;
+
+  // ── Firebase / Firestore — never intercept ─────────────────────────────
+  // The Firestore SDK uses long-poll / streaming connections that must not
+  // be cached or intercepted by the service worker.
+  if (url.hostname.includes('firestore.googleapis.com') ||
+      url.hostname.includes('firebase.googleapis.com') ||
+      url.hostname.includes('firebaseinstallations.googleapis.com') ||
+      url.hostname.includes('identitytoolkit.googleapis.com') ||
+      url.hostname.includes('securetoken.googleapis.com') ||
+      url.hostname.includes('www.gstatic.com')) {
+    return;  // let the browser handle it natively
+  }
 
   // ── API calls → network-first, cache fallback ──────────────────────────
   if (API_HOSTS.some(h => url.hostname.includes(h))) {

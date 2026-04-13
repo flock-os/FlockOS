@@ -1959,6 +1959,9 @@ const Modules = (() => {
   _def('groups', async el => {
     _shell(el, 'Small Groups', 'Community groups, life groups & Bible studies.',
       _btn('+ New Group', "Modules.newGroup()"));
+
+    // ── Background async — fetch data and fill table when ready ──────────
+    (async function _loadGroups() {
     try {
       const res  = await _fetch('groups', () => _isFirebaseComms() ? UpperRoom.listGroups() : TheVine.flock.groups.list());
       const rows = _rows(res);
@@ -1989,6 +1992,7 @@ const Modules = (() => {
         { editFn: 'editGroup', ids: rows.map(r => r.id), tableId: 'groups-table' }
       ));
     } catch (e) { _body(el, _errHtml(e.message)); }
+    })();
   });
 
   function _groupsFilter(q) {
@@ -7680,6 +7684,20 @@ const Modules = (() => {
       _commsOpenMsg = null;
     }
 
+    // ── Progressive: paint tab bar shell instantly, load data in background ──
+    var _placeholderTabBar = '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;">'
+      + _commsTabBtn('Inbox',           'inbox')
+      + _commsTabBtn('Sent',            'sent')
+      + _commsTabBtn('Rooms',            'rooms')
+      + _commsTabBtn('Threads',         'threads')
+      + _commsTabBtn('Channels',        'channels')
+      + _commsTabBtn('Templates',       'templates')
+      + _commsTabBtn('Broadcasts',      'broadcasts')
+      + _commsTabBtn('🔔 Notifications','notifications')
+      + _commsTabBtn('⚙ Prefs',         'notifPrefs')
+      + '</div>';
+    _body(el, _placeholderTabBar + _spinner());
+
     // Tab-level data fetcher — Firebase mode skips inbox/sent/threads/rooms (handled inline)
     var tabFetcher;
     if (_fb) {
@@ -11168,1178 +11186,621 @@ const Modules = (() => {
     }
   }
 
+
+
   // ═══════════════════════════════════════════════════════════════════════
-  // 26. CONFIG  (admin)
+  // 26. SETTINGS  (admin)
+  //     v2: Firestore-first · sidebar nav · flat sections · fast
   // ═══════════════════════════════════════════════════════════════════════
+
+  var _cfgD = { rows: [], configSource: '', seededDefaults: false, studioDirty: false };
+  var _settingsTabRenderers = {};
+  var _cfgVal = function(key, fallback) {
+    var r = _cfgD.rows.find(function(r) { return (r.key || r.configKey) === key; });
+    return r ? String(r.value != null ? r.value : fallback) : String(fallback);
+  };
+  var _cfgBool = function(key) { return _cfgVal(key, 'FALSE').toUpperCase() === 'TRUE'; };
+
+  function _settingsTab(tabId) {
+    if (_cfgD.studioDirty && _configActiveTab === 'look-feel' && tabId !== 'look-feel') {
+      if (!confirm('You have unsaved Interface Studio changes. Leave without saving?')) return;
+      _cfgD.studioDirty = false;
+    }
+    _configActiveTab = tabId;
+    var c = document.getElementById('settings-content');
+    if (!c) return;
+    document.querySelectorAll('.stg-nav-item').forEach(function(n) {
+      n.classList.toggle('active', n.getAttribute('data-tab') === tabId);
+    });
+    var r = _settingsTabRenderers[tabId];
+    if (r) {
+      c.innerHTML = '<div class="stg-panel-animate">' + r.html() + '</div>';
+      if (r.after) setTimeout(r.after, 30);
+    }
+  }
+
   _def('config', async el => {
-    _shell(el, 'Control Panel', 'System provisioning, security, and administration.',
+    _shell(el, 'Settings', 'Configure your church portal.',
       _btn('\uD83D\uDD04 Refresh', 'Modules._reloadConfig()'));
-    try {
-      var _fbRows = null;
-      var _gasFailed = false;
-      var _configSource = 'gас'; // 'firebase' | 'gas' | 'defaults'
-      if (_isFirebaseComms()) {
-        const _fbRes = await UpperRoom.listAppConfig().catch(() => null);
-        _fbRows = _fbRes ? _rows(_fbRes) : [];
-        if (_fbRows.length > 0) _configSource = 'firebase';
-      }
-      // If Firebase returned zero rows, pull from GAS and seed Firestore
-      var _usedGasFallback = false;
-      if (_isFirebaseComms() && _fbRows !== null && _fbRows.length === 0) {
-        const _gasRes = await TheVine.flock.config.list().catch(function(e) { _gasFailed = true; return null; });
-        const _gasRows = _gasRes ? _rows(_gasRes) : [];
-        if (_gasRows.length > 0) {
-          _usedGasFallback = true;
-          _configSource = 'gas';
-          _fbRows = _gasRows;
-          _gasRows.forEach(function(r) { UpperRoom.setAppConfig(r).catch(function() {}); });
-        }
-      }
-      var res  = _isFirebaseComms() ? (_fbRows || []) : await TheVine.flock.config.list().catch(function(e) { _gasFailed = true; return null; });
-      var rows = _isFirebaseComms() ? (_fbRows || []) : _rows(res);
 
-      // ── Auto-seed from defaults when both Firebase and GAS return zero ─
-      var _seededDefaults = false;
-      if (rows.length === 0) {
-        _configSource = 'defaults';
-        _seededDefaults = true;
-        rows = _DEFAULT_APP_CONFIG.slice();
+    // ── Paint sidebar layout INSTANTLY — data loads in background ────
+    var tabs = [
+      { id: 'overview',   icon: '\uD83D\uDCCA', label: 'Overview' },
+      { id: 'identity',   icon: '\u26EA',        label: 'Church Identity' },
+      { id: 'appearance', icon: '\uD83C\uDFA8',  label: 'Appearance' },
+      { id: 'modules',    icon: '\uD83E\uDDE9',  label: 'Modules' },
+      { id: 'database',   icon: '\uD83D\uDDC4',  label: 'Database' },
+      { id: 'advanced',   icon: '\u2699\uFE0F',  label: 'All Settings' },
+    ];
+    if (_isFirebaseComms()) tabs.push({ id: 'master', icon: '\uD83C\uDF10', label: 'Master Config' });
+
+    var s = '<div class="stg-layout">';
+    s += '<nav class="stg-sidebar" role="navigation">';
+    tabs.forEach(function(t) {
+      s += '<button class="stg-nav-item" data-tab="' + t.id + '" onclick="Modules._settingsTab(\'' + t.id + '\')">';
+      s += '<span class="stg-nav-icon">' + t.icon + '</span>';
+      s += '<span class="stg-nav-label">' + t.label + '</span>';
+      s += '</button>';
+    });
+    s += '</nav>';
+    s += '<main class="stg-main" id="settings-content">' + _spinner() + '</main>';
+    s += '</div>';
+
+    _body(el, s);
+
+    // ── Load config data in background, then render active tab ──────
+    (async function _loadConfigData() {
+      try {
+        var rows = [];
+        var _configSource = 'firebase';
         if (_isFirebaseComms()) {
-          rows.forEach(function(r) { UpperRoom.setAppConfig(r).catch(function() {}); });
-        }
-      }
-
-      _dataCache['config'] = rows;
-
-      // Sync display settings to localStorage so public site picks them up
-      var _syncKeys = { FONT_SCALE: 'flock_font_scale', FONT_SCALE_MOBILE: 'flock_font_scale_mobile', QUIZ_SIZE: 'flock_quiz_size', CHURCH_LOGO: 'flock_church_logo' };
-      rows.forEach(function(r) {
-        var k = r.key || r.configKey || '';
-        if (_syncKeys[k] && r.value != null) localStorage.setItem(_syncKeys[k], String(r.value));
-      });
-      // Apply font scale for current viewport
-      if (window._applyFontScale) window._applyFontScale();
-
-      const prefixRow = rows.find(r => (r.key || r.configKey) === 'CARD_PREFIX');
-      const currentPrefix = prefixRow ? String(prefixRow.value || 'FlockOS') : 'FlockOS';
-      const vis = _getModuleVis();
-      const globalThemeRow = rows.find(r => (r.key || r.configKey) === 'GLOBAL_THEME');
-      const globalTheme = globalThemeRow ? String(globalThemeRow.value || 'default') : 'default';
-      const tmMeta = (typeof Adornment !== 'undefined' && Adornment.themeMeta) ? Adornment.themeMeta : {};
-      const themeList = (typeof Adornment !== 'undefined' && Adornment.themes) ? Adornment.themes.filter(t => t !== 'auto') : [];
-      const currentTheme = (typeof Adornment !== 'undefined') ? Adornment.getTheme() : 'america';
-      const isOverridden = globalTheme !== 'default';
-
-      const allToggleable = Object.keys(_moduleMeta).filter(k => _protectedModules.indexOf(k) === -1);
-      const totalOn = allToggleable.filter(k => _isModuleEnabled(k)).length;
-
-      let html = '';
-      var _studioDirty = false;
-
-      // ── Tab switching ───────────────────────────────────────────────
-      Modules._configTab = function(tabId) {
-        if (_studioDirty && _configActiveTab === 'look-feel' && tabId !== 'look-feel') {
-          if (!confirm('You have unsaved Interface Studio changes. Leave without saving?')) return;
-          _studioDirty = false;
-        }
-        _configActiveTab = tabId; // persist so reloads restore position
-        document.querySelectorAll('.config-tab-panel').forEach(function(p) { p.classList.remove('active'); });
-        document.querySelectorAll('.config-tab').forEach(function(t) { t.classList.remove('active'); });
-        var panel = document.querySelector('.config-tab-panel[data-tab="' + tabId + '"]');
-        var tab = document.querySelector('.config-tab[data-tab="' + tabId + '"]');
-        if (panel) panel.classList.add('active');
-        if (tab) tab.classList.add('active');
-      };
-
-      // ── Tab Navigation ──────────────────────────────────────────────
-      html += '<div class="config-tabs-bar">';
-      html += '<button class="config-tab" data-tab="overview" onclick="Modules._configTab(\'overview\')"><span class="config-tab-icon">\uD83C\uDFE0</span> Overview</button>';
-      html += '<button class="config-tab" data-tab="look-feel" onclick="Modules._configTab(\'look-feel\')"><span class="config-tab-icon">\uD83C\uDFA8</span> Look &amp; Feel</button>';
-      html += '<button class="config-tab" data-tab="modules" onclick="Modules._configTab(\'modules\')"><span class="config-tab-icon">\uD83E\uDDE9</span> Modules</button>';
-      html += '<button class="config-tab" data-tab="admin" onclick="Modules._configTab(\'admin\')"><span class="config-tab-icon">\u2699\uFE0F</span> Administration</button>';
-      if (_isFirebaseComms()) html += '<button class="config-tab" data-tab="master-config" onclick="Modules._configTab(\'master-config\')"><span class="config-tab-icon">&#127758;</span> Master Config</button>';
-      html += '</div>';
-
-      // ══ Tab: Overview ═══════════════════════════════════════════════
-      html += '<div class="config-tab-panel" data-tab="overview">';
-
-      // ── Config source status banner ─────────────────────────────────
-      if (_seededDefaults) {
-        html += '<div style="margin-bottom:14px;padding:12px 16px;border-radius:10px;background:var(--warning,#c98b2e);color:#fff;font-size:0.83rem;line-height:1.5;">'
-          + '<strong>&#9888; Config seeded from defaults.</strong> Your church\'s AppConfig sheet '
-          + (_gasFailed ? 'could not be reached (GAS error). ' : 'was empty. ')
-          + 'Default values have been written to Firestore. Edit any key below and save to customise.'
-          + '<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">'
-          + '<button onclick="Modules._configSeedFromGas()" style="padding:5px 14px;border-radius:6px;border:1px solid rgba(255,255,255,0.5);background:rgba(255,255,255,0.15);color:#fff;font-size:0.78rem;cursor:pointer;font-family:inherit;">&#128260; Re-try Seed from GAS</button>'
-          + '</div></div>';
-      } else if (_usedGasFallback) {
-        html += '<div style="margin-bottom:14px;padding:10px 16px;border-radius:10px;background:var(--mint,#34d399);color:#000;font-size:0.82rem;">'
-          + '&#10003; Config loaded from GAS sheet and synced to Firestore (' + rows.length + ' entries).</div>';
-      } else if (_configSource === 'firebase') {
-        html += ''; // Normal — no banner needed
-      }
-
-      // ── Row 1: Quick-stat cards ──────────────────────────────────────
-      var _churchNameRow = rows.find(function(r) { return (r.key || r.configKey) === 'CHURCH_NAME'; });
-      var _churchName = _churchNameRow ? String(_churchNameRow.value || '') : '';
-      html += '<div class="config-stat-grid">';
-      html += '<div class="config-stat-card"><div class="config-stat-icon">&#127981;</div><div class="config-stat-value" style="font-size:' + (_churchName.length > 12 ? '0.9rem' : '1.2rem') + ';">' + (_churchName ? _e(_churchName) : '&#8212;') + '</div><div class="config-stat-label">Church Name</div></div>';
-      html += '<div class="config-stat-card"><div class="config-stat-icon">&#129697;</div><div class="config-stat-value">' + totalOn + ' / ' + allToggleable.length + '</div><div class="config-stat-label">Active Modules</div></div>';
-      html += '<div class="config-stat-card"><div class="config-stat-icon">&#127912;</div><div class="config-stat-value">' + themeList.length + '</div><div class="config-stat-label">Themes</div></div>';
-      html += '<div class="config-stat-card"><div class="config-stat-icon">&#127991;&#65039;</div><div class="config-stat-value" style="font-size:1.1rem;">' + _e(currentPrefix) + '</div><div class="config-stat-label">Card Prefix</div></div>';
-      html += '</div>';
-
-      // ── Row 2: System Health bar ─────────────────────────────────────
-      var _fbReady = typeof UpperRoom !== 'undefined' && UpperRoom.isReady();
-      var _fbMode  = _isFirebaseComms();
-      var _fbProjectId = '';
-      try { if (typeof firebase !== 'undefined' && firebase.app) _fbProjectId = firebase.app().options.projectId || ''; } catch(_) {}
-
-      html += '<div class="cp-health-bar" id="cp-health-bar">';
-
-      // GAS endpoint row — placeholder, filled async
-      html += '<div class="cp-health-row">';
-      html += '<div class="cp-health-icon">&#128196;</div>';
-      html += '<div class="cp-health-body">';
-      html += '<div class="cp-health-label">Database (GAS)</div>';
-      html += '<div class="cp-health-detail" id="cp-gas-url">' + _e((typeof TheVine !== 'undefined' ? (TheVine.endpoints().FLOCK_URL || '') : '').replace('https://script.google.com/macros/s/', '').substring(0, 36) + '…' || 'Not configured') + '</div>';
-      html += '</div>';
-      html += '<span class="health-pill health-pill-unknown" id="cp-gas-pill"><span class="health-dot"></span><span id="cp-gas-pill-text">Checking…</span></span>';
-      html += '</div>';
-
-      // Firebase row
-      html += '<div class="cp-health-row">';
-      html += '<div class="cp-health-icon">&#128293;</div>';
-      html += '<div class="cp-health-body">';
-      html += '<div class="cp-health-label">Firebase / Firestore</div>';
-      html += '<div class="cp-health-detail">' + (_fbProjectId ? _e(_fbProjectId) : 'Not initialized') + '</div>';
-      html += '</div>';
-      if (_fbReady && _fbMode) {
-        html += '<span class="health-pill health-pill-ok"><span class="health-dot"></span>Connected</span>';
-      } else if (_fbReady) {
-        html += '<span class="health-pill health-pill-warn"><span class="health-dot"></span>Standby</span>';
-      } else {
-        html += '<span class="health-pill health-pill-unknown"><span class="health-dot"></span>Not loaded</span>';
-      }
-      html += '</div>';
-
-      // Maintenance row — placeholder, filled async
-      html += '<div class="cp-health-row">';
-      html += '<div class="cp-health-icon">&#128737;&#65039;</div>';
-      html += '<div class="cp-health-body">';
-      html += '<div class="cp-health-label">Maintenance Mode</div>';
-      html += '<div class="cp-health-detail">Controls public portal access</div>';
-      html += '</div>';
-      html += '<div style="display:flex;align-items:center;gap:10px;">';
-      html += '<span id="maintenance-badge" style="font-size:0.78rem;color:var(--ink-muted);">…</span>';
-      html += '<label class="settings-toggle" style="margin:0;">';
-      html += '<input type="checkbox" id="lockdown-toggle" onchange="Modules.toggleLockdown(this.checked)">';
-      html += '<span class="settings-toggle-slider"></span>';
-      html += '</label>';
-      html += '</div>';
-      html += '</div>';
-
-      html += '</div>'; // close cp-health-bar
-
-      // Maintenance active banner
-      html += '<div id="maintenance-active-banner" style="display:none;margin:0 0 16px;padding:12px 16px;border-radius:10px;background:var(--warning,#c98b2e);color:#fff;font-weight:600;font-size:0.85rem;">&#9888; MAINTENANCE IS ACTIVE — Public portal is blocked. Only Pastor &amp; Admin can access admin.</div>';
-
-      // ── Row 3: System snapshot ───────────────────────────────────────
-      var _commsMode = _fbMode ? 'Firebase (real-time)' : 'Google Apps Script';
-      var _globalThemeLabel = globalTheme === 'default' ? 'Member Choice' : (_e((tmMeta[globalTheme] || {}).label || globalTheme));
-      var _selfReg   = rows.find(function(r) { return (r.key || r.configKey) === 'ALLOW_SELF_REGISTER'; });
-      var _selfRegOn = _selfReg ? String(_selfReg.value || 'FALSE').toUpperCase() === 'TRUE' : false;
-      var _sessionTtl = rows.find(function(r) { return (r.key || r.configKey) === 'SESSION_TTL_HOURS'; });
-      var _sessionTtlVal = _sessionTtl ? String(_sessionTtl.value || '6') : '6';
-      var _adminEmail = rows.find(function(r) { return (r.key || r.configKey) === 'ADMIN_EMAIL'; });
-      var _adminEmailVal = _adminEmail ? String(_adminEmail.value || '') : '';
-
-      html += '<div class="cp-snapshot-grid">';
-      html += '<div class="cp-snapshot-item"><span class="cp-snapshot-label">Data Layer</span><span class="cp-snapshot-value">' + _commsMode + '</span></div>';
-      html += '<div class="cp-snapshot-item"><span class="cp-snapshot-label">Global Theme</span><span class="cp-snapshot-value">' + _globalThemeLabel + '</span></div>';
-      html += '<div class="cp-snapshot-item"><span class="cp-snapshot-label">Self-Registration</span><span class="cp-snapshot-value" style="color:' + (_selfRegOn ? 'var(--success,#4ade80)' : 'var(--ink-muted)') + ';">' + (_selfRegOn ? 'Open' : 'Closed') + '</span></div>';
-      html += '<div class="cp-snapshot-item"><span class="cp-snapshot-label">Session TTL</span><span class="cp-snapshot-value">' + _sessionTtlVal + ' hrs</span></div>';
-      html += '<div class="cp-snapshot-item"><span class="cp-snapshot-label">Admin Email</span><span class="cp-snapshot-value" style="font-size:0.78rem;">' + (_adminEmailVal ? _e(_adminEmailVal) : '<span style="color:var(--warning,#f59e0b);">&#9888; Not set</span>') + '</span></div>';
-      html += '<div class="cp-snapshot-item"><span class="cp-snapshot-label">Config Entries</span><span class="cp-snapshot-value">' + rows.length + '</span></div>';
-      html += '</div>';
-
-      // ── Row 4: Quick actions ─────────────────────────────────────────
-      html += '<div class="cp-quick-actions">';
-      html += '<div class="cp-quick-label">Quick Actions</div>';
-      html += '<div class="cp-quick-btns">';
-      html += '<button class="cp-quick-btn" onclick="Modules._configTab(\'look-feel\')">&#127912; Themes</button>';
-      html += '<button class="cp-quick-btn" onclick="Modules._configTab(\'modules\')">&#129697; Modules</button>';
-      html += '<button class="cp-quick-btn" onclick="Modules._configTab(\'admin\')">&#128268; Connections</button>';
-      html += '<button class="cp-quick-btn" onclick="Modules._runHealthCheck()">&#128225; Run Diagnostics</button>';
-      html += '<button class="cp-quick-btn" onclick="Modules._reloadConfig()">&#128260; Refresh</button>';
-      html += '</div>';
-      html += '</div>';
-
-      html += '</div>'; // close Overview tab
-
-      // Async-fill: GAS health ping + maintenance toggle
-      (function() {
-        // GAS health
-        (async function() {
-          var pill = document.getElementById('cp-gas-pill');
-          var pillText = document.getElementById('cp-gas-pill-text');
-          try {
-            var t0 = performance.now();
-            var ok = await TheVine.health('flock');
-            var ms = Math.round(performance.now() - t0);
-            if (pill) { pill.className = ok ? 'health-pill health-pill-ok' : 'health-pill health-pill-fail'; }
-            if (pillText) pillText.textContent = ok ? ms + 'ms' : 'Offline';
-          } catch(e) {
-            if (pill) pill.className = 'health-pill health-pill-fail';
-            if (pillText) pillText.textContent = 'Offline';
+          var fbRes = await UpperRoom.listAppConfig().catch(function() { return null; });
+          rows = fbRes ? _rows(fbRes) : [];
+          if (rows.length === 0) {
+            _configSource = 'defaults';
+            rows = _DEFAULT_APP_CONFIG.slice();
+            // Seed Firestore — fire-and-forget so UI isn't blocked
+            Promise.all(rows.map(function(r) { return UpperRoom.setAppConfig(r).catch(function() {}); }));
           }
-        })();
-
-        // Maintenance toggle
-        if (typeof UpperRoom !== 'undefined' && UpperRoom.getMaintenanceStatus) {
-          UpperRoom.getMaintenanceStatus().then(function(data) {
-            var active = !!(data && data.maintenance);
-            var badge = document.getElementById('maintenance-badge');
-            if (badge) badge.textContent = active ? '\u26A0 Maintenance ON' : '\u2714 Normal';
-            var cb = document.getElementById('lockdown-toggle');
-            if (cb) cb.checked = active;
-            var banner = document.getElementById('maintenance-active-banner');
-            if (banner) banner.style.display = active ? '' : 'none';
-          }).catch(function() {
-            var badge = document.getElementById('maintenance-badge');
-            if (badge) badge.textContent = '\u2714 Normal';
-          });
         } else {
-          var badge = document.getElementById('maintenance-badge');
-          if (badge) badge.textContent = '\u2714 Normal';
+          _configSource = 'gas';
+          var gasRes = await TheVine.flock.config.list().catch(function() { return null; });
+          rows = gasRes ? _rows(gasRes) : [];
+          if (rows.length === 0) {
+            _configSource = 'defaults';
+            rows = _DEFAULT_APP_CONFIG.slice();
+          }
         }
+
+        _dataCache['config'] = rows;
+        _cfgD.rows = rows;
+        _cfgD.configSource = _configSource;
+        _cfgD.seededDefaults = _configSource === 'defaults';
+        _cfgD.studioDirty = false;
+
+        // Sync display keys to localStorage
+        var sk = { FONT_SCALE: 'flock_font_scale', FONT_SCALE_MOBILE: 'flock_font_scale_mobile', QUIZ_SIZE: 'flock_quiz_size', CHURCH_LOGO: 'flock_church_logo' };
+        rows.forEach(function(r) { var k = r.key || r.configKey || ''; if (sk[k] && r.value != null) localStorage.setItem(sk[k], String(r.value)); });
+        if (window._applyFontScale) window._applyFontScale();
+
+        // Render active tab now that data is ready
+        _settingsTab(_configActiveTab || 'overview');
+
+      } catch (e) {
+        var content = document.getElementById('settings-content');
+        if (content) content.innerHTML = _errHtml(e.message);
+      }
+    })();
+  });
+
+  // ════════════════════════════════════════════════════════════════════════
+  //  OVERVIEW
+  // ════════════════════════════════════════════════════════════════════════
+  _settingsTabRenderers['overview'] = {
+    html: function() {
+      var rows = _cfgD.rows;
+      var churchName = _cfgVal('CHURCH_NAME', '');
+      var allMods = Object.keys(_moduleMeta).filter(function(k) { return _protectedModules.indexOf(k) === -1; });
+      var modsOn = allMods.filter(function(k) { return _isModuleEnabled(k); }).length;
+      var themeList = (typeof Adornment !== 'undefined' && Adornment.themes) ? Adornment.themes.filter(function(t) { return t !== 'auto'; }) : [];
+      var prefix = _cfgVal('CARD_PREFIX', 'FLOCK');
+      var fbReady = typeof UpperRoom !== 'undefined' && UpperRoom.isReady();
+      var fbMode = _isFirebaseComms();
+      var projId = ''; try { projId = firebase.app().options.projectId || ''; } catch(_){}
+
+      var h = '';
+
+      // Source banner
+      if (_cfgD.seededDefaults) {
+        h += '<div class="stg-banner stg-banner-warn">';
+        h += '<strong>\u26A0 Config seeded from defaults.</strong> Edit settings below to customize.';
+        h += ' <button class="stg-link-btn" onclick="Modules._configSeedFromGas()">Pull from GAS instead</button>';
+        h += '</div>';
+      }
+
+      // Stat row
+      h += '<div class="stg-stats">';
+      h += '<div class="stg-stat"><div class="stg-stat-val">' + (churchName ? _e(churchName) : '\u2014') + '</div><div class="stg-stat-lbl">Church</div></div>';
+      h += '<div class="stg-stat"><div class="stg-stat-val">' + modsOn + '/' + allMods.length + '</div><div class="stg-stat-lbl">Modules</div></div>';
+      h += '<div class="stg-stat"><div class="stg-stat-val">' + themeList.length + '</div><div class="stg-stat-lbl">Themes</div></div>';
+      h += '<div class="stg-stat"><div class="stg-stat-val">' + _e(prefix) + '</div><div class="stg-stat-lbl">Card Prefix</div></div>';
+      h += '</div>';
+
+      // System health
+      h += '<div class="stg-card">';
+      h += '<div class="stg-card-title">System Health</div>';
+      h += '<div class="stg-health-row"><span class="stg-health-label">\uD83D\uDD25 Firebase</span>';
+      if (fbReady && fbMode) h += '<span class="stg-pill stg-pill-ok">Connected \u2014 ' + _e(projId) + '</span>';
+      else if (fbReady)      h += '<span class="stg-pill stg-pill-warn">Standby</span>';
+      else                   h += '<span class="stg-pill stg-pill-off">Not loaded</span>';
+      h += '</div>';
+      h += '<div class="stg-health-row"><span class="stg-health-label">\uD83D\uDCC4 GAS API</span>';
+      h += '<span class="stg-pill stg-pill-check" id="ov-gas-pill">Checking\u2026</span>';
+      h += '</div>';
+      h += '<div class="stg-health-row"><span class="stg-health-label">\uD83D\uDEE1 Maintenance</span>';
+      h += '<span id="ov-maint-status" class="stg-pill stg-pill-check">Checking\u2026</span>';
+      h += '<label class="stg-switch"><input type="checkbox" id="ov-lockdown" onchange="Modules.toggleLockdown(this.checked)"><span class="stg-switch-track"></span></label>';
+      h += '</div>';
+      h += '<div id="ov-maint-banner" class="stg-banner stg-banner-warn" style="display:none;margin-top:10px;">\u26A0 MAINTENANCE MODE ACTIVE</div>';
+      h += '</div>';
+
+      // Quick snapshot
+      h += '<div class="stg-card">';
+      h += '<div class="stg-card-title">Quick Snapshot</div>';
+      h += '<div class="stg-kv"><span>Data Layer</span><span>' + (fbMode ? 'Firebase (real-time)' : 'Google Apps Script') + '</span></div>';
+      h += '<div class="stg-kv"><span>Self-Registration</span><span>' + (_cfgBool('ALLOW_SELF_REGISTER') ? '\uD83D\uDFE2 Open' : '\u26D4 Closed') + '</span></div>';
+      h += '<div class="stg-kv"><span>Session TTL</span><span>' + _cfgVal('SESSION_TTL_HOURS', '6') + ' hrs</span></div>';
+      h += '<div class="stg-kv"><span>Admin Email</span><span>' + (_cfgVal('ADMIN_EMAIL', '') || '\u26A0 Not set') + '</span></div>';
+      h += '<div class="stg-kv"><span>Config Entries</span><span>' + rows.length + '</span></div>';
+      h += '</div>';
+
+      // Quick actions
+      h += '<div class="stg-actions">';
+      h += '<button class="stg-action" onclick="Modules._settingsTab(\'identity\')">\u26EA Identity</button>';
+      h += '<button class="stg-action" onclick="Modules._settingsTab(\'appearance\')">\uD83C\uDFA8 Themes</button>';
+      h += '<button class="stg-action" onclick="Modules._settingsTab(\'modules\')">\uD83E\uDDE9 Modules</button>';
+      h += '<button class="stg-action" onclick="Modules._settingsTab(\'database\')">\uD83D\uDD0C Database</button>';
+      h += '<button class="stg-action" onclick="Modules._runHealthCheck()">\uD83D\uDCE1 Diagnostics</button>';
+      h += '</div>';
+
+      return h;
+    },
+    after: function() {
+      // GAS health ping
+      (async function() {
+        var pill = document.getElementById('ov-gas-pill');
+        try {
+          var t0 = performance.now();
+          var ok = await TheVine.health('flock');
+          var ms = Math.round(performance.now() - t0);
+          if (pill) { pill.className = 'stg-pill ' + (ok ? 'stg-pill-ok' : 'stg-pill-err'); pill.textContent = ok ? ms + 'ms' : 'Offline'; }
+        } catch(e) { if (pill) { pill.className = 'stg-pill stg-pill-err'; pill.textContent = 'Offline'; } }
       })();
+      // Maintenance check
+      if (typeof UpperRoom !== 'undefined' && UpperRoom.getMaintenanceStatus) {
+        UpperRoom.getMaintenanceStatus().then(function(d) {
+          var on = !!(d && d.maintenance);
+          var s = document.getElementById('ov-maint-status');
+          if (s) { s.className = 'stg-pill ' + (on ? 'stg-pill-warn' : 'stg-pill-ok'); s.textContent = on ? 'ON' : 'Normal'; }
+          var cb = document.getElementById('ov-lockdown'); if (cb) cb.checked = on;
+          var b = document.getElementById('ov-maint-banner'); if (b) b.style.display = on ? '' : 'none';
+        }).catch(function() {});
+      }
+    }
+  };
 
-      // ══ Tab: Look & Feel ════════════════════════════════════════════
-      html += '<div class="config-tab-panel" data-tab="look-feel">';
-
-      // ── Section 1: Identity & Branding ──────────────────────────────
-      html += '<details class="settings-section settings-accordion">';
-      html += '<summary class="settings-accordion-trigger"><span class="settings-accordion-chevron">&#9654;</span>';
-      html += '<span class="settings-section-icon">\uD83C\uDFF7\uFE0F</span>';
-      html += '<span class="settings-accordion-label">Identity &amp; Branding</span>';
-      html += '<span class="settings-accordion-count">' + _e(currentPrefix) + '</span>';
-      html += '</summary>';
-      html += '<div class="settings-accordion-body">';
-      html += '<div class="settings-card">';
-      html += '<div class="settings-card-label">Member Card Prefix</div>';
-      html += '<p class="settings-card-hint">Prefix for new member card numbers (e.g. <strong>' + _e(currentPrefix) + '-0001</strong>). Changing this only affects future cards.</p>';
-      html += '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">';
-      html += '<input id="card-prefix-input" type="text" value="' + _e(currentPrefix) + '" maxlength="10" class="settings-input" placeholder="FlockOS" style="width:120px;text-transform:uppercase;">';
-      html += '<button class="btn btn-primary" onclick="Modules.saveCardPrefix()" style="padding:10px 20px;border-radius:8px;border:none;background:var(--accent);color:var(--bg);font-weight:600;font-size:0.85rem;cursor:pointer;">Save Prefix</button>';
-      html += '</div></div></div>';
-      html += '</div></details>';
-
-      // ── Section 1b: Display Preferences ─────────────────────────────
-      const fontScaleRow = rows.find(r => (r.key || r.configKey) === 'FONT_SCALE');
-      const currentScale = fontScaleRow ? String(fontScaleRow.value || '100') : (localStorage.getItem('flock_font_scale') || '100');
-      const mobileFontScaleRow = rows.find(r => (r.key || r.configKey) === 'FONT_SCALE_MOBILE');
-      const currentMobileScale = mobileFontScaleRow ? String(mobileFontScaleRow.value || '100') : (localStorage.getItem('flock_font_scale_mobile') || '100');
-      const quizSizeRow = rows.find(r => (r.key || r.configKey) === 'QUIZ_SIZE');
-      const currentQuizSize = quizSizeRow ? String(quizSizeRow.value || '0') : (localStorage.getItem('flock_quiz_size') || '0');
-
-      html += '<details class="settings-section settings-accordion">';
-      html += '<summary class="settings-accordion-trigger"><span class="settings-accordion-chevron">&#9654;</span>';
-      html += '<span class="settings-section-icon">\uD83D\uDD0D</span>';
-      html += '<span class="settings-accordion-label">Display Preferences</span>';
-      html += '<span class="settings-accordion-count">Desktop ' + _e(currentScale) + '% / Mobile ' + _e(currentMobileScale) + '%</span>';
-      html += '</summary>';
-      html += '<div class="settings-accordion-body">';
-
-      // Desktop Font Scale
-      html += '<div class="settings-card">';
-      html += '<div class="settings-card-label">\uD83D\uDDA5 Desktop Font Size</div>';
-      html += '<p class="settings-card-hint">Scale text on desktop and laptop screens. Default is 100%.</p>';
-      html += '<div style="display:flex;align-items:center;gap:8px;margin-top:6px;">';
-      html += '<select id="font-scale-input" class="settings-input" style="min-width:130px;" onchange="Modules.previewFontScale(this.value)">';
-      [90, 95, 100, 105, 110, 115, 120, 125, 130].forEach(function(n) {
-        html += '<option value="' + n + '"' + (String(currentScale) === String(n) ? ' selected' : '') + '>' + n + '%</option>';
+  // ════════════════════════════════════════════════════════════════════════
+  //  CHURCH IDENTITY
+  // ════════════════════════════════════════════════════════════════════════
+  _settingsTabRenderers['identity'] = {
+    html: function() {
+      var h = '';
+      var fields = [
+        { key: 'CHURCH_NAME',        label: 'Church Name',       type: 'text',   ph: 'e.g. Stronger by Grace' },
+        { key: 'ADMIN_EMAIL',        label: 'Admin Email',       type: 'email',  ph: 'pastor@church.org' },
+        { key: 'CHURCH_EMAIL',       label: 'Church Email',      type: 'email',  ph: 'info@church.org' },
+        { key: 'CHURCH_PHONE',       label: 'Phone',             type: 'tel',    ph: '(555) 123-4567' },
+        { key: 'CHURCH_ADDRESS',     label: 'Address',           type: 'text',   ph: '123 Main St, City, ST 12345' },
+        { key: 'CHURCH_WEBSITE',     label: 'Website',           type: 'url',    ph: 'https://yourchurch.org' },
+        { key: 'CHURCH_TIMEZONE',    label: 'Timezone',          type: 'text',   ph: 'America/New_York' },
+        { key: 'CHURCH_LOGO',        label: 'Logo URL',          type: 'url',    ph: 'https://...' },
+      ];
+      h += '<div class="stg-card">';
+      h += '<div class="stg-card-title">\u26EA Church Identity</div>';
+      h += '<p class="stg-card-desc">Core information about your church. Shown in headers, cards, and notifications.</p>';
+      h += '<div class="stg-form-grid">';
+      fields.forEach(function(f) {
+        var v = _cfgVal(f.key, '');
+        h += '<div class="stg-field">';
+        h += '<label class="stg-label" for="ci-' + f.key + '">' + _e(f.label) + '</label>';
+        h += '<input type="' + f.type + '" id="ci-' + f.key + '" class="stg-input" value="' + _e(v) + '" placeholder="' + _e(f.ph) + '" data-ci-key="' + f.key + '">';
+        h += '</div>';
       });
-      html += '</select>';
-      html += '<button class="btn btn-primary" onclick="Modules.saveFontScale()" style="margin-left:8px;padding:6px 16px;border-radius:6px;border:none;background:var(--accent);color:var(--bg);font-weight:600;font-size:0.82rem;cursor:pointer;">Save</button>';
-      html += '</div></div>';
+      h += '</div>';
+      h += '<div class="stg-form-foot">';
+      h += '<button class="stg-btn stg-btn-primary" onclick="Modules._saveIdentity()">Save Identity</button>';
+      h += '<span id="ci-save-status" class="stg-status"></span>';
+      h += '</div>';
+      h += '</div>';
 
-      // Mobile Font Scale
-      html += '<div class="settings-card" style="margin-top:8px;">';
-      html += '<div class="settings-card-label">\uD83D\uDCF1 Mobile Font Size</div>';
-      html += '<p class="settings-card-hint">Scale text on phones and tablets (screens \u2264 768px). Default is 100%.</p>';
-      html += '<div style="display:flex;align-items:center;gap:8px;margin-top:6px;">';
-      html += '<select id="font-scale-mobile-input" class="settings-input" style="min-width:130px;" onchange="Modules.previewFontScaleMobile(this.value)">';
-      [90, 95, 100, 105, 110, 115, 120, 125, 130].forEach(function(n) {
-        html += '<option value="' + n + '"' + (String(currentMobileScale) === String(n) ? ' selected' : '') + '>' + n + '%</option>';
+      // Security & Access card
+      h += '<div class="stg-card">';
+      h += '<div class="stg-card-title">\uD83D\uDD10 Security & Access</div>';
+      var secFields = [
+        { key: 'SESSION_TTL_HOURS',    label: 'Session Length (hours)', type: 'number', ph: '6' },
+        { key: 'MIN_PASSCODE_LENGTH',  label: 'Min Passcode Length',   type: 'number', ph: '6' },
+        { key: 'CARD_PREFIX',          label: 'Member Card Prefix',    type: 'text',   ph: 'FLOCK' },
+      ];
+      h += '<div class="stg-form-grid">';
+      secFields.forEach(function(f) {
+        h += '<div class="stg-field">';
+        h += '<label class="stg-label" for="ci-' + f.key + '">' + _e(f.label) + '</label>';
+        h += '<input type="' + f.type + '" id="ci-' + f.key + '" class="stg-input" value="' + _e(_cfgVal(f.key, '')) + '" placeholder="' + _e(f.ph) + '" data-ci-key="' + f.key + '">';
+        h += '</div>';
       });
-      html += '</select>';
-      html += '<button class="btn btn-primary" onclick="Modules.saveFontScaleMobile()" style="margin-left:8px;padding:6px 16px;border-radius:6px;border:none;background:var(--accent);color:var(--bg);font-weight:600;font-size:0.82rem;cursor:pointer;">Save</button>';
-      html += '</div></div>';
+      h += '</div>';
+      // Toggles
+      h += '<div class="stg-toggle-list">';
+      h += '<div class="stg-toggle-row"><span>Allow Self-Registration</span>';
+      h += '<label class="stg-switch"><input type="checkbox" id="ci-ALLOW_SELF_REGISTER"' + (_cfgBool('ALLOW_SELF_REGISTER') ? ' checked' : '') + ' data-ci-key="ALLOW_SELF_REGISTER" data-bool="1"><span class="stg-switch-track"></span></label></div>';
+      h += '</div>';
+      h += '<div class="stg-form-foot">';
+      h += '<button class="stg-btn stg-btn-primary" onclick="Modules._saveIdentity()">Save</button>';
+      h += '</div>';
+      h += '</div>';
 
-      // Quiz Size
-      html += '<div class="settings-card" style="margin-top:8px;">';
-      html += '<div class="settings-card-label">\u270D Bible Quiz Size</div>';
-      html += '<p class="settings-card-hint">Questions per quiz attempt. 0 = all questions.</p>';
-      html += '<div style="display:flex;align-items:center;gap:8px;margin-top:6px;">';
-      html += '<select id="quiz-size-select" class="settings-input" style="min-width:130px;">';
-      html += '<option value="0"' + (currentQuizSize === '0' ? ' selected' : '') + '>All Questions</option>';
-      [5, 10, 15, 20, 25, 30, 40, 50].forEach(function(n) {
-        html += '<option value="' + n + '"' + (String(currentQuizSize) === String(n) ? ' selected' : '') + '>' + n + ' Questions</option>';
+      return h;
+    },
+    after: null
+  };
+
+  // ════════════════════════════════════════════════════════════════════════
+  //  APPEARANCE
+  // ════════════════════════════════════════════════════════════════════════
+  _settingsTabRenderers['appearance'] = {
+    html: function() {
+      var h = '';
+      var globalTheme = _cfgVal('GLOBAL_THEME', 'default');
+      var tmMeta = (typeof Adornment !== 'undefined' && Adornment.themeMeta) ? Adornment.themeMeta : {};
+      var themeList = (typeof Adornment !== 'undefined' && Adornment.themes) ? Adornment.themes.filter(function(t) { return t !== 'auto'; }) : [];
+      var allowCustom = _cfgBool('ALLOW_CUSTOM_THEMES');
+      var currentScale = _cfgVal('FONT_SCALE', '100');
+      var currentMobileScale = _cfgVal('FONT_SCALE_MOBILE', '100');
+      var currentQuizSize = _cfgVal('QUIZ_SIZE', '0');
+
+      // ── Theme picker ──
+      h += '<div class="stg-card">';
+      h += '<div class="stg-card-title">\uD83C\uDFA8 Theme</div>';
+      h += '<p class="stg-card-desc">\u201CDefault\u201D lets each member choose. Pick a theme to enforce site-wide.</p>';
+      h += '<input type="hidden" id="global-theme-select" value="' + _e(globalTheme) + '">';
+      h += '<div class="stg-theme-grid">';
+      // Default option
+      h += '<div class="stg-theme-card' + (globalTheme === 'default' ? ' selected' : '') + '" onclick="document.getElementById(\'global-theme-select\').value=\'default\';document.querySelectorAll(\'.stg-theme-card\').forEach(function(c){c.classList.remove(\'selected\')});this.classList.add(\'selected\')">';
+      h += '<div class="stg-theme-swatch" style="background:linear-gradient(135deg,#1a1a2e 50%,#22d3ee);"></div>';
+      h += '<div class="stg-theme-name">Default</div>';
+      h += '</div>';
+      themeList.forEach(function(t) {
+        var m = tmMeta[t] || {};
+        h += '<div class="stg-theme-card' + (globalTheme === t ? ' selected' : '') + '" onclick="document.getElementById(\'global-theme-select\').value=\'' + t + '\';document.querySelectorAll(\'.stg-theme-card\').forEach(function(c){c.classList.remove(\'selected\')});this.classList.add(\'selected\')">';
+        h += '<div class="stg-theme-swatch" style="background:linear-gradient(135deg,' + (m.bg || '#111') + ' 50%,' + (m.accent || '#888') + ');"></div>';
+        h += '<div class="stg-theme-name">' + _e(m.label || t) + '</div>';
+        h += '</div>';
       });
-      html += '</select>';
-      html += '<button class="btn btn-primary" onclick="Modules.saveQuizSize()" style="padding:6px 16px;border-radius:6px;border:none;background:var(--accent);color:var(--bg);font-weight:600;font-size:0.82rem;cursor:pointer;">Save</button>';
-      html += '</div></div>';
+      h += '</div>';
+      h += '<div class="stg-form-foot">';
+      h += '<button class="stg-btn stg-btn-primary" onclick="Modules.saveGlobalTheme()">Apply Theme</button>';
+      h += '<label class="stg-switch-label"><label class="stg-switch"><input type="checkbox" id="allow-custom-themes-toggle"' + (allowCustom ? ' checked' : '') + ' onchange="Modules._saveAllowCustomThemes(this.checked)"><span class="stg-switch-track"></span></label> Allow Custom Themes</label>';
+      h += '</div>';
+      h += '</div>';
 
-      html += '</div>';
-      html += '</div></details>';
+      // ── Display sizes ──
+      h += '<div class="stg-card">';
+      h += '<div class="stg-card-title">\uD83D\uDD0D Display Sizes</div>';
+      h += '<div class="stg-form-grid stg-form-grid-3">';
 
-      // ── Section 2: Theme Administration ─────────────────────────────
-      const allowCustomRow = rows.find(r => (r.key || r.configKey) === 'ALLOW_CUSTOM_THEMES');
-      const allowCustom = allowCustomRow ? String(allowCustomRow.value || 'FALSE').toUpperCase() === 'TRUE' : false;
+      h += '<div class="stg-field"><label class="stg-label">Desktop Font</label>';
+      h += '<div class="stg-input-row"><select id="font-scale-input" class="stg-input">';
+      [90,95,100,105,110,115,120,125,130].forEach(function(n) { h += '<option value="'+n+'"'+(currentScale===String(n)?' selected':'')+'>'+n+'%</option>'; });
+      h += '</select><button class="stg-btn stg-btn-sm" onclick="Modules.saveFontScale()">Save</button></div></div>';
 
-      html += '<details class="settings-section settings-accordion">';
-      html += '<summary class="settings-accordion-trigger"><span class="settings-accordion-chevron">&#9654;</span>';
-      html += '<span class="settings-section-icon">\uD83C\uDFA8</span>';
-      html += '<span class="settings-accordion-label">Theme Administration</span>';
-      html += '<span class="settings-accordion-count">' + _e((tmMeta[currentTheme] || {}).label || currentTheme) + '</span>';
-      html += '</summary>';
-      html += '<div class="settings-accordion-body">';
+      h += '<div class="stg-field"><label class="stg-label">Mobile Font</label>';
+      h += '<div class="stg-input-row"><select id="font-scale-mobile-input" class="stg-input">';
+      [90,95,100,105,110,115,120,125,130].forEach(function(n) { h += '<option value="'+n+'"'+(currentMobileScale===String(n)?' selected':'')+'>'+n+'%</option>'; });
+      h += '</select><button class="stg-btn stg-btn-sm" onclick="Modules.saveFontScaleMobile()">Save</button></div></div>';
 
-      // Master theme dropdown
-      html += '<div class="settings-card">';
-      html += '<div class="settings-card-label">\uD83C\uDFDB\uFE0F Foundational Theme</div>';
-      html += '<p class="settings-card-hint">Sets the site-wide theme. \u201CDefault\u201D lets each member choose their own. Click a card to select, then apply.</p>';
-      html += '<input type="hidden" id="global-theme-select" value="' + _e(globalTheme) + '">';
-      html += '<div class="theme-grid" style="margin:10px 0;">';
-      // Default option card
-      html += '<div class="theme-card' + (globalTheme === 'default' ? ' selected' : '') + '" onclick="document.getElementById(\'global-theme-select\').value=\'default\';document.querySelectorAll(\'.theme-card\').forEach(function(c){c.classList.remove(\'selected\')});this.classList.add(\'selected\')">';
-      html += '<div class="tc-swatch" style="background:linear-gradient(135deg,#1a1a2e 50%,#22d3ee);"></div>';
-      html += '<div class="tc-body"><div class="tc-name">Default</div><div class="tc-mode">member choice</div></div>';
-      if (globalTheme === 'default') html += '<span class="tc-check">\u2713</span>';
-      html += '</div>';
-      themeList.forEach(t => {
-        const m = tmMeta[t] || {};
-        const isCurrent = (globalTheme === t);
-        html += '<div class="theme-card' + (isCurrent ? ' selected' : '') + '" onclick="document.getElementById(\'global-theme-select\').value=\'' + t + '\';document.querySelectorAll(\'.theme-card\').forEach(function(c){c.classList.remove(\'selected\')});this.classList.add(\'selected\')">';
-        html += '<div class="tc-swatch" style="background:linear-gradient(135deg,' + (m.bg || '#111') + ' 50%,' + (m.accent || '#888') + ');"></div>';
-        html += '<div class="tc-body"><div class="tc-name">' + _e(m.label || t) + '</div><div class="tc-mode">' + _e(m.mode || '') + '</div></div>';
-        if (isCurrent) html += '<span class="tc-check">\u2713</span>';
-        html += '</div>';
-      });
-      html += '</div>';
-      html += '<button class="btn btn-primary" onclick="Modules.saveGlobalTheme()" style="padding:8px 20px;border-radius:6px;border:none;background:var(--accent);color:var(--bg);font-weight:600;font-size:0.82rem;cursor:pointer;">Apply Theme</button>';
-      html += '</div>';
+      h += '<div class="stg-field"><label class="stg-label">Quiz Size</label>';
+      h += '<div class="stg-input-row"><select id="quiz-size-select" class="stg-input">';
+      h += '<option value="0"' + (currentQuizSize === '0' ? ' selected' : '') + '>All</option>';
+      [5,10,15,20,25,30,40,50].forEach(function(n) { h += '<option value="'+n+'"'+(currentQuizSize===String(n)?' selected':'')+'>'+n+'</option>'; });
+      h += '</select><button class="stg-btn stg-btn-sm" onclick="Modules.saveQuizSize()">Save</button></div></div>';
 
-      // Allow Custom Themes toggle
-      html += '<div class="settings-card" style="margin-top:2px;">';
-      html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">';
-      html += '<div>';
-      html += '<div class="settings-card-label">\u2728 Allow Custom Themes</div>';
-      html += '<p class="settings-card-hint" style="margin:4px 0 0;">When enabled, members can choose personal themes and use Interface Studio. When disabled, your foundational theme is enforced for everyone.</p>';
-      html += '</div>';
-      html += '<label class="toggle-switch">';
-      html += '<input type="checkbox" id="allow-custom-themes-toggle"' + (allowCustom ? ' checked' : '') + ' onchange="Modules._saveAllowCustomThemes(this.checked)">';
-      html += '<span class="slider"></span></label>';
-      html += '</div></div>';
+      h += '</div></div>';
 
-      html += '</div>';
-      html += '</div></details>';
-
-      // ── Section 3: Interface Studio (admin) ─────────────────────────
-      // Lazy-load studio fonts when this accordion opens
+      // ── Interface Studio ──
       if (typeof Adornment !== 'undefined' && Adornment.loadStudioFonts) Adornment.loadStudioFonts();
-      var _ov;
-      try { _ov = JSON.parse(localStorage.getItem(Adornment.OVERRIDE_LS_KEY) || '{}'); } catch(e) { _ov = {}; }
+      var _ov; try { _ov = JSON.parse(localStorage.getItem(Adornment.OVERRIDE_LS_KEY) || '{}'); } catch(e) { _ov = {}; }
       if (!_ov.vars)  _ov.vars  = {};
       if (!_ov.fonts) _ov.fonts = {};
       if (!_ov.sizes) _ov.sizes = {};
       if (!_ov.pads)  _ov.pads  = {};
 
-      html += '<details class="settings-section settings-accordion">';
-      html += '<summary class="settings-accordion-trigger"><span class="settings-accordion-chevron">&#9654;</span>';
-      html += '<span class="settings-section-icon">\uD83C\uDFA8</span>';
-      html += '<span class="settings-accordion-label">Interface Studio</span>';
-      html += '<span class="settings-accordion-count">Fonts, sizes, spacing, corners</span>';
-      html += '</summary>';
-      html += '<div class="settings-accordion-body">';
-      html += '<p class="settings-section-desc" style="margin-bottom:10px;font-size:0.78rem;">Fonts, sizes, spacing, and corners. Changes preview instantly. <strong>Save All</strong> to persist, <strong>Reset</strong> to undo.</p>';
+      h += '<div class="stg-card">';
+      h += '<div class="stg-card-title">\u2728 Interface Studio</div>';
+      h += '<p class="stg-card-desc">Fine-tune fonts, sizes, spacing, and corners. Changes preview live.</p>';
 
-      // Helper: build a labelled percentage input row (default = 100%)
-      function _studioSlider(id, label, hint, unit, min, max, step, current, def) {
-        var pct = def > 0 ? Math.round(current / def * 100) : 100;
-        var s = '';
-        s += '<div class="studio-row">';
-        s += '<div class="studio-label-wrap">';
-        s += '<label class="studio-label" for="' + id + '">' + label + '</label>';
-        if (hint) s += '<span class="studio-hint">' + hint + '</span>';
-        s += '</div>';
-        s += '<div class="studio-control">';
-        s += '<input type="number" id="' + id + '" min="25" max="300" step="5" value="' + pct + '" data-def="' + def + '" data-unit="' + unit + '" class="studio-pct" oninput="Modules._studioPreview()">';
-        s += '<span class="studio-pct-suffix">%</span>';
-        s += '</div>';
-        s += '</div>';
-        return s;
-      }
-
-      // Helper: graphical font-family picker with preview cards
-      function _studioFontPicker(id, label, hint, current) {
-        var fonts = [
-          { val: '', label: 'Default (Inter)', sample: 'Aa' },
-          { val: "'Inter', sans-serif",                 label: 'Inter',             sample: 'Aa' },
-          { val: "'Lora', serif",                       label: 'Lora',              sample: 'Aa' },
-          { val: "'Merriweather', serif",               label: 'Merriweather',      sample: 'Aa' },
-          { val: "'Montserrat', sans-serif",            label: 'Montserrat',        sample: 'Aa' },
-          { val: "'Nunito', sans-serif",                label: 'Nunito',            sample: 'Aa' },
-          { val: "'Open Sans', sans-serif",             label: 'Open Sans',         sample: 'Aa' },
-          { val: "'Poppins', sans-serif",               label: 'Poppins',           sample: 'Aa' },
-          { val: "'Playfair Display', serif",           label: 'Playfair Display',  sample: 'Aa' },
-          { val: "'PT Serif', serif",                   label: 'PT Serif',          sample: 'Aa' },
-          { val: "'Raleway', sans-serif",               label: 'Raleway',           sample: 'Aa' },
-          { val: "'Roboto', sans-serif",                label: 'Roboto',            sample: 'Aa' },
-          { val: "'Roboto Slab', serif",                label: 'Roboto Slab',       sample: 'Aa' },
-          { val: "'Source Sans 3', sans-serif",         label: 'Source Sans 3',     sample: 'Aa' },
-          { val: "'Work Sans', sans-serif",             label: 'Work Sans',         sample: 'Aa' },
-          { val: "'Noto Serif', Georgia, serif",        label: 'Noto Serif',        sample: 'Aa' },
-          { val: "Georgia, serif",                      label: 'Georgia',           sample: 'Aa' },
-          { val: "'Courier New', monospace",            label: 'Courier New',       sample: 'Aa' }
-        ];
-        var s = '';
-        s += '<div class="studio-row" style="flex-direction:column;align-items:flex-start;">';
-        s += '<div class="studio-label-wrap" style="margin-bottom:6px;">';
-        s += '<label class="studio-label">' + label + '</label>';
-        if (hint) s += '<span class="studio-hint">' + hint + '</span>';
-        s += '</div>';
-        s += '<input type="hidden" id="' + id + '" value="' + _e(current) + '">';
-        s += '<div style="display:flex;flex-wrap:wrap;gap:6px;">';
-        fonts.forEach(function(f) {
-          var isSel = (current === f.val) ? ' selected' : '';
-          s += '<div class="studio-font-card' + isSel + '" onclick="document.getElementById(\'' + id + '\').value=\'' + _e(f.val).replace(/'/g, "\\'") + '\';this.parentNode.querySelectorAll(\'.studio-font-card\').forEach(function(c){c.classList.remove(\'selected\')});this.classList.add(\'selected\');Modules._studioPreview()" title="' + _e(f.label) + '">';
-          s += '<span class="font-sample" style="font-family:' + (f.val || 'inherit') + ';">' + f.sample + '</span>';
-          s += '<span class="font-name">' + _e(f.label) + '</span>';
-          s += '</div>';
-        });
-        s += '</div>';
-        s += '</div>';
-        return s;
-      }
-
-      // ── Fonts ──
-      html += '<details class="settings-accordion">';
-      html += '<summary class="settings-accordion-trigger">\uD83D\uDDA5 Fonts<span class="settings-accordion-count">Body & Heading typefaces</span></summary>';
-      html += '<div class="settings-accordion-body">';
-      html += _studioFontPicker('studio-font-body', 'Body Font', 'All regular text, menus, tables, cards', _ov.fonts.body || '');
-      html += _studioFontPicker('studio-font-heading', 'Heading Font', 'Page titles, section headers, welcome hero', _ov.fonts.heading || '');
-      html += '<div id="studio-font-preview" style="margin-top:8px;padding:12px;border-radius:8px;background:var(--bg-sunken);border:1px solid var(--line);">';
-      html += '<div style="font-size:1.15rem;font-weight:700;margin-bottom:4px;">Heading Preview</div>';
-      html += '<div style="font-size:0.85rem;">Body text preview. The quick brown fox jumps over the lazy dog. 0123456789</div>';
-      html += '</div>';
-      html += '</div></details>';
-
-      // ── Font Sizes ──
-      html += '<details class="settings-accordion">';
-      html += '<summary class="settings-accordion-trigger">\uD83D\uDD20 Font Sizes<span class="settings-accordion-count">Every text element</span></summary>';
-      html += '<div class="settings-accordion-body">';
-
-      var _szGroups = [
-        { title: 'Page & Headings', items: [
-          { sel: '.page-header h1',         label: 'Page Title',          def: '1.4',  min: 0.8, max: 3,   step: 0.05 },
-          { sel: '.page-header p',          label: 'Page Subtitle',       def: '0.85', min: 0.6, max: 1.5, step: 0.05 },
-          { sel: '.welcome-hero h1',        label: 'Welcome Title',       def: '2',    min: 1,   max: 4,   step: 0.1  },
-          { sel: '.welcome-hero .subtitle', label: 'Welcome Subtitle',    def: '1',    min: 0.7, max: 2,   step: 0.05 },
-          { sel: '.welcome-hero .verse',    label: 'Welcome Verse',       def: '0.82', min: 0.6, max: 1.5, step: 0.05 },
-        ]},
-        { title: 'Navigation', items: [
-          { sel: '.nav-item',               label: 'Menu Items',          def: '0.86', min: 0.6, max: 1.3, step: 0.02 },
-          { sel: '.nav-item .icon',         label: 'Menu Icons',          def: '1',    min: 0.7, max: 2,   step: 0.05 },
-          { sel: '.nav-group-label',        label: 'Menu Section Label',  def: '0.68', min: 0.5, max: 1,   step: 0.02 },
-        ]},
-        { title: 'Cards', items: [
-          { sel: '.card .card-icon',        label: 'Card Icon',           def: '1.6',  min: 0.8, max: 3,   step: 0.1  },
-          { sel: '.card .card-title',       label: 'Card Title',          def: '0.92', min: 0.6, max: 1.5, step: 0.02 },
-          { sel: '.card .card-desc',        label: 'Card Description',    def: '0.78', min: 0.5, max: 1.3, step: 0.02 },
-        ]},
-        { title: 'Tables', items: [
-          { sel: '.data-table',             label: 'Table Body',          def: '0.85', min: 0.6, max: 1.3, step: 0.05 },
-          { sel: '.data-table th',          label: 'Table Header',        def: '0.74', min: 0.5, max: 1.2, step: 0.02 },
-        ]},
-        { title: 'Buttons & Pills', items: [
-          { sel: '.btn',                    label: 'Buttons',             def: '0.875', min: 0.6, max: 1.3, step: 0.025 },
-          { sel: '.btn-sm',                 label: 'Small Buttons',       def: '0.75',  min: 0.5, max: 1.1, step: 0.025 },
-          { sel: '.pill',                   label: 'Pills / Tags',        def: '0.75',  min: 0.5, max: 1.1, step: 0.025 },
-          { sel: '.badge',                  label: 'Badges',              def: '0.72',  min: 0.5, max: 1.1, step: 0.02  },
-        ]},
-        { title: 'Forms', items: [
-          { sel: '.label',                  label: 'Field Labels',        def: '0.8125', min: 0.6, max: 1.2, step: 0.025 },
-          { sel: '.settings-input',         label: 'Input Fields',        def: '0.9',    min: 0.7, max: 1.3, step: 0.05  },
-        ]},
-        { title: 'Modals & Alerts', items: [
-          { sel: '.modal-title',            label: 'Modal Title',         def: '1.1',  min: 0.8, max: 2,   step: 0.05 },
-          { sel: '.alert',                  label: 'Alert Text',          def: '0.85', min: 0.6, max: 1.3, step: 0.05 },
-          { sel: '.toast',                  label: 'Toast Messages',      def: '0.875', min: 0.6, max: 1.3, step: 0.025 },
-        ]},
-        { title: 'Empty States & Misc', items: [
-          { sel: '.empty-state-icon',       label: 'Empty State Icon',    def: '2.5',   min: 1, max: 5,   step: 0.25 },
-          { sel: '.empty-state-title',      label: 'Empty State Title',   def: '1',     min: 0.7, max: 2, step: 0.05 },
-          { sel: '.empty-state p',          label: 'Empty State Text',    def: '0.85',  min: 0.6, max: 1.3, step: 0.05 },
-          { sel: '.settings-section-title', label: 'Settings Title',      def: '1.05',  min: 0.7, max: 1.8, step: 0.05 },
-          { sel: '.settings-card-label',    label: 'Settings Card Label', def: '0.85',  min: 0.6, max: 1.3, step: 0.05 },
-          { sel: '.settings-card-hint',     label: 'Settings Card Hint',  def: '0.8',   min: 0.5, max: 1.2, step: 0.05 },
-        ]},
-        { title: 'Browse Cards (Lexicon, Doctrine, Library)', items: [
-          { sel: '.browse-item-title',      label: 'Browse Card Title',   def: '0.9',  min: 0.6, max: 1.5, step: 0.05 },
-          { sel: '.browse-item-sub',        label: 'Browse Card Subtitle',def: '0.78', min: 0.5, max: 1.2, step: 0.02 },
-          { sel: '.browse-detail-label',    label: 'Detail Card Label',   def: '0.72', min: 0.5, max: 1.1, step: 0.02 },
-          { sel: '.browse-detail-card p',   label: 'Detail Card Text',    def: '0.88', min: 0.6, max: 1.3, step: 0.02 },
-        ]},
+      // Fonts
+      var fonts = [
+        { val: '', label: 'Default (Inter)' },
+        { val: "'Inter', sans-serif", label: 'Inter' },
+        { val: "'Lora', serif", label: 'Lora' },
+        { val: "'Merriweather', serif", label: 'Merriweather' },
+        { val: "'Montserrat', sans-serif", label: 'Montserrat' },
+        { val: "'Nunito', sans-serif", label: 'Nunito' },
+        { val: "'Open Sans', sans-serif", label: 'Open Sans' },
+        { val: "'Poppins', sans-serif", label: 'Poppins' },
+        { val: "'Playfair Display', serif", label: 'Playfair Display' },
+        { val: "'Raleway', sans-serif", label: 'Raleway' },
+        { val: "'Roboto', sans-serif", label: 'Roboto' },
+        { val: "'Source Sans 3', sans-serif", label: 'Source Sans 3' },
+        { val: "'Work Sans', sans-serif", label: 'Work Sans' },
+        { val: "Georgia, serif", label: 'Georgia' },
       ];
 
-      _szGroups.forEach(function(g) {
-        html += '<div class="studio-group-title">' + g.title + '</div>';
-        g.items.forEach(function(it) {
-          var savedVal = _ov.sizes[it.sel] ? parseFloat(_ov.sizes[it.sel]) : it.def;
-          html += _studioSlider(
-            'sz-' + it.sel.replace(/[^a-zA-Z0-9]/g, '-'),
-            it.label,
-            it.sel,
-            'rem',
-            it.min, it.max, it.step,
-            savedVal, it.def
-          );
-        });
+      h += '<div class="stg-form-grid">';
+      h += '<div class="stg-field"><label class="stg-label">Body Font</label>';
+      h += '<input type="hidden" id="studio-font-body" value="' + _e(_ov.fonts.body || '') + '">';
+      h += '<div class="stg-font-grid">';
+      fonts.forEach(function(f) {
+        h += '<div class="stg-font-chip' + ((_ov.fonts.body || '') === f.val ? ' selected' : '') + '" style="font-family:' + (f.val || 'inherit') + ';" onclick="document.getElementById(\'studio-font-body\').value=\'' + _e(f.val).replace(/'/g, "\\'") + '\';this.parentNode.querySelectorAll(\'.stg-font-chip\').forEach(function(c){c.classList.remove(\'selected\')});this.classList.add(\'selected\');Modules._studioPreview()">' + _e(f.label) + '</div>';
       });
-      html += '</div></details>';
-
-      // ── Padding & Spacing ──
-      html += '<details class="settings-accordion">';
-      html += '<summary class="settings-accordion-trigger">\u2194\uFE0F Padding & Spacing<span class="settings-accordion-count">Breathing room for every element</span></summary>';
-      html += '<div class="settings-accordion-body">';
-
-      var _padGroups = [
-        { title: 'Cards & Containers', items: [
-          { sel: '.card',            label: 'Card Padding',        def: '1.25', min: 0.5, max: 3,   step: 0.125 },
-          { sel: '.card-header',     label: 'Card Header',         def: '1',    min: 0.25, max: 2,  step: 0.125 },
-          { sel: '.card-body',       label: 'Card Body',           def: '1.25', min: 0.5, max: 3,   step: 0.125 },
-          { sel: '.settings-card',   label: 'Settings Card',       def: '18',   min: 8,   max: 40,  step: 2, unit: 'px' },
-        ]},
-        { title: 'Buttons & Pills', items: [
-          { sel: '.btn-v',           label: 'Button Vertical',     def: '0.5',  min: 0.2, max: 1.5, step: 0.05  },
-          { sel: '.btn-h',           label: 'Button Horizontal',   def: '1.25', min: 0.5, max: 3,   step: 0.125 },
-          { sel: '.pill-v',          label: 'Pill Vertical',       def: '0.25', min: 0.1, max: 1,   step: 0.05  },
-          { sel: '.pill-h',          label: 'Pill Horizontal',     def: '0.75', min: 0.25, max: 2,  step: 0.125 },
-        ]},
-        { title: 'Navigation', items: [
-          { sel: '.nav-item-v',      label: 'Menu Item Vertical',  def: '8',    min: 2,   max: 20,  step: 1, unit: 'px' },
-          { sel: '.nav-item-h',      label: 'Menu Item Horizontal',def: '20',   min: 8,   max: 40,  step: 2, unit: 'px' },
-        ]},
-        { title: 'Tables', items: [
-          { sel: '.table-cell-v',    label: 'Cell Vertical',       def: '10',   min: 2,   max: 24,  step: 1, unit: 'px' },
-          { sel: '.table-cell-h',    label: 'Cell Horizontal',     def: '14',   min: 4,   max: 30,  step: 1, unit: 'px' },
-        ]},
-        { title: 'Forms', items: [
-          { sel: '.input-v',         label: 'Input Vertical',      def: '0.6',  min: 0.2, max: 1.5, step: 0.05  },
-          { sel: '.input-h',         label: 'Input Horizontal',    def: '0.85', min: 0.3, max: 2,   step: 0.05  },
-        ]},
-        { title: 'Modals', items: [
-          { sel: '.modal-body',      label: 'Modal Body',          def: '1.25', min: 0.5, max: 3,   step: 0.125 },
-        ]},
-      ];
-
-      _padGroups.forEach(function(g) {
-        html += '<div class="studio-group-title">' + g.title + '</div>';
-        g.items.forEach(function(it) {
-          var unit = it.unit || 'rem';
-          var savedVal = _ov.pads[it.sel] ? parseFloat(_ov.pads[it.sel]) : it.def;
-          html += _studioSlider(
-            'pad-' + it.sel.replace(/[^a-zA-Z0-9]/g, '-'),
-            it.label,
-            '', unit,
-            it.min, it.max, it.step,
-            savedVal, it.def
-          );
-        });
+      h += '</div></div>';
+      h += '<div class="stg-field"><label class="stg-label">Heading Font</label>';
+      h += '<input type="hidden" id="studio-font-heading" value="' + _e(_ov.fonts.heading || '') + '">';
+      h += '<div class="stg-font-grid">';
+      fonts.forEach(function(f) {
+        h += '<div class="stg-font-chip' + ((_ov.fonts.heading || '') === f.val ? ' selected' : '') + '" style="font-family:' + (f.val || 'inherit') + ';" onclick="document.getElementById(\'studio-font-heading\').value=\'' + _e(f.val).replace(/'/g, "\\'") + '\';this.parentNode.querySelectorAll(\'.stg-font-chip\').forEach(function(c){c.classList.remove(\'selected\')});this.classList.add(\'selected\');Modules._studioPreview()">' + _e(f.label) + '</div>';
       });
-      html += '</div></details>';
+      h += '</div></div>';
+      h += '</div>';
 
-      // ── Corners & Shadows ──
-      html += '<details class="settings-accordion">';
-      html += '<summary class="settings-accordion-trigger">\u25A3 Corners & Shadows<span class="settings-accordion-count">Border radius & elevation</span></summary>';
-      html += '<div class="settings-accordion-body">';
-
-      var _cornerItems = [
-        { varName: '--radius-sm',   label: 'Small Radius',  hint: 'Tags, skeletons',             def: 6,    min: 0, max: 20,  step: 1 },
-        { varName: '--radius-md',   label: 'Medium Radius', hint: 'Cards, inputs, modals',        def: 12,   min: 0, max: 30,  step: 1 },
-        { varName: '--radius-lg',   label: 'Large Radius',  hint: 'Dialogs, hero sections',       def: 20,   min: 0, max: 40,  step: 1 },
-      ];
-
-      _cornerItems.forEach(function(it) {
-        var savedVal = _ov.vars[it.varName] ? parseInt(_ov.vars[it.varName], 10) : it.def;
-        html += _studioSlider(
-          'corner-' + it.varName.replace(/[^a-zA-Z0-9]/g, '-'),
-          it.label, it.hint, 'px',
-          it.min, it.max, it.step,
-          savedVal, it.def
-        );
+      // Corner radius
+      h += '<div class="stg-form-grid stg-form-grid-3">';
+      [{ v: '--radius-sm', l: 'Small Radius', d: 6 }, { v: '--radius-md', l: 'Medium Radius', d: 12 }, { v: '--radius-lg', l: 'Large Radius', d: 20 }].forEach(function(it) {
+        var saved = _ov.vars[it.v] ? parseInt(_ov.vars[it.v], 10) : it.d;
+        var pct = Math.round(saved / it.d * 100);
+        h += '<div class="stg-field"><label class="stg-label">' + it.l + '</label>';
+        h += '<div class="stg-input-row"><input type="number" id="corner-' + it.v.replace(/[^a-zA-Z0-9]/g, '-') + '" class="stg-input studio-pct" value="' + pct + '" data-def="' + it.d + '" data-unit="px" min="0" max="300" step="5" oninput="Modules._studioPreview()" style="width:70px;"><span class="stg-unit">%</span></div>';
+        h += '</div>';
       });
-      html += '<div class="studio-group-title" style="margin-top:14px;">Shadows</div>';
-      html += '<div class="studio-row">';
-      html += '<div class="studio-label-wrap"><label class="studio-label">Shadow Intensity</label>';
-      html += '<span class="studio-hint">Controls all drop shadows</span></div>';
-      html += '<select id="studio-shadow" class="settings-input studio-select" onchange="Modules._studioPreview()">';
-      var _shadowSaved = _ov.vars['--shadow-sm'] || '';
-      [
-        { val: '',                                        label: 'Default' },
-        { val: 'none',                                    label: 'None (flat)' },
-        { val: '0 1px 2px rgba(0,0,0,0.04)',              label: 'Subtle' },
-        { val: '0 1px 3px rgba(0,0,0,0.06)',              label: 'Light (default)' },
-        { val: '0 2px 6px rgba(0,0,0,0.10)',              label: 'Medium' },
-        { val: '0 4px 12px rgba(0,0,0,0.15)',             label: 'Heavy' },
-      ].forEach(function(opt) {
-        html += '<option value="' + _e(opt.val) + '"' + (_shadowSaved === opt.val ? ' selected' : '') + '>' + _e(opt.label) + '</option>';
-      });
-      html += '</select></div>';
-      html += '</div></details>';
+      h += '</div>';
 
-      // ── Custom CSS ──
-      html += '<details class="settings-accordion">';
-      html += '<summary class="settings-accordion-trigger">\u2328 Custom CSS<span class="settings-accordion-count">Advanced: raw CSS overrides</span></summary>';
-      html += '<div class="settings-accordion-body">';
-      html += '<p class="settings-card-hint" style="margin-bottom:8px;">Write any CSS here. It\u2019s injected last, so it overrides everything above. Use selectors from the design system.</p>';
-      html += '<textarea id="studio-custom-css" class="settings-input" rows="6" style="width:100%;font-family:monospace;font-size:0.82rem;resize:vertical;" placeholder=".card { box-shadow: none; }\\n.btn { border-radius: 4px; }">' + _e(_ov.custom || '') + '</textarea>';
-      html += '</div></details>';
+      // Custom CSS
+      h += '<div class="stg-field" style="margin-top:8px;"><label class="stg-label">Custom CSS</label>';
+      h += '<textarea id="studio-custom-css" class="stg-input stg-textarea" rows="4" placeholder=".card { box-shadow: none; }">' + _e(_ov.custom || '') + '</textarea></div>';
 
-      // ── Action buttons ──
-      html += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;padding-bottom:16px;">';
-      html += '<button class="btn btn-primary" onclick="Modules._studioSave()" style="padding:8px 22px;font-size:0.82rem;">Save All</button>';
-      html += '<button class="btn btn-ghost" onclick="Modules._studioReset()" style="padding:8px 22px;font-size:0.82rem;">Reset</button>';
-      html += '<button class="btn" onclick="Modules._studioRestoreVisuals()" style="padding:8px 22px;font-size:0.82rem;background:var(--danger);color:#fff;border:none;">Restore Defaults</button>';
-      html += '</div>';
+      // Studio actions
+      h += '<div class="stg-form-foot">';
+      h += '<button class="stg-btn stg-btn-primary" onclick="Modules._studioSave()">Save All</button>';
+      h += '<button class="stg-btn stg-btn-ghost" onclick="Modules._studioReset()">Reset</button>';
+      h += '<button class="stg-btn stg-btn-danger" onclick="Modules._studioRestoreVisuals()">Restore Defaults</button>';
+      h += '</div>';
+      h += '</div>';
 
-      html += '</div></details>'; // close Interface Studio accordion
+      return h;
+    },
+    after: null
+  };
 
-      html += '</div>'; // close Look & Feel tab
+  // ════════════════════════════════════════════════════════════════════════
+  //  MODULES
+  // ════════════════════════════════════════════════════════════════════════
+  _settingsTabRenderers['modules'] = {
+    html: function() {
+      var allToggleable = Object.keys(_moduleMeta).filter(function(k) { return _protectedModules.indexOf(k) === -1; });
+      var totalOn = allToggleable.filter(function(k) { return _isModuleEnabled(k); }).length;
+      var h = '';
+      h += '<div class="stg-card">';
+      h += '<div class="stg-card-title">\uD83E\uDDE9 Site Modules <span class="stg-card-count">' + totalOn + '/' + allToggleable.length + ' active</span></div>';
+      h += '<p class="stg-card-desc">Toggle features on and off. Protected modules cannot be disabled.</p>';
 
-      // ══ Tab: Modules ════════════════════════════════════════════════
-      html += '<div class="config-tab-panel" data-tab="modules">';
-
-      // ── Section 5: Site Modules (Accordion) ──────────────────────────
-      html += '<details class="settings-section settings-accordion">';
-      html += '<summary class="settings-accordion-trigger"><span class="settings-accordion-chevron">&#9654;</span>';
-      html += '<span class="settings-section-icon">\uD83E\uDDE9</span>';
-      html += '<span class="settings-accordion-label">Site Modules</span>';
-      html += '<span class="settings-accordion-count">' + totalOn + ' / ' + allToggleable.length + ' active</span>';
-      html += '</summary>';
-      html += '<div class="settings-accordion-body">';
-
-      for (const cat of _moduleCategories) {
+      for (var ci = 0; ci < _moduleCategories.length; ci++) {
+        var cat = _moduleCategories[ci];
         var catKeys = cat.modules.filter(function(k) { return _moduleMeta[k] || _protectedModules.indexOf(k) !== -1; });
         if (!catKeys.length) continue;
-        var catOn = catKeys.filter(function(k) { return _protectedModules.indexOf(k) !== -1 || _isModuleEnabled(k); }).length;
-        html += '<div style="margin-top:14px;margin-bottom:6px;padding:6px 10px;border-radius:var(--radius-sm, 6px);background:var(--surface-alt, rgba(255,255,255,0.04));display:flex;align-items:center;gap:8px;">';
-        html += '<span style="font-size:1.05rem;">' + cat.icon + '</span>';
-        html += '<span style="font-weight:600;font-size:0.88rem;color:var(--ink);">' + _e(cat.label) + '</span>';
-        html += '<span style="margin-left:auto;font-size:0.75rem;color:var(--ink-muted);">' + catOn + ' / ' + catKeys.length + '</span>';
-        html += '</div>';
-        for (var ci = 0; ci < catKeys.length; ci++) {
-          var ck = catKeys[ci];
+        h += '<div class="stg-mod-cat"><span class="stg-mod-cat-icon">' + cat.icon + '</span> ' + _e(cat.label) + '</div>';
+        for (var ci2 = 0; ci2 < catKeys.length; ci2++) {
+          var ck = catKeys[ci2];
           var isProt = _protectedModules.indexOf(ck) !== -1;
           var meta = _moduleMeta[ck] || { label: ck, icon: '\u2699' };
-          html += _toggleRow(ck, meta, isProt || _isModuleEnabled(ck), isProt);
+          h += _toggleRow(ck, meta, isProt || _isModuleEnabled(ck), isProt);
         }
       }
-      html += '</div></details>';
+      h += '</div>';
+      return h;
+    },
+    after: null
+  };
 
-      html += '</div>'; // close Modules tab
+  // ════════════════════════════════════════════════════════════════════════
+  //  DATABASE & CONNECTIONS
+  // ════════════════════════════════════════════════════════════════════════
+  _settingsTabRenderers['database'] = {
+    html: function() {
+      var rows = _cfgD.rows;
+      var h = '';
+      var ep = {}; try { ep = TheVine.endpoints(); } catch(e) {}
+      var provLS; try { provLS = JSON.parse(localStorage.getItem('flock_provisioning') || '{}'); } catch(e) { provLS = {}; }
+      var dbUrl = provLS.DATABASE_URL || (ep.FLOCK_ENDPOINTS && ep.FLOCK_ENDPOINTS[0]) || '';
 
-      // ══ Tab: Administration ═════════════════════════════════════════
-      html += '<div class="config-tab-panel" data-tab="admin">';
+      // GAS Endpoint
+      h += '<div class="stg-card">';
+      h += '<div class="stg-card-title">\uD83D\uDD0C Database Endpoint</div>';
+      h += '<div class="stg-kv"><span>Status</span><span class="stg-pill ' + (dbUrl ? 'stg-pill-ok' : 'stg-pill-off') + '" id="prov-health-primary">' + (dbUrl ? 'Configured' : 'Not set') + '</span></div>';
+      h += '<div class="stg-field" style="margin-top:8px;"><label class="stg-label">Google Apps Script URL</label>';
+      h += '<input type="url" id="prov-DATABASE_URL" class="stg-input" value="' + _e(dbUrl) + '" placeholder="https://script.google.com/macros/s/.../exec"></div>';
+      h += '<div class="stg-form-foot">';
+      h += '<button class="stg-btn stg-btn-primary" onclick="Modules._provisioningSave()">Save</button>';
+      h += '<button class="stg-btn stg-btn-ghost" onclick="Modules._provisioningTest()">Test Connection</button>';
+      h += '</div>';
+      h += '<div id="prov-status" style="margin-top:6px;"></div>';
+      h += '</div>';
 
-      // ── Church Identity card ─────────────────────────────────────────
-      // Pull the 5 most critical settings directly from rows for a first-class UI
-      var _idFields = [
-        { key: 'CHURCH_NAME',       label: 'Church Name',    type: 'text',   placeholder: 'e.g. Stronger by Grace',  hint: 'Displayed in the portal header and member cards.' },
-        { key: 'ADMIN_EMAIL',       label: 'Admin Email',    type: 'email',  placeholder: 'e.g. pastor@church.org',  hint: 'Receives system alerts and new member notifications.' },
-        { key: 'CHURCH_TIMEZONE',   label: 'Timezone',       type: 'text',   placeholder: 'e.g. America/New_York',   hint: 'Used for scheduling, calendar events, and reminders.' },
-        { key: 'SESSION_TTL_HOURS', label: 'Session Length', type: 'number', placeholder: '6',                       hint: 'Hours before members are automatically signed out.' },
-        { key: 'MIN_PASSCODE_LENGTH', label: 'Min Passcode', type: 'number', placeholder: '6',                      hint: 'Minimum characters required for member passcodes.' },
-      ];
-      html += '<div class="settings-card" style="margin-bottom:18px;border:1px solid var(--accent,#22d3ee);border-radius:14px;padding:20px 22px;">';
-      html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">';
-      html += '<span style="font-size:1.3rem;">&#127981;</span>';
-      html += '<div><div style="font-weight:700;font-size:1rem;color:var(--ink);">Church Identity</div>';
-      html += '<div style="font-size:0.76rem;color:var(--ink-muted);">Your most critical settings — always visible, never buried.</div></div>';
-      html += '</div>';
-      html += '<div class="cp-identity-grid">';
-      _idFields.forEach(function(f) {
-        var row = rows.find(function(r) { return (r.key || r.configKey) === f.key; });
-        var val = row ? String(row.value != null ? row.value : '') : '';
-        html += '<div class="cp-identity-field">';
-        html += '<label class="cp-identity-label" for="ci-' + f.key + '">' + _e(f.label) + '</label>';
-        html += '<input type="' + f.type + '" id="ci-' + f.key + '" class="settings-input" value="' + _e(val) + '" placeholder="' + _e(f.placeholder) + '" data-ci-key="' + _e(f.key) + '">';
-        html += '<div class="cp-identity-hint">' + _e(f.hint) + '</div>';
-        html += '</div>';
+      // API Health
+      h += '<div class="stg-card">';
+      h += '<div class="stg-card-title">\uD83D\uDCE1 API Health</div>';
+      h += '<div class="stg-health-row"><span class="stg-health-label">\uD83D\uDCC4 Apps Script</span>';
+      h += '<span class="stg-pill stg-pill-check" id="health-pill-database">Pending</span></div>';
+      h += '<div id="health-conn-type" style="font-size:0.82rem;color:var(--ink-muted);padding:6px 0;">Detecting\u2026</div>';
+      h += '<div class="stg-form-foot">';
+      h += '<button class="stg-btn stg-btn-primary" onclick="Modules._runHealthCheck()">\uD83D\uDCE1 Run Diagnostics</button>';
+      h += '<span id="health-timestamp" class="stg-status"></span>';
+      h += '</div></div>';
+
+      // Sheet Chunks
+      var scRow = rows.find(function(r) { return (r.key || r.configKey) === 'SHEET_CHUNKS'; });
+      var sc = {}; try { sc = JSON.parse(scRow ? scRow.value : '{}'); } catch(e) {}
+      var domains = ['Members','Attendance','Giving','Sermons','Outreach','Care','Ministry'];
+      h += '<div class="stg-card">';
+      h += '<div class="stg-card-title">\uD83D\uDCCA Sheet Chunks</div>';
+      h += '<p class="stg-card-desc">Split large sheets into parallel chunks for performance.</p>';
+      h += '<div class="stg-chunk-grid">';
+      domains.forEach(function(d) {
+        var cur = sc[d] || 1;
+        h += '<div class="stg-chunk-row"><span>' + _e(d) + '</span><select id="chunk-' + _e(d) + '" class="stg-input stg-input-sm">';
+        [1,2,3,4].forEach(function(n) { h += '<option value="'+n+'"'+(cur===n?' selected':'')+'>'+n+'</option>'; });
+        h += '</select></div>';
       });
-      html += '</div>';
-      html += '<div style="display:flex;align-items:center;gap:10px;margin-top:16px;flex-wrap:wrap;">';
-      html += '<button class="btn btn-primary" onclick="Modules._saveIdentity()" style="padding:9px 24px;font-size:0.85rem;">Save Identity</button>';
-      html += '<span id="ci-save-status" style="font-size:0.8rem;color:var(--ink-muted);"></span>';
-      html += '</div>';
-      html += '</div>';
+      h += '</div>';
+      h += '<div class="stg-form-foot"><button class="stg-btn stg-btn-primary" onclick="Modules._saveSheetChunks()">Save Chunks</button>';
+      h += '<span id="chunk-save-status" class="stg-status"></span></div>';
+      h += '</div>';
 
-      // ── Section 5: System Settings (Accordion) ──────────────────────
-      const _cfgCatIcons = { General: '\uD83C\uDFE0', Auth: '\uD83D\uDD10', Modules: '\uD83E\uDDE9', Notifications: '\uD83D\uDD14', Display: '\uD83D\uDCBB', Security: '\uD83D\uDEE1\uFE0F' };
-      const _cfgExamples = {
-        CHURCH_NAME: 'e.g. Stronger by Grace',
-        CHURCH_TIMEZONE: 'e.g. America/New_York',
-        SESSION_TTL_HOURS: 'e.g. 6 (hours before auto-logout)',
-        MIN_PASSCODE_LENGTH: 'e.g. 6 (minimum characters)',
-        ALLOW_SELF_REGISTER: 'TRUE or FALSE',
-        PHOTO_DRIVE_FOLDER_ID: 'Google Drive folder ID (auto-created if blank)',
-        PHOTO_MAX_SIZE_MB: 'e.g. 10 (max megabytes per photo)',
-        SERMON_DRIVE_FOLDER_ID: 'Google Drive folder ID (auto-created if blank)',
-        SERMON_MAX_SIZE_MB: 'e.g. 50 (max megabytes per sermon file)',
-        NOTIFY_NEW_MEMBER: 'TRUE or FALSE',
-        NOTIFY_PRAYER_REQUEST: 'TRUE or FALSE',
-        ADMIN_EMAIL: 'e.g. pastor@church.org',
-        ITEMS_PER_PAGE: 'e.g. 50 (rows per list query)',
-        DATE_FORMAT: 'e.g. YYYY-MM-DD',
-        CARD_PREFIX: 'e.g. FlockOS (prefix for member card numbers)',
-        LOCKDOWN: 'TRUE or FALSE',
-        GLOBAL_THEME: 'Theme name or default'
-      };
+      // SMS Gateway
+      var twilioOn = _cfgBool('TWILIO_ENABLED');
+      h += '<div class="stg-card">';
+      h += '<div class="stg-card-title">\uD83D\uDCF1 SMS Gateway</div>';
+      h += '<div class="stg-toggle-list">';
+      h += '<div class="stg-toggle-row"><span>Enable Twilio SMS</span>';
+      h += '<label class="stg-switch"><input type="checkbox" id="twilio-toggle"' + (twilioOn ? ' checked' : '') + ' onchange="Modules._twilioToggle(this.checked)"><span class="stg-switch-track"></span></label></div>';
+      h += '</div>';
+      h += '<p class="stg-card-desc" style="margin-top:6px;font-family:monospace;font-size:0.78rem;">Script Properties: TWILIO_SID, TWILIO_TOKEN, TWILIO_NUMBER</p>';
+      h += '</div>';
 
-      // Group rows by category
-      const _cfgGroups = {};
-      rows.forEach(r => {
-        const cat = r.category || 'Other';
-        if (!_cfgGroups[cat]) _cfgGroups[cat] = [];
-        _cfgGroups[cat].push(r);
-      });
-      // Sort categories: known order first, then alphabetical extras
-      const _cfgOrder = ['General', 'Auth', 'Modules', 'Notifications', 'Display', 'Security'];
-      const _cfgSorted = _cfgOrder.filter(c => _cfgGroups[c]).concat(
-        Object.keys(_cfgGroups).filter(c => _cfgOrder.indexOf(c) === -1).sort()
-      );
-
-      html += '<details class="settings-section settings-accordion">';
-      html += '<summary class="settings-accordion-trigger">';
-      html += '<span class="settings-accordion-chevron">&#9654;</span>';
-      html += '<span class="settings-accordion-label">\uD83D\uDCCB System Settings</span>';
-      html += '<span class="settings-accordion-count">' + rows.length + ' entries</span>';
-      html += '</summary>';
-      html += '<div class="settings-accordion-body">';
-      html += '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px;">';
-      html += '<p style="margin:0;font-size:0.82rem;color:var(--ink-muted);">Click any setting to edit its value. Settings are grouped by category.</p>';
-      html += '<button onclick="Modules.newConfig()" style="padding:8px 18px;border-radius:8px;border:none;background:var(--accent);color:var(--bg);font-weight:600;font-size:0.82rem;cursor:pointer;">+ Add Setting</button>';
-      html += '</div>';
-      html += '<input type="search" id="cfg-search" class="settings-input" placeholder="\uD83D\uDD0D Filter by key, value, or description\u2026" style="width:100%;box-sizing:border-box;margin-bottom:18px;" oninput="Modules._cfgFilter(this.value)">';
-
-      _cfgSorted.forEach(cat => {
-        const catRows = _cfgGroups[cat];
-        const catIcon = _cfgCatIcons[cat] || '\u2699\uFE0F';
-        html += '<div class="sys-cfg-group">';
-        html += '<div class="sys-cfg-group-hdr">';
-        html += '<span class="sys-cfg-group-icon">' + catIcon + '</span>';
-        html += '<span class="sys-cfg-group-label">' + _e(cat) + '</span>';
-        html += '<span class="sys-cfg-group-count">' + catRows.length + '</span>';
-        html += '</div>';
-        html += '<div class="sys-cfg-group-cards">';
-        catRows.forEach(r => {
-          const k = _e(r.key || r.configKey || '');
-          const v = r.value != null ? String(r.value) : '';
-          const desc = r.description || r.notes || '';
-          const ex = _cfgExamples[r.key || r.configKey] || '';
-          const isBool = v === 'TRUE' || v === 'FALSE';
-          const isEmpty = !v;
-          html += '<div class="sys-cfg-card" onclick="Modules.editConfig(\'' + k + '\')" title="Click to edit">';
-          html += '<div class="sys-cfg-card-key">' + k + '</div>';
-          if (isBool) {
-            html += '<div class="sys-cfg-card-val sys-cfg-bool ' + (v === 'TRUE' ? 'sys-cfg-on' : 'sys-cfg-off') + '">';
-            html += '<span class="sys-cfg-dot"></span> ' + v;
-            html += '</div>';
-          } else if (isEmpty) {
-            html += '<div class="sys-cfg-card-val sys-cfg-empty">' + (ex || 'Not set') + '</div>';
-          } else {
-            html += '<div class="sys-cfg-card-val">' + _e(v.length > 60 ? v.substring(0, 57) + '\u2026' : v) + '</div>';
-          }
-          if (desc) html += '<div class="sys-cfg-card-desc">' + _e(desc) + '</div>';
-          if (r.updatedAt) html += '<div class="sys-cfg-card-ts">' + _e(r.updatedAt) + '</div>';
-          html += '</div>';
-        });
-        html += '</div></div>';
-      });
-
-      html += '</div></details>';
-
-      // ── Section 6–10: Database & Connections (consolidated) ─────────
-      var _ep = {};
-      try { _ep = TheVine.endpoints(); } catch(e) { _ep = {}; }
-      var _provLS;
-      try { _provLS = JSON.parse(localStorage.getItem('flock_provisioning') || '{}'); } catch(e) { _provLS = {}; }
-      const _sheetChunksRow = rows.find(r => (r.key || r.configKey) === 'SHEET_CHUNKS');
-      let _sheetChunks = {};
-      try { _sheetChunks = JSON.parse(_sheetChunksRow ? _sheetChunksRow.value : '{}'); } catch(e) {}
-      const _chunkDomains = ['Members','Attendance','Giving','Sermons','Outreach','Care','Ministry'];
-
-      const _dbUrl = (_provLS.DATABASE_URL || (_ep.FLOCK_ENDPOINTS && _ep.FLOCK_ENDPOINTS[0]) || '');
-      const _dbConfigured = !!_dbUrl;
-
-      html += '<details class="settings-section settings-accordion">';
-      html += '<summary class="settings-accordion-trigger"><span class="settings-accordion-chevron">&#9654;</span>';
-      html += '<span class="settings-section-icon">&#128268;</span>';
-      html += '<span class="settings-accordion-label">Database &amp; Connections</span>';
-      html += '<span class="settings-accordion-count">' + (_dbConfigured ? '&#128994; Endpoint configured' : '&#9898; Not configured') + '</span>';
-      html += '</summary>';
-      html += '<div class="settings-accordion-body">';
-
-      // ── Sub: Database Endpoint ──
-      html += '<details class="settings-accordion">';
-      html += '<summary class="settings-accordion-trigger">&#128193; Database Endpoint<span class="settings-accordion-count">' + (_dbConfigured ? 'Configured' : 'Required') + '</span></summary>';
-      html += '<div class="settings-accordion-body">';
-      html += '<div class="settings-card" style="margin-bottom:14px;">';
-      html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">';
-      html += '<div class="settings-card-label" style="margin-bottom:0;">&#128193; Google Apps Script Endpoint</div>';
-      html += '<span class="health-pill health-pill-unknown" id="prov-health-primary"><span class="health-dot"></span>Untested</span>';
-      html += '</div>';
-      html += '<p class="settings-card-hint" style="margin:4px 0 8px;">The Google Apps Script Web App URL that powers the FlockOS backend. This single endpoint handles all CRM modules — members, events, giving, missions, content, and more.</p>';
-      html += '<input type="url" id="prov-DATABASE_URL" class="prov-url-field" value="' + _e(_dbUrl) + '" placeholder="https://script.google.com/macros/s/.../exec" style="width:100%;box-sizing:border-box;">';
-      html += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">';
-      html += '<button class="btn btn-primary" onclick="Modules._provisioningSave()" style="padding:8px 22px;font-size:0.82rem;">Save</button>';
-      html += '<button class="btn btn-ghost" onclick="Modules._provisioningTest()" style="padding:8px 22px;font-size:0.82rem;">Test Connection</button>';
-      html += '</div>';
-      html += '<div id="prov-status" style="margin-top:8px;"></div>';
-      html += '</div>';
-      html += '</div></details>';
-
-      // ── Sub: Parallel Sheet Chunks ──
-      html += '<details class="settings-accordion">';
-      html += '<summary class="settings-accordion-trigger">&#128202; Parallel Sheet Chunks<span class="settings-accordion-count">Horizontal scaling — up to 4 chunks per domain</span></summary>';
-      html += '<div class="settings-accordion-body">';
-      html += '<div class="settings-card">';
-      html += '<div class="settings-card-label">&#128202; Sheet Expansion</div>';
-      html += '<p class="settings-card-hint" style="margin:4px 0 10px;">When a domain tab grows beyond ~50,000 rows, split it into parallel chunks (e.g. <code>Members_1</code>, <code>Members_2</code>). The backend aggregates all chunks automatically. <strong>Keep at 1 until a domain is near capacity.</strong></p>';
-      html += '<table style="width:100%;border-collapse:collapse;font-size:0.85rem;">';
-      html += '<thead><tr>';
-      html += '<th style="text-align:left;padding:6px 10px;border-bottom:1px solid var(--line);color:var(--ink-muted);font-weight:600;">Domain</th>';
-      html += '<th style="text-align:center;padding:6px 10px;border-bottom:1px solid var(--line);color:var(--ink-muted);font-weight:600;">Active Chunks</th>';
-      html += '<th style="text-align:left;padding:6px 10px;border-bottom:1px solid var(--line);color:var(--ink-muted);font-weight:600;">Sheet Tabs</th>';
-      html += '</tr></thead><tbody>';
-      _chunkDomains.forEach(function(domain) {
-        var cur = _sheetChunks[domain] || 1;
-        var tabList = [];
-        for (var ci = 1; ci <= cur; ci++) { tabList.push(domain + (cur > 1 ? '_' + ci : '')); }
-        html += '<tr style="border-bottom:1px solid var(--surface-alt,rgba(0,0,0,0.05));">';
-        html += '<td style="padding:8px 10px;font-weight:600;color:var(--ink);">' + _e(domain) + '</td>';
-        html += '<td style="padding:8px 10px;text-align:center;">';
-        html += '<select id="chunk-' + _e(domain) + '" class="settings-input" style="width:70px;padding:4px 8px;font-size:0.85rem;">';
-        [1,2,3,4].forEach(function(n) {
-          html += '<option value="' + n + '"' + (cur === n ? ' selected' : '') + '>' + n + '</option>';
-        });
-        html += '</select>';
-        html += '</td>';
-        html += '<td style="padding:8px 10px;font-size:0.78rem;color:var(--ink-muted);font-family:monospace;">' + _e(tabList.join(', ')) + '</td>';
-        html += '</tr>';
-      });
-      html += '</tbody></table>';
-      html += '<div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">';
-      html += '<button class="btn btn-primary" onclick="Modules._saveSheetChunks()" style="padding:8px 22px;font-size:0.82rem;">Save Chunk Config</button>';
-      html += '<span id="chunk-save-status" style="font-size:0.8rem;color:var(--ink-muted);align-self:center;"></span>';
-      html += '</div>';
-      html += '</div>';
-      html += '</div></details>';
-
-      // ── Sub: API Health ──
-      html += '<details class="settings-accordion">';
-      html += '<summary class="settings-accordion-trigger">&#128225; API Health<span class="settings-accordion-count">Run diagnostics to check</span></summary>';
-      html += '<div class="settings-accordion-body">';
-      html += '<div class="settings-card" id="health-dashboard">';
-      html += '<div class="health-row" id="health-row-database" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--line);">';
-      html += '<div style="flex:1;min-width:0;">';
-      html += '<div style="font-weight:600;font-size:0.88rem;color:var(--ink);">&#128196; Apps Script (GAS) <span style="font-size:0.72rem;font-weight:400;color:var(--ink-muted);">— Auth &amp; database endpoint</span></div>';
-      html += '<div style="font-size:0.78rem;color:var(--ink-muted);">Mints auth tokens for every session &mdash; must always be reachable</div>';
-      html += '</div>';
-      html += '<span class="health-pill health-pill-unknown" id="health-pill-database"><span class="health-dot"></span>Pending</span>';
-      html += '</div>';
-      html += '<div id="health-conn-type" style="padding:12px 0;border-bottom:1px solid var(--line);font-size:0.82rem;color:var(--ink-muted);">&#9203; Detecting connection type&hellip;</div>';
-      html += '<div style="display:flex;align-items:center;gap:12px;margin-top:14px;flex-wrap:wrap;">';
-      html += '<button class="btn btn-primary" onclick="Modules._runHealthCheck()" style="padding:10px 24px;font-size:0.88rem;">&#128225; Run Diagnostics</button>';
-      html += '<span id="health-timestamp" style="font-size:0.78rem;color:var(--ink-faint);"></span>';
-      html += '</div>';
-      html += '</div>';
-      html += '</div></details>';
-
-      // ── Sub: The Wellspring (local data mode) ──
-      var _wsAvailable = typeof TheWellspring !== 'undefined';
-      var _wsActive = _wsAvailable && TheWellspring.isActive();
-
-      html += '<details class="settings-accordion">';
-      html += '<summary class="settings-accordion-trigger">&#128167; The Wellspring<span class="settings-accordion-count">' + (_wsActive ? '&#128994; Local mode active' : '&#9729;&#65039; Cloud (default)') + '</span></summary>';
-      html += '<div class="settings-accordion-body">';
-
-      if (!_wsAvailable) {
-        html += '<div class="settings-card">';
-        html += '<p style="color:var(--ink-muted);font-size:0.85rem;">The Wellspring module is not loaded. Add the SheetJS CDN and <code>the_wellspring.js</code> script tags to enable local data mode.</p>';
-        html += '</div>';
+      // Wellspring
+      var wsAvail = typeof TheWellspring !== 'undefined';
+      var wsActive = wsAvail && TheWellspring.isActive();
+      h += '<div class="stg-card">';
+      h += '<div class="stg-card-title">\uD83D\uDCA7 The Wellspring</div>';
+      if (!wsAvail) {
+        h += '<p class="stg-card-desc">Module not loaded.</p>';
       } else {
-        html += '<div class="settings-card">';
-        html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">';
-        html += '<div>';
-        html += '<div class="settings-card-label">&#128167; Local Data Mode</div>';
-        html += '<p class="settings-card-hint" style="margin:4px 0 0;">&ldquo;Whoever drinks the water I give them will never thirst.&rdquo; &mdash; John 4:14<br>When enabled, data is read from .xls files stored in your browser instead of cloud APIs.</p>';
-        html += '</div>';
-        html += '<label class="settings-toggle">';
-        html += '<input type="checkbox" id="wellspring-toggle"' + (_wsActive ? ' checked' : '') + ' onchange="Modules._wellspringToggle(this.checked)">';
-        html += '<span class="settings-toggle-slider"></span>';
-        html += '</label>';
-        html += '</div>';
-        if (_wsActive) {
-          html += '<div style="margin-top:10px;padding:10px 14px;border-radius:8px;background:var(--accent);color:var(--bg);font-weight:600;font-size:0.85rem;">&#128167; LOCAL MODE ACTIVE &mdash; Data served from browser storage. Cloud APIs bypassed.</div>';
-        }
-        html += '</div>';
-        html += '<div class="settings-card" style="margin-top:12px;">';
-        html += '<div class="settings-card-label">&#128194; Import Database</div>';
-        html += '<p class="settings-card-hint">Select the .xls or .xlsx file exported from the FlockOS Google Sheet. All tabs are parsed and stored in your browser\'s IndexedDB &mdash; nothing is uploaded to any server.</p>';
-        html += '<div id="wellspring-database" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 0;flex-wrap:wrap;">';
-        html += '<div style="flex:1;min-width:200px;">';
-        html += '<div style="font-weight:600;font-size:0.88rem;color:var(--ink);">&#128167; FlockOS Database</div>';
-        html += '<div style="font-size:0.78rem;color:var(--ink-muted);">Complete local copy &mdash; members, events, giving, missions, statistics &amp; more</div>';
-        html += '<div id="ws-status-db" style="font-size:0.75rem;color:var(--ink-faint);margin-top:4px;">&#9203; Checking&hellip;</div>';
-        html += '</div>';
-        html += '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">';
-        html += '<label style="padding:8px 16px;border-radius:8px;border:1px solid var(--accent);color:var(--accent);font-weight:600;font-size:0.82rem;cursor:pointer;" onmouseenter="this.style.background=\'var(--accent)\';this.style.color=\'var(--bg)\'" onmouseleave="this.style.background=\'transparent\';this.style.color=\'var(--accent)\'">';
-        html += '&#128193; Choose File';
-        html += '<input type="file" accept=".xls,.xlsx,.xlsm" style="display:none;" onchange="Modules._wellspringLoad(this.files[0])">';
-        html += '</label>';
-        html += '<button onclick="Modules._wellspringExport()" style="padding:8px 14px;border-radius:8px;border:1px solid var(--line);background:var(--bg-raised);color:var(--ink);font-weight:600;font-size:0.82rem;cursor:pointer;">&#128229; Export</button>';
-        html += '<button onclick="Modules._wellspringClear()" style="padding:8px 14px;border-radius:8px;border:1px solid var(--line);background:var(--bg-raised);color:var(--warning,#c98b2e);font-weight:600;font-size:0.82rem;cursor:pointer;">&#128465; Clear</button>';
-        html += '</div>';
-        html += '</div>';
-        html += '</div>';
+        h += '<div class="stg-toggle-list"><div class="stg-toggle-row"><span>Local Data Mode</span>';
+        h += '<label class="stg-switch"><input type="checkbox" id="wellspring-toggle"' + (wsActive ? ' checked' : '') + ' onchange="Modules._wellspringToggle(this.checked)"><span class="stg-switch-track"></span></label></div></div>';
+        if (wsActive) h += '<div class="stg-banner stg-banner-info" style="margin-top:8px;">\uD83D\uDCA7 LOCAL MODE ACTIVE</div>';
+        h += '<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">';
+        h += '<label class="stg-btn stg-btn-ghost" style="cursor:pointer;">\uD83D\uDCC1 Import<input type="file" accept=".xls,.xlsx,.xlsm" style="display:none;" onchange="Modules._wellspringLoad(this.files[0])"></label>';
+        h += '<button class="stg-btn stg-btn-ghost" onclick="Modules._wellspringExport()">\uD83D\uDCE5 Export</button>';
+        h += '<button class="stg-btn stg-btn-ghost" onclick="Modules._wellspringClear()">\uD83D\uDDD1 Clear</button>';
+        h += '</div>';
+        h += '<div id="ws-status-db" style="font-size:0.75rem;color:var(--ink-muted);margin-top:6px;"></div>';
       }
-      html += '</div></details>';
+      h += '</div>';
 
-      // ── Sub: SMS Gateway — Twilio ──
-      var _twilioRow = rows.find(r => (r.key || r.configKey) === 'TWILIO_ENABLED');
-      var _twilioOn  = _twilioRow && String(_twilioRow.value).toUpperCase() === 'TRUE';
-
-      html += '<details class="settings-accordion">';
-      html += '<summary class="settings-accordion-trigger">&#128242; SMS Gateway<span class="settings-accordion-count">' + (_twilioOn ? 'Twilio enabled' : 'Off &mdash; using native SMS') + '</span></summary>';
-      html += '<div class="settings-accordion-body">';
-      html += '<div class="settings-card" style="margin-bottom:14px;">';
-      html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">';
-      html += '<div>';
-      html += '<div class="settings-card-label">&#128241; Enable Twilio SMS</div>';
-      html += '<p class="settings-card-hint" style="margin:4px 0 0;">When enabled, SMS buttons in Messages send texts through your Twilio account instead of opening the native messaging app. Requires <code>TWILIO_SID</code>, <code>TWILIO_TOKEN</code>, and <code>TWILIO_NUMBER</code> in your Database Script Properties.</p>';
-      html += '</div>';
-      html += '<label class="toggle-switch">';
-      html += '<input type="checkbox" id="twilio-toggle"' + (_twilioOn ? ' checked' : '') + ' onchange="Modules._twilioToggle(this.checked)">';
-      html += '<span class="slider"></span></label>';
-      html += '</div></div>';
-      html += '<div class="settings-card">';
-      html += '<div class="settings-card-label">&#128295; Setup</div>';
-      html += '<p class="settings-card-hint" style="margin:4px 0 6px;">Add these three Script Properties to your <strong>Database</strong> Apps Script project (Project Settings &rarr; Script Properties):</p>';
-      html += '<div style="font-family:monospace;font-size:0.8rem;background:var(--surface);padding:12px 16px;border-radius:8px;border:1px solid var(--line);line-height:1.7;">';
-      html += 'TWILIO_SID &nbsp;&nbsp;&nbsp;&nbsp;= <em>your Account SID</em><br>';
-      html += 'TWILIO_TOKEN &nbsp;&nbsp;= <em>your Auth Token</em><br>';
-      html += 'TWILIO_NUMBER &nbsp;= <em>your Twilio phone number (e.g. +15551234567)</em>';
-      html += '</div>';
-      html += '<p class="settings-card-hint" style="margin:8px 0 0;">Sign up at <strong>twilio.com</strong> &mdash; a free trial includes a phone number and enough credits to test. The toggle above stores <code>TWILIO_ENABLED=TRUE</code> in AppConfig.</p>';
-      html += '</div>';
-      html += '</div></details>';
-
-      html += '</div></details>'; // close Database & Connections accordion
-
-      // ── Section 8: Calendar Settings ────────────────────────────────
-      var _calS = {};
-      try { _calS = JSON.parse(localStorage.getItem('flock_calendar_settings') || '{}'); } catch(e) { _calS = {}; }
-
-      html += '<details class="settings-section settings-accordion">';
-      html += '<summary class="settings-accordion-trigger"><span class="settings-accordion-chevron">&#9654;</span>';
-      html += '<span class="settings-section-icon">\uD83D\uDCC5</span>';
-      html += '<span class="settings-accordion-label">Calendar</span>';
-      html += '<span class="settings-accordion-count">Views, feeds & schedule</span>';
-      html += '</summary>';
-      html += '<div class="settings-accordion-body">';
-
-      // ── Display Preferences ──
-      html += '<div class="settings-card" style="margin-bottom:14px;">';
-      html += '<div class="settings-card-label">\uD83D\uDCCB Display Preferences</div>';
-      html += '<p class="settings-card-hint" style="margin:2px 0 10px;">Configure your default calendar views and time settings.</p>';
-
-      // Default view
-      html += '<div style="margin-bottom:10px;">';
-      html += '<label style="font-size:0.78rem;font-weight:600;color:var(--ink-muted);display:block;margin-bottom:4px;">Default View</label>';
-      html += '<select id="cal-s-defaultView" style="width:100%;max-width:260px;padding:8px 12px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font-size:0.85rem;">';
-      ['month','week','day','agenda'].forEach(function(v) {
-        html += '<option value="' + v + '"' + ((_calS.defaultView || 'month') === v ? ' selected' : '') + '>' + v.charAt(0).toUpperCase() + v.slice(1) + '</option>';
+      // Calendar
+      var calS; try { calS = JSON.parse(localStorage.getItem('flock_calendar_settings') || '{}'); } catch(e) { calS = {}; }
+      h += '<div class="stg-card">';
+      h += '<div class="stg-card-title">\uD83D\uDCC5 Calendar</div>';
+      h += '<div class="stg-form-grid stg-form-grid-3">';
+      h += '<div class="stg-field"><label class="stg-label">Default View</label><select id="cal-s-defaultView" class="stg-input">';
+      ['month','week','day','agenda'].forEach(function(v) { h += '<option value="'+v+'"'+((calS.defaultView||'month')===v?' selected':'')+'>'+v.charAt(0).toUpperCase()+v.slice(1)+'</option>'; });
+      h += '</select></div>';
+      h += '<div class="stg-field"><label class="stg-label">Week Starts</label><select id="cal-s-weekStart" class="stg-input">';
+      h += '<option value="sunday"' + ((calS.weekStart||'sunday')==='sunday'?' selected':'') + '>Sunday</option>';
+      h += '<option value="monday"' + ((calS.weekStart||'sunday')==='monday'?' selected':'') + '>Monday</option>';
+      h += '</select></div>';
+      h += '<div class="stg-field"><label class="stg-label">Work Start</label><input type="number" id="cal-s-workStart" class="stg-input" min="0" max="23" value="'+(calS.workStart||6)+'"></div>';
+      h += '</div>';
+      h += '<div class="stg-toggle-list" style="margin-top:8px;">';
+      [{ id:'cal-s-showServices', l:'Service Plans', c: calS.showServices!==false },
+       { id:'cal-s-showAttendance', l:'Attendance Records', c: calS.showAttendance===true },
+       { id:'cal-s-showVolunteers', l:'Volunteer Schedule', c: calS.showVolunteers===true }].forEach(function(t) {
+        h += '<div class="stg-toggle-row"><span>'+t.l+'</span><label class="stg-switch"><input type="checkbox" id="'+t.id+'"'+(t.c?' checked':'')+'><span class="stg-switch-track"></span></label></div>';
       });
-      html += '</select></div>';
+      h += '</div>';
+      h += '<div class="stg-form-foot"><button class="stg-btn stg-btn-primary" onclick="Modules._calSettingsSave()">Save Calendar</button></div>';
+      h += '</div>';
 
-      // Week start
-      html += '<div style="margin-bottom:10px;">';
-      html += '<label style="font-size:0.78rem;font-weight:600;color:var(--ink-muted);display:block;margin-bottom:4px;">Week Starts On</label>';
-      html += '<select id="cal-s-weekStart" style="width:100%;max-width:260px;padding:8px 12px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font-size:0.85rem;">';
-      html += '<option value="sunday"' + ((_calS.weekStart || 'sunday') === 'sunday' ? ' selected' : '') + '>Sunday</option>';
-      html += '<option value="monday"' + ((_calS.weekStart || 'sunday') === 'monday' ? ' selected' : '') + '>Monday</option>';
-      html += '</select></div>';
+      return h;
+    },
+    after: function() {
+      _adConnectionCard().then(function(h) {
+        var el = document.getElementById('health-conn-type');
+        if (el) el.innerHTML = h;
+      }).catch(function(){});
+      if (typeof TheWellspring !== 'undefined') setTimeout(_wellspringRefreshStatus, 100);
+    }
+  };
 
-      // Working hours
-      html += '<div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:10px;">';
-      html += '<div>';
-      html += '<label style="font-size:0.78rem;font-weight:600;color:var(--ink-muted);display:block;margin-bottom:4px;">Working Hours Start</label>';
-      html += '<input type="number" id="cal-s-workStart" min="0" max="23" value="' + (_calS.workStart || 6) + '" style="width:80px;padding:8px 12px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font-size:0.85rem;">';
-      html += '</div>';
-      html += '<div>';
-      html += '<label style="font-size:0.78rem;font-weight:600;color:var(--ink-muted);display:block;margin-bottom:4px;">Working Hours End</label>';
-      html += '<input type="number" id="cal-s-workEnd" min="0" max="23" value="' + (_calS.workEnd || 22) + '" style="width:80px;padding:8px 12px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font-size:0.85rem;">';
-      html += '</div></div>';
-      html += '</div>';
+  // ════════════════════════════════════════════════════════════════════════
+  //  ALL SETTINGS (key-value editor)
+  // ════════════════════════════════════════════════════════════════════════
+  _settingsTabRenderers['advanced'] = {
+    html: function() {
+      var rows = _cfgD.rows;
+      var h = '';
+      h += '<div class="stg-card">';
+      h += '<div class="stg-card-title">\u2699 All Settings <span class="stg-card-count">' + rows.length + ' entries</span></div>';
+      h += '<div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;">';
+      h += '<input type="search" id="cfg-search" class="stg-input" placeholder="\uD83D\uDD0D Filter\u2026" style="flex:1;" oninput="Modules._cfgFilter(this.value)">';
+      h += '<button class="stg-btn stg-btn-primary" onclick="Modules.newConfig()">+ Add</button>';
+      h += '</div>';
 
-      // ── Integration Toggles ──
-      html += '<div class="settings-card" style="margin-bottom:14px;">';
-      html += '<div class="settings-card-label">\uD83D\uDD17 Module Integrations</div>';
-      html += '<p class="settings-card-hint" style="margin:2px 0 10px;">Choose which modules feed into the unified calendar view.</p>';
+      // Group by category
+      var groups = {};
+      rows.forEach(function(r) { var c = r.category || 'Other'; if (!groups[c]) groups[c] = []; groups[c].push(r); });
+      var order = ['System','Access','Display','Members','Church Info','Notifications','Learning','Giving','Attendance','Prayer','Sermons'];
+      var sorted = order.filter(function(c) { return groups[c]; }).concat(Object.keys(groups).filter(function(c) { return order.indexOf(c) === -1; }).sort());
 
-      var _calToggles = [
-        { id: 'cal-s-showServices', label: 'Service Plans', checked: _calS.showServices !== false },
-        { id: 'cal-s-showAttendance', label: 'Attendance Records', checked: _calS.showAttendance === true },
-        { id: 'cal-s-showMissions', label: 'Missions Schedules', checked: _calS.showMissions === true },
-        { id: 'cal-s-showDiscipleship', label: 'Discipleship Milestones', checked: _calS.showDiscipleship === true },
-        { id: 'cal-s-showVolunteers', label: 'Volunteer Schedule', checked: _calS.showVolunteers === true },
-      ];
-      _calToggles.forEach(function(t) {
-        html += '<div class="toggle-row" style="padding:6px 0;">';
-        html += '<div class="toggle-row-label"><span class="name">' + t.label + '</span></div>';
-        html += '<label class="toggle-switch">';
-        html += '<input type="checkbox" id="' + t.id + '"' + (t.checked ? ' checked' : '') + '>';
-        html += '<span class="slider"></span></label></div>';
+      sorted.forEach(function(cat) {
+        h += '<div class="stg-cfg-cat">' + _e(cat) + ' <span class="stg-cfg-cat-n">' + groups[cat].length + '</span></div>';
+        groups[cat].forEach(function(r) {
+          var k = r.key || r.configKey || '';
+          var v = r.value != null ? String(r.value) : '';
+          var isBool = v === 'TRUE' || v === 'FALSE';
+          h += '<div class="stg-cfg-row" onclick="Modules.editConfig(\'' + _e(k) + '\')">';
+          h += '<div class="stg-cfg-key">' + _e(k) + '</div>';
+          if (isBool) h += '<div class="stg-cfg-val ' + (v === 'TRUE' ? 'stg-cfg-on' : 'stg-cfg-off') + '">' + v + '</div>';
+          else h += '<div class="stg-cfg-val">' + _e(v.length > 50 ? v.substring(0, 47) + '\u2026' : v || '\u2014') + '</div>';
+          h += '</div>';
+        });
       });
-      html += '</div>';
+      h += '</div>';
+      return h;
+    },
+    after: null
+  };
 
-      // ── External Calendar Feeds ──
-      html += '<div class="settings-card" style="margin-bottom:14px;">';
-      html += '<div class="settings-card-label">\uD83C\uDF10 External Calendar Feeds</div>';
-      html += '<p class="settings-card-hint" style="margin:2px 0 10px;">Paste iCal (.ics) URLs from Google Calendar, Apple Calendar, Outlook, or any iCal-compatible source. Events will sync automatically.</p>';
+  // ════════════════════════════════════════════════════════════════════════
+  //  MASTER CONFIG
+  // ════════════════════════════════════════════════════════════════════════
+  _settingsTabRenderers['master'] = {
+    html: function() {
+      var h = '';
+      h += '<div class="stg-card">';
+      h += '<div class="stg-card-title">\uD83C\uDF10 Master Config</div>';
+      h += '<p class="stg-card-desc">Edit master defaults stored in Firestore. Push broadcasts to all churches.</p>';
+      h += '<div class="stg-form-foot">';
+      h += '<button class="stg-btn stg-btn-primary" onclick="Modules._masterConfigPushAll()">\uD83D\uDE80 Push to All Churches</button>';
+      h += '<button class="stg-btn stg-btn-ghost" onclick="Modules._masterConfigReload()">\uD83D\uDD04 Reload</button>';
+      h += '</div>';
+      h += '<div id="master-config-push-result" class="stg-status" style="margin-top:8px;"></div>';
+      h += '<div id="master-config-table-wrap" style="margin-top:12px;">Loading\u2026</div>';
+      h += '</div>';
+      return h;
+    },
+    after: function() { setTimeout(Modules._masterConfigRender, 80); }
+  };
 
-      for (var fi = 1; fi <= 3; fi++) {
-        html += '<div style="margin-bottom:8px;">';
-        html += '<label style="font-size:0.78rem;font-weight:600;color:var(--ink-muted);display:block;margin-bottom:2px;">Feed ' + fi + '</label>';
-        html += '<input type="url" id="cal-s-icalUrl' + fi + '" value="' + _e(_calS['icalUrl' + fi] || '') + '" placeholder="https://calendar.google.com/calendar/ical/…/basic.ics" style="width:100%;box-sizing:border-box;padding:8px 12px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font-size:0.85rem;">';
-        html += '</div>';
-      }
-      html += '<p class="settings-card-hint" style="margin:6px 0 0;font-size:0.72rem;">Tip: In Google Calendar → Settings → your calendar → "Secret address in iCal format".</p>';
-      html += '</div>';
-
-      // ── Visibility & Access ──
-      html += '<div class="settings-card" style="margin-bottom:14px;">';
-      html += '<div class="settings-card-label">\uD83D\uDD12 Visibility & Access</div>';
-      html += '<p class="settings-card-hint" style="margin:2px 0 10px;">Control default visibility for new events and delegation behavior.</p>';
-
-      html += '<div style="margin-bottom:10px;">';
-      html += '<label style="font-size:0.78rem;font-weight:600;color:var(--ink-muted);display:block;margin-bottom:4px;">Default Visibility for New Events</label>';
-      html += '<select id="cal-s-defaultVisibility" style="width:100%;max-width:260px;padding:8px 12px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font-size:0.85rem;">';
-      var _visSettOpts = [
-        { value: 'public',  label: '\uD83C\uDF10 Public' },
-        { value: 'members', label: '\uD83D\uDC65 Members Only' },
-        { value: 'leaders', label: '\uD83D\uDEE1\uFE0F Leaders' },
-        { value: 'deacons', label: '\u26EA Deacons' },
-        { value: 'pastors', label: '\u2720\uFE0F Pastors' },
-        { value: 'admins',  label: '\uD83D\uDD12 Admins' },
-        { value: 'private', label: '\uD83D\uDC64 Private' },
-      ];
-      _visSettOpts.forEach(function(v) {
-        html += '<option value="' + v.value + '"' + ((_calS.defaultVisibility || 'public') === v.value ? ' selected' : '') + '>' + v.label + '</option>';
-      });
-      html += '</select></div>';
-
-      html += '<div class="toggle-row" style="padding:6px 0;">';
-      html += '<div class="toggle-row-label"><span class="name">Show Restricted Event Titles</span>';
-      html += '<span class="desc" style="display:block;font-size:0.72rem;color:var(--ink-muted);">When off, events above your role show as \u201CBusy\u201D instead of the real title.</span></div>';
-      html += '<label class="toggle-switch">';
-      html += '<input type="checkbox" id="cal-s-showRestrictedTitles"' + (_calS.showRestrictedTitles !== false ? ' checked' : '') + '>';
-      html += '<span class="slider"></span></label></div>';
-      html += '</div>';
-
-      // ── Delegation Preferences ──
-      html += '<div class="settings-card" style="margin-bottom:14px;">';
-      html += '<div class="settings-card-label">\uD83D\uDC65 Delegation Preferences</div>';
-      html += '<p class="settings-card-hint" style="margin:2px 0 10px;">Control how others interact with your private calendar events.</p>';
-
-      html += '<div class="toggle-row" style="padding:6px 0;">';
-      html += '<div class="toggle-row-label"><span class="name">Accept Delegation Requests</span>';
-      html += '<span class="desc" style="display:block;font-size:0.72rem;color:var(--ink-muted);">When enabled, other users can request to view your private calendar.</span></div>';
-      html += '<label class="toggle-switch">';
-      html += '<input type="checkbox" id="cal-s-acceptDelegation"' + (_calS.acceptDelegation !== false ? ' checked' : '') + '>';
-      html += '<span class="slider"></span></label></div>';
-
-      html += '<div class="toggle-row" style="padding:6px 0;">';
-      html += '<div class="toggle-row-label"><span class="name">Show Delegate Names on Events</span>';
-      html += '<span class="desc" style="display:block;font-size:0.72rem;color:var(--ink-muted);">Display the name of the event owner on delegated calendar events.</span></div>';
-      html += '<label class="toggle-switch">';
-      html += '<input type="checkbox" id="cal-s-showDelegateNames"' + (_calS.showDelegateNames === true ? ' checked' : '') + '>';
-      html += '<span class="slider"></span></label></div>';
-
-      html += '<div class="toggle-row" style="padding:6px 0;">';
-      html += '<div class="toggle-row-label"><span class="name">Notify When Delegation Changes</span>';
-      html += '<span class="desc" style="display:block;font-size:0.72rem;color:var(--ink-muted);">Get notified when someone grants or revokes delegation to you.</span></div>';
-      html += '<label class="toggle-switch">';
-      html += '<input type="checkbox" id="cal-s-notifyDelegation"' + (_calS.notifyDelegation !== false ? ' checked' : '') + '>';
-      html += '<span class="slider"></span></label></div>';
-      html += '</div>';
-
-      // ── Save button ──
-      html += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;padding-bottom:16px;">';
-      html += '<button class="btn btn-primary" onclick="Modules._calSettingsSave()" style="padding:8px 22px;font-size:0.82rem;">Save Calendar Settings</button>';
-      html += '</div>';
-
-      html += '</div></details>'; // close calendar settings accordion
-
-      html += '</div>'; // close Administration tab
-
-      // ══ Tab: Master Config ══════════════════════════════════════════
-      html += '<div class="config-tab-panel" data-tab="master-config">';
-      html += '<div style="margin-bottom:18px;padding:14px 18px;border-radius:10px;background:var(--surface2,rgba(255,255,255,0.05));border:1px solid var(--border,rgba(255,255,255,0.1));">';
-      html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">';
-      html += '<span style="font-size:1.4rem;">&#127758;</span>';
-      html += '<div><div style="font-weight:700;font-size:1rem;color:var(--ink);">Master Config</div>';
-      html += '<div style="font-size:0.76rem;color:var(--ink-muted);">Edit the master defaults stored in this church\'s Firestore. Use <strong>Push to All Churches</strong> to broadcast a key to every deployment via their GAS endpoints.</div></div>';
-      html += '</div>';
-      html += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">';
-      html += '<button class="btn btn-primary" onclick="Modules._masterConfigPushAll()" style="padding:8px 20px;font-size:0.82rem;">&#128640; Push to All Churches</button>';
-      html += '<button class="btn btn-secondary" onclick="Modules._masterConfigReload()" style="padding:8px 16px;font-size:0.82rem;">&#128260; Reload</button>';
-      html += '</div>';
-      html += '<div id="master-config-push-result" style="margin-top:10px;font-size:0.78rem;color:var(--ink-muted);"></div>';
-      html += '</div>';
-
-      // Table — will be populated async after render
-      html += '<div id="master-config-table-wrap" style="border-radius:12px;overflow:hidden;border:1px solid var(--border,rgba(255,255,255,0.1));">';
-      html += '<div style="padding:24px;text-align:center;color:var(--ink-muted);font-size:0.82rem;">Loading master config\u2026</div>';
-      html += '</div>';
-
-      html += '</div>'; // close Master Config tab
-
-      _body(el, html);
-
-      // Load master config table async
-      setTimeout(Modules._masterConfigRender, 80);
-
-      // Restore the last active tab (survives every _reload('config') call)
-      Modules._configTab(_configActiveTab || 'overview');
-
-      // Hydrate status cards after render
-      if (_wsAvailable) { setTimeout(_wellspringRefreshStatus, 100); }
-      // Auto-populate connection type without making the user click Run Diagnostics
-      setTimeout(function() {
-        var connTypeEl = document.getElementById('health-conn-type');
-        if (connTypeEl) {
-          _adConnectionCard().then(function(h) { connTypeEl.innerHTML = h; }).catch(function() {});
-        }
-      }, 150);
-
-    } catch (e) { _body(el, _errHtml(e.message)); }
-  });
-
-  // ═══════════════════════════════════════════════════════════════════════
   // 27. AUDIT  (pastor+)
   // ═══════════════════════════════════════════════════════════════════════
   _def('audit', async el => {
@@ -12350,6 +11811,9 @@ const Modules = (() => {
       return;
     }
     _shell(el, 'Audit Log', 'System activity, changes & security events.', '');
+
+    // ── Background async — fetch data and fill table when ready ──────────
+    (async function _loadAudit() {
     try {
       const res  = await TheVine.flock.call('audit.list', { limit: 100 });
       const rows = _rows(res);
@@ -12364,6 +11828,7 @@ const Modules = (() => {
         ])
       ));
     } catch (e) { _body(el, _errHtml(e.message)); }
+    })();
   });
 
 
@@ -13215,6 +12680,36 @@ const Modules = (() => {
       }
     }
 
+    // ── Paint hero skeleton instantly — no network needed ────────────────
+    var now      = new Date();
+    var hour     = now.getHours();
+    var greeting = hour < 12 ? 'Good Morning' : hour < 17 ? 'Good Afternoon' : 'Good Evening';
+    var firstName = isLoggedIn
+      ? (session.name || session.displayName || session.email || '').split(/[\s@]/)[0]
+      : '';
+    var dateOpts = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+    var todayStr = now.toLocaleDateString('en-US', dateOpts);
+
+    var skeleton = '<div class="ur-container">';
+    skeleton += '<div class="ur-hero">';
+    skeleton += '<div class="ur-hero-candle">&#128367;</div>';
+    skeleton += '<h1 class="ur-hero-title">The Upper Room</h1>';
+    skeleton += '<p class="ur-hero-greeting">' + _e(greeting) + (firstName ? ', ' + _e(firstName) : '') + '</p>';
+    skeleton += '<p class="ur-hero-date">' + _e(todayStr) + '</p>';
+    skeleton += '</div>';
+    skeleton += '<div class="ur-nav" id="ur-nav">';
+    skeleton += '<button class="ur-nav-tab" onclick="document.getElementById(\'ur-devotional\')&&document.getElementById(\'ur-devotional\').scrollIntoView({behavior:\'smooth\',block:\'start\'})"><span>&#9729;</span> Devotional</button>';
+    skeleton += '<button class="ur-nav-tab" onclick="document.getElementById(\'ur-reading\')&&document.getElementById(\'ur-reading\').scrollIntoView({behavior:\'smooth\',block:\'start\'})"><span>&#128214;</span> Reading</button>';
+    if (isLoggedIn) skeleton += '<button class="ur-nav-tab" onclick="document.getElementById(\'ur-journal\')&&document.getElementById(\'ur-journal\').scrollIntoView({behavior:\'smooth\',block:\'start\'})"><span>&#128221;</span> Journal</button>';
+    skeleton += '<button class="ur-nav-tab" onclick="document.getElementById(\'ur-prayer\')&&document.getElementById(\'ur-prayer\').scrollIntoView({behavior:\'smooth\',block:\'start\'})"><span>&#128591;</span> Prayer</button>';
+    if (isLoggedIn) skeleton += '<button class="ur-nav-tab" onclick="document.getElementById(\'ur-pulse\')&&document.getElementById(\'ur-pulse\').scrollIntoView({behavior:\'smooth\',block:\'start\'})"><span>&#9673;</span> Pulse</button>';
+    skeleton += '</div>';
+    skeleton += '<div id="ur-content">' + _spinner() + '</div>';
+    skeleton += '</div>';
+    el.innerHTML = skeleton;
+
+    // ── Load all data in background, build full content when ready ────
+    (async function _loadUpperRoom() {
     try {
       console.log('[FLOCK-DEBUG] upper-room: starting data fetches — _isFirebaseComms()=' + _isFirebaseComms());
       var _urFetchStart = Date.now();
@@ -13323,31 +12818,34 @@ const Modules = (() => {
       const answeredCount = myPrayers.filter(p => (p['Status'] || p.status || '').toLowerCase() === 'answered').length;
       const activeCount   = myPrayers.length - answeredCount;
 
-      // ── Build HTML ──
-      let h = '<div class="ur-container">';
-
-      // ═══ HERO BANNER ═══
-      h += '<div class="ur-hero">';
-      h += '<div class="ur-hero-candle">&#128367;</div>';
-      h += '<h1 class="ur-hero-title">The Upper Room</h1>';
-      h += '<p class="ur-hero-greeting">' + _e(greeting) + (firstName ? ', ' + _e(firstName) : '') + '</p>';
-      h += '<p class="ur-hero-date">' + _e(todayStr) + '</p>';
+      // ── Update hero with scripture verse if available ──
       if (todayDevFinal['Scripture']) {
-        h += '<p class="ur-hero-verse">&ldquo;' + _bibleLink(todayDevFinal['Scripture']) + '&rdquo;</p>';
+        var heroEl = el.querySelector('.ur-hero');
+        if (heroEl) {
+          var vp = document.createElement('p');
+          vp.className = 'ur-hero-verse';
+          vp.innerHTML = '&ldquo;' + _bibleLink(todayDevFinal['Scripture']) + '&rdquo;';
+          heroEl.appendChild(vp);
+        }
       }
-      h += '</div>';
 
-      // ═══ SECTION NAV TABS ═══
-      h += '<div class="ur-nav" id="ur-nav">';
-      h += '<button class="ur-nav-tab" onclick="document.getElementById(\'ur-devotional\').scrollIntoView({behavior:\'smooth\',block:\'start\'})"><span>&#9729;</span> Devotional</button>';
-      if (hasReading) h += '<button class="ur-nav-tab" onclick="document.getElementById(\'ur-reading\').scrollIntoView({behavior:\'smooth\',block:\'start\'})"><span>&#128214;</span> Reading</button>';
-      if (isLoggedIn) h += '<button class="ur-nav-tab" onclick="document.getElementById(\'ur-journal\').scrollIntoView({behavior:\'smooth\',block:\'start\'})"><span>&#128221;</span> Journal</button>';
-      h += '<button class="ur-nav-tab" onclick="document.getElementById(\'ur-prayer\').scrollIntoView({behavior:\'smooth\',block:\'start\'})"><span>&#128591;</span> Prayer</button>';
-      if (myCare.length || myCompassion.length) {
-        h += '<button class="ur-nav-tab" onclick="document.getElementById(\'ur-care\').scrollIntoView({behavior:\'smooth\',block:\'start\'})"><span>&#10084;</span> My Care</button>';
+      // ── Update nav with conditional tabs ──
+      var navEl = document.getElementById('ur-nav');
+      if (navEl) {
+        var navHtml = '';
+        navHtml += '<button class="ur-nav-tab" onclick="document.getElementById(\'ur-devotional\').scrollIntoView({behavior:\'smooth\',block:\'start\'})"><span>&#9729;</span> Devotional</button>';
+        if (hasReading) navHtml += '<button class="ur-nav-tab" onclick="document.getElementById(\'ur-reading\').scrollIntoView({behavior:\'smooth\',block:\'start\'})"><span>&#128214;</span> Reading</button>';
+        if (isLoggedIn) navHtml += '<button class="ur-nav-tab" onclick="document.getElementById(\'ur-journal\').scrollIntoView({behavior:\'smooth\',block:\'start\'})"><span>&#128221;</span> Journal</button>';
+        navHtml += '<button class="ur-nav-tab" onclick="document.getElementById(\'ur-prayer\').scrollIntoView({behavior:\'smooth\',block:\'start\'})"><span>&#128591;</span> Prayer</button>';
+        if (myCare.length || myCompassion.length) {
+          navHtml += '<button class="ur-nav-tab" onclick="document.getElementById(\'ur-care\').scrollIntoView({behavior:\'smooth\',block:\'start\'})"><span>&#10084;</span> My Care</button>';
+        }
+        if (isLoggedIn) navHtml += '<button class="ur-nav-tab" onclick="document.getElementById(\'ur-pulse\').scrollIntoView({behavior:\'smooth\',block:\'start\'})"><span>&#9673;</span> Pulse</button>';
+        navEl.innerHTML = navHtml;
       }
-      if (isLoggedIn) h += '<button class="ur-nav-tab" onclick="document.getElementById(\'ur-pulse\').scrollIntoView({behavior:\'smooth\',block:\'start\'})"><span>&#9673;</span> Pulse</button>';
-      h += '</div>';
+
+      // ── Build content HTML (sections only — hero+nav already painted) ──
+      let h = '';
 
       // ═══ 1. TODAY'S DEVOTIONAL ═══
       h += '<section class="ur-section" id="ur-devotional">';
@@ -13725,10 +13223,15 @@ const Modules = (() => {
       h += '</div></div>';
 
       h += '</div>'; // end ur-container
-      el.innerHTML = h;
+
+      var contentEl = document.getElementById('ur-content');
+      if (contentEl) contentEl.innerHTML = h;
     } catch (e) {
-      _body(el, _errHtml(e.message));
+      var contentEl2 = document.getElementById('ur-content');
+      if (contentEl2) contentEl2.innerHTML = _errHtml(e.message);
+      else _body(el, _errHtml(e.message));
     }
+    })();
   });
 
   // ── Upper Room: save journal entry ──
@@ -17238,6 +16741,10 @@ const Modules = (() => {
     var resultEl = document.getElementById('master-config-push-result');
     if (resultEl) resultEl.innerHTML = '<span style="color:var(--ink-muted);">&#128640; Pushing to all churches\u2026</span>';
     try {
+      if (typeof firebase === 'undefined' || typeof firebase.functions !== 'function') {
+        if (resultEl) resultEl.innerHTML = '<span style="color:var(--danger);">Firebase Functions SDK not loaded. Add firebase-functions-compat.js to your page.</span>';
+        return;
+      }
       var pushFn = firebase.functions().httpsCallable('pushAllMasterConfig');
       var result = await pushFn({});
       var data   = result.data;
@@ -17339,7 +16846,7 @@ const Modules = (() => {
 
   // ── Interface Studio: live preview ──
   function _studioPreview() {
-    _studioDirty = true;
+    _cfgD.studioDirty = true;
     var obj = { vars: {}, fonts: {}, sizes: {}, pads: {}, custom: '' };
 
     // Fonts
@@ -17588,7 +17095,7 @@ const Modules = (() => {
       description: 'Interface Studio overrides (fonts, sizes, padding, corners, shadows, custom CSS)',
       category: 'Display'
     }).then(function() {
-      _studioDirty = false;
+      _cfgD.studioDirty = false;
       _toast('Interface Studio settings saved successfully.');
     }).catch(function(e) {
       _toast('Saved locally but backend save failed: ' + e.message, 'danger');
@@ -17598,7 +17105,7 @@ const Modules = (() => {
   // ── Interface Studio: reset ──
   function _studioReset() {
     if (!confirm('Reset all Interface Studio customizations to defaults? This cannot be undone.')) return;
-    _studioDirty = false;
+    _cfgD.studioDirty = false;
     Adornment.clearOverrides();
     _setAppCfg({
       key: 'INTERFACE_OVERRIDES',
@@ -20244,6 +19751,80 @@ const Modules = (() => {
     try { tasks = JSON.parse(localStorage.getItem(_ADMIN_TASKS_KEY) || '[]'); } catch (_) { tasks = []; }
 
     // ── Render skeleton instantly ────────────────────────────────────────
+    // Paint the full UI shell with local-only content first, then fill
+    // server-dependent sections (KPIs, care, events, etc.) progressively.
+
+    // Quick Actions grid
+    var qaButtons = [
+      { icon: '&#9881;&#65039;', label: 'Settings',         nav: 'config' },
+      { icon: '&#128101;',       label: 'Users',             nav: 'users' },
+      { icon: '&#128202;',       label: 'Statistics',        nav: 'statistics' },
+      { icon: '&#128196;',       label: 'Reports',           nav: 'reports' },
+      { icon: '&#128270;',       label: 'Audit Log',         nav: 'audit' },
+      { icon: '&#128030;',       label: 'Problems',          nav: 'problems' },
+      { icon: '&#128591;',       label: 'Prayers',           nav: 'prayer-admin' },
+      { icon: '&#127925;',       label: 'Music Stand',       nav: 'service-hub' },
+      { icon: '&#128197;',       label: 'Calendar',          nav: 'calendar' },
+      { icon: '&#128100;',       label: 'Directory',         nav: 'directory' },
+      { icon: '&#128640;',       label: 'Deploy Guide',      nav: 'deployment-guide' },
+      { icon: '&#9989;&#65039;', label: 'Great Commission',  href: 'the_great_commission.html' },
+      { icon: '&#9881;&#65039;', label: 'Generate Deploy',   href: 'bezalel.html' },
+    ];
+    var qaHtml = _adCard('&#128640; Quick Actions',
+      '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:7px;">'
+      + qaButtons.map(function (b) {
+          var action = b.href
+            ? 'window.location.href=\'' + b.href + '\''
+            : 'Modules._adGoTo(\'' + b.nav + '\',\'' + b.label + '\')'
+          return '<button onclick="' + action + '" style="display:flex;align-items:center;gap:6px;'
+            + 'padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:var(--bg);'
+            + 'color:var(--ink);cursor:pointer;font-size:0.77rem;font-family:inherit;text-align:left;">'
+            + '<span style="font-size:1rem;">' + b.icon + '</span>'
+            + _e(b.label) + '</button>';
+        }).join('')
+      + '</div>');
+
+    var connHtml = '<div id="ad-conn-card">' + _adCard('&#128268; Database Connection',
+      '<div style="font-size:0.78rem;color:var(--ink-muted);padding:4px 0;">Checking connection\u2026</div>') + '</div>';
+
+    // Scratchpad + Quick Tasks (local data only)
+    var scratchHtml = _adCard('&#128221; Scratchpad',
+      '<textarea id="ad-scratch" rows="5" style="width:100%;background:var(--bg);color:var(--ink);'
+      + 'border:1px solid var(--line);border-radius:8px;padding:10px;font-size:0.83rem;font-family:inherit;'
+      + 'resize:vertical;box-sizing:border-box;" placeholder="Quick notes, thoughts, reminders\u2026">'
+      + _e(scratch) + '</textarea>'
+      + '<button onclick="Modules._adSaveScratch()" style="margin-top:8px;padding:7px 18px;border-radius:8px;'
+      + 'border:none;background:var(--accent);color:var(--ink-inverse);font-weight:600;font-size:0.8rem;cursor:pointer;font-family:inherit;">Save Notes</button>');
+
+    var tasksHtml = _adCard('&#9745; Quick Tasks',
+      '<div style="display:flex;gap:6px;margin-bottom:10px;">'
+      + '<input id="ad-task-input" type="text" placeholder="Add a task\u2026" style="flex:1;padding:8px 10px;'
+      + 'border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font-size:0.83rem;box-sizing:border-box;"'
+      + ' onkeydown="if(event.key===\'Enter\')Modules._adAddTask()">'
+      + '<button onclick="Modules._adAddTask()" style="padding:8px 14px;border-radius:8px;border:none;'
+      + 'background:var(--accent);color:var(--ink-inverse);font-weight:600;cursor:pointer;font-size:0.83rem;font-family:inherit;">+</button>'
+      + '</div>'
+      + '<div id="ad-task-list" style="max-height:220px;overflow-y:auto;">' + _adRenderTasks(tasks) + '</div>');
+
+    // Font size config (local data only)
+    var curDesktop  = localStorage.getItem('flock_font_scale') || '100';
+    var curMobile   = localStorage.getItem('flock_font_scale_mobile') || '100';
+    var sizeOptions = ['75','90','100','110','125','150'];
+    var mkOpts = function (cur) {
+      return sizeOptions.map(function (sz) {
+        return '<option value="' + sz + '"' + (cur === sz ? ' selected' : '') + '>' + sz + '%' + (sz === '100' ? ' \u2013 Default' : '') + '</option>';
+      }).join('');
+    };
+    var fontHtml = _adCard('&#128295; Display &amp; Font Size',
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">'
+      + '<div><label style="font-size:0.75rem;font-weight:600;color:var(--ink-muted);display:block;margin-bottom:4px;">&#128421; Desktop</label>'
+      + '<select id="ad-font-desktop" style="width:100%;padding:7px 8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font-size:0.82rem;font-family:inherit;">' + mkOpts(curDesktop) + '</select></div>'
+      + '<div><label style="font-size:0.75rem;font-weight:600;color:var(--ink-muted);display:block;margin-bottom:4px;">&#128241; Mobile</label>'
+      + '<select id="ad-font-mobile" style="width:100%;padding:7px 8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font-size:0.82rem;font-family:inherit;">' + mkOpts(curMobile) + '</select></div>'
+      + '</div>'
+      + '<button onclick="Modules._adSaveFontSize()" style="margin-top:10px;padding:7px 18px;border-radius:8px;border:none;background:var(--accent);color:var(--ink-inverse);font-weight:600;font-size:0.8rem;cursor:pointer;font-family:inherit;">Save Font Sizes</button>');
+
+    // Paint full skeleton — KPIs and data cards are placeholders
     el.innerHTML = '<div id="ad-root" style="max-width:1100px;margin:0 auto;padding:20px 16px;">'
       + '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;'
       + 'margin-bottom:20px;padding:20px 24px;background:linear-gradient(135deg,var(--accent-soft),var(--lilac-soft));'
@@ -20255,30 +19836,101 @@ const Modules = (() => {
       + '<div style="font-size:0.72rem;font-style:italic;color:var(--ink-muted);max-width:300px;text-align:right;line-height:1.55;">'
       + '&ldquo;Whatever you do, work at it with all your heart.&rdquo; &mdash; Col\u00a03:23'
       + '</div></div>'
-      + '<div id="ad-kpis" style="margin-bottom:18px;">' + _spinner() + '</div>'
-      + '<div id="ad-body" class="ad-body">'
-      + '<div id="ad-left" style="min-width:0;">' + _spinner() + '</div>'
-      + '<div id="ad-right" style="min-width:0;">' + _spinner() + '</div>'
+      + '<div id="ad-kpis" style="margin-bottom:18px;"><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;">'
+      + _adKpi('Active Members', '\u2026', 'var(--ink-muted)', '&#128101;')
+      + '<div id="ad-kpi-prayer">' + _adKpi('Open Prayers', '\u2026', 'var(--ink-muted)', '&#128591;') + '</div>'
+      + _adKpi('Urgent Care', '\u2026', 'var(--ink-muted)', '&#10084;')
+      + _adKpi('Open Compassion', '\u2026', 'var(--ink-muted)', '&#128230;')
+      + _adKpi('Events (14d)', '\u2026', 'var(--ink-muted)', '&#128197;')
+      + _adKpi('Giving (30d)', '\u2026', 'var(--ink-muted)', '&#128176;')
+      + '</div></div>'
+      + '<div id="ad-body" style="display:flex;flex-direction:column;gap:16px;">'
+      + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">'
+      + '<div>' + qaHtml + '</div>'
+      + '<div>' + connHtml + '</div>'
+      + '</div>'
+      + '<style>@media(max-width:700px){#ad-body>div:first-child{grid-template-columns:1fr !important}.ad-pair{grid-template-columns:1fr !important}}</style>'
+      + '<div id="ad-data-cards">' + _spinner() + '</div>'
+      + '<div class="ad-pair" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">'
+      + '<div>' + scratchHtml + '</div>'
+      + '<div>' + tasksHtml + '</div>'
+      + '</div>'
+      + fontHtml
       + '</div>'
       + '</div>';
 
-    // Fire prayer query independently — can be slow on Firestore cold start
+    // ── Async: connection card ──────────────────────────────────────────
+    _adRefreshConnCard();
+
+    // ── Async: fire all data queries in background, fill DOM when ready ─
     var _prayerPromise = (_isFirebaseComms() ? UpperRoom.listPrayers({ limit: 500 }) : TheVine.flock.prayer.list({ limit: 500 })).catch(function () { return null; });
 
-    try {
-      var results = await Promise.all([
-        (_isFirebaseComms() ? UpperRoom.listMembers({ limit: 2000 }) : TheVine.flock.members.list({ limit: 2000 })).catch(function () { return null; }),
-        (_isFirebaseComms() ? UpperRoom.listCareCases({ limit: 500 }) : TheVine.flock.care.list({ limit: 500 })).catch(function () { return null; }),
-        (_isFirebaseComms() ? UpperRoom.listCompassionRequests({ limit: 200 }) : TheVine.flock.compassion.requests.list({ limit: 200 })).catch(function () { return null; }),
-        (_isFirebaseComms() ? UpperRoom.listEvents({ limit: 100 }) : TheVine.flock.events.list({ limit: 100 })).catch(function () { return null; }),
-        (_isFirebaseComms() ? UpperRoom.listGiving({ limit: 200 }) : TheVine.flock.giving.list({ limit: 200 })).catch(function () { return null; }),
-        TheVine.flock.call('audit.list', { limit: 30 }).catch(function () { return null; }),
-        TheVine.flock.todo.list({ limit: 300 }).catch(function () { return null; }),
-        (typeof firebase !== 'undefined' ? firebase.firestore().collection('problems')
-          .where('status', 'in', ['Open', 'In Progress'])
-          .orderBy('createdAt', 'desc').limit(50).get() : Promise.resolve(null)).catch(function () { return null; }),
-      ]);
+    // Fill prayer KPI independently
+    _prayerPromise.then(function (res) {
+      var prayers = _rows(res);
+      var count = prayers.filter(function (p) {
+        return !['answered','closed','archived'].includes(String(p.status || '').toLowerCase());
+      }).length;
+      var pEl = document.getElementById('ad-kpi-prayer');
+      if (pEl) pEl.innerHTML = _adKpi('Open Prayers', count, count > 0 ? 'var(--lilac)' : 'var(--ink-muted)', '&#128591;');
+    });
 
+    // Church Vault card — seed admin only (async)
+    if (_isSeedAdmin()) {
+      var _vCid = '';
+      try { _vCid = UpperRoom.churchId() || ''; } catch(_e_) {}
+      if (_vCid) {
+        firebase.firestore().collection('churchVault').doc(_vCid).get().then(function(snap) {
+          var vaultEl = document.getElementById('ad-vault-card');
+          if (!vaultEl) return;
+          var data = snap.exists ? snap.data() : {};
+          var notes = data.notes || '';
+          var creds = data.credentials || [];
+          var html = '';
+          if (notes) {
+            html += '<div style="font-size:0.82rem;color:var(--ink);white-space:pre-wrap;word-break:break-word;margin-bottom:10px;padding:8px;background:var(--bg-alt,var(--bg));border-radius:6px;border:1px solid var(--line);">' + _e(notes) + '</div>';
+          }
+          if (creds.length) {
+            html += '<div style="display:flex;flex-direction:column;gap:5px;">';
+            creds.forEach(function(c) {
+              html += '<div style="display:flex;align-items:center;gap:7px;font-size:0.81rem;">'
+                + '<span style="font-weight:600;color:var(--ink);min-width:110px;flex-shrink:0;">' + _e(c.label || '') + '</span>'
+                + '<span style="font-family:monospace;color:var(--ink-muted);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + _e(c.value || '') + '">\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022</span>'
+                + '<button onclick="var s=this.previousElementSibling;s.textContent=s.textContent===\'' + _e(c.value || '').replace(/'/g,"\\'") + '\'?\'\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\':\'' + _e(c.value || '').replace(/'/g,"\\'") + '\'" style="padding:2px 8px;font-size:0.72rem;border:1px solid var(--line);border-radius:4px;background:none;color:var(--ink);cursor:pointer;">Show</button>'
+                + '</div>';
+            });
+            html += '</div>';
+          }
+          if (!notes && !creds.length) html = '<div style="font-size:0.78rem;color:var(--ink-muted);">No vault record for this church yet.</div>';
+          if (data.updatedAt && data.updatedBy) {
+            var vd = data.updatedAt.toDate ? data.updatedAt.toDate() : new Date(data.updatedAt);
+            html += '<div style="font-size:0.7rem;color:var(--ink-muted);margin-top:8px;">Saved ' + vd.toLocaleDateString() + ' by ' + _e(data.updatedBy) + '</div>';
+          }
+          html += '<div style="margin-top:10px;"><a href="the_great_commission.html#vault" style="font-size:0.78rem;color:var(--accent);">Edit in Great Commission \u2197</a></div>';
+          vaultEl.innerHTML = _adCard('&#128272; Church Vault', html);
+        }).catch(function(vaultErr) {
+          console.error('[FLOCK-DEBUG] Church Vault read failed:', vaultErr);
+          var card = document.getElementById('ad-vault-card');
+          if (card) card.innerHTML = _adCard('&#128272; Church Vault',
+            '<div style="font-size:0.78rem;color:var(--danger);">&#9888;&#65039; Could not load vault: '
+            + _e(vaultErr && vaultErr.message ? vaultErr.message : 'Permission denied') + '</div>');
+        });
+      }
+    }
+
+    // Main data queries — fill KPIs and data cards when ready (non-blocking)
+    Promise.all([
+      (_isFirebaseComms() ? UpperRoom.listMembers({ limit: 2000 }) : TheVine.flock.members.list({ limit: 2000 })).catch(function () { return null; }),
+      (_isFirebaseComms() ? UpperRoom.listCareCases({ limit: 500 }) : TheVine.flock.care.list({ limit: 500 })).catch(function () { return null; }),
+      (_isFirebaseComms() ? UpperRoom.listCompassionRequests({ limit: 200 }) : TheVine.flock.compassion.requests.list({ limit: 200 })).catch(function () { return null; }),
+      (_isFirebaseComms() ? UpperRoom.listEvents({ limit: 100 }) : TheVine.flock.events.list({ limit: 100 })).catch(function () { return null; }),
+      (_isFirebaseComms() ? UpperRoom.listGiving({ limit: 200 }) : TheVine.flock.giving.list({ limit: 200 })).catch(function () { return null; }),
+      (_isFirebaseComms() ? UpperRoom.listAudit({ limit: 30 }) : TheVine.flock.call('audit.list', { limit: 30 })).catch(function () { return null; }),
+      TheVine.flock.todo.list({ limit: 300 }).catch(function () { return null; }),
+      (typeof firebase !== 'undefined' ? firebase.firestore().collection('problems')
+        .where('status', 'in', ['Open', 'In Progress'])
+        .orderBy('createdAt', 'desc').limit(50).get() : Promise.resolve(null)).catch(function () { return null; }),
+    ]).then(function (results) {
       var members      = _rows(results[0]);
       var careCases    = _rows(results[1]);
       var compassions  = _rows(results[2]);
@@ -20292,8 +19944,6 @@ const Modules = (() => {
       var activeMembers = members.filter(function (m) {
         return !['inactive','archived','removed'].includes(String(m.status || '').toLowerCase());
       }).length || members.length;
-
-      var openPrayer = '\u2026'; // placeholder — updates when prayer query resolves
 
       var urgentCare = careCases.filter(function (c) {
         return String(c.priority || '').toLowerCase() === 'urgent'
@@ -20327,12 +19977,12 @@ const Modules = (() => {
         return t.dueDate && new Date(t.dueDate) < now;
       });
 
-      // ── KPI Ribbon ───────────────────────────────────────────────────────
+      // ── Fill KPI Ribbon ──────────────────────────────────────────────────
       var kpiEl = document.getElementById('ad-kpis');
       if (kpiEl) {
         kpiEl.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;">'
           + _adKpi('Active Members',  activeMembers,                    'var(--accent)',              '&#128101;')
-          + '<div id="ad-kpi-prayer">' + _adKpi('Open Prayers', openPrayer, 'var(--ink-muted)', '&#128591;') + '</div>'
+          + '<div id="ad-kpi-prayer">' + _adKpi('Open Prayers', '\u2026', 'var(--ink-muted)', '&#128591;') + '</div>'
           + _adKpi('Urgent Care',     urgentCare,    urgentCare  > 0  ? 'var(--danger)' : 'var(--ink-muted)', '&#10084;')
           + _adKpi('Open Compassion', openCompassion, openCompassion > 0 ? 'var(--peach)' : 'var(--ink-muted)', '&#128230;')
           + _adKpi('Events (14d)',    upcoming.length,                  'var(--mint)',                '&#128197;')
@@ -20340,18 +19990,8 @@ const Modules = (() => {
           + '</div>';
       }
 
-      // ── Async prayer KPI fill ─────────────────────────────────────────
-      _prayerPromise.then(function (res) {
-        var prayers = _rows(res);
-        var count = prayers.filter(function (p) {
-          return !['answered','closed','archived'].includes(String(p.status || '').toLowerCase());
-        }).length;
-        var pEl = document.getElementById('ad-kpi-prayer');
-        if (pEl) pEl.innerHTML = _adKpi('Open Prayers', count, count > 0 ? 'var(--lilac)' : 'var(--ink-muted)', '&#128591;');
-      });
-
-      // ── Left Column ──────────────────────────────────────────────────────
-      var leftHtml = '';
+      // ── Fill data cards ──────────────────────────────────────────────────
+      var cardsHtml = '';
 
       // Urgent care alert
       var urgentCaseRows = careCases.filter(function (c) {
@@ -20359,7 +19999,7 @@ const Modules = (() => {
           && !['closed','resolved','archived'].includes(String(c.status || '').toLowerCase());
       }).slice(0, 5);
       if (urgentCaseRows.length) {
-        leftHtml += _adCard('&#128680; Urgent Care Cases',
+        cardsHtml += _adCard('&#128680; Urgent Care Cases',
           urgentCaseRows.map(function (c) {
             return '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);">'
               + '<div>'
@@ -20371,7 +20011,8 @@ const Modules = (() => {
           }).join(''));
       }
 
-      // This week's events
+      // Events + Problems — side-by-side on desktop
+      var eventsHtml = '';
       var next7Events = events.filter(function (e) {
         var d = _localDate(e.eventDate || e.startDate || e.date);
         return !isNaN(d.getTime()) && d >= now && d <= in7;
@@ -20380,7 +20021,7 @@ const Modules = (() => {
              - _localDate(b.eventDate || b.startDate || b.date);
       }).slice(0, 6);
       if (next7Events.length) {
-        leftHtml += _adCard('&#128197; This Week\u2019s Events',
+        eventsHtml = _adCard('&#128197; This Week\u2019s Events',
           next7Events.map(function (e) {
             var d = _localDate(e.eventDate || e.startDate || e.date);
             var dayLabel = isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
@@ -20397,121 +20038,7 @@ const Modules = (() => {
           }).join(''));
       }
 
-      // Overdue tasks
-      if (overdueTodos.length) {
-        leftHtml += _adCard('&#9888;&#65039; Overdue Tasks (' + overdueTodos.length + ')',
-          overdueTodos.slice(0, 5).map(function (t) {
-            var due = t.dueDate ? new Date(t.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
-            return '<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--line);">'
-              + '<div style="width:7px;height:7px;border-radius:50%;background:var(--danger);flex-shrink:0;"></div>'
-              + '<div style="flex:1;font-size:0.85rem;color:var(--ink);">' + _e(t.title || t.task || '') + '</div>'
-              + (due ? '<div style="font-size:0.72rem;color:var(--danger);white-space:nowrap;">' + _e(due) + '</div>' : '')
-              + '</div>';
-          }).join(''));
-      }
-
-      // Scratchpad
-      leftHtml += _adCard('&#128221; Scratchpad',
-        '<textarea id="ad-scratch" rows="5" style="width:100%;background:var(--bg);color:var(--ink);'
-        + 'border:1px solid var(--line);border-radius:8px;padding:10px;font-size:0.83rem;font-family:inherit;'
-        + 'resize:vertical;box-sizing:border-box;" placeholder="Quick notes, thoughts, reminders\u2026">'
-        + _e(scratch) + '</textarea>'
-        + '<button onclick="Modules._adSaveScratch()" style="margin-top:8px;padding:7px 18px;border-radius:8px;'
-        + 'border:none;background:var(--accent);color:var(--ink-inverse);font-weight:600;font-size:0.8rem;cursor:pointer;font-family:inherit;">Save Notes</button>');
-
-      // Quick Tasks
-      leftHtml += _adCard('&#9745; Quick Tasks',
-        '<div style="display:flex;gap:6px;margin-bottom:10px;">'
-        + '<input id="ad-task-input" type="text" placeholder="Add a task\u2026" style="flex:1;padding:8px 10px;'
-        + 'border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font-size:0.83rem;box-sizing:border-box;"'
-        + ' onkeydown="if(event.key===\'Enter\')Modules._adAddTask()">'
-        + '<button onclick="Modules._adAddTask()" style="padding:8px 14px;border-radius:8px;border:none;'
-        + 'background:var(--accent);color:var(--ink-inverse);font-weight:600;cursor:pointer;font-size:0.83rem;font-family:inherit;">+</button>'
-        + '</div>'
-        + '<div id="ad-task-list" style="max-height:220px;overflow-y:auto;">' + _adRenderTasks(tasks) + '</div>');
-
-      // ── Right Column ─────────────────────────────────────────────────────
-      var rightHtml = '';
-
-      // Connection type card — async, rendered into placeholder after initial paint
-      rightHtml += '<div id="ad-conn-card">' + _adCard('&#128268; Database Connection',
-        '<div style="font-size:0.78rem;color:var(--ink-muted);padding:4px 0;">Checking connection\u2026</div>') + '</div>';
-
-      // Quick Actions grid
-      var qaButtons = [
-        { icon: '&#9881;&#65039;', label: 'Settings',         nav: 'config' },
-        { icon: '&#128101;',       label: 'Users',             nav: 'users' },
-        { icon: '&#128202;',       label: 'Statistics',        nav: 'statistics' },
-        { icon: '&#128196;',       label: 'Reports',           nav: 'reports' },
-        { icon: '&#128270;',       label: 'Audit Log',         nav: 'audit' },
-        { icon: '&#128030;',       label: 'Problems',          nav: 'problems' },
-        { icon: '&#128591;',       label: 'Prayers',           nav: 'prayer-admin' },
-        { icon: '&#127925;',       label: 'Music Stand',       nav: 'service-hub' },
-        { icon: '&#128197;',       label: 'Calendar',          nav: 'calendar' },
-        { icon: '&#128100;',       label: 'Directory',         nav: 'directory' },
-        { icon: '&#128640;',       label: 'Deploy Guide',      nav: 'deployment-guide' },
-        { icon: '&#9989;&#65039;', label: 'Great Commission',  href: 'the_great_commission.html' },
-        { icon: '&#9881;&#65039;', label: 'Generate Deploy',   href: 'bezalel.html' },
-      ];
-      rightHtml += _adCard('&#128640; Quick Actions',
-        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:7px;">'
-        + qaButtons.map(function (b) {
-            var action = b.href
-              ? 'window.location.href=\'' + b.href + '\''
-              : 'Modules._adGoTo(\'' + b.nav + '\',\'' + b.label + '\')'
-            return '<button onclick="' + action + '" style="display:flex;align-items:center;gap:6px;'
-              + 'padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:var(--bg);'
-              + 'color:var(--ink);cursor:pointer;font-size:0.77rem;font-family:inherit;text-align:left;">'
-              + '<span style="font-size:1rem;">' + b.icon + '</span>'
-              + _e(b.label) + '</button>';
-          }).join('')
-        + '</div>');
-
-      // Church Vault card — seed admin only
-      if (_isSeedAdmin()) {
-        var _vCid = '';
-        try { _vCid = UpperRoom.churchId() || ''; } catch(_e_) {}
-        if (_vCid) {
-          rightHtml += '<div id="ad-vault-card">' + _adCard('&#128272; Church Vault',
-            '<div style="font-size:0.78rem;color:var(--ink-muted);padding:4px 0;">Loading vault\u2026</div>') + '</div>';
-          firebase.firestore().collection('churchVault').doc(_vCid).get().then(function(snap) {
-            var data = snap.exists ? snap.data() : {};
-            var notes = data.notes || '';
-            var creds = data.credentials || [];
-            var html = '';
-            if (notes) {
-              html += '<div style="font-size:0.82rem;color:var(--ink);white-space:pre-wrap;word-break:break-word;margin-bottom:10px;padding:8px;background:var(--bg-alt,var(--bg));border-radius:6px;border:1px solid var(--line);">' + _e(notes) + '</div>';
-            }
-            if (creds.length) {
-              html += '<div style="display:flex;flex-direction:column;gap:5px;">';
-              creds.forEach(function(c) {
-                html += '<div style="display:flex;align-items:center;gap:7px;font-size:0.81rem;">'
-                  + '<span style="font-weight:600;color:var(--ink);min-width:110px;flex-shrink:0;">' + _e(c.label || '') + '</span>'
-                  + '<span style="font-family:monospace;color:var(--ink-muted);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + _e(c.value || '') + '">\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022</span>'
-                  + '<button onclick="var s=this.previousElementSibling;s.textContent=s.textContent===\'' + _e(c.value || '').replace(/'/g,"\\'") + '\'?\'\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\':\'' + _e(c.value || '').replace(/'/g,"\\'") + '\'" style="padding:2px 8px;font-size:0.72rem;border:1px solid var(--line);border-radius:4px;background:none;color:var(--ink);cursor:pointer;">Show</button>'
-                  + '</div>';
-              });
-              html += '</div>';
-            }
-            if (!notes && !creds.length) html = '<div style="font-size:0.78rem;color:var(--ink-muted);">No vault record for this church yet.</div>';
-            if (data.updatedAt && data.updatedBy) {
-              var vd = data.updatedAt.toDate ? data.updatedAt.toDate() : new Date(data.updatedAt);
-              html += '<div style="font-size:0.7rem;color:var(--ink-muted);margin-top:8px;">Saved ' + vd.toLocaleDateString() + ' by ' + _e(data.updatedBy) + '</div>';
-            }
-            html += '<div style="margin-top:10px;"><a href="the_great_commission.html#vault" style="font-size:0.78rem;color:var(--accent);">Edit in Great Commission \u2197</a></div>';
-            var card = document.getElementById('ad-vault-card');
-            if (card) card.innerHTML = _adCard('&#128272; Church Vault', html);
-          }).catch(function(vaultErr) {
-            console.error('[FLOCK-DEBUG] Church Vault read failed:', vaultErr);
-            var card = document.getElementById('ad-vault-card');
-            if (card) card.innerHTML = _adCard('&#128272; Church Vault',
-              '<div style="font-size:0.78rem;color:var(--danger);">&#9888;&#65039; Could not load vault: '
-              + _e(vaultErr && vaultErr.message ? vaultErr.message : 'Permission denied') + '</div>');
-          });
-        }
-      }
-
-      // Open Problems card — inline on the dashboard
+      // Open Problems
       var pBadgeColor  = { Critical: 'var(--danger)', High: 'var(--danger)', Medium: 'var(--warning,#f59e0b)', Low: 'var(--ink-muted)' };
       var pStatusColor = { 'Open': 'var(--danger)', 'In Progress': 'var(--warning,#f59e0b)' };
       var problemRows = openProblems.slice(0, 6).map(function(p) {
@@ -20538,7 +20065,27 @@ const Modules = (() => {
         + '<button onclick="Modules._problemsNew()" style="padding:6px 14px;border-radius:8px;border:none;background:var(--accent);color:var(--ink-inverse);font-weight:600;font-size:0.78rem;cursor:pointer;font-family:inherit;">+ New Problem</button>'
         + '<button onclick="Modules._adGoTo(\'problems\',\'Problems\')" style="padding:6px 14px;border-radius:8px;border:1px solid var(--line);background:none;color:var(--ink);font-size:0.78rem;cursor:pointer;font-family:inherit;">View All \u2197</button>'
         + '</div>';
-      rightHtml += _adCard('&#128030; Open Problems (' + openProblems.length + ')', problemRows);
+      var problemsHtml = _adCard('&#128030; Open Problems (' + openProblems.length + ')', problemRows);
+
+      if (eventsHtml || problemsHtml) {
+        cardsHtml += '<div class="ad-pair" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">'
+          + '<div>' + (eventsHtml || '') + '</div>'
+          + '<div>' + problemsHtml + '</div>'
+          + '</div>';
+      }
+
+      // Overdue tasks
+      if (overdueTodos.length) {
+        cardsHtml += _adCard('&#9888;&#65039; Overdue Tasks (' + overdueTodos.length + ')',
+          overdueTodos.slice(0, 5).map(function (t) {
+            var due = t.dueDate ? new Date(t.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+            return '<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--line);">'
+              + '<div style="width:7px;height:7px;border-radius:50%;background:var(--danger);flex-shrink:0;"></div>'
+              + '<div style="flex:1;font-size:0.85rem;color:var(--ink);">' + _e(t.title || t.task || '') + '</div>'
+              + (due ? '<div style="font-size:0.72rem;color:var(--danger);white-space:nowrap;">' + _e(due) + '</div>' : '')
+              + '</div>';
+          }).join(''));
+      }
 
       // Recent Activity (audit log)
       if (audits.length) {
@@ -20546,10 +20093,11 @@ const Modules = (() => {
           var action = String(a.action || a.event || a.type || '').replace(/\./g, ' ');
           var actor  = _e(a.actorName || a.actor || a.email || a.performedBy || '');
           var target = _e(String(a.targetName || a.target || a.details || '').substring(0, 52));
-          var ts     = a.timestamp || a.createdAt || a.date || '';
+          var ts     = a.timestamp || a.ts || a.createdAt || a.date || '';
           var when   = '';
           if (ts) {
-            var tdiff = Math.round((now - new Date(ts)) / 60000);
+            var tsDate = ts.toDate ? ts.toDate() : new Date(ts);
+            var tdiff = Math.round((now - tsDate) / 60000);
             if (!isNaN(tdiff)) {
               when = tdiff < 1 ? 'just now'
                    : tdiff < 60 ? tdiff + 'm ago'
@@ -20567,37 +20115,26 @@ const Modules = (() => {
             + (when ? '<div style="font-size:0.67rem;color:var(--ink-faint);white-space:nowrap;padding-left:4px;">' + _e(when) + '</div>' : '')
             + '</div>';
         }).join('');
-        rightHtml += _adCard('&#128336; Recent Activity', '<div style="max-height:260px;overflow-y:auto;">' + feedItems + '</div>');
+        cardsHtml += _adCard('&#128336; Recent Activity', '<div style="max-height:260px;overflow-y:auto;">' + feedItems + '</div>');
       }
 
-      // Font size config (condensed)
-      var curDesktop  = localStorage.getItem('flock_font_scale') || '100';
-      var curMobile   = localStorage.getItem('flock_font_scale_mobile') || '100';
-      var sizeOptions = ['75','90','100','110','125','150'];
-      var mkOpts = function (cur) {
-        return sizeOptions.map(function (sz) {
-          return '<option value="' + sz + '"' + (cur === sz ? ' selected' : '') + '>' + sz + '%' + (sz === '100' ? ' \u2013 Default' : '') + '</option>';
-        }).join('');
-      };
-      rightHtml += _adCard('&#128295; Display &amp; Font Size',
-        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">'
-        + '<div><label style="font-size:0.75rem;font-weight:600;color:var(--ink-muted);display:block;margin-bottom:4px;">&#128421; Desktop</label>'
-        + '<select id="ad-font-desktop" style="width:100%;padding:7px 8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font-size:0.82rem;font-family:inherit;">' + mkOpts(curDesktop) + '</select></div>'
-        + '<div><label style="font-size:0.75rem;font-weight:600;color:var(--ink-muted);display:block;margin-bottom:4px;">&#128241; Mobile</label>'
-        + '<select id="ad-font-mobile" style="width:100%;padding:7px 8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font-size:0.82rem;font-family:inherit;">' + mkOpts(curMobile) + '</select></div>'
-        + '</div>'
-        + '<button onclick="Modules._adSaveFontSize()" style="margin-top:10px;padding:7px 18px;border-radius:8px;border:none;background:var(--accent);color:var(--ink-inverse);font-weight:600;font-size:0.8rem;cursor:pointer;font-family:inherit;">Save Font Sizes</button>');
+      // Vault placeholder (async-filled above)
+      if (_isSeedAdmin()) {
+        var _vc = '';
+        try { _vc = UpperRoom.churchId() || ''; } catch(_) {}
+        if (_vc) {
+          cardsHtml += '<div id="ad-vault-card">' + _adCard('&#128272; Church Vault',
+            '<div style="font-size:0.78rem;color:var(--ink-muted);padding:4px 0;">Loading vault\u2026</div>') + '</div>';
+        }
+      }
 
-      document.getElementById('ad-left').innerHTML  = leftHtml;
-      document.getElementById('ad-right').innerHTML = rightHtml;
-
-      // Resolve and render the connection card asynchronously after DOM paint
-      _adRefreshConnCard();
-
-    } catch (e) {
-      var errEl = document.getElementById('ad-left');
-      if (errEl) errEl.innerHTML = _errHtml(e.message);
-    }
+      var dataEl = document.getElementById('ad-data-cards');
+      if (dataEl) dataEl.innerHTML = cardsHtml || '<div style="font-size:0.82rem;color:var(--ink-muted);padding:8px 0;">No data cards to display.</div>';
+    }).catch(function (e) {
+      console.error('[FLOCK-DEBUG] Admin Hub data load error:', e);
+      var dataEl = document.getElementById('ad-data-cards');
+      if (dataEl) dataEl.innerHTML = _errHtml(e.message);
+    });
   });
 
   // ── Connection diagnostics card — resolves asynchronously ──────────────
@@ -20671,12 +20208,15 @@ const Modules = (() => {
           fbAuthError = fbErr && fbErr.message ? fbErr.message : String(fbErr);
         }
       }
-      // Always force a fresh comms-mode read during a connection test so
-      // stale 'sheets' values from a failed page-load attempt are cleared.
+      // Re-read comms mode during connection test to clear stale values,
+      // but preserve the current value as fallback if the refresh fails.
       if (UpperRoom.isReady()) {
+        var _prevMode = _commsMode;
         _commsMode = null;
         _commsModePromise = null;
-        try { await _loadCommsMode(); } catch (_) {}
+        try { await _loadCommsMode(); } catch (_) {
+          if (!_commsMode && _prevMode) _commsMode = _prevMode;
+        }
       }
     }
     var fbReady = typeof UpperRoom !== 'undefined' && UpperRoom.isReady();
@@ -21388,6 +20928,8 @@ const Modules = (() => {
     _cfgFilter,
     _reloadConfig,
     _configSeedFromGas,
+    _settingsTab,
+    _configTab: _settingsTab,
     _masterConfigRender,
     _masterConfigSaveRow,
     _masterConfigReload,

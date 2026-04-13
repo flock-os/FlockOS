@@ -316,15 +316,10 @@
     @keyframes spin { to { transform: rotate(360deg); } }
 
     /* ── Admin Dashboard Body ───────────────────────────────────────────── */
-    .ad-body {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(0, 320px);
-      gap: 16px;
-    }
+    /* Layout is now single-column, built inline in the_tabernacle.js */
 
     /* ── Responsive ────────────────────────────────────────────────────── */
     @media (max-width: 860px) {
-      .ad-body { grid-template-columns: 1fr; }
     }
     @media (max-width: 768px) {
       :root { --sidebar-w: 0px; }
@@ -958,6 +953,7 @@
 <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-functions-compat.js"></script>
 <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging-compat.js"></script>
 <script defer src="../Scripts/the_upper_room.js"></script>
 <script defer src="../Scripts/fine_linen.js"></script>
