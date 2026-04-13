@@ -76,10 +76,19 @@ const Modules = (() => {
 
   /**
    * Store the rendered HTML for a view so re-navigation is instant.
+   * Skips caching if the view still contains a loading spinner — this means
+   * the handler resolved before its async data fetch completed.
    */
   function _viewCacheSet(viewName, el) {
     if (!el) return;
-    _viewCache[viewName] = { html: el.innerHTML, ts: Date.now() };
+    var html = el.innerHTML;
+    // Don't cache views that still have a spinner — the handler's promise
+    // resolved before _body() filled in the real content.
+    if (html.indexOf('class="loading"') !== -1 || html.indexOf('class="spin"') !== -1) {
+      console.log('[FLOCK-DEBUG] _viewCacheSet("' + viewName + '") SKIPPED — still contains spinner');
+      return;
+    }
+    _viewCache[viewName] = { html: html, ts: Date.now() };
   }
 
   /**
