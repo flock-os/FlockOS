@@ -11169,234 +11169,172 @@ const Modules = (() => {
   }
 
 
+
   // ═══════════════════════════════════════════════════════════════════════
-  // 26. SETTINGS / CONFIG  (admin)
-  //     Architecture: each tab is a standalone render function.
-  //     Tab switch = wipe #settings-content + render new tab HTML.
-  //     No CSS show/hide panels — only ONE tab lives in DOM at a time.
+  // 26. SETTINGS  (admin)
+  //     v2: Firestore-first · sidebar nav · flat sections · fast
   // ═══════════════════════════════════════════════════════════════════════
 
-  // Module-level config data — shared across all tab renderers
-  var _cfgD = { rows: [], configSource: '', seededDefaults: false, usedGasFallback: false, gasFailed: false, studioDirty: false };
-
-  // Tab renderer registry — populated after the _def() block
+  var _cfgD = { rows: [], configSource: '', seededDefaults: false, studioDirty: false };
   var _settingsTabRenderers = {};
+  var _cfgVal = function(key, fallback) {
+    var r = _cfgD.rows.find(function(r) { return (r.key || r.configKey) === key; });
+    return r ? String(r.value != null ? r.value : fallback) : String(fallback);
+  };
+  var _cfgBool = function(key) { return _cfgVal(key, 'FALSE').toUpperCase() === 'TRUE'; };
 
-  // Switch to a tab: wipe container, call renderer, highlight button
   function _settingsTab(tabId) {
     if (_cfgD.studioDirty && _configActiveTab === 'look-feel' && tabId !== 'look-feel') {
       if (!confirm('You have unsaved Interface Studio changes. Leave without saving?')) return;
       _cfgD.studioDirty = false;
     }
     _configActiveTab = tabId;
-    var container = document.getElementById('settings-content');
-    if (!container) return;
-    document.querySelectorAll('.config-tab').forEach(function(t) {
-      t.classList.toggle('active', t.getAttribute('data-tab') === tabId);
+    var c = document.getElementById('settings-content');
+    if (!c) return;
+    document.querySelectorAll('.stg-nav-item').forEach(function(n) {
+      n.classList.toggle('active', n.getAttribute('data-tab') === tabId);
     });
-    var renderer = _settingsTabRenderers[tabId];
-    if (renderer) {
-      container.innerHTML = renderer.html();
-      if (renderer.after) setTimeout(renderer.after, 20);
-    } else {
-      container.innerHTML = '<p style="color:var(--ink-muted);padding:40px;text-align:center;">Unknown tab.</p>';
+    var r = _settingsTabRenderers[tabId];
+    if (r) {
+      c.innerHTML = '<div class="stg-panel-animate">' + r.html() + '</div>';
+      if (r.after) setTimeout(r.after, 30);
     }
   }
 
   _def('config', async el => {
-    _shell(el, 'Control Panel', 'System provisioning, security, and administration.',
+    _shell(el, 'Settings', 'Configure your church portal.',
       _btn('\uD83D\uDD04 Refresh', 'Modules._reloadConfig()'));
     try {
-      // ── Fetch config rows (same logic as before) ──────────────────
-      var _fbRows = null;
-      var _gasFailed = false;
-      var _configSource = 'gas';
+      // ── FIRESTORE-FIRST: no GAS waterfall ─────────────────────────
+      var rows = [];
+      var _configSource = 'firebase';
       if (_isFirebaseComms()) {
-        var _fbRes = await UpperRoom.listAppConfig().catch(function() { return null; });
-        _fbRows = _fbRes ? _rows(_fbRes) : [];
-        if (_fbRows.length > 0) _configSource = 'firebase';
-      }
-      var _usedGasFallback = false;
-      if (_isFirebaseComms() && _fbRows !== null && _fbRows.length === 0) {
-        var _gasRes = await TheVine.flock.config.list().catch(function(e) { _gasFailed = true; return null; });
-        var _gasRows = _gasRes ? _rows(_gasRes) : [];
-        if (_gasRows.length > 0) {
-          _usedGasFallback = true;
-          _configSource = 'gas';
-          _fbRows = _gasRows;
-          _gasRows.forEach(function(r) { UpperRoom.setAppConfig(r).catch(function() {}); });
-        }
-      }
-      var res  = _isFirebaseComms() ? (_fbRows || []) : await TheVine.flock.config.list().catch(function(e) { _gasFailed = true; return null; });
-      var rows = _isFirebaseComms() ? (_fbRows || []) : _rows(res);
-
-      var _seededDefaults = false;
-      if (rows.length === 0) {
-        _configSource = 'defaults';
-        _seededDefaults = true;
-        rows = _DEFAULT_APP_CONFIG.slice();
-        if (_isFirebaseComms()) {
+        var fbRes = await UpperRoom.listAppConfig().catch(function() { return null; });
+        rows = fbRes ? _rows(fbRes) : [];
+        if (rows.length === 0) {
+          _configSource = 'defaults';
+          rows = _DEFAULT_APP_CONFIG.slice();
+          // Seed Firestore in background — don't await
           rows.forEach(function(r) { UpperRoom.setAppConfig(r).catch(function() {}); });
+        }
+      } else {
+        _configSource = 'gas';
+        var gasRes = await TheVine.flock.config.list().catch(function() { return null; });
+        rows = gasRes ? _rows(gasRes) : [];
+        if (rows.length === 0) {
+          _configSource = 'defaults';
+          rows = _DEFAULT_APP_CONFIG.slice();
         }
       }
 
       _dataCache['config'] = rows;
-
-      // Sync display settings to localStorage
-      var _syncKeys = { FONT_SCALE: 'flock_font_scale', FONT_SCALE_MOBILE: 'flock_font_scale_mobile', QUIZ_SIZE: 'flock_quiz_size', CHURCH_LOGO: 'flock_church_logo' };
-      rows.forEach(function(r) {
-        var k = r.key || r.configKey || '';
-        if (_syncKeys[k] && r.value != null) localStorage.setItem(_syncKeys[k], String(r.value));
-      });
-      if (window._applyFontScale) window._applyFontScale();
-
-      // Store for tab renderers
       _cfgD.rows = rows;
       _cfgD.configSource = _configSource;
-      _cfgD.seededDefaults = _seededDefaults;
-      _cfgD.usedGasFallback = _usedGasFallback;
-      _cfgD.gasFailed = _gasFailed;
+      _cfgD.seededDefaults = _configSource === 'defaults';
       _cfgD.studioDirty = false;
 
-      // ── Build shell: tab bar + empty content container ────────────
-      var shell = '';
-      shell += '<div class="config-tabs-bar">';
-      shell += '<button class="config-tab" data-tab="overview" onclick="Modules._settingsTab(\'overview\')"><span class="config-tab-icon">\uD83C\uDFE0</span> Overview</button>';
-      shell += '<button class="config-tab" data-tab="look-feel" onclick="Modules._settingsTab(\'look-feel\')"><span class="config-tab-icon">\uD83C\uDFA8</span> Look &amp; Feel</button>';
-      shell += '<button class="config-tab" data-tab="modules" onclick="Modules._settingsTab(\'modules\')"><span class="config-tab-icon">\uD83E\uDDE9</span> Modules</button>';
-      shell += '<button class="config-tab" data-tab="admin" onclick="Modules._settingsTab(\'admin\')"><span class="config-tab-icon">\u2699\uFE0F</span> Administration</button>';
-      if (_isFirebaseComms()) shell += '<button class="config-tab" data-tab="master-config" onclick="Modules._settingsTab(\'master-config\')"><span class="config-tab-icon">&#127758;</span> Master Config</button>';
-      shell += '</div>';
-      shell += '<div id="settings-content"></div>';
+      // Sync display keys to localStorage
+      var sk = { FONT_SCALE: 'flock_font_scale', FONT_SCALE_MOBILE: 'flock_font_scale_mobile', QUIZ_SIZE: 'flock_quiz_size', CHURCH_LOGO: 'flock_church_logo' };
+      rows.forEach(function(r) { var k = r.key || r.configKey || ''; if (sk[k] && r.value != null) localStorage.setItem(sk[k], String(r.value)); });
+      if (window._applyFontScale) window._applyFontScale();
 
-      _body(el, shell);
+      // ── Build sidebar layout ──────────────────────────────────────
+      var tabs = [
+        { id: 'overview',   icon: '\uD83D\uDCCA', label: 'Overview' },
+        { id: 'identity',   icon: '\u26EA',        label: 'Church Identity' },
+        { id: 'appearance', icon: '\uD83C\uDFA8',  label: 'Appearance' },
+        { id: 'modules',    icon: '\uD83E\uDDE9',  label: 'Modules' },
+        { id: 'database',   icon: '\uD83D\uDDC4',  label: 'Database' },
+        { id: 'advanced',   icon: '\u2699\uFE0F',  label: 'All Settings' },
+      ];
+      if (_isFirebaseComms()) tabs.push({ id: 'master', icon: '\uD83C\uDF10', label: 'Master Config' });
 
-      // Activate the remembered tab
+      var s = '<div class="stg-layout">';
+      s += '<nav class="stg-sidebar" role="navigation">';
+      tabs.forEach(function(t) {
+        s += '<button class="stg-nav-item" data-tab="' + t.id + '" onclick="Modules._settingsTab(\'' + t.id + '\')">';
+        s += '<span class="stg-nav-icon">' + t.icon + '</span>';
+        s += '<span class="stg-nav-label">' + t.label + '</span>';
+        s += '</button>';
+      });
+      s += '</nav>';
+      s += '<main class="stg-main" id="settings-content"></main>';
+      s += '</div>';
+
+      _body(el, s);
       _settingsTab(_configActiveTab || 'overview');
 
     } catch (e) { _body(el, _errHtml(e.message)); }
   });
 
   // ════════════════════════════════════════════════════════════════════════
-  //  TAB: OVERVIEW
+  //  OVERVIEW
   // ════════════════════════════════════════════════════════════════════════
   _settingsTabRenderers['overview'] = {
     html: function() {
       var rows = _cfgD.rows;
-      var prefixRow = rows.find(function(r) { return (r.key || r.configKey) === 'CARD_PREFIX'; });
-      var currentPrefix = prefixRow ? String(prefixRow.value || 'FlockOS') : 'FlockOS';
-      var globalThemeRow = rows.find(function(r) { return (r.key || r.configKey) === 'GLOBAL_THEME'; });
-      var globalTheme = globalThemeRow ? String(globalThemeRow.value || 'default') : 'default';
-      var tmMeta = (typeof Adornment !== 'undefined' && Adornment.themeMeta) ? Adornment.themeMeta : {};
+      var churchName = _cfgVal('CHURCH_NAME', '');
+      var allMods = Object.keys(_moduleMeta).filter(function(k) { return _protectedModules.indexOf(k) === -1; });
+      var modsOn = allMods.filter(function(k) { return _isModuleEnabled(k); }).length;
       var themeList = (typeof Adornment !== 'undefined' && Adornment.themes) ? Adornment.themes.filter(function(t) { return t !== 'auto'; }) : [];
-      var currentTheme = (typeof Adornment !== 'undefined') ? Adornment.getTheme() : 'america';
-      var allToggleable = Object.keys(_moduleMeta).filter(function(k) { return _protectedModules.indexOf(k) === -1; });
-      var totalOn = allToggleable.filter(function(k) { return _isModuleEnabled(k); }).length;
+      var prefix = _cfgVal('CARD_PREFIX', 'FLOCK');
+      var fbReady = typeof UpperRoom !== 'undefined' && UpperRoom.isReady();
+      var fbMode = _isFirebaseComms();
+      var projId = ''; try { projId = firebase.app().options.projectId || ''; } catch(_){}
 
       var h = '';
 
-      // Config source status banner
+      // Source banner
       if (_cfgD.seededDefaults) {
-        h += '<div style="margin-bottom:14px;padding:12px 16px;border-radius:10px;background:var(--warning,#c98b2e);color:#fff;font-size:0.83rem;line-height:1.5;">'
-          + '<strong>&#9888; Config seeded from defaults.</strong> Your church\'s AppConfig sheet '
-          + (_cfgD.gasFailed ? 'could not be reached (GAS error). ' : 'was empty. ')
-          + 'Default values have been written to Firestore. Edit any key below and save to customise.'
-          + '<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">'
-          + '<button onclick="Modules._configSeedFromGas()" style="padding:5px 14px;border-radius:6px;border:1px solid rgba(255,255,255,0.5);background:rgba(255,255,255,0.15);color:#fff;font-size:0.78rem;cursor:pointer;font-family:inherit;">&#128260; Re-try Seed from GAS</button>'
-          + '</div></div>';
-      } else if (_cfgD.usedGasFallback) {
-        h += '<div style="margin-bottom:14px;padding:10px 16px;border-radius:10px;background:var(--mint,#34d399);color:#000;font-size:0.82rem;">'
-          + '&#10003; Config loaded from GAS sheet and synced to Firestore (' + rows.length + ' entries).</div>';
+        h += '<div class="stg-banner stg-banner-warn">';
+        h += '<strong>\u26A0 Config seeded from defaults.</strong> Edit settings below to customize.';
+        h += ' <button class="stg-link-btn" onclick="Modules._configSeedFromGas()">Pull from GAS instead</button>';
+        h += '</div>';
       }
 
-      // Quick-stat cards
-      var _churchNameRow = rows.find(function(r) { return (r.key || r.configKey) === 'CHURCH_NAME'; });
-      var _churchName = _churchNameRow ? String(_churchNameRow.value || '') : '';
-      h += '<div class="config-stat-grid">';
-      h += '<div class="config-stat-card"><div class="config-stat-icon">&#127981;</div><div class="config-stat-value" style="font-size:' + (_churchName.length > 12 ? '0.9rem' : '1.2rem') + ';">' + (_churchName ? _e(_churchName) : '&#8212;') + '</div><div class="config-stat-label">Church Name</div></div>';
-      h += '<div class="config-stat-card"><div class="config-stat-icon">&#129697;</div><div class="config-stat-value">' + totalOn + ' / ' + allToggleable.length + '</div><div class="config-stat-label">Active Modules</div></div>';
-      h += '<div class="config-stat-card"><div class="config-stat-icon">&#127912;</div><div class="config-stat-value">' + themeList.length + '</div><div class="config-stat-label">Themes</div></div>';
-      h += '<div class="config-stat-card"><div class="config-stat-icon">&#127991;&#65039;</div><div class="config-stat-value" style="font-size:1.1rem;">' + _e(currentPrefix) + '</div><div class="config-stat-label">Card Prefix</div></div>';
+      // Stat row
+      h += '<div class="stg-stats">';
+      h += '<div class="stg-stat"><div class="stg-stat-val">' + (churchName ? _e(churchName) : '\u2014') + '</div><div class="stg-stat-lbl">Church</div></div>';
+      h += '<div class="stg-stat"><div class="stg-stat-val">' + modsOn + '/' + allMods.length + '</div><div class="stg-stat-lbl">Modules</div></div>';
+      h += '<div class="stg-stat"><div class="stg-stat-val">' + themeList.length + '</div><div class="stg-stat-lbl">Themes</div></div>';
+      h += '<div class="stg-stat"><div class="stg-stat-val">' + _e(prefix) + '</div><div class="stg-stat-lbl">Card Prefix</div></div>';
       h += '</div>';
 
-      // System Health bar
-      var _fbReady = typeof UpperRoom !== 'undefined' && UpperRoom.isReady();
-      var _fbMode  = _isFirebaseComms();
-      var _fbProjectId = '';
-      try { if (typeof firebase !== 'undefined' && firebase.app) _fbProjectId = firebase.app().options.projectId || ''; } catch(_) {}
-
-      h += '<div class="cp-health-bar" id="cp-health-bar">';
-      h += '<div class="cp-health-row">';
-      h += '<div class="cp-health-icon">&#128196;</div>';
-      h += '<div class="cp-health-body">';
-      h += '<div class="cp-health-label">Database (GAS)</div>';
-      h += '<div class="cp-health-detail" id="cp-gas-url">' + _e((typeof TheVine !== 'undefined' ? (TheVine.endpoints().FLOCK_URL || '') : '').replace('https://script.google.com/macros/s/', '').substring(0, 36) + '\u2026' || 'Not configured') + '</div>';
+      // System health
+      h += '<div class="stg-card">';
+      h += '<div class="stg-card-title">System Health</div>';
+      h += '<div class="stg-health-row"><span class="stg-health-label">\uD83D\uDD25 Firebase</span>';
+      if (fbReady && fbMode) h += '<span class="stg-pill stg-pill-ok">Connected \u2014 ' + _e(projId) + '</span>';
+      else if (fbReady)      h += '<span class="stg-pill stg-pill-warn">Standby</span>';
+      else                   h += '<span class="stg-pill stg-pill-off">Not loaded</span>';
       h += '</div>';
-      h += '<span class="health-pill health-pill-unknown" id="cp-gas-pill"><span class="health-dot"></span><span id="cp-gas-pill-text">Checking\u2026</span></span>';
+      h += '<div class="stg-health-row"><span class="stg-health-label">\uD83D\uDCC4 GAS API</span>';
+      h += '<span class="stg-pill stg-pill-check" id="ov-gas-pill">Checking\u2026</span>';
       h += '</div>';
-
-      h += '<div class="cp-health-row">';
-      h += '<div class="cp-health-icon">&#128293;</div>';
-      h += '<div class="cp-health-body">';
-      h += '<div class="cp-health-label">Firebase / Firestore</div>';
-      h += '<div class="cp-health-detail">' + (_fbProjectId ? _e(_fbProjectId) : 'Not initialized') + '</div>';
+      h += '<div class="stg-health-row"><span class="stg-health-label">\uD83D\uDEE1 Maintenance</span>';
+      h += '<span id="ov-maint-status" class="stg-pill stg-pill-check">Checking\u2026</span>';
+      h += '<label class="stg-switch"><input type="checkbox" id="ov-lockdown" onchange="Modules.toggleLockdown(this.checked)"><span class="stg-switch-track"></span></label>';
       h += '</div>';
-      if (_fbReady && _fbMode) {
-        h += '<span class="health-pill health-pill-ok"><span class="health-dot"></span>Connected</span>';
-      } else if (_fbReady) {
-        h += '<span class="health-pill health-pill-warn"><span class="health-dot"></span>Standby</span>';
-      } else {
-        h += '<span class="health-pill health-pill-unknown"><span class="health-dot"></span>Not loaded</span>';
-      }
+      h += '<div id="ov-maint-banner" class="stg-banner stg-banner-warn" style="display:none;margin-top:10px;">\u26A0 MAINTENANCE MODE ACTIVE</div>';
       h += '</div>';
 
-      h += '<div class="cp-health-row">';
-      h += '<div class="cp-health-icon">&#128737;&#65039;</div>';
-      h += '<div class="cp-health-body">';
-      h += '<div class="cp-health-label">Maintenance Mode</div>';
-      h += '<div class="cp-health-detail">Controls public portal access</div>';
-      h += '</div>';
-      h += '<div style="display:flex;align-items:center;gap:10px;">';
-      h += '<span id="maintenance-badge" style="font-size:0.78rem;color:var(--ink-muted);">\u2026</span>';
-      h += '<label class="settings-toggle" style="margin:0;">';
-      h += '<input type="checkbox" id="lockdown-toggle" onchange="Modules.toggleLockdown(this.checked)">';
-      h += '<span class="settings-toggle-slider"></span>';
-      h += '</label>';
-      h += '</div>';
-      h += '</div>';
-      h += '</div>';
-
-      h += '<div id="maintenance-active-banner" style="display:none;margin:0 0 16px;padding:12px 16px;border-radius:10px;background:var(--warning,#c98b2e);color:#fff;font-weight:600;font-size:0.85rem;">&#9888; MAINTENANCE IS ACTIVE \u2014 Public portal is blocked. Only Pastor &amp; Admin can access admin.</div>';
-
-      // System snapshot
-      var _commsMode2 = _fbMode ? 'Firebase (real-time)' : 'Google Apps Script';
-      var _globalThemeLabel = globalTheme === 'default' ? 'Member Choice' : (_e((tmMeta[globalTheme] || {}).label || globalTheme));
-      var _selfReg   = rows.find(function(r) { return (r.key || r.configKey) === 'ALLOW_SELF_REGISTER'; });
-      var _selfRegOn = _selfReg ? String(_selfReg.value || 'FALSE').toUpperCase() === 'TRUE' : false;
-      var _sessionTtl = rows.find(function(r) { return (r.key || r.configKey) === 'SESSION_TTL_HOURS'; });
-      var _sessionTtlVal = _sessionTtl ? String(_sessionTtl.value || '6') : '6';
-      var _adminEmail = rows.find(function(r) { return (r.key || r.configKey) === 'ADMIN_EMAIL'; });
-      var _adminEmailVal = _adminEmail ? String(_adminEmail.value || '') : '';
-
-      h += '<div class="cp-snapshot-grid">';
-      h += '<div class="cp-snapshot-item"><span class="cp-snapshot-label">Data Layer</span><span class="cp-snapshot-value">' + _commsMode2 + '</span></div>';
-      h += '<div class="cp-snapshot-item"><span class="cp-snapshot-label">Global Theme</span><span class="cp-snapshot-value">' + _globalThemeLabel + '</span></div>';
-      h += '<div class="cp-snapshot-item"><span class="cp-snapshot-label">Self-Registration</span><span class="cp-snapshot-value" style="color:' + (_selfRegOn ? 'var(--success,#4ade80)' : 'var(--ink-muted)') + ';">' + (_selfRegOn ? 'Open' : 'Closed') + '</span></div>';
-      h += '<div class="cp-snapshot-item"><span class="cp-snapshot-label">Session TTL</span><span class="cp-snapshot-value">' + _sessionTtlVal + ' hrs</span></div>';
-      h += '<div class="cp-snapshot-item"><span class="cp-snapshot-label">Admin Email</span><span class="cp-snapshot-value" style="font-size:0.78rem;">' + (_adminEmailVal ? _e(_adminEmailVal) : '<span style="color:var(--warning,#f59e0b);">&#9888; Not set</span>') + '</span></div>';
-      h += '<div class="cp-snapshot-item"><span class="cp-snapshot-label">Config Entries</span><span class="cp-snapshot-value">' + rows.length + '</span></div>';
+      // Quick snapshot
+      h += '<div class="stg-card">';
+      h += '<div class="stg-card-title">Quick Snapshot</div>';
+      h += '<div class="stg-kv"><span>Data Layer</span><span>' + (fbMode ? 'Firebase (real-time)' : 'Google Apps Script') + '</span></div>';
+      h += '<div class="stg-kv"><span>Self-Registration</span><span>' + (_cfgBool('ALLOW_SELF_REGISTER') ? '\uD83D\uDFE2 Open' : '\u26D4 Closed') + '</span></div>';
+      h += '<div class="stg-kv"><span>Session TTL</span><span>' + _cfgVal('SESSION_TTL_HOURS', '6') + ' hrs</span></div>';
+      h += '<div class="stg-kv"><span>Admin Email</span><span>' + (_cfgVal('ADMIN_EMAIL', '') || '\u26A0 Not set') + '</span></div>';
+      h += '<div class="stg-kv"><span>Config Entries</span><span>' + rows.length + '</span></div>';
       h += '</div>';
 
       // Quick actions
-      h += '<div class="cp-quick-actions">';
-      h += '<div class="cp-quick-label">Quick Actions</div>';
-      h += '<div class="cp-quick-btns">';
-      h += '<button class="cp-quick-btn" onclick="Modules._settingsTab(\'look-feel\')">&#127912; Themes</button>';
-      h += '<button class="cp-quick-btn" onclick="Modules._settingsTab(\'modules\')">&#129697; Modules</button>';
-      h += '<button class="cp-quick-btn" onclick="Modules._settingsTab(\'admin\')">&#128268; Connections</button>';
-      h += '<button class="cp-quick-btn" onclick="Modules._runHealthCheck()">&#128225; Run Diagnostics</button>';
-      h += '<button class="cp-quick-btn" onclick="Modules._reloadConfig()">&#128260; Refresh</button>';
-      h += '</div>';
+      h += '<div class="stg-actions">';
+      h += '<button class="stg-action" onclick="Modules._settingsTab(\'identity\')">\u26EA Identity</button>';
+      h += '<button class="stg-action" onclick="Modules._settingsTab(\'appearance\')">\uD83C\uDFA8 Themes</button>';
+      h += '<button class="stg-action" onclick="Modules._settingsTab(\'modules\')">\uD83E\uDDE9 Modules</button>';
+      h += '<button class="stg-action" onclick="Modules._settingsTab(\'database\')">\uD83D\uDD0C Database</button>';
+      h += '<button class="stg-action" onclick="Modules._runHealthCheck()">\uD83D\uDCE1 Diagnostics</button>';
       h += '</div>';
 
       return h;
@@ -11404,423 +11342,86 @@ const Modules = (() => {
     after: function() {
       // GAS health ping
       (async function() {
-        var pill = document.getElementById('cp-gas-pill');
-        var pillText = document.getElementById('cp-gas-pill-text');
+        var pill = document.getElementById('ov-gas-pill');
         try {
           var t0 = performance.now();
           var ok = await TheVine.health('flock');
           var ms = Math.round(performance.now() - t0);
-          if (pill) { pill.className = ok ? 'health-pill health-pill-ok' : 'health-pill health-pill-fail'; }
-          if (pillText) pillText.textContent = ok ? ms + 'ms' : 'Offline';
-        } catch(e) {
-          if (pill) pill.className = 'health-pill health-pill-fail';
-          if (pillText) pillText.textContent = 'Offline';
-        }
+          if (pill) { pill.className = 'stg-pill ' + (ok ? 'stg-pill-ok' : 'stg-pill-err'); pill.textContent = ok ? ms + 'ms' : 'Offline'; }
+        } catch(e) { if (pill) { pill.className = 'stg-pill stg-pill-err'; pill.textContent = 'Offline'; } }
       })();
-      // Maintenance toggle
+      // Maintenance check
       if (typeof UpperRoom !== 'undefined' && UpperRoom.getMaintenanceStatus) {
-        UpperRoom.getMaintenanceStatus().then(function(data) {
-          var active = !!(data && data.maintenance);
-          var badge = document.getElementById('maintenance-badge');
-          if (badge) badge.textContent = active ? '\u26A0 Maintenance ON' : '\u2714 Normal';
-          var cb = document.getElementById('lockdown-toggle');
-          if (cb) cb.checked = active;
-          var banner = document.getElementById('maintenance-active-banner');
-          if (banner) banner.style.display = active ? '' : 'none';
-        }).catch(function() {
-          var badge = document.getElementById('maintenance-badge');
-          if (badge) badge.textContent = '\u2714 Normal';
-        });
-      } else {
-        var badge = document.getElementById('maintenance-badge');
-        if (badge) badge.textContent = '\u2714 Normal';
+        UpperRoom.getMaintenanceStatus().then(function(d) {
+          var on = !!(d && d.maintenance);
+          var s = document.getElementById('ov-maint-status');
+          if (s) { s.className = 'stg-pill ' + (on ? 'stg-pill-warn' : 'stg-pill-ok'); s.textContent = on ? 'ON' : 'Normal'; }
+          var cb = document.getElementById('ov-lockdown'); if (cb) cb.checked = on;
+          var b = document.getElementById('ov-maint-banner'); if (b) b.style.display = on ? '' : 'none';
+        }).catch(function() {});
       }
     }
   };
 
   // ════════════════════════════════════════════════════════════════════════
-  //  TAB: LOOK & FEEL
+  //  CHURCH IDENTITY
   // ════════════════════════════════════════════════════════════════════════
-  _settingsTabRenderers['look-feel'] = {
+  _settingsTabRenderers['identity'] = {
     html: function() {
-      var rows = _cfgD.rows;
-      var prefixRow = rows.find(function(r) { return (r.key || r.configKey) === 'CARD_PREFIX'; });
-      var currentPrefix = prefixRow ? String(prefixRow.value || 'FlockOS') : 'FlockOS';
-      var globalThemeRow = rows.find(function(r) { return (r.key || r.configKey) === 'GLOBAL_THEME'; });
-      var globalTheme = globalThemeRow ? String(globalThemeRow.value || 'default') : 'default';
-      var tmMeta = (typeof Adornment !== 'undefined' && Adornment.themeMeta) ? Adornment.themeMeta : {};
-      var themeList = (typeof Adornment !== 'undefined' && Adornment.themes) ? Adornment.themes.filter(function(t) { return t !== 'auto'; }) : [];
-      var currentTheme = (typeof Adornment !== 'undefined') ? Adornment.getTheme() : 'america';
-      var allowCustomRow = rows.find(function(r) { return (r.key || r.configKey) === 'ALLOW_CUSTOM_THEMES'; });
-      var allowCustom = allowCustomRow ? String(allowCustomRow.value || 'FALSE').toUpperCase() === 'TRUE' : false;
-
       var h = '';
-
-      // ── Identity & Branding ──
-      h += '<details class="settings-section settings-accordion">';
-      h += '<summary class="settings-accordion-trigger"><span class="settings-accordion-chevron">&#9654;</span>';
-      h += '<span class="settings-section-icon">\uD83C\uDFF7\uFE0F</span>';
-      h += '<span class="settings-accordion-label">Identity &amp; Branding</span>';
-      h += '<span class="settings-accordion-count">' + _e(currentPrefix) + '</span>';
-      h += '</summary>';
-      h += '<div class="settings-accordion-body">';
-      h += '<div class="settings-card">';
-      h += '<div class="settings-card-label">Member Card Prefix</div>';
-      h += '<p class="settings-card-hint">Prefix for new member card numbers (e.g. <strong>' + _e(currentPrefix) + '-0001</strong>). Changing this only affects future cards.</p>';
-      h += '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">';
-      h += '<input id="card-prefix-input" type="text" value="' + _e(currentPrefix) + '" maxlength="10" class="settings-input" placeholder="FlockOS" style="width:120px;text-transform:uppercase;">';
-      h += '<button class="btn btn-primary" onclick="Modules.saveCardPrefix()" style="padding:10px 20px;border-radius:8px;border:none;background:var(--accent);color:var(--bg);font-weight:600;font-size:0.85rem;cursor:pointer;">Save Prefix</button>';
-      h += '</div></div></div>';
-      h += '</div></details>';
-
-      // ── Display Preferences ──
-      var fontScaleRow = rows.find(function(r) { return (r.key || r.configKey) === 'FONT_SCALE'; });
-      var currentScale = fontScaleRow ? String(fontScaleRow.value || '100') : (localStorage.getItem('flock_font_scale') || '100');
-      var mobileFontScaleRow = rows.find(function(r) { return (r.key || r.configKey) === 'FONT_SCALE_MOBILE'; });
-      var currentMobileScale = mobileFontScaleRow ? String(mobileFontScaleRow.value || '100') : (localStorage.getItem('flock_font_scale_mobile') || '100');
-      var quizSizeRow = rows.find(function(r) { return (r.key || r.configKey) === 'QUIZ_SIZE'; });
-      var currentQuizSize = quizSizeRow ? String(quizSizeRow.value || '0') : (localStorage.getItem('flock_quiz_size') || '0');
-
-      h += '<details class="settings-section settings-accordion">';
-      h += '<summary class="settings-accordion-trigger"><span class="settings-accordion-chevron">&#9654;</span>';
-      h += '<span class="settings-section-icon">\uD83D\uDD0D</span>';
-      h += '<span class="settings-accordion-label">Display Preferences</span>';
-      h += '<span class="settings-accordion-count">Desktop ' + _e(currentScale) + '% / Mobile ' + _e(currentMobileScale) + '%</span>';
-      h += '</summary>';
-      h += '<div class="settings-accordion-body">';
-
-      // Desktop Font Scale
-      h += '<div class="settings-card">';
-      h += '<div class="settings-card-label">\uD83D\uDDA5 Desktop Font Size</div>';
-      h += '<p class="settings-card-hint">Scale text on desktop and laptop screens. Default is 100%.</p>';
-      h += '<div style="display:flex;align-items:center;gap:8px;margin-top:6px;">';
-      h += '<select id="font-scale-input" class="settings-input" style="min-width:130px;" onchange="Modules.previewFontScale(this.value)">';
-      [90, 95, 100, 105, 110, 115, 120, 125, 130].forEach(function(n) {
-        h += '<option value="' + n + '"' + (String(currentScale) === String(n) ? ' selected' : '') + '>' + n + '%</option>';
-      });
-      h += '</select>';
-      h += '<button class="btn btn-primary" onclick="Modules.saveFontScale()" style="margin-left:8px;padding:6px 16px;border-radius:6px;border:none;background:var(--accent);color:var(--bg);font-weight:600;font-size:0.82rem;cursor:pointer;">Save</button>';
-      h += '</div></div>';
-
-      // Mobile Font Scale
-      h += '<div class="settings-card" style="margin-top:8px;">';
-      h += '<div class="settings-card-label">\uD83D\uDCF1 Mobile Font Size</div>';
-      h += '<p class="settings-card-hint">Scale text on phones and tablets (screens \u2264 768px). Default is 100%.</p>';
-      h += '<div style="display:flex;align-items:center;gap:8px;margin-top:6px;">';
-      h += '<select id="font-scale-mobile-input" class="settings-input" style="min-width:130px;" onchange="Modules.previewFontScaleMobile(this.value)">';
-      [90, 95, 100, 105, 110, 115, 120, 125, 130].forEach(function(n) {
-        h += '<option value="' + n + '"' + (String(currentMobileScale) === String(n) ? ' selected' : '') + '>' + n + '%</option>';
-      });
-      h += '</select>';
-      h += '<button class="btn btn-primary" onclick="Modules.saveFontScaleMobile()" style="margin-left:8px;padding:6px 16px;border-radius:6px;border:none;background:var(--accent);color:var(--bg);font-weight:600;font-size:0.82rem;cursor:pointer;">Save</button>';
-      h += '</div></div>';
-
-      // Quiz Size
-      h += '<div class="settings-card" style="margin-top:8px;">';
-      h += '<div class="settings-card-label">\u270D Bible Quiz Size</div>';
-      h += '<p class="settings-card-hint">Questions per quiz attempt. 0 = all questions.</p>';
-      h += '<div style="display:flex;align-items:center;gap:8px;margin-top:6px;">';
-      h += '<select id="quiz-size-select" class="settings-input" style="min-width:130px;">';
-      h += '<option value="0"' + (currentQuizSize === '0' ? ' selected' : '') + '>All Questions</option>';
-      [5, 10, 15, 20, 25, 30, 40, 50].forEach(function(n) {
-        h += '<option value="' + n + '"' + (String(currentQuizSize) === String(n) ? ' selected' : '') + '>' + n + ' Questions</option>';
-      });
-      h += '</select>';
-      h += '<button class="btn btn-primary" onclick="Modules.saveQuizSize()" style="padding:6px 16px;border-radius:6px;border:none;background:var(--accent);color:var(--bg);font-weight:600;font-size:0.82rem;cursor:pointer;">Save</button>';
-      h += '</div></div>';
-
-      h += '</div>';
-      h += '</div></details>';
-
-      // ── Theme Administration ──
-      h += '<details class="settings-section settings-accordion">';
-      h += '<summary class="settings-accordion-trigger"><span class="settings-accordion-chevron">&#9654;</span>';
-      h += '<span class="settings-section-icon">\uD83C\uDFA8</span>';
-      h += '<span class="settings-accordion-label">Theme Administration</span>';
-      h += '<span class="settings-accordion-count">' + _e((tmMeta[currentTheme] || {}).label || currentTheme) + '</span>';
-      h += '</summary>';
-      h += '<div class="settings-accordion-body">';
-
-      h += '<div class="settings-card">';
-      h += '<div class="settings-card-label">\uD83C\uDFDB\uFE0F Foundational Theme</div>';
-      h += '<p class="settings-card-hint">Sets the site-wide theme. \u201CDefault\u201D lets each member choose their own.</p>';
-      h += '<input type="hidden" id="global-theme-select" value="' + _e(globalTheme) + '">';
-      h += '<div class="theme-grid" style="margin:10px 0;">';
-      h += '<div class="theme-card' + (globalTheme === 'default' ? ' selected' : '') + '" onclick="document.getElementById(\'global-theme-select\').value=\'default\';document.querySelectorAll(\'.theme-card\').forEach(function(c){c.classList.remove(\'selected\')});this.classList.add(\'selected\')">';
-      h += '<div class="tc-swatch" style="background:linear-gradient(135deg,#1a1a2e 50%,#22d3ee);"></div>';
-      h += '<div class="tc-body"><div class="tc-name">Default</div><div class="tc-mode">member choice</div></div>';
-      if (globalTheme === 'default') h += '<span class="tc-check">\u2713</span>';
-      h += '</div>';
-      themeList.forEach(function(t) {
-        var m = tmMeta[t] || {};
-        var isCurrent = (globalTheme === t);
-        h += '<div class="theme-card' + (isCurrent ? ' selected' : '') + '" onclick="document.getElementById(\'global-theme-select\').value=\'' + t + '\';document.querySelectorAll(\'.theme-card\').forEach(function(c){c.classList.remove(\'selected\')});this.classList.add(\'selected\')">';
-        h += '<div class="tc-swatch" style="background:linear-gradient(135deg,' + (m.bg || '#111') + ' 50%,' + (m.accent || '#888') + ');"></div>';
-        h += '<div class="tc-body"><div class="tc-name">' + _e(m.label || t) + '</div><div class="tc-mode">' + _e(m.mode || '') + '</div></div>';
-        if (isCurrent) h += '<span class="tc-check">\u2713</span>';
+      var fields = [
+        { key: 'CHURCH_NAME',        label: 'Church Name',       type: 'text',   ph: 'e.g. Stronger by Grace' },
+        { key: 'ADMIN_EMAIL',        label: 'Admin Email',       type: 'email',  ph: 'pastor@church.org' },
+        { key: 'CHURCH_EMAIL',       label: 'Church Email',      type: 'email',  ph: 'info@church.org' },
+        { key: 'CHURCH_PHONE',       label: 'Phone',             type: 'tel',    ph: '(555) 123-4567' },
+        { key: 'CHURCH_ADDRESS',     label: 'Address',           type: 'text',   ph: '123 Main St, City, ST 12345' },
+        { key: 'CHURCH_WEBSITE',     label: 'Website',           type: 'url',    ph: 'https://yourchurch.org' },
+        { key: 'CHURCH_TIMEZONE',    label: 'Timezone',          type: 'text',   ph: 'America/New_York' },
+        { key: 'CHURCH_LOGO',        label: 'Logo URL',          type: 'url',    ph: 'https://...' },
+      ];
+      h += '<div class="stg-card">';
+      h += '<div class="stg-card-title">\u26EA Church Identity</div>';
+      h += '<p class="stg-card-desc">Core information about your church. Shown in headers, cards, and notifications.</p>';
+      h += '<div class="stg-form-grid">';
+      fields.forEach(function(f) {
+        var v = _cfgVal(f.key, '');
+        h += '<div class="stg-field">';
+        h += '<label class="stg-label" for="ci-' + f.key + '">' + _e(f.label) + '</label>';
+        h += '<input type="' + f.type + '" id="ci-' + f.key + '" class="stg-input" value="' + _e(v) + '" placeholder="' + _e(f.ph) + '" data-ci-key="' + f.key + '">';
         h += '</div>';
       });
       h += '</div>';
-      h += '<button class="btn btn-primary" onclick="Modules.saveGlobalTheme()" style="padding:8px 20px;border-radius:6px;border:none;background:var(--accent);color:var(--bg);font-weight:600;font-size:0.82rem;cursor:pointer;">Apply Theme</button>';
+      h += '<div class="stg-form-foot">';
+      h += '<button class="stg-btn stg-btn-primary" onclick="Modules._saveIdentity()">Save Identity</button>';
+      h += '<span id="ci-save-status" class="stg-status"></span>';
+      h += '</div>';
       h += '</div>';
 
-      h += '<div class="settings-card" style="margin-top:2px;">';
-      h += '<div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">';
-      h += '<div>';
-      h += '<div class="settings-card-label">\u2728 Allow Custom Themes</div>';
-      h += '<p class="settings-card-hint" style="margin:4px 0 0;">When enabled, members can choose personal themes and use Interface Studio.</p>';
-      h += '</div>';
-      h += '<label class="toggle-switch">';
-      h += '<input type="checkbox" id="allow-custom-themes-toggle"' + (allowCustom ? ' checked' : '') + ' onchange="Modules._saveAllowCustomThemes(this.checked)">';
-      h += '<span class="slider"></span></label>';
-      h += '</div></div>';
-
-      h += '</div>';
-      h += '</div></details>';
-
-      // ── Interface Studio ──
-      if (typeof Adornment !== 'undefined' && Adornment.loadStudioFonts) Adornment.loadStudioFonts();
-      var _ov;
-      try { _ov = JSON.parse(localStorage.getItem(Adornment.OVERRIDE_LS_KEY) || '{}'); } catch(e) { _ov = {}; }
-      if (!_ov.vars)  _ov.vars  = {};
-      if (!_ov.fonts) _ov.fonts = {};
-      if (!_ov.sizes) _ov.sizes = {};
-      if (!_ov.pads)  _ov.pads  = {};
-
-      function _studioSlider(id, label, hint, unit, min, max, step, current, def) {
-        var pct = def > 0 ? Math.round(current / def * 100) : 100;
-        var s = '';
-        s += '<div class="studio-row">';
-        s += '<div class="studio-label-wrap">';
-        s += '<label class="studio-label" for="' + id + '">' + label + '</label>';
-        if (hint) s += '<span class="studio-hint">' + hint + '</span>';
-        s += '</div>';
-        s += '<div class="studio-control">';
-        s += '<input type="number" id="' + id + '" min="25" max="300" step="5" value="' + pct + '" data-def="' + def + '" data-unit="' + unit + '" class="studio-pct" oninput="Modules._studioPreview()">';
-        s += '<span class="studio-pct-suffix">%</span>';
-        s += '</div>';
-        s += '</div>';
-        return s;
-      }
-
-      function _studioFontPicker(id, label, hint, current) {
-        var fonts = [
-          { val: '', label: 'Default (Inter)', sample: 'Aa' },
-          { val: "'Inter', sans-serif",                 label: 'Inter',             sample: 'Aa' },
-          { val: "'Lora', serif",                       label: 'Lora',              sample: 'Aa' },
-          { val: "'Merriweather', serif",               label: 'Merriweather',      sample: 'Aa' },
-          { val: "'Montserrat', sans-serif",            label: 'Montserrat',        sample: 'Aa' },
-          { val: "'Nunito', sans-serif",                label: 'Nunito',            sample: 'Aa' },
-          { val: "'Open Sans', sans-serif",             label: 'Open Sans',         sample: 'Aa' },
-          { val: "'Poppins', sans-serif",               label: 'Poppins',           sample: 'Aa' },
-          { val: "'Playfair Display', serif",           label: 'Playfair Display',  sample: 'Aa' },
-          { val: "'PT Serif', serif",                   label: 'PT Serif',          sample: 'Aa' },
-          { val: "'Raleway', sans-serif",               label: 'Raleway',           sample: 'Aa' },
-          { val: "'Roboto', sans-serif",                label: 'Roboto',            sample: 'Aa' },
-          { val: "'Roboto Slab', serif",                label: 'Roboto Slab',       sample: 'Aa' },
-          { val: "'Source Sans 3', sans-serif",         label: 'Source Sans 3',     sample: 'Aa' },
-          { val: "'Work Sans', sans-serif",             label: 'Work Sans',         sample: 'Aa' },
-          { val: "'Noto Serif', Georgia, serif",        label: 'Noto Serif',        sample: 'Aa' },
-          { val: "Georgia, serif",                      label: 'Georgia',           sample: 'Aa' },
-          { val: "'Courier New', monospace",            label: 'Courier New',       sample: 'Aa' }
-        ];
-        var s = '';
-        s += '<div class="studio-row" style="flex-direction:column;align-items:flex-start;">';
-        s += '<div class="studio-label-wrap" style="margin-bottom:6px;">';
-        s += '<label class="studio-label">' + label + '</label>';
-        if (hint) s += '<span class="studio-hint">' + hint + '</span>';
-        s += '</div>';
-        s += '<input type="hidden" id="' + id + '" value="' + _e(current) + '">';
-        s += '<div style="display:flex;flex-wrap:wrap;gap:6px;">';
-        fonts.forEach(function(f) {
-          var isSel = (current === f.val) ? ' selected' : '';
-          s += '<div class="studio-font-card' + isSel + '" onclick="document.getElementById(\'' + id + '\').value=\'' + _e(f.val).replace(/'/g, "\\'") + '\';this.parentNode.querySelectorAll(\'.studio-font-card\').forEach(function(c){c.classList.remove(\'selected\')});this.classList.add(\'selected\');Modules._studioPreview()" title="' + _e(f.label) + '">';
-          s += '<span class="font-sample" style="font-family:' + (f.val || 'inherit') + ';">' + f.sample + '</span>';
-          s += '<span class="font-name">' + _e(f.label) + '</span>';
-          s += '</div>';
-        });
-        s += '</div>';
-        s += '</div>';
-        return s;
-      }
-
-      h += '<details class="settings-section settings-accordion">';
-      h += '<summary class="settings-accordion-trigger"><span class="settings-accordion-chevron">&#9654;</span>';
-      h += '<span class="settings-section-icon">\uD83C\uDFA8</span>';
-      h += '<span class="settings-accordion-label">Interface Studio</span>';
-      h += '<span class="settings-accordion-count">Fonts, sizes, spacing, corners</span>';
-      h += '</summary>';
-      h += '<div class="settings-accordion-body">';
-      h += '<p class="settings-section-desc" style="margin-bottom:10px;font-size:0.78rem;">Fonts, sizes, spacing, and corners. Changes preview instantly. <strong>Save All</strong> to persist, <strong>Reset</strong> to undo.</p>';
-
-      // Fonts
-      h += '<details class="settings-accordion">';
-      h += '<summary class="settings-accordion-trigger">\uD83D\uDDA5 Fonts<span class="settings-accordion-count">Body & Heading typefaces</span></summary>';
-      h += '<div class="settings-accordion-body">';
-      h += _studioFontPicker('studio-font-body', 'Body Font', 'All regular text, menus, tables, cards', _ov.fonts.body || '');
-      h += _studioFontPicker('studio-font-heading', 'Heading Font', 'Page titles, section headers, welcome hero', _ov.fonts.heading || '');
-      h += '<div id="studio-font-preview" style="margin-top:8px;padding:12px;border-radius:8px;background:var(--bg-sunken);border:1px solid var(--line);">';
-      h += '<div style="font-size:1.15rem;font-weight:700;margin-bottom:4px;">Heading Preview</div>';
-      h += '<div style="font-size:0.85rem;">Body text preview. The quick brown fox jumps over the lazy dog. 0123456789</div>';
-      h += '</div>';
-      h += '</div></details>';
-
-      // Font Sizes
-      h += '<details class="settings-accordion">';
-      h += '<summary class="settings-accordion-trigger">\uD83D\uDD20 Font Sizes<span class="settings-accordion-count">Every text element</span></summary>';
-      h += '<div class="settings-accordion-body">';
-      var _szGroups = [
-        { title: 'Page & Headings', items: [
-          { sel: '.page-header h1', label: 'Page Title', def: '1.4' },
-          { sel: '.page-header p', label: 'Page Subtitle', def: '0.85' },
-          { sel: '.welcome-hero h1', label: 'Welcome Title', def: '2' },
-          { sel: '.welcome-hero .subtitle', label: 'Welcome Subtitle', def: '1' },
-          { sel: '.welcome-hero .verse', label: 'Welcome Verse', def: '0.82' },
-        ]},
-        { title: 'Navigation', items: [
-          { sel: '.nav-item', label: 'Menu Items', def: '0.86' },
-          { sel: '.nav-item .icon', label: 'Menu Icons', def: '1' },
-          { sel: '.nav-group-label', label: 'Menu Section Label', def: '0.68' },
-        ]},
-        { title: 'Cards', items: [
-          { sel: '.card .card-icon', label: 'Card Icon', def: '1.6' },
-          { sel: '.card .card-title', label: 'Card Title', def: '0.92' },
-          { sel: '.card .card-desc', label: 'Card Description', def: '0.78' },
-        ]},
-        { title: 'Tables', items: [
-          { sel: '.data-table', label: 'Table Body', def: '0.85' },
-          { sel: '.data-table th', label: 'Table Header', def: '0.74' },
-        ]},
-        { title: 'Buttons & Pills', items: [
-          { sel: '.btn', label: 'Buttons', def: '0.875' },
-          { sel: '.btn-sm', label: 'Small Buttons', def: '0.75' },
-          { sel: '.pill', label: 'Pills / Tags', def: '0.75' },
-          { sel: '.badge', label: 'Badges', def: '0.72' },
-        ]},
-        { title: 'Forms', items: [
-          { sel: '.label', label: 'Field Labels', def: '0.8125' },
-          { sel: '.settings-input', label: 'Input Fields', def: '0.9' },
-        ]},
-        { title: 'Modals & Alerts', items: [
-          { sel: '.modal-title', label: 'Modal Title', def: '1.1' },
-          { sel: '.alert', label: 'Alert Text', def: '0.85' },
-          { sel: '.toast', label: 'Toast Messages', def: '0.875' },
-        ]},
-        { title: 'Empty States & Misc', items: [
-          { sel: '.empty-state-icon', label: 'Empty State Icon', def: '2.5' },
-          { sel: '.empty-state-title', label: 'Empty State Title', def: '1' },
-          { sel: '.empty-state p', label: 'Empty State Text', def: '0.85' },
-          { sel: '.settings-section-title', label: 'Settings Title', def: '1.05' },
-          { sel: '.settings-card-label', label: 'Settings Card Label', def: '0.85' },
-          { sel: '.settings-card-hint', label: 'Settings Card Hint', def: '0.8' },
-        ]},
-        { title: 'Browse Cards (Lexicon, Doctrine, Library)', items: [
-          { sel: '.browse-item-title', label: 'Browse Card Title', def: '0.9' },
-          { sel: '.browse-item-sub', label: 'Browse Card Subtitle', def: '0.78' },
-          { sel: '.browse-detail-label', label: 'Detail Card Label', def: '0.72' },
-          { sel: '.browse-detail-card p', label: 'Detail Card Text', def: '0.88' },
-        ]},
+      // Security & Access card
+      h += '<div class="stg-card">';
+      h += '<div class="stg-card-title">\uD83D\uDD10 Security & Access</div>';
+      var secFields = [
+        { key: 'SESSION_TTL_HOURS',    label: 'Session Length (hours)', type: 'number', ph: '6' },
+        { key: 'MIN_PASSCODE_LENGTH',  label: 'Min Passcode Length',   type: 'number', ph: '6' },
+        { key: 'CARD_PREFIX',          label: 'Member Card Prefix',    type: 'text',   ph: 'FLOCK' },
       ];
-      _szGroups.forEach(function(g) {
-        h += '<div class="studio-group-title">' + g.title + '</div>';
-        g.items.forEach(function(it) {
-          var savedVal = _ov.sizes[it.sel] ? parseFloat(_ov.sizes[it.sel]) : it.def;
-          h += _studioSlider('sz-' + it.sel.replace(/[^a-zA-Z0-9]/g, '-'), it.label, it.sel, 'rem', 0, 0, 0, savedVal, it.def);
-        });
+      h += '<div class="stg-form-grid">';
+      secFields.forEach(function(f) {
+        h += '<div class="stg-field">';
+        h += '<label class="stg-label" for="ci-' + f.key + '">' + _e(f.label) + '</label>';
+        h += '<input type="' + f.type + '" id="ci-' + f.key + '" class="stg-input" value="' + _e(_cfgVal(f.key, '')) + '" placeholder="' + _e(f.ph) + '" data-ci-key="' + f.key + '">';
+        h += '</div>';
       });
-      h += '</div></details>';
-
-      // Padding & Spacing
-      h += '<details class="settings-accordion">';
-      h += '<summary class="settings-accordion-trigger">\u2194\uFE0F Padding & Spacing<span class="settings-accordion-count">Breathing room for every element</span></summary>';
-      h += '<div class="settings-accordion-body">';
-      var _padGroups = [
-        { title: 'Cards & Containers', items: [
-          { sel: '.card', label: 'Card Padding', def: '1.25' },
-          { sel: '.card-header', label: 'Card Header', def: '1' },
-          { sel: '.card-body', label: 'Card Body', def: '1.25' },
-          { sel: '.settings-card', label: 'Settings Card', def: '18', unit: 'px' },
-        ]},
-        { title: 'Buttons & Pills', items: [
-          { sel: '.btn-v', label: 'Button Vertical', def: '0.5' },
-          { sel: '.btn-h', label: 'Button Horizontal', def: '1.25' },
-          { sel: '.pill-v', label: 'Pill Vertical', def: '0.25' },
-          { sel: '.pill-h', label: 'Pill Horizontal', def: '0.75' },
-        ]},
-        { title: 'Navigation', items: [
-          { sel: '.nav-item-v', label: 'Menu Item Vertical', def: '8', unit: 'px' },
-          { sel: '.nav-item-h', label: 'Menu Item Horizontal', def: '20', unit: 'px' },
-        ]},
-        { title: 'Tables', items: [
-          { sel: '.table-cell-v', label: 'Cell Vertical', def: '10', unit: 'px' },
-          { sel: '.table-cell-h', label: 'Cell Horizontal', def: '14', unit: 'px' },
-        ]},
-        { title: 'Forms', items: [
-          { sel: '.input-v', label: 'Input Vertical', def: '0.6' },
-          { sel: '.input-h', label: 'Input Horizontal', def: '0.85' },
-        ]},
-        { title: 'Modals', items: [
-          { sel: '.modal-body', label: 'Modal Body', def: '1.25' },
-        ]},
-      ];
-      _padGroups.forEach(function(g) {
-        h += '<div class="studio-group-title">' + g.title + '</div>';
-        g.items.forEach(function(it) {
-          var unit = it.unit || 'rem';
-          var savedVal = _ov.pads[it.sel] ? parseFloat(_ov.pads[it.sel]) : it.def;
-          h += _studioSlider('pad-' + it.sel.replace(/[^a-zA-Z0-9]/g, '-'), it.label, '', unit, 0, 0, 0, savedVal, it.def);
-        });
-      });
-      h += '</div></details>';
-
-      // Corners & Shadows
-      h += '<details class="settings-accordion">';
-      h += '<summary class="settings-accordion-trigger">\u25A3 Corners & Shadows<span class="settings-accordion-count">Border radius & elevation</span></summary>';
-      h += '<div class="settings-accordion-body">';
-      var _cornerItems = [
-        { varName: '--radius-sm', label: 'Small Radius', hint: 'Tags, skeletons', def: 6 },
-        { varName: '--radius-md', label: 'Medium Radius', hint: 'Cards, inputs, modals', def: 12 },
-        { varName: '--radius-lg', label: 'Large Radius', hint: 'Dialogs, hero sections', def: 20 },
-      ];
-      _cornerItems.forEach(function(it) {
-        var savedVal = _ov.vars[it.varName] ? parseInt(_ov.vars[it.varName], 10) : it.def;
-        h += _studioSlider('corner-' + it.varName.replace(/[^a-zA-Z0-9]/g, '-'), it.label, it.hint, 'px', 0, 0, 0, savedVal, it.def);
-      });
-      h += '<div class="studio-group-title" style="margin-top:14px;">Shadows</div>';
-      h += '<div class="studio-row">';
-      h += '<div class="studio-label-wrap"><label class="studio-label">Shadow Intensity</label>';
-      h += '<span class="studio-hint">Controls all drop shadows</span></div>';
-      h += '<select id="studio-shadow" class="settings-input studio-select" onchange="Modules._studioPreview()">';
-      var _shadowSaved = _ov.vars['--shadow-sm'] || '';
-      [
-        { val: '', label: 'Default' },
-        { val: 'none', label: 'None (flat)' },
-        { val: '0 1px 2px rgba(0,0,0,0.04)', label: 'Subtle' },
-        { val: '0 1px 3px rgba(0,0,0,0.06)', label: 'Light (default)' },
-        { val: '0 2px 6px rgba(0,0,0,0.10)', label: 'Medium' },
-        { val: '0 4px 12px rgba(0,0,0,0.15)', label: 'Heavy' },
-      ].forEach(function(opt) {
-        h += '<option value="' + _e(opt.val) + '"' + (_shadowSaved === opt.val ? ' selected' : '') + '>' + _e(opt.label) + '</option>';
-      });
-      h += '</select></div>';
-      h += '</div></details>';
-
-      // Custom CSS
-      h += '<details class="settings-accordion">';
-      h += '<summary class="settings-accordion-trigger">\u2328 Custom CSS<span class="settings-accordion-count">Advanced: raw CSS overrides</span></summary>';
-      h += '<div class="settings-accordion-body">';
-      h += '<p class="settings-card-hint" style="margin-bottom:8px;">Write any CSS here. It\u2019s injected last, so it overrides everything above.</p>';
-      h += '<textarea id="studio-custom-css" class="settings-input" rows="6" style="width:100%;font-family:monospace;font-size:0.82rem;resize:vertical;" placeholder=".card { box-shadow: none; }\\n.btn { border-radius: 4px; }">' + _e(_ov.custom || '') + '</textarea>';
-      h += '</div></details>';
-
-      // Action buttons
-      h += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;padding-bottom:16px;">';
-      h += '<button class="btn btn-primary" onclick="Modules._studioSave()" style="padding:8px 22px;font-size:0.82rem;">Save All</button>';
-      h += '<button class="btn btn-ghost" onclick="Modules._studioReset()" style="padding:8px 22px;font-size:0.82rem;">Reset</button>';
-      h += '<button class="btn" onclick="Modules._studioRestoreVisuals()" style="padding:8px 22px;font-size:0.82rem;background:var(--danger);color:#fff;border:none;">Restore Defaults</button>';
       h += '</div>';
-
-      h += '</div></details>'; // close Interface Studio
+      // Toggles
+      h += '<div class="stg-toggle-list">';
+      h += '<div class="stg-toggle-row"><span>Allow Self-Registration</span>';
+      h += '<label class="stg-switch"><input type="checkbox" id="ci-ALLOW_SELF_REGISTER"' + (_cfgBool('ALLOW_SELF_REGISTER') ? ' checked' : '') + ' data-ci-key="ALLOW_SELF_REGISTER" data-bool="1"><span class="stg-switch-track"></span></label></div>';
+      h += '</div>';
+      h += '<div class="stg-form-foot">';
+      h += '<button class="stg-btn stg-btn-primary" onclick="Modules._saveIdentity()">Save</button>';
+      h += '</div>';
+      h += '</div>';
 
       return h;
     },
@@ -11828,451 +11429,352 @@ const Modules = (() => {
   };
 
   // ════════════════════════════════════════════════════════════════════════
-  //  TAB: MODULES
+  //  APPEARANCE
+  // ════════════════════════════════════════════════════════════════════════
+  _settingsTabRenderers['appearance'] = {
+    html: function() {
+      var h = '';
+      var globalTheme = _cfgVal('GLOBAL_THEME', 'default');
+      var tmMeta = (typeof Adornment !== 'undefined' && Adornment.themeMeta) ? Adornment.themeMeta : {};
+      var themeList = (typeof Adornment !== 'undefined' && Adornment.themes) ? Adornment.themes.filter(function(t) { return t !== 'auto'; }) : [];
+      var allowCustom = _cfgBool('ALLOW_CUSTOM_THEMES');
+      var currentScale = _cfgVal('FONT_SCALE', '100');
+      var currentMobileScale = _cfgVal('FONT_SCALE_MOBILE', '100');
+      var currentQuizSize = _cfgVal('QUIZ_SIZE', '0');
+
+      // ── Theme picker ──
+      h += '<div class="stg-card">';
+      h += '<div class="stg-card-title">\uD83C\uDFA8 Theme</div>';
+      h += '<p class="stg-card-desc">\u201CDefault\u201D lets each member choose. Pick a theme to enforce site-wide.</p>';
+      h += '<input type="hidden" id="global-theme-select" value="' + _e(globalTheme) + '">';
+      h += '<div class="stg-theme-grid">';
+      // Default option
+      h += '<div class="stg-theme-card' + (globalTheme === 'default' ? ' selected' : '') + '" onclick="document.getElementById(\'global-theme-select\').value=\'default\';document.querySelectorAll(\'.stg-theme-card\').forEach(function(c){c.classList.remove(\'selected\')});this.classList.add(\'selected\')">';
+      h += '<div class="stg-theme-swatch" style="background:linear-gradient(135deg,#1a1a2e 50%,#22d3ee);"></div>';
+      h += '<div class="stg-theme-name">Default</div>';
+      h += '</div>';
+      themeList.forEach(function(t) {
+        var m = tmMeta[t] || {};
+        h += '<div class="stg-theme-card' + (globalTheme === t ? ' selected' : '') + '" onclick="document.getElementById(\'global-theme-select\').value=\'' + t + '\';document.querySelectorAll(\'.stg-theme-card\').forEach(function(c){c.classList.remove(\'selected\')});this.classList.add(\'selected\')">';
+        h += '<div class="stg-theme-swatch" style="background:linear-gradient(135deg,' + (m.bg || '#111') + ' 50%,' + (m.accent || '#888') + ');"></div>';
+        h += '<div class="stg-theme-name">' + _e(m.label || t) + '</div>';
+        h += '</div>';
+      });
+      h += '</div>';
+      h += '<div class="stg-form-foot">';
+      h += '<button class="stg-btn stg-btn-primary" onclick="Modules.saveGlobalTheme()">Apply Theme</button>';
+      h += '<label class="stg-switch-label"><label class="stg-switch"><input type="checkbox" id="allow-custom-themes-toggle"' + (allowCustom ? ' checked' : '') + ' onchange="Modules._saveAllowCustomThemes(this.checked)"><span class="stg-switch-track"></span></label> Allow Custom Themes</label>';
+      h += '</div>';
+      h += '</div>';
+
+      // ── Display sizes ──
+      h += '<div class="stg-card">';
+      h += '<div class="stg-card-title">\uD83D\uDD0D Display Sizes</div>';
+      h += '<div class="stg-form-grid stg-form-grid-3">';
+
+      h += '<div class="stg-field"><label class="stg-label">Desktop Font</label>';
+      h += '<div class="stg-input-row"><select id="font-scale-input" class="stg-input">';
+      [90,95,100,105,110,115,120,125,130].forEach(function(n) { h += '<option value="'+n+'"'+(currentScale===String(n)?' selected':'')+'>'+n+'%</option>'; });
+      h += '</select><button class="stg-btn stg-btn-sm" onclick="Modules.saveFontScale()">Save</button></div></div>';
+
+      h += '<div class="stg-field"><label class="stg-label">Mobile Font</label>';
+      h += '<div class="stg-input-row"><select id="font-scale-mobile-input" class="stg-input">';
+      [90,95,100,105,110,115,120,125,130].forEach(function(n) { h += '<option value="'+n+'"'+(currentMobileScale===String(n)?' selected':'')+'>'+n+'%</option>'; });
+      h += '</select><button class="stg-btn stg-btn-sm" onclick="Modules.saveFontScaleMobile()">Save</button></div></div>';
+
+      h += '<div class="stg-field"><label class="stg-label">Quiz Size</label>';
+      h += '<div class="stg-input-row"><select id="quiz-size-select" class="stg-input">';
+      h += '<option value="0"' + (currentQuizSize === '0' ? ' selected' : '') + '>All</option>';
+      [5,10,15,20,25,30,40,50].forEach(function(n) { h += '<option value="'+n+'"'+(currentQuizSize===String(n)?' selected':'')+'>'+n+'</option>'; });
+      h += '</select><button class="stg-btn stg-btn-sm" onclick="Modules.saveQuizSize()">Save</button></div></div>';
+
+      h += '</div></div>';
+
+      // ── Interface Studio ──
+      if (typeof Adornment !== 'undefined' && Adornment.loadStudioFonts) Adornment.loadStudioFonts();
+      var _ov; try { _ov = JSON.parse(localStorage.getItem(Adornment.OVERRIDE_LS_KEY) || '{}'); } catch(e) { _ov = {}; }
+      if (!_ov.vars)  _ov.vars  = {};
+      if (!_ov.fonts) _ov.fonts = {};
+      if (!_ov.sizes) _ov.sizes = {};
+      if (!_ov.pads)  _ov.pads  = {};
+
+      h += '<div class="stg-card">';
+      h += '<div class="stg-card-title">\u2728 Interface Studio</div>';
+      h += '<p class="stg-card-desc">Fine-tune fonts, sizes, spacing, and corners. Changes preview live.</p>';
+
+      // Fonts
+      var fonts = [
+        { val: '', label: 'Default (Inter)' },
+        { val: "'Inter', sans-serif", label: 'Inter' },
+        { val: "'Lora', serif", label: 'Lora' },
+        { val: "'Merriweather', serif", label: 'Merriweather' },
+        { val: "'Montserrat', sans-serif", label: 'Montserrat' },
+        { val: "'Nunito', sans-serif", label: 'Nunito' },
+        { val: "'Open Sans', sans-serif", label: 'Open Sans' },
+        { val: "'Poppins', sans-serif", label: 'Poppins' },
+        { val: "'Playfair Display', serif", label: 'Playfair Display' },
+        { val: "'Raleway', sans-serif", label: 'Raleway' },
+        { val: "'Roboto', sans-serif", label: 'Roboto' },
+        { val: "'Source Sans 3', sans-serif", label: 'Source Sans 3' },
+        { val: "'Work Sans', sans-serif", label: 'Work Sans' },
+        { val: "Georgia, serif", label: 'Georgia' },
+      ];
+
+      h += '<div class="stg-form-grid">';
+      h += '<div class="stg-field"><label class="stg-label">Body Font</label>';
+      h += '<input type="hidden" id="studio-font-body" value="' + _e(_ov.fonts.body || '') + '">';
+      h += '<div class="stg-font-grid">';
+      fonts.forEach(function(f) {
+        h += '<div class="stg-font-chip' + ((_ov.fonts.body || '') === f.val ? ' selected' : '') + '" style="font-family:' + (f.val || 'inherit') + ';" onclick="document.getElementById(\'studio-font-body\').value=\'' + _e(f.val).replace(/'/g, "\\'") + '\';this.parentNode.querySelectorAll(\'.stg-font-chip\').forEach(function(c){c.classList.remove(\'selected\')});this.classList.add(\'selected\');Modules._studioPreview()">' + _e(f.label) + '</div>';
+      });
+      h += '</div></div>';
+      h += '<div class="stg-field"><label class="stg-label">Heading Font</label>';
+      h += '<input type="hidden" id="studio-font-heading" value="' + _e(_ov.fonts.heading || '') + '">';
+      h += '<div class="stg-font-grid">';
+      fonts.forEach(function(f) {
+        h += '<div class="stg-font-chip' + ((_ov.fonts.heading || '') === f.val ? ' selected' : '') + '" style="font-family:' + (f.val || 'inherit') + ';" onclick="document.getElementById(\'studio-font-heading\').value=\'' + _e(f.val).replace(/'/g, "\\'") + '\';this.parentNode.querySelectorAll(\'.stg-font-chip\').forEach(function(c){c.classList.remove(\'selected\')});this.classList.add(\'selected\');Modules._studioPreview()">' + _e(f.label) + '</div>';
+      });
+      h += '</div></div>';
+      h += '</div>';
+
+      // Corner radius
+      h += '<div class="stg-form-grid stg-form-grid-3">';
+      [{ v: '--radius-sm', l: 'Small Radius', d: 6 }, { v: '--radius-md', l: 'Medium Radius', d: 12 }, { v: '--radius-lg', l: 'Large Radius', d: 20 }].forEach(function(it) {
+        var saved = _ov.vars[it.v] ? parseInt(_ov.vars[it.v], 10) : it.d;
+        var pct = Math.round(saved / it.d * 100);
+        h += '<div class="stg-field"><label class="stg-label">' + it.l + '</label>';
+        h += '<div class="stg-input-row"><input type="number" id="corner-' + it.v.replace(/[^a-zA-Z0-9]/g, '-') + '" class="stg-input studio-pct" value="' + pct + '" data-def="' + it.d + '" data-unit="px" min="0" max="300" step="5" oninput="Modules._studioPreview()" style="width:70px;"><span class="stg-unit">%</span></div>';
+        h += '</div>';
+      });
+      h += '</div>';
+
+      // Custom CSS
+      h += '<div class="stg-field" style="margin-top:8px;"><label class="stg-label">Custom CSS</label>';
+      h += '<textarea id="studio-custom-css" class="stg-input stg-textarea" rows="4" placeholder=".card { box-shadow: none; }">' + _e(_ov.custom || '') + '</textarea></div>';
+
+      // Studio actions
+      h += '<div class="stg-form-foot">';
+      h += '<button class="stg-btn stg-btn-primary" onclick="Modules._studioSave()">Save All</button>';
+      h += '<button class="stg-btn stg-btn-ghost" onclick="Modules._studioReset()">Reset</button>';
+      h += '<button class="stg-btn stg-btn-danger" onclick="Modules._studioRestoreVisuals()">Restore Defaults</button>';
+      h += '</div>';
+      h += '</div>';
+
+      return h;
+    },
+    after: null
+  };
+
+  // ════════════════════════════════════════════════════════════════════════
+  //  MODULES
   // ════════════════════════════════════════════════════════════════════════
   _settingsTabRenderers['modules'] = {
     html: function() {
       var allToggleable = Object.keys(_moduleMeta).filter(function(k) { return _protectedModules.indexOf(k) === -1; });
       var totalOn = allToggleable.filter(function(k) { return _isModuleEnabled(k); }).length;
       var h = '';
+      h += '<div class="stg-card">';
+      h += '<div class="stg-card-title">\uD83E\uDDE9 Site Modules <span class="stg-card-count">' + totalOn + '/' + allToggleable.length + ' active</span></div>';
+      h += '<p class="stg-card-desc">Toggle features on and off. Protected modules cannot be disabled.</p>';
 
-      h += '<details class="settings-section settings-accordion" open>';
-      h += '<summary class="settings-accordion-trigger"><span class="settings-accordion-chevron">&#9654;</span>';
-      h += '<span class="settings-section-icon">\uD83E\uDDE9</span>';
-      h += '<span class="settings-accordion-label">Site Modules</span>';
-      h += '<span class="settings-accordion-count">' + totalOn + ' / ' + allToggleable.length + ' active</span>';
-      h += '</summary>';
-      h += '<div class="settings-accordion-body">';
-
-      for (var ci2 = 0; ci2 < _moduleCategories.length; ci2++) {
-        var cat = _moduleCategories[ci2];
+      for (var ci = 0; ci < _moduleCategories.length; ci++) {
+        var cat = _moduleCategories[ci];
         var catKeys = cat.modules.filter(function(k) { return _moduleMeta[k] || _protectedModules.indexOf(k) !== -1; });
         if (!catKeys.length) continue;
-        var catOn = catKeys.filter(function(k) { return _protectedModules.indexOf(k) !== -1 || _isModuleEnabled(k); }).length;
-        h += '<div style="margin-top:14px;margin-bottom:6px;padding:6px 10px;border-radius:var(--radius-sm, 6px);background:var(--surface-alt, rgba(255,255,255,0.04));display:flex;align-items:center;gap:8px;">';
-        h += '<span style="font-size:1.05rem;">' + cat.icon + '</span>';
-        h += '<span style="font-weight:600;font-size:0.88rem;color:var(--ink);">' + _e(cat.label) + '</span>';
-        h += '<span style="margin-left:auto;font-size:0.75rem;color:var(--ink-muted);">' + catOn + ' / ' + catKeys.length + '</span>';
-        h += '</div>';
-        for (var ci3 = 0; ci3 < catKeys.length; ci3++) {
-          var ck = catKeys[ci3];
+        h += '<div class="stg-mod-cat"><span class="stg-mod-cat-icon">' + cat.icon + '</span> ' + _e(cat.label) + '</div>';
+        for (var ci2 = 0; ci2 < catKeys.length; ci2++) {
+          var ck = catKeys[ci2];
           var isProt = _protectedModules.indexOf(ck) !== -1;
           var meta = _moduleMeta[ck] || { label: ck, icon: '\u2699' };
           h += _toggleRow(ck, meta, isProt || _isModuleEnabled(ck), isProt);
         }
       }
-      h += '</div></details>';
+      h += '</div>';
       return h;
     },
     after: null
   };
 
   // ════════════════════════════════════════════════════════════════════════
-  //  TAB: ADMINISTRATION
+  //  DATABASE & CONNECTIONS
   // ════════════════════════════════════════════════════════════════════════
-  _settingsTabRenderers['admin'] = {
+  _settingsTabRenderers['database'] = {
     html: function() {
       var rows = _cfgD.rows;
       var h = '';
+      var ep = {}; try { ep = TheVine.endpoints(); } catch(e) {}
+      var provLS; try { provLS = JSON.parse(localStorage.getItem('flock_provisioning') || '{}'); } catch(e) { provLS = {}; }
+      var dbUrl = provLS.DATABASE_URL || (ep.FLOCK_ENDPOINTS && ep.FLOCK_ENDPOINTS[0]) || '';
 
-      // Church Identity card
-      var _idFields = [
-        { key: 'CHURCH_NAME',       label: 'Church Name',    type: 'text',   placeholder: 'e.g. Stronger by Grace',  hint: 'Displayed in the portal header and member cards.' },
-        { key: 'ADMIN_EMAIL',       label: 'Admin Email',    type: 'email',  placeholder: 'e.g. pastor@church.org',  hint: 'Receives system alerts and new member notifications.' },
-        { key: 'CHURCH_TIMEZONE',   label: 'Timezone',       type: 'text',   placeholder: 'e.g. America/New_York',   hint: 'Used for scheduling, calendar events, and reminders.' },
-        { key: 'SESSION_TTL_HOURS', label: 'Session Length', type: 'number', placeholder: '6',                       hint: 'Hours before members are automatically signed out.' },
-        { key: 'MIN_PASSCODE_LENGTH', label: 'Min Passcode', type: 'number', placeholder: '6',                      hint: 'Minimum characters required for member passcodes.' },
-      ];
-      h += '<div class="settings-card" style="margin-bottom:18px;border:1px solid var(--accent,#22d3ee);border-radius:14px;padding:20px 22px;">';
-      h += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">';
-      h += '<span style="font-size:1.3rem;">&#127981;</span>';
-      h += '<div><div style="font-weight:700;font-size:1rem;color:var(--ink);">Church Identity</div>';
-      h += '<div style="font-size:0.76rem;color:var(--ink-muted);">Your most critical settings \u2014 always visible, never buried.</div></div>';
+      // GAS Endpoint
+      h += '<div class="stg-card">';
+      h += '<div class="stg-card-title">\uD83D\uDD0C Database Endpoint</div>';
+      h += '<div class="stg-kv"><span>Status</span><span class="stg-pill ' + (dbUrl ? 'stg-pill-ok' : 'stg-pill-off') + '" id="prov-health-primary">' + (dbUrl ? 'Configured' : 'Not set') + '</span></div>';
+      h += '<div class="stg-field" style="margin-top:8px;"><label class="stg-label">Google Apps Script URL</label>';
+      h += '<input type="url" id="prov-DATABASE_URL" class="stg-input" value="' + _e(dbUrl) + '" placeholder="https://script.google.com/macros/s/.../exec"></div>';
+      h += '<div class="stg-form-foot">';
+      h += '<button class="stg-btn stg-btn-primary" onclick="Modules._provisioningSave()">Save</button>';
+      h += '<button class="stg-btn stg-btn-ghost" onclick="Modules._provisioningTest()">Test Connection</button>';
       h += '</div>';
-      h += '<div class="cp-identity-grid">';
-      _idFields.forEach(function(f) {
-        var row = rows.find(function(r) { return (r.key || r.configKey) === f.key; });
-        var val = row ? String(row.value != null ? row.value : '') : '';
-        h += '<div class="cp-identity-field">';
-        h += '<label class="cp-identity-label" for="ci-' + f.key + '">' + _e(f.label) + '</label>';
-        h += '<input type="' + f.type + '" id="ci-' + f.key + '" class="settings-input" value="' + _e(val) + '" placeholder="' + _e(f.placeholder) + '" data-ci-key="' + _e(f.key) + '">';
-        h += '<div class="cp-identity-hint">' + _e(f.hint) + '</div>';
-        h += '</div>';
-      });
+      h += '<div id="prov-status" style="margin-top:6px;"></div>';
       h += '</div>';
-      h += '<div style="display:flex;align-items:center;gap:10px;margin-top:16px;flex-wrap:wrap;">';
-      h += '<button class="btn btn-primary" onclick="Modules._saveIdentity()" style="padding:9px 24px;font-size:0.85rem;">Save Identity</button>';
-      h += '<span id="ci-save-status" style="font-size:0.8rem;color:var(--ink-muted);"></span>';
-      h += '</div>';
-      h += '</div>';
-
-      // System Settings
-      var _cfgCatIcons = { General: '\uD83C\uDFE0', Auth: '\uD83D\uDD10', Modules: '\uD83E\uDDE9', Notifications: '\uD83D\uDD14', Display: '\uD83D\uDCBB', Security: '\uD83D\uDEE1\uFE0F' };
-      var _cfgExamples = {
-        CHURCH_NAME: 'e.g. Stronger by Grace', CHURCH_TIMEZONE: 'e.g. America/New_York',
-        SESSION_TTL_HOURS: 'e.g. 6', MIN_PASSCODE_LENGTH: 'e.g. 6', ALLOW_SELF_REGISTER: 'TRUE or FALSE',
-        ADMIN_EMAIL: 'e.g. pastor@church.org', CARD_PREFIX: 'e.g. FlockOS', LOCKDOWN: 'TRUE or FALSE', GLOBAL_THEME: 'Theme name or default'
-      };
-      var _cfgGroups = {};
-      rows.forEach(function(r) {
-        var cat = r.category || 'Other';
-        if (!_cfgGroups[cat]) _cfgGroups[cat] = [];
-        _cfgGroups[cat].push(r);
-      });
-      var _cfgOrder = ['General', 'Auth', 'Modules', 'Notifications', 'Display', 'Security'];
-      var _cfgSorted = _cfgOrder.filter(function(c) { return _cfgGroups[c]; }).concat(
-        Object.keys(_cfgGroups).filter(function(c) { return _cfgOrder.indexOf(c) === -1; }).sort()
-      );
-
-      h += '<details class="settings-section settings-accordion">';
-      h += '<summary class="settings-accordion-trigger">';
-      h += '<span class="settings-accordion-chevron">&#9654;</span>';
-      h += '<span class="settings-accordion-label">\uD83D\uDCCB System Settings</span>';
-      h += '<span class="settings-accordion-count">' + rows.length + ' entries</span>';
-      h += '</summary>';
-      h += '<div class="settings-accordion-body">';
-      h += '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px;">';
-      h += '<p style="margin:0;font-size:0.82rem;color:var(--ink-muted);">Click any setting to edit its value.</p>';
-      h += '<button onclick="Modules.newConfig()" style="padding:8px 18px;border-radius:8px;border:none;background:var(--accent);color:var(--bg);font-weight:600;font-size:0.82rem;cursor:pointer;">+ Add Setting</button>';
-      h += '</div>';
-      h += '<input type="search" id="cfg-search" class="settings-input" placeholder="\uD83D\uDD0D Filter by key, value, or description\u2026" style="width:100%;box-sizing:border-box;margin-bottom:18px;" oninput="Modules._cfgFilter(this.value)">';
-
-      _cfgSorted.forEach(function(cat) {
-        var catRows = _cfgGroups[cat];
-        var catIcon = _cfgCatIcons[cat] || '\u2699\uFE0F';
-        h += '<div class="sys-cfg-group">';
-        h += '<div class="sys-cfg-group-hdr">';
-        h += '<span class="sys-cfg-group-icon">' + catIcon + '</span>';
-        h += '<span class="sys-cfg-group-label">' + _e(cat) + '</span>';
-        h += '<span class="sys-cfg-group-count">' + catRows.length + '</span>';
-        h += '</div>';
-        h += '<div class="sys-cfg-group-cards">';
-        catRows.forEach(function(r) {
-          var k = _e(r.key || r.configKey || '');
-          var v = r.value != null ? String(r.value) : '';
-          var desc = r.description || r.notes || '';
-          var ex = _cfgExamples[r.key || r.configKey] || '';
-          var isBool = v === 'TRUE' || v === 'FALSE';
-          var isEmpty = !v;
-          h += '<div class="sys-cfg-card" onclick="Modules.editConfig(\'' + k + '\')" title="Click to edit">';
-          h += '<div class="sys-cfg-card-key">' + k + '</div>';
-          if (isBool) {
-            h += '<div class="sys-cfg-card-val sys-cfg-bool ' + (v === 'TRUE' ? 'sys-cfg-on' : 'sys-cfg-off') + '">';
-            h += '<span class="sys-cfg-dot"></span> ' + v;
-            h += '</div>';
-          } else if (isEmpty) {
-            h += '<div class="sys-cfg-card-val sys-cfg-empty">' + (ex || 'Not set') + '</div>';
-          } else {
-            h += '<div class="sys-cfg-card-val">' + _e(v.length > 60 ? v.substring(0, 57) + '\u2026' : v) + '</div>';
-          }
-          if (desc) h += '<div class="sys-cfg-card-desc">' + _e(desc) + '</div>';
-          if (r.updatedAt) h += '<div class="sys-cfg-card-ts">' + _e(r.updatedAt) + '</div>';
-          h += '</div>';
-        });
-        h += '</div></div>';
-      });
-      h += '</div></details>';
-
-      // Database & Connections
-      var _ep = {};
-      try { _ep = TheVine.endpoints(); } catch(e) { _ep = {}; }
-      var _provLS;
-      try { _provLS = JSON.parse(localStorage.getItem('flock_provisioning') || '{}'); } catch(e) { _provLS = {}; }
-      var _sheetChunksRow = rows.find(function(r) { return (r.key || r.configKey) === 'SHEET_CHUNKS'; });
-      var _sheetChunks = {};
-      try { _sheetChunks = JSON.parse(_sheetChunksRow ? _sheetChunksRow.value : '{}'); } catch(e) {}
-      var _chunkDomains = ['Members','Attendance','Giving','Sermons','Outreach','Care','Ministry'];
-      var _dbUrl = (_provLS.DATABASE_URL || (_ep.FLOCK_ENDPOINTS && _ep.FLOCK_ENDPOINTS[0]) || '');
-      var _dbConfigured = !!_dbUrl;
-
-      h += '<details class="settings-section settings-accordion">';
-      h += '<summary class="settings-accordion-trigger"><span class="settings-accordion-chevron">&#9654;</span>';
-      h += '<span class="settings-section-icon">&#128268;</span>';
-      h += '<span class="settings-accordion-label">Database &amp; Connections</span>';
-      h += '<span class="settings-accordion-count">' + (_dbConfigured ? '&#128994; Endpoint configured' : '&#9898; Not configured') + '</span>';
-      h += '</summary>';
-      h += '<div class="settings-accordion-body">';
-
-      // Database Endpoint
-      h += '<details class="settings-accordion">';
-      h += '<summary class="settings-accordion-trigger">&#128193; Database Endpoint<span class="settings-accordion-count">' + (_dbConfigured ? 'Configured' : 'Required') + '</span></summary>';
-      h += '<div class="settings-accordion-body">';
-      h += '<div class="settings-card" style="margin-bottom:14px;">';
-      h += '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">';
-      h += '<div class="settings-card-label" style="margin-bottom:0;">&#128193; Google Apps Script Endpoint</div>';
-      h += '<span class="health-pill health-pill-unknown" id="prov-health-primary"><span class="health-dot"></span>Untested</span>';
-      h += '</div>';
-      h += '<p class="settings-card-hint" style="margin:4px 0 8px;">The Google Apps Script Web App URL that powers the FlockOS backend.</p>';
-      h += '<input type="url" id="prov-DATABASE_URL" class="prov-url-field" value="' + _e(_dbUrl) + '" placeholder="https://script.google.com/macros/s/.../exec" style="width:100%;box-sizing:border-box;">';
-      h += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">';
-      h += '<button class="btn btn-primary" onclick="Modules._provisioningSave()" style="padding:8px 22px;font-size:0.82rem;">Save</button>';
-      h += '<button class="btn btn-ghost" onclick="Modules._provisioningTest()" style="padding:8px 22px;font-size:0.82rem;">Test Connection</button>';
-      h += '</div>';
-      h += '<div id="prov-status" style="margin-top:8px;"></div>';
-      h += '</div>';
-      h += '</div></details>';
-
-      // Parallel Sheet Chunks
-      h += '<details class="settings-accordion">';
-      h += '<summary class="settings-accordion-trigger">&#128202; Parallel Sheet Chunks<span class="settings-accordion-count">Horizontal scaling</span></summary>';
-      h += '<div class="settings-accordion-body">';
-      h += '<div class="settings-card">';
-      h += '<div class="settings-card-label">&#128202; Sheet Expansion</div>';
-      h += '<p class="settings-card-hint" style="margin:4px 0 10px;">Split domain sheets into parallel chunks when they grow beyond ~50k rows.</p>';
-      h += '<table style="width:100%;border-collapse:collapse;font-size:0.85rem;">';
-      h += '<thead><tr><th style="text-align:left;padding:6px 10px;border-bottom:1px solid var(--line);">Domain</th>';
-      h += '<th style="text-align:center;padding:6px 10px;border-bottom:1px solid var(--line);">Active Chunks</th>';
-      h += '<th style="text-align:left;padding:6px 10px;border-bottom:1px solid var(--line);">Sheet Tabs</th></tr></thead><tbody>';
-      _chunkDomains.forEach(function(domain) {
-        var cur = _sheetChunks[domain] || 1;
-        var tabList = [];
-        for (var ci4 = 1; ci4 <= cur; ci4++) { tabList.push(domain + (cur > 1 ? '_' + ci4 : '')); }
-        h += '<tr style="border-bottom:1px solid var(--surface-alt,rgba(0,0,0,0.05));">';
-        h += '<td style="padding:8px 10px;font-weight:600;">' + _e(domain) + '</td>';
-        h += '<td style="padding:8px 10px;text-align:center;">';
-        h += '<select id="chunk-' + _e(domain) + '" class="settings-input" style="width:70px;padding:4px 8px;">';
-        [1,2,3,4].forEach(function(n) {
-          h += '<option value="' + n + '"' + (cur === n ? ' selected' : '') + '>' + n + '</option>';
-        });
-        h += '</select></td>';
-        h += '<td style="padding:8px 10px;font-size:0.78rem;color:var(--ink-muted);font-family:monospace;">' + _e(tabList.join(', ')) + '</td></tr>';
-      });
-      h += '</tbody></table>';
-      h += '<div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">';
-      h += '<button class="btn btn-primary" onclick="Modules._saveSheetChunks()" style="padding:8px 22px;font-size:0.82rem;">Save Chunk Config</button>';
-      h += '<span id="chunk-save-status" style="font-size:0.8rem;color:var(--ink-muted);align-self:center;"></span>';
-      h += '</div></div></div></details>';
 
       // API Health
-      h += '<details class="settings-accordion">';
-      h += '<summary class="settings-accordion-trigger">&#128225; API Health<span class="settings-accordion-count">Run diagnostics to check</span></summary>';
-      h += '<div class="settings-accordion-body">';
-      h += '<div class="settings-card" id="health-dashboard">';
-      h += '<div class="health-row" id="health-row-database" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--line);">';
-      h += '<div style="flex:1;min-width:0;">';
-      h += '<div style="font-weight:600;font-size:0.88rem;">&#128196; Apps Script (GAS)</div>';
-      h += '<div style="font-size:0.78rem;color:var(--ink-muted);">Auth &amp; database endpoint</div>';
-      h += '</div>';
-      h += '<span class="health-pill health-pill-unknown" id="health-pill-database"><span class="health-dot"></span>Pending</span>';
-      h += '</div>';
-      h += '<div id="health-conn-type" style="padding:12px 0;border-bottom:1px solid var(--line);font-size:0.82rem;color:var(--ink-muted);">&#9203; Detecting connection type&hellip;</div>';
-      h += '<div style="display:flex;align-items:center;gap:12px;margin-top:14px;flex-wrap:wrap;">';
-      h += '<button class="btn btn-primary" onclick="Modules._runHealthCheck()" style="padding:10px 24px;font-size:0.88rem;">&#128225; Run Diagnostics</button>';
-      h += '<span id="health-timestamp" style="font-size:0.78rem;color:var(--ink-faint);"></span>';
-      h += '</div></div></div></details>';
+      h += '<div class="stg-card">';
+      h += '<div class="stg-card-title">\uD83D\uDCE1 API Health</div>';
+      h += '<div class="stg-health-row"><span class="stg-health-label">\uD83D\uDCC4 Apps Script</span>';
+      h += '<span class="stg-pill stg-pill-check" id="health-pill-database">Pending</span></div>';
+      h += '<div id="health-conn-type" style="font-size:0.82rem;color:var(--ink-muted);padding:6px 0;">Detecting\u2026</div>';
+      h += '<div class="stg-form-foot">';
+      h += '<button class="stg-btn stg-btn-primary" onclick="Modules._runHealthCheck()">\uD83D\uDCE1 Run Diagnostics</button>';
+      h += '<span id="health-timestamp" class="stg-status"></span>';
+      h += '</div></div>';
 
-      // The Wellspring (local data mode)
-      var _wsAvailable = typeof TheWellspring !== 'undefined';
-      var _wsActive = _wsAvailable && TheWellspring.isActive();
-
-      h += '<details class="settings-accordion">';
-      h += '<summary class="settings-accordion-trigger">&#128167; The Wellspring<span class="settings-accordion-count">' + (_wsActive ? '&#128994; Local mode active' : '&#9729;&#65039; Cloud (default)') + '</span></summary>';
-      h += '<div class="settings-accordion-body">';
-      if (!_wsAvailable) {
-        h += '<div class="settings-card"><p style="color:var(--ink-muted);font-size:0.85rem;">The Wellspring module is not loaded.</p></div>';
-      } else {
-        h += '<div class="settings-card">';
-        h += '<div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">';
-        h += '<div>';
-        h += '<div class="settings-card-label">&#128167; Local Data Mode</div>';
-        h += '<p class="settings-card-hint" style="margin:4px 0 0;">When enabled, data is read from .xls files stored in your browser.</p>';
-        h += '</div>';
-        h += '<label class="settings-toggle">';
-        h += '<input type="checkbox" id="wellspring-toggle"' + (_wsActive ? ' checked' : '') + ' onchange="Modules._wellspringToggle(this.checked)">';
-        h += '<span class="settings-toggle-slider"></span></label>';
-        h += '</div>';
-        if (_wsActive) {
-          h += '<div style="margin-top:10px;padding:10px 14px;border-radius:8px;background:var(--accent);color:var(--bg);font-weight:600;font-size:0.85rem;">&#128167; LOCAL MODE ACTIVE</div>';
-        }
-        h += '</div>';
-        h += '<div class="settings-card" style="margin-top:12px;">';
-        h += '<div class="settings-card-label">&#128194; Import Database</div>';
-        h += '<p class="settings-card-hint">Select the .xls or .xlsx file exported from the FlockOS Google Sheet.</p>';
-        h += '<div id="wellspring-database" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 0;flex-wrap:wrap;">';
-        h += '<div style="flex:1;min-width:200px;">';
-        h += '<div style="font-weight:600;font-size:0.88rem;">&#128167; FlockOS Database</div>';
-        h += '<div id="ws-status-db" style="font-size:0.75rem;color:var(--ink-faint);margin-top:4px;">&#9203; Checking\u2026</div>';
-        h += '</div>';
-        h += '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">';
-        h += '<label style="padding:8px 16px;border-radius:8px;border:1px solid var(--accent);color:var(--accent);font-weight:600;font-size:0.82rem;cursor:pointer;">';
-        h += '&#128193; Choose File';
-        h += '<input type="file" accept=".xls,.xlsx,.xlsm" style="display:none;" onchange="Modules._wellspringLoad(this.files[0])">';
-        h += '</label>';
-        h += '<button onclick="Modules._wellspringExport()" style="padding:8px 14px;border-radius:8px;border:1px solid var(--line);background:var(--bg-raised);color:var(--ink);font-weight:600;font-size:0.82rem;cursor:pointer;">&#128229; Export</button>';
-        h += '<button onclick="Modules._wellspringClear()" style="padding:8px 14px;border-radius:8px;border:1px solid var(--line);background:var(--bg-raised);color:var(--warning,#c98b2e);font-weight:600;font-size:0.82rem;cursor:pointer;">&#128465; Clear</button>';
-        h += '</div></div></div>';
-      }
-      h += '</div></details>';
+      // Sheet Chunks
+      var scRow = rows.find(function(r) { return (r.key || r.configKey) === 'SHEET_CHUNKS'; });
+      var sc = {}; try { sc = JSON.parse(scRow ? scRow.value : '{}'); } catch(e) {}
+      var domains = ['Members','Attendance','Giving','Sermons','Outreach','Care','Ministry'];
+      h += '<div class="stg-card">';
+      h += '<div class="stg-card-title">\uD83D\uDCCA Sheet Chunks</div>';
+      h += '<p class="stg-card-desc">Split large sheets into parallel chunks for performance.</p>';
+      h += '<div class="stg-chunk-grid">';
+      domains.forEach(function(d) {
+        var cur = sc[d] || 1;
+        h += '<div class="stg-chunk-row"><span>' + _e(d) + '</span><select id="chunk-' + _e(d) + '" class="stg-input stg-input-sm">';
+        [1,2,3,4].forEach(function(n) { h += '<option value="'+n+'"'+(cur===n?' selected':'')+'>'+n+'</option>'; });
+        h += '</select></div>';
+      });
+      h += '</div>';
+      h += '<div class="stg-form-foot"><button class="stg-btn stg-btn-primary" onclick="Modules._saveSheetChunks()">Save Chunks</button>';
+      h += '<span id="chunk-save-status" class="stg-status"></span></div>';
+      h += '</div>';
 
       // SMS Gateway
-      var _twilioRow = rows.find(function(r) { return (r.key || r.configKey) === 'TWILIO_ENABLED'; });
-      var _twilioOn  = _twilioRow && String(_twilioRow.value).toUpperCase() === 'TRUE';
-      h += '<details class="settings-accordion">';
-      h += '<summary class="settings-accordion-trigger">&#128242; SMS Gateway<span class="settings-accordion-count">' + (_twilioOn ? 'Twilio enabled' : 'Off') + '</span></summary>';
-      h += '<div class="settings-accordion-body">';
-      h += '<div class="settings-card" style="margin-bottom:14px;">';
-      h += '<div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">';
-      h += '<div>';
-      h += '<div class="settings-card-label">&#128241; Enable Twilio SMS</div>';
-      h += '<p class="settings-card-hint" style="margin:4px 0 0;">Requires TWILIO_SID, TWILIO_TOKEN, and TWILIO_NUMBER in your Database Script Properties.</p>';
+      var twilioOn = _cfgBool('TWILIO_ENABLED');
+      h += '<div class="stg-card">';
+      h += '<div class="stg-card-title">\uD83D\uDCF1 SMS Gateway</div>';
+      h += '<div class="stg-toggle-list">';
+      h += '<div class="stg-toggle-row"><span>Enable Twilio SMS</span>';
+      h += '<label class="stg-switch"><input type="checkbox" id="twilio-toggle"' + (twilioOn ? ' checked' : '') + ' onchange="Modules._twilioToggle(this.checked)"><span class="stg-switch-track"></span></label></div>';
       h += '</div>';
-      h += '<label class="toggle-switch">';
-      h += '<input type="checkbox" id="twilio-toggle"' + (_twilioOn ? ' checked' : '') + ' onchange="Modules._twilioToggle(this.checked)">';
-      h += '<span class="slider"></span></label>';
-      h += '</div></div>';
-      h += '<div class="settings-card">';
-      h += '<div class="settings-card-label">&#128295; Setup</div>';
-      h += '<p class="settings-card-hint" style="margin:4px 0 6px;">Add these Script Properties to your Database Apps Script project:</p>';
-      h += '<div style="font-family:monospace;font-size:0.8rem;background:var(--surface);padding:12px 16px;border-radius:8px;border:1px solid var(--line);line-height:1.7;">';
-      h += 'TWILIO_SID &nbsp;&nbsp;&nbsp;&nbsp;= <em>your Account SID</em><br>';
-      h += 'TWILIO_TOKEN &nbsp;&nbsp;= <em>your Auth Token</em><br>';
-      h += 'TWILIO_NUMBER &nbsp;= <em>your Twilio phone number</em>';
-      h += '</div></div>';
-      h += '</div></details>';
-
-      h += '</div></details>'; // close Database & Connections
-
-      // Calendar Settings
-      var _calS = {};
-      try { _calS = JSON.parse(localStorage.getItem('flock_calendar_settings') || '{}'); } catch(e) { _calS = {}; }
-
-      h += '<details class="settings-section settings-accordion">';
-      h += '<summary class="settings-accordion-trigger"><span class="settings-accordion-chevron">&#9654;</span>';
-      h += '<span class="settings-section-icon">\uD83D\uDCC5</span>';
-      h += '<span class="settings-accordion-label">Calendar</span>';
-      h += '<span class="settings-accordion-count">Views, feeds & schedule</span>';
-      h += '</summary>';
-      h += '<div class="settings-accordion-body">';
-
-      h += '<div class="settings-card" style="margin-bottom:14px;">';
-      h += '<div class="settings-card-label">\uD83D\uDCCB Display Preferences</div>';
-      h += '<div style="margin-bottom:10px;margin-top:10px;">';
-      h += '<label style="font-size:0.78rem;font-weight:600;color:var(--ink-muted);display:block;margin-bottom:4px;">Default View</label>';
-      h += '<select id="cal-s-defaultView" style="width:100%;max-width:260px;padding:8px 12px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font-size:0.85rem;">';
-      ['month','week','day','agenda'].forEach(function(v) {
-        h += '<option value="' + v + '"' + ((_calS.defaultView || 'month') === v ? ' selected' : '') + '>' + v.charAt(0).toUpperCase() + v.slice(1) + '</option>';
-      });
-      h += '</select></div>';
-      h += '<div style="margin-bottom:10px;">';
-      h += '<label style="font-size:0.78rem;font-weight:600;color:var(--ink-muted);display:block;margin-bottom:4px;">Week Starts On</label>';
-      h += '<select id="cal-s-weekStart" style="width:100%;max-width:260px;padding:8px 12px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font-size:0.85rem;">';
-      h += '<option value="sunday"' + ((_calS.weekStart || 'sunday') === 'sunday' ? ' selected' : '') + '>Sunday</option>';
-      h += '<option value="monday"' + ((_calS.weekStart || 'sunday') === 'monday' ? ' selected' : '') + '>Monday</option>';
-      h += '</select></div>';
-      h += '<div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:10px;">';
-      h += '<div><label style="font-size:0.78rem;font-weight:600;color:var(--ink-muted);display:block;margin-bottom:4px;">Work Hours Start</label>';
-      h += '<input type="number" id="cal-s-workStart" min="0" max="23" value="' + (_calS.workStart || 6) + '" style="width:80px;padding:8px 12px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--ink);"></div>';
-      h += '<div><label style="font-size:0.78rem;font-weight:600;color:var(--ink-muted);display:block;margin-bottom:4px;">Work Hours End</label>';
-      h += '<input type="number" id="cal-s-workEnd" min="0" max="23" value="' + (_calS.workEnd || 22) + '" style="width:80px;padding:8px 12px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--ink);"></div></div>';
+      h += '<p class="stg-card-desc" style="margin-top:6px;font-family:monospace;font-size:0.78rem;">Script Properties: TWILIO_SID, TWILIO_TOKEN, TWILIO_NUMBER</p>';
       h += '</div>';
 
-      // Module Integrations
-      h += '<div class="settings-card" style="margin-bottom:14px;">';
-      h += '<div class="settings-card-label">\uD83D\uDD17 Module Integrations</div>';
-      var _calToggles = [
-        { id: 'cal-s-showServices', label: 'Service Plans', checked: _calS.showServices !== false },
-        { id: 'cal-s-showAttendance', label: 'Attendance Records', checked: _calS.showAttendance === true },
-        { id: 'cal-s-showMissions', label: 'Missions Schedules', checked: _calS.showMissions === true },
-        { id: 'cal-s-showDiscipleship', label: 'Discipleship Milestones', checked: _calS.showDiscipleship === true },
-        { id: 'cal-s-showVolunteers', label: 'Volunteer Schedule', checked: _calS.showVolunteers === true },
-      ];
-      _calToggles.forEach(function(t) {
-        h += '<div class="toggle-row" style="padding:6px 0;">';
-        h += '<div class="toggle-row-label"><span class="name">' + t.label + '</span></div>';
-        h += '<label class="toggle-switch">';
-        h += '<input type="checkbox" id="' + t.id + '"' + (t.checked ? ' checked' : '') + '>';
-        h += '<span class="slider"></span></label></div>';
-      });
-      h += '</div>';
-
-      // External Calendar Feeds
-      h += '<div class="settings-card" style="margin-bottom:14px;">';
-      h += '<div class="settings-card-label">\uD83C\uDF10 External Calendar Feeds</div>';
-      h += '<p class="settings-card-hint" style="margin:2px 0 10px;">Paste iCal (.ics) URLs.</p>';
-      for (var fi2 = 1; fi2 <= 3; fi2++) {
-        h += '<div style="margin-bottom:8px;">';
-        h += '<label style="font-size:0.78rem;font-weight:600;color:var(--ink-muted);display:block;margin-bottom:2px;">Feed ' + fi2 + '</label>';
-        h += '<input type="url" id="cal-s-icalUrl' + fi2 + '" value="' + _e(_calS['icalUrl' + fi2] || '') + '" placeholder="https://calendar.google.com/calendar/ical/\u2026/basic.ics" style="width:100%;box-sizing:border-box;padding:8px 12px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font-size:0.85rem;">';
+      // Wellspring
+      var wsAvail = typeof TheWellspring !== 'undefined';
+      var wsActive = wsAvail && TheWellspring.isActive();
+      h += '<div class="stg-card">';
+      h += '<div class="stg-card-title">\uD83D\uDCA7 The Wellspring</div>';
+      if (!wsAvail) {
+        h += '<p class="stg-card-desc">Module not loaded.</p>';
+      } else {
+        h += '<div class="stg-toggle-list"><div class="stg-toggle-row"><span>Local Data Mode</span>';
+        h += '<label class="stg-switch"><input type="checkbox" id="wellspring-toggle"' + (wsActive ? ' checked' : '') + ' onchange="Modules._wellspringToggle(this.checked)"><span class="stg-switch-track"></span></label></div></div>';
+        if (wsActive) h += '<div class="stg-banner stg-banner-info" style="margin-top:8px;">\uD83D\uDCA7 LOCAL MODE ACTIVE</div>';
+        h += '<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">';
+        h += '<label class="stg-btn stg-btn-ghost" style="cursor:pointer;">\uD83D\uDCC1 Import<input type="file" accept=".xls,.xlsx,.xlsm" style="display:none;" onchange="Modules._wellspringLoad(this.files[0])"></label>';
+        h += '<button class="stg-btn stg-btn-ghost" onclick="Modules._wellspringExport()">\uD83D\uDCE5 Export</button>';
+        h += '<button class="stg-btn stg-btn-ghost" onclick="Modules._wellspringClear()">\uD83D\uDDD1 Clear</button>';
         h += '</div>';
+        h += '<div id="ws-status-db" style="font-size:0.75rem;color:var(--ink-muted);margin-top:6px;"></div>';
       }
       h += '</div>';
 
-      // Visibility & Access
-      h += '<div class="settings-card" style="margin-bottom:14px;">';
-      h += '<div class="settings-card-label">\uD83D\uDD12 Visibility & Access</div>';
-      h += '<div style="margin-bottom:10px;">';
-      h += '<label style="font-size:0.78rem;font-weight:600;color:var(--ink-muted);display:block;margin-bottom:4px;">Default Visibility</label>';
-      h += '<select id="cal-s-defaultVisibility" style="width:100%;max-width:260px;padding:8px 12px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font-size:0.85rem;">';
-      [{ value:'public',label:'\uD83C\uDF10 Public'},{ value:'members',label:'\uD83D\uDC65 Members Only'},{ value:'leaders',label:'\uD83D\uDEE1\uFE0F Leaders'},{ value:'admins',label:'\uD83D\uDD12 Admins'},{ value:'private',label:'\uD83D\uDC64 Private'}].forEach(function(v) {
-        h += '<option value="' + v.value + '"' + ((_calS.defaultVisibility || 'public') === v.value ? ' selected' : '') + '>' + v.label + '</option>';
-      });
+      // Calendar
+      var calS; try { calS = JSON.parse(localStorage.getItem('flock_calendar_settings') || '{}'); } catch(e) { calS = {}; }
+      h += '<div class="stg-card">';
+      h += '<div class="stg-card-title">\uD83D\uDCC5 Calendar</div>';
+      h += '<div class="stg-form-grid stg-form-grid-3">';
+      h += '<div class="stg-field"><label class="stg-label">Default View</label><select id="cal-s-defaultView" class="stg-input">';
+      ['month','week','day','agenda'].forEach(function(v) { h += '<option value="'+v+'"'+((calS.defaultView||'month')===v?' selected':'')+'>'+v.charAt(0).toUpperCase()+v.slice(1)+'</option>'; });
       h += '</select></div>';
-      h += '<div class="toggle-row" style="padding:6px 0;">';
-      h += '<div class="toggle-row-label"><span class="name">Show Restricted Event Titles</span></div>';
-      h += '<label class="toggle-switch">';
-      h += '<input type="checkbox" id="cal-s-showRestrictedTitles"' + (_calS.showRestrictedTitles !== false ? ' checked' : '') + '>';
-      h += '<span class="slider"></span></label></div>';
+      h += '<div class="stg-field"><label class="stg-label">Week Starts</label><select id="cal-s-weekStart" class="stg-input">';
+      h += '<option value="sunday"' + ((calS.weekStart||'sunday')==='sunday'?' selected':'') + '>Sunday</option>';
+      h += '<option value="monday"' + ((calS.weekStart||'sunday')==='monday'?' selected':'') + '>Monday</option>';
+      h += '</select></div>';
+      h += '<div class="stg-field"><label class="stg-label">Work Start</label><input type="number" id="cal-s-workStart" class="stg-input" min="0" max="23" value="'+(calS.workStart||6)+'"></div>';
       h += '</div>';
-
-      // Delegation
-      h += '<div class="settings-card" style="margin-bottom:14px;">';
-      h += '<div class="settings-card-label">\uD83D\uDC65 Delegation Preferences</div>';
-      h += '<div class="toggle-row" style="padding:6px 0;"><div class="toggle-row-label"><span class="name">Accept Delegation Requests</span></div>';
-      h += '<label class="toggle-switch"><input type="checkbox" id="cal-s-acceptDelegation"' + (_calS.acceptDelegation !== false ? ' checked' : '') + '><span class="slider"></span></label></div>';
-      h += '<div class="toggle-row" style="padding:6px 0;"><div class="toggle-row-label"><span class="name">Show Delegate Names</span></div>';
-      h += '<label class="toggle-switch"><input type="checkbox" id="cal-s-showDelegateNames"' + (_calS.showDelegateNames === true ? ' checked' : '') + '><span class="slider"></span></label></div>';
-      h += '<div class="toggle-row" style="padding:6px 0;"><div class="toggle-row-label"><span class="name">Notify on Delegation Changes</span></div>';
-      h += '<label class="toggle-switch"><input type="checkbox" id="cal-s-notifyDelegation"' + (_calS.notifyDelegation !== false ? ' checked' : '') + '><span class="slider"></span></label></div>';
+      h += '<div class="stg-toggle-list" style="margin-top:8px;">';
+      [{ id:'cal-s-showServices', l:'Service Plans', c: calS.showServices!==false },
+       { id:'cal-s-showAttendance', l:'Attendance Records', c: calS.showAttendance===true },
+       { id:'cal-s-showVolunteers', l:'Volunteer Schedule', c: calS.showVolunteers===true }].forEach(function(t) {
+        h += '<div class="stg-toggle-row"><span>'+t.l+'</span><label class="stg-switch"><input type="checkbox" id="'+t.id+'"'+(t.c?' checked':'')+'><span class="stg-switch-track"></span></label></div>';
+      });
       h += '</div>';
-
-      h += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;padding-bottom:16px;">';
-      h += '<button class="btn btn-primary" onclick="Modules._calSettingsSave()" style="padding:8px 22px;font-size:0.82rem;">Save Calendar Settings</button>';
+      h += '<div class="stg-form-foot"><button class="stg-btn stg-btn-primary" onclick="Modules._calSettingsSave()">Save Calendar</button></div>';
       h += '</div>';
-
-      h += '</div></details>'; // close calendar
 
       return h;
     },
     after: function() {
-      // Auto-populate connection type
-      var connTypeEl = document.getElementById('health-conn-type');
-      if (connTypeEl) {
-        _adConnectionCard().then(function(h) { connTypeEl.innerHTML = h; }).catch(function() {});
-      }
-      // Hydrate wellspring status
-      if (typeof TheWellspring !== 'undefined') { setTimeout(_wellspringRefreshStatus, 100); }
+      _adConnectionCard().then(function(h) {
+        var el = document.getElementById('health-conn-type');
+        if (el) el.innerHTML = h;
+      }).catch(function(){});
+      if (typeof TheWellspring !== 'undefined') setTimeout(_wellspringRefreshStatus, 100);
     }
   };
 
   // ════════════════════════════════════════════════════════════════════════
-  //  TAB: MASTER CONFIG
+  //  ALL SETTINGS (key-value editor)
   // ════════════════════════════════════════════════════════════════════════
-  _settingsTabRenderers['master-config'] = {
+  _settingsTabRenderers['advanced'] = {
+    html: function() {
+      var rows = _cfgD.rows;
+      var h = '';
+      h += '<div class="stg-card">';
+      h += '<div class="stg-card-title">\u2699 All Settings <span class="stg-card-count">' + rows.length + ' entries</span></div>';
+      h += '<div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;">';
+      h += '<input type="search" id="cfg-search" class="stg-input" placeholder="\uD83D\uDD0D Filter\u2026" style="flex:1;" oninput="Modules._cfgFilter(this.value)">';
+      h += '<button class="stg-btn stg-btn-primary" onclick="Modules.newConfig()">+ Add</button>';
+      h += '</div>';
+
+      // Group by category
+      var groups = {};
+      rows.forEach(function(r) { var c = r.category || 'Other'; if (!groups[c]) groups[c] = []; groups[c].push(r); });
+      var order = ['System','Access','Display','Members','Church Info','Notifications','Learning','Giving','Attendance','Prayer','Sermons'];
+      var sorted = order.filter(function(c) { return groups[c]; }).concat(Object.keys(groups).filter(function(c) { return order.indexOf(c) === -1; }).sort());
+
+      sorted.forEach(function(cat) {
+        h += '<div class="stg-cfg-cat">' + _e(cat) + ' <span class="stg-cfg-cat-n">' + groups[cat].length + '</span></div>';
+        groups[cat].forEach(function(r) {
+          var k = r.key || r.configKey || '';
+          var v = r.value != null ? String(r.value) : '';
+          var isBool = v === 'TRUE' || v === 'FALSE';
+          h += '<div class="stg-cfg-row" onclick="Modules.editConfig(\'' + _e(k) + '\')">';
+          h += '<div class="stg-cfg-key">' + _e(k) + '</div>';
+          if (isBool) h += '<div class="stg-cfg-val ' + (v === 'TRUE' ? 'stg-cfg-on' : 'stg-cfg-off') + '">' + v + '</div>';
+          else h += '<div class="stg-cfg-val">' + _e(v.length > 50 ? v.substring(0, 47) + '\u2026' : v || '\u2014') + '</div>';
+          h += '</div>';
+        });
+      });
+      h += '</div>';
+      return h;
+    },
+    after: null
+  };
+
+  // ════════════════════════════════════════════════════════════════════════
+  //  MASTER CONFIG
+  // ════════════════════════════════════════════════════════════════════════
+  _settingsTabRenderers['master'] = {
     html: function() {
       var h = '';
-      h += '<div style="margin-bottom:18px;padding:14px 18px;border-radius:10px;background:var(--surface2,rgba(255,255,255,0.05));border:1px solid var(--border,rgba(255,255,255,0.1));">';
-      h += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">';
-      h += '<span style="font-size:1.4rem;">&#127758;</span>';
-      h += '<div><div style="font-weight:700;font-size:1rem;color:var(--ink);">Master Config</div>';
-      h += '<div style="font-size:0.76rem;color:var(--ink-muted);">Edit master defaults stored in Firestore. Use <strong>Push to All Churches</strong> to broadcast.</div></div>';
+      h += '<div class="stg-card">';
+      h += '<div class="stg-card-title">\uD83C\uDF10 Master Config</div>';
+      h += '<p class="stg-card-desc">Edit master defaults stored in Firestore. Push broadcasts to all churches.</p>';
+      h += '<div class="stg-form-foot">';
+      h += '<button class="stg-btn stg-btn-primary" onclick="Modules._masterConfigPushAll()">\uD83D\uDE80 Push to All Churches</button>';
+      h += '<button class="stg-btn stg-btn-ghost" onclick="Modules._masterConfigReload()">\uD83D\uDD04 Reload</button>';
       h += '</div>';
-      h += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">';
-      h += '<button class="btn btn-primary" onclick="Modules._masterConfigPushAll()" style="padding:8px 20px;font-size:0.82rem;">&#128640; Push to All Churches</button>';
-      h += '<button class="btn btn-secondary" onclick="Modules._masterConfigReload()" style="padding:8px 16px;font-size:0.82rem;">&#128260; Reload</button>';
-      h += '</div>';
-      h += '<div id="master-config-push-result" style="margin-top:10px;font-size:0.78rem;color:var(--ink-muted);"></div>';
-      h += '</div>';
-      h += '<div id="master-config-table-wrap" style="border-radius:12px;overflow:hidden;border:1px solid var(--border,rgba(255,255,255,0.1));">';
-      h += '<div style="padding:24px;text-align:center;color:var(--ink-muted);font-size:0.82rem;">Loading master config\u2026</div>';
+      h += '<div id="master-config-push-result" class="stg-status" style="margin-top:8px;"></div>';
+      h += '<div id="master-config-table-wrap" style="margin-top:12px;">Loading\u2026</div>';
       h += '</div>';
       return h;
     },
-    after: function() {
-      setTimeout(Modules._masterConfigRender, 80);
-    }
+    after: function() { setTimeout(Modules._masterConfigRender, 80); }
   };
 
-  // ═══════════════════════════════════════════════════════════════════════
   // 27. AUDIT  (pastor+)
   // ═══════════════════════════════════════════════════════════════════════
   _def('audit', async el => {
