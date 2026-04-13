@@ -6872,27 +6872,24 @@ const Modules = (() => {
   var _roomTypingListener = null; // active typing listener
   var _roomTypingTimer = null;   // debounce timer for typing indicator
   var _commsMode       = null;   // 'firebase' | 'sheets' — null = not yet loaded
-  var _commsModeLoading = false; // prevent concurrent loads
 
   // Load comms mode from Firestore (cached after first load)
+  var _commsModePromise = null;  // shared promise so all callers wait for the same load
+
   async function _loadCommsMode() {
     if (_commsMode !== null) return;
-    if (_commsModeLoading) {
-      await new Promise(function(res) { setTimeout(res, 800); });
-      return;
-    }
-    _commsModeLoading = true;
-    try {
-      if (typeof UpperRoom === 'undefined') { _commsMode = 'sheets'; return; }
-      await UpperRoom.init();
-      if (!UpperRoom.isReady()) await UpperRoom.authenticate();
-      _commsMode = await UpperRoom.getCommsMode();
-    } catch (err) {
-      // Auth or settings fetch failed — only use firebase if UpperRoom actually authenticated
-      _commsMode = (typeof UpperRoom !== 'undefined' && UpperRoom.isReady()) ? 'firebase' : 'sheets';
-    } finally {
-      _commsModeLoading = false;
-    }
+    if (_commsModePromise) { await _commsModePromise; return; }
+    _commsModePromise = (async function() {
+      try {
+        if (typeof UpperRoom === 'undefined') { _commsMode = 'sheets'; return; }
+        await UpperRoom.init();
+        if (!UpperRoom.isReady()) await UpperRoom.authenticate();
+        _commsMode = await UpperRoom.getCommsMode();
+      } catch (err) {
+        _commsMode = (typeof UpperRoom !== 'undefined' && UpperRoom.isReady()) ? 'firebase' : 'sheets';
+      }
+    })();
+    await _commsModePromise;
   }
 
   // Helper used throughout comms rendering
