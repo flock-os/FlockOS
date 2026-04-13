@@ -179,6 +179,80 @@ const Modules = (() => {
     setTimeout(function() { t.remove(); }, 3000);
   }
 
+  /**
+   * Deferred-action with undo toast.
+   * Shows a toast with an Undo button; executes `action()` after `delay` ms
+   * unless the user clicks Undo. Returns a Promise that resolves true if
+   * the action executed, false if undone.
+   *
+   * @param {string} msg   - e.g. "Album deleted"
+   * @param {function():Promise} action - the destructive operation
+   * @param {object} [opts]
+   * @param {number} [opts.delay=5000] - ms before action fires
+   * @param {function} [opts.onUndo]   - optional callback when undone
+   */
+  function _undoAction(msg, action, opts) {
+    opts = opts || {};
+    var delay = opts.delay || 5000;
+    var cancelled = false;
+    var executed = false;
+
+    return new Promise(function(resolve) {
+      var t = document.createElement('div');
+      t.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:10000;'
+        + 'background:var(--bg-raised,#1a1d26);color:var(--ink,#e8e8ed);border:1px solid var(--line,#333);'
+        + 'border-radius:10px;padding:12px 20px;display:flex;align-items:center;gap:14px;'
+        + 'box-shadow:0 8px 32px rgba(0,0,0,.4);font-size:0.85rem;font-family:inherit;'
+        + 'animation:fadeIn .2s;min-width:260px;max-width:420px;';
+
+      // Progress bar
+      var bar = document.createElement('div');
+      bar.style.cssText = 'position:absolute;bottom:0;left:0;height:3px;background:var(--accent,#6366f1);'
+        + 'border-radius:0 0 10px 10px;width:100%;transition:width ' + delay + 'ms linear;';
+
+      var msgSpan = document.createElement('span');
+      msgSpan.style.cssText = 'flex:1;';
+      msgSpan.textContent = msg;
+
+      var undoBtn = document.createElement('button');
+      undoBtn.textContent = 'Undo';
+      undoBtn.style.cssText = 'background:none;border:1px solid var(--accent,#6366f1);color:var(--accent,#6366f1);'
+        + 'border-radius:6px;padding:4px 14px;font-size:0.82rem;font-weight:700;cursor:pointer;'
+        + 'font-family:inherit;white-space:nowrap;';
+
+      t.appendChild(msgSpan);
+      t.appendChild(undoBtn);
+      t.appendChild(bar);
+      document.body.appendChild(t);
+
+      // Start countdown animation
+      requestAnimationFrame(function() { bar.style.width = '0%'; });
+
+      var timer = setTimeout(async function() {
+        if (cancelled) return;
+        executed = true;
+        t.remove();
+        try {
+          await action();
+          _toast(msg, 'success');
+          resolve(true);
+        } catch (e) {
+          _toast(e.message || 'Action failed', 'danger');
+          resolve(false);
+        }
+      }, delay);
+
+      undoBtn.onclick = function() {
+        cancelled = true;
+        clearTimeout(timer);
+        t.remove();
+        _toast('Undone', 'info');
+        if (opts.onUndo) opts.onUndo();
+        resolve(false);
+      };
+    });
+  }
+
   function _statusBadge(val) {
     const t = String(val || '').toUpperCase();
     if (['TRUE','ACTIVE','OPEN','PUBLISHED','DELIVERED','COMPLETE','YES','APPROVED'].includes(t))
