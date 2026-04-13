@@ -1724,7 +1724,7 @@ document.addEventListener('DOMContentLoaded', function() {
   _gcSession = session;
 
   // Seed-admin gate — only the first registered user may access this page
-  if (!session.isSeed) {
+  if (!session.isSeed && !Nehemiah.hasGroup('Seed Admin') && !Nehemiah.hasGroup('Master')) {
     window.location.replace('the_good_shepherd.html');
     return;
   }

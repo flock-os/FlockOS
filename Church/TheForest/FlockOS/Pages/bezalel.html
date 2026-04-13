@@ -1036,8 +1036,8 @@ document.addEventListener('DOMContentLoaded', function() {
   var session = Nehemiah.guard(); // redirects to login if no session
   if (!session) return;
 
-  if (!session.isSeed) {
-    // Non-seed users have no reason to be here — send them home
+  if (!session.isSeed && !Nehemiah.hasGroup('Seed Admin') && !Nehemiah.hasGroup('Master')) {
+    // Non-seed/master users have no reason to be here — send them home
     window.location.replace('the_good_shepherd.html');
     return;
   }
