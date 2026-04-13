@@ -496,7 +496,6 @@
           <input type="file" id="importFile" accept=".csv,.tsv,.txt,.xlsx,.xls" style="display:none">
           <!-- hidden controls preserved for JS -->
           <select id="optDup" style="display:none;"><option value="update">Update existing</option><option value="skip">Skip</option></select>
-          <select id="optTheme" style="display:none;"><option value="notes">Notes / Theme column</option><option value="scripture">Scripture column</option><option value="none">Leave blank</option></select>
           <select id="optPullMerge" style="display:none;"><option value="fill">Fill blanks only</option><option value="overwrite">Overwrite all fields</option><option value="skip">Skip</option></select>
           <button id="btnPush" style="display:none;"></button>
           <p id="fbNote" style="display:none;"></p>
@@ -822,7 +821,24 @@
     }
 
     /* ── Push core (no UI dependency) ───────────────────────────────── */
-    async function doPush(rows, dupMode, themeCol, svcType, onProgress) {
+    /* ── Build service plan payload from a quarterly row ────────────── */
+    function buildPayload(row, svcType) {
+      return {
+        serviceDate:     row.date,
+        serviceType:     svcType,
+        sermonTitle:     row.notes     || '',
+        theme:           row.psalm     || '',
+        scriptureFocus:  row.scripture || '',
+        worshipLeader:   row.worship   || '',
+        preacher:        row.preacher  || '',
+        announcements:   row.announce  || '',
+        prayer:          row.prayer    || '',
+        proverb:         row.proverb   || '',
+        status:          'Scheduled'
+      };
+    }
+
+    async function doPush(rows, dupMode, svcType, onProgress) {
       /* load existing plans once to detect duplicates */
       var byDate = {};
       try {
@@ -838,27 +854,7 @@
         var row = rows[i];
         if (onProgress) onProgress(i, rows.length, row);
 
-        var sermonTitle = '';
-        if (themeCol === 'notes')          sermonTitle = row.notes    || '';
-        else if (themeCol === 'scripture') sermonTitle = row.scripture || '';
-
-        var noteParts = [];
-        if (row.announce) noteParts.push('Announcements: ' + row.announce);
-        if (row.prayer)   noteParts.push('Prayer: '        + row.prayer);
-        if (row.proverb)  noteParts.push('Proverb: '       + row.proverb);
-        if (row.notes && themeCol !== 'notes') noteParts.push('Notes: ' + row.notes);
-
-        var payload = {
-          serviceDate:     row.date,
-          serviceType:     svcType,
-          theme:           row.psalm       || '',
-          sermonTitle:     sermonTitle,
-          scriptureFocus:  row.scripture   || '',
-          worshipLeaderId: row.worship     || '',
-          preacherId:      row.preacher    || '',
-          notes:           noteParts.join('\n'),
-          status:          'Scheduled'
-        };
+        var payload = buildPayload(row, svcType);
 
         try {
           var ex = byDate[row.date];
@@ -896,7 +892,6 @@
       fbNote.style.display = 'none';
 
       var dupMode  = document.getElementById('optDup').value;
-      var themeCol = document.getElementById('optTheme').value;
       var svcType  = document.getElementById('qST').value;
 
       var overlay  = document.getElementById('push-overlay');
@@ -913,77 +908,20 @@
         logDiv.appendChild(d); logDiv.scrollTop = logDiv.scrollHeight;
       }
 
-      /* override doPush progress/log to surface in overlay */
-      var byDate = {};
-      try {
-        var existing = await UpperRoom.listServicePlans({ limit: 500 });
-        (existing || []).forEach(function(p){
-          var d = p.serviceDate || p.date || ''; if (d) byDate[d] = p;
-        });
-      } catch(e) { /* non-fatal */ }
-
-      var created = 0, updated = 0, skipped = 0, failed = 0;
-      var dupMode2  = dupMode, themeCol2 = themeCol, svcType2 = svcType;
-
-      for (var i = 0; i < rows.length; i++) {
-        var row = rows[i];
-        prog.style.width = Math.round(((i + 1) / rows.length) * 100) + '%';
-        var dl2 = friendlyDate(row.date);
-
-        var sermonTitle = '';
-        if (themeCol2 === 'notes')          sermonTitle = row.notes    || '';
-        else if (themeCol2 === 'scripture') sermonTitle = row.scripture || '';
-
-        var noteParts = [];
-        if (row.announce) noteParts.push('Announcements: ' + row.announce);
-        if (row.prayer)   noteParts.push('Prayer: '        + row.prayer);
-        if (row.proverb)  noteParts.push('Proverb: '       + row.proverb);
-        if (row.notes && themeCol2 !== 'notes') noteParts.push('Notes: ' + row.notes);
-
-        var payload = {
-          serviceDate:     row.date,
-          serviceType:     svcType2,
-          theme:           row.psalm       || '',
-          sermonTitle:     sermonTitle,
-          scriptureFocus:  row.scripture   || '',
-          worshipLeaderId: row.worship     || '',
-          preacherId:      row.preacher    || '',
-          notes:           noteParts.join('\n'),
-          status:          'Scheduled'
-        };
-
-        try {
-          var ex = byDate[row.date];
-          if (ex) {
-            if (dupMode2 === 'skip') {
-              skipped++; S.importedIds[row.id] = ex.id;
-              log('↷ ' + dl2 + ' — skipped (plan exists)', 'skip');
-            } else {
-              payload.id = ex.id;
-              await UpperRoom.updateServicePlan(payload);
-              updated++; S.importedIds[row.id] = ex.id;
-              log('✎ ' + dl2 + ' — updated', 'ok');
-            }
-          } else {
-            var res = await UpperRoom.createServicePlan(payload);
-            created++; S.importedIds[row.id] = res.id;
-            log('✓ ' + dl2 + ' — created', 'ok');
-          }
-        } catch(err) {
-          failed++;
-          log('✗ ' + dl2 + ' — ' + (err.message || 'unknown error'), 'fail');
-        }
-      }
+      var result = await doPush(rows, dupMode, svcType, function(i, total, row) {
+        prog.style.width = Math.round(((i + 1) / total) * 100) + '%';
+        log((S.importedIds[row.id] ? '✎ ' : '✓ ') + friendlyDate(row.date), 'ok');
+      });
 
       prog.style.width = '100%';
       document.getElementById('po-title').textContent = 'Done';
       document.getElementById('po-sub').textContent =
-        created + ' created, ' + updated + ' updated, ' + skipped + ' skipped, ' + failed + ' failed.';
+        result.created + ' created, ' + result.updated + ' updated, ' + result.skipped + ' skipped, ' + result.failed + ' failed.';
       closeBtn.style.display = 'inline-flex';
 
       render(); updateSummary();
-      setStatus('ready', 'Pushed ' + (created + updated) + ' plans');
-      toast('Pushed ' + (created + updated) + ' service plan(s)', 'success');
+      setStatus('ready', 'Pushed ' + (result.created + result.updated) + ' plans');
+      toast('Pushed ' + (result.created + result.updated) + ' service plan(s)', 'success');
       saveToFirestore(true);
     }
 
@@ -1032,20 +970,6 @@
       var byDate = {};
       S.rows.forEach(function(r){ if (r.date) byDate[r.date] = r; });
 
-      /* helper: parse concatenated notes back into fields */
-      function parseNotes(raw) {
-        var out = { announce:'', prayer:'', proverb:'', notes:'' };
-        if (!raw) return out;
-        var lines = raw.split('\n');
-        lines.forEach(function(line) {
-          if      (/^Announcements:\s*/i.test(line)) out.announce = line.replace(/^Announcements:\s*/i,'').trim();
-          else if (/^Prayer:\s*/i.test(line))        out.prayer   = line.replace(/^Prayer:\s*/i,'').trim();
-          else if (/^Proverb:\s*/i.test(line))       out.proverb  = line.replace(/^Proverb:\s*/i,'').trim();
-          else if (/^Notes:\s*/i.test(line))         out.notes    = line.replace(/^Notes:\s*/i,'').trim();
-        });
-        return out;
-      }
-
       function applyField(row, key, val, mode) {
         if (!val) return;
         if (mode === 'overwrite')         row[key] = val;
@@ -1058,30 +982,29 @@
       plans.forEach(function(p) {
         var date = p.serviceDate || p.date || '';
         if (!date) return;
-        var parsed = parseNotes(p.notes || p.description || '');
 
         var existing = byDate[date];
         if (existing) {
           if (mergeMode === 'skip') { skipped++; return; }
           applyField(existing, 'psalm',     p.theme           || '', mergeMode);
           applyField(existing, 'scripture', p.scriptureFocus  || '', mergeMode);
-          applyField(existing, 'worship',   p.worshipLeaderId || p.worshipLeader || '', mergeMode);
-          applyField(existing, 'preacher',  p.preacherId      || p.preacher      || '', mergeMode);
+          applyField(existing, 'worship',   p.worshipLeader   || '', mergeMode);
+          applyField(existing, 'preacher',  p.preacher        || '', mergeMode);
           applyField(existing, 'notes',     p.sermonTitle     || '', mergeMode);
-          applyField(existing, 'announce',  parsed.announce,         mergeMode);
-          applyField(existing, 'prayer',    parsed.prayer,           mergeMode);
-          applyField(existing, 'proverb',   parsed.proverb,          mergeMode);
+          applyField(existing, 'announce',  p.announcements   || '', mergeMode);
+          applyField(existing, 'prayer',    p.prayer          || '', mergeMode);
+          applyField(existing, 'proverb',   p.proverb         || '', mergeMode);
           merged++;
         } else {
           var nr = mkRow(date);
           nr.psalm     = p.theme           || '';
           nr.scripture = p.scriptureFocus  || '';
-          nr.worship   = p.worshipLeaderId || p.worshipLeader || '';
-          nr.preacher  = p.preacherId      || p.preacher      || '';
+          nr.worship   = p.worshipLeader   || '';
+          nr.preacher  = p.preacher        || '';
           nr.notes     = p.sermonTitle     || '';
-          nr.announce  = parsed.announce;
-          nr.prayer    = parsed.prayer;
-          nr.proverb   = parsed.proverb;
+          nr.announce  = p.announcements   || '';
+          nr.prayer    = p.prayer          || '';
+          nr.proverb   = p.proverb         || '';
           S.rows.push(nr);
           byDate[date] = nr;
           added++;
@@ -1318,10 +1241,9 @@
         if (rows.length) {
           btn1.textContent = btn2.textContent = '…Syncing plans';
           setStatus('pending', 'Syncing service plans…');
-          var themeCol = document.getElementById('optTheme').value;
           var svcType  = document.getElementById('qST').value;
           try {
-            var result = await doPush(rows, 'update', themeCol, svcType, function(i, total) {
+            var result = await doPush(rows, 'update', svcType, function(i, total) {
               var pct = Math.round(((i + 1) / total) * 100);
               btn1.textContent = btn2.textContent = '…Syncing ' + pct + '%';
             });

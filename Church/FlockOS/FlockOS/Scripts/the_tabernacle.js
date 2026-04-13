@@ -1990,6 +1990,8 @@ const Modules = (() => {
         + (Number(r.songCount||r.setlistCount||0) ? '<span style="font-size:0.68rem;padding:2px 7px;background:var(--bg-sunken);border:1px solid var(--line);border-radius:99px;color:var(--ink-muted);">&#9835; ' + (r.songCount||r.setlistCount) + ' songs</span>' : '')
         + (Number(r.itemCount||r.serviceItemCount||0) ? '<span style="font-size:0.68rem;padding:2px 7px;background:var(--bg-sunken);border:1px solid var(--line);border-radius:99px;color:var(--ink-muted);">&#9776; ' + (r.itemCount||r.serviceItemCount) + ' items</span>' : '')
         + (r.worshipLeader||r.teamLead ? '<span style="font-size:0.68rem;padding:2px 7px;background:var(--bg-sunken);border:1px solid var(--line);border-radius:99px;color:var(--ink-muted);">&#128100; ' + _e(r.worshipLeader||r.teamLead) + '</span>' : '')
+        + (r.preacher ? '<span style="font-size:0.68rem;padding:2px 7px;background:var(--bg-sunken);border:1px solid var(--line);border-radius:99px;color:var(--ink-muted);">&#127908; ' + _e(r.preacher) + '</span>' : '')
+        + (r.scriptureFocus ? '<span style="font-size:0.68rem;padding:2px 7px;background:var(--bg-sunken);border:1px solid var(--line);border-radius:99px;color:var(--ink-muted);">&#128214; ' + _e(r.scriptureFocus) + '</span>' : '')
         + '</div></div>'
         + _statusBadge(r.status || 'Draft')
         + '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="color:var(--ink-muted);flex-shrink:0;"><polyline points="9 18 15 12 9 6"/></svg>'
@@ -2058,12 +2060,29 @@ const Modules = (() => {
       + '<div style="font-size:0.82rem;color:var(--ink-muted);margin-top:2px;">' + _e(dateStr) + '</div>'
       + (planData.sermonTitle ? '<div style="font-size:0.8rem;color:var(--ink-muted);margin-top:3px;">&#128228; <em>' + _e(planData.sermonTitle) + '</em></div>' : '')
       + (planData.theme       ? '<div style="font-size:0.8rem;color:var(--ink-muted);">Theme: <em>' + _e(planData.theme) + '</em></div>' : '')
+      + (planData.scriptureFocus ? '<div style="font-size:0.8rem;color:var(--ink-muted);">&#128214; ' + _e(planData.scriptureFocus) + '</div>' : '')
       + '</div>'
       + '<div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap;">'
       + _statusBadge(planData.status || 'Draft')
       + '<button onclick="Modules._svcEditPlan()" style="font-size:0.78rem;padding:6px 12px;border:1px solid var(--line);border-radius:7px;background:none;color:var(--ink-muted);cursor:pointer;font-family:inherit;">Edit</button>'
       + '<button onclick="Modules._musicStandView()" style="font-size:0.78rem;padding:6px 14px;border:none;border-radius:7px;background:var(--accent);color:var(--ink-inverse);cursor:pointer;font-family:inherit;font-weight:600;">&#9835; Music Stand</button>'
-      + '</div></div></div>';
+      + '</div></div>'
+      + (function() {
+        var details = [];
+        if (planData.worshipLeader)  details.push({ icon:'&#128100;', label:'Worship Leader', val:planData.worshipLeader });
+        if (planData.preacher)       details.push({ icon:'&#127908;', label:'Preacher',       val:planData.preacher });
+        if (planData.announcements)  details.push({ icon:'&#128226;', label:'Announcements',  val:planData.announcements });
+        if (planData.prayer)         details.push({ icon:'&#128591;', label:'Prayer',          val:planData.prayer });
+        if (planData.proverb)        details.push({ icon:'&#128216;', label:'Proverb',         val:planData.proverb });
+        if (!details.length) return '';
+        return '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line);">'
+          + details.map(function(d) {
+            return '<span style="font-size:0.72rem;padding:3px 9px;background:var(--bg-sunken);border:1px solid var(--line);border-radius:99px;color:var(--ink-muted);">'
+              + d.icon + ' ' + _e(d.val) + '</span>';
+          }).join('')
+          + '</div>';
+      })()
+      + '</div>';
 
     var tabContent = '';
     if (_svcTab === 'order') {
