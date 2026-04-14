@@ -41,6 +41,11 @@ node_modules/
 .env
 .env.*
 
+# ── Capacitor build output ───────────────────────────────────────────────
+www/
+ios/
+android/
+
 # ── Python build tools ───────────────────────────────────────────────────
 .venv/
 __pycache__/
