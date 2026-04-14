@@ -1510,11 +1510,53 @@ const Modules = (() => {
       : fetcher();
   }
 
+  // ── FlockOS-Truth seed database fallback ─────────────────────────────
+  // When both Firebase (church) and GAS return empty for public content,
+  // fall back to the flockos-truth master seed database.
+  var _truthSeedDb = null;
+  var _truthSeedReady = false;
+  var _TRUTH_SEED_CONFIG = {
+    apiKey:            'AIzaSyBZIZpYixNDpeRagDF_SozCvC8lJKTubHY',
+    authDomain:        'flockos-truth.firebaseapp.com',
+    projectId:         'flockos-truth',
+    storageBucket:     'flockos-truth.firebasestorage.app',
+    messagingSenderId: '102743161422',
+    appId:             '1:102743161422:web:a81ca3c70b13546962611f'
+  };
+  // Maps _publicFetch cache keys to Firestore collection names in flockos-truth
+  var _truthCollectionMap = { 'library': 'books', 'theology-flat': 'theology' };
+  function _truthCollection(key) { return _truthCollectionMap[key] || key; }
+
+  async function _initTruthSeed() {
+    if (_truthSeedReady) return;
+    if (typeof firebase === 'undefined') return;
+    var app;
+    try { app = firebase.app('truth-seed'); } catch (_) {}
+    if (!app) app = firebase.initializeApp(_TRUTH_SEED_CONFIG, 'truth-seed');
+    _truthSeedDb = firebase.firestore(app);
+    try { _truthSeedDb.settings({ experimentalAutoDetectLongPolling: true, merge: true }); } catch (_) {}
+    var auth = firebase.auth(app);
+    if (!auth.currentUser) await auth.signInAnonymously();
+    _truthSeedReady = true;
+  }
+
+  async function _truthSeedFetch(key) {
+    await _initTruthSeed();
+    if (!_truthSeedDb) return [];
+    var col = _truthCollection(key);
+    var snap = await _truthSeedDb.collection(col).get();
+    var out = [];
+    snap.forEach(function(d) { var o = d.data(); o.id = d.id; out.push(o); });
+    return out;
+  }
+
   // ── Resilient public-content fetch (devotionals, reading, etc.) ────────
   // Firestore rules gate Truth content behind isChurchMember, so if the
   // auth token's claims are stale/missing the read will throw a permissions
   // error.  The inner try/catch ensures that error triggers the GAS fallback
   // rather than being swallowed by the outer catch (which would return []).
+  // Tier 3: flockos-truth seed database — guarantees content even before
+  // replicateTruthFromMaster() has been run for a church.
   async function _publicFetch(key, fbFn, gasFn) {
     try {
       var primary = _isFirebaseComms() ? fbFn : gasFn;
@@ -1528,7 +1570,10 @@ const Modules = (() => {
       var alt = _isFirebaseComms() ? gasFn : fbFn;
       var altResult = await alt().catch(function() { return []; });
       var altRows = Array.isArray(altResult) ? altResult : _rows(altResult);
-      return _normalizeRows(altRows);
+      if (altRows.length) return _normalizeRows(altRows);
+      // Both sources empty — try flockos-truth seed database
+      var truthRows = await _truthSeedFetch(key).catch(function() { return []; });
+      return _normalizeRows(truthRows);
     } catch (outerErr) {
       return [];
     }
