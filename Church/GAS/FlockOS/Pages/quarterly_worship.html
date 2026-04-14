@@ -212,6 +212,23 @@
     .action-row-r { margin-left:auto; display:flex; gap:6px; flex-shrink:0; }
 
     /* ── Table ──────────────────────────────────────────────────────────── */
+    /* ── Day-of-week filter tickers ──────────────────────────────────── */
+    .dow-filters {
+      display:flex; gap:4px; padding:10px 16px; border-top:1px solid var(--line);
+      background:var(--bg-sunken); justify-content:center; flex-wrap:nowrap;
+    }
+    .dow-tick {
+      padding:5px 10px; border-radius:7px; border:1.5px solid var(--line-strong);
+      background:var(--bg-raised); color:var(--ink-muted); font:inherit;
+      font-size:.72rem; font-weight:700; cursor:pointer; transition:all .15s;
+      letter-spacing:.04em; min-width:38px; text-align:center;
+    }
+    .dow-tick:hover { background:var(--bg-hover); border-color:var(--accent); color:var(--accent); }
+    .dow-tick.active {
+      background:linear-gradient(135deg,#4f46e5,#4338ca); color:#fff;
+      border-color:transparent; box-shadow:0 2px 8px rgba(79,70,229,.30);
+    }
+
     .tscroll { overflow-x:auto; overflow-y:auto; max-height:calc(100vh - 290px); }
     .tscroll::-webkit-scrollbar { width:7px; height:7px; }
     .tscroll::-webkit-scrollbar-thumb { background:rgba(79,70,229,.30); border-radius:999px; }
@@ -566,6 +583,16 @@
             <tbody id="gridBody"></tbody>
           </table>
         </div>
+        <div class="dow-filters" id="dowFilters">
+          <button type="button" class="dow-tick active" data-dow="-1">All</button>
+          <button type="button" class="dow-tick" data-dow="0">Sun</button>
+          <button type="button" class="dow-tick" data-dow="1">Mon</button>
+          <button type="button" class="dow-tick" data-dow="2">Tue</button>
+          <button type="button" class="dow-tick" data-dow="3">Wed</button>
+          <button type="button" class="dow-tick" data-dow="4">Thu</button>
+          <button type="button" class="dow-tick" data-dow="5">Fri</button>
+          <button type="button" class="dow-tick" data-dow="6">Sat</button>
+        </div>
       </div>
 
   </div><!-- /page-wrap -->
@@ -679,11 +706,33 @@
       proverb:'Proverbs 3…', notes:'Theme / notes'
     };
 
+    /* ── Day-of-week filter ────────────────────────────────────────── */
+    var _dowFilter = -1; // -1 = All
+    (function initDowFilters() {
+      document.getElementById('dowFilters').addEventListener('click', function(e) {
+        var btn = e.target.closest('.dow-tick');
+        if (!btn) return;
+        _dowFilter = parseInt(btn.dataset.dow, 10);
+        document.querySelectorAll('#dowFilters .dow-tick').forEach(function(b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+        render();
+      });
+    })();
+
     function render() {
       var tbody = document.getElementById('gridBody');
       tbody.innerHTML = '';
 
+      var visibleCount = 0;
       S.rows.forEach(function (row) {
+        /* Day-of-week filter */
+        if (_dowFilter !== -1 && row.date) {
+          var dp = row.date.split('-').map(Number);
+          var dayOfWeek = new Date(dp[0], dp[1] - 1, dp[2]).getDay();
+          if (dayOfWeek !== _dowFilter) return;
+        }
+        if (_dowFilter !== -1 && !row.date) return; /* hide dateless rows when filtering */
+        visibleCount++;
         var tr = document.createElement('tr');
         tr.dataset.id = row.id;
 
@@ -750,7 +799,7 @@
         tbody.appendChild(tr);
       });
 
-      document.getElementById('rowCt').textContent = S.rows.length;
+      document.getElementById('rowCt').textContent = _dowFilter === -1 ? S.rows.length : visibleCount + '/' + S.rows.length;
       updateSummary();
     }
 
