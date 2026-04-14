@@ -122,6 +122,7 @@ const TheLife = (() => {
 
   // ── Local data cache ────────────────────────────────────────────────────
   var _cache = {};
+  var _careCFG = null;  // Populated on first openCareCase; used by closure modal
   var _memberDirPromise = null;
 
   // ── Pagination state ────────────────────────────────────────────────────
@@ -237,6 +238,22 @@ const TheLife = (() => {
     );
   }
 
+  function _caregiverOpts(dir) {
+    var opts = _memberOpts(dir);
+    var cases = _cache.care || [];
+    var counts = {};
+    cases.forEach(function(c) {
+      var st = (c.status || '').toLowerCase();
+      if (st === 'resolved' || st === 'closed') return;
+      if (c.primaryCaregiverId) counts[c.primaryCaregiverId] = (counts[c.primaryCaregiverId] || 0) + 1;
+    });
+    return opts.map(function(o) {
+      if (!o.value || !counts[o.value]) return o;
+      var ct = counts[o.value];
+      return { value: o.value, label: o.label + ' (' + ct + ' active)' + (ct > 5 ? ' \u26A0' : '') };
+    });
+  }
+
   function _memberName(emailOrId) {
     if (!emailOrId) return '';
     var dir = _cache.memberDir || [];
@@ -339,7 +356,7 @@ const TheLife = (() => {
 
   var _fpCareId = '';
 
-  async function openCareCase(id) {
+  async function openCareCase(id, defaults) {
     // For users without care.view-all, verify they are assigned to this case
     if (id && !Nehemiah.can('care.view-all')) {
       var _permCheck = (_cache.care || []).find(function(c) { return c.id === id; });
@@ -392,6 +409,8 @@ const TheLife = (() => {
         rec.primaryCaregiverId = _lpId;
         rec.secondaryCaregiverId = _me;
       }
+      // Apply any pre-fill defaults (e.g. from createLinkedCase)
+      if (defaults) { for (var _dk in defaults) { if (defaults.hasOwnProperty(_dk)) rec[_dk] = defaults[_dk]; } }
     }
     if (id) {
       var _raw = _r[1];
@@ -434,11 +453,27 @@ const TheLife = (() => {
       _fpField('Priority', 'priority', rec.priority, 'select', ['Low','Normal','High','Urgent']),
       _fpField('Status', 'status', rec.status || 'Open', 'select', ['Open','In Progress','Follow-Up','Resolved','Referred','Closed']));
     detSec += _fp2(
-      _fpField('Assigned To', 'primaryCaregiverId', rec.primaryCaregiverId || rec.assignedTo, 'select', mOpts),
-      _fpField('Secondary Caregiver', 'secondaryCaregiverId', rec.secondaryCaregiverId, 'select', mOpts));
+      _fpField('Risk Level', 'riskLevel', rec.riskLevel, 'select', ['','Low','Moderate','High','Critical']),
+      _fpField('Trend', 'trend', rec.trend, 'select', ['','Improving','Stable','Declining']));
+    detSec += _fp2(
+      _fpField('Support Presence', 'supportPresence', rec.supportPresence, 'select', ['','Strong','Limited','None']),
+      _fpField('Spiritual State', 'spiritualState', rec.spiritualState, 'select', ['','Connected','Struggling','Disconnected','Unknown']));
+    var cgOpts = _caregiverOpts(dir);
+    detSec += _fp2(
+      _fpField('Assigned To', 'primaryCaregiverId', rec.primaryCaregiverId || rec.assignedTo, 'select', cgOpts),
+      _fpField('Secondary Caregiver', 'secondaryCaregiverId', rec.secondaryCaregiverId, 'select', cgOpts));
     detSec += _fpField('Summary', 'summary', rec.summary, 'textarea');
     var _canSeeNotes = _canViewNotes();
     detSec += _fpField(_canSeeNotes ? 'Notes (confidential)' : 'Notes (confidential — Lead Pastor eyes only)', 'notes', _canSeeNotes ? rec.notes : '', 'textarea');
+    if (rec.linkedCaseId) {
+      detSec += '<div class="fp-field" style="margin-bottom:8px;"><label style="font-size:0.78rem;color:var(--ink-muted);">Linked Case</label>'
+        + '<a href="#" onclick="TheLife.openCareCase(\'' + _e(rec.linkedCaseId) + '\');return false;" style="display:inline-block;padding:6px 12px;background:rgba(255,255,255,0.06);border-radius:6px;font-size:0.84rem;color:var(--accent);text-decoration:none;">\uD83D\uDD17 ' + _e(rec.linkedCaseId) + '</a>'
+        + '<input type="hidden" id="fp-linkedCaseId" name="linkedCaseId" value="' + _e(rec.linkedCaseId) + '">'
+        + '</div>';
+    } else if (id) {
+      detSec += '<input type="hidden" id="fp-linkedCaseId" name="linkedCaseId" value="">';
+    }
+    detSec += _fpField('Next Review Date', 'nextReviewDate', rec.nextReviewDate || '', 'date');
     if (id) {
       detSec += _fp2(
         _fpField('Created', 'createdAt', rec.createdAt, 'readonly'),
@@ -486,6 +521,7 @@ const TheLife = (() => {
       }
       actSec += '<button type="button" onclick="TheLife.addCareInteraction(\'' + _e(id) + '\')" class="fp-action-btn">\uD83D\uDCDD Log Interaction</button>';
       actSec += '<button type="button" onclick="TheLife.scheduleCareFollowUp(\'' + _e(id) + '\')" class="fp-action-btn">\uD83D\uDCC5 Schedule Follow-Up</button>';
+      actSec += '<button type="button" onclick="TheLife.createLinkedCase(\'' + _e(id) + '\',\'' + _e(rec.memberId || '') + '\')" class="fp-action-btn">\uD83D\uDD17 Create Linked Case</button>';
       actSec += '</div>';
       html += _fpSec('Quick Actions', 'care-actions', actSec);
     }
@@ -551,7 +587,7 @@ const TheLife = (() => {
       var _L = '\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500';
 
       // Per-care-type config: icon, panel accent color, default priority, stage list, notes template
-      var _CFG = {
+      if (!_careCFG) _careCFG = {
         'Crisis': {
           icon: '\uD83D\uDEA8', color: '#c94c4c', priority: 'Urgent',
           stages: [
@@ -561,7 +597,21 @@ const TheLife = (() => {
             { t: 'Stage 4 \u2014 Stabilization',        d: 'Daily check-ins until stable. Log every contact. Assign secondary caregiver. No single point of failure.' },
             { t: 'Stage 5 \u2014 Transition',           d: 'Once stable: convert to Counseling, Grief, Restoration, or Shepherding. Close this case.' }
           ],
-          notes: 'CRISIS INTAKE\n' + _L + '\nNature of Crisis:\n\n\nImmediate Safety Concerns (self-harm, danger, housing):\n\n\nPeople Involved:\n\n\n' + _L + '\nResources Contacted:\nReferrals Made:\nFollow-Up Plan:\nNext Check-In:'
+          notes: 'CRISIS INTAKE\n' + _L + '\nNature of Crisis:\n\n\nImmediate Safety Concerns (self-harm, danger, housing):\n\n\nPeople Involved:\n\n\n' + _L + '\nResources Contacted:\nReferrals Made:\nFollow-Up Plan:\nNext Check-In:',
+          watchFor: [
+            'Escalating language: hopelessness, finality, giving away possessions',
+            'Dissociation: flat affect, disconnect from reality',
+            'Substance use as coping',
+            'Complete isolation from all support',
+            'Return to the environment or person that caused the crisis'
+          ],
+          closureChecklist: [
+            'Immediate safety confirmed',
+            'Professional resources connected (if applicable)',
+            'Transition case opened (Counseling, Grief, Restoration, Shepherding, or other)',
+            'Member stable for at least 7 consecutive days before closure',
+            'Final pastoral note'
+          ]
         },
         'Grief': {
           icon: '\uD83E\uDD0E', color: '#9b7ec8', priority: 'High',
@@ -572,7 +622,20 @@ const TheLife = (() => {
             { t: 'Stage 4 \u2014 Ongoing Presence',      d: 'Week 1: daily. Month 1: weekly. After: bi-weekly. Grief peaks at 3\u20136 months \u2014 do not disappear then.' },
             { t: 'Stage 5 \u2014 Milestone Check-Ins',   d: 'Mark: 3 months, 6 months, 1 year, anniversary, first holidays. Calendar these at case creation.' }
           ],
-          notes: 'GRIEF INTAKE\n' + _L + '\nLoss (what / whom / when):\n\n\nRelationship to Deceased:\n\nFamily Situation:\n\n\n' + _L + '\nImmediate Practical Needs:\nSpiritual State:\nSupport System:\nNext Contact:'
+          notes: 'GRIEF INTAKE\n' + _L + '\nLoss (what / whom / when):\n\n\nRelationship to Deceased:\n\nFamily Situation:\n\n\n' + _L + '\nImmediate Practical Needs:\nSpiritual State:\nSupport System:\nNext Contact:',
+          watchFor: [
+            'Isolation: declining all invitations, not attending church, not answering contacts',
+            'Complicated grief symptoms: inability to function 6+ months post-loss, persistent disbelief',
+            'Self-medication: increased alcohol use, sleep medication dependence',
+            'Anniversary reactions: predictable spikes around holidays, birthdays, death anniversary',
+            'Secondary losses: financial strain from lost income, identity loss from changed role'
+          ],
+          closureChecklist: [
+            'All milestone dates contacted (3 months, 6 months, 1 year, anniversary, first holidays)',
+            'Member verbally confirms readiness for closure',
+            'Ongoing community connection confirmed (small group, friendships)',
+            'Final pastoral note'
+          ]
         },
         'Marriage': {
           icon: '\uD83D\uDC8D', color: '#c47878', priority: 'Normal',
@@ -584,7 +647,21 @@ const TheLife = (() => {
             { t: 'Stage 5 \u2014 Referral if Needed', d: 'Abuse, trauma, addiction, mental health: refer professionally. Coordinate \u2014 do not abandon the couple.' },
             { t: 'Stage 6 \u2014 Close & Follow-Up',  d: 'Resolved: close the case. Schedule 3- and 6-month check-ins. Marriage is discipleship, not a problem to fix.' }
           ],
-          notes: 'MARRIAGE INTAKE (CONFIDENTIAL)\n' + _L + '\nPresenting Issue:\n\n\nSpouse 1 Perspective:\n\n\nSpouse 2 Perspective:\n\n\nHow long has this been a struggle:\n\n' + _L + '\nChildren involved:  YES / NO\nPrior counseling:  YES / NO\nBoth willing to engage:  YES / NO\nSession Cadence:\nReferral Needed:'
+          notes: 'MARRIAGE INTAKE (CONFIDENTIAL)\n' + _L + '\nPresenting Issue:\n\n\nSpouse 1 Perspective:\n\n\nSpouse 2 Perspective:\n\n\nHow long has this been a struggle:\n\n' + _L + '\nChildren involved:  YES / NO\nPrior counseling:  YES / NO\nBoth willing to engage:  YES / NO\nSession Cadence:\nReferral Needed:',
+          watchFor: [
+            'One spouse disengaging from the process',
+            'Escalation of conflict between sessions',
+            'Disclosure of infidelity during counseling (requires immediate reassessment)',
+            'Signs of domestic violence surfacing (activate DV protocol)',
+            'Children in the home exhibiting stress reactions'
+          ],
+          closureChecklist: [
+            'Both spouses agree care is no longer needed',
+            'DV screening completed at intake (documented)',
+            '3-month and 6-month follow-up check-ins scheduled',
+            'Professional referral made if issues exceeded pastoral scope',
+            'Final pastoral note'
+          ]
         },
         'Addiction': {
           icon: '\uD83D\uDD17', color: '#d4853a', priority: 'High',
@@ -596,7 +673,24 @@ const TheLife = (() => {
             { t: 'Stage 5 \u2014 Ongoing Through Relapse', d: 'Relapse is common. Do not withdraw. Recommit to the plan. Celebrate milestones: 30d, 90d, 6mo, 1yr.' },
             { t: 'Stage 6 \u2014 Long-Term Follow-Up',   d: 'Recovery is measured in years. Maintain connection even in stable sobriety. New identity in Christ is the goal.' }
           ],
-          notes: 'ADDICTION INTAKE (CONFIDENTIAL)\n' + _L + '\nSubstance / Behavior:\n\nDuration / History:\n\nCurrent Status (active / recovery / relapse):\n\nFamily Awareness:  YES / NO\n\n' + _L + '\nAccountability Partner:\nProfessional Support (AA / therapist / program):\nChurch Support Plan:\nNext Check-In:'
+          notes: 'ADDICTION INTAKE (CONFIDENTIAL)\n' + _L + '\nSubstance / Behavior:\n\nDuration / History:\n\nCurrent Status (active / recovery / relapse):\n\nFamily Awareness:  YES / NO\n\n' + _L + '\nAccountability Partner:\nProfessional Support (AA / therapist / program):\nChurch Support Plan:\nNext Check-In:',
+          watchFor: [
+            'Return to previous social environments (people, places, patterns)',
+            'Sudden improvement in mood without explanation (possible return to substance)',
+            'Financial irregularities: unexplained spending, borrowing, selling possessions',
+            'Missed accountability check-ins',
+            'Defensiveness or avoidance when asked direct questions',
+            'Family members reporting concern',
+            'Stopping professional treatment without consultation'
+          ],
+          closureChecklist: [
+            'Accountability partner active and consistent',
+            'Professional support connected (AA/NA/Celebrate Recovery/counselor)',
+            'Minimum 12 months of sustained recovery before closure',
+            'Milestones celebrated (30d, 90d, 6mo, 1yr)',
+            'Transition to Shepherding (do not fully close)',
+            'Final pastoral note'
+          ]
         },
         'Hospital Visit': {
           icon: '\uD83C\uDFE5', color: '#5b9bd5', priority: 'Urgent',
@@ -607,7 +701,14 @@ const TheLife = (() => {
             { t: 'Stage 4 \u2014 Discharge & Recovery',    d: 'Follow up within 48 hours of discharge. Arrange meals or help. Check in weekly until clearly recovering.' },
             { t: 'Stage 5 \u2014 Close or Transition',     d: 'Full recovery \u2192 resolve. Long-term illness \u2192 Elder Care or Shepherding. Member passes \u2192 open Grief case for family.' }
           ],
-          notes: 'HOSPITAL VISIT\n' + _L + '\nHospital / Facility:\n\nRoom / Unit:\n\nNature of Illness / Procedure:\n\nFamily Present:\n\n' + _L + '\nVisit Date:\nPrayer Topics:\nExpected Discharge:\nFamily Needs:'
+          notes: 'HOSPITAL VISIT\n' + _L + '\nHospital / Facility:\n\nRoom / Unit:\n\nNature of Illness / Procedure:\n\nFamily Present:\n\n' + _L + '\nVisit Date:\nPrayer Topics:\nExpected Discharge:\nFamily Needs:',
+          closureChecklist: [
+            'Post-discharge follow-up completed (within 48 hours)',
+            'Practical needs addressed (meals, transport)',
+            'If long-term: transitioned to Medical, Elder Care, or Shepherding',
+            'If member passed: Grief case opened for family',
+            'Final pastoral note'
+          ]
         },
         'Medical': {
           icon: '\uD83E\uDE79', color: '#3d9fbf', priority: 'High',
@@ -619,7 +720,22 @@ const TheLife = (() => {
             { t: 'Stage 5 \u2014 Ongoing Care Through Treatment', d: 'Track treatment phases (surgery, chemo, radiation, recovery). Reach out before and after each major procedure. Do not disappear between appointments.' },
             { t: 'Stage 6 \u2014 Close or Transition',      d: 'Full recovery \u2192 celebrate and resolve. Chronic or terminal illness \u2192 transition to Elder Care. Member passes \u2192 open Grief case for family immediately.' }
           ],
-          notes: 'MEDICAL CARE INTAKE\n' + _L + '\nDiagnosis / Medical Situation:\n\nTreatment Plan (surgery, chemo, procedure, other):\n\nExpected Timeline:\n\n\n' + _L + '\nPrimary Family Contact & Relationship:\n\nPractical Needs (meals / transport / household / childcare):\n\nSpiritual State:\n\nPrayer Requests:\n\nNext Contact:'
+          notes: 'MEDICAL CARE INTAKE\n' + _L + '\nDiagnosis / Medical Situation:\n\nTreatment Plan (surgery, chemo, procedure, other):\n\nExpected Timeline:\n\n\n' + _L + '\nPrimary Family Contact & Relationship:\n\nPractical Needs (meals / transport / household / childcare):\n\nSpiritual State:\n\nPrayer Requests:\n\nNext Contact:',
+          watchFor: [
+            'Increased isolation during treatment phases',
+            'Spiritual drift or questioning God during prolonged illness',
+            'Caregiver breakdown: family member carrying the primary burden showing exhaustion or resentment',
+            'Financial strain from medical costs not being disclosed',
+            'Depression developing alongside the physical condition'
+          ],
+          closureChecklist: [
+            'Treatment phase documented',
+            'Caregiver fatigue assessed (family caregiver)',
+            'If terminal: transitioned to Terminal Illness workflow',
+            'If member passed: Grief case opened for family',
+            'Compassion team support wound down or transitioned',
+            'Final pastoral note'
+          ]
         },
         'New Believer': {
           icon: '\u2728', color: '#4caf8a', priority: 'Normal',
@@ -631,7 +747,22 @@ const TheLife = (() => {
             { t: 'Stage 5 \u2014 Baptism Conversation',   d: 'When they understand what they believe and why: have the conversation. Milestone, not checkbox.' },
             { t: 'Stage 6 \u2014 Close & Celebrate',      d: 'At 6 months: in community, growing, serving? Celebrate and close. A sheep is in the fold.' }
           ],
-          notes: 'NEW BELIEVER INTAKE\n' + _L + '\nHow they came to faith:\n\n\nBackground (church history, prior faith):\n\nImmediate Questions / Concerns:\n\n\n' + _L + '\nMentor Assigned:\nFoundations Curriculum:\nSmall Group:\nBaptism Interest:  YES / NO\nNext Meeting:'
+          notes: 'NEW BELIEVER INTAKE\n' + _L + '\nHow they came to faith:\n\n\nBackground (church history, prior faith):\n\nImmediate Questions / Concerns:\n\n\n' + _L + '\nMentor Assigned:\nFoundations Curriculum:\nSmall Group:\nBaptism Interest:  YES / NO\nNext Meeting:',
+          watchFor: [
+            'Isolation from the faith community within the first 90 days (highest dropout risk)',
+            'Pressure from family or friends hostile to the decision',
+            'Theological confusion from online sources or fringe teaching',
+            'Overwhelming guilt about past life without understanding of grace',
+            'Mentor mismatch: lack of chemistry, missed meetings, fading engagement'
+          ],
+          closureChecklist: [
+            'Mentor assigned and relationship active',
+            'Foundations curriculum completed (4\u20138 weeks)',
+            'Connected to a small group',
+            'Baptism conversation had (and completed if ready)',
+            'Serving conversation initiated',
+            'Final pastoral note'
+          ]
         },
         'Restoration': {
           icon: '\uD83D\uDD04', color: '#d4a93a', priority: 'High',
@@ -642,7 +773,22 @@ const TheLife = (() => {
             { t: 'Stage 4 \u2014 Community Reintegration',   d: 'Gradual, not sudden. Protect the community. Those harmed must not be retraumatized. Process, not event.' },
             { t: 'Stage 5 \u2014 Long-Term Review',          d: '3- and 6-month reviews. Flourishing, serving appropriately, no new concerns \u2192 then and only then resolve.' }
           ],
-          notes: 'RESTORATION INTAKE (CONFIDENTIAL)\n' + _L + '\nSituation Summary:\n\n\nRepentance Indicators:\n\nPeople Affected:\n\n\n' + _L + '\nAccountability Structure:\nRestoration Steps Agreed:\nElder / Pastor Oversight:\nTimeline for Review:'
+          notes: 'RESTORATION INTAKE (CONFIDENTIAL)\n' + _L + '\nSituation Summary:\n\n\nRepentance Indicators:\n\nPeople Affected:\n\n\n' + _L + '\nAccountability Structure:\nRestoration Steps Agreed:\nElder / Pastor Oversight:\nTimeline for Review:',
+          watchFor: [
+            'Premature restoration: community pressure to \u201cmove on\u201d before the process is complete',
+            'Victim being sidelined: harmed person\u2019s needs overshadowed by the offender\u2019s restoration',
+            'Accountability collapse: meetings becoming routine or being skipped',
+            'Public repentance used manipulatively: appearing contrite without genuine heart change',
+            'Legal issues quietly dropped: ensure the church does not obstruct any civil or criminal process'
+          ],
+          closureChecklist: [
+            'Accountability plan completed (3\u20136 month minimum)',
+            'Formal reviews at 3 and 6 months completed',
+            'Victim care addressed in a separate case (if applicable)',
+            'Community reintegration gradual and appropriate',
+            'No active concerns from accountability sponsor',
+            'Final pastoral note'
+          ]
         },
         'Counseling': {
           icon: '\uD83D\uDDE3', color: '#5b9bd5', priority: 'Normal',
@@ -653,7 +799,20 @@ const TheLife = (() => {
             { t: 'Stage 4 \u2014 Refer if Needed',             d: 'Mental illness, trauma, addiction, suicidal ideation, DV: refer professionally. Coordinate both tracks.' },
             { t: 'Stage 5 \u2014 Close',                       d: 'Presenting issue resolved or tools in hand: close with prayer, reflection, and a 30-day check-in.' }
           ],
-          notes: 'COUNSELING INTAKE\n' + _L + '\nPresenting Issue:\n\n\nBackground:\n\nGoals for Counseling:\n\n\n' + _L + '\nSession Cadence:\nReferral Needed:  YES / NO\nReferral Resource:\nNext Session:'
+          notes: 'COUNSELING INTAKE\n' + _L + '\nPresenting Issue:\n\n\nBackground:\n\nGoals for Counseling:\n\n\n' + _L + '\nSession Cadence:\nReferral Needed:  YES / NO\nReferral Resource:\nNext Session:',
+          watchFor: [
+            'Issues beyond pastoral scope being treated as pastoral counseling (diagnosable conditions, trauma, suicidal ideation)',
+            'Dependency: member becoming emotionally reliant on the counseling relationship rather than building broader support',
+            'Counselor burnout: pastoral counselors carrying too many active sessions without rest or supervision',
+            'Stalled progress: sessions continuing without clear direction or measurable improvement'
+          ],
+          closureChecklist: [
+            'Presenting issue resolved or member has tools to continue',
+            'Professional referral made if clinical issues surfaced',
+            '30-day follow-up check-in scheduled',
+            'If ongoing need: transitioned to Mental Health, Shepherding, or appropriate care type',
+            'Final pastoral note'
+          ]
         },
         'Discipleship': {
           icon: '\uD83D\uDCDA', color: '#4caf8a', priority: 'Low',
@@ -664,7 +823,20 @@ const TheLife = (() => {
             { t: 'Stage 4 \u2014 Milestone Celebration',     d: 'Mark growth moments: first Bible study completed, sharing faith, serving, baptism. Log each as an Interaction.' },
             { t: 'Stage 5 \u2014 Multiply',                  d: 'The goal is a disciple who makes disciples. When ready: identify someone younger in faith to walk with. Celebrate and close.' }
           ],
-          notes: 'DISCIPLESHIP PLAN\n' + _L + '\nDisciple-Maker Assigned:\n\nGoals (spiritual growth areas):\n\nCurrent Spiritual Disciplines:\n\n\n' + _L + '\nMeeting Cadence:\nCurriculum / Study:\nMilestones:\nTarget Completion:'
+          notes: 'DISCIPLESHIP PLAN\n' + _L + '\nDisciple-Maker Assigned:\n\nGoals (spiritual growth areas):\n\nCurrent Spiritual Disciplines:\n\n\n' + _L + '\nMeeting Cadence:\nCurriculum / Study:\nMilestones:\nTarget Completion:',
+          watchFor: [
+            'Stalled progress: meetings happening but no growth \u2014 curriculum may need changing or the match is not working',
+            'Knowledge without obedience: studying but not applying',
+            'Disciple-maker burnout: carrying too many relationships at once',
+            'Forced multiplication: pushing someone to disciple before they are ready'
+          ],
+          closureChecklist: [
+            'Goals defined at intake have been met or revised',
+            'Curriculum or plan completed',
+            'Member connected to ongoing community',
+            'Multiplication conversation had (are they ready to disciple someone?)',
+            'Final pastoral note'
+          ]
         },
         'Family': {
           icon: '\uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67', color: '#c47878', priority: 'Normal',
@@ -675,7 +847,22 @@ const TheLife = (() => {
             { t: 'Stage 4 \u2014 Ongoing Support',        d: 'Family situations are rarely quick. Commit to the long view. Pray specifically for the relational dynamics at play.' },
             { t: 'Stage 5 \u2014 Referral if Needed',    d: 'Family therapy for severe dysfunction; legal counsel for custody/estate; DV resources if safety is a concern.' }
           ],
-          notes: 'FAMILY CARE INTAKE\n' + _L + '\nPresenting Situation:\n\n\nFamily Members Involved:\n\nChildren Present:  YES / NO\n\n\n' + _L + '\nKey Needs (spiritual / relational / practical):\nReferral Needed:\nFollow-Up Plan:\nNext Contact:'
+          notes: 'FAMILY CARE INTAKE\n' + _L + '\nPresenting Situation:\n\n\nFamily Members Involved:\n\nChildren Present:  YES / NO\n\n\n' + _L + '\nKey Needs (spiritual / relational / practical):\nReferral Needed:\nFollow-Up Plan:\nNext Contact:',
+          watchFor: [
+            'Safety concerns masked as \u201cfamily conflict\u201d \u2014 always assess for domestic violence',
+            'Prodigal parent burnout: the parent carrying years of grief and self-blame',
+            'Children caught in the middle of adult conflict',
+            'Blended family loyalty wounds: children feeling forced to choose between parents',
+            'Estrangement reinforced by church members taking sides'
+          ],
+          closureChecklist: [
+            'Presenting issue addressed or stabilized',
+            'Professional referral made if clinical intervention needed',
+            'Safety concerns resolved (if applicable)',
+            'All affected family members offered care (not just the one who called)',
+            'Follow-up plan in place',
+            'Final pastoral note'
+          ]
         },
         'Financial': {
           icon: '\uD83D\uDCB0', color: '#4caf8a', priority: 'Normal',
@@ -686,7 +873,21 @@ const TheLife = (() => {
             { t: 'Stage 4 \u2014 Assistance if Applicable', d: 'Benevolence Fund: follow church policy. Document. Aid is a hand-up, not a hand-out. Connect to a stewardship plan.' },
             { t: 'Stage 5 \u2014 Follow-Up',               d: 'Check in at 30 and 90 days. Is the situation improving? Is there a trajectory toward stability?' }
           ],
-          notes: 'FINANCIAL CARE INTAKE (CONFIDENTIAL)\n' + _L + '\nPresenting Need:\n\nCause (job loss / medical / other):\n\nHousehold Size:\n\n\n' + _L + '\nImmediate Assistance Needed:  YES / NO\nAmount / Type Requested:\nBenevolence Eligibility:\nStewardship Resources Shared:\nFollow-Up Date:'
+          notes: 'FINANCIAL CARE INTAKE (CONFIDENTIAL)\n' + _L + '\nPresenting Need:\n\nCause (job loss / medical / other):\n\nHousehold Size:\n\n\n' + _L + '\nImmediate Assistance Needed:  YES / NO\nAmount / Type Requested:\nBenevolence Eligibility:\nStewardship Resources Shared:\nFollow-Up Date:',
+          watchFor: [
+            'Shame preventing honest disclosure of the full financial picture',
+            'Recurring crises: repeated emergency requests may indicate a deeper issue (addiction, exploitation, mental health)',
+            'Benevolence dependency: assistance without a stewardship plan creating a cycle',
+            'Marital strain caused by or worsened by financial stress'
+          ],
+          closureChecklist: [
+            'Immediate need addressed',
+            'Stewardship plan or budget coaching offered',
+            '30-day and 90-day follow-ups completed',
+            'If benevolence funds used: documented per church policy',
+            'Trajectory toward stability confirmed',
+            'Final pastoral note'
+          ]
         },
         'Shepherding': {
           icon: '\uD83D\uDC11', color: '#7eaacc', priority: 'Low',
@@ -696,7 +897,20 @@ const TheLife = (() => {
             { t: 'Stage 3 \u2014 Identify Deeper Needs', d: 'Shepherding often reveals what the member would not have initiated. Watch for withdrawal, spiritual drift, stress.' },
             { t: 'Stage 4 \u2014 Close or Escalate',    d: '3 healthy months: resolve (the relationship continues). Deeper need surfaces: convert to the appropriate care type.' }
           ],
-          notes: 'SHEPHERDING NOTES\n' + _L + '\nReason for case:\n\nSpiritual State:\n\nLife Circumstances:\n\n\n' + _L + '\nConnection Goal:\nVisit Cadence:\nNext Contact:'
+          notes: 'SHEPHERDING NOTES\n' + _L + '\nReason for case:\n\nSpiritual State:\n\nLife Circumstances:\n\n\n' + _L + '\nConnection Goal:\nVisit Cadence:\nNext Contact:',
+          watchFor: [
+            'Gradual withdrawal from community: attendance drops, responses become shorter, engagement fades',
+            'Life transitions not disclosed: job loss, health change, relational strain quietly absorbing them',
+            'Spiritual drift: going through the motions without growth or engagement',
+            'Shepherding case sitting idle: if no Interactions are logged for 60 days, the shepherd has lost the sheep'
+          ],
+          closureChecklist: [
+            '3 consecutive months of healthy, stable engagement',
+            'No pending concerns or unresolved needs',
+            'Member aware of and connected to ongoing church community',
+            'If deeper need emerged: appropriate care type case opened',
+            'Final pastoral note'
+          ]
         },
         'Elder Care': {
           icon: '\uD83E\uDDD3', color: '#d4b870', priority: 'High',
@@ -709,7 +923,25 @@ const TheLife = (() => {
             { t: 'Stage 5 \u2014 Escalation',            d: 'Signs of decline \u2192 elevate to Urgent, increase visits, pastor personally attends.' },
             { t: 'Stage 6 \u2014 Transition',            d: 'Facility/hospice: visit within first week. When member passes \u2192 open Grief case for family.' }
           ],
-          notes: 'ASSESSMENT\n' + _L + '\nSpiritual (peace, connection, foundation):\n\n\nPhysical (meals, mobility, medication, safety):\n\n\nPractical (transport, bills, home, errands):\n\n\nRelational (family involvement, isolation):\n\n\n' + _L + '\nVisit Cadence: Weekly\nFamily Contact:\nNext Review Date:'
+          notes: 'ASSESSMENT\n' + _L + '\nSpiritual (peace, connection, foundation):\n\n\nPhysical (meals, mobility, medication, safety):\n\n\nPractical (transport, bills, home, errands):\n\n\nRelational (family involvement, isolation):\n\n\n' + _L + '\nVisit Cadence: Weekly\nFamily Contact:\nNext Review Date:',
+          watchFor: [
+            'Cognitive decline: confusion, repeating questions, forgetting names',
+            'Hygiene deterioration: unwashed clothing, body odor, unkempt appearance',
+            'Weight loss or gain: not eating, eating poorly, unable to cook',
+            'Medication confusion: missed doses, double doses, expired prescriptions',
+            'Fall risk: bruises, unsteady gait, clutter in walking paths',
+            'Withdrawal: declining visits, not answering phone, canceling appointments',
+            'Financial exploitation: unexplained withdrawals, new \u201cfriends\u201d managing money',
+            'Caregiver burnout in family members: exhaustion, resentment, health decline in the caregiver themselves'
+          ],
+          closureChecklist: [
+            'All interactions logged through end of care',
+            'Family notified and connected',
+            'Follow-up plan exists (even after closure)',
+            'If member passed: Grief case opened for family',
+            'If transitioned to facility: facility contact info recorded, visitation cadence established',
+            'Final pastoral note'
+          ]
         },
         'Abuse / Domestic Violence': {
           icon: '\uD83D\uDEE1', color: '#c94c4c', priority: 'Urgent',
@@ -720,7 +952,22 @@ const TheLife = (() => {
             { t: 'Stage 4 \u2014 Legal & Practical Support', d: 'Accompany to court if requested. Connect to legal aid. Coordinate Compassion team: housing, meals, childcare, transport.' },
             { t: 'Stage 5 \u2014 Long-Term Care',         d: 'Healing is measured in years. Watch for re-entry into abusive relationship (no condemnation), PTSD, spiritual wounds. At 6 months: formal review.' }
           ],
-          notes: 'ABUSE / DV INTAKE (CONFIDENTIAL \u2014 DO NOT SHARE)\n' + _L + '\nNature of Abuse (physical / emotional / financial / sexual / spiritual):\n\nDuration:\n\nChildren in home:  YES / NO\n\n\n' + _L + '\nImmediate Safety:  SAFE / AT RISK\nShelter / Safe Location Identified:\nLegal Action Desired:  YES / NO / UNSURE\nMandatory Report Filed:  YES / NO / N/A\nNext Contact:'
+          notes: 'ABUSE / DV INTAKE (CONFIDENTIAL \u2014 DO NOT SHARE)\n' + _L + '\nNature of Abuse (physical / emotional / financial / sexual / spiritual):\n\nDuration:\n\nChildren in home:  YES / NO\n\n\n' + _L + '\nImmediate Safety:  SAFE / AT RISK\nShelter / Safe Location Identified:\nLegal Action Desired:  YES / NO / UNSURE\nMandatory Report Filed:  YES / NO / N/A\nNext Contact:',
+          watchFor: [
+            'Re-entry into the abusive relationship (no condemnation \u2014 maintain care)',
+            'PTSD symptoms: hypervigilance, nightmares, startle response, emotional numbing',
+            'Abuser showing up at church or using church systems to locate victim',
+            'Children exhibiting behavioral changes: aggression, withdrawal, regression',
+            'Spiritual wounds: distrust of authority, questioning God\u2019s protection'
+          ],
+          closureChecklist: [
+            'Victim is physically safe',
+            'Victim has confirmed they are ready for case closure',
+            'Professional support connected (DV shelter, counselor, legal aid)',
+            'No information in the case is accessible to the abuser',
+            'Shepherding case opened for ongoing oversight',
+            'Final pastoral note'
+          ]
         },
         'Immigration / Deportation': {
           icon: '\u2708', color: '#5b9bd5', priority: 'High',
@@ -732,7 +979,15 @@ const TheLife = (() => {
             { t: 'Stage 5 \u2014 If Deportation Occurs',   d: 'Continue pastoral care for the family remaining. Maintain contact with deported member. Long-term separation care is multi-year work.' },
             { t: 'Stage 6 \u2014 Sustained Accompaniment', d: 'Immigration situations extend for months or years. Remain present through every court date and appeal. Case review every 6 months.' }
           ],
-          notes: 'IMMIGRATION CARE INTAKE (CONFIDENTIAL \u2014 DO NOT DISCLOSE STATUS)\n' + _L + '\nGeneral Situation (no status details in this field \u2014 verbal only):\n\nFamily Members Affected:\n\nU.S.-Citizen Children:  YES / NO\n\n\n' + _L + '\nEnforcement Action Active:  YES / NO\nLegal Counsel Connected:  YES / NO\nFamily Emergency Plan in Place:  YES / NO\nNext Contact:'
+          notes: 'IMMIGRATION CARE INTAKE (CONFIDENTIAL \u2014 DO NOT DISCLOSE STATUS)\n' + _L + '\nGeneral Situation (no status details in this field \u2014 verbal only):\n\nFamily Members Affected:\n\nU.S.-Citizen Children:  YES / NO\n\n\n' + _L + '\nEnforcement Action Active:  YES / NO\nLegal Counsel Connected:  YES / NO\nFamily Emergency Plan in Place:  YES / NO\nNext Contact:',
+          closureChecklist: [
+            'Legal counsel connected',
+            'Family emergency plan in place',
+            'All family members accounted for in care',
+            'If deportation occurred: family case remains open',
+            '6-month review completed before any closure',
+            'Final pastoral note'
+          ]
         },
         'Incarceration & Re-Entry': {
           icon: '\uD83D\uDD11', color: '#7eaacc', priority: 'High',
@@ -744,7 +999,21 @@ const TheLife = (() => {
             { t: 'Stage 5 \u2014 Re-Entry',               d: 'Be present near release day \u2014 this is the highest-risk moment. Assign accountability partner. Weekly check-ins for first 90 days. Introduce personally to community.' },
             { t: 'Stage 6 \u2014 Long-Term Stability',   d: 'Keep case open 12 months minimum. Watch for return to prior environments and isolation. Celebrate milestones. Close \u2192 transition to Discipleship or Shepherding.' }
           ],
-          notes: 'INCARCERATION INTAKE\n' + _L + '\nCurrent Status (incarcerated / pre-sentencing / re-entry):\n\nFacility / Location:\n\nExpected Release Date:\n\nFamily Members Affected:\n\n\n' + _L + '\nFamily Care Case Opened:  YES / NO\nVisitation Registration Needed:  YES / NO\nKey Re-Entry Barriers:\nAccountability Partner:\nNext Contact:'
+          notes: 'INCARCERATION INTAKE\n' + _L + '\nCurrent Status (incarcerated / pre-sentencing / re-entry):\n\nFacility / Location:\n\nExpected Release Date:\n\nFamily Members Affected:\n\n\n' + _L + '\nFamily Care Case Opened:  YES / NO\nVisitation Registration Needed:  YES / NO\nKey Re-Entry Barriers:\nAccountability Partner:\nNext Contact:',
+          watchFor: [
+            'Return to previous relationships and environments post-release',
+            'Substance use relapse during re-entry period',
+            'Employment instability or inability to find re-entry-friendly work',
+            'Isolation from church community after release'
+          ],
+          closureChecklist: [
+            'Re-entry plan executed (housing, employment, community)',
+            'Accountability partner assigned and active',
+            '12 months of stable community participation',
+            'Family case reviewed and updated',
+            'Transition to Discipleship or Shepherding',
+            'Final pastoral note'
+          ]
         },
         'Pregnancy & Infant Loss': {
           icon: '\uD83D\uDD4A', color: '#9b7ec8', priority: 'High',
@@ -755,7 +1024,21 @@ const TheLife = (() => {
             { t: 'Stage 4 \u2014 Referral & Community',   d: 'Refer to SHARE Pregnancy & Infant Loss Support (nationalshare.org). Consider a private memorial prayer of naming. For infertility: long-term care with no defined endpoint is right.' },
             { t: 'Stage 5 \u2014 Close or Transition',    d: 'Close when family is clearly stabilized. Leave the door open explicitly. Recurring loss or infertility: convert to Shepherding for sustained connection.' }
           ],
-          notes: 'PREGNANCY & INFANT LOSS INTAKE\n' + _L + '\nType of Loss (miscarriage / stillbirth / infant death / infertility / other):\n\nDate of Loss:\n\nOriginal Due Date (if applicable):\n\nFather / Partner Acknowledged:  YES\n\n\n' + _L + '\nPractical Needs:\nSpiritual State:\nReferral Made:  YES / NO\nGrief Milestone Dates Calendared:  YES / NO\nNext Contact:'
+          notes: 'PREGNANCY & INFANT LOSS INTAKE\n' + _L + '\nType of Loss (miscarriage / stillbirth / infant death / infertility / other):\n\nDate of Loss:\n\nOriginal Due Date (if applicable):\n\nFather / Partner Acknowledged:  YES\n\n\n' + _L + '\nPractical Needs:\nSpiritual State:\nReferral Made:  YES / NO\nGrief Milestone Dates Calendared:  YES / NO\nNext Contact:',
+          watchFor: [
+            'Isolation and withdrawal \u2014 same patterns as Grief',
+            'Father/partner grief being invisible or dismissed',
+            'Anniversary reactions: original due date, loss anniversary, Mother\u2019s/Father\u2019s Day',
+            'Subsequent pregnancy triggering intense anxiety or fear'
+          ],
+          closureChecklist: [
+            'Father/partner explicitly included in care throughout',
+            'Grief milestone dates calendared and contacted (due date, anniversary, Mother\u2019s/Father\u2019s Day)',
+            'Referral to support group made (SHARE or equivalent)',
+            'Door left explicitly open for future contact',
+            'If subsequent pregnancy occurs: new care noted',
+            'Final pastoral note'
+          ]
         },
         'Pre-Marriage': {
           icon: '\uD83D\uDC91', color: '#c47878', priority: 'Normal',
@@ -766,7 +1049,14 @@ const TheLife = (() => {
             { t: 'Stage 4 \u2014 Pre-Wedding Meeting',    d: 'Within 30 days of the wedding. Rehearsal logistics, ceremony content, Scripture. Ask both: \u201cIs there anything on your heart as you enter this covenant?\u201d Pray together.' },
             { t: 'Stage 5 \u2014 Post-Wedding Follow-Up', d: 'Check in at 3 months, 6 months, and 1 year. These contacts are the bridge to the Marriage workflow if it is ever needed.' }
           ],
-          notes: 'PRE-MARRIAGE INTAKE\n' + _L + '\nWedding Date:\n\nHusband Name:\n\nWife Name:\n\nPrior Marriage (either):  YES / NO\nChildren from Prior Relationship:  YES / NO\n\n\n' + _L + '\nAssessment Tool Used:\nMentor Couple Assigned:\nSessions Completed:\nKey Topics / Themes:\nPost-Wedding Check-In Dates:'
+          notes: 'PRE-MARRIAGE INTAKE\n' + _L + '\nWedding Date:\n\nHusband Name:\n\nWife Name:\n\nPrior Marriage (either):  YES / NO\nChildren from Prior Relationship:  YES / NO\n\n\n' + _L + '\nAssessment Tool Used:\nMentor Couple Assigned:\nSessions Completed:\nKey Topics / Themes:\nPost-Wedding Check-In Dates:',
+          closureChecklist: [
+            'All 6 preparation sessions completed',
+            'Pre-wedding pastoral meeting conducted',
+            'Post-wedding follow-ups scheduled (3, 6, 12 months)',
+            'Assessment tool results reviewed with couple',
+            'Final pastoral note'
+          ]
         },
         'Terminal Illness / End of Life': {
           icon: '\uD83D\uDD6F', color: '#9b7ec8', priority: 'High',
@@ -777,7 +1067,23 @@ const TheLife = (() => {
             { t: 'Stage 4 \u2014 Active Dying Phase',     d: 'Pastor personally reachable at all hours. Be present in the vigil if wanted. Read Scripture aloud \u2014 hearing is often the last sense to fade. Pray. Name the person. Commit them to God\u2019s hands.' },
             { t: 'Stage 5 \u2014 Immediate Family Care',  d: 'Remain with the family after death. Activate the Grief workflow for the family. Coordinate memorial / funeral. Personal contact every week for the first 30 days.' }
           ],
-          notes: 'TERMINAL ILLNESS INTAKE\n' + _L + '\nDiagnosis:\n\nPrognosis / Timeline:\n\nHospice Enrolled:  YES / NO\nHospice Team:\n\nFamily Situation:\n\n\n' + _L + '\nPrimary Family Caregiver:\nAdvance Directive in Place:  YES / NO\nSpiritual State:\nKey Topics to Walk Through:\nNext Visit:'
+          notes: 'TERMINAL ILLNESS INTAKE\n' + _L + '\nDiagnosis:\n\nPrognosis / Timeline:\n\nHospice Enrolled:  YES / NO\nHospice Team:\n\nFamily Situation:\n\n\n' + _L + '\nPrimary Family Caregiver:\nAdvance Directive in Place:  YES / NO\nSpiritual State:\nKey Topics to Walk Through:\nNext Visit:',
+          watchFor: [
+            'Family conflict over end-of-life decisions',
+            'Patient expressing unresolved guilt, fear, or anger',
+            'Caregiver collapse: the family member carrying the primary burden breaking down',
+            'Spiritual crisis: questioning God\u2019s goodness, fairness, or presence',
+            'Hospice team and church team working in isolation \u2014 coordinate intentionally'
+          ],
+          closureChecklist: [
+            'Advance directive conversation completed',
+            'Hospice team coordinated',
+            'Family care provided throughout (separate case or documented)',
+            'At passing: Grief case opened for family immediately',
+            'Memorial/funeral coordination completed',
+            '30-day post-loss family contact plan active',
+            'Final pastoral note'
+          ]
         },
         'New Member Integration': {
           icon: '\uD83E\uDD1D', color: '#4caf8a', priority: 'Normal',
@@ -788,7 +1094,21 @@ const TheLife = (() => {
             { t: 'Stage 4 \u2014 90-Day Assessment',      d: 'In a small group? At least one meaningful friendship? Connected to a serving area? If yes: close and celebrate. If no: identify the barrier and address it specifically.' },
             { t: 'Stage 5 \u2014 Transfer to Shepherding', d: 'When integrated: close this case, open a Shepherding case. Note their small group, serving role, and key relationships as their pastoral profile.' }
           ],
-          notes: 'NEW MEMBER INTEGRATION\n' + _L + '\nName(s):\n\nJoining Date:\n\nBackground (prior church, transfer, returning):\n\nFamily / Household Members:\n\n\n' + _L + '\nWelcome Elder / Deacon Assigned:\nSmall Group Connected:  YES / NO  \u25ba Date:\nServing Team Connected:  YES / NO  \u25ba Team:\n90-Day Assessment Date:\nNotes:'
+          notes: 'NEW MEMBER INTEGRATION\n' + _L + '\nName(s):\n\nJoining Date:\n\nBackground (prior church, transfer, returning):\n\nFamily / Household Members:\n\n\n' + _L + '\nWelcome Elder / Deacon Assigned:\nSmall Group Connected:  YES / NO  \u25ba Date:\nServing Team Connected:  YES / NO  \u25ba Team:\n90-Day Assessment Date:\nNotes:',
+          watchFor: [
+            'Quiet disappearance: member stops attending, no one notices for weeks',
+            'Surface connection only: attending but never belonging \u2014 no small group, no friendships',
+            'Spouse or family left out of the integration process',
+            'Integration treated as a checklist rather than genuine relational investment'
+          ],
+          closureChecklist: [
+            'Connected to a small group',
+            'At least one meaningful friendship formed in the congregation',
+            '90-day assessment completed',
+            'Serving conversation initiated',
+            'Shepherding case opened for ongoing care',
+            'Final pastoral note'
+          ]
         },
         'Pornography / Sexual Addiction': {
           icon: '\uD83D\uDD12', color: '#d4853a', priority: 'High',
@@ -800,7 +1120,23 @@ const TheLife = (() => {
             { t: 'Stage 5 \u2014 Recovery & Relapse',     d: 'Contact within 24 hours of a relapse. Lead with grace, not shame. Reassess accountability structure. Celebrate: 30d, 90d, 6mo, 1yr. Address root causes over time.' },
             { t: 'Stage 6 \u2014 Long-Term Freedom',      d: '12- and 24-month formal reviews. In time: invite them to give back as an accountability partner. When closing: convert to Shepherding \u2014 do not fully separate.' }
           ],
-          notes: 'SEXUAL ADDICTION INTAKE (CONFIDENTIAL \u2014 DO NOT DISCLOSE)\n' + _L + '\nDuration / History:\n\nPattern / Frequency:\n\nEscalation (has it changed over time):  YES / NO\n\nSpouse / Family Aware:  YES / NO\nProfessional Help in Place:  YES / NO\n\n\n' + _L + '\nAccountability Partner Assigned:\nAccountability Software Installed:  YES / NO\nReferral Made:\nMarriage Case Opened:  YES / NO\nNext Check-In:'
+          notes: 'SEXUAL ADDICTION INTAKE (CONFIDENTIAL \u2014 DO NOT DISCLOSE)\n' + _L + '\nDuration / History:\n\nPattern / Frequency:\n\nEscalation (has it changed over time):  YES / NO\n\nSpouse / Family Aware:  YES / NO\nProfessional Help in Place:  YES / NO\n\n\n' + _L + '\nAccountability Partner Assigned:\nAccountability Software Installed:  YES / NO\nReferral Made:\nMarriage Case Opened:  YES / NO\nNext Check-In:',
+          watchFor: [
+            'Relapse patterns: same triggers and cycles as substance addiction',
+            'Accountability software disabled or bypassed',
+            'Spouse betrayal trauma symptoms: hypervigilance, trust collapse, emotional flooding',
+            'Escalation in behavior pattern over time',
+            'Isolation from accountability partner or community'
+          ],
+          closureChecklist: [
+            'Accountability partner active and consistent',
+            'Accountability software installed and reporting',
+            'Professional referral made (CSAT or equivalent)',
+            'If married: spouse connected to betrayal trauma therapist',
+            '12-month and 24-month formal reviews completed',
+            'Transition to Shepherding (do not fully close)',
+            'Final pastoral note'
+          ]
         },
         'Mental Health': {
           icon: '\uD83E\uDDE0', color: '#7eaacc', priority: 'Normal',
@@ -812,7 +1148,23 @@ const TheLife = (() => {
             { t: 'Stage 5 \u2014 Crisis Response',        d: 'Suicidal ideation or intent: do not leave them alone. Call 988 together if needed. Activate Crisis workflow. Keep Mental Health case open for the ongoing journey.' },
             { t: 'Stage 6 \u2014 Long-Term Review',       d: 'Formal review at 6 and 12 months. Some cases remain open indefinitely \u2014 this is faithful shepherding, not failure. When thriving: close \u2192 convert to Shepherding.' }
           ],
-          notes: 'MENTAL HEALTH INTAKE (CONFIDENTIAL)\n' + _L + '\nPresenting Condition (as member describes it):\n\nDuration:\n\nCurrently in Professional Treatment:  YES / NO\nTherapist / Psychiatrist:\n\nMedication in Place:  YES / NO\n\n\n' + _L + '\nSafety Concern:  YES / NO  \u2014 If YES: Crisis workflow activated\nCaregiver Assigned:\nContact Cadence:\nReferral Made:\nNext Contact:'
+          notes: 'MENTAL HEALTH INTAKE (CONFIDENTIAL)\n' + _L + '\nPresenting Condition (as member describes it):\n\nDuration:\n\nCurrently in Professional Treatment:  YES / NO\nTherapist / Psychiatrist:\n\nMedication in Place:  YES / NO\n\n\n' + _L + '\nSafety Concern:  YES / NO  \u2014 If YES: Crisis workflow activated\nCaregiver Assigned:\nContact Cadence:\nReferral Made:\nNext Contact:',
+          watchFor: [
+            'Medication non-compliance without professional guidance',
+            'Increased isolation \u2014 especially during stable seasons when check-ins may decrease',
+            'Sudden calm after prolonged distress (may indicate a decision to act on suicidal ideation \u2014 activate Crisis immediately)',
+            'Caregiver compassion fatigue: mental health accompaniment is emotionally heavy long-term work',
+            'Faith crisis: member questioning God\u2019s goodness because of their condition',
+            'Family burnout: spouses, parents, or children carrying the weight silently'
+          ],
+          closureChecklist: [
+            'Member stable and in ongoing professional care (or professionally discharged)',
+            '6-month and 12-month formal reviews completed',
+            'No active safety concerns',
+            'Community connection verified (small group, friendships)',
+            'Transitioned to Shepherding for ongoing oversight',
+            'Final pastoral note'
+          ]
         },
         'Gender Identity / Sexuality': {
           icon: '\u271D', color: '#7eaacc', priority: 'Normal',
@@ -823,7 +1175,23 @@ const TheLife = (() => {
             { t: 'Stage 4 \u2014 Community & Belonging',  d: 'Isolation is the enemy. Ensure genuine community: small group, friendships, belonging. For celibate path: the church must be a community where single men and women flourish. If married: spouse needs their own pastoral care.' },
             { t: 'Stage 5 \u2014 Long-Term Accompaniment', d: 'This is rarely a short journey. Celebrate faithfulness. If a member steps away from biblical teaching: maintain relationship and hold truth in love. Formal review every 6 months.' }
           ],
-          notes: 'GENDER IDENTITY / SEXUALITY INTAKE (CONFIDENTIAL)\n' + _L + '\nNature of Struggle (as member describes it):\n\nTheological Stance (member\u2019s understanding):\n\nWhat They Are Seeking from the Church:\n\nFamily / Spouse Aware:  YES / NO\n\n\n' + _L + '\nCaregiver Assigned (same sex):\nProfessional Referral Made:  YES / NO\nCommunity Connection Plan:\nNext Meeting:'
+          notes: 'GENDER IDENTITY / SEXUALITY INTAKE (CONFIDENTIAL)\n' + _L + '\nNature of Struggle (as member describes it):\n\nTheological Stance (member\u2019s understanding):\n\nWhat They Are Seeking from the Church:\n\nFamily / Spouse Aware:  YES / NO\n\n\n' + _L + '\nCaregiver Assigned (same sex):\nProfessional Referral Made:  YES / NO\nCommunity Connection Plan:\nNext Meeting:',
+          watchFor: [
+            'Isolation: the member pulling away from community out of shame or fear of exposure',
+            'Spiritual crisis: questioning God\u2019s design, fairness, or love',
+            'Online influence: theology and community from internet sources contradicting the church\u2019s framework',
+            'Spouse distress: if married, the spouse may be processing their own grief, fear, or confusion \u2014 open a separate case',
+            'Caregiver discomfort: the assigned caregiver\u2019s own theology or discomfort affecting the quality of care'
+          ],
+          closureChecklist: [
+            'Member connected to ongoing community (small group, friendships)',
+            'Professional counselor referral made if desired',
+            'If celibacy path chosen: community support structure verified',
+            'If married: spouse care addressed',
+            '6-month formal reviews completed',
+            'Transitioned to Shepherding for ongoing accompaniment',
+            'Final pastoral note'
+          ]
         }
       };
 
@@ -831,7 +1199,7 @@ const TheLife = (() => {
 
       function _renderCarePanel(type) {
         if (!panel) return;
-        var cfg = _CFG[type];
+        var cfg = _careCFG[type];
         if (!cfg) { panel.innerHTML = ''; return; }
         var stageHtml = cfg.stages.map(function(s) {
           return '<div style="padding:10px 12px;background:rgba(255,255,255,0.04);border-radius:6px;border-left:3px solid ' + cfg.color + ';">' +
@@ -842,21 +1210,43 @@ const TheLife = (() => {
         var footerHtml = cfg.footer
           ? '<div style="margin-top:4px;padding:10px 12px;background:rgba(255,255,255,0.04);border-radius:6px;font-size:0.80rem;color:var(--ink-muted);"><strong style="color:var(--ink);">Note:</strong> ' + cfg.footer + '</div>'
           : '';
+        var watchHtml = '';
+        if (cfg.watchFor && cfg.watchFor.length) {
+          watchHtml = '<details style="margin-top:8px;border:1px solid #d4853a;border-radius:8px;overflow:hidden;">' +
+            '<summary style="padding:10px 14px;background:rgba(212,133,58,0.08);cursor:pointer;font-weight:700;font-size:0.82rem;color:#d4853a;user-select:none;">\u26A0 Watch For</summary>' +
+            '<div style="padding:12px 16px;display:grid;gap:6px;">' +
+            cfg.watchFor.map(function(w) {
+              return '<div style="padding:8px 10px;background:rgba(212,133,58,0.06);border-radius:6px;border-left:3px solid #d4853a;font-size:0.80rem;color:var(--ink-muted);">' + w + '</div>';
+            }).join('') +
+            '</div></details>';
+        }
         panel.innerHTML =
           '<details class="fp-section" open style="margin-bottom:16px;border:1px solid ' + cfg.color + ';border-radius:8px;overflow:hidden;">' +
           '<summary style="padding:12px 16px;background:rgba(255,255,255,0.04);cursor:pointer;font-weight:700;font-size:0.82rem;color:' + cfg.color + ';user-select:none;">' + cfg.icon + ' ' + type + ' \u2014 Workflow Guide</summary>' +
-          '<div style="padding:16px;display:grid;gap:8px;">' + stageHtml + footerHtml + '</div></details>';
+          '<div style="padding:16px;display:grid;gap:8px;">' + stageHtml + footerHtml + '</div></details>' +
+          watchHtml;
+      }
+
+      var _REVIEW_DAYS = { Urgent: 7, High: 14, Normal: 30, Low: 90 };
+
+      function _calcNextReview(priority) {
+        var days = _REVIEW_DAYS[priority] || 30;
+        var d = new Date(); d.setDate(d.getDate() + days);
+        return d.toISOString().slice(0, 10);
       }
 
       function _applyCareType(type) {
         _renderCarePanel(type);
-        var cfg = _CFG[type];
+        var cfg = _careCFG[type];
         if (!cfg) return;
         // Auto-elevate priority on new cases if the care type default is higher
         if (priSel && _isNew) {
           var curLevel = _PRIORITY_LEVEL[priSel.value] !== undefined ? _PRIORITY_LEVEL[priSel.value] : 1;
           var cfgLevel = _PRIORITY_LEVEL[cfg.priority] !== undefined ? _PRIORITY_LEVEL[cfg.priority] : 1;
-          if (cfgLevel > curLevel) priSel.value = cfg.priority;
+          if (cfgLevel > curLevel) {
+            priSel.value = cfg.priority;
+            _setNextReview(cfg.priority);
+          }
         }
         // Inject notes template for new empty cases
         if (_isNew && notesTa && !notesTa.value.trim() && cfg.notes) {
@@ -864,10 +1254,24 @@ const TheLife = (() => {
         }
       }
 
+      function _setNextReview(priority) {
+        var nrIn = document.getElementById('fp-nextReviewDate');
+        if (nrIn && _isNew && !nrIn._userEdited) nrIn.value = _calcNextReview(priority);
+      }
+
+      // Track manual edits to nextReviewDate so auto-calc doesn't overwrite
+      var _nrIn = document.getElementById('fp-nextReviewDate');
+      if (_nrIn) _nrIn.addEventListener('input', function() { this._userEdited = true; });
+
+      // Auto-set next review when priority changes on new cases
+      if (priSel) priSel.addEventListener('change', function() { _setNextReview(this.value); });
+
       if (ctSel) {
         ctSel.addEventListener('change', function() { _applyCareType(this.value); });
         _applyCareType(ctSel.value);
       }
+      // Set initial next review date for new cases
+      if (_isNew && priSel) _setNextReview(priSel.value);
     })();
   }
 
@@ -918,9 +1322,90 @@ const TheLife = (() => {
     }
   }
 
+  // ── Closure Validation Modal ──────────────────────────────────────────
+  function _showClosureModal(careType) {
+    return new Promise(function(resolve) {
+      var cfg = (_careCFG && _careCFG[careType]) ? _careCFG[careType] : null;
+      var checklist = (cfg && cfg.closureChecklist) ? cfg.closureChecklist : [];
+      // If no checklist, fall back to simple confirm
+      if (!checklist.length) { resolve(confirm('Resolve this care case?')); return; }
+
+      var overlay = document.createElement('div');
+      overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;';
+      var box = document.createElement('div');
+      box.style.cssText = 'background:var(--surface,#1e1e2e);color:var(--ink,#cdd6f4);border-radius:12px;padding:24px;max-width:520px;width:90%;max-height:80vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.4);';
+
+      var title = (cfg ? cfg.icon + ' ' : '') + careType + ' — Closure Validation';
+      var html = '<h3 style="margin:0 0 16px;font-size:1rem;">' + title + '</h3>';
+      html += '<div style="font-size:0.82rem;color:var(--ink-muted,#a6adc8);margin-bottom:12px;">Confirm each item before resolving:</div>';
+
+      checklist.forEach(function(item, i) {
+        var id = 'fp-closure-chk-' + i;
+        html += '<label style="display:flex;align-items:flex-start;gap:8px;padding:8px 0;font-size:0.84rem;cursor:pointer;">' +
+          '<input type="checkbox" id="' + id + '" class="fp-closure-chk" style="margin-top:2px;flex-shrink:0;">' +
+          '<span>' + item + '</span></label>';
+      });
+
+      html += '<div style="margin-top:16px;">' +
+        '<label style="font-size:0.82rem;font-weight:600;">Final Pastoral Note</label>' +
+        '<textarea id="fp-closure-note" rows="3" style="width:100%;margin-top:4px;padding:8px;border-radius:6px;border:1px solid var(--border,#45475a);background:var(--surface-alt,#181825);color:var(--ink,#cdd6f4);font-size:0.84rem;resize:vertical;" placeholder="Enter a final note for this case..."></textarea>' +
+        '</div>';
+
+      html += '<div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end;">' +
+        '<button id="fp-closure-cancel" style="padding:8px 16px;border-radius:6px;border:1px solid var(--border,#45475a);background:transparent;color:var(--ink,#cdd6f4);cursor:pointer;">Cancel</button>' +
+        '<button id="fp-closure-confirm" disabled style="padding:8px 16px;border-radius:6px;border:none;background:#4caf8a;color:#fff;cursor:pointer;opacity:0.5;">Confirm Resolve</button>' +
+        '</div>';
+
+      box.innerHTML = html;
+      overlay.appendChild(box);
+      document.body.appendChild(overlay);
+
+      var confirmBtn = document.getElementById('fp-closure-confirm');
+      var chks = box.querySelectorAll('.fp-closure-chk');
+      var noteEl = document.getElementById('fp-closure-note');
+
+      function updateBtn() {
+        var allChecked = Array.prototype.every.call(chks, function(c) { return c.checked; });
+        var hasNote = noteEl && noteEl.value.trim().length > 0;
+        var ready = allChecked && hasNote;
+        confirmBtn.disabled = !ready;
+        confirmBtn.style.opacity = ready ? '1' : '0.5';
+      }
+      chks.forEach(function(c) { c.addEventListener('change', updateBtn); });
+      if (noteEl) noteEl.addEventListener('input', updateBtn);
+
+      document.getElementById('fp-closure-cancel').addEventListener('click', function() {
+        document.body.removeChild(overlay);
+        resolve(false);
+      });
+      confirmBtn.addEventListener('click', function() {
+        var note = noteEl ? noteEl.value.trim() : '';
+        document.body.removeChild(overlay);
+        resolve(note || true);
+      });
+    });
+  }
+
   async function resolveCareCase() {
     if (!_fpCareId) return;
-    if (!confirm('Resolve this care case?')) return;
+    // Get care type from form or cached record
+    var ctEl = document.getElementById('fp-careType');
+    var careType = ctEl ? ctEl.value : '';
+    if (!careType) {
+      var caseRec = (_cache.care || []).find(function(c) { return c.id === _fpCareId; }) || {};
+      careType = caseRec.careType || caseRec.type || '';
+    }
+    var closureResult = await _showClosureModal(careType);
+    if (!closureResult) return;
+    // Append closure note to the notes field if provided
+    if (typeof closureResult === 'string') {
+      var notesTa = document.getElementById('fp-notes');
+      if (notesTa) {
+        notesTa.value = (notesTa.value ? notesTa.value + '\n\n' : '') + '── CLOSURE NOTE ──\n' + closureResult;
+      }
+      // Save the updated notes before resolving
+      await saveCareCase();
+    }
     try {
       var result = await (_isFB() ? UpperRoom.resolveCareCase(_fpCareId) : TheVine.flock.care.resolve({ id: _fpCareId }));
       // Verify the server actually confirmed the resolve
@@ -946,6 +1431,13 @@ const TheLife = (() => {
       console.error('[TheLife] care.resolve FAILED:', e);
       alert('Failed to resolve: ' + (e.message || e));
     }
+  }
+
+  // ── Create Linked Case ──────────────────────────────────────────────────
+  function createLinkedCase(parentCaseId, memberId) {
+    // Open a new care case pre-filled with the same member and a back-link
+    _fpCareId = null;
+    openCareCase(null, { memberId: memberId, linkedCaseId: parentCaseId });
   }
 
   // ── Send Email or Text from Care Case ──────────────────────────────────
@@ -2255,11 +2747,22 @@ const TheLife = (() => {
 
     // Dashboard summary row (if dashboard API returned data)
     if (dashboard && (dashboard.totalCases || dashboard.activeCases)) {
+      // Count overdue open cases (no activity >14 days)
+      var overdueCount = 0;
+      var reviewsDue = 0;
+      var _now = Date.now();
+      openCases.forEach(function(c) {
+        var last = c.updatedAt || c.createdAt || '';
+        if (last && Math.floor((_now - new Date(last).getTime()) / 86400000) > 14) overdueCount++;
+        if (c.nextReviewDate) { var _rd = new Date(c.nextReviewDate); if (!isNaN(_rd) && _rd.getTime() < _now) reviewsDue++; }
+      });
       h += '<div class="flock-dashboard-strip">';
       h += '<div class="flock-dash-item"><span class="flock-dash-val">' + (dashboard.totalCases || 0) + '</span><span class="flock-dash-label">Total Cases</span></div>';
       h += '<div class="flock-dash-item"><span class="flock-dash-val">' + (dashboard.activeCases || 0) + '</span><span class="flock-dash-label">Active</span></div>';
       h += '<div class="flock-dash-item"><span class="flock-dash-val">' + (dashboard.resolvedCases || 0) + '</span><span class="flock-dash-label">Resolved</span></div>';
       h += '<div class="flock-dash-item"><span class="flock-dash-val">' + (dashboard.avgResolutionDays || '\u2014') + '</span><span class="flock-dash-label">Avg Days</span></div>';
+      if (overdueCount) h += '<div class="flock-dash-item"><span class="flock-dash-val" style="color:var(--danger);">' + overdueCount + '</span><span class="flock-dash-label" style="color:var(--danger);">Overdue</span></div>';
+      if (reviewsDue) h += '<div class="flock-dash-item"><span class="flock-dash-val" style="color:var(--warning,orange);">' + reviewsDue + '</span><span class="flock-dash-label" style="color:var(--warning,orange);">Reviews Due</span></div>';
       h += '</div>';
     }
 
@@ -2295,9 +2798,15 @@ const TheLife = (() => {
       h += '<h4 class="flock-section-heading">\u2764\uFE0F Open Cases <span class="flock-section-ct">' + openCases.length + '</span></h4>';
       h += '<div class="flock-card-grid">';
       openCases.slice(0, 8).forEach(function(c) {
+        var ovPills = _statusBadge(c.priority || 'Normal') + _statusBadge(c.status);
+        var _last = c.updatedAt || c.createdAt || '';
+        var _dys = _last ? Math.floor((Date.now() - new Date(_last).getTime()) / 86400000) : 0;
+        if (_dys > 14) ovPills += _statusBadge('Urgent', _dys + 'd ago');
+        else if (_dys > 7) ovPills += _statusBadge('High', _dys + 'd ago');
+        if (c.nextReviewDate) { var _ovRd = new Date(c.nextReviewDate); if (!isNaN(_ovRd) && _ovRd.getTime() < Date.now()) ovPills += _statusBadge('Urgent', '\uD83D\uDD14 Review'); }
         h += _flockCard({
           name: _e(_memberName(c.memberId) || c.memberName || c.memberId || ''),
-          pills: _statusBadge(c.priority || 'Normal') + _statusBadge(c.status),
+          pills: ovPills,
           body: _e((c.careType || '') + (c.summary ? ' \u2014 ' + c.summary.substring(0, 100) : '')),
           assigned: _memberName(c.primaryCaregiverId) || c.assignedName || '',
           date: c.createdAt || '',
@@ -2330,11 +2839,39 @@ const TheLife = (() => {
     var h = '<div class="flock-actions">'
       + '<button class="primary" onclick="TheLife.openCareCase()">+ New Case</button>'
       + '<button onclick="TheLife.showFollowUps()">Follow-ups Due</button></div>';
+
+    // Calculate days since last activity for open cases and sort overdue to top
+    var now = Date.now();
+    rows.forEach(function(c) {
+      var last = c.updatedAt || c.createdAt || '';
+      c._daysSince = last ? Math.floor((now - new Date(last).getTime()) / 86400000) : 999;
+    });
+    rows.sort(function(a, b) {
+      // Open/active first, then by overdue days descending
+      var aOpen = (a.status || '').toLowerCase() !== 'resolved' && (a.status || '').toLowerCase() !== 'closed' ? 1 : 0;
+      var bOpen = (b.status || '').toLowerCase() !== 'resolved' && (b.status || '').toLowerCase() !== 'closed' ? 1 : 0;
+      if (aOpen !== bOpen) return bOpen - aOpen;
+      return b._daysSince - a._daysSince;
+    });
+
     h += '<div class="flock-card-grid">';
     rows.forEach(function(c) {
+      var extraPills = '';
+      if (c.riskLevel) extraPills += _statusBadge(c.riskLevel === 'Critical' ? 'Urgent' : c.riskLevel === 'High' ? 'High' : c.riskLevel, c.riskLevel + ' Risk');
+      if (c.trend === 'Declining') extraPills += _statusBadge('High', '\u2198 Declining');
+      else if (c.trend === 'Improving') extraPills += _statusBadge('Low', '\u2197 Improving');
+      // Overdue badge for open cases
+      var isOpen = (c.status || '').toLowerCase() !== 'resolved' && (c.status || '').toLowerCase() !== 'closed';
+      if (isOpen && c._daysSince > 14) extraPills += _statusBadge('Urgent', c._daysSince + 'd ago');
+      else if (isOpen && c._daysSince > 7) extraPills += _statusBadge('High', c._daysSince + 'd ago');
+      // Review overdue badge
+      if (isOpen && c.nextReviewDate) {
+        var _rd = new Date(c.nextReviewDate);
+        if (!isNaN(_rd) && _rd.getTime() < now) extraPills += _statusBadge('Urgent', '\uD83D\uDD14 Review overdue');
+      }
       h += _flockCard({
         name: _e(_memberName(c.memberId) || c.memberName || c.memberId || ''),
-        pills: _statusBadge(c.priority || 'Normal') + _statusBadge(c.status),
+        pills: _statusBadge(c.priority || 'Normal') + _statusBadge(c.status) + extraPills,
         body: _e((c.careType || '') + (c.summary ? ' \u2014 ' + c.summary.substring(0, 120) : '')),
         assigned: _memberName(c.primaryCaregiverId) || c.assignedName || '',
         date: c.createdAt || '',
@@ -3859,6 +4396,7 @@ const TheLife = (() => {
     sendCareReach:   sendCareReach,
     addCareInteraction:   addCareInteraction,
     scheduleCareFollowUp: scheduleCareFollowUp,
+    createLinkedCase:     createLinkedCase,
     viewMemberFromCase:   viewMemberFromCase,
     showFollowUps:        showFollowUps,
     loadMemberCareHistory: loadMemberCareHistory,

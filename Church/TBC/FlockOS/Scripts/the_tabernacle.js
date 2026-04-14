@@ -19736,66 +19736,243 @@ const Modules = (() => {
         + 'The Deployment Guide is available to Pastors, Admins, and users with the <strong>Deployment Guide</strong> permission.</p></div>';
       return;
     }
-    _shell(el, 'Deployment Guide', 'Step-by-step instructions for deploying and configuring FlockOS.', '');
+    _shell(el, 'Deployment Guide', 'Comprehensive step-by-step instructions for deploying and configuring FlockOS.', '');
     var html = '';
+    var _bdy = 'class="settings-accordion-body" style="font-size:0.85rem;line-height:1.7;color:var(--ink);"';
+    var _warn = 'style="background:var(--danger-bg,#fff3cd);border-left:4px solid var(--danger,#dc3545);padding:10px 14px;border-radius:6px;margin:10px 0;font-size:0.85rem;"';
     html += '<div style="max-width:740px;">';
 
-    // Step 1
+    // ─── GOLDEN RULE ───
+    html += '<div ' + _warn + '>'
+      + '&#x1F6A8; <strong>THE GOLDEN RULE:</strong> The GAS project gets ONLY <code>Master Code.gs.md</code> pasted as Code.gs. Never create additional files.</div>';
+
+    // ─── Phase 1: Prerequisites ───
     html += '<details class="settings-accordion" open>';
-    html += '<summary class="settings-accordion-trigger">Step 1: Google Apps Script Setup</summary>';
-    html += '<div class="settings-accordion-body" style="font-size:0.85rem;line-height:1.7;color:var(--ink);">'
-      + '<ol style="padding-left:20px;">'
-      + '<li>Create a new Google Apps Script project</li>'
-      + '<li>Paste <code>Single.gs</code> into the project as Code.gs</li>'
-      + '<li>Run <code>setupFlockOS()</code> once to initialize all spreadsheet tabs</li>'
-      + '<li>Deploy as Web App with &ldquo;Execute as me&rdquo; and &ldquo;Anyone&rdquo; access</li>'
-      + '</ol></div></details>';
-
-    // Step 2
-    html += '<details class="settings-accordion">';
-    html += '<summary class="settings-accordion-trigger">Step 2: Create First Admin</summary>';
-    html += '<div class="settings-accordion-body" style="font-size:0.85rem;line-height:1.7;color:var(--ink);">'
-      + '<ol style="padding-left:20px;">'
-      + '<li>Open the GAS project in Apps Script editor</li>'
-      + '<li>Run <code>createFirstAdmin()</code> from Single.gs</li>'
-      + '<li>This creates the initial admin user with a default passcode</li>'
-      + '<li>Log in and change your passcode immediately</li>'
-      + '</ol></div></details>';
-
-    // Step 3
-    html += '<details class="settings-accordion">';
-    html += '<summary class="settings-accordion-trigger">Step 3: Configure API Endpoints</summary>';
-    html += '<div class="settings-accordion-body" style="font-size:0.85rem;line-height:1.7;color:var(--ink);">'
-      + '<ol style="padding-left:20px;">'
-      + '<li>After deploying the unified API, copy the Web App URL</li>'
-      + '<li>Set <code>DATABASE_URL</code> in <code>the_true_vine.js</code></li>'
-      + '<li>Test the API with the health check in Settings</li>'
-      + '</ol></div></details>';
-
-    // Step 4
-    html += '<details class="settings-accordion">';
-    html += '<summary class="settings-accordion-trigger">Step 4: Host the Public Site</summary>';
-    html += '<div class="settings-accordion-body" style="font-size:0.85rem;line-height:1.7;color:var(--ink);">'
-      + '<ol style="padding-left:20px;">'
-      + '<li>Upload <code>index.html</code> and the <code>FlockOS</code> folder to your web host</li>'
-      + '<li>For GitHub Pages, push to a repository and enable Pages in settings</li>'
-      + '<li>Configure your custom domain (optional)</li>'
-      + '<li>Test the lockdown toggle from Settings before going live</li>'
-      + '</ol></div></details>';
-
-    // Step 5
-    html += '<details class="settings-accordion">';
-    html += '<summary class="settings-accordion-trigger">Step 5: Go Live Checklist</summary>';
-    html += '<div class="settings-accordion-body" style="font-size:0.85rem;line-height:1.7;color:var(--ink);">'
+    html += '<summary class="settings-accordion-trigger">Phase 1: Prerequisites</summary>';
+    html += '<div ' + _bdy + '>'
       + '<ul style="padding-left:20px;">'
-      + '<li>&#9744; Unified API endpoint deployed and tested</li>'
-      + '<li>&#9744; Admin account created and passcode changed</li>'
+      + '<li>A Google Account (Workspace or personal Gmail)</li>'
+      + '<li>1 empty Google Sheet (will hold all 200 database tabs)</li>'
+      + '<li>Access to <a href="https://script.google.com" style="color:var(--accent)" target="_blank">script.google.com</a></li>'
+      + '<li>The <code>FlockOS/Tools/Master Deployment/Master Code.gs.md</code> file</li>'
+      + '<li>The <code>FlockOS/Scripts/</code> and <code>FlockOS/Pages/</code> folders</li>'
+      + '</ul></div></details>';
+
+    // ─── Phase 2: Create the Google Sheet ───
+    html += '<details class="settings-accordion">';
+    html += '<summary class="settings-accordion-trigger">Phase 2: Create the Google Sheet</summary>';
+    html += '<div ' + _bdy + '>'
+      + '<ol style="padding-left:20px;">'
+      + '<li>Create one Google Sheet named <strong>FlockOS Database</strong></li>'
+      + '<li>Copy the Sheet ID from the URL (the long string between <code>/d/</code> and <code>/edit</code>)</li>'
+      + '</ol></div></details>';
+
+    // ─── Phase 3: Create the GAS Project ───
+    html += '<details class="settings-accordion">';
+    html += '<summary class="settings-accordion-trigger">Phase 3: Create the GAS Project</summary>';
+    html += '<div ' + _bdy + '>'
+      + '<ol style="padding-left:20px;">'
+      + '<li>In the Google Sheet &rarr; Extensions &rarr; Apps Script</li>'
+      + '<li>Delete the default <code>Code.gs</code> content</li>'
+      + '<li>Open <code>FlockOS/Tools/Master Deployment/Master Code.gs.md</code> in VS Code</li>'
+      + '<li>Copy the entire contents and paste as <code>Code.gs</code></li>'
+      + '<li>Save (Ctrl+S)</li>'
+      + '</ol></div></details>';
+
+    // ─── Phase 4: Script Properties ───
+    html += '<details class="settings-accordion">';
+    html += '<summary class="settings-accordion-trigger">Phase 4: Script Properties</summary>';
+    html += '<div ' + _bdy + '>'
+      + '<p style="margin:0 0 8px;">Go to &#x2699; Project Settings &rarr; Script Properties. Add these:</p>'
+      + '<table style="width:100%;border-collapse:collapse;font-size:0.82rem;margin-bottom:8px;">'
+      + '<tr style="border-bottom:1px solid var(--border);"><th style="text-align:left;padding:4px 8px;">Property</th><th style="text-align:left;padding:4px 8px;">Value</th><th style="text-align:left;padding:4px 8px;">Notes</th></tr>'
+      + '<tr><td style="padding:4px 8px;"><code>SHEET_ID</code></td><td style="padding:4px 8px;">Your Google Sheet ID</td><td style="padding:4px 8px;">Required</td></tr>'
+      + '<tr><td style="padding:4px 8px;"><code>ADMIN_EMAIL</code></td><td style="padding:4px 8px;">admin@church.com</td><td style="padding:4px 8px;">Seed admin email</td></tr>'
+      + '<tr><td style="padding:4px 8px;"><code>ADMIN_FIRST</code></td><td style="padding:4px 8px;">Admin</td><td style="padding:4px 8px;">First name</td></tr>'
+      + '<tr><td style="padding:4px 8px;"><code>ADMIN_LAST</code></td><td style="padding:4px 8px;">User</td><td style="padding:4px 8px;">Last name</td></tr>'
+      + '<tr><td style="padding:4px 8px;"><code>ADMIN_PASSWORD</code></td><td style="padding:4px 8px;">temporary-password</td><td style="padding:4px 8px;">&#x26A0; Delete after setup!</td></tr>'
+      + '</table></div></details>';
+
+    // ─── Phase 5: Run Setup ───
+    html += '<details class="settings-accordion">';
+    html += '<summary class="settings-accordion-trigger">Phase 5: Run Setup</summary>';
+    html += '<div ' + _bdy + '>'
+      + '<ol style="padding-left:20px;">'
+      + '<li>In the GAS editor, select <code>setupFlockOS</code> from the function dropdown</li>'
+      + '<li>Click &#x25B6; Run</li>'
+      + '<li>Grant permissions when prompted</li>'
+      + '<li>Setup creates all tabs, initializes pepper, seeds admin account, runs smoke tests, installs triggers</li>'
+      + '</ol></div></details>';
+
+    // ─── Phase 6: Post-Setup Security ───
+    html += '<details class="settings-accordion">';
+    html += '<summary class="settings-accordion-trigger">Phase 6: Post-Setup Security</summary>';
+    html += '<div ' + _bdy + '>'
+      + '<div ' + _warn + '>'
+      + '&#x26A0; <strong>IMMEDIATELY</strong> go to Script Properties and <strong>delete ADMIN_PASSWORD</strong>. Exposed passwords are a security risk.'
+      + '</div></div></details>';
+
+    // ─── Phase 7: Deploy as Web App ───
+    html += '<details class="settings-accordion">';
+    html += '<summary class="settings-accordion-trigger">Phase 7: Deploy as Web App</summary>';
+    html += '<div ' + _bdy + '>'
+      + '<ol style="padding-left:20px;">'
+      + '<li>Click Deploy &rarr; New Deployment</li>'
+      + '<li>Type: Web App</li>'
+      + '<li>Execute as: <strong>Me</strong></li>'
+      + '<li>Who has access: <strong>Anyone</strong></li>'
+      + '<li>Click Deploy &rarr; copy the deployment URL</li>'
+      + '</ol></div></details>';
+
+    // ─── Phase 8: Register the URL ───
+    html += '<details class="settings-accordion">';
+    html += '<summary class="settings-accordion-trigger">Phase 8: Register the URL</summary>';
+    html += '<div ' + _bdy + '>'
+      + '<ol style="padding-left:20px;">'
+      + '<li>Set <code>CHURCH_APP_URL</code> in Script Properties (paste the deployment URL)</li>'
+      + '<li>Run <code>registerChurchUrl()</code> in the GAS editor</li>'
+      + '<li>This writes the URL to AppConfig so emails and TheVine can reference it</li>'
+      + '</ol></div></details>';
+
+    // ─── Phase 9: Configure Frontend ───
+    html += '<details class="settings-accordion">';
+    html += '<summary class="settings-accordion-trigger">Phase 9: Configure Frontend</summary>';
+    html += '<div ' + _bdy + '>'
+      + '<ol style="padding-left:20px;">'
+      + '<li>Update <code>the_true_vine.js</code> <code>_config</code> block with the new Database URL</li>'
+      + '<li>OR configure via the Settings &rarr; Provisioning page in the admin dashboard</li>'
+      + '<li>Test: open <code>[DATABASE_URL]?action=health</code> &mdash; should return <code>{ ok: true }</code></li>'
+      + '</ol></div></details>';
+
+    // ─── Phase 10: Optional Firebase Setup ───
+    html += '<details class="settings-accordion">';
+    html += '<summary class="settings-accordion-trigger">Phase 10: Optional Firebase Setup</summary>';
+    html += '<div ' + _bdy + '>'
+      + '<ol style="padding-left:20px;">'
+      + '<li>Create a Firebase project (e.g., <code>flockos-churchname</code>)</li>'
+      + '<li>Enable Firestore Database</li>'
+      + '<li>Enable Authentication (anonymous + email/password)</li>'
+      + '<li>Add web app in Firebase Console &rarr; copy <code>firebaseConfig</code> object</li>'
+      + '<li>Add to <code>FlockOS/Tools/Active Deployments/ChurchName.json</code></li>'
+      + '<li>Run <code>setupFirestoreSync()</code> from GAS to create <code>settings/sync</code> Firestore doc</li>'
+      + '<li>Deploy Cloud Functions: <code>firebase use &lt;project-id&gt; &amp;&amp; firebase deploy --only functions</code></li>'
+      + '</ol></div></details>';
+
+    // ─── Phase 11: Add to Build Script ───
+    html += '<details class="settings-accordion">';
+    html += '<summary class="settings-accordion-trigger">Phase 11: Add to Build Script</summary>';
+    html += '<div ' + _bdy + '>'
+      + '<ol style="padding-left:20px;">'
+      + '<li>Add the church&rsquo;s config block to <code>build_churches.sh</code></li>'
+      + '<li>Run <code>bash build_churches.sh</code> to generate the deployment</li>'
+      + '<li>Commit and push to GitHub Pages</li>'
+      + '</ol></div></details>';
+
+    // ─── Verification Checklist ───
+    html += '<details class="settings-accordion">';
+    html += '<summary class="settings-accordion-trigger">&#x2705; Verification Checklist</summary>';
+    html += '<div ' + _bdy + '>'
+      + '<ul style="padding-left:20px;">'
+      + '<li>&#9744; Health check: <code>?action=health</code> returns <code>ok: true</code></li>'
+      + '<li>&#9744; Login: seed admin can log in at <code>the_wall.html</code></li>'
+      + '<li>&#9744; Dashboard loads with greeting and sidebar</li>'
+      + '<li>&#9744; Members tab shows empty list (no errors)</li>'
+      + '<li>&#9744; Notification bell shows (may be empty)</li>'
+      + '<li>&#9744; Service Worker caches all assets on first load</li>'
+      + '<li>&#9744; PWA &ldquo;Add to Home Screen&rdquo; works on iOS/Android</li>'
       + '<li>&#9744; Church name and branding configured in Settings</li>'
       + '<li>&#9744; Theme selected</li>'
       + '<li>&#9744; Lockdown disabled (public access enabled)</li>'
       + '<li>&#9744; Member import completed (if migrating from another system)</li>'
       + '<li>&#9744; Staff accounts created with appropriate roles</li>'
       + '</ul></div></details>';
+
+    // ─── Deployment Types ───
+    html += '<div style="margin-top:24px;border-top:1px solid var(--border);padding-top:16px;">'
+      + '<h3 style="font-size:1rem;font-weight:700;color:var(--ink);margin:0 0 12px;">Reference</h3></div>';
+
+    html += '<details class="settings-accordion">';
+    html += '<summary class="settings-accordion-trigger">Deployment Types &amp; Church Registry</summary>';
+    html += '<div ' + _bdy + '>'
+      + '<p style="margin:0 0 8px;">FlockOS supports <strong>four active church deployments</strong>, each with its own branding, database, and optional Firebase project. All share the same codebase served from GitHub Pages.</p>'
+      + '<h4 style="font-size:0.88rem;font-weight:600;margin:12px 0 6px;">What Each Build Gets</h4>'
+      + '<ul style="padding-left:20px;">'
+      + '<li><strong>Database URL</strong> &mdash; unique GAS endpoint per church</li>'
+      + '<li><strong>Church Name &amp; Tagline</strong> &mdash; injected into HTML titles, headers, meta tags</li>'
+      + '<li><strong>Theme Colors</strong> &mdash; primary accent color and background</li>'
+      + '<li><strong>Firebase Config</strong> &mdash; per-church project ID, API key, messaging sender ID</li>'
+      + '<li><strong>Analytics ID</strong> &mdash; Google Analytics measurement ID</li>'
+      + '<li><strong>Favicon &amp; Logo</strong> &mdash; per-church branding images</li>'
+      + '<li><strong>Truth Editor Target</strong> &mdash; <code>FLOCK_TRUTH_USE_LOCAL = true</code> so churches use their own Firestore</li>'
+      + '<li><strong>manifest.json</strong> &mdash; PWA name, short_name, theme_color updated via jq</li>'
+      + '</ul>'
+      + '<h4 style="font-size:0.88rem;font-weight:600;margin:12px 0 6px;">ROOT vs. Church Builds</h4>'
+      + '<table style="width:100%;border-collapse:collapse;font-size:0.82rem;margin-bottom:8px;">'
+      + '<tr style="border-bottom:1px solid var(--border);"><th style="text-align:left;padding:4px 8px;">Aspect</th><th style="text-align:left;padding:4px 8px;">ROOT (FlockOS/)</th><th style="text-align:left;padding:4px 8px;">Church Builds (Church/*/)</th></tr>'
+      + '<tr><td style="padding:4px 8px;">Source Editing</td><td style="padding:4px 8px;color:var(--success,green);">Edit here</td><td style="padding:4px 8px;color:var(--danger,red);">Never edit directly</td></tr>'
+      + '<tr><td style="padding:4px 8px;">Truth Editor Target</td><td style="padding:4px 8px;">flockos-truth (seed database)</td><td style="padding:4px 8px;">Local Firestore (per-church)</td></tr>'
+      + '<tr><td style="padding:4px 8px;">Build Script</td><td style="padding:4px 8px;">N/A (source of truth)</td><td style="padding:4px 8px;">Generated by <code>build_churches.sh</code></td></tr>'
+      + '</table>'
+      + '<div ' + _warn + '>&#x1F6A8; Make changes ONLY in the master/root copy (under <code>/FlockOS/</code>). NEVER touch <code>Church/*</code> deployments directly. Run <code>build_churches.sh</code> to propagate changes.</div>'
+      + '</div></details>';
+
+    // ─── Build System ───
+    html += '<details class="settings-accordion">';
+    html += '<summary class="settings-accordion-trigger">Build System &amp; Automation</summary>';
+    html += '<div ' + _bdy + '>'
+      + '<p style="margin:0 0 8px;">The build script at <code>FlockOS/Tools/Development Scripts/build_churches.sh</code> generates all church deployments from the master source:</p>'
+      + '<ol style="padding-left:20px;">'
+      + '<li><strong>rsync</strong> &mdash; Copy master FlockOS source into <code>Church/&lt;name&gt;/</code></li>'
+      + '<li><strong>Database URL</strong> &mdash; <code>sed</code> replaces the GAS endpoint URL in HTML/JS files</li>'
+      + '<li><strong>Tagline</strong> &mdash; Replace default tagline with church-specific tagline</li>'
+      + '<li><strong>Theme &amp; Background Colors</strong> &mdash; Inject primary accent color and background</li>'
+      + '<li><strong>manifest.json</strong> &mdash; <code>jq</code> updates PWA name, short_name, theme_color</li>'
+      + '<li><strong>Firebase Config</strong> &mdash; Inject per-church <code>firebaseConfig</code> object into the_upper_room.js</li>'
+      + '<li><strong>Truth Editor Local Flag</strong> &mdash; Inject <code>window.FLOCK_TRUTH_USE_LOCAL = true;</code></li>'
+      + '<li><strong>HTML Titles &amp; Meta</strong> &mdash; Update title, description, og:tags</li>'
+      + '<li><strong>Church Brand Name</strong> &mdash; Replace &ldquo;FlockOS&rdquo; references with church name</li>'
+      + '<li><strong>Per-page updates</strong> &mdash; the_wall.html, the_pentecost.html, fishing-for-men.html</li>'
+      + '<li><strong>Analytics</strong> &mdash; Inject Google Analytics measurement ID</li>'
+      + '<li><strong>Favicon &amp; Photos</strong> &mdash; Update image URLs to per-church assets</li>'
+      + '</ol>'
+      + '<h4 style="font-size:0.88rem;font-weight:600;margin:12px 0 6px;">Running the Build</h4>'
+      + '<code style="display:block;background:var(--surface-alt,#f5f5f5);padding:8px 12px;border-radius:6px;font-size:0.82rem;">'
+      + 'cd FlockOS/Tools/Development\\ Scripts/<br>bash build_churches.sh</code>'
+      + '<p style="margin:8px 0 0;font-size:0.82rem;">Output: <code>Church/FlockOS/</code>, <code>Church/GAS/</code>, <code>Church/TBC/</code>, <code>Church/TheForest/</code></p>'
+      + '</div></details>';
+
+    // ─── Troubleshooting ───
+    html += '<details class="settings-accordion">';
+    html += '<summary class="settings-accordion-trigger">Troubleshooting</summary>';
+    html += '<div ' + _bdy + '>'
+      + '<div ' + _warn + '>&#x1F6A8; If something isn&rsquo;t working, <strong>count your files</strong>. The GAS project should have exactly <strong>1 file (Code.gs)</strong>. If you have more, delete the extras.</div>'
+      + '<table style="width:100%;border-collapse:collapse;font-size:0.82rem;margin:10px 0;">'
+      + '<tr style="border-bottom:1px solid var(--border);"><th style="text-align:left;padding:4px 8px;">Error</th><th style="text-align:left;padding:4px 8px;">Cause</th><th style="text-align:left;padding:4px 8px;">Fix</th></tr>'
+      + '<tr><td style="padding:4px 8px;">&ldquo;Unknown action&rdquo;</td><td style="padding:4px 8px;">Action parameter doesn&rsquo;t match a route</td><td style="padding:4px 8px;">Actions are case-sensitive, dot-notation (e.g. <code>members.list</code>)</td></tr>'
+      + '<tr><td style="padding:4px 8px;"><code>ReferenceError: [function] is not defined</code></td><td style="padding:4px 8px;">Function name mistyped or renamed</td><td style="padding:4px 8px;">Search Master Code.gs for the function name</td></tr>'
+      + '<tr><td style="padding:4px 8px;">CORS / Cross-Origin errors</td><td style="padding:4px 8px;">Access set to &ldquo;Anyone with Google account&rdquo;</td><td style="padding:4px 8px;">Change to &ldquo;Anyone&rdquo;</td></tr>'
+      + '<tr><td style="padding:4px 8px;">&ldquo;Access denied&rdquo; / 403</td><td style="padding:4px 8px;">Session expired or RBAC role too low</td><td style="padding:4px 8px;">Re-login or check AccessControl tab</td></tr>'
+      + '<tr><td style="padding:4px 8px;">Login loop</td><td style="padding:4px 8px;">Session expired (6-hour TTL)</td><td style="padding:4px 8px;">Clear sessionStorage, re-login</td></tr>'
+      + '<tr><td style="padding:4px 8px;"><code>setupFlockOS()</code> fails</td><td style="padding:4px 8px;">SHEET_ID not set or wrong</td><td style="padding:4px 8px;">Verify Script Properties &rarr; SHEET_ID matches Sheet URL</td></tr>'
+      + '<tr><td style="padding:4px 8px;">Pepper lost</td><td style="padding:4px 8px;">GAS Script Properties wiped</td><td style="padding:4px 8px;">ALL passwords unrecoverable. Clear hashes, reset, run <code>migrateAllPasswords()</code></td></tr>'
+      + '<tr><td style="padding:4px 8px;">Truth Editor hits wrong Firestore</td><td style="padding:4px 8px;"><code>FLOCK_TRUTH_USE_LOCAL</code> not injected</td><td style="padding:4px 8px;">Rebuild churches via <code>build_churches.sh</code></td></tr>'
+      + '<tr><td style="padding:4px 8px;">Cloud Functions not syncing</td><td style="padding:4px 8px;">Missing <code>settings/sync</code> doc</td><td style="padding:4px 8px;">Run <code>setupFirestoreSync()</code> from GAS</td></tr>'
+      + '</table>'
+      + '<h4 style="font-size:0.88rem;font-weight:600;margin:12px 0 6px;">How to Update a Deployment</h4>'
+      + '<ol style="padding-left:20px;">'
+      + '<li>Make code changes in the GAS editor (or paste updated Master Code.gs)</li>'
+      + '<li>Deploy &rarr; Manage deployments &rarr; &#x270F;&#xFE0F; pencil icon</li>'
+      + '<li>Version &rarr; <strong>New version</strong> &rarr; Deploy</li>'
+      + '<li>URL stays the same &mdash; no config changes needed</li>'
+      + '</ol>'
+      + '<h4 style="font-size:0.88rem;font-weight:600;margin:12px 0 6px;">GAS Quotas</h4>'
+      + '<table style="width:100%;border-collapse:collapse;font-size:0.82rem;">'
+      + '<tr style="border-bottom:1px solid var(--border);"><th style="text-align:left;padding:4px 8px;">Limit</th><th style="text-align:left;padding:4px 8px;">Consumer Gmail</th><th style="text-align:left;padding:4px 8px;">Workspace</th></tr>'
+      + '<tr><td style="padding:4px 8px;">Script runtime</td><td style="padding:4px 8px;">6 min</td><td style="padding:4px 8px;">30 min</td></tr>'
+      + '<tr><td style="padding:4px 8px;">URL Fetch calls/day</td><td style="padding:4px 8px;">20,000</td><td style="padding:4px 8px;">100,000</td></tr>'
+      + '<tr><td style="padding:4px 8px;">Spreadsheet reads/day</td><td style="padding:4px 8px;">~50,000 (soft)</td><td style="padding:4px 8px;">~300,000 (soft)</td></tr>'
+      + '</table>'
+      + '</div></details>';
 
     html += '</div>';
     _body(el, html);
