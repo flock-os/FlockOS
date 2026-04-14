@@ -30,6 +30,18 @@ const TheWay = (() => {
 
   function _isFB() { return typeof UpperRoom !== 'undefined' && UpperRoom.isReady(); }
 
+  // ── Timeout guard — prevents hanging fetches from causing perma-spin ──
+  var _FETCH_TIMEOUT = 15000;
+  function _withTimeout(promise, ms) {
+    if (!ms) ms = _FETCH_TIMEOUT;
+    return Promise.race([
+      promise,
+      new Promise(function(_, reject) {
+        setTimeout(function() { reject(new Error('Request timed out')); }, ms);
+      })
+    ]);
+  }
+
   function _errHtml(msg) {
     return '<div style="padding:24px;text-align:center;color:var(--danger);">'
          + '<p style="font-size:1rem;font-weight:600;">Error</p>'
@@ -331,8 +343,8 @@ const TheWay = (() => {
       + '<div id="tw-body"></div>'
       + '</div>';
 
-    // Load initial data in parallel
-    _renderPanel(_activeTab);
+    // Load initial data — await so the module view cache can capture rendered content
+    await _renderPanel(_activeTab);
   }
 
   function refresh() {
@@ -347,22 +359,22 @@ const TheWay = (() => {
 
   function _renderPanel(tabId) {
     switch (tabId) {
-      case 'dashboard':    _renderDashboard();    break;
-      case 'courses':      _renderCourses();      break;
-      case 'quizzes':      _renderQuizzes();      break;
-      case 'reading':      _renderReadingPlans(); break;
-      case 'theology':     _renderTheology();     break;
-      case 'lexicon':      _renderLexicon();      break;
-      case 'library':      _renderLibrary();      break;
-      case 'devotionals':  _renderDevotionals();  break;
-      case 'apologetics':  _renderApologetics();  break;
-      case 'counseling':   _renderCounseling();   break;
-      case 'heart':        _renderHeart();        break;
-      case 'genealogy':    _renderGenealogy();    break;
-      case 'journal':      _renderJournal();      break;
-      case 'analytics':    _renderAnalytics();    break;
-      case 'certificates': _renderCertificates(); break;
-      default:             _renderDashboard();
+      case 'dashboard':    return _renderDashboard();
+      case 'courses':      return _renderCourses();
+      case 'quizzes':      return _renderQuizzes();
+      case 'reading':      return _renderReadingPlans();
+      case 'theology':     return _renderTheology();
+      case 'lexicon':      return _renderLexicon();
+      case 'library':      return _renderLibrary();
+      case 'devotionals':  return _renderDevotionals();
+      case 'apologetics':  return _renderApologetics();
+      case 'counseling':   return _renderCounseling();
+      case 'heart':        return _renderHeart();
+      case 'genealogy':    return _renderGenealogy();
+      case 'journal':      return _renderJournal();
+      case 'analytics':    return _renderAnalytics();
+      case 'certificates': return _renderCertificates();
+      default:             return _renderDashboard();
     }
   }
 
@@ -414,10 +426,10 @@ const TheWay = (() => {
     _panel(_spinner());
     try {
       var fetches = [
-        _fetchStats(),
-        _fetchProgress({ status: 'In Progress' }),
-        _fetchCertificates(),
-        _fetchQuizResults(),
+        _withTimeout(_fetchStats()),
+        _withTimeout(_fetchProgress({ status: 'In Progress' })),
+        _withTimeout(_fetchCertificates()),
+        _withTimeout(_fetchQuizResults()),
       ];
       var results = await Promise.allSettled(fetches);
       var stats  = results[0].status === 'fulfilled' ? results[0].value : {};
@@ -557,16 +569,16 @@ const TheWay = (() => {
     _panel(_spinner());
     try {
       if (!_cache.playlists) {
-        var res = await (_isFB() ? UpperRoom.listLrnPlaylists({ status: 'Active' }) : TheVine.flock.call('learning.playlists.list', { status: 'Active' }, { skipAuth: true }));
+        var res = await _withTimeout(_isFB() ? UpperRoom.listLrnPlaylists({ status: 'Active' }) : TheVine.flock.call('learning.playlists.list', { status: 'Active' }, { skipAuth: true }));
         _cache.playlists = _rows(res);
       }
       if (!_cache.topics) {
-        var tres = await (_isFB() ? UpperRoom.listLrnTopics({ status: 'Active' }) : TheVine.flock.call('learning.topics.list', { status: 'Active' }, { skipAuth: true }));
+        var tres = await _withTimeout(_isFB() ? UpperRoom.listLrnTopics({ status: 'Active' }) : TheVine.flock.call('learning.topics.list', { status: 'Active' }, { skipAuth: true }));
         _cache.topics = _rows(tres);
       }
       var s = _getSession();
       if (!_cache.userProgress) {
-        _cache.userProgress = (s && s.email) ? _rows(await _fetchProgress({})) : [];
+        _cache.userProgress = (s && s.email) ? _rows(await _withTimeout(_fetchProgress({}))) : [];
       }
 
       _renderCourseGrid();
@@ -735,13 +747,13 @@ const TheWay = (() => {
     if (!playlistId) return;
     _panel(_spinner());
     try {
-      var res = await (_isFB() ? UpperRoom.getLrnPlaylist({ id: playlistId }) : TheVine.flock.call('learning.playlists.get', { id: playlistId }));
+      var res = await _withTimeout(_isFB() ? UpperRoom.getLrnPlaylist({ id: playlistId }) : TheVine.flock.call('learning.playlists.get', { id: playlistId }));
       _currentCourse = (res && !res.error) ? res : null;
       if (!_currentCourse) { _panel(_errHtml('Course not found')); return; }
 
       // Fetch user's notes for this course
       try {
-        var nres = await (_isFB() ? UpperRoom.listLrnNotes({ playlistId: playlistId }) : TheVine.flock.call('learning.notes.list', { playlistId: playlistId }));
+        var nres = await _withTimeout(_isFB() ? UpperRoom.listLrnNotes({ playlistId: playlistId }) : TheVine.flock.call('learning.notes.list', { playlistId: playlistId }));
         _courseNotes = _rows(nres);
       } catch (_) { _courseNotes = []; }
 
@@ -1383,7 +1395,7 @@ const TheWay = (() => {
       // Try APP quiz endpoint first (existing quiz module from tabernacle)
       var quizzes = [];
       try {
-        var res = await (_isFB() ? UpperRoom.listLrnQuizzes({ status: 'Published' }) : TheVine.flock.call('learning.quizzes.list', { status: 'Published' }));
+        var res = await _withTimeout(_isFB() ? UpperRoom.listLrnQuizzes({ status: 'Published' }) : TheVine.flock.call('learning.quizzes.list', { status: 'Published' }));
         quizzes = _rows(res);
       } catch (_) {}
 
@@ -1391,9 +1403,9 @@ const TheWay = (() => {
       var appQuiz = [];
       try {
         if (_isFB() && typeof UpperRoom !== 'undefined') {
-          appQuiz = await UpperRoom.listAppContent('quiz');
+          appQuiz = await _withTimeout(UpperRoom.listAppContent('quiz'));
         } else if (typeof TheVine !== 'undefined' && TheVine.app && TheVine.app.quiz) {
-          var aq = await TheVine.app.quiz();
+          var aq = await _withTimeout(TheVine.app.quiz());
           appQuiz = _rows(aq);
         }
       } catch (_) {}
@@ -1649,7 +1661,7 @@ const TheWay = (() => {
   async function _startCourseQuiz(quizId) {
     _panel(_spinner());
     try {
-      var res = await (_isFB() ? UpperRoom.getLrnQuiz({ id: quizId }) : TheVine.flock.call('learning.quizzes.get', { id: quizId }));
+      var res = await _withTimeout(_isFB() ? UpperRoom.getLrnQuiz({ id: quizId }) : TheVine.flock.call('learning.quizzes.get', { id: quizId }));
       if (!res || res.error) { _panel(_errHtml('Quiz not found')); return; }
       var quiz = res;
       var allQuestions = [];
@@ -1921,10 +1933,10 @@ const TheWay = (() => {
       var stats = null;
       if (_isFB()) {
         try {
-          var results = await Promise.all([
+          var results = await _withTimeout(Promise.all([
             UpperRoom.theologyFull(),
             UpperRoom.theologyDashboard()
-          ]);
+          ]));
           tree  = _rows(results[0]);
           stats = results[1];
           if (stats && stats.rows) stats = stats.rows[0] || stats.rows;
@@ -1937,10 +1949,10 @@ const TheWay = (() => {
         try {
           var flat = [];
           if (_isFB() && typeof UpperRoom !== 'undefined') {
-            try { flat = _rows(await UpperRoom.listAppContent('theology')); } catch (_) {}
+            try { flat = _rows(await _withTimeout(UpperRoom.listAppContent('theology'))); } catch (_) {}
           }
           if (!flat.length && typeof TheVine !== 'undefined' && TheVine.app && TheVine.app.theology) {
-            flat = _rows(await TheVine.app.theology());
+            flat = _rows(await _withTimeout(TheVine.app.theology()));
           }
             if (flat.length) {
               var catMap = {};
@@ -2149,10 +2161,10 @@ const TheWay = (() => {
       var words = [];
       try {
         if (_isFB() && typeof UpperRoom !== 'undefined') {
-          var res = await UpperRoom.listAppContent('words');
+          var res = await _withTimeout(UpperRoom.listAppContent('words'));
           words = Array.isArray(res) ? res : _rows(res);
         } else if (typeof TheVine !== 'undefined' && TheVine.app && TheVine.app.words) {
-          var res = await TheVine.app.words();
+          var res = await _withTimeout(TheVine.app.words());
           words = _rows(res);
         }
       } catch (_) {}
@@ -2506,10 +2518,10 @@ const TheWay = (() => {
       var devos = [];
       try {
         if (_isFB() && typeof UpperRoom !== 'undefined') {
-          var res = await UpperRoom.listAppContent('devotionals');
+          var res = await _withTimeout(UpperRoom.listAppContent('devotionals'));
           devos = Array.isArray(res) ? res : _rows(res);
         } else if (typeof TheVine !== 'undefined' && TheVine.app && TheVine.app.devotionals) {
-          var res = await TheVine.app.devotionals();
+          var res = await _withTimeout(TheVine.app.devotionals());
           devos = _rows(res);
         }
       } catch (_) {}
@@ -2579,10 +2591,10 @@ const TheWay = (() => {
       var data = [];
       try {
         if (_isFB() && typeof UpperRoom !== 'undefined') {
-          var res = await UpperRoom.listAppContent('apologetics');
+          var res = await _withTimeout(UpperRoom.listAppContent('apologetics'));
           data = Array.isArray(res) ? res : _rows(res);
         } else if (typeof TheVine !== 'undefined' && TheVine.app && TheVine.app.apologetics) {
-          var res = await TheVine.app.apologetics();
+          var res = await _withTimeout(TheVine.app.apologetics());
           data = _rows(res);
         }
       } catch (_) {}
@@ -2653,10 +2665,10 @@ const TheWay = (() => {
       var data = [];
       try {
         if (_isFB() && typeof UpperRoom !== 'undefined') {
-          var res = await UpperRoom.listAppContent('counseling');
+          var res = await _withTimeout(UpperRoom.listAppContent('counseling'));
           data = Array.isArray(res) ? res : _rows(res);
         } else if (typeof TheVine !== 'undefined' && TheVine.app && TheVine.app.counseling) {
-          var res = await TheVine.app.counseling();
+          var res = await _withTimeout(TheVine.app.counseling());
           data = _rows(res);
         }
       } catch (_) {}
@@ -2797,7 +2809,7 @@ const TheWay = (() => {
   async function _renderHeart() {
     _panel(_spinner());
     try {
-      var raw = await (_isFB() && typeof UpperRoom !== 'undefined' ? UpperRoom.listAppContent('heart') : TheVine.app.heart());
+      var raw = await _withTimeout(_isFB() && typeof UpperRoom !== 'undefined' ? UpperRoom.listAppContent('heart') : TheVine.app.heart());
       var rows = Array.isArray(raw) ? raw : _rows(raw);
       if (!rows.length) { _panel(_empty('\u2764', 'No questions yet', 'Add diagnostic questions in the Matthew spreadsheet.')); return; }
 
@@ -2906,7 +2918,7 @@ const TheWay = (() => {
   async function _renderGenealogy() {
     _panel(_spinner());
     try {
-      var raw = await (_isFB() && typeof UpperRoom !== 'undefined' ? UpperRoom.listAppContent('genealogy') : TheVine.app.genealogy());
+      var raw = await _withTimeout(_isFB() && typeof UpperRoom !== 'undefined' ? UpperRoom.listAppContent('genealogy') : TheVine.app.genealogy());
       var rows = Array.isArray(raw) ? raw : _rows(raw);
       if (!rows.length) { _panel(_empty('\uD83D\uDC65', 'No genealogy data yet', 'Add entries in the Matthew spreadsheet.')); return; }
 
@@ -3125,7 +3137,7 @@ const TheWay = (() => {
   async function _renderJournal() {
     _panel(_spinner());
     try {
-      var res = await (_isFB() ? UpperRoom.listJournal({ limit: 200 }) : TheVine.flock.journal.list({ limit: 200 }));
+      var res = await _withTimeout(_isFB() ? UpperRoom.listJournal({ limit: 200 }) : TheVine.flock.journal.list({ limit: 200 }));
       var rows = _rows(res);
 
       var html = '';
@@ -3177,10 +3189,10 @@ const TheWay = (() => {
     _panel(_spinner());
     try {
       var fetches = [
-        _fetchStats(),
-        _fetchProgress({}),
-        _fetchQuizResults(),
-        _fetchCertificates(),
+        _withTimeout(_fetchStats()),
+        _withTimeout(_fetchProgress({})),
+        _withTimeout(_fetchQuizResults()),
+        _withTimeout(_fetchCertificates()),
       ];
       var results = await Promise.allSettled(fetches);
       var stats    = results[0].status === 'fulfilled' ? results[0].value : {};
@@ -3312,7 +3324,7 @@ const TheWay = (() => {
     try {
       var certs = [];
       try {
-        var res = await _fetchCertificates();
+        var res = await _withTimeout(_fetchCertificates());
         certs = _rows(res);
       } catch (_) {}
 
