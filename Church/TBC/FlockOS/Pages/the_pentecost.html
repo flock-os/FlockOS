@@ -1223,13 +1223,18 @@ Nehemiah.canAccess('missions');  // module access</code></pre>
   <div class="gospel">"And suddenly there came from heaven a sound like a mighty rushing wind." &mdash; Acts 2:2</div>
 
   <h3>Firebase Projects</h3>
-  <table>
-    <tr><th>Project ID</th><th>Purpose</th><th>Church</th></tr>
-    <tr><td><code>flockos-notify</code></td><td>Master / ROOT project. Hosts Cloud Functions. FlockOS default church.</td><td>FlockOS (default)</td></tr>
-    <tr><td><code>flockos-truth</code></td><td>Seed database. 12 Truth content collections shared across all churches.</td><td>(Global seed)</td></tr>
-    <tr><td><code>flockos-theforest</code></td><td>Per-church Firestore + auth</td><td>The Forest</td></tr>
-    <tr><td><code>flockos-trinity</code></td><td>Per-church Firestore + auth</td><td>Trinity Baptist Church</td></tr>
-  </table>
+  <div class="reveal-wrap">
+    <div class="reveal-mask"><span class="lock">&#x1F512;</span> Click to reveal Firebase project IDs</div>
+    <div class="reveal-content">
+    <table>
+      <tr><th>Project ID</th><th>Purpose</th><th>Church</th></tr>
+      <tr><td><code>flockos-notify</code></td><td>Master / ROOT project. Hosts Cloud Functions. FlockOS default church.</td><td>FlockOS (default)</td></tr>
+      <tr><td><code>flockos-truth</code></td><td>Seed database. 12 Truth content collections shared across all churches.</td><td>(Global seed)</td></tr>
+      <tr><td><code>flockos-theforest</code></td><td>Per-church Firestore + auth</td><td>The Forest</td></tr>
+      <tr><td><code>flockos-trinity</code></td><td>Per-church Firestore + auth</td><td>Trinity Baptist Church</td></tr>
+    </table>
+    </div>
+  </div>
 
   <h3>Cloud Functions (11 Total)</h3>
   <p>All deployed to <code>flockos-notify</code>, v2, Node.js 22, 2nd Generation, <code>us-central1</code>.</p>
@@ -1372,37 +1377,42 @@ Nehemiah.canAccess('missions');  // module access</code></pre>
   <p>FlockOS supports <strong>four active church deployments</strong>, each with its own branding, database, and optional Firebase project. All share the same codebase served from GitHub Pages, with per-deployment customization injected by the build script.</p>
 
   <h3>Active Deployments</h3>
-  <table>
-    <tr><th>Deployment</th><th>Church</th><th>Firebase Project</th><th>Analytics</th><th>Type</th></tr>
-    <tr>
-      <td><strong>FlockOS</strong></td>
-      <td>FlockOS (default / master)</td>
-      <td><code>flockos-notify</code></td>
-      <td>G-D7V88DPF3T</td>
-      <td>Master &mdash; source of truth for all code. ROOT build.</td>
-    </tr>
-    <tr>
-      <td><strong>GAS</strong></td>
-      <td>GAS (demo / development)</td>
-      <td>(none &mdash; falls back to flockos-notify)</td>
-      <td>G-D7V88DPF3T</td>
-      <td>Church build. Uses FlockOS default Firebase.</td>
-    </tr>
-    <tr>
-      <td><strong>TheForest</strong></td>
-      <td>The Forest</td>
-      <td><code>flockos-theforest</code></td>
-      <td>G-WMGPRHXP0Q</td>
-      <td>Church build with dedicated Firebase project.</td>
-    </tr>
-    <tr>
-      <td><strong>TBC</strong></td>
-      <td>Trinity Baptist Church</td>
-      <td><code>flockos-trinity</code></td>
-      <td>G-E7KXEN8C3E</td>
-      <td>Church build with dedicated Firebase project.</td>
-    </tr>
-  </table>
+  <div class="reveal-wrap">
+    <div class="reveal-mask"><span class="lock">&#x1F512;</span> Click to reveal deployment details &amp; project IDs</div>
+    <div class="reveal-content">
+    <table>
+      <tr><th>Deployment</th><th>Church</th><th>Firebase Project</th><th>Analytics</th><th>Type</th></tr>
+      <tr>
+        <td><strong>FlockOS</strong></td>
+        <td>FlockOS (default / master)</td>
+        <td><code>flockos-notify</code></td>
+        <td>G-D7V88DPF3T</td>
+        <td>Master &mdash; source of truth for all code. ROOT build.</td>
+      </tr>
+      <tr>
+        <td><strong>GAS</strong></td>
+        <td>GAS (demo / development)</td>
+        <td>(none &mdash; falls back to flockos-notify)</td>
+        <td>G-D7V88DPF3T</td>
+        <td>Church build. Uses FlockOS default Firebase.</td>
+      </tr>
+      <tr>
+        <td><strong>TheForest</strong></td>
+        <td>The Forest</td>
+        <td><code>flockos-theforest</code></td>
+        <td>G-WMGPRHXP0Q</td>
+        <td>Church build with dedicated Firebase project.</td>
+      </tr>
+      <tr>
+        <td><strong>TBC</strong></td>
+        <td>Trinity Baptist Church</td>
+        <td><code>flockos-trinity</code></td>
+        <td>G-E7KXEN8C3E</td>
+        <td>Church build with dedicated Firebase project.</td>
+      </tr>
+    </table>
+    </div>
+  </div>
 
   <h3>What Each Build Gets</h3>
   <p>Every church deployment is a complete copy of FlockOS with the following customized:</p>
