@@ -475,6 +475,10 @@ const TheSeason = (() => {
   var _calEvents = [];                  // merged event pool for current range
   var _calIcalCache = {};               // keyed by feed URL → parsed entries
   var _calMode  = 'calendar';           // 'calendar' | 'tasks' | 'checkin'
+  var _calTZ;                           // IANA timezone from CHURCH_TIMEZONE config
+
+  /** Merge timeZone into locale options when _calTZ is set */
+  function _tzOpt(o) { return _calTZ ? Object.assign({ timeZone: _calTZ }, o) : o; }
 
   var _CAL_SETTINGS_KEY = 'flock_calendar_settings';
   function _calSettings() {
@@ -505,9 +509,9 @@ const TheSeason = (() => {
     return y + '-' + m + '-' + dd;
   }
   function _calMonthName(d) {
-    return d.toLocaleString('default', { month: 'long', year: 'numeric' });
+    return d.toLocaleString('default', _tzOpt({ month: 'long', year: 'numeric' }));
   }
-  function _calDayName(d) { return d.toLocaleString('default', { weekday: 'short' }); }
+  function _calDayName(d) { return d.toLocaleString('default', _tzOpt({ weekday: 'short' })); }
   function _calSameDay(a, b) { return _calFmt(a) === _calFmt(b); }
   function _calParse(s) {
     if (!s) return null;
@@ -781,6 +785,18 @@ const TheSeason = (() => {
   async function _calLoad(force) {
     // Serve warm data if loaded within 60 sec (unless forced after a mutation)
     if (!force && _calEvents.length && (Date.now() - _calLoadedAt) < 60000) return;
+
+    // ── Resolve church timezone (once) ───────────────────────────────────
+    if (!_calTZ) {
+      try {
+        var tzRes = _isFB()
+          ? await UpperRoom.getAppConfig({ key: 'CHURCH_TIMEZONE' })
+          : (typeof TheVine !== 'undefined' && TheVine.flock && TheVine.flock.config
+              ? await TheVine.flock.config.get({ key: 'CHURCH_TIMEZONE' })
+              : null);
+        if (tzRes && tzRes.value) _calTZ = tzRes.value;
+      } catch (_) { /* fall back to browser locale */ }
+    }
 
     var s = _calSettings();
     var pool = [];
@@ -1174,9 +1190,9 @@ const TheSeason = (() => {
 
     var html = '<div style="text-align:center;margin-bottom:12px;">'
       + '<div style="font-size:1.6rem;font-weight:800;color:' + (isToday ? 'var(--accent)' : 'var(--ink)') + ';">'
-      + _calDate.toLocaleString('default', { weekday: 'long' }) + '</div>'
+      + _calDate.toLocaleString('default', _tzOpt({ weekday: 'long' })) + '</div>'
       + '<div style="font-size:0.85rem;color:var(--ink-muted);">'
-      + _calDate.toLocaleDateString('default', { month: 'long', day: 'numeric', year: 'numeric' }) + '</div>'
+      + _calDate.toLocaleDateString('default', _tzOpt({ month: 'long', day: 'numeric', year: 'numeric' })) + '</div>'
       + '</div>';
 
     // All-day / unscheduled events
@@ -1257,7 +1273,7 @@ const TheSeason = (() => {
       html += '<div style="margin-bottom:16px;">';
       html += '<div style="font-size:0.78rem;font-weight:700;color:' + (isToday ? 'var(--accent)' : 'var(--ink)') + ';padding:6px 0;border-bottom:2px solid ' + (isToday ? 'var(--accent)' : 'var(--line)') + ';margin-bottom:6px;">'
         + (isToday ? '\u2605 TODAY \u2014 ' : '')
-        + check.toLocaleDateString('default', { weekday: 'long', month: 'long', day: 'numeric' })
+        + check.toLocaleDateString('default', _tzOpt({ weekday: 'long', month: 'long', day: 'numeric' }))
         + '</div>';
 
       dayEvs.sort(function(a, b) {
@@ -1380,9 +1396,9 @@ const TheSeason = (() => {
       else if (_calView === 'week') {
         var ws = _calWeekStart(_calDate);
         var we = new Date(ws); we.setDate(we.getDate() + 6);
-        titleEl.textContent = ws.toLocaleDateString('default', { month: 'short', day: 'numeric' }) + ' \u2013 ' + we.toLocaleDateString('default', { month: 'short', day: 'numeric', year: 'numeric' });
+        titleEl.textContent = ws.toLocaleDateString('default', _tzOpt({ month: 'short', day: 'numeric' })) + ' \u2013 ' + we.toLocaleDateString('default', _tzOpt({ month: 'short', day: 'numeric', year: 'numeric' }));
       } else if (_calView === 'day') {
-        titleEl.textContent = _calDate.toLocaleDateString('default', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+        titleEl.textContent = _calDate.toLocaleDateString('default', _tzOpt({ weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }));
       } else {
         titleEl.textContent = 'Upcoming \u00B7 30 Days';
       }
@@ -1690,7 +1706,7 @@ const TheSeason = (() => {
     ical += 'CALSCALE:GREGORIAN\r\n';
     ical += 'METHOD:PUBLISH\r\n';
     ical += 'X-WR-CALNAME:' + orgName + ' Calendar\r\n';
-    ical += 'X-WR-TIMEZONE:America/New_York\r\n';
+    ical += 'X-WR-TIMEZONE:' + (_calTZ || 'America/New_York') + '\r\n';
 
     (_calEvents || []).forEach(function(ev) {
       var uid = (ev.id || Math.random().toString(36).substring(2)) + '@flockos';

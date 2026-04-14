@@ -779,7 +779,7 @@ const Modules = (() => {
     if (!code) return text;
     const url = 'https://www.bible.com/bible/59/' + code + '.' + chapter + '.ESV';
     return '<a href="' + url + '" target="_blank" rel="noopener" '
-      + 'style="color:var(--gold);text-decoration:underline;text-decoration-style:dotted;">'
+      + 'style="color:var(--gold);font-weight:600;text-decoration:underline;text-decoration-style:dotted;text-shadow:0 0 0.5px currentColor;">'
       + text + '</a>';
   }
 
@@ -4480,8 +4480,7 @@ const Modules = (() => {
   _def('learning', async el => {
     if (typeof TheWay !== 'undefined' && TheWay.renderHub) {
       if (TheWay.resetHome) TheWay.resetHome();
-      TheWay.renderHub(el, typeof Nehemiah !== 'undefined' && Nehemiah.getSession ? Nehemiah.getSession() : {});
-      return;
+      return TheWay.renderHub(el, typeof Nehemiah !== 'undefined' && Nehemiah.getSession ? Nehemiah.getSession() : {});
     }
     _shell(el, 'Learning', 'Playlists, topics, quizzes & progress tracking.',
       _btn('+ New Playlist', "Modules.newPlaylist()") +
@@ -4775,6 +4774,34 @@ const Modules = (() => {
     try {
       const raw  = await _publicFetch('library', function() { return UpperRoom.listAppContent('books'); }, function() { return TheVine.app.books(); });
       const rows = Array.isArray(raw) ? raw : _rows(raw);
+
+      // Ensure all 66 books are represented — add stubs for missing ones
+      var existingNames = {};
+      rows.forEach(function(r) {
+        var n = (r['Book Name'] || r['bookName'] || '').trim();
+        if (n) existingNames[n] = true;
+      });
+      var _NT_BOOKS_SET = {
+        'Matthew':1,'Mark':1,'Luke':1,'John':1,'Acts':1,'Romans':1,
+        '1 Corinthians':1,'2 Corinthians':1,'Galatians':1,'Ephesians':1,
+        'Philippians':1,'Colossians':1,'1 Thessalonians':1,'2 Thessalonians':1,
+        '1 Timothy':1,'2 Timothy':1,'Titus':1,'Philemon':1,'Hebrews':1,
+        'James':1,'1 Peter':1,'2 Peter':1,'1 John':1,'2 John':1,
+        '3 John':1,'Jude':1,'Revelation':1
+      };
+      _BIBLE_ORDER.forEach(function(name, idx) {
+        if (!existingNames[name]) {
+          rows.push({
+            'Book Name': name,
+            'booknum': String(idx + 1),
+            'Testament': _NT_BOOKS_SET[name] ? 'New' : 'Old',
+            'Summary': '',
+            'Genre': '',
+            'Type': ''
+          });
+        }
+      });
+
       if (!rows.length) { _body(el, _empty('&#128214;', 'No books yet', 'Add book entries in the Truth spreadsheet.')); return; }
 
       // Sort in canonical Bible order.
@@ -6461,52 +6488,111 @@ const Modules = (() => {
   });
 
   let _quizData = [];
+  let _quizPicked = [];   // current quiz run (shuffled subset)
+  let _quizIdx = 0;       // current question index
+  let _quizAnswers = {};  // { 0: 'a', 1: 'c', ... }
 
   function _startQuiz(el, allRows) {
     const rows = allRows || _quizData;
     if (!rows.length) return;
-    // Shuffle and apply quiz size limit
     var all = rows.slice().sort(() => Math.random() - 0.5);
     var limit = Number(localStorage.getItem('flock_quiz_size') || 0);
-    var shuffled = (limit > 0 && limit < all.length) ? all.slice(0, limit) : all;
-    let html = '<div style="font-size:0.82rem;color:var(--ink-muted);margin-bottom:12px;">' + shuffled.length + (limit > 0 && limit < all.length ? ' of ' + all.length : '') + ' questions</div>';
-    html += '<form id="quiz-form" style="display:grid;gap:16px;">';
-    shuffled.forEach((q, i) => {
-      const opts = ['A', 'B', 'C', 'D'].map(k => q['Option ' + k]).filter(Boolean);
-      html += '<div style="background:var(--bg-raised);border:1px solid var(--line);border-radius:10px;padding:16px 18px;">'
-            + '<div style="display:flex;gap:8px;align-items:baseline;margin-bottom:8px;">'
-            + '<span style="color:var(--accent);font-weight:700;font-size:0.82rem;">' + (i + 1) + '.</span>'
-            + '<span style="font-size:0.88rem;font-weight:600;">' + _e(q['Question'] || '') + '</span></div>';
-      if (q['Category'] || q['Difficulty']) {
-        html += '<div style="margin-bottom:8px;">';
-        if (q['Category']) html += _badge(q['Category'], 'info') + ' ';
-        if (q['Difficulty']) html += _badge(q['Difficulty'], q['Difficulty'] === 'Hard' ? 'danger' : q['Difficulty'] === 'Medium' ? 'warn' : 'success');
-        html += '</div>';
-      }
-      opts.forEach((opt, oi) => {
-        const letter = String.fromCharCode(97 + oi); // a, b, c, d
-        html += '<label style="display:block;padding:6px 10px;margin:3px 0;border-radius:6px;cursor:pointer;'
-              + 'font-size:0.84rem;transition:background 0.15s;" '
-              + 'onmouseover="this.style.background=\'var(--bg-sunken)\'" '
-              + 'onmouseout="this.style.background=\'none\'">'
-              + '<input type="radio" name="q' + i + '" value="' + _e(letter) + '" '
-              + 'data-correct="' + _e(String(q['Correct Answer'] || '').toLowerCase().trim()) + '" '
-              + 'data-question="' + _e(q['Question'] || '') + '" '
-              + 'data-reference="' + _e(q['Reference'] || '') + '" '
-              + 'data-category="' + _e(q['Category'] || '') + '" '
-              + 'data-option-text="' + _e(opt) + '" '
-              + 'style="margin-right:8px;">'
-              + '<strong>' + _e(letter.toUpperCase()) + '.</strong> ' + _e(opt) + '</label>';
-      });
-      if (q['Reference']) html += '<div style="font-size:0.75rem;color:var(--ink-muted);margin-top:6px;font-style:italic;">' + _e(q['Reference']) + '</div>';
+    _quizPicked = (limit > 0 && limit < all.length) ? all.slice(0, limit) : all;
+    _quizIdx = 0;
+    _quizAnswers = {};
+    _renderQuizQuestion(el);
+  }
+
+  function _renderQuizQuestion(el) {
+    var total = _quizPicked.length;
+    var i = _quizIdx;
+    var q = _quizPicked[i];
+    if (!q) return;
+
+    var html = '';
+    // Progress bar
+    var pct = Math.round(((i + 1) / total) * 100);
+    html += '<div style="margin-bottom:14px;">'
+          + '<div style="display:flex;justify-content:space-between;font-size:0.78rem;color:var(--ink-muted);margin-bottom:4px;">'
+          + '<span>Question ' + (i + 1) + ' of ' + total + '</span>'
+          + '<span>' + Object.keys(_quizAnswers).length + ' answered</span></div>'
+          + '<div style="height:6px;background:var(--bg-sunken);border-radius:3px;overflow:hidden;">'
+          + '<div style="width:' + pct + '%;height:100%;background:var(--accent);border-radius:3px;transition:width 0.3s;"></div>'
+          + '</div></div>';
+
+    // Question card
+    var opts = ['A', 'B', 'C', 'D'].map(k => q['Option ' + k]).filter(Boolean);
+    var correct = String(q['Correct Answer'] || '').toLowerCase().trim();
+    html += '<div style="background:var(--bg-raised);border:1px solid var(--line);border-radius:10px;padding:16px 18px;">'
+          + '<div style="display:flex;gap:8px;align-items:baseline;margin-bottom:8px;">'
+          + '<span style="color:var(--accent);font-weight:700;font-size:0.82rem;">' + (i + 1) + '.</span>'
+          + '<span style="font-size:0.88rem;font-weight:600;">' + _e(q['Question'] || '') + '</span></div>';
+    if (q['Category'] || q['Difficulty']) {
+      html += '<div style="margin-bottom:8px;">';
+      if (q['Category']) html += _badge(q['Category'], 'info') + ' ';
+      if (q['Difficulty']) html += _badge(q['Difficulty'], q['Difficulty'] === 'Hard' ? 'danger' : q['Difficulty'] === 'Medium' ? 'warn' : 'success');
       html += '</div>';
+    }
+    var savedAns = _quizAnswers[i] || '';
+    opts.forEach((opt, oi) => {
+      var letter = String.fromCharCode(97 + oi);
+      html += '<label style="display:block;padding:6px 10px;margin:3px 0;border-radius:6px;cursor:pointer;'
+            + 'font-size:0.84rem;transition:background 0.15s;'
+            + (savedAns === letter ? 'background:var(--bg-sunken);' : '') + '" '
+            + 'onmouseover="this.style.background=\'var(--bg-sunken)\'" '
+            + 'onmouseout="this.style.background=\'' + (savedAns === letter ? 'var(--bg-sunken)' : 'none') + '\'">'
+            + '<input type="radio" name="q_current" value="' + _e(letter) + '" '
+            + (savedAns === letter ? 'checked ' : '')
+            + 'data-correct="' + _e(correct) + '" '
+            + 'data-question="' + _e(q['Question'] || '') + '" '
+            + 'data-reference="' + _e(q['Reference'] || '') + '" '
+            + 'data-category="' + _e(q['Category'] || '') + '" '
+            + 'data-option-text="' + _e(opt) + '" '
+            + 'onchange="Modules._quizSaveAnswer(\'' + _e(letter) + '\')" '
+            + 'style="margin-right:8px;">'
+            + '<strong>' + _e(letter.toUpperCase()) + '.</strong> ' + _e(opt) + '</label>';
     });
-    html += '<div id="quiz-actions" style="display:flex;gap:12px;flex-wrap:wrap;">'
-         + '<button type="button" onclick="Modules.scoreQuiz()" '
-         + 'style="background:var(--accent);color:var(--ink-inverse);border:none;border-radius:8px;padding:12px 24px;'
-         + 'font-weight:700;font-size:0.9rem;cursor:pointer;font-family:inherit;">Score Quiz</button>'
-         + '</div></form>';
+    if (q['Reference']) html += '<div style="font-size:0.75rem;color:var(--ink-muted);margin-top:6px;font-style:italic;">' + _e(q['Reference']) + '</div>';
+    html += '</div>';
+
+    // Navigation
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;gap:12px;">';
+    if (i > 0) {
+      html += '<button type="button" onclick="Modules._quizNav(-1)" '
+            + 'style="background:none;border:1px solid var(--line);border-radius:8px;padding:10px 20px;'
+            + 'cursor:pointer;font-size:0.85rem;color:var(--ink);font-family:inherit;">\u25C0 Previous</button>';
+    } else {
+      html += '<div></div>';
+    }
+    if (i < total - 1) {
+      html += '<button type="button" onclick="Modules._quizNav(1)" '
+            + 'style="background:var(--accent);color:var(--ink-inverse);border:none;border-radius:8px;padding:10px 20px;'
+            + 'cursor:pointer;font-weight:700;font-size:0.85rem;font-family:inherit;">Next \u25B6</button>';
+    } else {
+      html += '<button type="button" onclick="Modules.scoreQuiz()" '
+            + 'style="background:var(--accent);color:var(--ink-inverse);border:none;border-radius:8px;padding:10px 20px;'
+            + 'cursor:pointer;font-weight:700;font-size:0.85rem;font-family:inherit;"'
+            + (Object.keys(_quizAnswers).length < total ? ' title="Answer all questions to score"' : '')
+            + '>Score Quiz \u2714</button>';
+    }
+    html += '</div>';
+
     _body(el, html);
+  }
+
+  function _quizSaveAnswer(letter) {
+    _quizAnswers[_quizIdx] = letter;
+  }
+
+  function _quizNav(dir) {
+    // Save any selected answer before navigating
+    var sel = document.querySelector('input[name="q_current"]:checked');
+    if (sel) _quizAnswers[_quizIdx] = sel.value;
+    _quizIdx += dir;
+    if (_quizIdx < 0) _quizIdx = 0;
+    if (_quizIdx >= _quizPicked.length) _quizIdx = _quizPicked.length - 1;
+    var el = document.getElementById('view-quiz');
+    if (el) _renderQuizQuestion(el);
   }
 
   function startQuiz() {
@@ -6515,84 +6601,109 @@ const Modules = (() => {
   }
 
   function scoreQuiz() {
-    const form = document.getElementById('quiz-form');
-    if (!form) return;
-    let correct = 0, total = 0;
-    const results = []; // collect for PDF
-    const radios = form.querySelectorAll('input[type="radio"]:checked');
-    radios.forEach(r => {
-      total++;
-      const isRight = r.value === r.dataset.correct;
-      if (isRight) {
-        correct++;
-        r.closest('label').style.background = 'rgba(34,197,94,0.15)';
-      } else {
-        r.closest('label').style.background = 'rgba(248,113,113,0.15)';
-      }
+    var el = document.getElementById('view-quiz');
+    if (!el || !_quizPicked.length) return;
+
+    var correct = 0;
+    var results = [];
+    _quizPicked.forEach(function(q, i) {
+      var answer = _quizAnswers[i] || '';
+      var correctLetter = String(q['Correct Answer'] || '').toLowerCase().trim();
+      var isRight = answer === correctLetter;
+      if (isRight) correct++;
+      var correctText = '';
+      ['A','B','C','D'].forEach(function(k, ki) {
+        if (String.fromCharCode(97 + ki) === correctLetter) correctText = q['Option ' + k] || '';
+      });
+      var answerText = '';
+      if (answer) {
+        ['A','B','C','D'].forEach(function(k, ki) {
+          if (String.fromCharCode(97 + ki) === answer) answerText = q['Option ' + k] || '';
+        });
+      } else { answerText = '(unanswered)'; }
       results.push({
-        question: r.dataset.question || '',
-        yourAnswer: r.dataset.optionText || r.value.toUpperCase(),
-        yourLetter: r.value,
-        correctLetter: r.dataset.correct,
-        reference: r.dataset.reference || '',
-        category: r.dataset.category || '',
+        question: q['Question'] || '',
+        yourAnswer: answerText,
+        yourLetter: answer,
+        correctLetter: correctLetter,
+        correctAnswer: correctText,
+        reference: q['Reference'] || '',
+        category: q['Category'] || '',
         isCorrect: isRight
       });
     });
-    // Fill in correct answer text for each result
-    results.forEach(res => {
-      if (res.yourLetter !== res.correctLetter) {
-        const correctRadio = form.querySelector('input[type="radio"][name][value="' + res.correctLetter + '"][data-question="' + CSS.escape(res.question).replace(/"/g, '\\"') + '"]')
-          || Array.from(form.querySelectorAll('input[type="radio"][value="' + res.correctLetter + '"]')).find(r => r.dataset.question === res.question);
-        res.correctAnswer = correctRadio ? (correctRadio.dataset.optionText || res.correctLetter.toUpperCase()) : res.correctLetter.toUpperCase();
-      } else {
-        res.correctAnswer = res.yourAnswer;
+    var total = _quizPicked.length;
+    _quizResults = { correct: correct, total: total, results: results };
+    var pct = total ? Math.round(correct / total * 100) : 0;
+
+    // Build results review
+    var html = '<div style="text-align:center;margin-bottom:20px;">'
+      + '<div style="font-size:2rem;font-weight:700;color:var(--accent);">' + correct + ' / ' + total + '</div>'
+      + '<div style="font-size:0.88rem;color:var(--ink-muted);">' + pct + '% correct</div></div>';
+
+    // Show each question with right/wrong
+    results.forEach(function(r, i) {
+      var bg = r.isCorrect ? 'rgba(34,197,94,0.08)' : (r.yourLetter ? 'rgba(248,113,113,0.08)' : 'var(--bg-raised)');
+      var icon = r.isCorrect ? '\u2705' : (r.yourLetter ? '\u274C' : '\u2B1C');
+      html += '<div style="background:' + bg + ';border:1px solid var(--line);border-radius:8px;padding:12px;margin-bottom:8px;font-size:0.84rem;">'
+            + '<div style="font-weight:600;margin-bottom:4px;">' + icon + ' ' + (i + 1) + '. ' + _e(r.question) + '</div>';
+      if (!r.isCorrect) {
+        html += '<div style="color:var(--danger);font-size:0.8rem;">Your answer: ' + _e(r.yourAnswer) + '</div>'
+              + '<div style="color:var(--success);font-size:0.8rem;">Correct: ' + _e(r.correctAnswer) + '</div>';
       }
+      if (r.reference) html += '<div style="font-size:0.72rem;color:var(--ink-muted);font-style:italic;">' + _e(r.reference) + '</div>';
+      html += '</div>';
     });
-    // Also highlight correct answers for unchecked
-    form.querySelectorAll('input[type="radio"]').forEach(r => {
-      if (r.value === r.dataset.correct) {
-        r.closest('label').style.borderLeft = '3px solid #22c55e';
-      }
-    });
-    // Collect unanswered questions for study guide
-    const answered = new Set();
-    radios.forEach(r => answered.add(r.name));
-    form.querySelectorAll('input[type="radio"]').forEach(r => {
-      if (!answered.has(r.name) && r.value === r.dataset.correct) {
-        results.push({
-          question: r.dataset.question || '',
-          yourAnswer: '(unanswered)',
-          yourLetter: '',
-          correctLetter: r.dataset.correct,
-          correctAnswer: r.dataset.optionText || r.dataset.correct.toUpperCase(),
-          reference: r.dataset.reference || '',
-          category: r.dataset.category || '',
-          isCorrect: false
-        });
-      }
-    });
-    _quizResults = { correct, total: results.length, results };
-    const pct = total ? Math.round(correct / total * 100) : 0;
-    const scoreDiv = document.createElement('div');
-    scoreDiv.style.cssText = 'background:var(--bg-raised);border:2px solid var(--accent);border-radius:10px;'
-      + 'padding:16px 20px;margin-top:12px;text-align:center;';
-    scoreDiv.innerHTML = '<div style="font-size:1.6rem;font-weight:700;color:var(--accent);">'
-      + correct + ' / ' + results.length + '</div>'
-      + '<div style="font-size:0.85rem;color:var(--ink-muted);">' + pct + '% correct</div>';
-    form.appendChild(scoreDiv);
-    // Disable score button and add PDF download
-    var actions = document.getElementById('quiz-actions');
-    if (actions) {
-      actions.querySelector('button').disabled = true;
-      var pdfBtn = document.createElement('button');
-      pdfBtn.type = 'button';
-      pdfBtn.onclick = function() { Modules.downloadQuizPDF(); };
-      pdfBtn.style.cssText = 'background:var(--success,#22c55e);color:#fff;border:none;border-radius:8px;padding:12px 24px;'
-        + 'font-weight:700;font-size:0.9rem;cursor:pointer;font-family:inherit;';
-      pdfBtn.textContent = '\u{1F4E5} Download Study PDF';
-      actions.appendChild(pdfBtn);
+
+    // Action buttons
+    html += '<div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:16px;">'
+          + '<button type="button" onclick="Modules.startQuiz()" '
+          + 'style="background:var(--accent);color:var(--ink-inverse);border:none;border-radius:8px;padding:12px 24px;'
+          + 'font-weight:700;font-size:0.9rem;cursor:pointer;font-family:inherit;">\u21BB Retake Quiz</button>'
+          + '<button type="button" onclick="Modules.downloadQuizPDF()" '
+          + 'style="background:var(--success,#22c55e);color:#fff;border:none;border-radius:8px;padding:12px 24px;'
+          + 'font-weight:700;font-size:0.9rem;cursor:pointer;font-family:inherit;">\uD83D\uDCE5 Download Study PDF</button>';
+    if (pct >= 70) {
+      html += '<button type="button" onclick="Modules._quizCertificate()" '
+            + 'style="background:var(--gold,#d97706);color:#fff;border:none;border-radius:8px;padding:12px 24px;'
+            + 'font-weight:700;font-size:0.9rem;cursor:pointer;font-family:inherit;">\uD83C\uDFC6 Certificate</button>';
     }
+    html += '</div>';
+    _body(el, html);
+  }
+
+  function _quizCertificate() {
+    var r = _quizResults;
+    if (!r) return;
+    var session = typeof TheVine !== 'undefined' && TheVine.session ? TheVine.session() : null;
+    var name = session ? (session.displayName || session.name || session.email || '') : '';
+    if (!name) {
+      _modal('Your Name', [
+        { name: 'certName', type: 'text', label: 'Name for Certificate', placeholder: 'Enter your full name', required: true }
+      ], function(data) {
+        if (data.certName) _generateQuizCert(data.certName);
+        return Promise.resolve();
+      });
+      return;
+    }
+    _generateQuizCert(name);
+  }
+
+  function _generateQuizCert(name) {
+    var r = _quizResults;
+    if (!r) return;
+    var pct = Math.round(r.correct / r.total * 100);
+    var dateStr = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    _modal('Quiz Certificate', [{
+      name: '_cert', type: 'html',
+      html: '<div style="text-align:center;padding:24px;border:3px double var(--gold,#d97706);border-radius:12px;background:var(--bg-raised);">'
+        + '<div style="font-size:2rem;margin-bottom:8px;">\uD83C\uDFC6</div>'
+        + '<div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.15em;color:var(--ink-muted);margin-bottom:12px;">Certificate of Achievement</div>'
+        + '<div style="font-size:1.2rem;font-weight:700;color:var(--ink);margin-bottom:4px;">Bible Quiz</div>'
+        + '<div style="font-size:0.85rem;color:var(--ink-muted);margin-bottom:16px;">Score: ' + r.correct + '/' + r.total + ' (' + pct + '%)</div>'
+        + '<div style="font-size:1.4rem;font-weight:700;color:var(--accent);font-style:italic;margin-bottom:4px;">' + _e(name) + '</div>'
+        + '<div style="font-size:0.78rem;color:var(--ink-muted);">' + dateStr + '</div></div>'
+    }], function() { return Promise.resolve(); }, 'Close');
   }
 
   let _quizResults = null;
@@ -20896,7 +21007,7 @@ const Modules = (() => {
     _lrnRecNew, _lrnRecGenerate, _lrnRecAccept, _lrnRecDismiss,
     _lrnSermonSearch, _lrnSermonAdd,
     newTheologyCategory,
-    startQuiz, scoreQuiz, downloadQuizPDF,
+    startQuiz, scoreQuiz, downloadQuizPDF, _quizNav, _quizSaveAnswer, _quizCertificate,
     newMessage, replyMessage, forwardMessage, sendSms, newBroadcast, commsView,
     newDM,
     openMessage, deleteMessage, archiveMessage, markMessageUnread,

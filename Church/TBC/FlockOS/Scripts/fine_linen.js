@@ -2322,8 +2322,14 @@ input, select, textarea {
 }
 .rp-cell a {
   color: var(--gold);
+  font-weight: 600;
   text-decoration: underline;
   text-decoration-style: dotted;
+  text-shadow: 0 0 0.5px currentColor;
+}
+.rp-cell a:hover {
+  color: var(--accent);
+  text-shadow: none;
 }
 .rp-load-more {
   text-align: center;

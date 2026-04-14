@@ -22,7 +22,7 @@ const TheWay = (() => {
   }
 
   function _spinner() {
-    return '<div style="text-align:center;padding:60px 20px;color:var(--ink-muted);">'
+    return '<div class="spin" style="text-align:center;padding:60px 20px;color:var(--ink-muted);">'
          + '<div style="margin:0 auto 16px;width:32px;height:32px;border:3px solid var(--line);'
          + 'border-top-color:var(--accent);border-radius:50%;animation:spin .6s linear infinite;"></div>'
          + 'Loading\u2026</div>';
@@ -319,7 +319,9 @@ const TheWay = (() => {
     _session = session || _getSession();
 
     // Ensure Firebase auth is ready so _isFB() routes to Firestore content
-    if (typeof UpperRoom !== 'undefined' && !UpperRoom.isReady()) {
+    // Skip for unauthenticated users — UpperRoom requires a session
+    var hasSession = _session && (_session.email || _session.token);
+    if (hasSession && typeof UpperRoom !== 'undefined' && !UpperRoom.isReady()) {
       try { await UpperRoom.init(); await UpperRoom.authenticate(); } catch (_) {}
     }
 
@@ -1469,62 +1471,23 @@ const TheWay = (() => {
     }
   }
 
+  var _twQuizPicked = [];
+  var _twQuizIdx = 0;
+  var _twQuizAnswers = {};
+
   function _startAppQuiz() {
     var questions = _cache.appQuiz || [];
     if (!questions.length) return;
     _quizStartTime = Date.now();
     _quizData = questions;
 
-    // Shuffle and pick 20
+    // Shuffle and apply admin quiz size setting
     var shuffled = questions.slice().sort(function() { return Math.random() - 0.5; });
-    var picked = shuffled.slice(0, Math.min(12, shuffled.length));
-
-    var html = '<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">';
-    html += '<button onclick="TheWay.switchTab(\'quizzes\')" '
-          + 'style="background:none;border:1px solid var(--line);border-radius:6px;'
-          + 'padding:6px 14px;cursor:pointer;font-size:0.82rem;color:var(--ink);font-family:inherit;">'
-          + '\u2190 Back</button>';
-    html += '<div style="flex:1;font-weight:700;font-size:1rem;">Bible Quiz</div>';
-    html += '<div id="tw-quiz-timer" style="font-size:0.85rem;color:var(--accent);font-weight:700;">0:00</div>';
-    html += '</div>';
-
-    html += '<form id="tw-quiz-form">';
-    picked.forEach(function(q, i) {
-      html += '<div style="background:var(--bg-raised);border:1px solid var(--line);border-radius:10px;'
-            + 'padding:14px;margin-bottom:12px;">';
-      html += '<div style="font-weight:700;font-size:0.88rem;margin-bottom:8px;">'
-            + (i + 1) + '. ' + _e(q['Question'] || q.question || '') + '</div>';
-      var opts = ['a', 'b', 'c', 'd'];
-      var correct = String(q['Correct Answer'] || q.correctAnswer || '').toLowerCase().trim();
-      opts.forEach(function(letter) {
-        var opt = q['Option ' + letter.toUpperCase()] || q[letter] || q['option_' + letter] || '';
-        if (!opt) return;
-        html += '<label style="display:block;padding:6px 10px;margin-bottom:4px;border-radius:6px;'
-              + 'cursor:pointer;font-size:0.82rem;transition:background 0.15s;" '
-              + 'onmouseover="this.style.background=\'var(--bg-hover)\'" '
-              + 'onmouseout="this.style.background=\'transparent\'">'
-              + '<input type="radio" name="q' + i + '" value="' + _e(letter) + '" '
-              + 'data-correct="' + _e(correct) + '" '
-              + 'data-question="' + _e(q['Question'] || q.question || '') + '" '
-              + 'data-reference="' + _e(q['Reference'] || q.reference || '') + '" '
-              + 'data-opt-text="' + _e(opt) + '" '
-              + 'style="margin-right:8px;">'
-              + '<strong>' + _e(letter.toUpperCase()) + '.</strong> ' + _e(opt) + '</label>';
-      });
-      if (q['Reference'] || q.reference) {
-        html += '<div style="font-size:0.72rem;color:var(--ink-faint);margin-top:6px;font-style:italic;">'
-              + _bibleLink(q['Reference'] || q.reference) + '</div>';
-      }
-      html += '</div>';
-    });
-    html += '<div style="display:flex;gap:12px;flex-wrap:wrap;">'
-          + '<button type="button" onclick="TheWay._scoreQuiz(' + picked.length + ')" '
-          + 'style="background:var(--accent);color:var(--ink-inverse);border:none;border-radius:8px;'
-          + 'padding:12px 24px;font-weight:700;font-size:0.9rem;cursor:pointer;font-family:inherit;">'
-          + 'Score Quiz</button></div>';
-    html += '</form>';
-
-    _panel(html);
+    var limit = Number(localStorage.getItem('flock_quiz_size') || 0);
+    _twQuizPicked = (limit > 0 && limit < shuffled.length) ? shuffled.slice(0, limit) : shuffled;
+    _twQuizIdx = 0;
+    _twQuizAnswers = {};
+    _renderAppQuizQuestion();
 
     // Start timer
     if (_quizTimer) clearInterval(_quizTimer);
@@ -1537,51 +1500,150 @@ const TheWay = (() => {
     }, 1000);
   }
 
+  function _renderAppQuizQuestion() {
+    var total = _twQuizPicked.length;
+    var i = _twQuizIdx;
+    var q = _twQuizPicked[i];
+    if (!q) return;
+
+    var html = '<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">';
+    html += '<button onclick="TheWay.switchTab(\'quizzes\')" '
+          + 'style="background:none;border:1px solid var(--line);border-radius:6px;'
+          + 'padding:6px 14px;cursor:pointer;font-size:0.82rem;color:var(--ink);font-family:inherit;">'
+          + '\u2190 Back</button>';
+    html += '<div style="flex:1;font-weight:700;font-size:1rem;">Bible Quiz</div>';
+    html += '<div id="tw-quiz-timer" style="font-size:0.85rem;color:var(--accent);font-weight:700;">0:00</div>';
+    html += '</div>';
+
+    // Progress bar
+    var pct = Math.round(((i + 1) / total) * 100);
+    html += '<div style="margin-bottom:14px;">'
+          + '<div style="display:flex;justify-content:space-between;font-size:0.78rem;color:var(--ink-muted);margin-bottom:4px;">'
+          + '<span>Question ' + (i + 1) + ' of ' + total + '</span>'
+          + '<span>' + Object.keys(_twQuizAnswers).length + ' answered</span></div>'
+          + '<div style="height:6px;background:var(--bg-sunken);border-radius:3px;overflow:hidden;">'
+          + '<div style="width:' + pct + '%;height:100%;background:var(--accent);border-radius:3px;transition:width 0.3s;"></div>'
+          + '</div></div>';
+
+    // Question card
+    var correct = String(q['Correct Answer'] || q.correctAnswer || '').toLowerCase().trim();
+    html += '<div style="background:var(--bg-raised);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:12px;">';
+    html += '<div style="font-weight:700;font-size:0.88rem;margin-bottom:8px;">'
+          + (i + 1) + '. ' + _e(q['Question'] || q.question || '') + '</div>';
+    var savedAns = _twQuizAnswers[i] || '';
+    var opts = ['a', 'b', 'c', 'd'];
+    opts.forEach(function(letter) {
+      var opt = q['Option ' + letter.toUpperCase()] || q[letter] || q['option_' + letter] || '';
+      if (!opt) return;
+      html += '<label style="display:block;padding:6px 10px;margin-bottom:4px;border-radius:6px;'
+            + 'cursor:pointer;font-size:0.82rem;transition:background 0.15s;'
+            + (savedAns === letter ? 'background:var(--bg-sunken);' : '') + '" '
+            + 'onmouseover="this.style.background=\'var(--bg-hover)\'" '
+            + 'onmouseout="this.style.background=\'' + (savedAns === letter ? 'var(--bg-sunken)' : 'transparent') + '\'">'
+            + '<input type="radio" name="q_current" value="' + _e(letter) + '" '
+            + (savedAns === letter ? 'checked ' : '')
+            + 'data-correct="' + _e(correct) + '" '
+            + 'data-question="' + _e(q['Question'] || q.question || '') + '" '
+            + 'data-reference="' + _e(q['Reference'] || q.reference || '') + '" '
+            + 'data-opt-text="' + _e(opt) + '" '
+            + 'onchange="TheWay._twQuizSave(\'' + _e(letter) + '\')" '
+            + 'style="margin-right:8px;">'
+            + '<strong>' + _e(letter.toUpperCase()) + '.</strong> ' + _e(opt) + '</label>';
+    });
+    if (q['Reference'] || q.reference) {
+      html += '<div style="font-size:0.72rem;color:var(--ink-faint);margin-top:6px;font-style:italic;">'
+            + _bibleLink(q['Reference'] || q.reference) + '</div>';
+    }
+    html += '</div>';
+
+    // Navigation
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;">';
+    if (i > 0) {
+      html += '<button type="button" onclick="TheWay._twQuizNav(-1)" '
+            + 'style="background:none;border:1px solid var(--line);border-radius:8px;padding:10px 20px;'
+            + 'cursor:pointer;font-size:0.85rem;color:var(--ink);font-family:inherit;">\u25C0 Previous</button>';
+    } else {
+      html += '<div></div>';
+    }
+    if (i < total - 1) {
+      html += '<button type="button" onclick="TheWay._twQuizNav(1)" '
+            + 'style="background:var(--accent);color:var(--ink-inverse);border:none;border-radius:8px;padding:10px 20px;'
+            + 'cursor:pointer;font-weight:700;font-size:0.85rem;font-family:inherit;">Next \u25B6</button>';
+    } else {
+      html += '<button type="button" onclick="TheWay._scoreQuiz(' + total + ')" '
+            + 'style="background:var(--accent);color:var(--ink-inverse);border:none;border-radius:8px;padding:10px 20px;'
+            + 'cursor:pointer;font-weight:700;font-size:0.85rem;font-family:inherit;">Score Quiz \u2714</button>';
+    }
+    html += '</div>';
+
+    _panel(html);
+  }
+
+  function _twQuizSave(letter) {
+    _twQuizAnswers[_twQuizIdx] = letter;
+  }
+
+  function _twQuizNav(dir) {
+    var sel = document.querySelector('input[name="q_current"]:checked');
+    if (sel) _twQuizAnswers[_twQuizIdx] = sel.value;
+    _twQuizIdx += dir;
+    if (_twQuizIdx < 0) _twQuizIdx = 0;
+    if (_twQuizIdx >= _twQuizPicked.length) _twQuizIdx = _twQuizPicked.length - 1;
+    _renderAppQuizQuestion();
+  }
+
   function _scoreQuiz(totalQ) {
     if (_quizTimer) { clearInterval(_quizTimer); _quizTimer = null; }
-    var form = document.getElementById('tw-quiz-form');
-    if (!form) return;
+    var elapsed = _quizStartTime ? Math.floor((Date.now() - _quizStartTime) / 1000) : 0;
 
     var correct = 0;
-    var total = totalQ || 0;
-    var radios = form.querySelectorAll('input[type="radio"]:checked');
-    radios.forEach(function(r) {
-      var isRight = r.value === r.dataset.correct;
-      if (isRight) {
-        correct++;
-        r.closest('label').style.background = 'rgba(34,197,94,0.15)';
-      } else {
-        r.closest('label').style.background = 'rgba(248,113,113,0.15)';
-      }
-    });
-
-    // Highlight correct answers
-    form.querySelectorAll('input[type="radio"]').forEach(function(r) {
-      if (r.value === r.dataset.correct) {
-        r.closest('label').style.borderLeft = '3px solid var(--success)';
-      }
+    var total = _twQuizPicked.length;
+    _twQuizPicked.forEach(function(q, i) {
+      var answer = _twQuizAnswers[i] || '';
+      var correctLetter = String(q['Correct Answer'] || q.correctAnswer || '').toLowerCase().trim();
+      if (answer === correctLetter) correct++;
     });
 
     var pct = total ? Math.round(correct / total * 100) : 0;
-    var elapsed = _quizStartTime ? Math.floor((Date.now() - _quizStartTime) / 1000) : 0;
-
-    // Silently log quiz score
     _logDiagnostic('quiz', { title: 'Bible Quiz', correct: correct, total: total, pct: pct });
 
-    // Insert score display
-    var scoreDiv = document.createElement('div');
-    scoreDiv.style.cssText = 'background:var(--bg-raised);border:2px solid var(--accent);border-radius:10px;'
-      + 'padding:20px;margin:16px 0;text-align:center;';
-    scoreDiv.innerHTML = '<div style="font-size:2rem;font-weight:700;color:var(--accent);">'
-      + correct + ' / ' + total + '</div>'
-      + '<div style="font-size:0.88rem;color:var(--ink-muted);">' + pct + '% correct</div>'
-      + '<div style="font-size:0.78rem;color:var(--ink-faint);margin-top:4px;">Time: '
-      + Math.floor(elapsed / 60) + ':' + (elapsed % 60 < 10 ? '0' : '') + (elapsed % 60) + '</div>';
-    form.parentNode.insertBefore(scoreDiv, form);
+    var html = '<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">';
+    html += '<button onclick="TheWay.switchTab(\'quizzes\')" '
+          + 'style="background:none;border:1px solid var(--line);border-radius:6px;padding:6px 14px;'
+          + 'cursor:pointer;font-size:0.82rem;color:var(--ink);font-family:inherit;">\u2190 Back</button>';
+    html += '<div style="flex:1;font-weight:700;font-size:1rem;">Quiz Results</div>';
+    html += '</div>';
 
-    // Disable score button
-    var btn = form.querySelector('button');
-    if (btn) { btn.disabled = true; btn.textContent = 'Scored!'; }
+    // Score display
+    html += '<div style="background:var(--bg-raised);border:2px solid var(--accent);border-radius:10px;'
+          + 'padding:20px;margin-bottom:16px;text-align:center;">'
+          + '<div style="font-size:2rem;font-weight:700;color:var(--accent);">' + correct + ' / ' + total + '</div>'
+          + '<div style="font-size:0.88rem;color:var(--ink-muted);">' + pct + '% correct</div>'
+          + '<div style="font-size:0.78rem;color:var(--ink-faint);margin-top:4px;">Time: '
+          + Math.floor(elapsed / 60) + ':' + (elapsed % 60 < 10 ? '0' : '') + (elapsed % 60) + '</div></div>';
+
+    // Review each question
+    _twQuizPicked.forEach(function(q, i) {
+      var answer = _twQuizAnswers[i] || '';
+      var correctLetter = String(q['Correct Answer'] || q.correctAnswer || '').toLowerCase().trim();
+      var isRight = answer === correctLetter;
+      var icon = isRight ? '\u2705' : (answer ? '\u274C' : '\u2B1C');
+      var bg = isRight ? 'rgba(34,197,94,0.08)' : (answer ? 'rgba(248,113,113,0.08)' : 'var(--bg-raised)');
+      html += '<div style="background:' + bg + ';border:1px solid var(--line);border-radius:8px;padding:10px;margin-bottom:6px;font-size:0.82rem;">'
+            + '<div style="font-weight:600;">' + icon + ' ' + (i + 1) + '. ' + _e(q['Question'] || q.question || '') + '</div>';
+      if (!isRight) {
+        var correctText = q['Option ' + correctLetter.toUpperCase()] || q[correctLetter] || '';
+        html += '<div style="color:var(--success);font-size:0.78rem;margin-top:2px;">Correct: ' + _e(correctText) + '</div>';
+      }
+      html += '</div>';
+    });
+
+    html += '<div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:16px;">'
+          + '<button type="button" onclick="TheWay._startAppQuiz()" '
+          + 'style="background:var(--accent);color:var(--ink-inverse);border:none;border-radius:8px;padding:12px 24px;'
+          + 'font-weight:700;font-size:0.9rem;cursor:pointer;font-family:inherit;">\u21BB Retake</button></div>';
+
+    _panel(html);
   }
 
   async function _startCourseQuiz(quizId) {
@@ -1873,10 +1935,12 @@ const TheWay = (() => {
       // Fallback to Matthew flat content if FLOCK API unavailable
       if (!tree.length) {
         try {
+          var flat = [];
           if (_isFB() && typeof UpperRoom !== 'undefined') {
-            var flat = await UpperRoom.listAppContent('theology');
-          } else if (typeof TheVine !== 'undefined' && TheVine.app && TheVine.app.theology) {
-            var flat = _rows(await TheVine.app.theology());
+            try { flat = _rows(await UpperRoom.listAppContent('theology')); } catch (_) {}
+          }
+          if (!flat.length && typeof TheVine !== 'undefined' && TheVine.app && TheVine.app.theology) {
+            flat = _rows(await TheVine.app.theology());
           }
             if (flat.length) {
               var catMap = {};
@@ -3394,6 +3458,8 @@ const TheWay = (() => {
     // Quizzes
     _startAppQuiz:      _startAppQuiz,
     _scoreQuiz:         _scoreQuiz,
+    _twQuizSave:        _twQuizSave,
+    _twQuizNav:         _twQuizNav,
     _startCourseQuiz:   _startCourseQuiz,
     _submitCourseQuiz:  _submitCourseQuiz,
 

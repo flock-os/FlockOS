@@ -4,132 +4,264 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>A Hope-Filled View of Jesus Christ</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="icon" type="image/png" href="../Images/FlockOS_OD.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Merriweather:ital,wght@0,300;0,400;0,700;1,300&display=swap" rel="stylesheet">
 
     <style>
-        html, body {
-            overscroll-behavior: none;
-        }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body { overscroll-behavior: none; }
         body {
             font-family: 'Inter', sans-serif;
             background-color: #faf9f6;
             color: #2c2c2c;
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
         }
-        h1, h2, h3, .serif {
-            font-family: 'Merriweather', serif;
-        }
+        h1, h2, h3, .serif { font-family: 'Merriweather', serif; }
+
         .fade-in { animation: fadeIn 0.4s ease-in; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
-        .active-tab { border-left-color: #7eaacc; background-color: rgba(126,170,204,0.08); font-weight: 600; }
-        .iam-nav-item { transition: all 0.3s ease; border-left: 3px solid transparent; }
-        .iam-nav-item.active { background: rgba(126,170,204,0.1); border-left-color: #7eaacc; color: #2c2c2c; padding-left: 1.5rem; }
+        /* ── Layout ─────────────────────────────────────────────── */
+        .container { max-width: 72rem; margin: 0 auto; padding: 0 1rem; }
+        @media (min-width: 640px) { .container { padding: 0 1.5rem; } }
+        @media (min-width: 1024px) { .container { padding: 0 2rem; } }
+
+        /* ── Navigation ─────────────────────────────────────────── */
+        .top-nav {
+            background: #fff; border-bottom: 1px solid #e7e5e4;
+            position: sticky; top: 0; z-index: 50;
+        }
+        .top-nav-inner {
+            display: flex; justify-content: space-between; align-items: center;
+            height: 4rem;
+        }
+        .top-nav-brand { display: flex; align-items: center; flex-shrink: 0; }
+        .top-nav-brand .icon { font-size: 1.5rem; color: #115e59; margin-right: 0.5rem; }
+        .top-nav-brand .label { font-weight: 700; font-size: 1.25rem; letter-spacing: -0.01em; color: #292524; }
+        .top-nav-back { font-size: 0.875rem; color: #0f766e; font-weight: 600; text-decoration: none; }
+        .top-nav-back:hover { color: #134e4a; }
+
+        /* ── Header ────────────────────────────────────────────── */
+        .hero { text-align: center; margin-bottom: 3rem; padding-top: 2rem; }
+        .hero h1 { font-size: 2.25rem; font-weight: 700; color: #1c1917; margin-bottom: 1rem; }
+        @media (min-width: 768px) { .hero h1 { font-size: 3rem; } }
+        .hero .subtitle { font-size: 1.125rem; color: #57534e; max-width: 48rem; margin: 0 auto; }
+        .hero .epigraph { font-size: 0.875rem; color: #a8a29e; margin-top: 0.75rem; font-style: italic; }
+        .hero .cta {
+            display: inline-block; margin-top: 2rem;
+            background: #0f766e; color: #fff; padding: 0.75rem 2rem;
+            border-radius: 0.5rem; font-weight: 600; font-size: 0.875rem;
+            letter-spacing: 0.05em; text-decoration: none;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05); transition: background 0.2s;
+        }
+        .hero .cta:hover { background: #115e59; }
+
+        /* ── Sections ──────────────────────────────────────────── */
+        .card-section {
+            background: #fff; border-radius: 1rem;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+            border: 1px solid #e7e5e4;
+            padding: 1.5rem; margin-bottom: 3rem;
+        }
+        @media (min-width: 768px) { .card-section { padding: 2rem; } }
+        .card-section h2 { font-size: 1.5rem; font-weight: 700; color: #292524; margin-bottom: 0.5rem; }
+        .card-section > .intro { color: #57534e; margin-bottom: 2rem; }
+
+        /* ── Invitations grid ──────────────────────────────────── */
+        .inv-grid { display: grid; grid-template-columns: 1fr; gap: 1.5rem; }
+        @media (min-width: 768px) { .inv-grid { grid-template-columns: repeat(3, 1fr); } }
+        .inv-card {
+            background: #fafaf9; border-radius: 0.75rem; padding: 1.5rem;
+            border: 1px solid #e7e5e4; cursor: pointer;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+        .inv-card:hover { border-color: #7eaacc; box-shadow: 0 4px 6px rgba(0,0,0,0.04); }
+        .inv-card .icon { font-size: 1.875rem; margin-bottom: 1rem; }
+        .inv-card h3 { font-size: 1.125rem; font-weight: 700; color: #292524; margin-bottom: 0.5rem; }
+        .inv-card:hover h3 { color: #0f766e; }
+        .inv-card .quote { color: #78716c; font-style: italic; font-size: 0.875rem; margin-bottom: 0.75rem; }
+        .inv-card .ref { font-size: 0.75rem; font-weight: 600; color: #a8a29e; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 1rem; }
+        .inv-card .insight {
+            display: none; padding-top: 1rem; border-top: 1px solid #e7e5e4;
+            font-size: 0.875rem; line-height: 1.7; color: #57534e;
+        }
+        .inv-card .insight.open { display: block; animation: fadeIn 0.3s; }
+        .inv-card .insight-label { display: block; color: #0f766e; font-weight: 700; font-size: 0.625rem; text-transform: uppercase; letter-spacing: 0.15em; margin-bottom: 0.25rem; }
+        .inv-card .toggle { text-align: center; margin-top: 1rem; color: #a8a29e; font-size: 1.25rem; font-weight: 300; }
+        .inv-card:hover .toggle { color: #0f766e; }
+
+        /* ── I AM panel ────────────────────────────────────────── */
+        .iam-container { border-radius: 0.75rem; border: 1px solid #e7e5e4; overflow: hidden; min-height: 450px; }
+        .iam-grid { display: grid; grid-template-columns: 1fr; }
+        @media (min-width: 1024px) { .iam-grid { grid-template-columns: 4fr 8fr; } }
+        .iam-sidebar { background: #fafaf9; padding: 1.5rem; display: flex; flex-direction: column; justify-content: center; gap: 0.25rem; }
+        @media (min-width: 1024px) { .iam-sidebar { border-right: 1px solid #e7e5e4; } }
+        .iam-nav-item {
+            padding: 0.75rem 1rem; cursor: pointer; border-radius: 0 0.5rem 0.5rem 0;
+            font-size: 0.875rem; font-weight: 500; color: #78716c;
+            border-left: 3px solid transparent; transition: all 0.3s;
+        }
+        .iam-nav-item.active {
+            background: rgba(126,170,204,0.1); border-left-color: #7eaacc;
+            color: #292524; font-weight: 600; padding-left: 1.5rem;
+        }
+        .iam-content { padding: 2rem; display: flex; flex-direction: column; justify-content: center; }
+        @media (min-width: 768px) { .iam-content { padding: 3rem; } }
+        .iam-badge {
+            display: inline-block; padding: 0.25rem 0.75rem; border-radius: 9999px;
+            border: 1px solid #e7e5e4; background: #fafaf9;
+            font-size: 0.625rem; font-weight: 700; letter-spacing: 0.2em;
+            text-transform: uppercase; color: #0f766e; margin-bottom: 1.5rem;
+        }
+        .iam-title { font-size: 2.25rem; font-weight: 700; color: #1c1917; line-height: 1.2; margin-bottom: 1.5rem; }
+        @media (min-width: 768px) { .iam-title { font-size: 3rem; } }
+        .iam-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 2rem; padding-top: 2rem; border-top: 1px solid #e7e5e4; }
+        .iam-meta-label { font-size: 0.625rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.15em; color: #a8a29e; margin-bottom: 0.25rem; }
+        .iam-meta .need { font-size: 1.125rem; color: #292524; font-style: italic; }
+        .iam-meta .verse { font-size: 0.875rem; color: #0f766e; font-family: monospace; }
+        .iam-desc { margin-top: 2rem; font-size: 1rem; color: #57534e; line-height: 1.7; max-width: 36rem; }
+
+        /* ── Timeline ──────────────────────────────────────────── */
+        .timeline-layout { display: flex; flex-direction: column; gap: 1.5rem; }
+        @media (min-width: 768px) { .timeline-layout { flex-direction: row; } }
+        .timeline-nav { width: 100%; border-left: 2px solid #e7e5e4; }
+        @media (min-width: 768px) { .timeline-nav { width: 33.33%; } }
+        .timeline-content { width: 100%; }
+        @media (min-width: 768px) { .timeline-content { width: 66.67%; padding-left: 1.5rem; } }
+        .tl-item {
+            padding: 1rem 1.25rem; margin-left: -3px;
+            border-left: 4px solid transparent; cursor: pointer; transition: all 0.3s;
+        }
+        .tl-item:hover { border-left-color: #d6d3d1; }
+        .tl-item.active { border-left-color: #0f766e; }
+        .tl-item h4 { font-weight: 700; font-size: 1rem; color: #a8a29e; }
+        .tl-item.active h4 { color: #292524; }
+        .tl-item .sub { font-size: 0.625rem; text-transform: uppercase; letter-spacing: 0.15em; color: #a8a29e; margin-top: 0.25rem; }
+        .tl-panel {
+            background: #fafaf9; padding: 2rem; border-radius: 0.75rem;
+            border: 1px solid #e7e5e4; height: 100%;
+            display: flex; flex-direction: column; justify-content: center;
+        }
+        .tl-panel h3 { font-size: 1.875rem; font-weight: 700; color: #292524; margin-bottom: 0.25rem; }
+        .tl-panel .sub { color: #0f766e; font-weight: 700; text-transform: uppercase; letter-spacing: 0.15em; font-size: 0.75rem; margin-bottom: 1.5rem; }
+        .tl-panel .mission-label { font-size: 0.625rem; font-weight: 700; color: #a8a29e; text-transform: uppercase; letter-spacing: 0.15em; margin-bottom: 0.5rem; padding-bottom: 0.5rem; border-bottom: 1px solid #e7e5e4; }
+        .tl-panel .mission { color: #57534e; font-size: 1rem; line-height: 1.7; margin-bottom: 2rem; }
+        .tl-hope {
+            background: #fff; padding: 1.25rem; border-radius: 0.5rem;
+            border-left: 4px solid #0f766e; box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+        }
+        .tl-hope-label { font-size: 0.625rem; font-weight: 700; color: #0f766e; text-transform: uppercase; letter-spacing: 0.15em; margin-bottom: 0.25rem; }
+        .tl-hope p { color: #292524; font-weight: 500; font-style: italic; font-size: 1rem; line-height: 1.7; }
+
+        /* ── Footer ────────────────────────────────────────────── */
+        .page-footer {
+            background: #fff; border-top: 1px solid #e7e5e4;
+            padding: 4rem 1rem; text-align: center;
+        }
+        .page-footer h2 { font-size: 1.5rem; font-weight: 700; color: #115e59; margin-bottom: 1rem; }
+        .page-footer .verse { color: #78716c; font-size: 1.125rem; line-height: 1.7; font-style: italic; max-width: 48rem; margin: 0 auto 2rem; }
+        .page-footer .sign-off { font-size: 0.75rem; color: #a8a29e; text-transform: uppercase; letter-spacing: 0.15em; }
     </style>
 </head>
-<body class="antialiased">
+<body>
 
     <!-- Navigation / Header -->
-    <nav class="bg-white border-b border-stone-200 sticky top-0 z-50">
-        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between h-16 items-center">
-                <div class="flex-shrink-0 flex items-center">
-                    <span class="text-2xl text-teal-800 mr-2">&#10013;</span>
-                    <span class="font-bold text-xl tracking-tight text-stone-800 serif">Invitation</span>
-                </div>
-                <a href="../../index.html" class="text-sm text-teal-700 hover:text-teal-900 font-semibold">&larr; Back to Dashboard</a>
+    <nav class="top-nav">
+        <div class="container top-nav-inner">
+            <div class="top-nav-brand">
+                <span class="icon">&#10013;</span>
+                <span class="label serif">Invitation</span>
             </div>
+            <a href="../../index.html" class="top-nav-back">&larr; Back to Dashboard</a>
         </div>
     </nav>
 
-    <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <main class="container" style="padding-top:2rem; padding-bottom:2rem;">
 
         <!-- Header Section -->
-        <header class="text-center mb-12 fade-in">
-            <h1 class="text-4xl md:text-5xl font-bold text-stone-900 mb-4">A Hope-Filled View of Jesus Christ</h1>
-            <p class="text-lg text-stone-600 max-w-3xl mx-auto">
+        <header class="hero fade-in">
+            <h1 class="serif">A Hope-Filled View of Jesus Christ</h1>
+            <p class="subtitle">
                 Throughout history, Jesus of Nazareth has been the focal point of profound hope. This exploration distills His message into three pillars: His invitations, His identity, and His finished work.
             </p>
-            <p class="text-sm text-stone-400 mt-3 italic">"Come to me, all who labor and are heavy laden, and I will give you rest." &mdash; Matthew 11:28</p>
-            <a href="#invitations" class="inline-block mt-8 bg-teal-700 text-white px-8 py-3 rounded-lg hover:bg-teal-800 transition font-semibold text-sm tracking-wide shadow-sm">
-                Begin Exploration &darr;
-            </a>
+            <p class="epigraph">"Come to me, all who labor and are heavy laden, and I will give you rest." &mdash; Matthew 11:28</p>
+            <a href="#invitations" class="cta">Begin Exploration &darr;</a>
         </header>
 
         <!-- Section 1: The Great Invitations -->
-        <section id="invitations" class="bg-white rounded-2xl shadow-sm border border-stone-200 p-6 md:p-8 mb-12 fade-in">
-            <div class="mb-8">
-                <h2 class="text-2xl font-bold text-stone-800 mb-2 serif">1. The Great Invitations</h2>
-                <p class="text-stone-600">
+        <section id="invitations" class="card-section fade-in">
+            <div style="margin-bottom:2rem;">
+                <h2 class="serif">1. The Great Invitations</h2>
+                <p class="intro">
                     Jesus issued personal calls characterized by grace rather than performance. Click each card to uncover the profound hope offered to the exhausted, the thirsty, and those seeking intimacy.
                 </p>
             </div>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6" id="invitation-grid"></div>
+            <div class="inv-grid" id="invitation-grid"></div>
         </section>
 
         <!-- Section 2: The "I AM" Declarations -->
-        <section id="identity" class="bg-white rounded-2xl shadow-sm border border-stone-200 p-6 md:p-8 mb-12 fade-in">
-            <div class="mb-8">
-                <h2 class="text-2xl font-bold text-stone-800 mb-2 serif">2. The &ldquo;I AM&rdquo; Declarations</h2>
-                <p class="text-stone-600">
+        <section id="identity" class="card-section fade-in">
+            <div style="margin-bottom:2rem;">
+                <h2 class="serif">2. The &ldquo;I AM&rdquo; Declarations</h2>
+                <p class="intro">
                     In the Gospel of John, Jesus uses seven metaphors to declare how He perfectly meets the deepest needs of the human soul. Select a declaration from the sidebar to explore His identity.
                 </p>
             </div>
 
-            <div class="rounded-xl border border-stone-200 overflow-hidden min-h-[450px]">
-                <div class="grid grid-cols-1 lg:grid-cols-12">
-                    <div class="lg:col-span-4 border-r border-stone-200 bg-stone-50 p-6 flex flex-col justify-center gap-1">
-                        <div id="iam-nav-list" class="space-y-1"></div>
-                    </div>
-                    <div class="lg:col-span-8 p-8 md:p-12 flex flex-col justify-center" id="iam-content-area"></div>
+            <div class="iam-container">
+                <div class="iam-grid">
+                    <div class="iam-sidebar" id="iam-nav-list"></div>
+                    <div class="iam-content" id="iam-content-area"></div>
                 </div>
             </div>
         </section>
 
         <!-- Section 3: The Finished Work -->
-        <section id="work" class="bg-white rounded-2xl shadow-sm border border-stone-200 p-6 md:p-8 mb-12 fade-in">
-            <div class="mb-8">
-                <h2 class="text-2xl font-bold text-stone-800 mb-2 serif">3. The Finished Work</h2>
-                <p class="text-stone-600">
+        <section id="work" class="card-section fade-in">
+            <div style="margin-bottom:2rem;">
+                <h2 class="serif">3. The Finished Work</h2>
+                <p class="intro">
                     Hope is not just found in what Jesus said, but in what He accomplished. Select an event from the timeline to understand the historical progression of His redemptive mission.
                 </p>
             </div>
-            <div class="flex flex-col md:flex-row gap-6">
-                <div class="w-full md:w-1/3 border-l-2 border-stone-200" id="timeline-nav"></div>
-                <div class="w-full md:w-2/3 pl-0 md:pl-6" id="timeline-content"></div>
+            <div class="timeline-layout">
+                <div class="timeline-nav" id="timeline-nav"></div>
+                <div class="timeline-content" id="timeline-content"></div>
             </div>
         </section>
 
     </main>
 
     <!-- Footer -->
-    <footer class="bg-white border-t border-stone-200 py-16 text-center">
-        <div class="max-w-3xl mx-auto px-4">
-            <h2 class="text-2xl font-bold text-teal-800 mb-4 serif">An Anchor for the Soul</h2>
-            <p class="text-stone-500 text-lg leading-relaxed mb-8 italic">
+    <footer class="page-footer">
+        <div style="max-width:48rem;margin:0 auto;padding:0 1rem;">
+            <h2 class="serif">An Anchor for the Soul</h2>
+            <p class="verse">
                 &ldquo;We have this as a sure and steadfast anchor of the soul, a hope that enters into the inner place behind the curtain, where Jesus has gone as a forerunner on our behalf.&rdquo; &mdash; Hebrews 6:19-20
             </p>
-            <p class="text-xs text-stone-400 uppercase tracking-widest">Soli Deo Gloria</p>
+            <p class="sign-off">Soli Deo Gloria</p>
         </div>
     </footer>
 
     <script>
         const invitationData = [
-            { id: 1, title: "The Call to the Exhausted", quote: "Come to me, all who labor and are heavy laden, and I will give you rest.", reference: "Matthew 11:28", icon: "🕊️", insight: "Jesus does not demand more religious striving. He identifies the exhaustion of trying to earn worth and offers Himself as the antidote." },
-            { id: 2, title: "The Call to the Thirsty", quote: "If anyone thirsts, let him come to me and drink.", reference: "John 7:37-38", icon: "💧", insight: "Addressed to human dissatisfaction. Jesus promises a qualitative kind of life that provides an internal, eternal satisfaction." },
-            { id: 3, title: "The Call to Intimacy", quote: "Behold, I stand at the door and knock.", reference: "Revelation 3:20", icon: "🚪", insight: "A picture of divine pursuit. God does not force His way in; He knocks and offers friendship and reconciliation." }
+            { id: 1, title: "The Call to the Exhausted", quote: "Come to me, all who labor and are heavy laden, and I will give you rest.", reference: "Matthew 11:28", icon: "\uD83D\uDD4A\uFE0F", insight: "Jesus does not demand more religious striving. He identifies the exhaustion of trying to earn worth and offers Himself as the antidote." },
+            { id: 2, title: "The Call to the Thirsty", quote: "If anyone thirsts, let him come to me and drink.", reference: "John 7:37-38", icon: "\uD83D\uDCA7", insight: "Addressed to human dissatisfaction. Jesus promises a qualitative kind of life that provides an internal, eternal satisfaction." },
+            { id: 3, title: "The Call to Intimacy", quote: "Behold, I stand at the door and knock.", reference: "Revelation 3:20", icon: "\uD83D\uDEAA", insight: "A picture of divine pursuit. God does not force His way in; He knocks and offers friendship and reconciliation." }
         ];
 
         const iamData = [
-            { label: 'Bread of Life', need: 'Spiritual Hunger', verse: 'John 6:35', description: 'Just as physical bread sustains the body, Jesus is the essential nutrient for the soul. Without Him, the spirit starves; with Him, there is enduring life.', color: '#0f766e', icon: '🍞' },
-            { label: 'Light of the World', need: 'Guidance in Darkness', verse: 'John 8:12', description: 'In a world of confusion, Jesus provides absolute clarity. Following Him guarantees you will walk in the light of life.', color: '#8B7028', icon: '🕯️' },
-            { label: 'Door of the Sheep', need: 'Security & Access', verse: 'John 10:9', description: 'Jesus is the singular entry point to safety. Through Him, one finds protection from spiritual predators and the freedom of abundant life.', color: '#7eaacc', icon: '🚪' },
-            { label: 'Good Shepherd', need: 'Care & Protection', verse: 'John 10:11', description: 'Unlike a hired hand, the Good Shepherd loves so profoundly that He willingly lays down His life for the vulnerable.', color: '#3d8b4f', icon: '🐑' },
-            { label: 'Resurrection & Life', need: 'Victory over Death', verse: 'John 11:25', description: 'Faced with the terror of death, Jesus claims total authority. He is the resurrection; in Him, death is merely a doorway.', color: '#7e57c2', icon: '🌱' },
-            { label: 'Way, Truth, Life', need: 'Direction & Reality', verse: 'John 14:6', description: 'The embodiment of ultimate reality and the source of all existence. All human searching ends in Him.', color: '#2563eb', icon: '🧭' },
-            { label: 'True Vine', need: 'Purpose & Fruitfulness', verse: 'John 15:1', description: 'By abiding in  (and remaining) attached to Jesus, believers draw on His endless grace, mercy and strength to produce true, biblical: love, joy, peace, patience, kindness, goodness, faithfulness, gentleness, and self-control that lasts eternally.', color: '#0f766e', icon: '🍇' }
+            { label: 'Bread of Life', need: 'Spiritual Hunger', verse: 'John 6:35', description: 'Just as physical bread sustains the body, Jesus is the essential nutrient for the soul. Without Him, the spirit starves; with Him, there is enduring life.', color: '#0f766e', icon: '\uD83C\uDF5E' },
+            { label: 'Light of the World', need: 'Guidance in Darkness', verse: 'John 8:12', description: 'In a world of confusion, Jesus provides absolute clarity. Following Him guarantees you will walk in the light of life.', color: '#8B7028', icon: '\uD83D\uDD6F\uFE0F' },
+            { label: 'Door of the Sheep', need: 'Security & Access', verse: 'John 10:9', description: 'Jesus is the singular entry point to safety. Through Him, one finds protection from spiritual predators and the freedom of abundant life.', color: '#7eaacc', icon: '\uD83D\uDEAA' },
+            { label: 'Good Shepherd', need: 'Care & Protection', verse: 'John 10:11', description: 'Unlike a hired hand, the Good Shepherd loves so profoundly that He willingly lays down His life for the vulnerable.', color: '#3d8b4f', icon: '\uD83D\uDC11' },
+            { label: 'Resurrection & Life', need: 'Victory over Death', verse: 'John 11:25', description: 'Faced with the terror of death, Jesus claims total authority. He is the resurrection; in Him, death is merely a doorway.', color: '#7e57c2', icon: '\uD83C\uDF31' },
+            { label: 'Way, Truth, Life', need: 'Direction & Reality', verse: 'John 14:6', description: 'The embodiment of ultimate reality and the source of all existence. All human searching ends in Him.', color: '#2563eb', icon: '\uD83E\uDDED' },
+            { label: 'True Vine', need: 'Purpose & Fruitfulness', verse: 'John 15:1', description: 'By abiding in (and remaining) attached to Jesus, believers draw on His endless grace, mercy and strength to produce true, biblical: love, joy, peace, patience, kindness, goodness, faithfulness, gentleness, and self-control that lasts eternally.', color: '#0f766e', icon: '\uD83C\uDF47' }
         ];
 
         const workData = [
@@ -143,27 +275,21 @@
             const container = document.getElementById('invitation-grid');
             invitationData.forEach(item => {
                 const card = document.createElement('div');
-                card.className = 'bg-stone-50 rounded-xl p-6 border border-stone-200 cursor-pointer hover:border-teal-300 hover:shadow-md transition-all duration-300 group';
-                card.innerHTML = `
-                    <div class="text-3xl mb-4">${item.icon}</div>
-                    <h3 class="serif text-lg font-bold mb-2 text-stone-800 group-hover:text-teal-700 transition-colors">${item.title}</h3>
-                    <p class="text-stone-500 italic mb-3 serif text-sm">"${item.quote}"</p>
-                    <p class="text-xs font-semibold text-stone-400 mb-4 uppercase tracking-wider">${item.reference}</p>
-                    <div class="hidden insight-content pt-4 border-t border-stone-200 text-sm leading-relaxed text-stone-600 fade-in">
-                        <strong class="text-teal-700 block mb-1 uppercase tracking-widest text-[10px]">The Hope</strong>
-                        ${item.insight}
-                    </div>
-                    <div class="text-center mt-4 toggle-icon text-stone-400 group-hover:text-teal-600">
-                        <span class="text-xl font-light">+</span>
-                    </div>
-                `;
-                card.onclick = () => {
-                    const insight = card.querySelector('.insight-content');
-                    const icon = card.querySelector('.toggle-icon span');
-                    const isHidden = insight.classList.contains('hidden');
-                    document.querySelectorAll('.insight-content').forEach(el => el.classList.add('hidden'));
-                    document.querySelectorAll('.toggle-icon span').forEach(el => el.textContent = '+');
-                    if (isHidden) { insight.classList.remove('hidden'); icon.textContent = '−'; }
+                card.className = 'inv-card';
+                card.innerHTML =
+                    '<div class="icon">' + item.icon + '</div>' +
+                    '<h3 class="serif">' + item.title + '</h3>' +
+                    '<p class="quote serif">\u201C' + item.quote + '\u201D</p>' +
+                    '<p class="ref">' + item.reference + '</p>' +
+                    '<div class="insight"><span class="insight-label">The Hope</span>' + item.insight + '</div>' +
+                    '<div class="toggle"><span>+</span></div>';
+                card.onclick = function() {
+                    var insight = card.querySelector('.insight');
+                    var icon = card.querySelector('.toggle span');
+                    var isOpen = insight.classList.contains('open');
+                    document.querySelectorAll('.insight').forEach(function(el) { el.classList.remove('open'); });
+                    document.querySelectorAll('.toggle span').forEach(function(el) { el.textContent = '+'; });
+                    if (!isOpen) { insight.classList.add('open'); icon.textContent = '\u2212'; }
                 };
                 container.appendChild(card);
             });
@@ -171,81 +297,70 @@
 
         function initIAMCarousel() {
             const navList = document.getElementById('iam-nav-list');
-            iamData.forEach((item, index) => {
-                const btn = document.createElement('div');
-                btn.className = `iam-nav-item px-4 py-3 cursor-pointer rounded-r-lg text-sm font-medium ${index === 0 ? 'active text-stone-800' : 'text-stone-500'}`;
-                btn.innerHTML = `<span class="mr-3">${item.icon}</span> ${item.label}`;
-                btn.onclick = () => { showIAM(index); };
-                btn.id = `iam-nav-${index}`;
+            iamData.forEach(function(item, index) {
+                var btn = document.createElement('div');
+                btn.className = 'iam-nav-item' + (index === 0 ? ' active' : '');
+                btn.innerHTML = '<span style="margin-right:0.75rem;">' + item.icon + '</span> ' + item.label;
+                btn.onclick = function() { showIAM(index); };
+                btn.id = 'iam-nav-' + index;
                 navList.appendChild(btn);
             });
             showIAM(0);
         }
 
         function showIAM(index) {
-            const data = iamData[index];
-            const contentArea = document.getElementById('iam-content-area');
+            var data = iamData[index];
+            var contentArea = document.getElementById('iam-content-area');
 
-            document.querySelectorAll('.iam-nav-item').forEach((el, i) => {
+            document.querySelectorAll('.iam-nav-item').forEach(function(el, i) {
                 el.classList.toggle('active', i === index);
-                el.classList.toggle('text-stone-800', i === index);
-                el.classList.toggle('text-stone-500', i !== index);
             });
 
-            contentArea.innerHTML = `
-                <div class="fade-in">
-                    <div class="mb-6 inline-block px-3 py-1 rounded-full border border-stone-200 bg-stone-50 text-[10px] font-bold tracking-[0.2em] text-teal-700 uppercase">The Declaration</div>
-                    <h3 class="serif text-4xl md:text-5xl font-bold text-stone-900 mb-6 leading-tight">I AM the <br><span style="color: ${data.color}">${data.label}</span></h3>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8 border-t border-stone-200 pt-8">
-                        <div>
-                            <p class="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1">The Need Met</p>
-                            <p class="text-lg text-stone-800 serif italic">${data.need}</p>
-                        </div>
-                        <div>
-                            <p class="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-1">The Reference</p>
-                            <p class="text-sm text-teal-700 font-mono">${data.verse}</p>
-                        </div>
-                    </div>
-                    <p class="mt-8 text-base text-stone-600 leading-relaxed max-w-xl">${data.description}</p>
-                </div>
-            `;
+            contentArea.innerHTML =
+                '<div class="fade-in">' +
+                '<div class="iam-badge">The Declaration</div>' +
+                '<h3 class="serif iam-title">I AM the <br><span style="color:' + data.color + '">' + data.label + '</span></h3>' +
+                '<div class="iam-meta">' +
+                    '<div><p class="iam-meta-label">The Need Met</p><p class="need serif">' + data.need + '</p></div>' +
+                    '<div><p class="iam-meta-label">The Reference</p><p class="verse">' + data.verse + '</p></div>' +
+                '</div>' +
+                '<p class="iam-desc">' + data.description + '</p>' +
+                '</div>';
         }
 
         function initTimeline() {
-            const nav = document.getElementById('timeline-nav');
-            workData.forEach((item, index) => {
-                const navItem = document.createElement('div');
-                navItem.className = `pl-5 py-4 border-l-4 -ml-[3px] cursor-pointer transition-all duration-300 nav-link-item ${index === 0 ? 'active-tab border-teal-600' : 'border-transparent hover:border-stone-300'}`;
-                navItem.innerHTML = `<h4 class="serif font-bold text-base ${index === 0 ? 'text-stone-800' : 'text-stone-400'}">${item.title}</h4><p class="text-[10px] uppercase tracking-widest text-stone-400 mt-1">${item.subtitle}</p>`;
-                navItem.onclick = () => {
-                    document.querySelectorAll('.nav-link-item').forEach(el => { el.classList.remove('active-tab', 'border-teal-600'); el.classList.add('border-transparent'); el.querySelector('h4').className = 'serif font-bold text-base text-stone-400'; });
-                    navItem.classList.add('active-tab', 'border-teal-600');
-                    navItem.querySelector('h4').className = 'serif font-bold text-base text-stone-800';
+            var nav = document.getElementById('timeline-nav');
+            workData.forEach(function(item, index) {
+                var el = document.createElement('div');
+                el.className = 'tl-item' + (index === 0 ? ' active' : '');
+                el.innerHTML = '<h4 class="serif">' + item.title + '</h4><p class="sub">' + item.subtitle + '</p>';
+                el.onclick = function() {
+                    document.querySelectorAll('.tl-item').forEach(function(n) { n.classList.remove('active'); });
+                    el.classList.add('active');
                     renderTimelineContent(item);
                 };
-                nav.appendChild(navItem);
+                nav.appendChild(el);
             });
             renderTimelineContent(workData[0]);
         }
 
         function renderTimelineContent(item) {
-            document.getElementById('timeline-content').innerHTML = `
-                <div class="fade-in bg-stone-50 p-8 rounded-xl h-full border border-stone-200 flex flex-col justify-center">
-                    <h3 class="serif text-3xl font-bold text-stone-800 mb-1">${item.title}</h3>
-                    <p class="text-teal-700 font-bold uppercase tracking-[0.15em] text-xs mb-6">${item.subtitle}</p>
-                    <div class="mb-8">
-                        <h4 class="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-2 border-b border-stone-200 pb-2">The Mission</h4>
-                        <p class="text-stone-600 leading-relaxed text-base">${item.summary}</p>
-                    </div>
-                    <div class="bg-white p-5 rounded-lg border-l-4 border-teal-600 shadow-sm">
-                        <h4 class="text-[10px] font-bold text-teal-700 uppercase tracking-widest mb-1">The Hope</h4>
-                        <p class="text-stone-800 font-medium leading-relaxed italic text-base">"${item.hope}"</p>
-                    </div>
-                </div>
-            `;
+            document.getElementById('timeline-content').innerHTML =
+                '<div class="tl-panel fade-in">' +
+                '<h3 class="serif">' + item.title + '</h3>' +
+                '<p class="sub">' + item.subtitle + '</p>' +
+                '<div style="margin-bottom:2rem;">' +
+                    '<p class="mission-label">The Mission</p>' +
+                    '<p class="mission">' + item.summary + '</p>' +
+                '</div>' +
+                '<div class="tl-hope">' +
+                    '<p class="tl-hope-label">The Hope</p>' +
+                    '<p>\u201C' + item.hope + '\u201D</p>' +
+                '</div>' +
+                '</div>';
         }
 
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', function() {
             initInvitations();
             initIAMCarousel();
             initTimeline();
