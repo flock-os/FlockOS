@@ -508,7 +508,7 @@ const Modules = (() => {
   /** Print attendance report */
   async function _attendancePrint() {
     _toast('Preparing attendance report…', 'info');
-    var res = await _fetch('attendance', function() { return _isFirebaseComms() ? UpperRoom.listAttendance({ limit: 500 }) : TheVine.flock.attendance.list({ limit: 500 }); });
+    var res = await _fetch('attendance', function() { return _isFirebaseComms() ? UpperRoom.listAttendance({ limit: 200 }) : TheVine.flock.attendance.list({ limit: 200 }); });
     var rows = _rows(res);
     if (!rows.length) { _toast('No attendance data.', 'warn'); return; }
     rows.sort(function(a, b) { return (b.date || b.serviceDate || '').localeCompare(a.date || a.serviceDate || ''); });
@@ -2060,7 +2060,7 @@ const Modules = (() => {
       ' ' + _btn('📦 Print', "Modules._attendancePrint()"));
     try {
       const [listRes, sumRes] = await Promise.all([
-        _fetch('attendance', () => _isFirebaseComms() ? UpperRoom.listAttendance({ limit: 500 }) : TheVine.flock.attendance.list({ limit: 500 })),
+        _fetch('attendance', () => _isFirebaseComms() ? UpperRoom.listAttendance({ limit: 200 }) : TheVine.flock.attendance.list({ limit: 200 })),
         _fetch('attendance-summary', () => _isFirebaseComms() ? UpperRoom.attendanceSummary() : TheVine.flock.attendance.summary({}), _TTL.ref).catch(() => null),
       ]);
       const rows = _rows(listRes);

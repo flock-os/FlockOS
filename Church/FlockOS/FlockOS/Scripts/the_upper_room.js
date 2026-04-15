@@ -752,7 +752,7 @@ window.FLOCK_CHURCH_ID = "flockos";
     if (!opts.allUsers && _userEmail) {
       q = q.where('createdBy', '==', _userEmail);
     }
-    q = q.orderBy('submittedAt', 'desc').limit(opts.limit || 300);
+    q = q.orderBy('submittedAt', 'desc').limit(opts.limit || 100);
     console.log('[FLOCK-DEBUG] UpperRoom.listPrayers() executing query…');
     var _lpStart = Date.now();
     return q.get().then(function(snap) {
@@ -2079,7 +2079,7 @@ window.FLOCK_CHURCH_ID = "flockos";
     opts = opts || {};
     var q = _rsvpsRef();
     if (opts.eventId) q = q.where('eventId', '==', opts.eventId);
-    q = q.orderBy('respondedAt', 'desc').limit(opts.limit || 500);
+    q = q.orderBy('respondedAt', 'desc').limit(opts.limit || 200);
     return q.get().then(function(snap) {
       var results = [];
       snap.forEach(function(doc) {
@@ -2197,7 +2197,7 @@ window.FLOCK_CHURCH_ID = "flockos";
 
   function listGroups(opts) {
     opts = opts || {};
-    var q = _groupsRef().orderBy('groupName').limit(opts.limit || 500);
+    var q = _groupsRef().orderBy('groupName').limit(opts.limit || 200);
     if (opts.status) q = q.where('status', '==', opts.status);
     return q.get().then(function(snap) {
       var results = [];
@@ -2301,7 +2301,7 @@ window.FLOCK_CHURCH_ID = "flockos";
 
   function listAttendance(opts) {
     opts = opts || {};
-    var q = _attendanceRef().orderBy('date', 'desc').limit(opts.limit || 500);
+    var q = _attendanceRef().orderBy('date', 'desc').limit(opts.limit || 200);
     return q.get().then(function(snap) {
       var results = [];
       snap.forEach(function(doc) {
@@ -2345,7 +2345,7 @@ window.FLOCK_CHURCH_ID = "flockos";
   }
 
   function attendanceSummary() {
-    return _attendanceRef().orderBy('date', 'desc').limit(1000).get().then(function(snap) {
+    return _attendanceRef().orderBy('date', 'desc').limit(200).get().then(function(snap) {
       var records = [];
       snap.forEach(function(doc) {
         var d = doc.data(); d.id = doc.id; records.push(d);
@@ -2530,7 +2530,7 @@ window.FLOCK_CHURCH_ID = "flockos";
   }
 
   function ministrySummary() {
-    return listMinistries({ limit: 500 }).then(function(rows) {
+    return listMinistries({ limit: 200 }).then(function(rows) {
       var byStatus = {}, byType = {}, totalMembers = 0;
       rows.forEach(function(r) {
         var s = r.status || 'Active';
@@ -2544,7 +2544,7 @@ window.FLOCK_CHURCH_ID = "flockos";
   }
 
   function ministryTree() {
-    return listMinistries({ limit: 500 }).then(function(rows) {
+    return listMinistries({ limit: 200 }).then(function(rows) {
       var tree = {};
       rows.forEach(function(r) {
         var parent = r.parentMinistry || r.department || 'Uncategorized';
@@ -2793,7 +2793,7 @@ window.FLOCK_CHURCH_ID = "flockos";
   }
 
   function sermonDashboard() {
-    return listSermons({ limit: 500 }).then(function(rows) {
+    return listSermons({ limit: 200 }).then(function(rows) {
       var byStatus = {}, total = rows.length, thisMonth = 0;
       var now = new Date(), y = now.getFullYear(), m = now.getMonth();
       rows.forEach(function(r) {
@@ -4109,7 +4109,7 @@ window.FLOCK_CHURCH_ID = "flockos";
 
   function listContacts(opts) {
     opts = opts || {};
-    var q = _contactsRef().orderBy('createdAt', 'desc').limit(opts.limit || 500);
+    var q = _contactsRef().orderBy('createdAt', 'desc').limit(opts.limit || 200);
     return q.get().then(_snapToArr);
   }
   function createContact(data) {
@@ -4119,7 +4119,7 @@ window.FLOCK_CHURCH_ID = "flockos";
 
   function listPastoralNotes(opts) {
     opts = opts || {};
-    var q = _notesRef().orderBy('createdAt', 'desc').limit(opts.limit || 500);
+    var q = _notesRef().orderBy('createdAt', 'desc').limit(opts.limit || 200);
     return q.get().then(_snapToArr);
   }
   function createPastoralNote(data) {
@@ -4129,13 +4129,13 @@ window.FLOCK_CHURCH_ID = "flockos";
 
   function listMilestones(opts) {
     opts = opts || {};
-    var q = _milestonesRef().orderBy('createdAt', 'desc').limit(opts.limit || 500);
+    var q = _milestonesRef().orderBy('createdAt', 'desc').limit(opts.limit || 200);
     return q.get().then(_snapToArr);
   }
 
   function listHouseholds(opts) {
     opts = opts || {};
-    var q = _householdsRef().orderBy('name', 'asc').limit(opts.limit || 500);
+    var q = _householdsRef().orderBy('name', 'asc').limit(opts.limit || 200);
     return q.get().then(_snapToArr);
   }
 
@@ -4147,7 +4147,7 @@ window.FLOCK_CHURCH_ID = "flockos";
 
   function listAudit(opts) {
     opts = opts || {};
-    var q = _auditRef().orderBy('ts', 'desc').limit(opts.limit || 500);
+    var q = _auditRef().orderBy('ts', 'desc').limit(opts.limit || 200);
     return q.get().then(_snapToArr);
   }
 

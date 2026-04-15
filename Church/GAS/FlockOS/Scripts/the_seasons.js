@@ -191,7 +191,7 @@ const TheSeason = (() => {
   async function _ensureMemberDir() {
     if (_memberDirCache && _memberDirCache.length) return _memberDirCache;
     if (!_memberDirPromise) {
-      _memberDirPromise = TheVine.flock.call('members.list', { limit: 500 })
+      _memberDirPromise = TheVine.flock.call('members.list', { limit: 200 })
         .then(function(res) {
           _memberDirCache = _rows(res);
           return _memberDirCache;

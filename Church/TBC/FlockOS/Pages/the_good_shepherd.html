@@ -1412,7 +1412,7 @@ _collapseNavGroups();
 
     // Giving summary + pledge target
     try {
-      var givRes = await TheVine.flock.call('giving.list', { limit: 200 });
+      var givRes = await TheVine.flock.call('giving.list', { limit: 100 });
       var givRows = Array.isArray(givRes) ? givRes : (givRes && givRes.rows ? givRes.rows : []);
       var yr = String(new Date().getFullYear());
       var mo = String(new Date().getMonth() + 1).padStart(2, '0');
@@ -1456,7 +1456,7 @@ _collapseNavGroups();
 
     // New members
     try {
-      var memRes = await TheVine.flock.call('members.list', { limit: 500 });
+      var memRes = await TheVine.flock.call('members.list', { limit: 200 });
       var memRows = Array.isArray(memRes) ? memRes : (memRes && memRes.rows ? memRes.rows : []);
       var mo30 = new Date(Date.now() - 30*86400000).toISOString().slice(0,10);
       var newCount = memRows.filter(function(r){ return (r['Join Date']||r['JoinDate']||'') >= mo30; }).length;
