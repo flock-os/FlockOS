@@ -11,7 +11,7 @@
      • Offline  → serve cached shell; API calls return offline fallback
    ══════════════════════════════════════════════════════════════════════════════ */
 
-const CACHE_VERSION = 'flockos-v3.24';
+const CACHE_VERSION = 'flockos-v3.25';
 const API_CACHE     = 'flockos-api-v1';
 
 // ── App Shell: pre-cached on install ────────────────────────────────────────

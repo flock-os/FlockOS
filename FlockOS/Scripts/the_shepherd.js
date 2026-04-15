@@ -106,6 +106,7 @@ const TheShepherd = (() => {
   // ── State ───────────────────────────────────────────────────────────────
   var _container = null;     // current render target
   var _ppData    = {};       // merged people map keyed by lower-case email
+  var _allPeople = null;     // cached merged array for client-side pagination
   var _openEmail = '';       // currently open profile email
   var _openMemId = '';       // member record ID (if exists)
   var _openCardId = '';      // card record ID (if exists)
@@ -127,34 +128,52 @@ const TheShepherd = (() => {
     container.innerHTML = _spinner();
 
     try {
-      // Parallel-load users, members, cards (users.list may fail for non-admin)
-      var res = await Promise.allSettled([
-        TheVine.flock.users.list(),
-        _isFB() ? UpperRoom.listMembers()         : TheVine.flock.members.list(),
-        _isFB() ? UpperRoom.listMemberCards()      : TheVine.flock.memberCards.directory(),
-      ]);
-      var users   = _rows(res[0].status === 'fulfilled' ? res[0].value : []);
-      var members = _rows(res[1].status === 'fulfilled' ? res[1].value : []);
-      var cards   = _rows(res[2].status === 'fulfilled' ? res[2].value : []);
+      // Re-use cached data on paginate / reload; fetch fresh on first load
+      if (!_allPeople) {
+        // Load ALL users, members, cards (high limit bypasses _DEFAULT_PAGE 25)
+        var fbAll = { limit: 9999 };
+        var res = await Promise.allSettled([
+          TheVine.flock.users.list(),
+          _isFB() ? UpperRoom.listMembers(fbAll)      : TheVine.flock.members.list(),
+          _isFB() ? UpperRoom.listMemberCards(fbAll)   : TheVine.flock.memberCards.directory(),
+        ]);
+        var users   = _rows(res[0].status === 'fulfilled' ? res[0].value : []);
+        var members = _rows(res[1].status === 'fulfilled' ? res[1].value : []);
+        var cards   = _rows(res[2].status === 'fulfilled' ? res[2].value : []);
 
-      // Merge 3 sources by email
-      var map = {};
-      users.forEach(function(u) {
-        var k = (u.email || '').toLowerCase(); if (!k) return;
-        map[k] = map[k] || { email: k }; map[k].user = u;
-      });
-      members.forEach(function(m) {
-        var k = (m.primaryEmail || m.email || '').toLowerCase();
-        if (!k) k = '_mid_' + (m.id || m.memberId || ('idx' + Math.random().toString(36).slice(2,8)));
-        map[k] = map[k] || { email: k }; map[k].member = m;
-      });
-      cards.forEach(function(c) {
-        var k = (c.email || '').toLowerCase(); if (!k) return;
-        map[k] = map[k] || { email: k }; map[k].card = c;
-      });
-      _ppData = map;
+        // Merge 3 sources by email
+        var map = {};
+        users.forEach(function(u) {
+          var k = (u.email || '').toLowerCase(); if (!k) return;
+          map[k] = map[k] || { email: k }; map[k].user = u;
+        });
+        members.forEach(function(m) {
+          var k = (m.primaryEmail || m.email || '').toLowerCase();
+          if (!k) k = '_mid_' + (m.id || m.memberId || ('idx' + Math.random().toString(36).slice(2,8)));
+          map[k] = map[k] || { email: k }; map[k].member = m;
+        });
+        cards.forEach(function(c) {
+          var k = (c.email || '').toLowerCase(); if (!k) return;
+          map[k] = map[k] || { email: k }; map[k].card = c;
+        });
+        _ppData = map;
+        _allPeople = Object.values(map);
+      }
 
-      var people = Object.values(map);
+      var people = _allPeople;
+
+      // ── Client-side pagination via Modules pager state ──────────────
+      var pg = (typeof Modules !== 'undefined' && Modules._pgState)
+             ? Modules._pgState('users') : null;
+      var pageSlice = people;
+      if (pg) {
+        var start = pg.page * pg.size;
+        pageSlice = people.slice(start, start + pg.size);
+        pg.count   = pageSlice.length;
+        pg.hasMore = start + pg.size < people.length;
+        pg.total   = people.length;
+      }
+
       var nU = people.filter(function(p) { return p.user; }).length;
       var nM = people.filter(function(p) { return p.member; }).length;
       var nC = people.filter(function(p) { return p.card; }).length;
@@ -192,8 +211,11 @@ const TheShepherd = (() => {
       if (nP) h += '<span style="color:var(--danger);">' + nP + ' pending</span>';
       h += '</div>';
 
-      // table
-      h += '<div id="shep-tbl">' + _buildTable(people) + '</div>';
+      // table (paginated slice) + pager bar
+      h += '<div id="shep-tbl">' + _buildTable(pageSlice) + '</div>';
+      if (pg && typeof Modules !== 'undefined' && Modules._pagerBar) {
+        h += Modules._pagerBar('users');
+      }
       container.innerHTML = h;
     } catch (e) { container.innerHTML = _errHtml(e.message); }
   }
@@ -263,7 +285,7 @@ const TheShepherd = (() => {
       await TheVine.flock.users.approve({ email: email });
       _toast('Approved!', 'success');
       if (typeof TheScrolls !== 'undefined') TheScrolls.log(TheScrolls.TYPES.APPROVAL, email, 'Approved registration', { personName: email });
-      renderApp(_container);
+      _allPeople = null; renderApp(_container);
     } catch (e) { alert('Failed: ' + (e.message || e)); }
   }
   async function _deny(email) {
@@ -272,7 +294,7 @@ const TheShepherd = (() => {
       await TheVine.flock.users.deny({ email: email });
       _toast('Denied.', 'danger');
       if (typeof TheScrolls !== 'undefined') TheScrolls.log(TheScrolls.TYPES.DENIAL, email, 'Denied registration', { personName: email });
-      renderApp(_container);
+      _allPeople = null; renderApp(_container);
     } catch (e) { alert('Failed: ' + (e.message || e)); }
   }
 
@@ -1039,7 +1061,7 @@ const TheShepherd = (() => {
       _toast('Member record deleted.', 'success');
       if (typeof TheScrolls !== 'undefined') TheScrolls.log(TheScrolls.TYPES.ADMIN_ACTION, email, 'Deleted member record', { memberId: memberId });
       // Return to people list since the profile no longer has a member record
-      renderApp(_container);
+      _allPeople = null; renderApp(_container);
     } catch (e) { alert('Failed: ' + (e.message || e)); }
   }
 
@@ -1214,7 +1236,7 @@ const TheShepherd = (() => {
       alert('Wipe failed for both backends. Check console for details.');
     }
 
-    renderApp(_container);
+    _allPeople = null; renderApp(_container);
   }
 
   async function _resetPasscode(email) {
@@ -1298,6 +1320,7 @@ const TheShepherd = (() => {
 
   // ── Navigation ──────────────────────────────────────────────────────────
   function backToList() {
+    _allPeople = null;  // force fresh data on return to list
     if (_container) renderApp(_container);
   }
 

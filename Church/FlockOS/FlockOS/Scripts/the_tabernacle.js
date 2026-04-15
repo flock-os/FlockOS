@@ -1712,7 +1712,8 @@ const Modules = (() => {
   async function _ensureMemberDir() {
     if (_dataCache['memberDir'] && _dataCache['memberDir'].length) return _dataCache['memberDir'];
     if (!TheVine.session()) return [];
-    const raw = await _fetch('memberDir', () => _isFirebaseComms() ? UpperRoom.listMemberCards() : TheVine.flock.memberCards.directory());
+    var fbAll = { limit: 9999 };
+    const raw = await _fetch('memberDir', () => _isFirebaseComms() ? UpperRoom.listMemberCards(fbAll) : TheVine.flock.memberCards.directory());
     const d = _rows(raw);
     if (d.length) _dataCache['memberDir'] = d;
     return d;
@@ -2110,9 +2111,16 @@ const Modules = (() => {
         _body(el, '<div class="alert alert-info">No member cards found. Add members via the Matthew spreadsheet.</div>');
         return;
       }
+      // Client-side pagination
+      var pg = _pgState('directory');
+      var start = pg.page * pg.size;
+      var pageSlice = rows.slice(start, start + pg.size);
+      pg.count   = pageSlice.length;
+      pg.hasMore = start + pg.size < rows.length;
+      pg.total   = rows.length;
       _body(el, _table(
         ['#', 'Name', 'Card Title', 'Ministry', 'Small Group', 'Visibility'],
-        rows.map(r => [
+        pageSlice.map(r => [
           _e(r.memberNumber),
           _e([r.preferredName || r.firstName, r.lastName].filter(Boolean).join(' ')),
           _e(r.cardTitle),
@@ -2120,8 +2128,8 @@ const Modules = (() => {
           _e(r.smallGroup),
           _statusBadge(r.visibility || r.status || r.active),
         ]),
-        { editFn: '_dirOpen', ids: rows.map(r => r.id) }
-      ));
+        { editFn: '_dirOpen', ids: pageSlice.map(r => r.id) }
+      ) + _pagerBar('directory'));
     } catch (e) { _body(el, _errHtml(e.message)); }
   });
 
@@ -10472,10 +10480,11 @@ const Modules = (() => {
   /* ── People list loader ─────────────────────────────────────────────── */
   async function _ppLoadList(el) {
     try {
+      var fbAll = { limit: 9999 };
       var res = await Promise.all([
         TheVine.flock.users.list(),
-        _isFirebaseComms() ? UpperRoom.listMembers()     : TheVine.flock.members.list(),
-        _isFirebaseComms() ? UpperRoom.listMemberCards()  : TheVine.flock.memberCards.directory()
+        _isFirebaseComms() ? UpperRoom.listMembers(fbAll)     : TheVine.flock.members.list(),
+        _isFirebaseComms() ? UpperRoom.listMemberCards(fbAll)  : TheVine.flock.memberCards.directory()
       ]);
       var users = _rows(res[0]), members = _rows(res[1]), cards = _rows(res[2]);
       _dataCache['users'] = users;
@@ -10496,6 +10505,15 @@ const Modules = (() => {
       _ppData = map;
 
       var people = Object.values(map);
+
+      // ── Client-side pagination ──────────────────────────────────────
+      var pg = _pgState('users');
+      var start = pg.page * pg.size;
+      var pageSlice = people.slice(start, start + pg.size);
+      pg.count   = pageSlice.length;
+      pg.hasMore = start + pg.size < people.length;
+      pg.total   = people.length;
+
       var nU = people.filter(function(p){ return p.user; }).length;
       var nM = people.filter(function(p){ return p.member; }).length;
       var nC = people.filter(function(p){ return p.card; }).length;
@@ -10524,8 +10542,9 @@ const Modules = (() => {
       if (nP) h += '<span style="color:var(--danger);">' + nP + ' pending</span>';
       h += '</div>';
 
-      // table
-      h += '<div id="pp-tbl">' + _ppTable(people) + '</div>';
+      // table (paginated slice) + pager bar
+      h += '<div id="pp-tbl">' + _ppTable(pageSlice) + '</div>';
+      h += _pagerBar('users');
       _body(el, h);
     } catch (e) { _body(el, _errHtml(e.message)); }
   }
@@ -12118,18 +12137,25 @@ const Modules = (() => {
     // ── Background async — fetch data and fill table when ready ──────────
     (async function _loadAudit() {
     try {
-      const res  = await TheVine.flock.call('audit.list', { limit: 100 });
+      const res  = await TheVine.flock.call('audit.list', { limit: 500 });
       const rows = _rows(res);
+      // Client-side pagination
+      var pg = _pgState('audit');
+      var start = pg.page * pg.size;
+      var pageSlice = rows.slice(start, start + pg.size);
+      pg.count   = pageSlice.length;
+      pg.hasMore = start + pg.size < rows.length;
+      pg.total   = rows.length;
       _body(el, _table(
         ['Timestamp', 'User', 'Action', 'Target', 'Details'],
-        rows.map(r => [
+        pageSlice.map(r => [
           _e(r.createdAt || r.timestamp || ''),
           _e(r.actorEmail || r.user || ''),
           _e(r.action || ''),
           _e(r.entityType ? r.entityType + (r.entityId ? ' / ' + r.entityId : '') : ''),
           _e((r.details || r.notes || '').substring(0, 80)),
         ])
-      ));
+      ) + _pagerBar('audit'));
     } catch (e) { _body(el, _errHtml(e.message)); }
     })();
   });
@@ -12200,13 +12226,20 @@ const Modules = (() => {
         h += '</div></div>';
 
         // ── Current access list table ──────────────────────────────────
+        // Client-side pagination
+        var pg = _pgState('access');
+        var start = pg.page * pg.size;
+        var pageSlice = rows.slice(start, start + pg.size);
+        pg.count   = pageSlice.length;
+        pg.hasMore = start + pg.size < rows.length;
+        pg.total   = rows.length;
         if (!rows.length) {
           h += _empty('\uD83D\uDD10', 'No access entries', 'Add the first user above.');
         } else {
           h += '<table class="data-table"><thead><tr>'
              + '<th>Email</th><th>Display Name</th><th>Role</th><th>Active</th><th>Updated</th><th></th>'
              + '</tr></thead><tbody>';
-          rows.forEach(function(r) {
+          pageSlice.forEach(function(r) {
             var ee = _e(r.email);
             var isActive = String(r.active || 'FALSE').toUpperCase() === 'TRUE';
             h += '<tr>';
@@ -12228,6 +12261,7 @@ const Modules = (() => {
             h += _badge((ROLE_LABELS[r] || r), ROLE_COLOR[r] || 'info') + ' ';
           });
           h += '</div>';
+          h += _pagerBar('access');
         }
 
         _body(el, h);
@@ -13687,9 +13721,17 @@ const Modules = (() => {
       const rows = _isFirebaseComms() ? res : _filterClosed(_rows(res), 'Status');
       _dataCache['prayer-admin'] = rows;
 
+      // Client-side pagination
+      var pg = _pgState('prayer-admin');
+      var start = pg.page * pg.size;
+      var pageSlice = rows.slice(start, start + pg.size);
+      pg.count   = pageSlice.length;
+      pg.hasMore = start + pg.size < rows.length;
+      pg.total   = rows.length;
+
       // ── Card grid layout ──────────────────────────────────────────────
       let cards = '';
-      rows.forEach(r => {
+      pageSlice.forEach(r => {
         const rid      = _e(String(r.id || r.ID || r['ID']));
         const name     = _e(r['Submitter Name'] || r.submitterName || 'Anonymous');
         const prayer   = _e(r['Prayer Text'] || r.prayerText || '');
@@ -13733,7 +13775,7 @@ const Modules = (() => {
         _body(el, _empty('&#128591;', 'No Prayer Requests', 'All caught up!'));
       } else {
         _body(el, '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px;">'
-          + cards + '</div>');
+          + cards + '</div>' + _pagerBar('prayer-admin'));
       }
     } catch (e) { _body(el, _errHtml(e.message)); }
   });
@@ -21490,6 +21532,8 @@ const Modules = (() => {
     _pgNext,
     _pgPrev,
     _pgSize,
+    _pgState,
+    _pagerBar,
     _urSaveJournal,
     _urSubmitPrayer,
     _geneToggleView,
