@@ -214,19 +214,18 @@
     /* ── Table ──────────────────────────────────────────────────────────── */
     /* ── Day-of-week filter tickers ──────────────────────────────────── */
     .dow-filters {
-      display:flex; gap:4px; padding:10px 16px; border-top:1px solid var(--line);
-      background:var(--bg-sunken); justify-content:center; flex-wrap:nowrap;
+      display:flex; gap:4px; flex-wrap:nowrap; margin-left:auto;
     }
     .dow-tick {
-      padding:5px 10px; border-radius:7px; border:1.5px solid var(--line-strong);
-      background:var(--bg-raised); color:var(--ink-muted); font:inherit;
-      font-size:.72rem; font-weight:700; cursor:pointer; transition:all .15s;
-      letter-spacing:.04em; min-width:38px; text-align:center;
+      padding:3px 8px; border-radius:6px; border:1.5px solid rgba(255,255,255,.18);
+      background:rgba(255,255,255,.10); color:rgba(224,231,255,.75) !important; font:inherit;
+      font-size:.68rem; font-weight:700; cursor:pointer; transition:all .15s;
+      letter-spacing:.04em; min-width:34px; text-align:center;
     }
-    .dow-tick:hover { background:var(--bg-hover); border-color:var(--accent); color:var(--accent); }
+    .dow-tick:hover { background:rgba(255,255,255,.20); border-color:rgba(255,255,255,.35); color:#e0e7ff !important; }
     .dow-tick.active {
-      background:linear-gradient(135deg,#4f46e5,#4338ca); color:#fff;
-      border-color:transparent; box-shadow:0 2px 8px rgba(79,70,229,.30);
+      background:rgba(255,255,255,.22); color:#fff !important;
+      border-color:rgba(255,255,255,.45); box-shadow:0 1px 6px rgba(79,70,229,.30);
     }
 
     .tscroll { overflow-x:auto; overflow-y:auto; max-height:calc(100vh - 290px); }
@@ -564,6 +563,16 @@
         <div class="card-head">
           <span class="card-head-title">Schedule Grid</span>
           <span style="font-size:.78rem;color:var(--ink-muted);"><span id="rowCt">0</span> Sundays</span>
+          <div class="dow-filters" id="dowFilters">
+            <button type="button" class="dow-tick active" data-dow="-1">All</button>
+            <button type="button" class="dow-tick" data-dow="0">Sun</button>
+            <button type="button" class="dow-tick" data-dow="1">Mon</button>
+            <button type="button" class="dow-tick" data-dow="2">Tue</button>
+            <button type="button" class="dow-tick" data-dow="3">Wed</button>
+            <button type="button" class="dow-tick" data-dow="4">Thu</button>
+            <button type="button" class="dow-tick" data-dow="5">Fri</button>
+            <button type="button" class="dow-tick" data-dow="6">Sat</button>
+          </div>
         </div>
         <div class="tscroll">
           <table>
@@ -582,16 +591,6 @@
             </tr></thead>
             <tbody id="gridBody"></tbody>
           </table>
-        </div>
-        <div class="dow-filters" id="dowFilters">
-          <button type="button" class="dow-tick active" data-dow="-1">All</button>
-          <button type="button" class="dow-tick" data-dow="0">Sun</button>
-          <button type="button" class="dow-tick" data-dow="1">Mon</button>
-          <button type="button" class="dow-tick" data-dow="2">Tue</button>
-          <button type="button" class="dow-tick" data-dow="3">Wed</button>
-          <button type="button" class="dow-tick" data-dow="4">Thu</button>
-          <button type="button" class="dow-tick" data-dow="5">Fri</button>
-          <button type="button" class="dow-tick" data-dow="6">Sat</button>
         </div>
       </div>
 
