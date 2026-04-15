@@ -179,6 +179,21 @@
       font-size: .72rem; color: var(--ink-muted); flex-wrap: wrap;
     }
     .stats-bar strong { color: var(--ink); }
+
+    /* ── Pagination bar ─────────────────────────────────────────── */
+    .page-bar {
+      padding: 8px 18px; background: rgba(232,168,56,.06);
+      border-bottom: 1px solid var(--line); display: flex;
+      align-items: center; gap: 10px; font-size: .72rem; color: var(--ink-muted);
+    }
+    .page-bar button {
+      background: var(--bg-card); border: 1px solid var(--line-strong);
+      border-radius: 6px; color: var(--ink); font: inherit; font-size: .72rem;
+      padding: 4px 12px; cursor: pointer; transition: all .15s; font-weight: 600;
+    }
+    .page-bar button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+    .page-bar button:disabled { opacity: .3; cursor: not-allowed; }
+    .page-bar .page-info { flex: 1; text-align: center; color: var(--ink-faint); }
   </style>
 </head>
 <body>
@@ -223,6 +238,7 @@
       <div class="breadcrumb" id="breadcrumb"></div>
     </div>
     <div id="statsBar" class="stats-bar" style="display:none;"></div>
+    <div id="pageBar" class="page-bar" style="display:none;"></div>
     <div class="tree" id="treeView">
       <div class="tree-empty">Connect to a project to begin exploring.</div>
     </div>
@@ -303,6 +319,11 @@
   var _auth = null;
   var _currentProject = null;
   var _navStack = [];  // [{type:'root'}, {type:'collection',name:'...'}, {type:'doc',name:'...',id:'...'}, ...]
+  var _PAGE_SIZE = 25;
+  var _pageStack = [];   // stack of firstDoc snapshots for going back
+  var _lastDocSnap = null;  // last doc of current page (cursor for next)
+  var _currentColRef = null;
+  var _currentColName = '';
 
   /* ── DOM refs ──────────────────────────────────────────────────────── */
   var $proj   = document.getElementById('projSelect');
@@ -316,6 +337,7 @@
   var $tree   = document.getElementById('treeView');
   var $bread  = document.getElementById('breadcrumb');
   var $stats  = document.getElementById('statsBar');
+  var $pager  = document.getElementById('pageBar');
 
   /* ── Populate project dropdown ─────────────────────────────────────── */
   PROJECTS.forEach(function(p) {
@@ -435,12 +457,23 @@
   }
 
   /* ── Render Root (list known collections) ──────────────────────────── */
-  function renderRoot() {
+  var _rootCache = {}; // keyed by project id
+
+  function renderRoot(forceRefresh) {
     renderBreadcrumb();
     $stats.style.display = 'none';
+    $pager.style.display = 'none';
+
+    // Use cached results if available and not forcing refresh
+    var cacheKey = _currentProject ? _currentProject.id : '';
+    if (!forceRefresh && _rootCache[cacheKey]) {
+      renderRootResults(_rootCache[cacheKey]);
+      return;
+    }
+
     $tree.innerHTML = '<div class="loading">Scanning collections…</div>';
 
-    // Probe each known collection for at least one doc
+    // Probe each known collection for at least one doc (1 read per collection)
     var promises = KNOWN_COLLECTIONS.map(function(name) {
       return _db.collection(name).limit(1).get()
         .then(function(snap) { return { name: name, exists: !snap.empty, size: snap.size }; })
@@ -449,7 +482,13 @@
 
     Promise.all(promises).then(function(results) {
       var existing = results.filter(function(r) { return r.exists; });
-      $tree.innerHTML = '';
+      _rootCache[cacheKey] = existing;
+      renderRootResults(existing);
+    });
+  }
+
+  function renderRootResults(existing) {
+    $tree.innerHTML = '';
 
       if (!existing.length) {
         $tree.innerHTML = '<div class="tree-empty">No data found in known collections.</div>';
@@ -475,25 +514,48 @@
     });
   }
 
-  /* ── Load Collection ───────────────────────────────────────────────── */
-  function loadCollection(name, colRef) {
+  /* ── Load Collection (paginated, 25/page) ────────────────────────── */
+  function loadCollection(name, colRef, opts) {
+    opts = opts || {};
+    _currentColRef = colRef;
+    _currentColName = name;
     renderBreadcrumb();
     $tree.innerHTML = '<div class="loading">Loading ' + esc(name) + '…</div>';
     $stats.style.display = 'none';
+    $pager.style.display = 'none';
 
-    colRef.orderBy(firebase.firestore.FieldPath.documentId()).limit(200).get()
+    // Reset pagination when entering a new collection (no opts)
+    if (!opts.cursor) {
+      _pageStack = [];
+      _lastDocSnap = null;
+    }
+
+    var q = colRef.orderBy(firebase.firestore.FieldPath.documentId()).limit(_PAGE_SIZE);
+    if (opts.cursor) q = q.startAfter(opts.cursor);
+
+    q.get()
       .then(function(snap) {
         $tree.innerHTML = '';
-        $stats.style.display = '';
-        $stats.innerHTML = '<strong>' + snap.size + '</strong> document' + (snap.size !== 1 ? 's' : '') +
-          (snap.size >= 200 ? ' (showing first 200)' : '');
 
-        if (snap.empty) {
+        if (snap.empty && _pageStack.length === 0) {
           $tree.innerHTML = '<div class="tree-empty">Collection is empty.</div>';
           $stats.style.display = 'none';
+          $pager.style.display = 'none';
           return;
         }
 
+        // Track last doc for "Next" cursor
+        _lastDocSnap = snap.docs.length ? snap.docs[snap.docs.length - 1] : null;
+        var hasNext = snap.docs.length === _PAGE_SIZE;
+        var hasPrev = _pageStack.length > 0;
+        var pageNum = _pageStack.length + 1;
+
+        // Stats bar
+        $stats.style.display = '';
+        $stats.innerHTML = '<strong>' + snap.size + '</strong> document' + (snap.size !== 1 ? 's' : '') +
+          ' on this page';
+
+        // Render docs
         snap.forEach(function(doc) {
           var data = doc.data();
           var preview = docPreview(data);
@@ -509,10 +571,41 @@
           });
           $tree.appendChild(row);
         });
+
+        // Pagination bar
+        if (hasPrev || hasNext) {
+          $pager.style.display = '';
+          $pager.innerHTML = '';
+          var btnPrev = document.createElement('button');
+          btnPrev.textContent = '← Prev';
+          btnPrev.disabled = !hasPrev;
+          btnPrev.addEventListener('click', function() {
+            var prevCursor = _pageStack.pop();
+            loadCollection(name, colRef, prevCursor ? { cursor: prevCursor } : {});
+          });
+          $pager.appendChild(btnPrev);
+
+          var info = document.createElement('span');
+          info.className = 'page-info';
+          info.textContent = 'Page ' + pageNum;
+          $pager.appendChild(info);
+
+          var btnNext = document.createElement('button');
+          btnNext.textContent = 'Next →';
+          btnNext.disabled = !hasNext;
+          btnNext.addEventListener('click', function() {
+            _pageStack.push(opts.cursor || null);
+            loadCollection(name, colRef, { cursor: _lastDocSnap });
+          });
+          $pager.appendChild(btnNext);
+        } else {
+          $pager.style.display = 'none';
+        }
       })
       .catch(function(e) {
         $tree.innerHTML = '<div class="tree-empty" style="color:var(--danger);">Error: ' + esc(e.message) + '</div>';
         $stats.style.display = 'none';
+        $pager.style.display = 'none';
       });
   }
 
@@ -521,6 +614,7 @@
     renderBreadcrumb();
     $tree.innerHTML = '<div class="loading">Loading document…</div>';
     $stats.style.display = 'none';
+    $pager.style.display = 'none';
 
     docRef.get().then(function(snap) {
       $tree.innerHTML = '';

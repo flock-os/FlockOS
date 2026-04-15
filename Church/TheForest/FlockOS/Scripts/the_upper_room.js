@@ -1129,14 +1129,18 @@ window.FLOCK_CHURCH_ID = "theforest";
 
   function listMembers(opts) {
     opts = opts || {};
-    var q = _membersRef().orderBy('lastName').limit(opts.limit || 500);
+    var q = _membersRef().orderBy('lastName').limit(opts.limit || 25);
     if (opts.membershipStatus) q = q.where('membershipStatus', '==', opts.membershipStatus);
+    if (opts.startAfter) q = q.startAfter(opts.startAfter);
     return q.get().then(function(snap) {
       var results = [];
       snap.forEach(function(doc) {
         var d = doc.data(); d.id = doc.id; results.push(d);
       });
-      return results;
+      var out = { results: results, lastDoc: snap.docs.length ? snap.docs[snap.docs.length - 1] : null, hasMore: snap.docs.length === (opts.limit || 25) };
+      // Legacy: callers that expect a plain array get one (no startAfter = old behavior)
+      if (!opts.startAfter && !opts.paginate) return results;
+      return out;
     });
   }
 
@@ -1336,15 +1340,18 @@ window.FLOCK_CHURCH_ID = "theforest";
 
   function listMemberCards(opts) {
     opts = opts || {};
-    var q = _memberCardsRef().orderBy('lastName').limit(opts.limit || 500);
+    var q = _memberCardsRef().orderBy('lastName').limit(opts.limit || 25);
     if (opts.status) q = q.where('status', '==', opts.status);
     if (opts.visibility) q = q.where('visibility', '==', opts.visibility);
+    if (opts.startAfter) q = q.startAfter(opts.startAfter);
     return q.get().then(function(snap) {
       var results = [];
       snap.forEach(function(doc) {
         var d = doc.data(); d.id = doc.id; results.push(d);
       });
-      return results;
+      var out = { results: results, lastDoc: snap.docs.length ? snap.docs[snap.docs.length - 1] : null, hasMore: snap.docs.length === (opts.limit || 25) };
+      if (!opts.startAfter && !opts.paginate) return results;
+      return out;
     });
   }
 
@@ -1361,8 +1368,8 @@ window.FLOCK_CHURCH_ID = "theforest";
   }
 
   function searchMemberCards(query) {
-    // Client-side filter — Firestore doesn't support LIKE queries
-    return listMemberCards({ limit: 500 }).then(function(cards) {
+    // Client-side filter — needs all cards, so use a higher limit
+    return listMemberCards({ limit: 200 }).then(function(cards) {
       var q = (query || '').toLowerCase();
       if (!q) return cards;
       return cards.filter(function(c) {
