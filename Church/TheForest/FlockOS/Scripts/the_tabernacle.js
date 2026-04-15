@@ -15741,7 +15741,7 @@ const Modules = (() => {
       // ── Client-side reports (no backend reports.* endpoint needed) ──────
       if (key === 'inactiveMembers') {
         const [memRes, contactRes] = await Promise.all([
-          _isFirebaseComms() ? UpperRoom.listMembers({ limit: 500 }) : TheVine.flock.members.list({ limit: 2000 }),
+          _isFirebaseComms() ? UpperRoom.listMembers({ limit: 500 }) : TheVine.flock.members.list({ limit: 500 }),
           (_isFirebaseComms() ? UpperRoom.listContacts({ limit: 1000 }) : TheVine.flock.contacts.list({ limit: 1000 })).catch(() => null),
         ]);
         const members  = _rows(memRes);
@@ -15788,7 +15788,7 @@ const Modules = (() => {
         output.innerHTML = html;
 
       } else if (key === 'upcomingBirthdays') {
-        const memRes  = await (_isFirebaseComms() ? UpperRoom.listMembers({ limit: 500 }) : TheVine.flock.members.list({ limit: 2000 }));
+        const memRes  = await (_isFirebaseComms() ? UpperRoom.listMembers({ limit: 500 }) : TheVine.flock.members.list({ limit: 500 }));
         const members = _rows(memRes);
         const today   = new Date();
         const in30    = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000);
@@ -15859,7 +15859,7 @@ const Modules = (() => {
       } else if (key === 'smallGroupHealth') {
         const [groupRes, memberRes] = await Promise.all([
           _isFirebaseComms() ? UpperRoom.listGroups({ limit: 200 }) : TheVine.flock.groups.list({ limit: 200 }),
-          (_isFirebaseComms() ? UpperRoom.listMembers({ limit: 500 }) : TheVine.flock.members.list({ limit: 2000 })).catch(() => null),
+          (_isFirebaseComms() ? UpperRoom.listMembers({ limit: 500 }) : TheVine.flock.members.list({ limit: 500 })).catch(() => null),
         ]);
         const groups  = _rows(groupRes);
         const total   = groups.length;
@@ -20253,7 +20253,7 @@ const Modules = (() => {
 
     // Main data queries — fill KPIs and data cards when ready (non-blocking)
     Promise.all([
-      (_isFirebaseComms() ? UpperRoom.listMembers({ limit: 500 }) : TheVine.flock.members.list({ limit: 2000 })).catch(function () { return null; }),
+      (_isFirebaseComms() ? UpperRoom.listMembers({ limit: 500 }) : TheVine.flock.members.list({ limit: 500 })).catch(function () { return null; }),
       (_isFirebaseComms() ? UpperRoom.listCareCases({ limit: 500 }) : TheVine.flock.care.list({ limit: 500 })).catch(function () { return null; }),
       (_isFirebaseComms() ? UpperRoom.listCompassionRequests({ limit: 200 }) : TheVine.flock.compassion.requests.list({ limit: 200 })).catch(function () { return null; }),
       (_isFirebaseComms() ? UpperRoom.listEvents({ limit: 100 }) : TheVine.flock.events.list({ limit: 100 })).catch(function () { return null; }),

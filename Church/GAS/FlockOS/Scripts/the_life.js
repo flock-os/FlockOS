@@ -197,7 +197,7 @@ const TheLife = (() => {
       // All My Flock users have care+ role → use members.list (full roster).
       // Admins also pull users.list (AuthUsers) to catch staff not in Members.
       _memberDirPromise = (async function() {
-        var fetches = [_isFB() ? UpperRoom.listMembers({ limit: 200 }) : TheVine.flock.call('members.list', { limit: 500 })];
+        var fetches = [_isFB() ? UpperRoom.listMembers({ limit: 200 }) : TheVine.flock.call('members.list', { limit: 200 })];
         if (Nehemiah.hasRole('admin') || Nehemiah.hasGroup('Master') || Nehemiah.hasGroup('Seed Admin') || Nehemiah.hasGroup('Lead Pastor')) {
           fetches.push(TheVine.flock.call('users.list', {}));
         }
@@ -3481,7 +3481,7 @@ const TheLife = (() => {
       // ── Light data fetch for KPI ribbon ──
       var fetches = [
         isPastorPlus
-          ? _fetch('members', () => _isFB() ? UpperRoom.listMembers({ limit: 200 }) : TheVine.flock.call('members.list', { limit: 500 }))
+          ? _fetch('members', () => _isFB() ? UpperRoom.listMembers({ limit: 200 }) : TheVine.flock.call('members.list', { limit: 200 }))
           : isCareRole
             ? _fetch('myFlock', () => _isFB() ? UpperRoom.careAssignmentsMyFlock(email) : TheVine.flock.care.assignments.myFlock({ caregiverId: email }))
             : _fetch('directory', () => _isFB() ? UpperRoom.listMemberCards() : TheVine.flock.memberCards.directory()),

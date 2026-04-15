@@ -27,133 +27,6 @@ const Modules = (() => {
     window._applyFontScale = apply;
   })();
 
-  // ── Adaptive Performance Layer ──────────────────────────────────────────
-  // Tunes caching, timeouts, and UX based on the active backend.
-  // Firestore is fast (sub-second reads) → tight timeouts, short cache, instant UX.
-  // GAS is slow (2-8s cold starts)       → generous timeouts, longer cache, patient UX.
-  var _perfProfile = {
-    backend:       null,    // 'firebase' | 'gas' — null until resolved
-    cacheTTL:      60000,   // default: 1 minute (overridden once backend is known)
-    spinnerDelay:  0,       // ms before showing spinner (Firestore = 150ms, GAS = 0)
-  };
-
-  // View-level data cache: avoids redundant Firestore/GAS fetches when
-  // the user navigates away and back within the TTL window.
-  var _viewCache = {};  // { viewName: { html, ts } }
-
-  function _perfDetect() {
-    // Already resolved
-    if (_perfProfile.backend) return;
-
-    // Check if UpperRoom (Firestore layer) is loaded and authenticated
-    var fb = typeof UpperRoom !== 'undefined' && UpperRoom.isReady && UpperRoom.isReady();
-    var gas = typeof TheVine !== 'undefined' && TheVine.config && TheVine.config().FLOCK_URL;
-
-    if (fb) {
-      _perfProfile.backend      = 'firebase';
-      _perfProfile.cacheTTL     = 30000;   // 30s — Firestore is fast, keep cache short
-      _perfProfile.spinnerDelay = 120;     // slight delay before spinner (most reads < 120ms)
-    } else if (gas) {
-      _perfProfile.backend      = 'gas';
-      _perfProfile.cacheTTL     = 120000;  // 2 min — GAS is slow, cache longer
-      _perfProfile.spinnerDelay = 0;       // show spinner immediately (expect wait)
-    }
-  }
-
-  /**
-   * Check if a cached view is still fresh.
-   * Returns the cached HTML string if valid, or null if stale/missing.
-   */
-  function _viewCacheGet(viewName) {
-    var entry = _viewCache[viewName];
-    if (!entry) return null;
-    if (Date.now() - entry.ts > _perfProfile.cacheTTL) {
-      delete _viewCache[viewName];
-      return null;
-    }
-    return entry.html;
-  }
-
-  /**
-   * Store the rendered HTML for a view so re-navigation is instant.
-   * Skips caching if the view still contains a loading spinner — this means
-   * the handler resolved before its async data fetch completed.
-   */
-  function _viewCacheSet(viewName, el) {
-    if (!el) return;
-    var html = el.innerHTML;
-    // Don't cache views that still have a spinner — the handler's promise
-    // resolved before _body() filled in the real content.
-    if (html.indexOf('class="loading"') !== -1 || html.indexOf('class="spin"') !== -1) {
-      console.log('[FLOCK-DEBUG] _viewCacheSet("' + viewName + '") SKIPPED — still contains spinner');
-      return;
-    }
-    _viewCache[viewName] = { html: html, ts: Date.now() };
-  }
-
-  /**
-   * Invalidate a specific view cache (e.g. after a create/edit/delete).
-   */
-  function _viewCacheInvalidate(viewName) {
-    if (viewName) delete _viewCache[viewName];
-    else _viewCache = {};  // clear all if no name given
-  }
-
-  // ── Auto-init Firestore DB ──────────────────────────────────────────────
-  // On a brand-new Firestore project the appConfig collection is empty.
-  // Detect this once, seed defaults, and show a friendly init message.
-  var _dbInitChecked = false;
-  var _dbInitializing = false;
-
-  function _ensureDbInitialized() {
-    if (_dbInitChecked || _dbInitializing) return Promise.resolve();
-    if (!_isFirebaseComms()) { _dbInitChecked = true; return Promise.resolve(); }
-    if (typeof UpperRoom === 'undefined' || !UpperRoom.isReady || !UpperRoom.isReady()) {
-      _dbInitChecked = true; return Promise.resolve();
-    }
-
-    _dbInitializing = true;
-    return UpperRoom.listAppConfig()
-      .then(function(res) {
-        var rows = res && res.forEach ? [] : [];
-        if (res && res.forEach) { res.forEach(function(r) { rows.push(r); }); }
-        else if (Array.isArray(res)) { rows = res; }
-        if (rows.length > 0) { _dbInitChecked = true; _dbInitializing = false; return; }
-
-        // Empty DB — seed defaults
-        var seedRows = _DEFAULT_APP_CONFIG.slice();
-        var writes = seedRows.map(function(r) { return UpperRoom.setAppConfig(r).catch(function() {}); });
-
-        // Show initialization overlay
-        var overlay = document.createElement('div');
-        overlay.id = 'db-init-overlay';
-        overlay.style.cssText = 'position:fixed;inset:0;z-index:999999;display:flex;flex-direction:column;'
-          + 'align-items:center;justify-content:center;background:var(--bg,#1a1a2e);color:var(--ink,#e0e0e0);'
-          + 'text-align:center;padding:40px 24px;font-family:Georgia,serif;';
-        overlay.innerHTML =
-          '<div style="font-size:3.5rem;margin-bottom:20px;">\u2699\uFE0F</div>'
-          + '<h1 style="font-size:1.5rem;font-weight:700;color:var(--accent,#e8a838);margin:0 0 16px;">'
-          + 'Database Being Initialized</h1>'
-          + '<p style="font-size:1.05rem;max-width:440px;line-height:1.7;color:var(--ink-muted,#aaa);">'
-          + 'Your church database is being set up for the first time. '
-          + 'Please check back in a few minutes.</p>'
-          + '<p style="margin-top:28px;font-size:0.82rem;color:var(--ink-muted,#777);font-style:italic;">'
-          + '\u201CUnless the Lord builds the house, the builders labor in vain.\u201D \u2014 Psalm 127:1</p>';
-        document.body.appendChild(overlay);
-
-        return Promise.all(writes).then(function() {
-          _dbInitChecked = true;
-          _dbInitializing = false;
-          // Auto-dismiss after 5 seconds so admin can continue
-          setTimeout(function() {
-            var ov = document.getElementById('db-init-overlay');
-            if (ov) ov.remove();
-          }, 5000);
-        });
-      })
-      .catch(function() { _dbInitChecked = true; _dbInitializing = false; });
-  }
-
   // ── XSS-safe HTML escape ────────────────────────────────────────────────
   function _e(s) {
     if (s === null || s === undefined) return '';
@@ -289,353 +162,12 @@ const Modules = (() => {
     return '<span class="badge badge-' + (cls || 'info') + '">' + _e(String(text || '')) + '</span>';
   }
 
-  // Safely convert any date value (string, Date, Firestore Timestamp) to YYYY-MM-DD
-  function _dateStr(v) {
-    if (!v) return '';
-    if (typeof v === 'string') return v.substring(0, 10);
-    if (v.toDate) return v.toDate().toISOString().substring(0, 10);
-    if (v instanceof Date) return v.toISOString().substring(0, 10);
-    return String(v).substring(0, 10);
-  }
-
   function _toast(msg, type) {
     var t = document.createElement('div');
     t.className = 'toast toast-' + (type || 'success') + ' show';
     t.textContent = msg;
     document.body.appendChild(t);
     setTimeout(function() { t.remove(); }, 3000);
-  }
-
-  /**
-   * Deferred-action with undo toast.
-   * Shows a toast with an Undo button; executes `action()` after `delay` ms
-   * unless the user clicks Undo. Returns a Promise that resolves true if
-   * the action executed, false if undone.
-   *
-   * @param {string} msg   - e.g. "Album deleted"
-   * @param {function():Promise} action - the destructive operation
-   * @param {object} [opts]
-   * @param {number} [opts.delay=5000] - ms before action fires
-   * @param {function} [opts.onUndo]   - optional callback when undone
-   */
-  function _undoAction(msg, action, opts) {
-    opts = opts || {};
-    var delay = opts.delay || 5000;
-    var cancelled = false;
-    var executed = false;
-
-    return new Promise(function(resolve) {
-      var t = document.createElement('div');
-      t.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:10000;'
-        + 'background:var(--bg-raised,#1a1d26);color:var(--ink,#e8e8ed);border:1px solid var(--line,#333);'
-        + 'border-radius:10px;padding:12px 20px;display:flex;align-items:center;gap:14px;'
-        + 'box-shadow:0 8px 32px rgba(0,0,0,.4);font-size:0.85rem;font-family:inherit;'
-        + 'animation:fadeIn .2s;min-width:260px;max-width:420px;';
-
-      // Progress bar
-      var bar = document.createElement('div');
-      bar.style.cssText = 'position:absolute;bottom:0;left:0;height:3px;background:var(--accent,#6366f1);'
-        + 'border-radius:0 0 10px 10px;width:100%;transition:width ' + delay + 'ms linear;';
-
-      var msgSpan = document.createElement('span');
-      msgSpan.style.cssText = 'flex:1;';
-      msgSpan.textContent = msg;
-
-      var undoBtn = document.createElement('button');
-      undoBtn.textContent = 'Undo';
-      undoBtn.style.cssText = 'background:none;border:1px solid var(--accent,#6366f1);color:var(--accent,#6366f1);'
-        + 'border-radius:6px;padding:4px 14px;font-size:0.82rem;font-weight:700;cursor:pointer;'
-        + 'font-family:inherit;white-space:nowrap;';
-
-      t.appendChild(msgSpan);
-      t.appendChild(undoBtn);
-      t.appendChild(bar);
-      document.body.appendChild(t);
-
-      // Start countdown animation
-      requestAnimationFrame(function() { bar.style.width = '0%'; });
-
-      var timer = setTimeout(async function() {
-        if (cancelled) return;
-        executed = true;
-        t.remove();
-        try {
-          await action();
-          _toast(msg, 'success');
-          resolve(true);
-        } catch (e) {
-          _toast(e.message || 'Action failed', 'danger');
-          resolve(false);
-        }
-      }, delay);
-
-      undoBtn.onclick = function() {
-        cancelled = true;
-        clearTimeout(timer);
-        t.remove();
-        _toast('Undone', 'info');
-        if (opts.onUndo) opts.onUndo();
-        resolve(false);
-      };
-    });
-  }
-
-  /**
-   * Open a print-friendly window for PDF export via browser print.
-   * @param {string} title - Report title
-   * @param {string} bodyHtml - HTML content (tables, stats, etc.)
-   * @param {object} [opts] - subtitle, churchName, landscape
-   */
-  function _printReport(title, bodyHtml, opts) {
-    opts = opts || {};
-    var churchName = opts.churchName || (typeof session !== 'undefined' && session.churchName) || '';
-    var subtitle = opts.subtitle || '';
-    var orientation = opts.landscape ? '@page { size: landscape; }' : '';
-    var w = window.open('', '_blank', 'width=900,height=700');
-    if (!w) { _toast('Pop-up blocked — please allow pop-ups.', 'warn'); return; }
-    w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>' + title + '</title>'
-      + '<style>'
-      + orientation
-      + '* { margin: 0; padding: 0; box-sizing: border-box; }'
-      + 'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #1a1a1a; padding: 32px 40px; font-size: 11pt; line-height: 1.5; }'
-      + '.rpt-header { border-bottom: 2px solid #d4b870; padding-bottom: 12px; margin-bottom: 20px; }'
-      + '.rpt-header h1 { font-size: 18pt; font-weight: 700; color: #1a1a1a; margin-bottom: 2px; }'
-      + '.rpt-header .rpt-church { font-size: 10pt; color: #666; }'
-      + '.rpt-header .rpt-sub { font-size: 9pt; color: #888; margin-top: 4px; }'
-      + '.rpt-stats { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }'
-      + '.rpt-stat { border: 1px solid #ddd; border-radius: 6px; padding: 8px 14px; }'
-      + '.rpt-stat-label { font-size: 8pt; text-transform: uppercase; letter-spacing: 0.05em; color: #888; font-weight: 700; }'
-      + '.rpt-stat-value { font-size: 14pt; font-weight: 800; }'
-      + 'table { width: 100%; border-collapse: collapse; font-size: 9pt; margin-top: 8px; }'
-      + 'th { text-align: left; font-weight: 700; border-bottom: 2px solid #333; padding: 6px 8px; font-size: 8pt; text-transform: uppercase; letter-spacing: 0.04em; }'
-      + 'td { padding: 5px 8px; border-bottom: 1px solid #e0e0e0; }'
-      + 'tr:nth-child(even) { background: #fafafa; }'
-      + '.rpt-footer { margin-top: 24px; font-size: 8pt; color: #aaa; text-align: center; border-top: 1px solid #ddd; padding-top: 10px; }'
-      + '@media print { body { padding: 0; } .rpt-noprint { display: none !important; } }'
-      + '</style></head><body>'
-      + '<div class="rpt-header">'
-      + '<h1>' + title + '</h1>'
-      + (churchName ? '<div class="rpt-church">' + churchName + '</div>' : '')
-      + (subtitle ? '<div class="rpt-sub">' + subtitle + '</div>' : '')
-      + '<div class="rpt-sub">Generated ' + new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) + '</div>'
-      + '</div>'
-      + bodyHtml
-      + '<div class="rpt-footer">Generated by FlockOS &mdash; flockos.com</div>'
-      + '<div class="rpt-noprint" style="text-align:center;margin-top:20px;">'
-      + '<button onclick="window.print()" style="padding:10px 28px;font-size:11pt;border:none;background:#4a90d9;color:#fff;border-radius:6px;cursor:pointer;font-weight:600;">Print / Save as PDF</button>'
-      + '</div>'
-      + '</body></html>');
-    w.document.close();
-    // Auto-focus print dialog after a short delay for rendering
-    setTimeout(function() { w.focus(); }, 300);
-  }
-
-  /** Export the current report view to a print-friendly PDF window */
-  function _rptPrintReport() {
-    var output = document.getElementById('rpt-output');
-    if (!output) return;
-    var title = 'FlockOS Report';
-    var h3 = output.querySelector('h3');
-    if (h3) title = h3.textContent.trim();
-    // Gather stat cards
-    var statsHtml = '';
-    var statDivs = output.querySelectorAll('[style*="inline-block"]');
-    if (statDivs.length) {
-      statsHtml = '<div class="rpt-stats">';
-      statDivs.forEach(function(s) {
-        var label = s.querySelector('[style*="uppercase"]');
-        var value = s.querySelector('[style*="font-size:1.3"]') || s.querySelector('[style*="font-weight:800"]');
-        if (label && value) {
-          statsHtml += '<div class="rpt-stat"><div class="rpt-stat-label">' + label.textContent + '</div>'
-            + '<div class="rpt-stat-value">' + value.textContent + '</div></div>';
-        }
-      });
-      statsHtml += '</div>';
-    }
-    // Gather table
-    var tbl = output.querySelector('table');
-    var tableHtml = tbl ? tbl.outerHTML : '';
-    _printReport(title, statsHtml + tableHtml);
-  }
-
-  /** Print giving statement for a member */
-  function _givingStatementPrint() {
-    var resultEl = document.getElementById('stmt-result');
-    if (!resultEl || !resultEl.innerHTML.trim()) { _toast('Generate a statement first.', 'warn'); return; }
-    var memberName = resultEl.querySelector('[style*="font-weight:700"]');
-    var yearLabel = resultEl.querySelector('[style*="color:var(--ink-muted)"]');
-    var title = 'Giving Statement';
-    var subtitle = '';
-    if (memberName) title = memberName.textContent.trim() + ' — Giving Statement';
-    if (yearLabel) subtitle = yearLabel.textContent.trim();
-    // Gather stats and table
-    var statsHtml = '';
-    var stats = resultEl.querySelectorAll('[style*="inline-block"]');
-    if (stats.length) {
-      statsHtml = '<div class="rpt-stats">';
-      stats.forEach(function(s) {
-        var lbl = s.querySelector('[style*="uppercase"]');
-        var val = s.querySelector('[style*="font-weight:800"]') || s.querySelector('[style*="font-size:1.3"]');
-        if (lbl && val) {
-          statsHtml += '<div class="rpt-stat"><div class="rpt-stat-label">' + lbl.textContent + '</div>'
-            + '<div class="rpt-stat-value">' + val.textContent + '</div></div>';
-        }
-      });
-      statsHtml += '</div>';
-    }
-    var tbl = resultEl.querySelector('table');
-    _printReport(title, statsHtml + (tbl ? tbl.outerHTML : ''), { subtitle: subtitle });
-  }
-
-  /** Print member directory */
-  async function _directoryPrint() {
-    _toast('Preparing directory…', 'info');
-    var rows = await _ensureMemberDir();
-    if (!rows.length) { _toast('No members found.', 'warn'); return; }
-    var html = '<table><thead><tr><th>#</th><th>Name</th><th>Email</th><th>Phone</th><th>Status</th></tr></thead><tbody>';
-    rows.forEach(function(r) {
-      var name = [r.preferredName || r.firstName, r.lastName].filter(Boolean).join(' ');
-      html += '<tr><td>' + (r.memberNumber || '') + '</td>'
-        + '<td>' + _e(name) + '</td>'
-        + '<td>' + _e(r.email || r.primaryEmail || '') + '</td>'
-        + '<td>' + _e(r.cellPhone || r.homePhone || '') + '</td>'
-        + '<td>' + _e(r.status || r.visibility || '') + '</td></tr>';
-    });
-    html += '</tbody></table>';
-    _printReport('Member Directory', '<div class="rpt-stats"><div class="rpt-stat"><div class="rpt-stat-label">Total Members</div><div class="rpt-stat-value">' + rows.length + '</div></div></div>' + html, { landscape: true });
-  }
-
-  /** Print attendance report */
-  async function _attendancePrint() {
-    _toast('Preparing attendance report…', 'info');
-    var res = await _fetch('attendance', function() { return _isFirebaseComms() ? UpperRoom.listAttendance({ limit: 500 }) : TheVine.flock.attendance.list({ limit: 500 }); });
-    var rows = _rows(res);
-    if (!rows.length) { _toast('No attendance data.', 'warn'); return; }
-    rows.sort(function(a, b) { return (b.date || b.serviceDate || '').localeCompare(a.date || a.serviceDate || ''); });
-    var total = rows.reduce(function(s, r) { return s + (Number(r.total) || 0); }, 0);
-    var avg = rows.length ? Math.round(total / rows.length) : 0;
-    var statsHtml = '<div class="rpt-stats">'
-      + '<div class="rpt-stat"><div class="rpt-stat-label">Records</div><div class="rpt-stat-value">' + rows.length + '</div></div>'
-      + '<div class="rpt-stat"><div class="rpt-stat-label">Average</div><div class="rpt-stat-value">' + avg + '</div></div>'
-      + '<div class="rpt-stat"><div class="rpt-stat-label">Total</div><div class="rpt-stat-value">' + total.toLocaleString() + '</div></div>'
-      + '</div>';
-    var html = '<table><thead><tr><th>Date</th><th>Service / Event</th><th>Adults</th><th>Children</th><th>Total</th><th>Notes</th></tr></thead><tbody>';
-    rows.forEach(function(r) {
-      html += '<tr><td>' + _e(r.date || r.serviceDate || '') + '</td>'
-        + '<td>' + _e(r.serviceType || r.eventName || r.name || '') + '</td>'
-        + '<td>' + (r.adults != null ? r.adults : '') + '</td>'
-        + '<td>' + (r.children != null ? r.children : '') + '</td>'
-        + '<td>' + (r.total != null ? r.total : '') + '</td>'
-        + '<td>' + _e(r.notes || '') + '</td></tr>';
-    });
-    html += '</tbody></table>';
-    _printReport('Attendance Report', statsHtml + html, { landscape: true });
-  }
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // REAL-TIME COLLABORATION PRESENCE
-  // Uses Firestore collection 'presence' to show who is editing what.
-  // Heartbeat every 30s; auto-expire stale entries after 90s.
-  // ══════════════════════════════════════════════════════════════════════════
-
-  var _presenceRef   = null;   // current Firestore doc ref
-  var _presenceUnsub = null;   // current onSnapshot unsubscribe
-  var _presenceTimer = null;   // heartbeat interval
-  var _presenceKey   = null;   // 'type_id' key of current edit
-
-  function _getFirestore() {
-    try { return typeof firebase !== 'undefined' && firebase.firestore ? firebase.firestore() : null; } catch (_) { return null; }
-  }
-
-  function _getSessionUser() {
-    try {
-      var s = (typeof Nehemiah !== 'undefined' && Nehemiah.getSession) ? Nehemiah.getSession() : null;
-      return s && s.email ? { email: s.email, name: s.displayName || s.name || s.email } : null;
-    } catch (_) { return null; }
-  }
-
-  /** Start presence tracking when editing a record */
-  function _presenceStart(recordType, recordId) {
-    _presenceStop(); // clear any previous
-    var db = _getFirestore();
-    var user = _getSessionUser();
-    if (!db || !user || !recordType || !recordId) return;
-    _presenceKey = recordType + '_' + recordId;
-    _presenceRef = db.collection('presence').doc(_presenceKey + '_' + user.email.replace(/[^a-zA-Z0-9]/g, '_'));
-    var data = {
-      recordType: recordType,
-      recordId:   String(recordId),
-      email:      user.email,
-      name:       user.name,
-      heartbeat:  firebase.firestore.FieldValue.serverTimestamp(),
-    };
-    _presenceRef.set(data).catch(function() {});
-    // Heartbeat every 30s
-    _presenceTimer = setInterval(function() {
-      if (_presenceRef) _presenceRef.update({ heartbeat: firebase.firestore.FieldValue.serverTimestamp() }).catch(function() {});
-    }, 30000);
-  }
-
-  /** Stop presence tracking */
-  function _presenceStop() {
-    if (_presenceTimer) { clearInterval(_presenceTimer); _presenceTimer = null; }
-    if (_presenceRef) { _presenceRef.delete().catch(function() {}); _presenceRef = null; }
-    if (_presenceUnsub) { _presenceUnsub(); _presenceUnsub = null; }
-    _presenceKey = null;
-  }
-
-  /**
-   * Watch who is editing a record. Returns an unsubscribe function.
-   * @param {string} recordType - e.g. 'member', 'care', 'event'
-   * @param {string} recordId
-   * @param {function(Array<{name,email}>)} onChange - called with list of other editors
-   */
-  function _presenceWatch(recordType, recordId, onChange) {
-    var db = _getFirestore();
-    var user = _getSessionUser();
-    if (!db || !recordType || !recordId) { onChange([]); return function() {}; }
-    var key = recordType + '_' + recordId;
-    var cutoff = Date.now() - 90000; // 90s stale threshold
-    return db.collection('presence')
-      .where('recordType', '==', recordType)
-      .where('recordId', '==', String(recordId))
-      .onSnapshot(function(snap) {
-        var editors = [];
-        snap.forEach(function(doc) {
-          var d = doc.data();
-          if (!d || !d.email) return;
-          // Skip self
-          if (user && d.email === user.email) return;
-          // Skip stale (>90s without heartbeat)
-          var hb = d.heartbeat && d.heartbeat.toMillis ? d.heartbeat.toMillis() : (d.heartbeat || 0);
-          if (hb && hb < cutoff) { doc.ref.delete().catch(function() {}); return; }
-          editors.push({ name: d.name || d.email, email: d.email });
-        });
-        onChange(editors);
-      }, function() { onChange([]); });
-  }
-
-  /** Render an inline badge showing active editors */
-  function _presenceBadge(editors) {
-    if (!editors || !editors.length) return '';
-    var names = editors.map(function(e) { return _e(e.name); }).join(', ');
-    return '<div style="display:inline-flex;align-items:center;gap:6px;background:rgba(248,168,56,0.12);'
-      + 'border:1px solid rgba(248,168,56,0.3);border-radius:6px;padding:4px 10px;font-size:0.76rem;'
-      + 'color:var(--gold,#e8a838);margin-bottom:8px;animation:_presencePulse 2s infinite;">'
-      + '<span style="width:8px;height:8px;border-radius:50%;background:var(--gold);display:inline-block;"></span>'
-      + names + (editors.length === 1 ? ' is' : ' are') + ' also editing this record'
-      + '</div>';
-  }
-
-  // Auto-cleanup on page unload
-  if (typeof window !== 'undefined') {
-    window.addEventListener('beforeunload', _presenceStop);
-    // Add pulse keyframes once
-    try {
-      var _pStyle = document.createElement('style');
-      _pStyle.textContent = '@keyframes _presencePulse{0%,100%{opacity:1}50%{opacity:0.6}}';
-      document.head.appendChild(_pStyle);
-    } catch (_) {}
   }
 
   function _statusBadge(val) {
@@ -646,10 +178,6 @@ const Modules = (() => {
       return _badge(val, 'warn');
     if (['URGENT','HIGH','PENDING','DRAFT','NEW'].includes(t))
       return _badge(val, 'danger');
-    if (['LOCKED','SUSPENDED','DISABLED'].includes(t))
-      return '<span style="display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;'
-           + 'font-weight:600;padding:2px 8px;border-radius:20px;background:rgba(248,113,113,0.15);'
-           + 'color:#f87171;border:1px solid rgba(248,113,113,0.35);">&#128274; ' + _e(val) + '</span>';
     return _badge(val, 'info');
   }
 
@@ -680,12 +208,7 @@ const Modules = (() => {
   // Terminal statuses hidden from everyone except the first seed admin.
   var _TERMINAL_STATUSES = ['resolved','closed','archived','cancelled','denied','completed','answered','inactive','deleted'];
   function _isSeedAdmin() {
-    try {
-      var s = TheVine.session();
-      if (s && s.isSeed) return true;
-      if (typeof Nehemiah !== 'undefined' && (Nehemiah.hasGroup('Seed Admin') || Nehemiah.hasGroup('Master') || Nehemiah.hasGroup('Lead Pastor'))) return true;
-      return false;
-    } catch(e) { return false; }
+    try { var s = TheVine.session(); return !!(s && s.isSeed); } catch(e) { return false; }
   }
   function _filterClosed(rows, statusKey) {
     if (_isSeedAdmin()) return rows;
@@ -779,7 +302,7 @@ const Modules = (() => {
     if (!code) return text;
     const url = 'https://www.bible.com/bible/59/' + code + '.' + chapter + '.ESV';
     return '<a href="' + url + '" target="_blank" rel="noopener" '
-      + 'style="color:var(--gold);font-weight:600;text-decoration:underline;text-decoration-style:dotted;text-shadow:0 0 0.5px currentColor;">'
+      + 'style="color:var(--gold);text-decoration:underline;text-decoration-style:dotted;">'
       + text + '</a>';
   }
 
@@ -1307,12 +830,10 @@ const Modules = (() => {
   // Hub children (theology, events, sermons, etc.) are navigated to via tiles — never disable
   const _defaultDisabled = [
     'mirror',
-    'attendance', 'checkin',
+    'attendance', 'checkin', 'audit', 'reports', 'statistics',
     'ministry',
     'todo', 'my-giving', 'my-requests'
   ];
-  // Admin tools: audit, reports, statistics are no longer nav items — always accessible to admins via Admin Hub
-  // (removed from _defaultDisabled so navigate() doesn't bounce them to dashboard)
 
   function _getModuleVis() {
     try { return JSON.parse(localStorage.getItem(_VIS_KEY) || '{}'); } catch(e) { return {}; }
@@ -1331,14 +852,7 @@ const Modules = (() => {
   function _applyModuleVisibility() {
     document.querySelectorAll('.nav-item[data-view]').forEach(item => {
       const view = item.getAttribute('data-view');
-      if (_protectedModules.indexOf(view) !== -1) {
-        // Most protected modules are always shown, but admin-gated ones respect canAccess
-        if (view === 'admin-dashboard') {
-          var _adAccess = typeof Nehemiah !== 'undefined' ? Nehemiah.canAccess('admin-dashboard') : true;
-          item.style.display = _adAccess ? '' : 'none';
-        }
-        return;
-      }
+      if (_protectedModules.indexOf(view) !== -1) return;
       // Admin module toggle wins first
       if (!_isModuleEnabled(view)) { item.style.display = 'none'; return; }
       // Permission gate: if the item has a data-module key, check canAccess
@@ -1387,26 +901,14 @@ const Modules = (() => {
       if (!r.id && _dataCache[module]) {
         r = (_dataCache[module] || []).find(x => (x.id || x.email) === id) || {};
       }
-      // Start collaboration presence tracking
-      _presenceStart(module, id);
-      // Check for other editors and prepend badge
-      var presenceField = { name: '_presence', type: 'html', html: '<div id="edit-presence-badge"></div>' };
-      var editFields = [presenceField].concat(fields.map(f => ({
+      _modal(title, fields.map(f => ({
         ...f, value: r[f.name] != null ? String(r[f.name]) : (f.value || '')
-      })));
-      _modal(title, editFields, async data => {
-        delete data._presence;
+      })), async data => {
         data.id = id;
-        _presenceStop();
         await updateFn(data);
         _reload(module);
       });
-      // Watch for other editors in real-time
-      _presenceUnsub = _presenceWatch(module, id, function(editors) {
-        var el = document.getElementById('edit-presence-badge');
-        if (el) el.innerHTML = _presenceBadge(editors);
-      });
-    } catch (e) { _presenceStop(); _toast(e.message || 'Error loading record.', 'danger'); }
+    } catch (e) { _toast(e.message || 'Error loading record.', 'danger'); }
   }
 
   // ── Delegated click handler for editable table rows ────────────────────
@@ -1444,53 +946,6 @@ const Modules = (() => {
     return [];
   }
 
-  // ── Normalize Firestore camelCase → GAS header-style keys ──────────
-  // Firestore docs use camelCase (e.g. oldTestament), GAS returns headers
-  // with spaces/caps (e.g. "Old Testament"). All rendering code expects
-  // the GAS style.  This adds the GAS-style alias if missing.
-  var _fieldAliases = {
-    date: 'Date', title: 'Title', scripture: 'Scripture', theme: 'Theme',
-    reflection: 'Reflection', prayer: 'Prayer', question: 'Question',
-    oldTestament: 'Old Testament', newTestament: 'New Testament',
-    psalms: 'Psalms', proverbs: 'Proverbs',
-    bookName: 'Book Name', testament: 'Testament', genre: 'Genre',
-    summary: 'Summary', coreTheology: 'Core Theology',
-    practicalApplication: 'Practical Application', booknum: 'booknum',
-    name: 'Name', lifespan: 'Lifespan', meaning: 'Meaning',
-    reference: 'Reference', bio: 'Bio', children: 'Children', personId: 'ID',
-    icon: 'Icon', color: 'Color', definition: 'Definition',
-    scriptures: 'Scriptures', steps: 'Steps', topicId: 'ID',
-    english: 'English', strongs: "Strong's", original: 'Original',
-    transliteration: 'Transliteration', nuance: 'Nuance',
-    usageCount: 'Usage Count', verses: 'Verses',
-    category: 'Category', chartAxis: 'Chart Axis', questionId: 'Question ID',
-    prescription: 'Prescription', verseReference: 'Verse Reference',
-    categoryId: 'Category ID', categoryTitle: 'Category Title',
-    categoryIntro: 'Category Intro', sectionId: 'Section ID',
-    sectionTitle: 'Section Title', content: 'Content',
-    chartLabel: 'Chart Label', slug: 'Slug',
-    quizId: 'ID', optionA: 'Option A', optionB: 'Option B',
-    optionC: 'Option C', optionD: 'Option D',
-    correctAnswer: 'Correct Answer', difficulty: 'Difficulty',
-    type: 'Type', bookOrder: 'Book Order',
-    categoryColor: 'Category Color', shortTitle: 'Short Title',
-    answerContent: 'Answer Content', quoteText: 'Quote Text',
-    referenceText: 'Reference Text', referenceUrl: 'Reference URL',
-    questionTitle: 'Question Title'
-  };
-  function _normalizeRows(rows) {
-    if (!rows || !rows.length) return rows;
-    for (var i = 0; i < rows.length; i++) {
-      var r = rows[i];
-      for (var k in _fieldAliases) {
-        if (r[k] !== undefined && r[_fieldAliases[k]] === undefined) {
-          r[_fieldAliases[k]] = r[k];
-        }
-      }
-    }
-    return rows;
-  }
-
   function _invalidateCache(key) {
     delete _dataCache[key];
     if (typeof TheVine !== 'undefined' && TheVine.cache && TheVine.cache.invalidate)
@@ -1510,53 +965,11 @@ const Modules = (() => {
       : fetcher();
   }
 
-  // ── FlockOS-Truth seed database fallback ─────────────────────────────
-  // When both Firebase (church) and GAS return empty for public content,
-  // fall back to the flockos-truth master seed database.
-  var _truthSeedDb = null;
-  var _truthSeedReady = false;
-  var _TRUTH_SEED_CONFIG = {
-    apiKey:            'AIzaSyBZIZpYixNDpeRagDF_SozCvC8lJKTubHY',
-    authDomain:        'flockos-truth.firebaseapp.com',
-    projectId:         'flockos-truth',
-    storageBucket:     'flockos-truth.firebasestorage.app',
-    messagingSenderId: '102743161422',
-    appId:             '1:102743161422:web:a81ca3c70b13546962611f'
-  };
-  // Maps _publicFetch cache keys to Firestore collection names in flockos-truth
-  var _truthCollectionMap = { 'library': 'books', 'theology-flat': 'theology' };
-  function _truthCollection(key) { return _truthCollectionMap[key] || key; }
-
-  async function _initTruthSeed() {
-    if (_truthSeedReady) return;
-    if (typeof firebase === 'undefined') return;
-    var app;
-    try { app = firebase.app('truth-seed'); } catch (_) {}
-    if (!app) app = firebase.initializeApp(_TRUTH_SEED_CONFIG, 'truth-seed');
-    _truthSeedDb = firebase.firestore(app);
-    try { _truthSeedDb.settings({ experimentalAutoDetectLongPolling: true, merge: true }); } catch (_) {}
-    var auth = firebase.auth(app);
-    if (!auth.currentUser) await auth.signInAnonymously();
-    _truthSeedReady = true;
-  }
-
-  async function _truthSeedFetch(key) {
-    await _initTruthSeed();
-    if (!_truthSeedDb) return [];
-    var col = _truthCollection(key);
-    var snap = await _truthSeedDb.collection(col).get();
-    var out = [];
-    snap.forEach(function(d) { var o = d.data(); o.id = d.id; out.push(o); });
-    return out;
-  }
-
   // ── Resilient public-content fetch (devotionals, reading, etc.) ────────
   // Firestore rules gate Truth content behind isChurchMember, so if the
   // auth token's claims are stale/missing the read will throw a permissions
   // error.  The inner try/catch ensures that error triggers the GAS fallback
   // rather than being swallowed by the outer catch (which would return []).
-  // Tier 3: flockos-truth seed database — guarantees content even before
-  // replicateTruthFromMaster() has been run for a church.
   async function _publicFetch(key, fbFn, gasFn) {
     try {
       var primary = _isFirebaseComms() ? fbFn : gasFn;
@@ -1564,19 +977,13 @@ const Modules = (() => {
       try {
         var result = await _fetch(key, primary, _TTL.ref);
         rows = Array.isArray(result) ? result : _rows(result);
-      } catch (primaryErr) { /* primary source failed — fall through to alt */ }
-      if (rows.length) return _normalizeRows(rows);
+      } catch (_) { /* primary failed — fall through to alternate */ }
+      if (rows.length) return rows;
       // Primary returned empty or threw — try the alternate source
       var alt = _isFirebaseComms() ? gasFn : fbFn;
       var altResult = await alt().catch(function() { return []; });
-      var altRows = Array.isArray(altResult) ? altResult : _rows(altResult);
-      if (altRows.length) return _normalizeRows(altRows);
-      // Both sources empty — try flockos-truth seed database
-      var truthRows = await _truthSeedFetch(key).catch(function() { return []; });
-      return _normalizeRows(truthRows);
-    } catch (outerErr) {
-      return [];
-    }
+      return Array.isArray(altResult) ? altResult : _rows(altResult);
+    } catch (_) { return []; }
   }
 
   // ── Shared member directory helpers ────────────────────────────────────
@@ -1703,15 +1110,12 @@ const Modules = (() => {
     m.id = id;
     m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:1000;'
                     + 'display:flex;align-items:center;justify-content:center;padding:40px 20px;';
-    m.setAttribute('role', 'dialog');
-    m.setAttribute('aria-modal', 'true');
-    m.setAttribute('aria-label', title.replace(/<[^>]*>/g, ''));
     m.innerHTML =
       '<div style="background:var(--bg-raised);border:1px solid var(--line);border-radius:12px;'
       + 'padding:28px;width:100%;max-width:520px;max-height:85vh;overflow-y:auto;">'
       + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">'
       + '<h2 style="font-size:1rem;color:var(--accent);">' + title + '</h2>'
-      + '<button id="ml-modal-x" aria-label="Close" style="background:none;border:none;color:var(--ink-muted);font-size:1.4rem;cursor:pointer;line-height:1;">&#x2715;</button>'
+      + '<button id="ml-modal-x" style="background:none;border:none;color:var(--ink-muted);font-size:1.4rem;cursor:pointer;line-height:1;">&#x2715;</button>'
       + '</div>'
       + '<form id="ml-modal-form">' + fHtml
       + '<div style="display:flex;gap:10px;margin-top:8px;">'
@@ -1728,8 +1132,8 @@ const Modules = (() => {
 
     document.body.appendChild(m);
 
-    document.getElementById('ml-modal-x').onclick = () => { _presenceStop(); m.remove(); };
-    m.addEventListener('click', e => { if (e.target === m) { _presenceStop(); m.remove(); } });
+    document.getElementById('ml-modal-x').onclick = () => m.remove();
+    m.addEventListener('click', e => { if (e.target === m) m.remove(); });
 
     document.getElementById('ml-modal-form').addEventListener('submit', async e => {
       e.preventDefault();
@@ -1754,8 +1158,8 @@ const Modules = (() => {
 
     if (onDelete) {
       document.getElementById('ml-modal-del').onclick = async () => {
-        m.remove();
-        _undoAction('Record deleted', onDelete);
+        if (!confirm('Delete this record? This cannot be undone.')) return;
+        try { await onDelete(); m.remove(); } catch (err) { _toast(err.message || 'Delete failed.', 'danger'); }
       };
     }
   }
@@ -1975,7 +1379,7 @@ const Modules = (() => {
       return;
     }
     _shell(el, 'Directory', 'Member cards & contact list.',
-      _btn('&#128075; Welcome Visitor', "Modules.onboardMember()") + ' ' + _btn('+ New Person', "Modules.newUser()") + ' ' + _btn('📦 Print', "Modules._directoryPrint()"));
+      _btn('&#128075; Welcome Visitor', "Modules.onboardMember()") + ' ' + _btn('+ New Person', "Modules.newUser()"));
     try {
       const rows = await _ensureMemberDir();
       _dataCache['directory'] = rows;
@@ -2004,9 +1408,6 @@ const Modules = (() => {
   _def('groups', async el => {
     _shell(el, 'Small Groups', 'Community groups, life groups & Bible studies.',
       _btn('+ New Group', "Modules.newGroup()"));
-
-    // ── Background async — fetch data and fill table when ready ──────────
-    (async function _loadGroups() {
     try {
       const res  = await _fetch('groups', () => _isFirebaseComms() ? UpperRoom.listGroups() : TheVine.flock.groups.list());
       const rows = _rows(res);
@@ -2037,7 +1438,6 @@ const Modules = (() => {
         { editFn: 'editGroup', ids: rows.map(r => r.id), tableId: 'groups-table' }
       ));
     } catch (e) { _body(el, _errHtml(e.message)); }
-    })();
   });
 
   function _groupsFilter(q) {
@@ -2056,8 +1456,7 @@ const Modules = (() => {
   _def('attendance', async el => {
     _shell(el, 'Attendance', 'Track weekly service & event attendance.',
       _btn('+ Record', "Modules.newAttendance()") +
-      _btn('Export Summary', "Modules.attendanceSummary()", false) +
-      ' ' + _btn('📦 Print', "Modules._attendancePrint()"));
+      _btn('Export Summary', "Modules.attendanceSummary()", false));
     try {
       const [listRes, sumRes] = await Promise.all([
         _fetch('attendance', () => _isFirebaseComms() ? UpperRoom.listAttendance({ limit: 500 }) : TheVine.flock.attendance.list({ limit: 500 })),
@@ -2265,7 +1664,7 @@ const Modules = (() => {
         const sermons = _rows(serRes);
         _dataCache['sermons'] = sermons;
         const session  = Nehemiah.getSession ? Nehemiah.getSession() : {};
-        const isPastor = (session.roleLevel >= 4) || /^(pastor|admin)$/i.test(session.role || '') || (typeof Nehemiah !== 'undefined' && (Nehemiah.hasGroup('Master') || Nehemiah.hasGroup('Seed Admin') || Nehemiah.hasGroup('Lead Pastor')));
+        const isPastor = (session.roleLevel >= 4) || /^(pastor|admin)$/i.test(session.role || '');
         const _decisionColor = d => {
           if (!d) return 'var(--ink-muted)';
           if (/approved/i.test(d)) return 'var(--success, #2da44e)';
@@ -2448,12 +1847,13 @@ const Modules = (() => {
   }
 
   async function _albumDelete(id) {
-    _undoAction('Album deleted', async function() {
+    if (!confirm('Delete this album? This cannot be undone.')) return;
+    try {
       await (_isFirebaseComms() ? UpperRoom.deleteAlbum(id) : TheVine.flock.albums.delete({ id }));
       _invalidateCache('albums');
       const el = document.getElementById('view-albums');
       if (el) { el.dataset.loaded = ''; _reg['albums'](el); }
-    });
+    } catch (e) { _toast('Error: ' + e.message, 'danger'); }
   }
 
 
@@ -2466,13 +1866,6 @@ const Modules = (() => {
   var _svcTab           = 'order'; // 'order' | 'songs' | 'team'
   var _svcActivePlanId  = null;   // compat alias
   var _svcActivePlanTitle = '';   // compat alias
-
-  // Parse "YYYY-MM-DD" as local date (not UTC)
-  function _localDate(s) {
-    if (!s) return new Date(NaN);
-    var p = String(s).split('T')[0].split('-');
-    return new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
-  }
 
   // Detail-view tab button helper
   function _svTab(label, tab) {
@@ -2497,19 +1890,19 @@ const Modules = (() => {
     } catch(e) { _body(el, _errHtml(e.message)); return; }
 
     rows.sort(function(a, b) {
-      return _localDate(a.serviceDate || a.date) - _localDate(b.serviceDate || b.date);
+      return new Date(a.serviceDate || a.date || 0) - new Date(b.serviceDate || b.date || 0);
     });
     var _today = new Date(); _today.setHours(0,0,0,0);
     var upcoming = rows.filter(function(r) {
-      var d = _localDate(r.serviceDate || r.date); return !r.serviceDate || d >= _today;
+      var d = new Date(r.serviceDate || r.date || 0); return !r.serviceDate || d >= _today;
     });
     var past = rows.filter(function(r) {
-      var d = _localDate(r.serviceDate || r.date); return r.serviceDate && d < _today;
+      var d = new Date(r.serviceDate || r.date || 0); return r.serviceDate && d < _today;
     }).reverse();
 
     function _svcRowCard(r) {
       var rid   = _e(String(r.id || ''));
-      var d     = _localDate(r.serviceDate || r.date);
+      var d     = new Date(r.serviceDate || r.date || '');
       var ok    = !isNaN(d.getTime()) && r.serviceDate;
       var label = (_e((r.serviceType || 'Sunday Service') + (r.serviceDate ? ' \u2014 ' + r.serviceDate : ''))).replace(/'/g,'&#39;');
       return '<div style="display:flex;align-items:center;gap:14px;padding:14px 18px;border-bottom:1px solid var(--line);'
@@ -2532,8 +1925,6 @@ const Modules = (() => {
         + (Number(r.songCount||r.setlistCount||0) ? '<span style="font-size:0.68rem;padding:2px 7px;background:var(--bg-sunken);border:1px solid var(--line);border-radius:99px;color:var(--ink-muted);">&#9835; ' + (r.songCount||r.setlistCount) + ' songs</span>' : '')
         + (Number(r.itemCount||r.serviceItemCount||0) ? '<span style="font-size:0.68rem;padding:2px 7px;background:var(--bg-sunken);border:1px solid var(--line);border-radius:99px;color:var(--ink-muted);">&#9776; ' + (r.itemCount||r.serviceItemCount) + ' items</span>' : '')
         + (r.worshipLeader||r.teamLead ? '<span style="font-size:0.68rem;padding:2px 7px;background:var(--bg-sunken);border:1px solid var(--line);border-radius:99px;color:var(--ink-muted);">&#128100; ' + _e(r.worshipLeader||r.teamLead) + '</span>' : '')
-        + (r.preacher ? '<span style="font-size:0.68rem;padding:2px 7px;background:var(--bg-sunken);border:1px solid var(--line);border-radius:99px;color:var(--ink-muted);">&#127908; ' + _e(r.preacher) + '</span>' : '')
-        + (r.scriptureFocus ? '<span style="font-size:0.68rem;padding:2px 7px;background:var(--bg-sunken);border:1px solid var(--line);border-radius:99px;color:var(--ink-muted);">&#128214; ' + _e(r.scriptureFocus) + '</span>' : '')
         + '</div></div>'
         + _statusBadge(r.status || 'Draft')
         + '<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="color:var(--ink-muted);flex-shrink:0;"><polyline points="9 18 15 12 9 6"/></svg>'
@@ -2568,30 +1959,19 @@ const Modules = (() => {
     var TYPE_ICONS = { Worship:'&#127925;', Prayer:'&#128591;', Scripture:'&#128214;', Sermon:'&#128228;',
       Offering:'&#128176;', Announcement:'&#128226;', Communion:'&#127838;', Baptism:'&#128167;', Benediction:'&#128330;', Other:'&#8226;' };
 
-    // Show spinner immediately so the user sees feedback
-    el.innerHTML = '<div style="max-width:900px;margin:0 auto;padding:60px 16px;text-align:center;">'
-      + '<div style="display:inline-block;width:32px;height:32px;border:3px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:spin .6s linear infinite;"></div>'
-      + '<div style="margin-top:12px;font-size:0.82rem;color:var(--ink-muted);">Loading service plan…</div></div>';
-
     var planData, items, setlistRows;
     try {
       if (!_svcViewPlanData) {
         var pr = _isFirebaseComms()
-          ? await UpperRoom.getServicePlan(planId).catch(() => null)
-          : await TheVine.flock.servicePlans.list({ id: planId, limit: 1 }).then(r => (_rows(r)[0] || null)).catch(() => null);
-        _svcViewPlanData = pr || {};
+          ? await UpperRoom.listServicePlans({ id: planId, limit: 1 }).catch(() => null)
+          : await TheVine.flock.servicePlans.list({ id: planId, limit: 1 }).catch(() => null);
+        _svcViewPlanData = pr ? (_rows(pr)[0] || {}) : {};
       }
       planData = _svcViewPlanData;
-      var _par;
-      if (_isFirebaseComms()) {
-        // Firestore mode: items/setlist not yet in Firestore — skip the slow GAS call
-        _par = [{}, {}];
-      } else {
-        _par = await Promise.all([
-          TheVine.flock.serviceItems.list({ planId: planId }).catch(() => ({})),
-          TheVine.flock.call('setlistSongs.list', { planId: planId }).catch(() => ({})),
-        ]);
-      }
+      var _par = await Promise.all([
+        TheVine.flock.serviceItems.list({ planId: planId }).catch(() => ({})),
+        TheVine.flock.call('setlistSongs.list', { planId: planId }).catch(() => ({})),
+      ]);
       items       = _rows(_par[0]);
       setlistRows = _rows(_par[1]);
     } catch(e) { el.innerHTML = _errHtml(e.message); return; }
@@ -2599,7 +1979,7 @@ const Modules = (() => {
     _dataCache['svc-items']   = items;
     _dataCache['svc-setlist'] = setlistRows;
 
-    var d2 = _localDate(planData.serviceDate || planData.date);
+    var d2 = new Date(planData.serviceDate || planData.date || '');
     var dOk = !isNaN(d2.getTime()) && planData.serviceDate;
     var dateStr = dOk ? d2.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric' })
                       : (planData.serviceDate || 'No Date Set');
@@ -2613,30 +1993,12 @@ const Modules = (() => {
       + '<div style="font-size:0.82rem;color:var(--ink-muted);margin-top:2px;">' + _e(dateStr) + '</div>'
       + (planData.sermonTitle ? '<div style="font-size:0.8rem;color:var(--ink-muted);margin-top:3px;">&#128228; <em>' + _e(planData.sermonTitle) + '</em></div>' : '')
       + (planData.theme       ? '<div style="font-size:0.8rem;color:var(--ink-muted);">Theme: <em>' + _e(planData.theme) + '</em></div>' : '')
-      + (planData.scriptureFocus ? '<div style="font-size:0.8rem;color:var(--ink-muted);">&#128214; ' + _e(planData.scriptureFocus) + '</div>' : '')
       + '</div>'
       + '<div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap;">'
       + _statusBadge(planData.status || 'Draft')
       + '<button onclick="Modules._svcEditPlan()" style="font-size:0.78rem;padding:6px 12px;border:1px solid var(--line);border-radius:7px;background:none;color:var(--ink-muted);cursor:pointer;font-family:inherit;">Edit</button>'
       + '<button onclick="Modules._musicStandView()" style="font-size:0.78rem;padding:6px 14px;border:none;border-radius:7px;background:var(--accent);color:var(--ink-inverse);cursor:pointer;font-family:inherit;font-weight:600;">&#9835; Music Stand</button>'
-      + '</div></div>'
-      + (function() {
-        var details = [];
-        if (planData.psalmReader)    details.push({ icon:'&#128220;', label:'Psalm',           val:planData.psalmReader });
-        if (planData.worshipLeader)  details.push({ icon:'&#128100;', label:'Worship',         val:planData.worshipLeader });
-        if (planData.announcements)  details.push({ icon:'&#128226;', label:'Announcements',   val:planData.announcements });
-        if (planData.prayer)         details.push({ icon:'&#128591;', label:'Prayer',           val:planData.prayer });
-        if (planData.preacher)       details.push({ icon:'&#127908;', label:'Preacher',         val:planData.preacher });
-        if (planData.proverb)        details.push({ icon:'&#128216;', label:'Proverb',          val:planData.proverb });
-        if (!details.length) return '';
-        return '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line);">'
-          + details.map(function(d) {
-            return '<span style="font-size:0.72rem;padding:3px 9px;background:var(--bg-sunken);border:1px solid var(--line);border-radius:99px;color:var(--ink-muted);">'
-              + d.icon + ' ' + _e(d.val) + '</span>';
-          }).join('')
-          + '</div>';
-      })()
-      + '</div>';
+      + '</div></div></div>';
 
     var tabContent = '';
     if (_svcTab === 'order') {
@@ -2826,23 +2188,15 @@ const Modules = (() => {
       { name: 'serviceType', label: 'Service Type', type: 'select',
         options: ['Sunday Morning','Sunday Evening','Wednesday','Special','Conference','Other'],
         value: r.serviceType || '' },
-      { name: 'serviceDate',  label: 'Date',          type: 'date',     value: r.serviceDate || r.date || '' },
-      { name: 'psalmReader',  label: 'Psalm',         value: r.psalmReader || '' },
-      { name: 'worshipLeader',label: 'Worship',       value: r.worshipLeader || '' },
-      { name: 'announcements',label: 'Announcements', value: r.announcements || '' },
-      { name: 'prayer',       label: 'Prayer',        value: r.prayer || '' },
-      { name: 'preacher',     label: 'Preacher',      value: r.preacher || '' },
-      { name: 'scriptureFocus',label:'Scripture',      value: r.scriptureFocus || '' },
-      { name: 'proverb',      label: 'Proverb',       value: r.proverb || '' },
-      { name: 'sermonTitle',  label: 'Sermon Title',  value: r.sermonTitle || '' },
-      { name: 'theme',        label: 'Theme',         value: r.theme || '' },
-      { name: 'status',       label: 'Status',        type: 'select',
-        options: ['Draft','Scheduled','Confirmed','Completed'], value: r.status || 'Draft' },
-      { name: 'notes',        label: 'Notes',         type: 'textarea', rows: 2, value: r.notes || '' },
+      { name: 'serviceDate',  label: 'Date',         type: 'date',     value: r.serviceDate || r.date || '' },
+      { name: 'sermonTitle',  label: 'Sermon Title', value: r.sermonTitle || '' },
+      { name: 'theme',        label: 'Theme',        value: r.theme || '' },
+      { name: 'status',       label: 'Status',       type: 'select',
+        options: ['Draft','Confirmed','Completed'],   value: r.status || 'Draft' },
+      { name: 'notes',        label: 'Notes',        type: 'textarea', rows: 2, value: r.notes || '' },
     ], async function(data) {
       data.id = _svcViewPlanId;
-      if (_isFirebaseComms()) await UpperRoom.updateServicePlan(data);
-      else await TheVine.flock.servicePlans.update(data);
+      await TheVine.flock.servicePlans.update(data);
       _invalidateCache('services');
       _svcViewPlanData = null;
       servicesView('order');
@@ -3405,6 +2759,8 @@ const Modules = (() => {
   var _songsTab       = 'songs';   // compat
   var _activeSongId   = null;
   var _activeSongTitle = '';
+
+  function _sgTab() { return ''; } // compat stub — no longer used in list view
 
   // ═══════════════════════════════════════════════════════════════════════
   // 7. SONGS  — catalog with search & inline arrangement expansion
@@ -4525,7 +3881,8 @@ const Modules = (() => {
   _def('learning', async el => {
     if (typeof TheWay !== 'undefined' && TheWay.renderHub) {
       if (TheWay.resetHome) TheWay.resetHome();
-      return TheWay.renderHub(el, typeof Nehemiah !== 'undefined' && Nehemiah.getSession ? Nehemiah.getSession() : {});
+      TheWay.renderHub(el, typeof Nehemiah !== 'undefined' && Nehemiah.getSession ? Nehemiah.getSession() : {});
+      return;
     }
     _shell(el, 'Learning', 'Playlists, topics, quizzes & progress tracking.',
       _btn('+ New Playlist', "Modules.newPlaylist()") +
@@ -4799,73 +4156,12 @@ const Modules = (() => {
   // ═══════════════════════════════════════════════════════════════════════
   // 16. THE WORD OF GOD  — 66 Books of the Bible (Matthew / APP API)
   // ═══════════════════════════════════════════════════════════════════════
-  // Canonical Bible book order for sorting
-  var _BIBLE_ORDER = [
-    'Genesis','Exodus','Leviticus','Numbers','Deuteronomy','Joshua','Judges','Ruth',
-    '1 Samuel','2 Samuel','1 Kings','2 Kings','1 Chronicles','2 Chronicles',
-    'Ezra','Nehemiah','Esther','Job','Psalms','Proverbs','Ecclesiastes',
-    'Song of Solomon','Isaiah','Jeremiah','Lamentations','Ezekiel','Daniel',
-    'Hosea','Joel','Amos','Obadiah','Jonah','Micah','Nahum','Habakkuk',
-    'Zephaniah','Haggai','Zechariah','Malachi',
-    'Matthew','Mark','Luke','John','Acts','Romans',
-    '1 Corinthians','2 Corinthians','Galatians','Ephesians','Philippians',
-    'Colossians','1 Thessalonians','2 Thessalonians','1 Timothy','2 Timothy',
-    'Titus','Philemon','Hebrews','James','1 Peter','2 Peter',
-    '1 John','2 John','3 John','Jude','Revelation'
-  ];
-
   _def('library', async el => {
     _shell(el, 'The Word of God', '66 Books of the Bible \u2014 encyclopedic reference.', '');
     try {
       const raw  = await _publicFetch('library', function() { return UpperRoom.listAppContent('books'); }, function() { return TheVine.app.books(); });
       const rows = Array.isArray(raw) ? raw : _rows(raw);
-
-      // Ensure all 66 books are represented — add stubs for missing ones
-      var existingNames = {};
-      rows.forEach(function(r) {
-        var n = (r['Book Name'] || r['bookName'] || '').trim();
-        if (n) existingNames[n] = true;
-      });
-      var _NT_BOOKS_SET = {
-        'Matthew':1,'Mark':1,'Luke':1,'John':1,'Acts':1,'Romans':1,
-        '1 Corinthians':1,'2 Corinthians':1,'Galatians':1,'Ephesians':1,
-        'Philippians':1,'Colossians':1,'1 Thessalonians':1,'2 Thessalonians':1,
-        '1 Timothy':1,'2 Timothy':1,'Titus':1,'Philemon':1,'Hebrews':1,
-        'James':1,'1 Peter':1,'2 Peter':1,'1 John':1,'2 John':1,
-        '3 John':1,'Jude':1,'Revelation':1
-      };
-      _BIBLE_ORDER.forEach(function(name, idx) {
-        if (!existingNames[name]) {
-          rows.push({
-            'Book Name': name,
-            'booknum': String(idx + 1),
-            'Testament': _NT_BOOKS_SET[name] ? 'New' : 'Old',
-            'Summary': '',
-            'Genre': '',
-            'Type': ''
-          });
-        }
-      });
-
       if (!rows.length) { _body(el, _empty('&#128214;', 'No books yet', 'Add book entries in the Truth spreadsheet.')); return; }
-
-      // Sort in canonical Bible order.
-      // Primary key: 'booknum' (1-66) — same field name in both GAS and Firestore.
-      // Fallback: match 'Book Name' against the canonical order list.
-      rows.sort(function(a, b) {
-        var aNum = parseInt(a['booknum'] || 0, 10);
-        var bNum = parseInt(b['booknum'] || 0, 10);
-        if (aNum && bNum) return aNum - bNum;
-        if (aNum) return -1;
-        if (bNum) return 1;
-        var aName = (a['Book Name'] || a['bookName'] || '').trim();
-        var bName = (b['Book Name'] || b['bookName'] || '').trim();
-        var aIdx = _BIBLE_ORDER.indexOf(aName);
-        var bIdx = _BIBLE_ORDER.indexOf(bName);
-        if (aIdx === -1) aIdx = 999;
-        if (bIdx === -1) bIdx = 999;
-        return aIdx - bIdx;
-      });
 
       const otBooks = rows.filter(r => (r['Testament'] || '') !== 'New');
       const ntBooks = rows.filter(r => (r['Testament'] || '') === 'New');
@@ -5442,7 +4738,7 @@ const Modules = (() => {
               const entry   = j.entry || j['Entry'] || '';
               const mood    = j.mood || j['Mood'] || '';
               const cat     = j.category || j['Category'] || '';
-              const created = _dateStr(j.createdAt || j['Created At']);
+              const created = (j.createdAt || j['Created At'] || '').substring(0, 10);
               const jid     = j.id || j['ID'] || '';
               h += '<div class="dev-journal-entry" onclick="Modules.editJournal(\'' + _e(jid) + '\')">'
                 + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">'
@@ -6533,111 +5829,52 @@ const Modules = (() => {
   });
 
   let _quizData = [];
-  let _quizPicked = [];   // current quiz run (shuffled subset)
-  let _quizIdx = 0;       // current question index
-  let _quizAnswers = {};  // { 0: 'a', 1: 'c', ... }
 
   function _startQuiz(el, allRows) {
     const rows = allRows || _quizData;
     if (!rows.length) return;
+    // Shuffle and apply quiz size limit
     var all = rows.slice().sort(() => Math.random() - 0.5);
     var limit = Number(localStorage.getItem('flock_quiz_size') || 0);
-    _quizPicked = (limit > 0 && limit < all.length) ? all.slice(0, limit) : all;
-    _quizIdx = 0;
-    _quizAnswers = {};
-    _renderQuizQuestion(el);
-  }
-
-  function _renderQuizQuestion(el) {
-    var total = _quizPicked.length;
-    var i = _quizIdx;
-    var q = _quizPicked[i];
-    if (!q) return;
-
-    var html = '';
-    // Progress bar
-    var pct = Math.round(((i + 1) / total) * 100);
-    html += '<div style="margin-bottom:14px;">'
-          + '<div style="display:flex;justify-content:space-between;font-size:0.78rem;color:var(--ink-muted);margin-bottom:4px;">'
-          + '<span>Question ' + (i + 1) + ' of ' + total + '</span>'
-          + '<span>' + Object.keys(_quizAnswers).length + ' answered</span></div>'
-          + '<div style="height:6px;background:var(--bg-sunken);border-radius:3px;overflow:hidden;">'
-          + '<div style="width:' + pct + '%;height:100%;background:var(--accent);border-radius:3px;transition:width 0.3s;"></div>'
-          + '</div></div>';
-
-    // Question card
-    var opts = ['A', 'B', 'C', 'D'].map(k => q['Option ' + k]).filter(Boolean);
-    var correct = String(q['Correct Answer'] || '').toLowerCase().trim();
-    html += '<div style="background:var(--bg-raised);border:1px solid var(--line);border-radius:10px;padding:16px 18px;">'
-          + '<div style="display:flex;gap:8px;align-items:baseline;margin-bottom:8px;">'
-          + '<span style="color:var(--accent);font-weight:700;font-size:0.82rem;">' + (i + 1) + '.</span>'
-          + '<span style="font-size:0.88rem;font-weight:600;">' + _e(q['Question'] || '') + '</span></div>';
-    if (q['Category'] || q['Difficulty']) {
-      html += '<div style="margin-bottom:8px;">';
-      if (q['Category']) html += _badge(q['Category'], 'info') + ' ';
-      if (q['Difficulty']) html += _badge(q['Difficulty'], q['Difficulty'] === 'Hard' ? 'danger' : q['Difficulty'] === 'Medium' ? 'warn' : 'success');
+    var shuffled = (limit > 0 && limit < all.length) ? all.slice(0, limit) : all;
+    let html = '<div style="font-size:0.82rem;color:var(--ink-muted);margin-bottom:12px;">' + shuffled.length + (limit > 0 && limit < all.length ? ' of ' + all.length : '') + ' questions</div>';
+    html += '<form id="quiz-form" style="display:grid;gap:16px;">';
+    shuffled.forEach((q, i) => {
+      const opts = ['A', 'B', 'C', 'D'].map(k => q['Option ' + k]).filter(Boolean);
+      html += '<div style="background:var(--bg-raised);border:1px solid var(--line);border-radius:10px;padding:16px 18px;">'
+            + '<div style="display:flex;gap:8px;align-items:baseline;margin-bottom:8px;">'
+            + '<span style="color:var(--accent);font-weight:700;font-size:0.82rem;">' + (i + 1) + '.</span>'
+            + '<span style="font-size:0.88rem;font-weight:600;">' + _e(q['Question'] || '') + '</span></div>';
+      if (q['Category'] || q['Difficulty']) {
+        html += '<div style="margin-bottom:8px;">';
+        if (q['Category']) html += _badge(q['Category'], 'info') + ' ';
+        if (q['Difficulty']) html += _badge(q['Difficulty'], q['Difficulty'] === 'Hard' ? 'danger' : q['Difficulty'] === 'Medium' ? 'warn' : 'success');
+        html += '</div>';
+      }
+      opts.forEach((opt, oi) => {
+        const letter = String.fromCharCode(97 + oi); // a, b, c, d
+        html += '<label style="display:block;padding:6px 10px;margin:3px 0;border-radius:6px;cursor:pointer;'
+              + 'font-size:0.84rem;transition:background 0.15s;" '
+              + 'onmouseover="this.style.background=\'var(--bg-sunken)\'" '
+              + 'onmouseout="this.style.background=\'none\'">'
+              + '<input type="radio" name="q' + i + '" value="' + _e(letter) + '" '
+              + 'data-correct="' + _e(String(q['Correct Answer'] || '').toLowerCase().trim()) + '" '
+              + 'data-question="' + _e(q['Question'] || '') + '" '
+              + 'data-reference="' + _e(q['Reference'] || '') + '" '
+              + 'data-category="' + _e(q['Category'] || '') + '" '
+              + 'data-option-text="' + _e(opt) + '" '
+              + 'style="margin-right:8px;">'
+              + '<strong>' + _e(letter.toUpperCase()) + '.</strong> ' + _e(opt) + '</label>';
+      });
+      if (q['Reference']) html += '<div style="font-size:0.75rem;color:var(--ink-muted);margin-top:6px;font-style:italic;">' + _e(q['Reference']) + '</div>';
       html += '</div>';
-    }
-    var savedAns = _quizAnswers[i] || '';
-    opts.forEach((opt, oi) => {
-      var letter = String.fromCharCode(97 + oi);
-      html += '<label style="display:block;padding:6px 10px;margin:3px 0;border-radius:6px;cursor:pointer;'
-            + 'font-size:0.84rem;transition:background 0.15s;'
-            + (savedAns === letter ? 'background:var(--bg-sunken);' : '') + '" '
-            + 'onmouseover="this.style.background=\'var(--bg-sunken)\'" '
-            + 'onmouseout="this.style.background=\'' + (savedAns === letter ? 'var(--bg-sunken)' : 'none') + '\'">'
-            + '<input type="radio" name="q_current" value="' + _e(letter) + '" '
-            + (savedAns === letter ? 'checked ' : '')
-            + 'data-correct="' + _e(correct) + '" '
-            + 'data-question="' + _e(q['Question'] || '') + '" '
-            + 'data-reference="' + _e(q['Reference'] || '') + '" '
-            + 'data-category="' + _e(q['Category'] || '') + '" '
-            + 'data-option-text="' + _e(opt) + '" '
-            + 'onchange="Modules._quizSaveAnswer(\'' + _e(letter) + '\')" '
-            + 'style="margin-right:8px;">'
-            + '<strong>' + _e(letter.toUpperCase()) + '.</strong> ' + _e(opt) + '</label>';
     });
-    if (q['Reference']) html += '<div style="font-size:0.75rem;color:var(--ink-muted);margin-top:6px;font-style:italic;">' + _e(q['Reference']) + '</div>';
-    html += '</div>';
-
-    // Navigation
-    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;gap:12px;">';
-    if (i > 0) {
-      html += '<button type="button" onclick="Modules._quizNav(-1)" '
-            + 'style="background:none;border:1px solid var(--line);border-radius:8px;padding:10px 20px;'
-            + 'cursor:pointer;font-size:0.85rem;color:var(--ink);font-family:inherit;">\u25C0 Previous</button>';
-    } else {
-      html += '<div></div>';
-    }
-    if (i < total - 1) {
-      html += '<button type="button" onclick="Modules._quizNav(1)" '
-            + 'style="background:var(--accent);color:var(--ink-inverse);border:none;border-radius:8px;padding:10px 20px;'
-            + 'cursor:pointer;font-weight:700;font-size:0.85rem;font-family:inherit;">Next \u25B6</button>';
-    } else {
-      html += '<button type="button" onclick="Modules.scoreQuiz()" '
-            + 'style="background:var(--accent);color:var(--ink-inverse);border:none;border-radius:8px;padding:10px 20px;'
-            + 'cursor:pointer;font-weight:700;font-size:0.85rem;font-family:inherit;"'
-            + (Object.keys(_quizAnswers).length < total ? ' title="Answer all questions to score"' : '')
-            + '>Score Quiz \u2714</button>';
-    }
-    html += '</div>';
-
+    html += '<div id="quiz-actions" style="display:flex;gap:12px;flex-wrap:wrap;">'
+         + '<button type="button" onclick="Modules.scoreQuiz()" '
+         + 'style="background:var(--accent);color:var(--ink-inverse);border:none;border-radius:8px;padding:12px 24px;'
+         + 'font-weight:700;font-size:0.9rem;cursor:pointer;font-family:inherit;">Score Quiz</button>'
+         + '</div></form>';
     _body(el, html);
-  }
-
-  function _quizSaveAnswer(letter) {
-    _quizAnswers[_quizIdx] = letter;
-  }
-
-  function _quizNav(dir) {
-    // Save any selected answer before navigating
-    var sel = document.querySelector('input[name="q_current"]:checked');
-    if (sel) _quizAnswers[_quizIdx] = sel.value;
-    _quizIdx += dir;
-    if (_quizIdx < 0) _quizIdx = 0;
-    if (_quizIdx >= _quizPicked.length) _quizIdx = _quizPicked.length - 1;
-    var el = document.getElementById('view-quiz');
-    if (el) _renderQuizQuestion(el);
   }
 
   function startQuiz() {
@@ -6646,109 +5883,84 @@ const Modules = (() => {
   }
 
   function scoreQuiz() {
-    var el = document.getElementById('view-quiz');
-    if (!el || !_quizPicked.length) return;
-
-    var correct = 0;
-    var results = [];
-    _quizPicked.forEach(function(q, i) {
-      var answer = _quizAnswers[i] || '';
-      var correctLetter = String(q['Correct Answer'] || '').toLowerCase().trim();
-      var isRight = answer === correctLetter;
-      if (isRight) correct++;
-      var correctText = '';
-      ['A','B','C','D'].forEach(function(k, ki) {
-        if (String.fromCharCode(97 + ki) === correctLetter) correctText = q['Option ' + k] || '';
-      });
-      var answerText = '';
-      if (answer) {
-        ['A','B','C','D'].forEach(function(k, ki) {
-          if (String.fromCharCode(97 + ki) === answer) answerText = q['Option ' + k] || '';
-        });
-      } else { answerText = '(unanswered)'; }
+    const form = document.getElementById('quiz-form');
+    if (!form) return;
+    let correct = 0, total = 0;
+    const results = []; // collect for PDF
+    const radios = form.querySelectorAll('input[type="radio"]:checked');
+    radios.forEach(r => {
+      total++;
+      const isRight = r.value === r.dataset.correct;
+      if (isRight) {
+        correct++;
+        r.closest('label').style.background = 'rgba(34,197,94,0.15)';
+      } else {
+        r.closest('label').style.background = 'rgba(248,113,113,0.15)';
+      }
       results.push({
-        question: q['Question'] || '',
-        yourAnswer: answerText,
-        yourLetter: answer,
-        correctLetter: correctLetter,
-        correctAnswer: correctText,
-        reference: q['Reference'] || '',
-        category: q['Category'] || '',
+        question: r.dataset.question || '',
+        yourAnswer: r.dataset.optionText || r.value.toUpperCase(),
+        yourLetter: r.value,
+        correctLetter: r.dataset.correct,
+        reference: r.dataset.reference || '',
+        category: r.dataset.category || '',
         isCorrect: isRight
       });
     });
-    var total = _quizPicked.length;
-    _quizResults = { correct: correct, total: total, results: results };
-    var pct = total ? Math.round(correct / total * 100) : 0;
-
-    // Build results review
-    var html = '<div style="text-align:center;margin-bottom:20px;">'
-      + '<div style="font-size:2rem;font-weight:700;color:var(--accent);">' + correct + ' / ' + total + '</div>'
-      + '<div style="font-size:0.88rem;color:var(--ink-muted);">' + pct + '% correct</div></div>';
-
-    // Show each question with right/wrong
-    results.forEach(function(r, i) {
-      var bg = r.isCorrect ? 'rgba(34,197,94,0.08)' : (r.yourLetter ? 'rgba(248,113,113,0.08)' : 'var(--bg-raised)');
-      var icon = r.isCorrect ? '\u2705' : (r.yourLetter ? '\u274C' : '\u2B1C');
-      html += '<div style="background:' + bg + ';border:1px solid var(--line);border-radius:8px;padding:12px;margin-bottom:8px;font-size:0.84rem;">'
-            + '<div style="font-weight:600;margin-bottom:4px;">' + icon + ' ' + (i + 1) + '. ' + _e(r.question) + '</div>';
-      if (!r.isCorrect) {
-        html += '<div style="color:var(--danger);font-size:0.8rem;">Your answer: ' + _e(r.yourAnswer) + '</div>'
-              + '<div style="color:var(--success);font-size:0.8rem;">Correct: ' + _e(r.correctAnswer) + '</div>';
+    // Fill in correct answer text for each result
+    results.forEach(res => {
+      if (res.yourLetter !== res.correctLetter) {
+        const correctRadio = form.querySelector('input[type="radio"][name][value="' + res.correctLetter + '"][data-question="' + CSS.escape(res.question).replace(/"/g, '\\"') + '"]')
+          || Array.from(form.querySelectorAll('input[type="radio"][value="' + res.correctLetter + '"]')).find(r => r.dataset.question === res.question);
+        res.correctAnswer = correctRadio ? (correctRadio.dataset.optionText || res.correctLetter.toUpperCase()) : res.correctLetter.toUpperCase();
+      } else {
+        res.correctAnswer = res.yourAnswer;
       }
-      if (r.reference) html += '<div style="font-size:0.72rem;color:var(--ink-muted);font-style:italic;">' + _e(r.reference) + '</div>';
-      html += '</div>';
     });
-
-    // Action buttons
-    html += '<div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:16px;">'
-          + '<button type="button" onclick="Modules.startQuiz()" '
-          + 'style="background:var(--accent);color:var(--ink-inverse);border:none;border-radius:8px;padding:12px 24px;'
-          + 'font-weight:700;font-size:0.9rem;cursor:pointer;font-family:inherit;">\u21BB Retake Quiz</button>'
-          + '<button type="button" onclick="Modules.downloadQuizPDF()" '
-          + 'style="background:var(--success,#22c55e);color:#fff;border:none;border-radius:8px;padding:12px 24px;'
-          + 'font-weight:700;font-size:0.9rem;cursor:pointer;font-family:inherit;">\uD83D\uDCE5 Download Study PDF</button>';
-    if (pct >= 70) {
-      html += '<button type="button" onclick="Modules._quizCertificate()" '
-            + 'style="background:var(--gold,#d97706);color:#fff;border:none;border-radius:8px;padding:12px 24px;'
-            + 'font-weight:700;font-size:0.9rem;cursor:pointer;font-family:inherit;">\uD83C\uDFC6 Certificate</button>';
+    // Also highlight correct answers for unchecked
+    form.querySelectorAll('input[type="radio"]').forEach(r => {
+      if (r.value === r.dataset.correct) {
+        r.closest('label').style.borderLeft = '3px solid #22c55e';
+      }
+    });
+    // Collect unanswered questions for study guide
+    const answered = new Set();
+    radios.forEach(r => answered.add(r.name));
+    form.querySelectorAll('input[type="radio"]').forEach(r => {
+      if (!answered.has(r.name) && r.value === r.dataset.correct) {
+        results.push({
+          question: r.dataset.question || '',
+          yourAnswer: '(unanswered)',
+          yourLetter: '',
+          correctLetter: r.dataset.correct,
+          correctAnswer: r.dataset.optionText || r.dataset.correct.toUpperCase(),
+          reference: r.dataset.reference || '',
+          category: r.dataset.category || '',
+          isCorrect: false
+        });
+      }
+    });
+    _quizResults = { correct, total: results.length, results };
+    const pct = total ? Math.round(correct / total * 100) : 0;
+    const scoreDiv = document.createElement('div');
+    scoreDiv.style.cssText = 'background:var(--bg-raised);border:2px solid var(--accent);border-radius:10px;'
+      + 'padding:16px 20px;margin-top:12px;text-align:center;';
+    scoreDiv.innerHTML = '<div style="font-size:1.6rem;font-weight:700;color:var(--accent);">'
+      + correct + ' / ' + results.length + '</div>'
+      + '<div style="font-size:0.85rem;color:var(--ink-muted);">' + pct + '% correct</div>';
+    form.appendChild(scoreDiv);
+    // Disable score button and add PDF download
+    var actions = document.getElementById('quiz-actions');
+    if (actions) {
+      actions.querySelector('button').disabled = true;
+      var pdfBtn = document.createElement('button');
+      pdfBtn.type = 'button';
+      pdfBtn.onclick = function() { Modules.downloadQuizPDF(); };
+      pdfBtn.style.cssText = 'background:var(--success,#22c55e);color:#fff;border:none;border-radius:8px;padding:12px 24px;'
+        + 'font-weight:700;font-size:0.9rem;cursor:pointer;font-family:inherit;';
+      pdfBtn.textContent = '\u{1F4E5} Download Study PDF';
+      actions.appendChild(pdfBtn);
     }
-    html += '</div>';
-    _body(el, html);
-  }
-
-  function _quizCertificate() {
-    var r = _quizResults;
-    if (!r) return;
-    var session = typeof TheVine !== 'undefined' && TheVine.session ? TheVine.session() : null;
-    var name = session ? (session.displayName || session.name || session.email || '') : '';
-    if (!name) {
-      _modal('Your Name', [
-        { name: 'certName', type: 'text', label: 'Name for Certificate', placeholder: 'Enter your full name', required: true }
-      ], function(data) {
-        if (data.certName) _generateQuizCert(data.certName);
-        return Promise.resolve();
-      });
-      return;
-    }
-    _generateQuizCert(name);
-  }
-
-  function _generateQuizCert(name) {
-    var r = _quizResults;
-    if (!r) return;
-    var pct = Math.round(r.correct / r.total * 100);
-    var dateStr = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-    _modal('Quiz Certificate', [{
-      name: '_cert', type: 'html',
-      html: '<div style="text-align:center;padding:24px;border:3px double var(--gold,#d97706);border-radius:12px;background:var(--bg-raised);">'
-        + '<div style="font-size:2rem;margin-bottom:8px;">\uD83C\uDFC6</div>'
-        + '<div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.15em;color:var(--ink-muted);margin-bottom:12px;">Certificate of Achievement</div>'
-        + '<div style="font-size:1.2rem;font-weight:700;color:var(--ink);margin-bottom:4px;">Bible Quiz</div>'
-        + '<div style="font-size:0.85rem;color:var(--ink-muted);margin-bottom:16px;">Score: ' + r.correct + '/' + r.total + ' (' + pct + '%)</div>'
-        + '<div style="font-size:1.4rem;font-weight:700;color:var(--accent);font-style:italic;margin-bottom:4px;">' + _e(name) + '</div>'
-        + '<div style="font-size:0.78rem;color:var(--ink-muted);">' + dateStr + '</div></div>'
-    }], function() { return Promise.resolve(); }, 'Close');
   }
 
   let _quizResults = null;
@@ -6976,7 +6188,6 @@ const Modules = (() => {
         const answer    = r['Answer Content'] || '';
         const quote     = r['Quote Text'] || '';
         const refText   = r['Reference Text'] || '';
-        const refUrl    = r['Reference URL'] || '';
         const searchText = (question + ' ' + cat + ' ' + answer + ' ' + quote + ' ' + refText).toLowerCase();
 
         // Pill: use category color from sheet as inline style
@@ -7002,8 +6213,8 @@ const Modules = (() => {
           html += '</div>';
         }
 
-        // Scripture card — quote text + reference pills + external source link
-        if (quote || refText || refUrl) {
+        // Scripture card — quote text + reference pills together
+        if (quote || refText) {
           html += '<div class="browse-detail-card browse-card-gold">';
           html += '<div class="browse-detail-head"><span class="browse-detail-icon">&#128220;</span><span class="browse-detail-label">Scripture</span></div>';
           if (quote) html += '<div class="browse-detail-body">' + _paras(quote) + '</div>';
@@ -7012,11 +6223,6 @@ const Modules = (() => {
             refText.split(/[;,]+/).map(r => r.trim()).filter(Boolean).forEach(ref => {
               html += _biblePill(ref, 'pill-accent');
             });
-            html += '</div>';
-          }
-          if (refUrl) {
-            html += '<div style="padding:4px 14px 14px;font-size:0.78rem;">';
-            html += '<a href="' + _e(refUrl) + '" target="_blank" rel="noopener noreferrer" style="color:var(--accent);text-decoration:underline;">&#128279; Source Reference</a>';
             html += '</div>';
           }
           html += '</div>';
@@ -7041,36 +6247,29 @@ const Modules = (() => {
   var _roomTypingListener = null; // active typing listener
   var _roomTypingTimer = null;   // debounce timer for typing indicator
   var _commsMode       = null;   // 'firebase' | 'sheets' — null = not yet loaded
+  var _commsModeLoading = false; // prevent concurrent loads
 
   // Load comms mode from Firestore (cached after first load)
-  var _commsModePromise = null;  // shared promise so all callers wait for the same load
-
   async function _loadCommsMode() {
-    console.log('[FLOCK-DEBUG] _loadCommsMode() called — _commsMode=' + _commsMode + ', hasPromise=' + !!_commsModePromise);
-    if (_commsMode !== null) { console.log('[FLOCK-DEBUG] _loadCommsMode() already resolved: ' + _commsMode); return; }
-    if (_commsModePromise) { console.log('[FLOCK-DEBUG] _loadCommsMode() waiting on existing promise…'); await _commsModePromise; console.log('[FLOCK-DEBUG] _loadCommsMode() existing promise done: ' + _commsMode); return; }
-    _commsModePromise = (async function() {
-      try {
-        console.log('[FLOCK-DEBUG] _loadCommsMode() starting fresh — UpperRoom defined=' + (typeof UpperRoom !== 'undefined'));
-        if (typeof UpperRoom === 'undefined') { _commsMode = 'sheets'; console.log('[FLOCK-DEBUG] _loadCommsMode() → sheets (no UpperRoom)'); return; }
-        console.log('[FLOCK-DEBUG] _loadCommsMode() calling UpperRoom.init()…');
-        await UpperRoom.init();
-        console.log('[FLOCK-DEBUG] _loadCommsMode() init done, isReady=' + UpperRoom.isReady());
-        if (!UpperRoom.isReady()) {
-          console.log('[FLOCK-DEBUG] _loadCommsMode() calling UpperRoom.authenticate()…');
-          await UpperRoom.authenticate();
-          console.log('[FLOCK-DEBUG] _loadCommsMode() authenticate done, isReady=' + UpperRoom.isReady());
-        }
-        console.log('[FLOCK-DEBUG] _loadCommsMode() calling UpperRoom.getCommsMode()…');
-        _commsMode = await UpperRoom.getCommsMode();
-        console.log('[FLOCK-DEBUG] _loadCommsMode() RESOLVED: ' + _commsMode);
-      } catch (err) {
-        console.error('[FLOCK-DEBUG] _loadCommsMode() ERROR:', err);
-        _commsMode = (typeof UpperRoom !== 'undefined' && UpperRoom.isReady()) ? 'firebase' : 'sheets';
-        console.log('[FLOCK-DEBUG] _loadCommsMode() fallback: ' + _commsMode);
-      }
-    })();
-    await _commsModePromise;
+    if (_commsMode !== null) return;
+    if (_commsModeLoading) {
+      // Wait for in-flight load
+      await new Promise(function(res) { setTimeout(res, 800); });
+      return;
+    }
+    _commsModeLoading = true;
+    try {
+      if (typeof UpperRoom === 'undefined') { _commsMode = 'sheets'; return; }
+      // UpperRoom exists → default to firebase; only override if settings say sheets
+      await UpperRoom.init();
+      if (!UpperRoom.isReady()) await UpperRoom.authenticate();
+      _commsMode = await UpperRoom.getCommsMode();
+    } catch (_) {
+      // Auth or settings fetch failed — only use firebase if UpperRoom actually authenticated
+      _commsMode = (typeof UpperRoom !== 'undefined' && UpperRoom.isReady()) ? 'firebase' : 'sheets';
+    } finally {
+      _commsModeLoading = false;
+    }
   }
 
   // Helper used throughout comms rendering
@@ -7372,12 +6571,15 @@ const Modules = (() => {
   }
 
   async function deleteMessage(id, cache) {
-    _undoAction('Message deleted', async function() {
+    if (!confirm('Delete this message?')) return;
+    var b = document.querySelector('#view-comms #ml-body');
+    if (b) b.innerHTML = _spinner();
+    try {
       if (_isFirebaseComms()) { await UpperRoom.deleteConversation(id); }
       else { await TheVine.flock.comms.messages.delete({ id }); }
       _commsOpenMsg = null;
       _reload('comms');
-    });
+    } catch (e) { _toast(e.message || 'Delete failed.', 'danger'); }
   }
 
   // Archive an inbox message (move to archived state)
@@ -7551,12 +6753,11 @@ const Modules = (() => {
   }
 
   async function _threadArchive(id) {
-    _undoAction('Thread archived', async function() {
-      if (_isFirebaseComms()) { await UpperRoom.archiveConversation(id); }
-      else { await TheVine.flock.comms.threads.archive({ id: id }); }
-      _invalidateCache('comms-threads');
-      commsView('threads');
-    });
+    if (!confirm('Archive this thread?')) return;
+    if (_isFirebaseComms()) { await UpperRoom.archiveConversation(id); }
+    else { await TheVine.flock.comms.threads.archive({ id: id }); }
+    _invalidateCache('comms-threads');
+    commsView('threads');
   }
 
   async function _threadMuteToggle(id, isMuted) {
@@ -7619,7 +6820,7 @@ const Modules = (() => {
       // Messages container (will be populated by listener)
       let bodyHtml = headerHtml
         + '<div id="room-messages-' + _e(roomId) + '" style="display:flex;flex-direction:column;gap:12px;margin-bottom:8px;'
-        + 'flex:1 1 auto;max-height:calc(100vh - 220px);overflow-y:auto;padding-right:4px;">'
+        + 'max-height:calc(100vh - 340px);overflow-y:auto;padding-right:4px;">'
         + _spinner()
         + '</div>';
 
@@ -7674,7 +6875,7 @@ const Modules = (() => {
     var session = null;
     try { session = (typeof Nehemiah !== 'undefined') ? Nehemiah.getSession() : null; } catch(_) {}
     var myEmail = session && session.email ? session.email : '';
-    var canDeleteAll = session && ((session.roleLevel >= 4) || /^(pastor|admin|seed)$/i.test(session.role || '') || (typeof Nehemiah !== 'undefined' && (Nehemiah.hasGroup('Master') || Nehemiah.hasGroup('Seed Admin') || Nehemiah.hasGroup('Lead Pastor'))));
+    var canDeleteAll = session && ((session.roleLevel >= 4) || /^(pastor|admin|seed)$/i.test(session.role || ''));
 
     if (!msgs.length) {
       container.innerHTML = '<div style="text-align:center;padding:40px 0;color:var(--ink-muted);font-size:0.85rem;">'
@@ -7787,10 +6988,12 @@ const Modules = (() => {
 
   // ── Delete a Firebase thread/room (pastor/admin or creator) ────────────
   async function _deleteFirebaseThread(id) {
-    _undoAction('Conversation deleted', async function() {
+    if (!confirm('Delete this conversation and all its messages? This cannot be undone.')) return;
+    try {
       await UpperRoom.deleteConversation(id);
+      _toast('Conversation deleted.');
       commsView(_commsTab || 'threads');
-    });
+    } catch (e) { _toast('Delete failed: ' + e.message, 'danger'); }
   }
 
   async function commsView(tab) {
@@ -7839,20 +7042,6 @@ const Modules = (() => {
       if (msg) { _body(el, _msgDetailView(msg, _commsOpenMsg.cache)); return; }
       _commsOpenMsg = null;
     }
-
-    // ── Progressive: paint tab bar shell instantly, load data in background ──
-    var _placeholderTabBar = '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;">'
-      + _commsTabBtn('Inbox',           'inbox')
-      + _commsTabBtn('Sent',            'sent')
-      + _commsTabBtn('Rooms',            'rooms')
-      + _commsTabBtn('Threads',         'threads')
-      + _commsTabBtn('Channels',        'channels')
-      + _commsTabBtn('Templates',       'templates')
-      + _commsTabBtn('Broadcasts',      'broadcasts')
-      + _commsTabBtn('🔔 Notifications','notifications')
-      + _commsTabBtn('⚙ Prefs',         'notifPrefs')
-      + '</div>';
-    _body(el, _placeholderTabBar + _spinner());
 
     // Tab-level data fetcher — Firebase mode skips inbox/sent/threads/rooms (handled inline)
     var tabFetcher;
@@ -8114,7 +7303,7 @@ const Modules = (() => {
           (async function() {
             try {
               var _tSess = (typeof Nehemiah !== 'undefined' && Nehemiah.getSession) ? Nehemiah.getSession() : {};
-              var _tCanDel = (_tSess.roleLevel >= 4) || /^(pastor|admin|seed)$/i.test(_tSess.role || '') || (typeof Nehemiah !== 'undefined' && (Nehemiah.hasGroup('Master') || Nehemiah.hasGroup('Seed Admin') || Nehemiah.hasGroup('Lead Pastor')));
+              var _tCanDel = (_tSess.roleLevel >= 4) || /^(pastor|admin|seed)$/i.test(_tSess.role || '');
               UpperRoom.listenConversations('thread', function(threads) {
                 var container = document.getElementById('comms-thread-list');
                 if (!container) return;
@@ -8505,12 +7694,13 @@ const Modules = (() => {
   }
 
   async function _channelDelete(id) {
-    _undoAction('Channel deleted', async function() {
+    if (!confirm('Delete this channel? This cannot be undone.')) return;
+    try {
       if (_isFirebaseComms()) { await UpperRoom.deleteConversation(id); }
       else { await TheVine.flock.comms.channels.delete({ id }); }
       _invalidateCache('comms-channels');
       commsView('channels');
-    });
+    } catch (e) { _toast('Error: ' + e.message, 'danger'); }
   }
 
   async function _channelPost(id) {
@@ -10008,17 +9198,17 @@ const Modules = (() => {
   }
 
   function _mcLinkDelete(id) {
-    _undoAction('Link deleted', function() {
-      return (_isFirebaseComms() ? UpperRoom.deleteCardLink({ id }) : TheVine.flock.memberCards.links.delete({ id }))
-        .then(function() { memberCardsView('mycard'); });
-    });
+    if (!confirm('Delete this link?')) return;
+    (_isFirebaseComms() ? UpperRoom.deleteCardLink({ id }) : TheVine.flock.memberCards.links.delete({ id }))
+      .then(() => { _toast('Link deleted.'); memberCardsView('mycard'); })
+      .catch(e  => _toast('Error: ' + e.message));
   }
 
   function _mcArchive(id) {
-    _undoAction('Member card archived', function() {
-      return (_isFirebaseComms() ? UpperRoom.memberCardsArchive({ id }) : TheVine.flock.memberCards.archive({ id }))
-        .then(function() { _invalidateCache('memberCards.list'); memberCardsView('cards'); });
-    });
+    if (!confirm('Archive this member card?')) return;
+    (_isFirebaseComms() ? UpperRoom.memberCardsArchive({ id }) : TheVine.flock.memberCards.archive({ id }))
+      .then(() => { _toast('Card archived.'); _invalidateCache('memberCards.list'); memberCardsView('cards'); })
+      .catch(e  => _toast('Error: ' + e.message));
   }
 
   function _mcBulkProvision() {
@@ -10108,8 +9298,7 @@ const Modules = (() => {
     _body(el, '<div id="rpt-dashboard" style="margin-bottom:24px;"></div>'
             + dateBar
             + '<div class="card-grid">' + cards + '</div>'
-            + '<div id="rpt-output" style="margin-top:28px;"></div>'
-            + _scheduledExportsPanel());
+            + '<div id="rpt-output" style="margin-top:28px;"></div>');
 
     // ── Load dashboard KPIs ─────────────────────────────────────────────
     const dash = document.getElementById('rpt-dashboard');
@@ -10135,138 +9324,6 @@ const Modules = (() => {
       }
     }
   });
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // SCHEDULED EXPORTS — configure automated email reports
-  // ══════════════════════════════════════════════════════════════════════════
-
-  var _schedules = [];
-
-  function _scheduledExportsPanel() {
-    return '<div style="margin-top:36px;border-top:1px solid var(--line);padding-top:24px;">'
-      + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">'
-      + '<div><h3 style="font-size:0.95rem;margin:0;">📅 Scheduled Reports</h3>'
-      + '<p style="font-size:0.78rem;color:var(--ink-muted);margin:4px 0 0;">Automated email delivery of reports on a recurring schedule.</p></div>'
-      + '<button class="fl-btn" onclick="Modules._scheduleAdd()" style="background:var(--accent);color:var(--ink-inverse);border:none;border-radius:6px;padding:6px 14px;font-weight:600;font-size:0.78rem;cursor:pointer;">+ Add Schedule</button>'
-      + '</div>'
-      + '<div id="sched-list">' + _spinner() + '</div>'
-      + '</div>';
-  }
-
-  async function _scheduleLoad() {
-    var el = document.getElementById('sched-list');
-    if (!el) return;
-    try {
-      var db = typeof firebase !== 'undefined' && firebase.firestore ? firebase.firestore() : null;
-      if (!db) { el.innerHTML = '<p style="font-size:0.82rem;color:var(--ink-muted);">Scheduled exports require Firebase.</p>'; return; }
-      var snap = await db.collection('scheduledReports').get();
-      _schedules = [];
-      snap.forEach(function(doc) { _schedules.push(Object.assign({ id: doc.id }, doc.data())); });
-      _scheduleRender();
-    } catch (e) { el.innerHTML = _errHtml(e.message); }
-  }
-
-  function _scheduleRender() {
-    var el = document.getElementById('sched-list');
-    if (!el) return;
-    if (!_schedules.length) {
-      el.innerHTML = '<p style="font-size:0.82rem;color:var(--ink-muted);">No scheduled reports configured. Click <strong>+ Add Schedule</strong> to create one.</p>';
-      return;
-    }
-    var html = '<table class="fl-table" style="width:100%;font-size:0.82rem;"><thead><tr>'
-      + '<th>Report</th><th>Frequency</th><th>Recipients</th><th>Status</th><th></th></tr></thead><tbody>';
-    _schedules.forEach(function(s) {
-      html += '<tr>'
-        + '<td>' + _e(s.reportName || s.reportType || '') + '</td>'
-        + '<td>' + _e(s.frequency || '') + '</td>'
-        + '<td>' + _e((s.recipients || []).join(', ')) + '</td>'
-        + '<td>' + (s.enabled !== false ? _badge('Active', 'success') : _badge('Paused', 'warn')) + '</td>'
-        + '<td><button class="fl-btn" onclick="Modules._scheduleEdit(\'' + _e(s.id) + '\')" style="font-size:0.72rem;padding:3px 8px;background:none;border:1px solid var(--line);border-radius:4px;color:var(--ink);cursor:pointer;">Edit</button>'
-        + ' <button class="fl-btn" onclick="Modules._scheduleDelete(\'' + _e(s.id) + '\')" style="font-size:0.72rem;padding:3px 8px;background:none;border:1px solid var(--danger);border-radius:4px;color:var(--danger);cursor:pointer;">✕</button></td>'
-        + '</tr>';
-    });
-    html += '</tbody></table>';
-    el.innerHTML = html;
-  }
-
-  function _scheduleAdd() {
-    _modal('Add Scheduled Report', [
-      { name: 'reportType', label: 'Report', type: 'select', required: true, options: [
-        { value: 'attendanceTrend', label: 'Attendance Trend' },
-        { value: 'givingSummary',   label: 'Giving Summary' },
-        { value: 'memberGrowth',    label: 'Member Growth' },
-        { value: 'careOverview',    label: 'Care Overview' },
-        { value: 'inactiveMembers', label: 'Inactive Members' },
-        { value: 'prayerOverview',  label: 'Prayer Overview' },
-      ]},
-      { name: 'frequency', label: 'Frequency', type: 'select', required: true, options: [
-        { value: 'weekly',    label: 'Weekly (Monday)' },
-        { value: 'biweekly',  label: 'Bi-weekly' },
-        { value: 'monthly',   label: 'Monthly (1st)' },
-        { value: 'quarterly', label: 'Quarterly' },
-      ]},
-      { name: 'recipients', label: 'Recipients (comma-separated emails)', type: 'text', required: true },
-      { name: 'reportName', label: 'Display Name (optional)', type: 'text' },
-    ], async function(data) {
-      var db = typeof firebase !== 'undefined' && firebase.firestore ? firebase.firestore() : null;
-      if (!db) throw new Error('Firebase required');
-      data.recipients = (data.recipients || '').split(',').map(function(e) { return e.trim(); }).filter(Boolean);
-      data.enabled = true;
-      data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-      data.createdBy = (typeof Nehemiah !== 'undefined' && Nehemiah.getSession && Nehemiah.getSession()) ? Nehemiah.getSession().email : '';
-      await db.collection('scheduledReports').add(data);
-      _toast('Schedule created ✓');
-      _scheduleLoad();
-    });
-  }
-
-  function _scheduleEdit(id) {
-    var s = _schedules.find(function(x) { return x.id === id; });
-    if (!s) return;
-    _modal('Edit Scheduled Report', [
-      { name: 'reportType', label: 'Report', type: 'select', value: s.reportType, options: [
-        { value: 'attendanceTrend', label: 'Attendance Trend' },
-        { value: 'givingSummary',   label: 'Giving Summary' },
-        { value: 'memberGrowth',    label: 'Member Growth' },
-        { value: 'careOverview',    label: 'Care Overview' },
-        { value: 'inactiveMembers', label: 'Inactive Members' },
-        { value: 'prayerOverview',  label: 'Prayer Overview' },
-      ]},
-      { name: 'frequency', label: 'Frequency', type: 'select', value: s.frequency, options: [
-        { value: 'weekly',    label: 'Weekly (Monday)' },
-        { value: 'biweekly',  label: 'Bi-weekly' },
-        { value: 'monthly',   label: 'Monthly (1st)' },
-        { value: 'quarterly', label: 'Quarterly' },
-      ]},
-      { name: 'recipients', label: 'Recipients (comma-separated)', type: 'text', value: (s.recipients || []).join(', ') },
-      { name: 'reportName', label: 'Display Name', type: 'text', value: s.reportName || '' },
-      { name: 'enabled', label: 'Enabled', type: 'select', value: s.enabled !== false ? 'true' : 'false', options: [
-        { value: 'true', label: 'Active' }, { value: 'false', label: 'Paused' },
-      ]},
-    ], async function(data) {
-      var db = typeof firebase !== 'undefined' && firebase.firestore ? firebase.firestore() : null;
-      if (!db) throw new Error('Firebase required');
-      data.recipients = (data.recipients || '').split(',').map(function(e) { return e.trim(); }).filter(Boolean);
-      data.enabled = data.enabled === 'true';
-      await db.collection('scheduledReports').doc(id).update(data);
-      _toast('Schedule updated ✓');
-      _scheduleLoad();
-    });
-  }
-
-  async function _scheduleDelete(id) {
-    if (!confirm('Remove this scheduled report?')) return;
-    try {
-      var db = typeof firebase !== 'undefined' && firebase.firestore ? firebase.firestore() : null;
-      if (!db) throw new Error('Firebase required');
-      await db.collection('scheduledReports').doc(id).delete();
-      _toast('Schedule removed.');
-      _scheduleLoad();
-    } catch (e) { _toast(e.message, 'danger'); }
-  }
-
-  // Auto-load schedules when reports panel is rendered
-  setTimeout(function() { _scheduleLoad(); }, 500);
 
   // ── Reports date-range helpers ──────────────────────────────────────────
   function _rptPreset() {
@@ -10297,8 +9354,6 @@ const Modules = (() => {
   }
 
   // ═══════════════════════════════════════════════════════════════════════
-  var _configActiveTab = 'overview'; // persists across config reloads
-
   // 25. PEOPLE  (admin — full-page user / member / card management)
   // ═══════════════════════════════════════════════════════════════════════
   var _ppData = {};     // merged people keyed by lower-case email
@@ -10326,7 +9381,7 @@ const Modules = (() => {
   async function _ppLoadList(el) {
     try {
       var res = await Promise.all([
-        TheVine.flock.users.list(),
+        _isFirebaseComms() ? UpperRoom.listUsers()      : TheVine.flock.users.list(),
         _isFirebaseComms() ? UpperRoom.listMembers()     : TheVine.flock.members.list(),
         _isFirebaseComms() ? UpperRoom.listMemberCards()  : TheVine.flock.memberCards.directory()
       ]);
@@ -10445,7 +9500,7 @@ const Modules = (() => {
   async function _ppApprove(email) {
     if (!confirm('Approve ' + email + ' for membership?')) return;
     try {
-      await TheVine.flock.users.approve({ email: email });
+      await (_isFirebaseComms() ? UpperRoom.approveUser(email) : TheVine.flock.users.approve({ email: email }));
       _toast('Approved!', 'success');
       _reload('users');
     } catch (e) { _toast('Failed: ' + (e.message || e), 'danger'); }
@@ -10453,7 +9508,7 @@ const Modules = (() => {
   async function _ppDeny(email) {
     if (!confirm('Deny registration for ' + email + '?')) return;
     try {
-      await TheVine.flock.users.deny({ email: email });
+      await (_isFirebaseComms() ? UpperRoom.denyUser(email) : TheVine.flock.users.deny({ email: email }));
       _toast('Denied.', 'warn');
       _reload('users');
     } catch (e) { _toast('Failed: ' + (e.message || e), 'danger'); }
@@ -10592,24 +9647,6 @@ const Modules = (() => {
     // ═══ MEMBER SECTIONS ═══
     if (memberRec) {
       var mid = '<input type="hidden" id="pp-mem_id" value="' + _e(memberRec.id || '') + '">';
-
-      // ── Member ID bar (visible, copyable) ──
-      var _pin = memberRec.memberPin || '';
-      var _pinDisplay = _pin
-        ? ('<span id="pp-pin-val" style="font-family:monospace;font-size:1.05rem;letter-spacing:0.12em;font-weight:700;color:var(--accent);">' + _e(_pin) + '</span>')
-        : ('<span id="pp-pin-val" style="color:var(--ink-muted);font-size:0.83rem;">Not assigned</span>');
-      var _memDocId = _e(memberRec.id || '');
-      html += '<div style="display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px 16px;margin-bottom:14px;flex-wrap:wrap;">';
-      html += '<span style="font-size:0.75rem;color:var(--ink-muted);white-space:nowrap;">&#128272; Member ID</span>';
-      html += _pinDisplay;
-      if (_pin) {
-        html += '<button type="button" onclick="Modules._ppCopyPin()"'
-          + ' style="margin-left:auto;background:none;border:1px solid var(--line);border-radius:5px;padding:3px 10px;cursor:pointer;font-size:0.77rem;color:var(--ink-muted);">Copy</button>';
-      } else {
-        html += '<button type="button" onclick="Modules._ppGenPin(' + JSON.stringify(_memDocId) + ')"'
-          + ' style="margin-left:auto;background:var(--accent);color:var(--ink-inverse);border:none;border-radius:5px;padding:4px 12px;cursor:pointer;font-size:0.8rem;font-weight:600;">Generate ID</button>';
-      }
-      html += '</div>';
 
       // Demographics (name/photo/email/phone now in Identity)
       var dem = '';
@@ -10920,16 +9957,6 @@ const Modules = (() => {
           { key: 'church',             label: 'Church Profile',        desc: 'View church profile and settings.',                                   risk: 'high' },
           { key: 'church.edit',        label: 'Edit Church Profile',   desc: 'Modify church profile information.',                                  risk: 'critical' },
         ]},
-        { group: 'Admin Dashboard', items: [
-          { key: 'admin-dashboard',              label: 'Admin Hub Access',         desc: 'Access the Admin Hub — KPIs, oversight cards, scratchpad, and system-level reporting.', risk: 'critical' },
-          { key: 'admin-dashboard.kpis',         label: 'KPI Overview',             desc: 'View live KPI ribbon: member count, open prayers, urgent care, giving, and events.',     risk: 'high' },
-          { key: 'admin-dashboard.care',         label: 'Urgent Care Panel',        desc: 'View urgent care cases surfaced on the Admin Hub.',                                       risk: 'critical' },
-          { key: 'admin-dashboard.giving',       label: 'Giving Summary',           desc: 'View 30-day giving totals and trends on the Admin Hub.',                                  risk: 'critical' },
-          { key: 'admin-dashboard.events',       label: 'Events Panel',             desc: 'View upcoming events listed on the Admin Hub.',                                           risk: 'low' },
-          { key: 'admin-dashboard.audit',        label: 'Recent Activity Log',      desc: 'View the recent activity feed on the Admin Hub.',                                         risk: 'high' },
-          { key: 'admin-dashboard.issues',       label: 'Open Issues Panel',        desc: 'View open support issues and problems on the Admin Hub.',                                 risk: 'medium' },
-          { key: 'admin-dashboard.scratchpad',   label: 'Admin Scratchpad',         desc: 'Access and edit the admin scratchpad and task list.',                                     risk: 'low' },
-        ]},
       ];
 
       var _riskMeta = {
@@ -11165,7 +10192,7 @@ const Modules = (() => {
       gh += '</div></div>';
 
       // Critical confirmation (shown only when a critical group is checked)
-      var anyCrit = ['admin', 'lead pastor', 'master', 'allmail'].some(function(g) { return currentGroups.indexOf(g) !== -1; });
+      var anyCrit = ['admin', 'lead pastor', 'allmail'].some(function(g) { return currentGroups.indexOf(g) !== -1; });
       gh += '<div id="grp-critical-confirm" style="' + (anyCrit ? '' : 'display:none;')
          + 'border:2px solid #dc2626;border-radius:10px;background:#dc262610;padding:16px 18px;margin-bottom:14px;">';
       gh += '<div style="font-weight:800;color:#dc2626;font-size:0.8rem;letter-spacing:0.06em;margin-bottom:10px;">'
@@ -11216,7 +10243,7 @@ const Modules = (() => {
 
     // ═══ SECTION: Spiritual Care History (Lead Pastor / Seed Admin only) ═══
     var _ppIsLeadPastor = false;
-    try { _ppIsLeadPastor = Nehemiah.hasGroup('Lead Pastor') || Nehemiah.hasGroup('Master'); } catch(_e_) {}
+    try { _ppIsLeadPastor = Nehemiah.hasGroup('Lead Pastor'); } catch(_e_) {}
     var _ppIsSeedAdmin = false;
     try { var _ppSess = TheVine.session(); _ppIsSeedAdmin = !!(_ppSess && _ppSess.isSeed); } catch(_e_) {}
     if ((_ppIsLeadPastor || _ppIsSeedAdmin) && memberRec) {
@@ -11285,7 +10312,7 @@ const Modules = (() => {
         if (f.indexOf('acct_') === 0) acct[f.substring(5)] = el.value;
       });
       _stat('Saving account\u2026');
-      await TheVine.flock.users.update(acct);
+      await (_isFirebaseComms() ? UpperRoom.updateUser(acct) : TheVine.flock.users.update(acct));
     } catch (e) { errors.push('Account: ' + (e.message || e)); }
 
     // 2. Member record — fan in shared fields
@@ -11304,7 +10331,7 @@ const Modules = (() => {
         if (memId) {
           mem.id = memId;
           _stat('Saving member record\u2026');
-          await _updateMember(mem);
+          await (_isFirebaseComms() ? UpperRoom.updateMember(mem) : TheVine.flock.call('members.update', mem));
         }
       } catch (e) { errors.push('Member: ' + (e.message || e)); }
     }
@@ -11324,7 +10351,7 @@ const Modules = (() => {
         if (cardId) {
           card.id = cardId;
           _stat('Saving contact card\u2026');
-          await _updateMemberCard(card);
+          await (_isFirebaseComms() ? UpperRoom.updateMemberCard(card) : TheVine.flock.memberCards.update(card));
         }
       } catch (e) { errors.push('Card: ' + (e.message || e)); }
     }
@@ -11342,634 +10369,976 @@ const Modules = (() => {
     }
   }
 
-
-
   // ═══════════════════════════════════════════════════════════════════════
-  // 26. SETTINGS  (admin)
-  //     v2: Firestore-first · sidebar nav · flat sections · fast
+  // 26. CONFIG  (admin)
   // ═══════════════════════════════════════════════════════════════════════
-
-  var _cfgD = { rows: [], configSource: '', seededDefaults: false, studioDirty: false };
-  var _settingsTabRenderers = {};
-  var _cfgVal = function(key, fallback) {
-    var r = _cfgD.rows.find(function(r) { return (r.key || r.configKey) === key; });
-    return r ? String(r.value != null ? r.value : fallback) : String(fallback);
-  };
-  var _cfgBool = function(key) { return _cfgVal(key, 'FALSE').toUpperCase() === 'TRUE'; };
-
-  function _settingsTab(tabId) {
-    if (_cfgD.studioDirty && _configActiveTab === 'look-feel' && tabId !== 'look-feel') {
-      if (!confirm('You have unsaved Interface Studio changes. Leave without saving?')) return;
-      _cfgD.studioDirty = false;
-    }
-    _configActiveTab = tabId;
-    var c = document.getElementById('settings-content');
-    if (!c) return;
-    document.querySelectorAll('.stg-nav-item').forEach(function(n) {
-      n.classList.toggle('active', n.getAttribute('data-tab') === tabId);
-    });
-    var r = _settingsTabRenderers[tabId];
-    if (r) {
-      c.innerHTML = '<div class="stg-panel-animate">' + r.html() + '</div>';
-      if (r.after) setTimeout(r.after, 30);
-    }
-  }
-
   _def('config', async el => {
-    _shell(el, 'Settings', 'Configure your church portal.',
+    _shell(el, 'Control Panel', 'System provisioning, security, and administration.',
       _btn('\uD83D\uDD04 Refresh', 'Modules._reloadConfig()'));
+    try {
+      const res  = await (_isFirebaseComms() ? UpperRoom.listAppConfig() : TheVine.flock.config.list());
+      const rows = _rows(res);
+      _dataCache['config'] = rows;
 
-    // ── Paint sidebar layout INSTANTLY — data loads in background ────
-    var tabs = [
-      { id: 'overview',   icon: '\uD83D\uDCCA', label: 'Overview' },
-      { id: 'identity',   icon: '\u26EA',        label: 'Church Identity' },
-      { id: 'appearance', icon: '\uD83C\uDFA8',  label: 'Appearance' },
-      { id: 'modules',    icon: '\uD83E\uDDE9',  label: 'Modules' },
-      { id: 'database',   icon: '\uD83D\uDDC4',  label: 'Database' },
-      { id: 'advanced',   icon: '\u2699\uFE0F',  label: 'All Settings' },
-    ];
-    if (_isFirebaseComms()) tabs.push({ id: 'master', icon: '\uD83C\uDF10', label: 'Master Config' });
+      // Sync display settings to localStorage so public site picks them up
+      var _syncKeys = { FONT_SCALE: 'flock_font_scale', FONT_SCALE_MOBILE: 'flock_font_scale_mobile', QUIZ_SIZE: 'flock_quiz_size', CHURCH_LOGO: 'flock_church_logo' };
+      rows.forEach(function(r) {
+        var k = r.key || r.configKey || '';
+        if (_syncKeys[k] && r.value != null) localStorage.setItem(_syncKeys[k], String(r.value));
+      });
+      // Apply font scale for current viewport
+      if (window._applyFontScale) window._applyFontScale();
 
-    var s = '<div class="stg-layout">';
-    s += '<nav class="stg-sidebar" role="navigation">';
-    tabs.forEach(function(t) {
-      s += '<button class="stg-nav-item" data-tab="' + t.id + '" onclick="Modules._settingsTab(\'' + t.id + '\')">';
-      s += '<span class="stg-nav-icon">' + t.icon + '</span>';
-      s += '<span class="stg-nav-label">' + t.label + '</span>';
-      s += '</button>';
-    });
-    s += '</nav>';
-    s += '<main class="stg-main" id="settings-content">' + _spinner() + '</main>';
-    s += '</div>';
+      const prefixRow = rows.find(r => (r.key || r.configKey) === 'CARD_PREFIX');
+      const currentPrefix = prefixRow ? String(prefixRow.value || 'FlockOS') : 'FlockOS';
+      const vis = _getModuleVis();
+      const globalThemeRow = rows.find(r => (r.key || r.configKey) === 'GLOBAL_THEME');
+      const globalTheme = globalThemeRow ? String(globalThemeRow.value || 'default') : 'default';
+      const tmMeta = (typeof Adornment !== 'undefined' && Adornment.themeMeta) ? Adornment.themeMeta : {};
+      const themeList = (typeof Adornment !== 'undefined' && Adornment.themes) ? Adornment.themes.filter(t => t !== 'auto') : [];
+      const currentTheme = (typeof Adornment !== 'undefined') ? Adornment.getTheme() : 'america';
+      const isOverridden = globalTheme !== 'default';
 
-    _body(el, s);
+      const allToggleable = Object.keys(_moduleMeta).filter(k => _protectedModules.indexOf(k) === -1);
+      const totalOn = allToggleable.filter(k => _isModuleEnabled(k)).length;
 
-    // ── Load config data in background, then render active tab ──────
-    (async function _loadConfigData() {
-      try {
-        var rows = [];
-        var _configSource = 'firebase';
-        if (_isFirebaseComms()) {
-          var fbRes = await UpperRoom.listAppConfig().catch(function() { return null; });
-          rows = fbRes ? _rows(fbRes) : [];
-          if (rows.length === 0) {
-            _configSource = 'defaults';
-            rows = _DEFAULT_APP_CONFIG.slice();
-            // Seed Firestore — fire-and-forget so UI isn't blocked
-            Promise.all(rows.map(function(r) { return UpperRoom.setAppConfig(r).catch(function() {}); }));
-          }
+      let html = '';
+
+      // ── Tab switching ───────────────────────────────────────────────
+      Modules._configTab = function(tabId) {
+        document.querySelectorAll('.config-tab-panel').forEach(function(p) { p.classList.remove('active'); });
+        document.querySelectorAll('.config-tab').forEach(function(t) { t.classList.remove('active'); });
+        var panel = document.querySelector('.config-tab-panel[data-tab="' + tabId + '"]');
+        var tab = document.querySelector('.config-tab[data-tab="' + tabId + '"]');
+        if (panel) panel.classList.add('active');
+        if (tab) tab.classList.add('active');
+      };
+
+      // ── Overview stat cards (enhanced) ──────────────────────────────
+      html += '<div class="config-stat-grid">';
+      html += '<div class="config-stat-card"><div class="config-stat-icon">\uD83C\uDFA8</div><div class="config-stat-value">' + themeList.length + '</div><div class="config-stat-label">Themes Available</div></div>';
+      html += '<div class="config-stat-card"><div class="config-stat-icon">\uD83E\uDDE9</div><div class="config-stat-value">' + totalOn + '</div><div class="config-stat-label">Active Modules</div></div>';
+      html += '<div class="config-stat-card"><div class="config-stat-icon">\uD83D\uDCCB</div><div class="config-stat-value">' + rows.length + '</div><div class="config-stat-label">Config Entries</div></div>';
+      html += '<div class="config-stat-card"><div class="config-stat-icon">\uD83C\uDFF7\uFE0F</div><div class="config-stat-value" style="font-size:1.1rem;">' + _e(currentPrefix) + '</div><div class="config-stat-label">Card Prefix</div></div>';
+      html += '</div>';
+
+      // ── Tab Navigation ──────────────────────────────────────────────
+      html += '<div class="config-tabs-bar">';
+      html += '<button class="config-tab active" data-tab="overview" onclick="Modules._configTab(\'overview\')"><span class="config-tab-icon">\uD83C\uDFE0</span> Overview</button>';
+      html += '<button class="config-tab" data-tab="look-feel" onclick="Modules._configTab(\'look-feel\')"><span class="config-tab-icon">\uD83C\uDFA8</span> Look &amp; Feel</button>';
+      html += '<button class="config-tab" data-tab="modules" onclick="Modules._configTab(\'modules\')"><span class="config-tab-icon">\uD83E\uDDE9</span> Modules</button>';
+      html += '<button class="config-tab" data-tab="admin" onclick="Modules._configTab(\'admin\')"><span class="config-tab-icon">\u2699\uFE0F</span> Administration</button>';
+      html += '</div>';
+
+      // ══ Tab: Overview ═══════════════════════════════════════════════
+      html += '<div class="config-tab-panel active" data-tab="overview">';
+
+      // ── Section 0: Security — Maintenance Mode ───────────────────────
+      // Maintenance status lives in global appConfig/system (not church-scoped)
+      // Render the section with a placeholder, then async-fill once Firestore responds
+      html += '<details class="settings-section settings-accordion">';
+      html += '<summary class="settings-accordion-trigger"><span class="settings-accordion-chevron">&#9654;</span>';
+      html += '<span class="settings-section-icon">\uD83D\uDEE1\uFE0F</span>';
+      html += '<span class="settings-accordion-label">Security</span>';
+      html += '<span class="settings-accordion-count" id="maintenance-badge">…</span>';
+      html += '</summary>';
+      html += '<div class="settings-accordion-body">';
+      html += '<div class="settings-card">';
+      html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">';
+      html += '<div>';
+      html += '<div class="settings-card-label">\uD83D\uDD12 Maintenance Mode</div>';
+      html += '<p class="settings-card-hint" style="margin:4px 0 0;">When enabled, the public portal shows a maintenance page and only Pastor / Admin can access the admin portal.</p>';
+      html += '</div>';
+      html += '<label class="settings-toggle">';
+      html += '<input type="checkbox" id="lockdown-toggle" onchange="Modules.toggleLockdown(this.checked)">';
+      html += '<span class="settings-toggle-slider"></span>';
+      html += '</label>';
+      html += '</div>';
+      html += '<div id="maintenance-active-banner" style="display:none;margin-top:12px;padding:10px 14px;border-radius:8px;background:var(--warning,#c98b2e);color:#fff;font-weight:600;font-size:0.85rem;">\u26A0 MAINTENANCE IS ACTIVE — Public portal is blocked. Only Pastor &amp; Admin can access admin.</div>';
+      html += '</div></div>';
+      html += '</div></details>';
+
+      // Async-fill maintenance toggle from Firestore
+      (function() {
+        if (typeof UpperRoom !== 'undefined' && UpperRoom.getMaintenanceStatus) {
+          UpperRoom.getMaintenanceStatus().then(function(data) {
+            var active = !!(data && data.maintenance);
+            var badge = document.getElementById('maintenance-badge');
+            if (badge) badge.textContent = active ? '\u26A0 MAINTENANCE' : 'Normal';
+            var cb = document.getElementById('lockdown-toggle');
+            if (cb) cb.checked = active;
+            var banner = document.getElementById('maintenance-active-banner');
+            if (banner) banner.style.display = active ? '' : 'none';
+          }).catch(function() {
+            var badge = document.getElementById('maintenance-badge');
+            if (badge) badge.textContent = 'Normal';
+          });
         } else {
-          _configSource = 'gas';
-          var gasRes = await TheVine.flock.config.list().catch(function() { return null; });
-          rows = gasRes ? _rows(gasRes) : [];
-          if (rows.length === 0) {
-            _configSource = 'defaults';
-            rows = _DEFAULT_APP_CONFIG.slice();
-          }
+          var badge = document.getElementById('maintenance-badge');
+          if (badge) badge.textContent = 'Normal';
         }
-
-        _dataCache['config'] = rows;
-        _cfgD.rows = rows;
-        _cfgD.configSource = _configSource;
-        _cfgD.seededDefaults = _configSource === 'defaults';
-        _cfgD.studioDirty = false;
-
-        // Sync display keys to localStorage
-        var sk = { FONT_SCALE: 'flock_font_scale', FONT_SCALE_MOBILE: 'flock_font_scale_mobile', QUIZ_SIZE: 'flock_quiz_size', CHURCH_LOGO: 'flock_church_logo' };
-        rows.forEach(function(r) { var k = r.key || r.configKey || ''; if (sk[k] && r.value != null) localStorage.setItem(sk[k], String(r.value)); });
-        if (window._applyFontScale) window._applyFontScale();
-
-        // Render active tab now that data is ready
-        _settingsTab(_configActiveTab || 'overview');
-
-      } catch (e) {
-        var content = document.getElementById('settings-content');
-        if (content) content.innerHTML = _errHtml(e.message);
-      }
-    })();
-  });
-
-  // ════════════════════════════════════════════════════════════════════════
-  //  OVERVIEW
-  // ════════════════════════════════════════════════════════════════════════
-  _settingsTabRenderers['overview'] = {
-    html: function() {
-      var rows = _cfgD.rows;
-      var churchName = _cfgVal('CHURCH_NAME', '');
-      var allMods = Object.keys(_moduleMeta).filter(function(k) { return _protectedModules.indexOf(k) === -1; });
-      var modsOn = allMods.filter(function(k) { return _isModuleEnabled(k); }).length;
-      var themeList = (typeof Adornment !== 'undefined' && Adornment.themes) ? Adornment.themes.filter(function(t) { return t !== 'auto'; }) : [];
-      var prefix = _cfgVal('CARD_PREFIX', 'FLOCK');
-      var fbReady = typeof UpperRoom !== 'undefined' && UpperRoom.isReady();
-      var fbMode = _isFirebaseComms();
-      var projId = ''; try { projId = firebase.app().options.projectId || ''; } catch(_){}
-
-      var h = '';
-
-      // Source banner
-      if (_cfgD.seededDefaults) {
-        h += '<div class="stg-banner stg-banner-warn">';
-        h += '<strong>\u26A0 Config seeded from defaults.</strong> Edit settings below to customize.';
-        h += ' <button class="stg-link-btn" onclick="Modules._configSeedFromGas()">Pull from GAS instead</button>';
-        h += '</div>';
-      }
-
-      // Stat row
-      h += '<div class="stg-stats">';
-      h += '<div class="stg-stat"><div class="stg-stat-val">' + (churchName ? _e(churchName) : '\u2014') + '</div><div class="stg-stat-lbl">Church</div></div>';
-      h += '<div class="stg-stat"><div class="stg-stat-val">' + modsOn + '/' + allMods.length + '</div><div class="stg-stat-lbl">Modules</div></div>';
-      h += '<div class="stg-stat"><div class="stg-stat-val">' + themeList.length + '</div><div class="stg-stat-lbl">Themes</div></div>';
-      h += '<div class="stg-stat"><div class="stg-stat-val">' + _e(prefix) + '</div><div class="stg-stat-lbl">Card Prefix</div></div>';
-      h += '</div>';
-
-      // System health
-      h += '<div class="stg-card">';
-      h += '<div class="stg-card-title">System Health</div>';
-      h += '<div class="stg-health-row"><span class="stg-health-label">\uD83D\uDD25 Firebase</span>';
-      if (fbReady && fbMode) h += '<span class="stg-pill stg-pill-ok">Connected \u2014 ' + _e(projId) + '</span>';
-      else if (fbReady)      h += '<span class="stg-pill stg-pill-warn">Standby</span>';
-      else                   h += '<span class="stg-pill stg-pill-off">Not loaded</span>';
-      h += '</div>';
-      h += '<div class="stg-health-row"><span class="stg-health-label">\uD83D\uDCC4 GAS API</span>';
-      h += '<span class="stg-pill stg-pill-check" id="ov-gas-pill">Checking\u2026</span>';
-      h += '</div>';
-      h += '<div class="stg-health-row"><span class="stg-health-label">\uD83D\uDEE1 Maintenance</span>';
-      h += '<span id="ov-maint-status" class="stg-pill stg-pill-check">Checking\u2026</span>';
-      h += '<label class="stg-switch"><input type="checkbox" id="ov-lockdown" onchange="Modules.toggleLockdown(this.checked)"><span class="stg-switch-track"></span></label>';
-      h += '</div>';
-      h += '<div id="ov-maint-banner" class="stg-banner stg-banner-warn" style="display:none;margin-top:10px;">\u26A0 MAINTENANCE MODE ACTIVE</div>';
-      h += '</div>';
-
-      // Quick snapshot
-      h += '<div class="stg-card">';
-      h += '<div class="stg-card-title">Quick Snapshot</div>';
-      h += '<div class="stg-kv"><span>Data Layer</span><span>' + (fbMode ? 'Firebase (real-time)' : 'Google Apps Script') + '</span></div>';
-      h += '<div class="stg-kv"><span>Self-Registration</span><span>' + (_cfgBool('ALLOW_SELF_REGISTER') ? '\uD83D\uDFE2 Open' : '\u26D4 Closed') + '</span></div>';
-      h += '<div class="stg-kv"><span>Session TTL</span><span>' + _cfgVal('SESSION_TTL_HOURS', '6') + ' hrs</span></div>';
-      h += '<div class="stg-kv"><span>Admin Email</span><span>' + (_cfgVal('ADMIN_EMAIL', '') || '\u26A0 Not set') + '</span></div>';
-      h += '<div class="stg-kv"><span>Config Entries</span><span>' + rows.length + '</span></div>';
-      h += '</div>';
-
-      // Quick actions
-      h += '<div class="stg-actions">';
-      h += '<button class="stg-action" onclick="Modules._settingsTab(\'identity\')">\u26EA Identity</button>';
-      h += '<button class="stg-action" onclick="Modules._settingsTab(\'appearance\')">\uD83C\uDFA8 Themes</button>';
-      h += '<button class="stg-action" onclick="Modules._settingsTab(\'modules\')">\uD83E\uDDE9 Modules</button>';
-      h += '<button class="stg-action" onclick="Modules._settingsTab(\'database\')">\uD83D\uDD0C Database</button>';
-      h += '<button class="stg-action" onclick="Modules._runHealthCheck()">\uD83D\uDCE1 Diagnostics</button>';
-      h += '</div>';
-
-      return h;
-    },
-    after: function() {
-      // GAS health ping
-      (async function() {
-        var pill = document.getElementById('ov-gas-pill');
-        try {
-          var t0 = performance.now();
-          var ok = await TheVine.health('flock');
-          var ms = Math.round(performance.now() - t0);
-          if (pill) { pill.className = 'stg-pill ' + (ok ? 'stg-pill-ok' : 'stg-pill-err'); pill.textContent = ok ? ms + 'ms' : 'Offline'; }
-        } catch(e) { if (pill) { pill.className = 'stg-pill stg-pill-err'; pill.textContent = 'Offline'; } }
       })();
-      // Maintenance check
-      if (typeof UpperRoom !== 'undefined' && UpperRoom.getMaintenanceStatus) {
-        UpperRoom.getMaintenanceStatus().then(function(d) {
-          var on = !!(d && d.maintenance);
-          var s = document.getElementById('ov-maint-status');
-          if (s) { s.className = 'stg-pill ' + (on ? 'stg-pill-warn' : 'stg-pill-ok'); s.textContent = on ? 'ON' : 'Normal'; }
-          var cb = document.getElementById('ov-lockdown'); if (cb) cb.checked = on;
-          var b = document.getElementById('ov-maint-banner'); if (b) b.style.display = on ? '' : 'none';
-        }).catch(function() {});
-      }
-    }
-  };
 
-  // ════════════════════════════════════════════════════════════════════════
-  //  CHURCH IDENTITY
-  // ════════════════════════════════════════════════════════════════════════
-  _settingsTabRenderers['identity'] = {
-    html: function() {
-      var h = '';
-      var fields = [
-        { key: 'CHURCH_NAME',        label: 'Church Name',       type: 'text',   ph: 'e.g. Stronger by Grace' },
-        { key: 'ADMIN_EMAIL',        label: 'Admin Email',       type: 'email',  ph: 'pastor@church.org' },
-        { key: 'CHURCH_EMAIL',       label: 'Church Email',      type: 'email',  ph: 'info@church.org' },
-        { key: 'CHURCH_PHONE',       label: 'Phone',             type: 'tel',    ph: '(555) 123-4567' },
-        { key: 'CHURCH_ADDRESS',     label: 'Address',           type: 'text',   ph: '123 Main St, City, ST 12345' },
-        { key: 'CHURCH_WEBSITE',     label: 'Website',           type: 'url',    ph: 'https://yourchurch.org' },
-        { key: 'CHURCH_TIMEZONE',    label: 'Timezone',          type: 'text',   ph: 'America/New_York' },
-        { key: 'CHURCH_LOGO',        label: 'Logo URL',          type: 'url',    ph: 'https://...' },
-      ];
-      h += '<div class="stg-card">';
-      h += '<div class="stg-card-title">\u26EA Church Identity</div>';
-      h += '<p class="stg-card-desc">Core information about your church. Shown in headers, cards, and notifications.</p>';
-      h += '<div class="stg-form-grid">';
-      fields.forEach(function(f) {
-        var v = _cfgVal(f.key, '');
-        h += '<div class="stg-field">';
-        h += '<label class="stg-label" for="ci-' + f.key + '">' + _e(f.label) + '</label>';
-        h += '<input type="' + f.type + '" id="ci-' + f.key + '" class="stg-input" value="' + _e(v) + '" placeholder="' + _e(f.ph) + '" data-ci-key="' + f.key + '">';
-        h += '</div>';
+      html += '</div>'; // close Overview tab
+
+      // ══ Tab: Look & Feel ════════════════════════════════════════════
+      html += '<div class="config-tab-panel" data-tab="look-feel">';
+
+      // ── Section 1: Identity & Branding ──────────────────────────────
+      html += '<details class="settings-section settings-accordion">';
+      html += '<summary class="settings-accordion-trigger"><span class="settings-accordion-chevron">&#9654;</span>';
+      html += '<span class="settings-section-icon">\uD83C\uDFF7\uFE0F</span>';
+      html += '<span class="settings-accordion-label">Identity &amp; Branding</span>';
+      html += '<span class="settings-accordion-count">' + _e(currentPrefix) + '</span>';
+      html += '</summary>';
+      html += '<div class="settings-accordion-body">';
+      html += '<div class="settings-card">';
+      html += '<div class="settings-card-label">Member Card Prefix</div>';
+      html += '<p class="settings-card-hint">Prefix for new member card numbers (e.g. <strong>' + _e(currentPrefix) + '-0001</strong>). Changing this only affects future cards.</p>';
+      html += '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">';
+      html += '<input id="card-prefix-input" type="text" value="' + _e(currentPrefix) + '" maxlength="10" class="settings-input" placeholder="FlockOS" style="width:120px;text-transform:uppercase;">';
+      html += '<button class="btn btn-primary" onclick="Modules.saveCardPrefix()" style="padding:10px 20px;border-radius:8px;border:none;background:var(--accent);color:var(--bg);font-weight:600;font-size:0.85rem;cursor:pointer;">Save Prefix</button>';
+      html += '</div></div></div>';
+      html += '</div></details>';
+
+      // ── Section 1b: Display Preferences ─────────────────────────────
+      const fontScaleRow = rows.find(r => (r.key || r.configKey) === 'FONT_SCALE');
+      const currentScale = fontScaleRow ? String(fontScaleRow.value || '100') : (localStorage.getItem('flock_font_scale') || '100');
+      const mobileFontScaleRow = rows.find(r => (r.key || r.configKey) === 'FONT_SCALE_MOBILE');
+      const currentMobileScale = mobileFontScaleRow ? String(mobileFontScaleRow.value || '100') : (localStorage.getItem('flock_font_scale_mobile') || '100');
+      const quizSizeRow = rows.find(r => (r.key || r.configKey) === 'QUIZ_SIZE');
+      const currentQuizSize = quizSizeRow ? String(quizSizeRow.value || '0') : (localStorage.getItem('flock_quiz_size') || '0');
+
+      html += '<details class="settings-section settings-accordion">';
+      html += '<summary class="settings-accordion-trigger"><span class="settings-accordion-chevron">&#9654;</span>';
+      html += '<span class="settings-section-icon">\uD83D\uDD0D</span>';
+      html += '<span class="settings-accordion-label">Display Preferences</span>';
+      html += '<span class="settings-accordion-count">Desktop ' + _e(currentScale) + '% / Mobile ' + _e(currentMobileScale) + '%</span>';
+      html += '</summary>';
+      html += '<div class="settings-accordion-body">';
+
+      // Desktop Font Scale
+      html += '<div class="settings-card">';
+      html += '<div class="settings-card-label">\uD83D\uDDA5 Desktop Font Size</div>';
+      html += '<p class="settings-card-hint">Scale text on desktop and laptop screens. Default is 100%.</p>';
+      html += '<div style="display:flex;align-items:center;gap:8px;margin-top:6px;">';
+      html += '<select id="font-scale-input" class="settings-input" style="min-width:130px;" onchange="Modules.previewFontScale(this.value)">';
+      [90, 95, 100, 105, 110, 115, 120, 125, 130].forEach(function(n) {
+        html += '<option value="' + n + '"' + (String(currentScale) === String(n) ? ' selected' : '') + '>' + n + '%</option>';
       });
-      h += '</div>';
-      h += '<div class="stg-form-foot">';
-      h += '<button class="stg-btn stg-btn-primary" onclick="Modules._saveIdentity()">Save Identity</button>';
-      h += '<span id="ci-save-status" class="stg-status"></span>';
-      h += '</div>';
-      h += '</div>';
+      html += '</select>';
+      html += '<button class="btn btn-primary" onclick="Modules.saveFontScale()" style="margin-left:8px;padding:6px 16px;border-radius:6px;border:none;background:var(--accent);color:var(--bg);font-weight:600;font-size:0.82rem;cursor:pointer;">Save</button>';
+      html += '</div></div>';
 
-      // Security & Access card
-      h += '<div class="stg-card">';
-      h += '<div class="stg-card-title">\uD83D\uDD10 Security & Access</div>';
-      var secFields = [
-        { key: 'SESSION_TTL_HOURS',    label: 'Session Length (hours)', type: 'number', ph: '6' },
-        { key: 'MIN_PASSCODE_LENGTH',  label: 'Min Passcode Length',   type: 'number', ph: '6' },
-        { key: 'CARD_PREFIX',          label: 'Member Card Prefix',    type: 'text',   ph: 'FLOCK' },
-      ];
-      h += '<div class="stg-form-grid">';
-      secFields.forEach(function(f) {
-        h += '<div class="stg-field">';
-        h += '<label class="stg-label" for="ci-' + f.key + '">' + _e(f.label) + '</label>';
-        h += '<input type="' + f.type + '" id="ci-' + f.key + '" class="stg-input" value="' + _e(_cfgVal(f.key, '')) + '" placeholder="' + _e(f.ph) + '" data-ci-key="' + f.key + '">';
-        h += '</div>';
+      // Mobile Font Scale
+      html += '<div class="settings-card" style="margin-top:8px;">';
+      html += '<div class="settings-card-label">\uD83D\uDCF1 Mobile Font Size</div>';
+      html += '<p class="settings-card-hint">Scale text on phones and tablets (screens \u2264 768px). Default is 100%.</p>';
+      html += '<div style="display:flex;align-items:center;gap:8px;margin-top:6px;">';
+      html += '<select id="font-scale-mobile-input" class="settings-input" style="min-width:130px;" onchange="Modules.previewFontScaleMobile(this.value)">';
+      [90, 95, 100, 105, 110, 115, 120, 125, 130].forEach(function(n) {
+        html += '<option value="' + n + '"' + (String(currentMobileScale) === String(n) ? ' selected' : '') + '>' + n + '%</option>';
       });
-      h += '</div>';
-      // Toggles
-      h += '<div class="stg-toggle-list">';
-      h += '<div class="stg-toggle-row"><span>Allow Self-Registration</span>';
-      h += '<label class="stg-switch"><input type="checkbox" id="ci-ALLOW_SELF_REGISTER"' + (_cfgBool('ALLOW_SELF_REGISTER') ? ' checked' : '') + ' data-ci-key="ALLOW_SELF_REGISTER" data-bool="1"><span class="stg-switch-track"></span></label></div>';
-      h += '</div>';
-      h += '<div class="stg-form-foot">';
-      h += '<button class="stg-btn stg-btn-primary" onclick="Modules._saveIdentity()">Save</button>';
-      h += '</div>';
-      h += '</div>';
+      html += '</select>';
+      html += '<button class="btn btn-primary" onclick="Modules.saveFontScaleMobile()" style="margin-left:8px;padding:6px 16px;border-radius:6px;border:none;background:var(--accent);color:var(--bg);font-weight:600;font-size:0.82rem;cursor:pointer;">Save</button>';
+      html += '</div></div>';
 
-      return h;
-    },
-    after: null
-  };
-
-  // ════════════════════════════════════════════════════════════════════════
-  //  APPEARANCE
-  // ════════════════════════════════════════════════════════════════════════
-  _settingsTabRenderers['appearance'] = {
-    html: function() {
-      var h = '';
-      var globalTheme = _cfgVal('GLOBAL_THEME', 'default');
-      var tmMeta = (typeof Adornment !== 'undefined' && Adornment.themeMeta) ? Adornment.themeMeta : {};
-      var themeList = (typeof Adornment !== 'undefined' && Adornment.themes) ? Adornment.themes.filter(function(t) { return t !== 'auto'; }) : [];
-      var allowCustom = _cfgBool('ALLOW_CUSTOM_THEMES');
-      var currentScale = _cfgVal('FONT_SCALE', '100');
-      var currentMobileScale = _cfgVal('FONT_SCALE_MOBILE', '100');
-      var currentQuizSize = _cfgVal('QUIZ_SIZE', '0');
-
-      // ── Theme picker ──
-      h += '<div class="stg-card">';
-      h += '<div class="stg-card-title">\uD83C\uDFA8 Theme</div>';
-      h += '<p class="stg-card-desc">\u201CDefault\u201D lets each member choose. Pick a theme to enforce site-wide.</p>';
-      h += '<input type="hidden" id="global-theme-select" value="' + _e(globalTheme) + '">';
-      h += '<div class="stg-theme-grid">';
-      // Default option
-      h += '<div class="stg-theme-card' + (globalTheme === 'default' ? ' selected' : '') + '" onclick="document.getElementById(\'global-theme-select\').value=\'default\';document.querySelectorAll(\'.stg-theme-card\').forEach(function(c){c.classList.remove(\'selected\')});this.classList.add(\'selected\')">';
-      h += '<div class="stg-theme-swatch" style="background:linear-gradient(135deg,#1a1a2e 50%,#22d3ee);"></div>';
-      h += '<div class="stg-theme-name">Default</div>';
-      h += '</div>';
-      themeList.forEach(function(t) {
-        var m = tmMeta[t] || {};
-        h += '<div class="stg-theme-card' + (globalTheme === t ? ' selected' : '') + '" onclick="document.getElementById(\'global-theme-select\').value=\'' + t + '\';document.querySelectorAll(\'.stg-theme-card\').forEach(function(c){c.classList.remove(\'selected\')});this.classList.add(\'selected\')">';
-        h += '<div class="stg-theme-swatch" style="background:linear-gradient(135deg,' + (m.bg || '#111') + ' 50%,' + (m.accent || '#888') + ');"></div>';
-        h += '<div class="stg-theme-name">' + _e(m.label || t) + '</div>';
-        h += '</div>';
+      // Quiz Size
+      html += '<div class="settings-card" style="margin-top:8px;">';
+      html += '<div class="settings-card-label">\u270D Bible Quiz Size</div>';
+      html += '<p class="settings-card-hint">Questions per quiz attempt. 0 = all questions.</p>';
+      html += '<div style="display:flex;align-items:center;gap:8px;margin-top:6px;">';
+      html += '<select id="quiz-size-select" class="settings-input" style="min-width:130px;">';
+      html += '<option value="0"' + (currentQuizSize === '0' ? ' selected' : '') + '>All Questions</option>';
+      [5, 10, 15, 20, 25, 30, 40, 50].forEach(function(n) {
+        html += '<option value="' + n + '"' + (String(currentQuizSize) === String(n) ? ' selected' : '') + '>' + n + ' Questions</option>';
       });
-      h += '</div>';
-      h += '<div class="stg-form-foot">';
-      h += '<button class="stg-btn stg-btn-primary" onclick="Modules.saveGlobalTheme()">Apply Theme</button>';
-      h += '<label class="stg-switch-label"><label class="stg-switch"><input type="checkbox" id="allow-custom-themes-toggle"' + (allowCustom ? ' checked' : '') + ' onchange="Modules._saveAllowCustomThemes(this.checked)"><span class="stg-switch-track"></span></label> Allow Custom Themes</label>';
-      h += '</div>';
-      h += '</div>';
+      html += '</select>';
+      html += '<button class="btn btn-primary" onclick="Modules.saveQuizSize()" style="padding:6px 16px;border-radius:6px;border:none;background:var(--accent);color:var(--bg);font-weight:600;font-size:0.82rem;cursor:pointer;">Save</button>';
+      html += '</div></div>';
 
-      // ── Display sizes ──
-      h += '<div class="stg-card">';
-      h += '<div class="stg-card-title">\uD83D\uDD0D Display Sizes</div>';
-      h += '<div class="stg-form-grid stg-form-grid-3">';
+      html += '</div>';
+      html += '</div></details>';
 
-      h += '<div class="stg-field"><label class="stg-label">Desktop Font</label>';
-      h += '<div class="stg-input-row"><select id="font-scale-input" class="stg-input">';
-      [90,95,100,105,110,115,120,125,130].forEach(function(n) { h += '<option value="'+n+'"'+(currentScale===String(n)?' selected':'')+'>'+n+'%</option>'; });
-      h += '</select><button class="stg-btn stg-btn-sm" onclick="Modules.saveFontScale()">Save</button></div></div>';
+      // ── Section 2: Theme Administration ─────────────────────────────
+      const allowCustomRow = rows.find(r => (r.key || r.configKey) === 'ALLOW_CUSTOM_THEMES');
+      const allowCustom = allowCustomRow ? String(allowCustomRow.value || 'FALSE').toUpperCase() === 'TRUE' : false;
 
-      h += '<div class="stg-field"><label class="stg-label">Mobile Font</label>';
-      h += '<div class="stg-input-row"><select id="font-scale-mobile-input" class="stg-input">';
-      [90,95,100,105,110,115,120,125,130].forEach(function(n) { h += '<option value="'+n+'"'+(currentMobileScale===String(n)?' selected':'')+'>'+n+'%</option>'; });
-      h += '</select><button class="stg-btn stg-btn-sm" onclick="Modules.saveFontScaleMobile()">Save</button></div></div>';
+      html += '<details class="settings-section settings-accordion">';
+      html += '<summary class="settings-accordion-trigger"><span class="settings-accordion-chevron">&#9654;</span>';
+      html += '<span class="settings-section-icon">\uD83C\uDFA8</span>';
+      html += '<span class="settings-accordion-label">Theme Administration</span>';
+      html += '<span class="settings-accordion-count">' + _e((tmMeta[currentTheme] || {}).label || currentTheme) + '</span>';
+      html += '</summary>';
+      html += '<div class="settings-accordion-body">';
 
-      h += '<div class="stg-field"><label class="stg-label">Quiz Size</label>';
-      h += '<div class="stg-input-row"><select id="quiz-size-select" class="stg-input">';
-      h += '<option value="0"' + (currentQuizSize === '0' ? ' selected' : '') + '>All</option>';
-      [5,10,15,20,25,30,40,50].forEach(function(n) { h += '<option value="'+n+'"'+(currentQuizSize===String(n)?' selected':'')+'>'+n+'</option>'; });
-      h += '</select><button class="stg-btn stg-btn-sm" onclick="Modules.saveQuizSize()">Save</button></div></div>';
+      // Master theme dropdown
+      html += '<div class="settings-card">';
+      html += '<div class="settings-card-label">\uD83C\uDFDB\uFE0F Foundational Theme</div>';
+      html += '<p class="settings-card-hint">Sets the site-wide theme. \u201CDefault\u201D lets each member choose their own. Click a card to select, then apply.</p>';
+      html += '<input type="hidden" id="global-theme-select" value="' + _e(globalTheme) + '">';
+      html += '<div class="theme-grid" style="margin:10px 0;">';
+      // Default option card
+      html += '<div class="theme-card' + (globalTheme === 'default' ? ' selected' : '') + '" onclick="document.getElementById(\'global-theme-select\').value=\'default\';document.querySelectorAll(\'.theme-card\').forEach(function(c){c.classList.remove(\'selected\')});this.classList.add(\'selected\')">';
+      html += '<div class="tc-swatch" style="background:linear-gradient(135deg,#1a1a2e 50%,#22d3ee);"></div>';
+      html += '<div class="tc-body"><div class="tc-name">Default</div><div class="tc-mode">member choice</div></div>';
+      if (globalTheme === 'default') html += '<span class="tc-check">\u2713</span>';
+      html += '</div>';
+      themeList.forEach(t => {
+        const m = tmMeta[t] || {};
+        const isCurrent = (globalTheme === t);
+        html += '<div class="theme-card' + (isCurrent ? ' selected' : '') + '" onclick="document.getElementById(\'global-theme-select\').value=\'' + t + '\';document.querySelectorAll(\'.theme-card\').forEach(function(c){c.classList.remove(\'selected\')});this.classList.add(\'selected\')">';
+        html += '<div class="tc-swatch" style="background:linear-gradient(135deg,' + (m.bg || '#111') + ' 50%,' + (m.accent || '#888') + ');"></div>';
+        html += '<div class="tc-body"><div class="tc-name">' + _e(m.label || t) + '</div><div class="tc-mode">' + _e(m.mode || '') + '</div></div>';
+        if (isCurrent) html += '<span class="tc-check">\u2713</span>';
+        html += '</div>';
+      });
+      html += '</div>';
+      html += '<button class="btn btn-primary" onclick="Modules.saveGlobalTheme()" style="padding:8px 20px;border-radius:6px;border:none;background:var(--accent);color:var(--bg);font-weight:600;font-size:0.82rem;cursor:pointer;">Apply Theme</button>';
+      html += '</div>';
 
-      h += '</div></div>';
+      // Allow Custom Themes toggle
+      html += '<div class="settings-card" style="margin-top:2px;">';
+      html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">';
+      html += '<div>';
+      html += '<div class="settings-card-label">\u2728 Allow Custom Themes</div>';
+      html += '<p class="settings-card-hint" style="margin:4px 0 0;">When enabled, members can choose personal themes and use Interface Studio. When disabled, your foundational theme is enforced for everyone.</p>';
+      html += '</div>';
+      html += '<label class="toggle-switch">';
+      html += '<input type="checkbox" id="allow-custom-themes-toggle"' + (allowCustom ? ' checked' : '') + ' onchange="Modules._saveAllowCustomThemes(this.checked)">';
+      html += '<span class="slider"></span></label>';
+      html += '</div></div>';
 
-      // ── Interface Studio ──
-      if (typeof Adornment !== 'undefined' && Adornment.loadStudioFonts) Adornment.loadStudioFonts();
-      var _ov; try { _ov = JSON.parse(localStorage.getItem(Adornment.OVERRIDE_LS_KEY) || '{}'); } catch(e) { _ov = {}; }
+      html += '</div>';
+      html += '</div></details>';
+
+      // ── Section 3: Interface Studio (admin) ─────────────────────────
+      var _ov;
+      try { _ov = JSON.parse(localStorage.getItem(Adornment.OVERRIDE_LS_KEY) || '{}'); } catch(e) { _ov = {}; }
       if (!_ov.vars)  _ov.vars  = {};
       if (!_ov.fonts) _ov.fonts = {};
       if (!_ov.sizes) _ov.sizes = {};
       if (!_ov.pads)  _ov.pads  = {};
 
-      h += '<div class="stg-card">';
-      h += '<div class="stg-card-title">\u2728 Interface Studio</div>';
-      h += '<p class="stg-card-desc">Fine-tune fonts, sizes, spacing, and corners. Changes preview live.</p>';
+      html += '<details class="settings-section settings-accordion">';
+      html += '<summary class="settings-accordion-trigger"><span class="settings-accordion-chevron">&#9654;</span>';
+      html += '<span class="settings-section-icon">\uD83C\uDFA8</span>';
+      html += '<span class="settings-accordion-label">Interface Studio</span>';
+      html += '<span class="settings-accordion-count">Fonts, sizes, spacing, corners</span>';
+      html += '</summary>';
+      html += '<div class="settings-accordion-body">';
+      html += '<p class="settings-section-desc" style="margin-bottom:10px;font-size:0.78rem;">Fonts, sizes, spacing, and corners. Changes preview instantly. <strong>Save All</strong> to persist, <strong>Reset</strong> to undo.</p>';
 
-      // Fonts
-      var fonts = [
-        { val: '', label: 'Default (Inter)' },
-        { val: "'Inter', sans-serif", label: 'Inter' },
-        { val: "'Lora', serif", label: 'Lora' },
-        { val: "'Merriweather', serif", label: 'Merriweather' },
-        { val: "'Montserrat', sans-serif", label: 'Montserrat' },
-        { val: "'Nunito', sans-serif", label: 'Nunito' },
-        { val: "'Open Sans', sans-serif", label: 'Open Sans' },
-        { val: "'Poppins', sans-serif", label: 'Poppins' },
-        { val: "'Playfair Display', serif", label: 'Playfair Display' },
-        { val: "'Raleway', sans-serif", label: 'Raleway' },
-        { val: "'Roboto', sans-serif", label: 'Roboto' },
-        { val: "'Source Sans 3', sans-serif", label: 'Source Sans 3' },
-        { val: "'Work Sans', sans-serif", label: 'Work Sans' },
-        { val: "Georgia, serif", label: 'Georgia' },
+      // Helper: build a labelled percentage input row (default = 100%)
+      function _studioSlider(id, label, hint, unit, min, max, step, current, def) {
+        var pct = def > 0 ? Math.round(current / def * 100) : 100;
+        var s = '';
+        s += '<div class="studio-row">';
+        s += '<div class="studio-label-wrap">';
+        s += '<label class="studio-label" for="' + id + '">' + label + '</label>';
+        if (hint) s += '<span class="studio-hint">' + hint + '</span>';
+        s += '</div>';
+        s += '<div class="studio-control">';
+        s += '<input type="number" id="' + id + '" min="25" max="300" step="5" value="' + pct + '" data-def="' + def + '" data-unit="' + unit + '" class="studio-pct" oninput="Modules._studioPreview()">';
+        s += '<span class="studio-pct-suffix">%</span>';
+        s += '</div>';
+        s += '</div>';
+        return s;
+      }
+
+      // Helper: graphical font-family picker with preview cards
+      function _studioFontPicker(id, label, hint, current) {
+        var fonts = [
+          { val: '', label: 'Default (Inter)', sample: 'Aa' },
+          { val: "'Inter', sans-serif",                 label: 'Inter',             sample: 'Aa' },
+          { val: "'Lora', serif",                       label: 'Lora',              sample: 'Aa' },
+          { val: "'Merriweather', serif",               label: 'Merriweather',      sample: 'Aa' },
+          { val: "'Montserrat', sans-serif",            label: 'Montserrat',        sample: 'Aa' },
+          { val: "'Nunito', sans-serif",                label: 'Nunito',            sample: 'Aa' },
+          { val: "'Open Sans', sans-serif",             label: 'Open Sans',         sample: 'Aa' },
+          { val: "'Poppins', sans-serif",               label: 'Poppins',           sample: 'Aa' },
+          { val: "'Playfair Display', serif",           label: 'Playfair Display',  sample: 'Aa' },
+          { val: "'PT Serif', serif",                   label: 'PT Serif',          sample: 'Aa' },
+          { val: "'Raleway', sans-serif",               label: 'Raleway',           sample: 'Aa' },
+          { val: "'Roboto', sans-serif",                label: 'Roboto',            sample: 'Aa' },
+          { val: "'Roboto Slab', serif",                label: 'Roboto Slab',       sample: 'Aa' },
+          { val: "'Source Sans 3', sans-serif",         label: 'Source Sans 3',     sample: 'Aa' },
+          { val: "'Work Sans', sans-serif",             label: 'Work Sans',         sample: 'Aa' },
+          { val: "'Noto Serif', Georgia, serif",        label: 'Noto Serif',        sample: 'Aa' },
+          { val: "Georgia, serif",                      label: 'Georgia',           sample: 'Aa' },
+          { val: "'Courier New', monospace",            label: 'Courier New',       sample: 'Aa' }
+        ];
+        var s = '';
+        s += '<div class="studio-row" style="flex-direction:column;align-items:flex-start;">';
+        s += '<div class="studio-label-wrap" style="margin-bottom:6px;">';
+        s += '<label class="studio-label">' + label + '</label>';
+        if (hint) s += '<span class="studio-hint">' + hint + '</span>';
+        s += '</div>';
+        s += '<input type="hidden" id="' + id + '" value="' + _e(current) + '">';
+        s += '<div style="display:flex;flex-wrap:wrap;gap:6px;">';
+        fonts.forEach(function(f) {
+          var isSel = (current === f.val) ? ' selected' : '';
+          s += '<div class="studio-font-card' + isSel + '" onclick="document.getElementById(\'' + id + '\').value=\'' + _e(f.val).replace(/'/g, "\\'") + '\';this.parentNode.querySelectorAll(\'.studio-font-card\').forEach(function(c){c.classList.remove(\'selected\')});this.classList.add(\'selected\');Modules._studioPreview()" title="' + _e(f.label) + '">';
+          s += '<span class="font-sample" style="font-family:' + (f.val || 'inherit') + ';">' + f.sample + '</span>';
+          s += '<span class="font-name">' + _e(f.label) + '</span>';
+          s += '</div>';
+        });
+        s += '</div>';
+        s += '</div>';
+        return s;
+      }
+
+      // ── Fonts ──
+      html += '<details class="settings-accordion">';
+      html += '<summary class="settings-accordion-trigger">\uD83D\uDDA5 Fonts<span class="settings-accordion-count">Body & Heading typefaces</span></summary>';
+      html += '<div class="settings-accordion-body">';
+      html += _studioFontPicker('studio-font-body', 'Body Font', 'All regular text, menus, tables, cards', _ov.fonts.body || '');
+      html += _studioFontPicker('studio-font-heading', 'Heading Font', 'Page titles, section headers, welcome hero', _ov.fonts.heading || '');
+      html += '<div id="studio-font-preview" style="margin-top:8px;padding:12px;border-radius:8px;background:var(--bg-sunken);border:1px solid var(--line);">';
+      html += '<div style="font-size:1.15rem;font-weight:700;margin-bottom:4px;">Heading Preview</div>';
+      html += '<div style="font-size:0.85rem;">Body text preview. The quick brown fox jumps over the lazy dog. 0123456789</div>';
+      html += '</div>';
+      html += '</div></details>';
+
+      // ── Font Sizes ──
+      html += '<details class="settings-accordion">';
+      html += '<summary class="settings-accordion-trigger">\uD83D\uDD20 Font Sizes<span class="settings-accordion-count">Every text element</span></summary>';
+      html += '<div class="settings-accordion-body">';
+
+      var _szGroups = [
+        { title: 'Page & Headings', items: [
+          { sel: '.page-header h1',         label: 'Page Title',          def: '1.4',  min: 0.8, max: 3,   step: 0.05 },
+          { sel: '.page-header p',          label: 'Page Subtitle',       def: '0.85', min: 0.6, max: 1.5, step: 0.05 },
+          { sel: '.welcome-hero h1',        label: 'Welcome Title',       def: '2',    min: 1,   max: 4,   step: 0.1  },
+          { sel: '.welcome-hero .subtitle', label: 'Welcome Subtitle',    def: '1',    min: 0.7, max: 2,   step: 0.05 },
+          { sel: '.welcome-hero .verse',    label: 'Welcome Verse',       def: '0.82', min: 0.6, max: 1.5, step: 0.05 },
+        ]},
+        { title: 'Navigation', items: [
+          { sel: '.nav-item',               label: 'Menu Items',          def: '0.86', min: 0.6, max: 1.3, step: 0.02 },
+          { sel: '.nav-item .icon',         label: 'Menu Icons',          def: '1',    min: 0.7, max: 2,   step: 0.05 },
+          { sel: '.nav-group-label',        label: 'Menu Section Label',  def: '0.68', min: 0.5, max: 1,   step: 0.02 },
+        ]},
+        { title: 'Cards', items: [
+          { sel: '.card .card-icon',        label: 'Card Icon',           def: '1.6',  min: 0.8, max: 3,   step: 0.1  },
+          { sel: '.card .card-title',       label: 'Card Title',          def: '0.92', min: 0.6, max: 1.5, step: 0.02 },
+          { sel: '.card .card-desc',        label: 'Card Description',    def: '0.78', min: 0.5, max: 1.3, step: 0.02 },
+        ]},
+        { title: 'Tables', items: [
+          { sel: '.data-table',             label: 'Table Body',          def: '0.85', min: 0.6, max: 1.3, step: 0.05 },
+          { sel: '.data-table th',          label: 'Table Header',        def: '0.74', min: 0.5, max: 1.2, step: 0.02 },
+        ]},
+        { title: 'Buttons & Pills', items: [
+          { sel: '.btn',                    label: 'Buttons',             def: '0.875', min: 0.6, max: 1.3, step: 0.025 },
+          { sel: '.btn-sm',                 label: 'Small Buttons',       def: '0.75',  min: 0.5, max: 1.1, step: 0.025 },
+          { sel: '.pill',                   label: 'Pills / Tags',        def: '0.75',  min: 0.5, max: 1.1, step: 0.025 },
+          { sel: '.badge',                  label: 'Badges',              def: '0.72',  min: 0.5, max: 1.1, step: 0.02  },
+        ]},
+        { title: 'Forms', items: [
+          { sel: '.label',                  label: 'Field Labels',        def: '0.8125', min: 0.6, max: 1.2, step: 0.025 },
+          { sel: '.settings-input',         label: 'Input Fields',        def: '0.9',    min: 0.7, max: 1.3, step: 0.05  },
+        ]},
+        { title: 'Modals & Alerts', items: [
+          { sel: '.modal-title',            label: 'Modal Title',         def: '1.1',  min: 0.8, max: 2,   step: 0.05 },
+          { sel: '.alert',                  label: 'Alert Text',          def: '0.85', min: 0.6, max: 1.3, step: 0.05 },
+          { sel: '.toast',                  label: 'Toast Messages',      def: '0.875', min: 0.6, max: 1.3, step: 0.025 },
+        ]},
+        { title: 'Empty States & Misc', items: [
+          { sel: '.empty-state-icon',       label: 'Empty State Icon',    def: '2.5',   min: 1, max: 5,   step: 0.25 },
+          { sel: '.empty-state-title',      label: 'Empty State Title',   def: '1',     min: 0.7, max: 2, step: 0.05 },
+          { sel: '.empty-state p',          label: 'Empty State Text',    def: '0.85',  min: 0.6, max: 1.3, step: 0.05 },
+          { sel: '.settings-section-title', label: 'Settings Title',      def: '1.05',  min: 0.7, max: 1.8, step: 0.05 },
+          { sel: '.settings-card-label',    label: 'Settings Card Label', def: '0.85',  min: 0.6, max: 1.3, step: 0.05 },
+          { sel: '.settings-card-hint',     label: 'Settings Card Hint',  def: '0.8',   min: 0.5, max: 1.2, step: 0.05 },
+        ]},
+        { title: 'Browse Cards (Lexicon, Doctrine, Library)', items: [
+          { sel: '.browse-item-title',      label: 'Browse Card Title',   def: '0.9',  min: 0.6, max: 1.5, step: 0.05 },
+          { sel: '.browse-item-sub',        label: 'Browse Card Subtitle',def: '0.78', min: 0.5, max: 1.2, step: 0.02 },
+          { sel: '.browse-detail-label',    label: 'Detail Card Label',   def: '0.72', min: 0.5, max: 1.1, step: 0.02 },
+          { sel: '.browse-detail-card p',   label: 'Detail Card Text',    def: '0.88', min: 0.6, max: 1.3, step: 0.02 },
+        ]},
       ];
 
-      h += '<div class="stg-form-grid">';
-      h += '<div class="stg-field"><label class="stg-label">Body Font</label>';
-      h += '<input type="hidden" id="studio-font-body" value="' + _e(_ov.fonts.body || '') + '">';
-      h += '<div class="stg-font-grid">';
-      fonts.forEach(function(f) {
-        h += '<div class="stg-font-chip' + ((_ov.fonts.body || '') === f.val ? ' selected' : '') + '" style="font-family:' + (f.val || 'inherit') + ';" onclick="document.getElementById(\'studio-font-body\').value=\'' + _e(f.val).replace(/'/g, "\\'") + '\';this.parentNode.querySelectorAll(\'.stg-font-chip\').forEach(function(c){c.classList.remove(\'selected\')});this.classList.add(\'selected\');Modules._studioPreview()">' + _e(f.label) + '</div>';
-      });
-      h += '</div></div>';
-      h += '<div class="stg-field"><label class="stg-label">Heading Font</label>';
-      h += '<input type="hidden" id="studio-font-heading" value="' + _e(_ov.fonts.heading || '') + '">';
-      h += '<div class="stg-font-grid">';
-      fonts.forEach(function(f) {
-        h += '<div class="stg-font-chip' + ((_ov.fonts.heading || '') === f.val ? ' selected' : '') + '" style="font-family:' + (f.val || 'inherit') + ';" onclick="document.getElementById(\'studio-font-heading\').value=\'' + _e(f.val).replace(/'/g, "\\'") + '\';this.parentNode.querySelectorAll(\'.stg-font-chip\').forEach(function(c){c.classList.remove(\'selected\')});this.classList.add(\'selected\');Modules._studioPreview()">' + _e(f.label) + '</div>';
-      });
-      h += '</div></div>';
-      h += '</div>';
-
-      // Corner radius
-      h += '<div class="stg-form-grid stg-form-grid-3">';
-      [{ v: '--radius-sm', l: 'Small Radius', d: 6 }, { v: '--radius-md', l: 'Medium Radius', d: 12 }, { v: '--radius-lg', l: 'Large Radius', d: 20 }].forEach(function(it) {
-        var saved = _ov.vars[it.v] ? parseInt(_ov.vars[it.v], 10) : it.d;
-        var pct = Math.round(saved / it.d * 100);
-        h += '<div class="stg-field"><label class="stg-label">' + it.l + '</label>';
-        h += '<div class="stg-input-row"><input type="number" id="corner-' + it.v.replace(/[^a-zA-Z0-9]/g, '-') + '" class="stg-input studio-pct" value="' + pct + '" data-def="' + it.d + '" data-unit="px" min="0" max="300" step="5" oninput="Modules._studioPreview()" style="width:70px;"><span class="stg-unit">%</span></div>';
-        h += '</div>';
-      });
-      h += '</div>';
-
-      // Custom CSS
-      h += '<div class="stg-field" style="margin-top:8px;"><label class="stg-label">Custom CSS</label>';
-      h += '<textarea id="studio-custom-css" class="stg-input stg-textarea" rows="4" placeholder=".card { box-shadow: none; }">' + _e(_ov.custom || '') + '</textarea></div>';
-
-      // Studio actions
-      h += '<div class="stg-form-foot">';
-      h += '<button class="stg-btn stg-btn-primary" onclick="Modules._studioSave()">Save All</button>';
-      h += '<button class="stg-btn stg-btn-ghost" onclick="Modules._studioReset()">Reset</button>';
-      h += '<button class="stg-btn stg-btn-danger" onclick="Modules._studioRestoreVisuals()">Restore Defaults</button>';
-      h += '</div>';
-      h += '</div>';
-
-      return h;
-    },
-    after: null
-  };
-
-  // ════════════════════════════════════════════════════════════════════════
-  //  MODULES
-  // ════════════════════════════════════════════════════════════════════════
-  _settingsTabRenderers['modules'] = {
-    html: function() {
-      var allToggleable = Object.keys(_moduleMeta).filter(function(k) { return _protectedModules.indexOf(k) === -1; });
-      var totalOn = allToggleable.filter(function(k) { return _isModuleEnabled(k); }).length;
-      var h = '';
-      h += '<div class="stg-card">';
-      h += '<div class="stg-card-title">\uD83E\uDDE9 Site Modules <span class="stg-card-count">' + totalOn + '/' + allToggleable.length + ' active</span></div>';
-      h += '<p class="stg-card-desc">Toggle features on and off. Protected modules cannot be disabled.</p>';
-
-      for (var ci = 0; ci < _moduleCategories.length; ci++) {
-        var cat = _moduleCategories[ci];
-        var catKeys = cat.modules.filter(function(k) { return _moduleMeta[k] || _protectedModules.indexOf(k) !== -1; });
-        if (!catKeys.length) continue;
-        h += '<div class="stg-mod-cat"><span class="stg-mod-cat-icon">' + cat.icon + '</span> ' + _e(cat.label) + '</div>';
-        for (var ci2 = 0; ci2 < catKeys.length; ci2++) {
-          var ck = catKeys[ci2];
-          var isProt = _protectedModules.indexOf(ck) !== -1;
-          var meta = _moduleMeta[ck] || { label: ck, icon: '\u2699' };
-          h += _toggleRow(ck, meta, isProt || _isModuleEnabled(ck), isProt);
-        }
-      }
-      h += '</div>';
-      return h;
-    },
-    after: null
-  };
-
-  // ════════════════════════════════════════════════════════════════════════
-  //  DATABASE & CONNECTIONS
-  // ════════════════════════════════════════════════════════════════════════
-  _settingsTabRenderers['database'] = {
-    html: function() {
-      var rows = _cfgD.rows;
-      var h = '';
-      var ep = {}; try { ep = TheVine.endpoints(); } catch(e) {}
-      var provLS; try { provLS = JSON.parse(localStorage.getItem('flock_provisioning') || '{}'); } catch(e) { provLS = {}; }
-      var dbUrl = provLS.DATABASE_URL || (ep.FLOCK_ENDPOINTS && ep.FLOCK_ENDPOINTS[0]) || '';
-
-      // GAS Endpoint
-      h += '<div class="stg-card">';
-      h += '<div class="stg-card-title">\uD83D\uDD0C Database Endpoint</div>';
-      h += '<div class="stg-kv"><span>Status</span><span class="stg-pill ' + (dbUrl ? 'stg-pill-ok' : 'stg-pill-off') + '" id="prov-health-primary">' + (dbUrl ? 'Configured' : 'Not set') + '</span></div>';
-      h += '<div class="stg-field" style="margin-top:8px;"><label class="stg-label">Google Apps Script URL</label>';
-      h += '<input type="url" id="prov-DATABASE_URL" class="stg-input" value="' + _e(dbUrl) + '" placeholder="https://script.google.com/macros/s/.../exec"></div>';
-      h += '<div class="stg-form-foot">';
-      h += '<button class="stg-btn stg-btn-primary" onclick="Modules._provisioningSave()">Save</button>';
-      h += '<button class="stg-btn stg-btn-ghost" onclick="Modules._provisioningTest()">Test Connection</button>';
-      h += '</div>';
-      h += '<div id="prov-status" style="margin-top:6px;"></div>';
-      h += '</div>';
-
-      // API Health
-      h += '<div class="stg-card">';
-      h += '<div class="stg-card-title">\uD83D\uDCE1 API Health</div>';
-      h += '<div class="stg-health-row"><span class="stg-health-label">\uD83D\uDCC4 Apps Script</span>';
-      h += '<span class="stg-pill stg-pill-check" id="health-pill-database">Pending</span></div>';
-      h += '<div id="health-conn-type" style="font-size:0.82rem;color:var(--ink-muted);padding:6px 0;">Detecting\u2026</div>';
-      h += '<div class="stg-form-foot">';
-      h += '<button class="stg-btn stg-btn-primary" onclick="Modules._runHealthCheck()">\uD83D\uDCE1 Run Diagnostics</button>';
-      h += '<span id="health-timestamp" class="stg-status"></span>';
-      h += '</div></div>';
-
-      // Sheet Chunks
-      var scRow = rows.find(function(r) { return (r.key || r.configKey) === 'SHEET_CHUNKS'; });
-      var sc = {}; try { sc = JSON.parse(scRow ? scRow.value : '{}'); } catch(e) {}
-      var domains = ['Members','Attendance','Giving','Sermons','Outreach','Care','Ministry'];
-      h += '<div class="stg-card">';
-      h += '<div class="stg-card-title">\uD83D\uDCCA Sheet Chunks</div>';
-      h += '<p class="stg-card-desc">Split large sheets into parallel chunks for performance.</p>';
-      h += '<div class="stg-chunk-grid">';
-      domains.forEach(function(d) {
-        var cur = sc[d] || 1;
-        h += '<div class="stg-chunk-row"><span>' + _e(d) + '</span><select id="chunk-' + _e(d) + '" class="stg-input stg-input-sm">';
-        [1,2,3,4].forEach(function(n) { h += '<option value="'+n+'"'+(cur===n?' selected':'')+'>'+n+'</option>'; });
-        h += '</select></div>';
-      });
-      h += '</div>';
-      h += '<div class="stg-form-foot"><button class="stg-btn stg-btn-primary" onclick="Modules._saveSheetChunks()">Save Chunks</button>';
-      h += '<span id="chunk-save-status" class="stg-status"></span></div>';
-      h += '</div>';
-
-      // SMS Gateway
-      var twilioOn = _cfgBool('TWILIO_ENABLED');
-      h += '<div class="stg-card">';
-      h += '<div class="stg-card-title">\uD83D\uDCF1 SMS Gateway</div>';
-      h += '<div class="stg-toggle-list">';
-      h += '<div class="stg-toggle-row"><span>Enable Twilio SMS</span>';
-      h += '<label class="stg-switch"><input type="checkbox" id="twilio-toggle"' + (twilioOn ? ' checked' : '') + ' onchange="Modules._twilioToggle(this.checked)"><span class="stg-switch-track"></span></label></div>';
-      h += '</div>';
-      h += '<p class="stg-card-desc" style="margin-top:6px;font-family:monospace;font-size:0.78rem;">Script Properties: TWILIO_SID, TWILIO_TOKEN, TWILIO_NUMBER</p>';
-      h += '</div>';
-
-      // Wellspring
-      var wsAvail = typeof TheWellspring !== 'undefined';
-      var wsActive = wsAvail && TheWellspring.isActive();
-      h += '<div class="stg-card">';
-      h += '<div class="stg-card-title">\uD83D\uDCA7 The Wellspring</div>';
-      if (!wsAvail) {
-        h += '<p class="stg-card-desc">Module not loaded.</p>';
-      } else {
-        h += '<div class="stg-toggle-list"><div class="stg-toggle-row"><span>Local Data Mode</span>';
-        h += '<label class="stg-switch"><input type="checkbox" id="wellspring-toggle"' + (wsActive ? ' checked' : '') + ' onchange="Modules._wellspringToggle(this.checked)"><span class="stg-switch-track"></span></label></div></div>';
-        if (wsActive) h += '<div class="stg-banner stg-banner-info" style="margin-top:8px;">\uD83D\uDCA7 LOCAL MODE ACTIVE</div>';
-        h += '<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">';
-        h += '<label class="stg-btn stg-btn-ghost" style="cursor:pointer;">\uD83D\uDCC1 Import<input type="file" accept=".xls,.xlsx,.xlsm" style="display:none;" onchange="Modules._wellspringLoad(this.files[0])"></label>';
-        h += '<button class="stg-btn stg-btn-ghost" onclick="Modules._wellspringExport()">\uD83D\uDCE5 Export</button>';
-        h += '<button class="stg-btn stg-btn-ghost" onclick="Modules._wellspringClear()">\uD83D\uDDD1 Clear</button>';
-        h += '</div>';
-        h += '<div id="ws-status-db" style="font-size:0.75rem;color:var(--ink-muted);margin-top:6px;"></div>';
-      }
-      h += '</div>';
-
-      // Calendar
-      var calS; try { calS = JSON.parse(localStorage.getItem('flock_calendar_settings') || '{}'); } catch(e) { calS = {}; }
-      h += '<div class="stg-card">';
-      h += '<div class="stg-card-title">\uD83D\uDCC5 Calendar</div>';
-      h += '<div class="stg-form-grid stg-form-grid-3">';
-      h += '<div class="stg-field"><label class="stg-label">Default View</label><select id="cal-s-defaultView" class="stg-input">';
-      ['month','week','day','agenda'].forEach(function(v) { h += '<option value="'+v+'"'+((calS.defaultView||'month')===v?' selected':'')+'>'+v.charAt(0).toUpperCase()+v.slice(1)+'</option>'; });
-      h += '</select></div>';
-      h += '<div class="stg-field"><label class="stg-label">Week Starts</label><select id="cal-s-weekStart" class="stg-input">';
-      h += '<option value="sunday"' + ((calS.weekStart||'sunday')==='sunday'?' selected':'') + '>Sunday</option>';
-      h += '<option value="monday"' + ((calS.weekStart||'sunday')==='monday'?' selected':'') + '>Monday</option>';
-      h += '</select></div>';
-      h += '<div class="stg-field"><label class="stg-label">Work Start</label><input type="number" id="cal-s-workStart" class="stg-input" min="0" max="23" value="'+(calS.workStart||6)+'"></div>';
-      h += '</div>';
-      h += '<div class="stg-toggle-list" style="margin-top:8px;">';
-      [{ id:'cal-s-showServices', l:'Service Plans', c: calS.showServices!==false },
-       { id:'cal-s-showAttendance', l:'Attendance Records', c: calS.showAttendance===true },
-       { id:'cal-s-showVolunteers', l:'Volunteer Schedule', c: calS.showVolunteers===true }].forEach(function(t) {
-        h += '<div class="stg-toggle-row"><span>'+t.l+'</span><label class="stg-switch"><input type="checkbox" id="'+t.id+'"'+(t.c?' checked':'')+'><span class="stg-switch-track"></span></label></div>';
-      });
-      h += '</div>';
-      h += '<div class="stg-form-foot"><button class="stg-btn stg-btn-primary" onclick="Modules._calSettingsSave()">Save Calendar</button></div>';
-      h += '</div>';
-
-      return h;
-    },
-    after: function() {
-      _adConnectionCard().then(function(h) {
-        var el = document.getElementById('health-conn-type');
-        if (el) el.innerHTML = h;
-      }).catch(function(){});
-      if (typeof TheWellspring !== 'undefined') setTimeout(_wellspringRefreshStatus, 100);
-    }
-  };
-
-  // ════════════════════════════════════════════════════════════════════════
-  //  ALL SETTINGS (key-value editor)
-  // ════════════════════════════════════════════════════════════════════════
-  _settingsTabRenderers['advanced'] = {
-    html: function() {
-      var rows = _cfgD.rows;
-      var h = '';
-      h += '<div class="stg-card">';
-      h += '<div class="stg-card-title">\u2699 All Settings <span class="stg-card-count">' + rows.length + ' entries</span></div>';
-      h += '<div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;">';
-      h += '<input type="search" id="cfg-search" class="stg-input" placeholder="\uD83D\uDD0D Filter\u2026" style="flex:1;" oninput="Modules._cfgFilter(this.value)">';
-      h += '<button class="stg-btn stg-btn-primary" onclick="Modules.newConfig()">+ Add</button>';
-      h += '</div>';
-
-      // Group by category
-      var groups = {};
-      rows.forEach(function(r) { var c = r.category || 'Other'; if (!groups[c]) groups[c] = []; groups[c].push(r); });
-      var order = ['System','Access','Display','Members','Church Info','Notifications','Learning','Giving','Attendance','Prayer','Sermons'];
-      var sorted = order.filter(function(c) { return groups[c]; }).concat(Object.keys(groups).filter(function(c) { return order.indexOf(c) === -1; }).sort());
-
-      sorted.forEach(function(cat) {
-        h += '<div class="stg-cfg-cat">' + _e(cat) + ' <span class="stg-cfg-cat-n">' + groups[cat].length + '</span></div>';
-        groups[cat].forEach(function(r) {
-          var k = r.key || r.configKey || '';
-          var v = r.value != null ? String(r.value) : '';
-          var isBool = v === 'TRUE' || v === 'FALSE';
-          h += '<div class="stg-cfg-row" onclick="Modules.editConfig(\'' + _e(k) + '\')">';
-          h += '<div class="stg-cfg-key">' + _e(k) + '</div>';
-          if (isBool) h += '<div class="stg-cfg-val ' + (v === 'TRUE' ? 'stg-cfg-on' : 'stg-cfg-off') + '">' + v + '</div>';
-          else h += '<div class="stg-cfg-val">' + _e(v.length > 50 ? v.substring(0, 47) + '\u2026' : v || '\u2014') + '</div>';
-          h += '</div>';
+      _szGroups.forEach(function(g) {
+        html += '<div class="studio-group-title">' + g.title + '</div>';
+        g.items.forEach(function(it) {
+          var savedVal = _ov.sizes[it.sel] ? parseFloat(_ov.sizes[it.sel]) : it.def;
+          html += _studioSlider(
+            'sz-' + it.sel.replace(/[^a-zA-Z0-9]/g, '-'),
+            it.label,
+            it.sel,
+            'rem',
+            it.min, it.max, it.step,
+            savedVal, it.def
+          );
         });
       });
-      h += '</div>';
-      return h;
-    },
-    after: null
-  };
+      html += '</div></details>';
 
-  // ════════════════════════════════════════════════════════════════════════
-  //  MASTER CONFIG
-  // ════════════════════════════════════════════════════════════════════════
-  _settingsTabRenderers['master'] = {
-    html: function() {
-      var h = '';
-      h += '<div class="stg-card">';
-      h += '<div class="stg-card-title">\uD83C\uDF10 Master Config</div>';
-      h += '<p class="stg-card-desc">Edit master defaults stored in Firestore. Push broadcasts to all churches.</p>';
-      h += '<div class="stg-form-foot">';
-      h += '<button class="stg-btn stg-btn-primary" onclick="Modules._masterConfigPushAll()">\uD83D\uDE80 Push to All Churches</button>';
-      h += '<button class="stg-btn stg-btn-ghost" onclick="Modules._masterConfigReload()">\uD83D\uDD04 Reload</button>';
-      h += '</div>';
-      h += '<div id="master-config-push-result" class="stg-status" style="margin-top:8px;"></div>';
-      h += '<div id="master-config-table-wrap" style="margin-top:12px;">Loading\u2026</div>';
-      h += '</div>';
-      return h;
-    },
-    after: function() { setTimeout(Modules._masterConfigRender, 80); }
-  };
+      // ── Padding & Spacing ──
+      html += '<details class="settings-accordion">';
+      html += '<summary class="settings-accordion-trigger">\u2194\uFE0F Padding & Spacing<span class="settings-accordion-count">Breathing room for every element</span></summary>';
+      html += '<div class="settings-accordion-body">';
 
-  // 27. AUDIT  (pastor+)
+      var _padGroups = [
+        { title: 'Cards & Containers', items: [
+          { sel: '.card',            label: 'Card Padding',        def: '1.25', min: 0.5, max: 3,   step: 0.125 },
+          { sel: '.card-header',     label: 'Card Header',         def: '1',    min: 0.25, max: 2,  step: 0.125 },
+          { sel: '.card-body',       label: 'Card Body',           def: '1.25', min: 0.5, max: 3,   step: 0.125 },
+          { sel: '.settings-card',   label: 'Settings Card',       def: '18',   min: 8,   max: 40,  step: 2, unit: 'px' },
+        ]},
+        { title: 'Buttons & Pills', items: [
+          { sel: '.btn-v',           label: 'Button Vertical',     def: '0.5',  min: 0.2, max: 1.5, step: 0.05  },
+          { sel: '.btn-h',           label: 'Button Horizontal',   def: '1.25', min: 0.5, max: 3,   step: 0.125 },
+          { sel: '.pill-v',          label: 'Pill Vertical',       def: '0.25', min: 0.1, max: 1,   step: 0.05  },
+          { sel: '.pill-h',          label: 'Pill Horizontal',     def: '0.75', min: 0.25, max: 2,  step: 0.125 },
+        ]},
+        { title: 'Navigation', items: [
+          { sel: '.nav-item-v',      label: 'Menu Item Vertical',  def: '8',    min: 2,   max: 20,  step: 1, unit: 'px' },
+          { sel: '.nav-item-h',      label: 'Menu Item Horizontal',def: '20',   min: 8,   max: 40,  step: 2, unit: 'px' },
+        ]},
+        { title: 'Tables', items: [
+          { sel: '.table-cell-v',    label: 'Cell Vertical',       def: '10',   min: 2,   max: 24,  step: 1, unit: 'px' },
+          { sel: '.table-cell-h',    label: 'Cell Horizontal',     def: '14',   min: 4,   max: 30,  step: 1, unit: 'px' },
+        ]},
+        { title: 'Forms', items: [
+          { sel: '.input-v',         label: 'Input Vertical',      def: '0.6',  min: 0.2, max: 1.5, step: 0.05  },
+          { sel: '.input-h',         label: 'Input Horizontal',    def: '0.85', min: 0.3, max: 2,   step: 0.05  },
+        ]},
+        { title: 'Modals', items: [
+          { sel: '.modal-body',      label: 'Modal Body',          def: '1.25', min: 0.5, max: 3,   step: 0.125 },
+        ]},
+      ];
+
+      _padGroups.forEach(function(g) {
+        html += '<div class="studio-group-title">' + g.title + '</div>';
+        g.items.forEach(function(it) {
+          var unit = it.unit || 'rem';
+          var savedVal = _ov.pads[it.sel] ? parseFloat(_ov.pads[it.sel]) : it.def;
+          html += _studioSlider(
+            'pad-' + it.sel.replace(/[^a-zA-Z0-9]/g, '-'),
+            it.label,
+            '', unit,
+            it.min, it.max, it.step,
+            savedVal, it.def
+          );
+        });
+      });
+      html += '</div></details>';
+
+      // ── Corners & Shadows ──
+      html += '<details class="settings-accordion">';
+      html += '<summary class="settings-accordion-trigger">\u25A3 Corners & Shadows<span class="settings-accordion-count">Border radius & elevation</span></summary>';
+      html += '<div class="settings-accordion-body">';
+
+      var _cornerItems = [
+        { varName: '--radius-sm',   label: 'Small Radius',  hint: 'Tags, skeletons',             def: 6,    min: 0, max: 20,  step: 1 },
+        { varName: '--radius-md',   label: 'Medium Radius', hint: 'Cards, inputs, modals',        def: 12,   min: 0, max: 30,  step: 1 },
+        { varName: '--radius-lg',   label: 'Large Radius',  hint: 'Dialogs, hero sections',       def: 20,   min: 0, max: 40,  step: 1 },
+      ];
+
+      _cornerItems.forEach(function(it) {
+        var savedVal = _ov.vars[it.varName] ? parseInt(_ov.vars[it.varName], 10) : it.def;
+        html += _studioSlider(
+          'corner-' + it.varName.replace(/[^a-zA-Z0-9]/g, '-'),
+          it.label, it.hint, 'px',
+          it.min, it.max, it.step,
+          savedVal, it.def
+        );
+      });
+      html += '<div class="studio-group-title" style="margin-top:14px;">Shadows</div>';
+      html += '<div class="studio-row">';
+      html += '<div class="studio-label-wrap"><label class="studio-label">Shadow Intensity</label>';
+      html += '<span class="studio-hint">Controls all drop shadows</span></div>';
+      html += '<select id="studio-shadow" class="settings-input studio-select" onchange="Modules._studioPreview()">';
+      var _shadowSaved = _ov.vars['--shadow-sm'] || '';
+      [
+        { val: '',                                        label: 'Default' },
+        { val: 'none',                                    label: 'None (flat)' },
+        { val: '0 1px 2px rgba(0,0,0,0.04)',              label: 'Subtle' },
+        { val: '0 1px 3px rgba(0,0,0,0.06)',              label: 'Light (default)' },
+        { val: '0 2px 6px rgba(0,0,0,0.10)',              label: 'Medium' },
+        { val: '0 4px 12px rgba(0,0,0,0.15)',             label: 'Heavy' },
+      ].forEach(function(opt) {
+        html += '<option value="' + _e(opt.val) + '"' + (_shadowSaved === opt.val ? ' selected' : '') + '>' + _e(opt.label) + '</option>';
+      });
+      html += '</select></div>';
+      html += '</div></details>';
+
+      // ── Custom CSS ──
+      html += '<details class="settings-accordion">';
+      html += '<summary class="settings-accordion-trigger">\u2328 Custom CSS<span class="settings-accordion-count">Advanced: raw CSS overrides</span></summary>';
+      html += '<div class="settings-accordion-body">';
+      html += '<p class="settings-card-hint" style="margin-bottom:8px;">Write any CSS here. It\u2019s injected last, so it overrides everything above. Use selectors from the design system.</p>';
+      html += '<textarea id="studio-custom-css" class="settings-input" rows="6" style="width:100%;font-family:monospace;font-size:0.82rem;resize:vertical;" placeholder=".card { box-shadow: none; }\\n.btn { border-radius: 4px; }">' + _e(_ov.custom || '') + '</textarea>';
+      html += '</div></details>';
+
+      // ── Action buttons ──
+      html += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;padding-bottom:16px;">';
+      html += '<button class="btn btn-primary" onclick="Modules._studioSave()" style="padding:8px 22px;font-size:0.82rem;">Save All</button>';
+      html += '<button class="btn btn-ghost" onclick="Modules._studioReset()" style="padding:8px 22px;font-size:0.82rem;">Reset</button>';
+      html += '<button class="btn" onclick="Modules._studioRestoreVisuals()" style="padding:8px 22px;font-size:0.82rem;background:var(--danger);color:#fff;border:none;">Restore Defaults</button>';
+      html += '</div>';
+
+      html += '</div></details>'; // close Interface Studio accordion
+
+      html += '</div>'; // close Look & Feel tab
+
+      // ══ Tab: Modules ════════════════════════════════════════════════
+      html += '<div class="config-tab-panel" data-tab="modules">';
+
+      // ── Section 5: Site Modules (Accordion) ──────────────────────────
+      html += '<details class="settings-section settings-accordion">';
+      html += '<summary class="settings-accordion-trigger"><span class="settings-accordion-chevron">&#9654;</span>';
+      html += '<span class="settings-section-icon">\uD83E\uDDE9</span>';
+      html += '<span class="settings-accordion-label">Site Modules</span>';
+      html += '<span class="settings-accordion-count">' + totalOn + ' / ' + allToggleable.length + ' active</span>';
+      html += '</summary>';
+      html += '<div class="settings-accordion-body">';
+
+      for (const cat of _moduleCategories) {
+        var catKeys = cat.modules.filter(function(k) { return _moduleMeta[k] || _protectedModules.indexOf(k) !== -1; });
+        if (!catKeys.length) continue;
+        var catOn = catKeys.filter(function(k) { return _protectedModules.indexOf(k) !== -1 || _isModuleEnabled(k); }).length;
+        html += '<div style="margin-top:14px;margin-bottom:6px;padding:6px 10px;border-radius:var(--radius-sm, 6px);background:var(--surface-alt, rgba(255,255,255,0.04));display:flex;align-items:center;gap:8px;">';
+        html += '<span style="font-size:1.05rem;">' + cat.icon + '</span>';
+        html += '<span style="font-weight:600;font-size:0.88rem;color:var(--ink);">' + _e(cat.label) + '</span>';
+        html += '<span style="margin-left:auto;font-size:0.75rem;color:var(--ink-muted);">' + catOn + ' / ' + catKeys.length + '</span>';
+        html += '</div>';
+        for (var ci = 0; ci < catKeys.length; ci++) {
+          var ck = catKeys[ci];
+          var isProt = _protectedModules.indexOf(ck) !== -1;
+          var meta = _moduleMeta[ck] || { label: ck, icon: '\u2699' };
+          html += _toggleRow(ck, meta, isProt || _isModuleEnabled(ck), isProt);
+        }
+      }
+      html += '</div></details>';
+
+      html += '</div>'; // close Modules tab
+
+      // ══ Tab: Administration ═════════════════════════════════════════
+      html += '<div class="config-tab-panel" data-tab="admin">';
+
+      // ── Section 5: System Settings (Accordion) ──────────────────────
+      const _cfgCatIcons = { General: '\uD83C\uDFE0', Auth: '\uD83D\uDD10', Modules: '\uD83E\uDDE9', Notifications: '\uD83D\uDD14', Display: '\uD83D\uDCBB', Security: '\uD83D\uDEE1\uFE0F' };
+      const _cfgExamples = {
+        CHURCH_NAME: 'e.g. Stronger by Grace',
+        CHURCH_TIMEZONE: 'e.g. America/New_York',
+        SESSION_TTL_HOURS: 'e.g. 6 (hours before auto-logout)',
+        MIN_PASSCODE_LENGTH: 'e.g. 6 (minimum characters)',
+        ALLOW_SELF_REGISTER: 'TRUE or FALSE',
+        PHOTO_DRIVE_FOLDER_ID: 'Google Drive folder ID (auto-created if blank)',
+        PHOTO_MAX_SIZE_MB: 'e.g. 10 (max megabytes per photo)',
+        SERMON_DRIVE_FOLDER_ID: 'Google Drive folder ID (auto-created if blank)',
+        SERMON_MAX_SIZE_MB: 'e.g. 50 (max megabytes per sermon file)',
+        NOTIFY_NEW_MEMBER: 'TRUE or FALSE',
+        NOTIFY_PRAYER_REQUEST: 'TRUE or FALSE',
+        ADMIN_EMAIL: 'e.g. pastor@church.org',
+        ITEMS_PER_PAGE: 'e.g. 50 (rows per list query)',
+        DATE_FORMAT: 'e.g. YYYY-MM-DD',
+        CARD_PREFIX: 'e.g. FlockOS (prefix for member card numbers)',
+        LOCKDOWN: 'TRUE or FALSE',
+        GLOBAL_THEME: 'Theme name or default'
+      };
+
+      // Group rows by category
+      const _cfgGroups = {};
+      rows.forEach(r => {
+        const cat = r.category || 'Other';
+        if (!_cfgGroups[cat]) _cfgGroups[cat] = [];
+        _cfgGroups[cat].push(r);
+      });
+      // Sort categories: known order first, then alphabetical extras
+      const _cfgOrder = ['General', 'Auth', 'Modules', 'Notifications', 'Display', 'Security'];
+      const _cfgSorted = _cfgOrder.filter(c => _cfgGroups[c]).concat(
+        Object.keys(_cfgGroups).filter(c => _cfgOrder.indexOf(c) === -1).sort()
+      );
+
+      html += '<details class="settings-section settings-accordion">';
+      html += '<summary class="settings-accordion-trigger">';
+      html += '<span class="settings-accordion-chevron">&#9654;</span>';
+      html += '<span class="settings-accordion-label">\uD83D\uDCCB System Settings</span>';
+      html += '<span class="settings-accordion-count">' + rows.length + ' entries</span>';
+      html += '</summary>';
+      html += '<div class="settings-accordion-body">';
+      html += '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px;">';
+      html += '<p style="margin:0;font-size:0.82rem;color:var(--ink-muted);">Click any setting to edit its value. Settings are grouped by category.</p>';
+      html += '<button onclick="Modules.newConfig()" style="padding:8px 18px;border-radius:8px;border:none;background:var(--accent);color:var(--bg);font-weight:600;font-size:0.82rem;cursor:pointer;">+ Add Setting</button>';
+      html += '</div>';
+
+      _cfgSorted.forEach(cat => {
+        const catRows = _cfgGroups[cat];
+        const catIcon = _cfgCatIcons[cat] || '\u2699\uFE0F';
+        html += '<div class="sys-cfg-group">';
+        html += '<div class="sys-cfg-group-hdr">';
+        html += '<span class="sys-cfg-group-icon">' + catIcon + '</span>';
+        html += '<span class="sys-cfg-group-label">' + _e(cat) + '</span>';
+        html += '<span class="sys-cfg-group-count">' + catRows.length + '</span>';
+        html += '</div>';
+        html += '<div class="sys-cfg-group-cards">';
+        catRows.forEach(r => {
+          const k = _e(r.key || r.configKey || '');
+          const v = r.value != null ? String(r.value) : '';
+          const desc = r.description || r.notes || '';
+          const ex = _cfgExamples[r.key || r.configKey] || '';
+          const isBool = v === 'TRUE' || v === 'FALSE';
+          const isEmpty = !v;
+          html += '<div class="sys-cfg-card" onclick="Modules.editConfig(\'' + k + '\')" title="Click to edit">';
+          html += '<div class="sys-cfg-card-key">' + k + '</div>';
+          if (isBool) {
+            html += '<div class="sys-cfg-card-val sys-cfg-bool ' + (v === 'TRUE' ? 'sys-cfg-on' : 'sys-cfg-off') + '">';
+            html += '<span class="sys-cfg-dot"></span> ' + v;
+            html += '</div>';
+          } else if (isEmpty) {
+            html += '<div class="sys-cfg-card-val sys-cfg-empty">' + (ex || 'Not set') + '</div>';
+          } else {
+            html += '<div class="sys-cfg-card-val">' + _e(v.length > 60 ? v.substring(0, 57) + '\u2026' : v) + '</div>';
+          }
+          if (desc) html += '<div class="sys-cfg-card-desc">' + _e(desc) + '</div>';
+          if (r.updatedAt) html += '<div class="sys-cfg-card-ts">' + _e(r.updatedAt) + '</div>';
+          html += '</div>';
+        });
+        html += '</div></div>';
+      });
+
+      html += '</div></details>';
+
+      // ── Section 6–10: Database & Connections (consolidated) ─────────
+      var _ep = {};
+      try { _ep = TheVine.endpoints(); } catch(e) { _ep = {}; }
+      var _provLS;
+      try { _provLS = JSON.parse(localStorage.getItem('flock_provisioning') || '{}'); } catch(e) { _provLS = {}; }
+      const _sheetChunksRow = rows.find(r => (r.key || r.configKey) === 'SHEET_CHUNKS');
+      let _sheetChunks = {};
+      try { _sheetChunks = JSON.parse(_sheetChunksRow ? _sheetChunksRow.value : '{}'); } catch(e) {}
+      const _chunkDomains = ['Members','Attendance','Giving','Sermons','Outreach','Care','Ministry'];
+
+      const _dbUrl = (_provLS.DATABASE_URL || (_ep.FLOCK_ENDPOINTS && _ep.FLOCK_ENDPOINTS[0]) || '');
+      const _dbConfigured = !!_dbUrl;
+
+      html += '<details class="settings-section settings-accordion">';
+      html += '<summary class="settings-accordion-trigger"><span class="settings-accordion-chevron">&#9654;</span>';
+      html += '<span class="settings-section-icon">&#128268;</span>';
+      html += '<span class="settings-accordion-label">Database &amp; Connections</span>';
+      html += '<span class="settings-accordion-count">' + (_dbConfigured ? '&#128994; Endpoint configured' : '&#9898; Not configured') + '</span>';
+      html += '</summary>';
+      html += '<div class="settings-accordion-body">';
+
+      // ── Sub: Database Endpoint ──
+      html += '<details class="settings-accordion">';
+      html += '<summary class="settings-accordion-trigger">&#128193; Database Endpoint<span class="settings-accordion-count">' + (_dbConfigured ? 'Configured' : 'Required') + '</span></summary>';
+      html += '<div class="settings-accordion-body">';
+      html += '<div class="settings-card" style="margin-bottom:14px;">';
+      html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">';
+      html += '<div class="settings-card-label" style="margin-bottom:0;">&#128193; Google Apps Script Endpoint</div>';
+      html += '<span class="health-pill health-pill-unknown" id="prov-health-primary"><span class="health-dot"></span>Untested</span>';
+      html += '</div>';
+      html += '<p class="settings-card-hint" style="margin:4px 0 8px;">The Google Apps Script Web App URL that powers the FlockOS backend. This single endpoint handles all CRM modules — members, events, giving, missions, content, and more.</p>';
+      html += '<input type="url" id="prov-DATABASE_URL" class="prov-url-field" value="' + _e(_dbUrl) + '" placeholder="https://script.google.com/macros/s/.../exec" style="width:100%;box-sizing:border-box;">';
+      html += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">';
+      html += '<button class="btn btn-primary" onclick="Modules._provisioningSave()" style="padding:8px 22px;font-size:0.82rem;">Save</button>';
+      html += '<button class="btn btn-ghost" onclick="Modules._provisioningTest()" style="padding:8px 22px;font-size:0.82rem;">Test Connection</button>';
+      html += '</div>';
+      html += '<div id="prov-status" style="margin-top:8px;"></div>';
+      html += '</div>';
+      html += '</div></details>';
+
+      // ── Sub: Parallel Sheet Chunks ──
+      html += '<details class="settings-accordion">';
+      html += '<summary class="settings-accordion-trigger">&#128202; Parallel Sheet Chunks<span class="settings-accordion-count">Horizontal scaling — up to 4 chunks per domain</span></summary>';
+      html += '<div class="settings-accordion-body">';
+      html += '<div class="settings-card">';
+      html += '<div class="settings-card-label">&#128202; Sheet Expansion</div>';
+      html += '<p class="settings-card-hint" style="margin:4px 0 10px;">When a domain tab grows beyond ~50,000 rows, split it into parallel chunks (e.g. <code>Members_1</code>, <code>Members_2</code>). The backend aggregates all chunks automatically. <strong>Keep at 1 until a domain is near capacity.</strong></p>';
+      html += '<table style="width:100%;border-collapse:collapse;font-size:0.85rem;">';
+      html += '<thead><tr>';
+      html += '<th style="text-align:left;padding:6px 10px;border-bottom:1px solid var(--line);color:var(--ink-muted);font-weight:600;">Domain</th>';
+      html += '<th style="text-align:center;padding:6px 10px;border-bottom:1px solid var(--line);color:var(--ink-muted);font-weight:600;">Active Chunks</th>';
+      html += '<th style="text-align:left;padding:6px 10px;border-bottom:1px solid var(--line);color:var(--ink-muted);font-weight:600;">Sheet Tabs</th>';
+      html += '</tr></thead><tbody>';
+      _chunkDomains.forEach(function(domain) {
+        var cur = _sheetChunks[domain] || 1;
+        var tabList = [];
+        for (var ci = 1; ci <= cur; ci++) { tabList.push(domain + (cur > 1 ? '_' + ci : '')); }
+        html += '<tr style="border-bottom:1px solid var(--surface-alt,rgba(0,0,0,0.05));">';
+        html += '<td style="padding:8px 10px;font-weight:600;color:var(--ink);">' + _e(domain) + '</td>';
+        html += '<td style="padding:8px 10px;text-align:center;">';
+        html += '<select id="chunk-' + _e(domain) + '" class="settings-input" style="width:70px;padding:4px 8px;font-size:0.85rem;">';
+        [1,2,3,4].forEach(function(n) {
+          html += '<option value="' + n + '"' + (cur === n ? ' selected' : '') + '>' + n + '</option>';
+        });
+        html += '</select>';
+        html += '</td>';
+        html += '<td style="padding:8px 10px;font-size:0.78rem;color:var(--ink-muted);font-family:monospace;">' + _e(tabList.join(', ')) + '</td>';
+        html += '</tr>';
+      });
+      html += '</tbody></table>';
+      html += '<div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">';
+      html += '<button class="btn btn-primary" onclick="Modules._saveSheetChunks()" style="padding:8px 22px;font-size:0.82rem;">Save Chunk Config</button>';
+      html += '<span id="chunk-save-status" style="font-size:0.8rem;color:var(--ink-muted);align-self:center;"></span>';
+      html += '</div>';
+      html += '</div>';
+      html += '</div></details>';
+
+      // ── Sub: API Health ──
+      html += '<details class="settings-accordion">';
+      html += '<summary class="settings-accordion-trigger">&#128225; API Health<span class="settings-accordion-count">Run diagnostics to check</span></summary>';
+      html += '<div class="settings-accordion-body">';
+      html += '<div class="settings-card" id="health-dashboard">';
+      html += '<div class="health-row" id="health-row-database" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;">';
+      html += '<div style="flex:1;min-width:0;">';
+      html += '<div style="font-weight:600;font-size:0.88rem;color:var(--ink);">FlockOS Database</div>';
+      html += '<div style="font-size:0.78rem;color:var(--ink-muted);">Unified endpoint — CRM, content, missions, statistics</div>';
+      html += '</div>';
+      html += '<span class="health-pill health-pill-unknown" id="health-pill-database"><span class="health-dot"></span>Pending</span>';
+      html += '</div>';
+      html += '<div style="display:flex;align-items:center;gap:12px;margin-top:14px;flex-wrap:wrap;">';
+      html += '<button class="btn btn-primary" onclick="Modules._runHealthCheck()" style="padding:10px 24px;font-size:0.88rem;">&#128225; Run Diagnostics</button>';
+      html += '<span id="health-timestamp" style="font-size:0.78rem;color:var(--ink-faint);"></span>';
+      html += '</div>';
+      html += '</div>';
+      html += '</div></details>';
+
+      // ── Sub: The Wellspring (local data mode) ──
+      var _wsAvailable = typeof TheWellspring !== 'undefined';
+      var _wsActive = _wsAvailable && TheWellspring.isActive();
+
+      html += '<details class="settings-accordion">';
+      html += '<summary class="settings-accordion-trigger">&#128167; The Wellspring<span class="settings-accordion-count">' + (_wsActive ? '&#128994; Local mode active' : '&#9729;&#65039; Cloud (default)') + '</span></summary>';
+      html += '<div class="settings-accordion-body">';
+
+      if (!_wsAvailable) {
+        html += '<div class="settings-card">';
+        html += '<p style="color:var(--ink-muted);font-size:0.85rem;">The Wellspring module is not loaded. Add the SheetJS CDN and <code>the_wellspring.js</code> script tags to enable local data mode.</p>';
+        html += '</div>';
+      } else {
+        html += '<div class="settings-card">';
+        html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">';
+        html += '<div>';
+        html += '<div class="settings-card-label">&#128167; Local Data Mode</div>';
+        html += '<p class="settings-card-hint" style="margin:4px 0 0;">&ldquo;Whoever drinks the water I give them will never thirst.&rdquo; &mdash; John 4:14<br>When enabled, data is read from .xls files stored in your browser instead of cloud APIs.</p>';
+        html += '</div>';
+        html += '<label class="settings-toggle">';
+        html += '<input type="checkbox" id="wellspring-toggle"' + (_wsActive ? ' checked' : '') + ' onchange="Modules._wellspringToggle(this.checked)">';
+        html += '<span class="settings-toggle-slider"></span>';
+        html += '</label>';
+        html += '</div>';
+        if (_wsActive) {
+          html += '<div style="margin-top:10px;padding:10px 14px;border-radius:8px;background:var(--accent);color:var(--bg);font-weight:600;font-size:0.85rem;">&#128167; LOCAL MODE ACTIVE &mdash; Data served from browser storage. Cloud APIs bypassed.</div>';
+        }
+        html += '</div>';
+        html += '<div class="settings-card" style="margin-top:12px;">';
+        html += '<div class="settings-card-label">&#128194; Import Database</div>';
+        html += '<p class="settings-card-hint">Select the .xls or .xlsx file exported from the FlockOS Google Sheet. All tabs are parsed and stored in your browser\'s IndexedDB &mdash; nothing is uploaded to any server.</p>';
+        html += '<div id="wellspring-database" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 0;flex-wrap:wrap;">';
+        html += '<div style="flex:1;min-width:200px;">';
+        html += '<div style="font-weight:600;font-size:0.88rem;color:var(--ink);">&#128167; FlockOS Database</div>';
+        html += '<div style="font-size:0.78rem;color:var(--ink-muted);">Complete local copy &mdash; members, events, giving, missions, statistics &amp; more</div>';
+        html += '<div id="ws-status-db" style="font-size:0.75rem;color:var(--ink-faint);margin-top:4px;">&#9203; Checking&hellip;</div>';
+        html += '</div>';
+        html += '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">';
+        html += '<label style="padding:8px 16px;border-radius:8px;border:1px solid var(--accent);color:var(--accent);font-weight:600;font-size:0.82rem;cursor:pointer;" onmouseenter="this.style.background=\'var(--accent)\';this.style.color=\'var(--bg)\'" onmouseleave="this.style.background=\'transparent\';this.style.color=\'var(--accent)\'">';
+        html += '&#128193; Choose File';
+        html += '<input type="file" accept=".xls,.xlsx,.xlsm" style="display:none;" onchange="Modules._wellspringLoad(this.files[0])">';
+        html += '</label>';
+        html += '<button onclick="Modules._wellspringExport()" style="padding:8px 14px;border-radius:8px;border:1px solid var(--line);background:var(--bg-raised);color:var(--ink);font-weight:600;font-size:0.82rem;cursor:pointer;">&#128229; Export</button>';
+        html += '<button onclick="Modules._wellspringClear()" style="padding:8px 14px;border-radius:8px;border:1px solid var(--line);background:var(--bg-raised);color:var(--warning,#c98b2e);font-weight:600;font-size:0.82rem;cursor:pointer;">&#128465; Clear</button>';
+        html += '</div>';
+        html += '</div>';
+        html += '</div>';
+      }
+      html += '</div></details>';
+
+      // ── Sub: SMS Gateway — Twilio ──
+      var _twilioRow = rows.find(r => (r.key || r.configKey) === 'TWILIO_ENABLED');
+      var _twilioOn  = _twilioRow && String(_twilioRow.value).toUpperCase() === 'TRUE';
+
+      html += '<details class="settings-accordion">';
+      html += '<summary class="settings-accordion-trigger">&#128242; SMS Gateway<span class="settings-accordion-count">' + (_twilioOn ? 'Twilio enabled' : 'Off &mdash; using native SMS') + '</span></summary>';
+      html += '<div class="settings-accordion-body">';
+      html += '<div class="settings-card" style="margin-bottom:14px;">';
+      html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">';
+      html += '<div>';
+      html += '<div class="settings-card-label">&#128241; Enable Twilio SMS</div>';
+      html += '<p class="settings-card-hint" style="margin:4px 0 0;">When enabled, SMS buttons in Messages send texts through your Twilio account instead of opening the native messaging app. Requires <code>TWILIO_SID</code>, <code>TWILIO_TOKEN</code>, and <code>TWILIO_NUMBER</code> in your Database Script Properties.</p>';
+      html += '</div>';
+      html += '<label class="toggle-switch">';
+      html += '<input type="checkbox" id="twilio-toggle"' + (_twilioOn ? ' checked' : '') + ' onchange="Modules._twilioToggle(this.checked)">';
+      html += '<span class="slider"></span></label>';
+      html += '</div></div>';
+      html += '<div class="settings-card">';
+      html += '<div class="settings-card-label">&#128295; Setup</div>';
+      html += '<p class="settings-card-hint" style="margin:4px 0 6px;">Add these three Script Properties to your <strong>Database</strong> Apps Script project (Project Settings &rarr; Script Properties):</p>';
+      html += '<div style="font-family:monospace;font-size:0.8rem;background:var(--surface);padding:12px 16px;border-radius:8px;border:1px solid var(--line);line-height:1.7;">';
+      html += 'TWILIO_SID &nbsp;&nbsp;&nbsp;&nbsp;= <em>your Account SID</em><br>';
+      html += 'TWILIO_TOKEN &nbsp;&nbsp;= <em>your Auth Token</em><br>';
+      html += 'TWILIO_NUMBER &nbsp;= <em>your Twilio phone number (e.g. +15551234567)</em>';
+      html += '</div>';
+      html += '<p class="settings-card-hint" style="margin:8px 0 0;">Sign up at <strong>twilio.com</strong> &mdash; a free trial includes a phone number and enough credits to test. The toggle above stores <code>TWILIO_ENABLED=TRUE</code> in AppConfig.</p>';
+      html += '</div>';
+      html += '</div></details>';
+
+      html += '</div></details>'; // close Database & Connections accordion
+
+      // ── Section 8: Calendar Settings ────────────────────────────────
+      var _calS = {};
+      try { _calS = JSON.parse(localStorage.getItem('flock_calendar_settings') || '{}'); } catch(e) { _calS = {}; }
+
+      html += '<details class="settings-section settings-accordion">';
+      html += '<summary class="settings-accordion-trigger"><span class="settings-accordion-chevron">&#9654;</span>';
+      html += '<span class="settings-section-icon">\uD83D\uDCC5</span>';
+      html += '<span class="settings-accordion-label">Calendar</span>';
+      html += '<span class="settings-accordion-count">Views, feeds & schedule</span>';
+      html += '</summary>';
+      html += '<div class="settings-accordion-body">';
+
+      // ── Display Preferences ──
+      html += '<div class="settings-card" style="margin-bottom:14px;">';
+      html += '<div class="settings-card-label">\uD83D\uDCCB Display Preferences</div>';
+      html += '<p class="settings-card-hint" style="margin:2px 0 10px;">Configure your default calendar views and time settings.</p>';
+
+      // Default view
+      html += '<div style="margin-bottom:10px;">';
+      html += '<label style="font-size:0.78rem;font-weight:600;color:var(--ink-muted);display:block;margin-bottom:4px;">Default View</label>';
+      html += '<select id="cal-s-defaultView" style="width:100%;max-width:260px;padding:8px 12px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font-size:0.85rem;">';
+      ['month','week','day','agenda'].forEach(function(v) {
+        html += '<option value="' + v + '"' + ((_calS.defaultView || 'month') === v ? ' selected' : '') + '>' + v.charAt(0).toUpperCase() + v.slice(1) + '</option>';
+      });
+      html += '</select></div>';
+
+      // Week start
+      html += '<div style="margin-bottom:10px;">';
+      html += '<label style="font-size:0.78rem;font-weight:600;color:var(--ink-muted);display:block;margin-bottom:4px;">Week Starts On</label>';
+      html += '<select id="cal-s-weekStart" style="width:100%;max-width:260px;padding:8px 12px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font-size:0.85rem;">';
+      html += '<option value="sunday"' + ((_calS.weekStart || 'sunday') === 'sunday' ? ' selected' : '') + '>Sunday</option>';
+      html += '<option value="monday"' + ((_calS.weekStart || 'sunday') === 'monday' ? ' selected' : '') + '>Monday</option>';
+      html += '</select></div>';
+
+      // Working hours
+      html += '<div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:10px;">';
+      html += '<div>';
+      html += '<label style="font-size:0.78rem;font-weight:600;color:var(--ink-muted);display:block;margin-bottom:4px;">Working Hours Start</label>';
+      html += '<input type="number" id="cal-s-workStart" min="0" max="23" value="' + (_calS.workStart || 6) + '" style="width:80px;padding:8px 12px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font-size:0.85rem;">';
+      html += '</div>';
+      html += '<div>';
+      html += '<label style="font-size:0.78rem;font-weight:600;color:var(--ink-muted);display:block;margin-bottom:4px;">Working Hours End</label>';
+      html += '<input type="number" id="cal-s-workEnd" min="0" max="23" value="' + (_calS.workEnd || 22) + '" style="width:80px;padding:8px 12px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font-size:0.85rem;">';
+      html += '</div></div>';
+      html += '</div>';
+
+      // ── Integration Toggles ──
+      html += '<div class="settings-card" style="margin-bottom:14px;">';
+      html += '<div class="settings-card-label">\uD83D\uDD17 Module Integrations</div>';
+      html += '<p class="settings-card-hint" style="margin:2px 0 10px;">Choose which modules feed into the unified calendar view.</p>';
+
+      var _calToggles = [
+        { id: 'cal-s-showServices', label: 'Service Plans', checked: _calS.showServices !== false },
+        { id: 'cal-s-showAttendance', label: 'Attendance Records', checked: _calS.showAttendance === true },
+        { id: 'cal-s-showMissions', label: 'Missions Schedules', checked: _calS.showMissions === true },
+        { id: 'cal-s-showDiscipleship', label: 'Discipleship Milestones', checked: _calS.showDiscipleship === true },
+        { id: 'cal-s-showVolunteers', label: 'Volunteer Schedule', checked: _calS.showVolunteers === true },
+      ];
+      _calToggles.forEach(function(t) {
+        html += '<div class="toggle-row" style="padding:6px 0;">';
+        html += '<div class="toggle-row-label"><span class="name">' + t.label + '</span></div>';
+        html += '<label class="toggle-switch">';
+        html += '<input type="checkbox" id="' + t.id + '"' + (t.checked ? ' checked' : '') + '>';
+        html += '<span class="slider"></span></label></div>';
+      });
+      html += '</div>';
+
+      // ── External Calendar Feeds ──
+      html += '<div class="settings-card" style="margin-bottom:14px;">';
+      html += '<div class="settings-card-label">\uD83C\uDF10 External Calendar Feeds</div>';
+      html += '<p class="settings-card-hint" style="margin:2px 0 10px;">Paste iCal (.ics) URLs from Google Calendar, Apple Calendar, Outlook, or any iCal-compatible source. Events will sync automatically.</p>';
+
+      for (var fi = 1; fi <= 3; fi++) {
+        html += '<div style="margin-bottom:8px;">';
+        html += '<label style="font-size:0.78rem;font-weight:600;color:var(--ink-muted);display:block;margin-bottom:2px;">Feed ' + fi + '</label>';
+        html += '<input type="url" id="cal-s-icalUrl' + fi + '" value="' + _e(_calS['icalUrl' + fi] || '') + '" placeholder="https://calendar.google.com/calendar/ical/…/basic.ics" style="width:100%;box-sizing:border-box;padding:8px 12px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font-size:0.85rem;">';
+        html += '</div>';
+      }
+      html += '<p class="settings-card-hint" style="margin:6px 0 0;font-size:0.72rem;">Tip: In Google Calendar → Settings → your calendar → "Secret address in iCal format".</p>';
+      html += '</div>';
+
+      // ── Visibility & Access ──
+      html += '<div class="settings-card" style="margin-bottom:14px;">';
+      html += '<div class="settings-card-label">\uD83D\uDD12 Visibility & Access</div>';
+      html += '<p class="settings-card-hint" style="margin:2px 0 10px;">Control default visibility for new events and delegation behavior.</p>';
+
+      html += '<div style="margin-bottom:10px;">';
+      html += '<label style="font-size:0.78rem;font-weight:600;color:var(--ink-muted);display:block;margin-bottom:4px;">Default Visibility for New Events</label>';
+      html += '<select id="cal-s-defaultVisibility" style="width:100%;max-width:260px;padding:8px 12px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font-size:0.85rem;">';
+      var _visSettOpts = [
+        { value: 'public',  label: '\uD83C\uDF10 Public' },
+        { value: 'members', label: '\uD83D\uDC65 Members Only' },
+        { value: 'leaders', label: '\uD83D\uDEE1\uFE0F Leaders' },
+        { value: 'deacons', label: '\u26EA Deacons' },
+        { value: 'pastors', label: '\u2720\uFE0F Pastors' },
+        { value: 'admins',  label: '\uD83D\uDD12 Admins' },
+        { value: 'private', label: '\uD83D\uDC64 Private' },
+      ];
+      _visSettOpts.forEach(function(v) {
+        html += '<option value="' + v.value + '"' + ((_calS.defaultVisibility || 'public') === v.value ? ' selected' : '') + '>' + v.label + '</option>';
+      });
+      html += '</select></div>';
+
+      html += '<div class="toggle-row" style="padding:6px 0;">';
+      html += '<div class="toggle-row-label"><span class="name">Show Restricted Event Titles</span>';
+      html += '<span class="desc" style="display:block;font-size:0.72rem;color:var(--ink-muted);">When off, events above your role show as \u201CBusy\u201D instead of the real title.</span></div>';
+      html += '<label class="toggle-switch">';
+      html += '<input type="checkbox" id="cal-s-showRestrictedTitles"' + (_calS.showRestrictedTitles !== false ? ' checked' : '') + '>';
+      html += '<span class="slider"></span></label></div>';
+      html += '</div>';
+
+      // ── Delegation Preferences ──
+      html += '<div class="settings-card" style="margin-bottom:14px;">';
+      html += '<div class="settings-card-label">\uD83D\uDC65 Delegation Preferences</div>';
+      html += '<p class="settings-card-hint" style="margin:2px 0 10px;">Control how others interact with your private calendar events.</p>';
+
+      html += '<div class="toggle-row" style="padding:6px 0;">';
+      html += '<div class="toggle-row-label"><span class="name">Accept Delegation Requests</span>';
+      html += '<span class="desc" style="display:block;font-size:0.72rem;color:var(--ink-muted);">When enabled, other users can request to view your private calendar.</span></div>';
+      html += '<label class="toggle-switch">';
+      html += '<input type="checkbox" id="cal-s-acceptDelegation"' + (_calS.acceptDelegation !== false ? ' checked' : '') + '>';
+      html += '<span class="slider"></span></label></div>';
+
+      html += '<div class="toggle-row" style="padding:6px 0;">';
+      html += '<div class="toggle-row-label"><span class="name">Show Delegate Names on Events</span>';
+      html += '<span class="desc" style="display:block;font-size:0.72rem;color:var(--ink-muted);">Display the name of the event owner on delegated calendar events.</span></div>';
+      html += '<label class="toggle-switch">';
+      html += '<input type="checkbox" id="cal-s-showDelegateNames"' + (_calS.showDelegateNames === true ? ' checked' : '') + '>';
+      html += '<span class="slider"></span></label></div>';
+
+      html += '<div class="toggle-row" style="padding:6px 0;">';
+      html += '<div class="toggle-row-label"><span class="name">Notify When Delegation Changes</span>';
+      html += '<span class="desc" style="display:block;font-size:0.72rem;color:var(--ink-muted);">Get notified when someone grants or revokes delegation to you.</span></div>';
+      html += '<label class="toggle-switch">';
+      html += '<input type="checkbox" id="cal-s-notifyDelegation"' + (_calS.notifyDelegation !== false ? ' checked' : '') + '>';
+      html += '<span class="slider"></span></label></div>';
+      html += '</div>';
+
+      // ── Save button ──
+      html += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;padding-bottom:16px;">';
+      html += '<button class="btn btn-primary" onclick="Modules._calSettingsSave()" style="padding:8px 22px;font-size:0.82rem;">Save Calendar Settings</button>';
+      html += '</div>';
+
+      html += '</div></details>'; // close calendar settings accordion
+
+      html += '</div>'; // close Administration tab
+
+      _body(el, html);
+
+      // Hydrate spring status cards after render
+      if (_wsAvailable) { setTimeout(_wellspringRefreshStatus, 100); }
+
+    } catch (e) { _body(el, _errHtml(e.message)); }
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // 27. AUDIT  (admin)
   // ═══════════════════════════════════════════════════════════════════════
   _def('audit', async el => {
-    if (typeof TheVine !== 'undefined' && !TheVine.hasRole('pastor') && !(typeof Nehemiah !== 'undefined' && (Nehemiah.hasGroup('Master') || Nehemiah.hasGroup('Seed Admin') || Nehemiah.hasGroup('Lead Pastor')))) {
-      el.innerHTML = '<div style="text-align:center;padding:80px 20px;">'
-        + '<div style="font-size:3rem;margin-bottom:12px;">&#128274;</div>'
-        + '<p style="color:var(--ink-muted);">Pastor access required.</p></div>';
-      return;
-    }
     _shell(el, 'Audit Log', 'System activity, changes & security events.', '');
-
-    // ── Background async — fetch data and fill table when ready ──────────
-    (async function _loadAudit() {
     try {
       const res  = await TheVine.flock.call('audit.list', { limit: 100 });
       const rows = _rows(res);
@@ -11984,7 +11353,6 @@ const Modules = (() => {
         ])
       ));
     } catch (e) { _body(el, _errHtml(e.message)); }
-    })();
   });
 
 
@@ -12328,8 +11696,7 @@ const Modules = (() => {
   // ═══════════════════════════════════════════════════════════════════════
   _def('church', async el => {
     _shell(el, 'Church Registry', 'Manage FlockOS church tenant registrations.',
-        _btn('+ Register Church',    "Modules._churchCreate()")
-      + _btn('&#9889; Provision Church', "Modules._churchProvisionNew()", false));
+      _btn('+ Register Church', "Modules._churchCreate()"));
     try {
       const res  = await _fetch('church-list', () => TheVine.flock.church.list({ limit: 100 }), _TTL.ref);
       const rows = _rows(res);
@@ -12339,24 +11706,14 @@ const Modules = (() => {
         return;
       }
       _body(el, _table(
-        ['Name', 'Short Name', 'Database URL', 'Status', 'Created', 'Controls'],
+        ['Name', 'Short Name', 'Database URL', 'Status', 'Created'],
         rows.map(r => [
           _e(r.churchName || ''),
           _e(r.shortName  || ''),
-          r.databaseUrl
-            ? '<span style="color:var(--success,#4ade80);font-size:0.8rem;">&#10003; Set</span>'
-            : '<span style="color:var(--warning,#f59e0b);font-size:0.8rem;">&#9888; Not set</span>',
-          r.locked ? _statusBadge('Locked') : _statusBadge(r.status || 'Active'),
+          r.databaseUrl ? '<span style="color:var(--success,#4ade80);font-size:0.8rem;">&#10003; Set</span>'
+                        : '<span style="color:var(--warning,#f59e0b);font-size:0.8rem;">&#9888; Not set</span>',
+          _statusBadge(r.status || 'Active'),
           _e(r.createdAt ? new Date(r.createdAt).toLocaleDateString() : ''),
-          '<div style="display:flex;gap:6px;flex-wrap:wrap;">'
-          + '<button onclick="event.stopPropagation();Modules._churchProvision(\'' + _e(r.churchId) + '\')" '
-          +   'style="font-size:0.73rem;padding:3px 9px;border-radius:5px;cursor:pointer;'
-          +   'border:1px solid var(--accent);background:none;color:var(--accent);font-family:inherit;">&#9889; Provision</button>'
-          + '<button onclick="event.stopPropagation();Modules._churchLock(\'' + _e(r.churchId) + '\',' + (!r.locked) + ')" '
-          +   'style="font-size:0.73rem;padding:3px 9px;border-radius:5px;cursor:pointer;'
-          +   'border:1px solid var(--line);background:none;color:var(--ink-muted);font-family:inherit;">'
-          +   (r.locked ? '&#128275; Unlock' : '&#128274; Lock') + '</button>'
-          + '</div>',
         ]),
         { editFn: 'editChurch', ids: rows.map(r => r.churchId) }
       ));
@@ -12375,14 +11732,15 @@ const Modules = (() => {
       { name: 'photosUrl',   label: 'Photos Album URL',                 type: 'url',    value: '' },
       { name: 'adminEmail',  label: 'Admin / Notification Email',       type: 'email',  value: '' },
       { name: 'analyticsId', label: 'Google Analytics ID (G-\u2026)',   type: 'text',   value: '' },
-      { name: 'favicon',     label: 'Favicon filename',                 type: 'text',   value: 'FlockOS_Camo.png' },
-      { name: 'portrait',    label: 'Portrait / Logo filename',         type: 'text',   value: 'FlockOS_Camo.png' },
+      { name: 'favicon',     label: 'Favicon filename',                 type: 'text',   value: 'FlockOS_OD.png' },
+      { name: 'portrait',    label: 'Portrait / Logo filename',         type: 'text',   value: 'FlockOS_Portrait.png' },
       { name: 'version',     label: 'Version',                          type: 'text',   value: '1.0' },
     ], async data => {
       await TheVine.flock.church.create(data);
       _invalidateCache('church-list');
       _toast('Church registered \u2014 open it to Setup Database when ready.', 'success');
-      _reload('church');
+      const el = document.getElementById('view-church');
+      if (el) { el.dataset.loaded = ''; _reg['church'](el); }
     }, 'Register');
   }
 
@@ -12394,102 +11752,10 @@ const Modules = (() => {
     } catch (e) { _toast(e.message || 'Setup failed.', 'danger'); }
   }
 
-  // ── Lock / Unlock a church deployment ──────────────────────────────────
-  async function _churchLock(churchId, lock) {
-    const verb    = lock ? 'lock' : 'unlock';
-    const warning = lock
-      ? 'This will prevent all members of this church from logging in until unlocked. Continue?'
-      : 'Restore full access for this church? Continue?';
-    if (!confirm((lock ? 'Lock' : 'Unlock') + ' church — ' + warning)) return;
-    try {
-      await TheVine.flock.church.update({
-        churchId,
-        locked: lock,
-        status: lock ? 'Locked' : 'Active',
-      });
-      _invalidateCache('church-list');
-      _toast('Church ' + verb + 'ed.', lock ? 'warn' : 'success');
-      _reload('church');
-    } catch (e) { _toast(e.message || 'Failed to ' + verb + ' church.', 'danger'); }
-  }
-
-  // ── Provision: opens the Provisioner Web App in a new tab ──────────────
-  const _PROVISIONER_URL = 'https://script.google.com/macros/s/AKfycbwngAJULbve_-WBeZTS9MQLkdPohdlhTKI1ARJxqU9wu28vTpfQem8gSxFeSHr2k2jX/exec';
-
-  async function _churchProvision(churchId) {
-    const rows = _dataCache['churches'] || [];
-    const c    = rows.find(r => String(r.churchId) === String(churchId)) || {};
-    _modal('Provision Church: ' + (c.churchName || churchId), [
-      { name: 'connectionType', label: 'Connection Type', type: 'select', required: true,
-        options: [
-          { value: 'A', label: 'A \u2014 GAS Only' },
-          { value: 'B', label: 'B \u2014 GAS + Firestore Backup' },
-          { value: 'C', label: 'C \u2014 Firebase Primary + GAS Auth' },
-          { value: 'D', label: 'D \u2014 Full Real-Time Sync (recommended)' },
-        ], value: 'D' },
-      { name: 'timezone', label: 'Timezone (IANA)', type: 'text', value: 'America/Los_Angeles', required: true },
-      { name: 'adminEmail', label: 'Admin / Notification Email', type: 'email', value: c.adminEmail || '' },
-      { name: '_note', type: 'html', html:
-          '<div style="font-size:0.79rem;color:var(--ink-muted);background:var(--bg);border:1px solid var(--line);'
-        + 'border-radius:6px;padding:10px 14px;line-height:1.7;margin-top:4px;">'
-        + '<strong style="color:var(--accent);">&#9889; The Provisioner will:</strong><br>'
-        + '&bull; Create the church CRM Google Sheet in the shared Drive folder<br>'
-        + '&bull; Write a step-by-step Deployment Guide to Sheet1<br>'
-        + '&bull; Pre-fill Code.gs, FirestoreSync.gs, and SyncHandler.gs tabs<br>'
-        + '&bull; Seed Firestore with church registry data and sync config<br>'
-        + '&bull; Open the result in a new tab &mdash; follow the guide to finish GAS setup'
-        + '</div>' },
-    ], async data => {
-      const params = new URLSearchParams({
-        action:          'provision',
-        churchName:      c.churchName      || churchId,
-        churchShortId:   c.shortName       || churchId,
-        brandName:       c.brandName       || c.churchName || '',
-        tagline:         c.tagline         || 'Church Management & Ministry Platform',
-        timezone:        data.timezone,
-        adminEmail:      data.adminEmail   || c.adminEmail || '',
-        themeColor:      c.themeColor      || '#e8a838',
-        backgroundColor: c.bgColor         || '#1a1a2e',
-        favicon:         c.favicon         || 'FlockOS_Angels.png',
-        portrait:        c.portrait        || 'FlockOS_Angels.png',
-        connectionType:  data.connectionType,
-        version:         c.version         || '1.0',
-      });
-      window.open(_PROVISIONER_URL + '?' + params.toString(), '_blank');
-      _toast('Provisioner launched in new tab. Follow the result page for GAS setup steps.', 'success');
-    }, 'Launch Provisioner');
-  }
-
-  async function _churchProvisionNew() {
-    const rows = _dataCache['churches'] || [];
-    if (!rows.length) {
-      _toast('Register a church first, then provision it.', 'warn');
-      return;
-    }
-    _modal('Provision Church', [
-      { name: 'churchId', label: 'Select Church', type: 'select', required: true,
-        options: rows.map(r => ({ value: r.churchId, label: r.churchName + ' (' + (r.shortName || r.churchId) + ')' })) },
-      { name: '_hint', type: 'html', html:
-          '<div style="font-size:0.78rem;color:var(--ink-muted);">'
-        + 'Select the church registered above to configure and launch the provisioner.</div>' },
-    ], async data => {
-      const m = document.getElementById('fl-modal');
-      if (m) m.remove();
-      _churchProvision(data.churchId);
-    }, 'Continue');
-  }
-
   function editChurch(id) {
     const rows = _dataCache['churches'] || [];
     const c    = rows.find(r => String(r.churchId) === String(id)) || {};
-    const lockedBanner = c.locked
-      ? '<div style="background:rgba(248,113,113,0.12);border:1px solid rgba(248,113,113,0.35);'
-      +   'border-radius:6px;padding:10px 14px;margin-bottom:6px;font-size:0.82rem;color:#f87171;">'
-      +   '&#128274; <strong>This church is currently LOCKED.</strong> Members cannot log in. '
-      +   'Click <em>Unlock Church</em> below to restore access.</div>'
-      : '';
     _modal('Edit Church', [
-      { name: '_lockedBanner', type: 'html', html: lockedBanner },
       { name: 'churchName',  label: 'Church Full Name',                type: 'text',   value: c.churchName  || '' },
       { name: 'shortName',   label: 'Short Name (URL slug)',            type: 'text',   value: c.shortName   || '' },
       { name: 'brandName',   label: 'Brand Name',                       type: 'text',   value: c.brandName   || 'FlockOS' },
@@ -12500,51 +11766,40 @@ const Modules = (() => {
       { name: 'photosUrl',   label: 'Photos Album URL',                 type: 'url',    value: c.photosUrl   || '' },
       { name: 'adminEmail',  label: 'Admin / Notification Email',       type: 'email',  value: c.adminEmail  || '' },
       { name: 'analyticsId', label: 'Google Analytics ID',              type: 'text',   value: c.analyticsId || '' },
-      { name: 'favicon',     label: 'Favicon filename',                 type: 'text',   value: c.favicon     || 'FlockOS_Camo.png' },
-      { name: 'portrait',    label: 'Portrait / Logo filename',         type: 'text',   value: c.portrait    || 'FlockOS_Camo.png' },
+      { name: 'favicon',     label: 'Favicon filename',                 type: 'text',   value: c.favicon     || 'FlockOS_OD.png' },
+      { name: 'portrait',    label: 'Portrait / Logo filename',         type: 'text',   value: c.portrait    || 'FlockOS_Portrait.png' },
       { name: 'version',     label: 'Version',                          type: 'text',   value: c.version     || '1.0' },
-      { name: 'status',      label: 'Status',                           type: 'select', options: ['Active', 'Inactive', 'Locked', 'Suspended'], value: c.status || 'Active' },
-      { name: '_controls', type: 'html', html:
-          '<div style="padding:10px 0 2px;border-top:1px solid var(--line);margin-top:4px;display:flex;flex-wrap:wrap;gap:8px;">'
+      { name: 'status',      label: 'Status',                           type: 'select', options: ['Active', 'Inactive'], value: c.status || 'Active' },
+      { name: '_setup', type: 'html', html:
+          '<div style="padding:10px 0 2px;border-top:1px solid var(--line);margin-top:4px;">'
         + '<button type="button" onclick="Modules._churchSetup(\'' + _e(id) + '\')" '
-        +   'style="background:none;border:1px solid var(--accent);color:var(--accent);border-radius:6px;'
-        +   'padding:7px 14px;cursor:pointer;font-size:0.82rem;font-family:inherit;">&#9881; Setup Database Tabs</button>'
-        + '<button type="button" onclick="Modules._churchProvision(\'' + _e(id) + '\')" '
-        +   'style="background:none;border:1px solid var(--accent);color:var(--accent);border-radius:6px;'
-        +   'padding:7px 14px;cursor:pointer;font-size:0.82rem;font-family:inherit;">&#9889; Provision</button>'
-        + '<button type="button" onclick="Modules._churchLock(\'' + _e(id) + '\',' + (!c.locked) + ')" '
-        +   'style="background:none;border:1px solid var(--danger,#f87171);color:var(--danger,#f87171);border-radius:6px;'
-        +   'padding:7px 14px;cursor:pointer;font-size:0.82rem;font-family:inherit;">'
-        +   (c.locked ? '&#128275; Unlock Church' : '&#128274; Lock Church') + '</button>'
-        + '</div>'
-        + '<div style="font-size:0.73rem;color:var(--ink-muted);margin-top:5px;">'
-        + 'Setup: provisions all FlockOS tabs on a fresh sheet.  '
-        + 'Provision: generates the CRM sheet + deployment guide.  '
-        + 'Lock: immediately blocks all member logins for this church.</div>' },
+        + 'style="background:none;border:1px solid var(--accent);color:var(--accent);border-radius:6px;'
+        + 'padding:7px 14px;cursor:pointer;font-size:0.83rem;font-family:inherit;">&#9881; Setup Database Tabs</button>'
+        + '<div style="font-size:0.75rem;color:var(--ink-muted);margin-top:5px;">'
+        + 'Provisions all FlockOS tabs on this church\'s spreadsheet. Safe to run on a fresh, empty sheet only.</div></div>' },
     ], async data => {
-      delete data._lockedBanner;
-      delete data._controls;
+      delete data._setup;
       data.churchId = id;
       await TheVine.flock.church.update(data);
       _invalidateCache('church-list');
       _toast('Church updated', 'success');
-      _reload('church');
+      const el = document.getElementById('view-church');
+      if (el) { el.dataset.loaded = ''; _reg['church'](el); }
     }, async () => {
       if (!confirm('Remove this church from the registry? This marks it as Deleted and hides it from the list. The spreadsheet and its data are not affected.')) return;
       await TheVine.flock.church.delete({ churchId: id });
       _invalidateCache('church-list');
       _toast('Church removed from registry.', 'success');
-      _reload('church');
+      const el = document.getElementById('view-church');
+      if (el) { el.dataset.loaded = ''; _reg['church'](el); }
     }, 'Save Changes');
   }
 
 
   _def('prayer', async (el, session) => {
-    console.log('[FLOCK-DEBUG] prayer view START — _commsMode=' + _commsMode + ', _isFirebaseComms()=' + _isFirebaseComms() + ', UpperRoom.isReady=' + (typeof UpperRoom !== 'undefined' ? UpperRoom.isReady() : 'N/A'));
     _shell(el, '', '', '');
     try {
       const isLoggedIn = !!(session && session.email);
-      console.log('[FLOCK-DEBUG] prayer: isLoggedIn=' + isLoggedIn);
 
       let html = '<div style="max-width:680px;margin:0 auto;">';
 
@@ -12586,15 +11841,12 @@ const Modules = (() => {
 
       // --- My prayer cards ---
       let rows;
-      console.log('[FLOCK-DEBUG] prayer: fetching via ' + (_isFirebaseComms() ? 'Firestore' : 'GAS'));
-      var _pStart = Date.now();
       if (_isFirebaseComms()) {
         rows = await UpperRoom.listPrayers({ limit: 200 });
       } else {
         const res  = await TheVine.flock.call('prayer.listPublic', { limit: 200 }, { skipAuth: true });
         rows = _filterClosed(_rows(res), 'Status');
       }
-      console.log('[FLOCK-DEBUG] prayer: fetch complete in ' + (Date.now() - _pStart) + 'ms — rows=' + (rows ? rows.length : 'null'));
 
       const userEmail = isLoggedIn ? session.email.toLowerCase() : '';
       const myPrayers = userEmail
@@ -12809,7 +12061,6 @@ const Modules = (() => {
   var _urDevIdx = 0;
 
   _def('upper-room', async (el, session) => {
-    console.log('[FLOCK-DEBUG] upper-room view START');
     _shell(el, '', '', '');
     // Self-resolve session if not passed (public portal doesn't inject it)
     if (!session && typeof TheVine !== 'undefined' && TheVine.session) {
@@ -12817,73 +12068,36 @@ const Modules = (() => {
     }
     const isLoggedIn = !!(session && session.email);
     const userEmail  = isLoggedIn ? session.email.toLowerCase() : '';
-    console.log('[FLOCK-DEBUG] upper-room: isLoggedIn=' + isLoggedIn + ', _commsMode=' + _commsMode + ', UpperRoom.isReady=' + (typeof UpperRoom !== 'undefined' ? UpperRoom.isReady() : 'N/A'));
 
     // ── Ensure Firebase comms mode and auth are fully resolved ────────────────
+    // Fixes two race conditions for logged-in users:
+    //   1. Page-load: _loadCommsMode() may not have completed when the user first
+    //      navigates here, leaving _commsMode null → private data silently falls
+    //      back to GAS (which trails Firestore by up to an hour).
+    //   2. Mid-session: Firebase auto-refreshes ID tokens ~hourly; the
+    //      onIdTokenChanged listener sets _ready=false while re-minting custom
+    //      claims, causing Firestore permission errors that resolve as empty arrays.
     if (isLoggedIn) {
-      if (_commsMode === null) {
-        console.log('[FLOCK-DEBUG] upper-room: _commsMode is null, calling _loadCommsMode…');
-        await _loadCommsMode().catch(function(e) { console.error('[FLOCK-DEBUG] upper-room: _loadCommsMode error:', e); });
-        console.log('[FLOCK-DEBUG] upper-room: _loadCommsMode done → _commsMode=' + _commsMode);
-      }
+      if (_commsMode === null) await _loadCommsMode().catch(function() {});
       if (_isFirebaseComms() && typeof UpperRoom !== 'undefined' && !UpperRoom.isReady()) {
-        console.log('[FLOCK-DEBUG] upper-room: Firebase mode but UpperRoom not ready, retrying auth…');
-        try {
-          await UpperRoom.init();
-          await UpperRoom.authenticate();
-          console.log('[FLOCK-DEBUG] upper-room: auth retry succeeded, isReady=' + UpperRoom.isReady());
-        } catch (retryErr) { console.error('[FLOCK-DEBUG] upper-room: auth retry FAILED:', retryErr); }
+        try { await UpperRoom.init(); await UpperRoom.authenticate(); } catch (_) {}
       }
     }
 
-    // ── Paint hero skeleton instantly — no network needed ────────────────
-    var now      = new Date();
-    var hour     = now.getHours();
-    var greeting = hour < 12 ? 'Good Morning' : hour < 17 ? 'Good Afternoon' : 'Good Evening';
-    var firstName = isLoggedIn
-      ? (session.name || session.displayName || session.email || '').split(/[\s@]/)[0]
-      : '';
-    var dateOpts = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-    var todayStr = now.toLocaleDateString('en-US', dateOpts);
-
-    var skeleton = '<div class="ur-container">';
-    skeleton += '<div class="ur-hero">';
-    skeleton += '<div class="ur-hero-candle">&#128367;</div>';
-    skeleton += '<h1 class="ur-hero-title">The Upper Room</h1>';
-    skeleton += '<p class="ur-hero-greeting">' + _e(greeting) + (firstName ? ', ' + _e(firstName) : '') + '</p>';
-    skeleton += '<p class="ur-hero-date">' + _e(todayStr) + '</p>';
-    skeleton += '</div>';
-    skeleton += '<div class="ur-nav" id="ur-nav">';
-    skeleton += '<button class="ur-nav-tab" onclick="document.getElementById(\'ur-devotional\')&&document.getElementById(\'ur-devotional\').scrollIntoView({behavior:\'smooth\',block:\'start\'})"><span>&#9729;</span> Devotional</button>';
-    skeleton += '<button class="ur-nav-tab" onclick="document.getElementById(\'ur-reading\')&&document.getElementById(\'ur-reading\').scrollIntoView({behavior:\'smooth\',block:\'start\'})"><span>&#128214;</span> Reading</button>';
-    if (isLoggedIn) skeleton += '<button class="ur-nav-tab" onclick="document.getElementById(\'ur-journal\')&&document.getElementById(\'ur-journal\').scrollIntoView({behavior:\'smooth\',block:\'start\'})"><span>&#128221;</span> Journal</button>';
-    skeleton += '<button class="ur-nav-tab" onclick="document.getElementById(\'ur-prayer\')&&document.getElementById(\'ur-prayer\').scrollIntoView({behavior:\'smooth\',block:\'start\'})"><span>&#128591;</span> Prayer</button>';
-    if (isLoggedIn) skeleton += '<button class="ur-nav-tab" onclick="document.getElementById(\'ur-pulse\')&&document.getElementById(\'ur-pulse\').scrollIntoView({behavior:\'smooth\',block:\'start\'})"><span>&#9673;</span> Pulse</button>';
-    skeleton += '</div>';
-    skeleton += '<div id="ur-content">' + _spinner() + '</div>';
-    skeleton += '</div>';
-    el.innerHTML = skeleton;
-
-    // ── Load all data in background, build full content when ready ────
-    (async function _loadUpperRoom() {
     try {
-      console.log('[FLOCK-DEBUG] upper-room: starting data fetches — _isFirebaseComms()=' + _isFirebaseComms());
-      var _urFetchStart = Date.now();
       // ── Parallel fetch: public data always, private data only when logged in ──
       const publicFetches = [
         _publicFetch('devotionals', function() { return UpperRoom.listAppContent('devotionals'); }, function() { return TheVine.app.devotionals(); }),
         _publicFetch('reading',     function() { return UpperRoom.listAppContent('reading'); },     function() { return TheVine.app.reading(); }),
       ];
       const privateFetches = isLoggedIn ? [
-        _fetch('journal',    () => { console.log('[FLOCK-DEBUG] upper-room: fetching journal via ' + (_isFirebaseComms() ? 'Firestore' : 'GAS')); return _isFirebaseComms() ? UpperRoom.listJournal({ limit: 200 }) : TheVine.flock.journal.list({ limit: 200 }); }).catch(e => { console.error('[FLOCK-DEBUG] upper-room: journal fetch ERROR:', e); return []; }),
-        _fetch('prayer',     () => { console.log('[FLOCK-DEBUG] upper-room: fetching prayer via ' + (_isFirebaseComms() ? 'Firestore' : 'GAS')); return _isFirebaseComms() ? UpperRoom.listPrayers({ limit: 200 }) : TheVine.flock.prayer.list({ limit: 200 }); }).catch(e => { console.error('[FLOCK-DEBUG] upper-room: prayer fetch ERROR:', e); return []; }),
-        _fetch('care',       () => { console.log('[FLOCK-DEBUG] upper-room: fetching care via ' + (_isFirebaseComms() ? 'Firestore' : 'GAS')); return _isFirebaseComms() ? UpperRoom.listCareCases({ limit: 200 }) : TheVine.flock.care.list({ limit: 200 }); }).catch(e => { console.error('[FLOCK-DEBUG] upper-room: care fetch ERROR:', e); return []; }),
-        _fetch('compassion', () => { console.log('[FLOCK-DEBUG] upper-room: fetching compassion via ' + (_isFirebaseComms() ? 'Firestore' : 'GAS')); return _isFirebaseComms() ? UpperRoom.listCompassionRequests({ limit: 200 }) : TheVine.flock.compassion.requests.list({ limit: 200 }); }).catch(e => { console.error('[FLOCK-DEBUG] upper-room: compassion fetch ERROR:', e); return []; }),
-        _fetch('contacts',   () => { console.log('[FLOCK-DEBUG] upper-room: fetching contacts via ' + (_isFirebaseComms() ? 'Firestore' : 'GAS')); return _isFirebaseComms() ? UpperRoom.listContacts({ limit: 500 }) : TheVine.flock.contacts.list({ limit: 500 }); }).catch(e => { console.error('[FLOCK-DEBUG] upper-room: contacts fetch ERROR:', e); return []; }),
+        _fetch('journal',    () => _isFirebaseComms() ? UpperRoom.listJournal({ limit: 200 }) : TheVine.flock.journal.list({ limit: 200 })).catch(() => []),
+        _fetch('prayer',     () => _isFirebaseComms() ? UpperRoom.listPrayers({ limit: 200 }) : TheVine.flock.prayer.list({ limit: 200 })).catch(() => []),
+        _fetch('care',       () => _isFirebaseComms() ? UpperRoom.listCareCases({ limit: 200 }) : TheVine.flock.care.list({ limit: 200 })).catch(() => []),
+        _fetch('compassion', () => _isFirebaseComms() ? UpperRoom.listCompassionRequests({ limit: 200 }) : TheVine.flock.compassion.requests.list({ limit: 200 })).catch(() => []),
+        _fetch('contacts',   () => _isFirebaseComms() ? UpperRoom.listContacts({ limit: 500 }) : TheVine.flock.contacts.list({ limit: 500 })).catch(() => []),
       ] : [];
-      console.log('[FLOCK-DEBUG] upper-room: awaiting ' + publicFetches.length + ' public + ' + privateFetches.length + ' private fetches…');
       const allResults = await Promise.all([...publicFetches, ...privateFetches]);
-      console.log('[FLOCK-DEBUG] upper-room: ALL FETCHES DONE in ' + (Date.now() - _urFetchStart) + 'ms — results: ' + allResults.map(function(r,i){ return '[' + i + ']=' + (Array.isArray(r) ? r.length + ' rows' : typeof r); }).join(', '));
 
       const devRaw  = allResults[0];
       const readRaw = allResults[1];
@@ -12974,34 +12188,31 @@ const Modules = (() => {
       const answeredCount = myPrayers.filter(p => (p['Status'] || p.status || '').toLowerCase() === 'answered').length;
       const activeCount   = myPrayers.length - answeredCount;
 
-      // ── Update hero with scripture verse if available ──
+      // ── Build HTML ──
+      let h = '<div class="ur-container">';
+
+      // ═══ HERO BANNER ═══
+      h += '<div class="ur-hero">';
+      h += '<div class="ur-hero-candle">&#128367;</div>';
+      h += '<h1 class="ur-hero-title">The Upper Room</h1>';
+      h += '<p class="ur-hero-greeting">' + _e(greeting) + (firstName ? ', ' + _e(firstName) : '') + '</p>';
+      h += '<p class="ur-hero-date">' + _e(todayStr) + '</p>';
       if (todayDevFinal['Scripture']) {
-        var heroEl = el.querySelector('.ur-hero');
-        if (heroEl) {
-          var vp = document.createElement('p');
-          vp.className = 'ur-hero-verse';
-          vp.innerHTML = '&ldquo;' + _bibleLink(todayDevFinal['Scripture']) + '&rdquo;';
-          heroEl.appendChild(vp);
-        }
+        h += '<p class="ur-hero-verse">&ldquo;' + _bibleLink(todayDevFinal['Scripture']) + '&rdquo;</p>';
       }
+      h += '</div>';
 
-      // ── Update nav with conditional tabs ──
-      var navEl = document.getElementById('ur-nav');
-      if (navEl) {
-        var navHtml = '';
-        navHtml += '<button class="ur-nav-tab" onclick="document.getElementById(\'ur-devotional\').scrollIntoView({behavior:\'smooth\',block:\'start\'})"><span>&#9729;</span> Devotional</button>';
-        if (hasReading) navHtml += '<button class="ur-nav-tab" onclick="document.getElementById(\'ur-reading\').scrollIntoView({behavior:\'smooth\',block:\'start\'})"><span>&#128214;</span> Reading</button>';
-        if (isLoggedIn) navHtml += '<button class="ur-nav-tab" onclick="document.getElementById(\'ur-journal\').scrollIntoView({behavior:\'smooth\',block:\'start\'})"><span>&#128221;</span> Journal</button>';
-        navHtml += '<button class="ur-nav-tab" onclick="document.getElementById(\'ur-prayer\').scrollIntoView({behavior:\'smooth\',block:\'start\'})"><span>&#128591;</span> Prayer</button>';
-        if (myCare.length || myCompassion.length) {
-          navHtml += '<button class="ur-nav-tab" onclick="document.getElementById(\'ur-care\').scrollIntoView({behavior:\'smooth\',block:\'start\'})"><span>&#10084;</span> My Care</button>';
-        }
-        if (isLoggedIn) navHtml += '<button class="ur-nav-tab" onclick="document.getElementById(\'ur-pulse\').scrollIntoView({behavior:\'smooth\',block:\'start\'})"><span>&#9673;</span> Pulse</button>';
-        navEl.innerHTML = navHtml;
+      // ═══ SECTION NAV TABS ═══
+      h += '<div class="ur-nav" id="ur-nav">';
+      h += '<button class="ur-nav-tab" onclick="document.getElementById(\'ur-devotional\').scrollIntoView({behavior:\'smooth\',block:\'start\'})"><span>&#9729;</span> Devotional</button>';
+      if (hasReading) h += '<button class="ur-nav-tab" onclick="document.getElementById(\'ur-reading\').scrollIntoView({behavior:\'smooth\',block:\'start\'})"><span>&#128214;</span> Reading</button>';
+      if (isLoggedIn) h += '<button class="ur-nav-tab" onclick="document.getElementById(\'ur-journal\').scrollIntoView({behavior:\'smooth\',block:\'start\'})"><span>&#128221;</span> Journal</button>';
+      h += '<button class="ur-nav-tab" onclick="document.getElementById(\'ur-prayer\').scrollIntoView({behavior:\'smooth\',block:\'start\'})"><span>&#128591;</span> Prayer</button>';
+      if (myCare.length || myCompassion.length) {
+        h += '<button class="ur-nav-tab" onclick="document.getElementById(\'ur-care\').scrollIntoView({behavior:\'smooth\',block:\'start\'})"><span>&#10084;</span> My Care</button>';
       }
-
-      // ── Build content HTML (sections only — hero+nav already painted) ──
-      let h = '';
+      if (isLoggedIn) h += '<button class="ur-nav-tab" onclick="document.getElementById(\'ur-pulse\').scrollIntoView({behavior:\'smooth\',block:\'start\'})"><span>&#9673;</span> Pulse</button>';
+      h += '</div>';
 
       // ═══ 1. TODAY'S DEVOTIONAL ═══
       h += '<section class="ur-section" id="ur-devotional">';
@@ -13112,7 +12323,7 @@ const Modules = (() => {
           var entry   = j.entry || j['Entry'] || '';
           var mood    = j.mood || j['Mood'] || '';
           var cat     = j.category || j['Category'] || '';
-          var created = _dateStr(j.createdAt || j['Created At']);
+          var created = (j.createdAt || j['Created At'] || '').substring(0, 10);
           var jid     = j.id || j['ID'] || '';
           h += '<div class="ur-entry-card" onclick="Modules.editJournal(\'' + _e(jid) + '\')">';
           h += '<div class="ur-entry-header">';
@@ -13379,15 +12590,10 @@ const Modules = (() => {
       h += '</div></div>';
 
       h += '</div>'; // end ur-container
-
-      var contentEl = document.getElementById('ur-content');
-      if (contentEl) contentEl.innerHTML = h;
+      el.innerHTML = h;
     } catch (e) {
-      var contentEl2 = document.getElementById('ur-content');
-      if (contentEl2) contentEl2.innerHTML = _errHtml(e.message);
-      else _body(el, _errHtml(e.message));
+      _body(el, _errHtml(e.message));
     }
-    })();
   });
 
   // ── Upper Room: save journal entry ──
@@ -13448,14 +12654,10 @@ const Modules = (() => {
   // 28b. JOURNAL  (readonly+ — personal journal entries)
   // ═══════════════════════════════════════════════════════════════════════
   _def('journal', async el => {
-    console.log('[FLOCK-DEBUG] journal view START — _commsMode=' + _commsMode + ', _isFirebaseComms()=' + _isFirebaseComms() + ', UpperRoom.isReady=' + (typeof UpperRoom !== 'undefined' ? UpperRoom.isReady() : 'N/A'));
     _shell(el, 'Journal', 'Personal journal — pray, study & reflect',
       _btn('+ New Entry', "Modules.newJournal()"));
     try {
-      console.log('[FLOCK-DEBUG] journal: fetching via ' + (_isFirebaseComms() ? 'Firestore (UpperRoom.listJournal)' : 'GAS (TheVine.flock.journal.list)'));
-      var _jStart = Date.now();
       const res  = await (_isFirebaseComms() ? UpperRoom.listJournal({ limit: 200 }) : TheVine.flock.journal.list({ limit: 200 }));
-      console.log('[FLOCK-DEBUG] journal: fetch complete in ' + (Date.now() - _jStart) + 'ms — res type=' + typeof res + ', isArray=' + Array.isArray(res) + ', length=' + (res ? (res.length || 'N/A') : 'null'));
       const rows = _rows(res);
       _dataCache['journal'] = rows;
 
@@ -13601,6 +12803,11 @@ const Modules = (() => {
   });
   function _flockSwitchTab(k) { TheLife.switchTab(k); }
   function _flockRefresh()    { TheLife.refresh(); }
+
+  _def('care', function(el) {
+    if (typeof LoveInAction !== 'undefined' && LoveInAction.renderApp) return LoveInAction.renderApp(el, { tab: 'care', embedded: true });
+    el.innerHTML = '<div style="text-align:center;padding:60px 20px;color:var(--ink-muted);"><p>Pastoral Care is loading…</p></div>';
+  });
 
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -15579,8 +14786,6 @@ const Modules = (() => {
         html += '<p style="font-size:0.85rem;color:var(--ink-muted);">No gifts recorded for this year.</p>';
       }
       html += '</div>';
-      html += '<div style="text-align:right;margin-top:10px;"><button type="button" onclick="Modules._givingStatementPrint()" '
-        + 'style="background:var(--accent);color:var(--ink-inverse);border:none;border-radius:6px;padding:6px 16px;font-weight:600;font-size:0.8rem;cursor:pointer;font-family:inherit;">📦 Print / PDF</button></div>';
       resultEl.innerHTML = html;
     } catch (e) {
       if (resultEl) resultEl.innerHTML = '<p style="color:var(--danger);font-size:0.85rem;">Error: ' + _e(e.message) + '</p>';
@@ -15731,17 +14936,15 @@ const Modules = (() => {
     function _rHeader() {
       return '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:16px;">'
         + '<h3 style="color:var(--gold);font-size:0.95rem;margin:0;">' + _e(title) + periodLabel + '</h3>'
-        + '<div style="display:flex;gap:6px;">'
-        + '<button onclick="Modules._rptPrintReport()" style="font-size:0.74rem;padding:5px 12px;border:1px solid var(--line);border-radius:6px;background:none;color:var(--ink-muted);cursor:pointer;font-family:inherit;">&#128438; PDF</button>'
         + '<button onclick="Modules._rptExportTable()" style="font-size:0.74rem;padding:5px 12px;border:1px solid var(--line);border-radius:6px;background:none;color:var(--ink-muted);cursor:pointer;font-family:inherit;">\u2b07 Export CSV</button>'
-        + '</div></div>';
+        + '</div>';
     }
 
     try {
       // ── Client-side reports (no backend reports.* endpoint needed) ──────
       if (key === 'inactiveMembers') {
         const [memRes, contactRes] = await Promise.all([
-          _isFirebaseComms() ? UpperRoom.listMembers({ limit: 500 }) : TheVine.flock.members.list({ limit: 500 }),
+          _isFirebaseComms() ? UpperRoom.listMembers({ limit: 2000 }) : TheVine.flock.members.list({ limit: 2000 }),
           (_isFirebaseComms() ? UpperRoom.listContacts({ limit: 1000 }) : TheVine.flock.contacts.list({ limit: 1000 })).catch(() => null),
         ]);
         const members  = _rows(memRes);
@@ -15788,7 +14991,7 @@ const Modules = (() => {
         output.innerHTML = html;
 
       } else if (key === 'upcomingBirthdays') {
-        const memRes  = await (_isFirebaseComms() ? UpperRoom.listMembers({ limit: 500 }) : TheVine.flock.members.list({ limit: 500 }));
+        const memRes  = await (_isFirebaseComms() ? UpperRoom.listMembers({ limit: 2000 }) : TheVine.flock.members.list({ limit: 2000 }));
         const members = _rows(memRes);
         const today   = new Date();
         const in30    = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000);
@@ -15859,7 +15062,7 @@ const Modules = (() => {
       } else if (key === 'smallGroupHealth') {
         const [groupRes, memberRes] = await Promise.all([
           _isFirebaseComms() ? UpperRoom.listGroups({ limit: 200 }) : TheVine.flock.groups.list({ limit: 200 }),
-          (_isFirebaseComms() ? UpperRoom.listMembers({ limit: 500 }) : TheVine.flock.members.list({ limit: 500 })).catch(() => null),
+          (_isFirebaseComms() ? UpperRoom.listMembers({ limit: 2000 }) : TheVine.flock.members.list({ limit: 2000 })).catch(() => null),
         ]);
         const groups  = _rows(groupRes);
         const total   = groups.length;
@@ -16236,7 +15439,7 @@ const Modules = (() => {
           emergencyPhone:   _ov('emergencyPhone'),
           pastoralNotes:    _ov('pastoralNotes'),
         };
-        var res = await _createMember(_obMem);
+        var res = await (_isFirebaseComms() ? UpperRoom.createMember(_obMem) : TheVine.flock.members.create(_obMem));
 
         // 2. Auto-assign to current user's care list
         var newId = (res && res.id) || '';
@@ -16395,7 +15598,7 @@ const Modules = (() => {
       if (prefName && prefName.trim()) {
         try {
           var _prefData = { email: session.email, preferredName: prefName.trim() };
-          await _updateMember(_prefData);
+          await (_isFirebaseComms() ? UpperRoom.updateMember(_prefData) : TheVine.flock.call('members.update', _prefData));
         } catch (_) { /* non-critical */ }
       }
 
@@ -16560,7 +15763,7 @@ const Modules = (() => {
           role: _wv('role'),
           passcode: _wv('passcode')
         };
-        await TheVine.flock.users.create(_newUser);
+        await (_isFirebaseComms() ? UpperRoom.createUser(_newUser) : TheVine.flock.users.create(_newUser));
 
         // Step 2: Create member record (if toggled on)
         if (document.getElementById('wiz-createMember').checked) {
@@ -16577,7 +15780,7 @@ const Modules = (() => {
             emergencyContact: _wv('emergencyContact'),
             emergencyPhone: _wv('emergencyPhone')
           };
-          await _createMember(_newMem);
+          await (_isFirebaseComms() ? UpperRoom.createMember(_newMem) : TheVine.flock.members.create(_newMem));
         }
 
         // Step 3: Create contact card (if toggled on)
@@ -16592,7 +15795,7 @@ const Modules = (() => {
             visibility: _wv('visibility') || 'public',
             colorScheme: _wv('colorScheme')
           };
-          await _createMemberCard(_newCard);
+          await (_isFirebaseComms() ? UpperRoom.createMemberCard(_newCard) : TheVine.flock.memberCards.create(_newCard));
         }
 
         overlay.remove();
@@ -16607,120 +15810,8 @@ const Modules = (() => {
 
   // Helper: wizard input field
   function _wizField(name, label, type) {
-    var ac = type === 'email' ? 'email' : type === 'tel' ? 'tel' : 'off';
     return '<div style="margin-bottom:14px;"><label style="display:block;font-size:0.79rem;color:var(--ink-muted);margin-bottom:4px;">' + label + '</label>'
-      + '<input id="wiz-' + name + '" type="' + (type || 'text') + '" autocomplete="' + ac + '" style="width:100%;background:rgba(255,255,255,0.07);border:1px solid var(--line);border-radius:6px;padding:8px 12px;color:var(--ink);font-size:max(1rem,16px);font-family:inherit;"></div>';
-  }
-
-  // ── Config write helpers — try Firestore, fall back to GAS on permission denial ─
-  async function _setAppCfg(data) {
-    if (_isFirebaseComms()) {
-      try {
-        return await UpperRoom.setAppConfig(data);
-      } catch (e) {
-        var msg = e && (e.message || e.code || String(e));
-        if (/permission|PERMISSION_DENIED|insufficient/i.test(msg)) {
-          return await TheVine.flock.config.set(data);
-        }
-        throw e;
-      }
-    }
-    return TheVine.flock.config.set(data);
-  }
-  async function _updateAppCfg(data) {
-    if (_isFirebaseComms()) {
-      try {
-        return await UpperRoom.updateAppConfig(data);
-      } catch (e) {
-        var msg = e && (e.message || e.code || String(e));
-        if (/permission|PERMISSION_DENIED|insufficient/i.test(msg)) {
-          return await TheVine.flock.config.update(data);
-        }
-        throw e;
-      }
-    }
-    return TheVine.flock.config.update(data);
-  }
-  async function _createMember(data) {
-    if (_isFirebaseComms()) {
-      try {
-        return await UpperRoom.createMember(data);
-      } catch (e) {
-        var msg = e && (e.message || e.code || String(e));
-        if (/permission|PERMISSION_DENIED|insufficient/i.test(msg)) {
-          return await TheVine.flock.members.create(data);
-        }
-        throw e;
-      }
-    }
-    return TheVine.flock.members.create(data);
-  }
-  async function _updateMember(data) {
-    if (_isFirebaseComms()) {
-      try {
-        return await UpperRoom.updateMember(data);
-      } catch (e) {
-        var msg = e && (e.message || e.code || String(e));
-        if (/permission|PERMISSION_DENIED|insufficient/i.test(msg)) {
-          return await TheVine.flock.call('members.update', data);
-        }
-        throw e;
-      }
-    }
-    return TheVine.flock.call('members.update', data);
-  }
-  async function _createMemberCard(data) {
-    if (_isFirebaseComms()) {
-      try {
-        return await UpperRoom.createMemberCard(data);
-      } catch (e) {
-        var msg = e && (e.message || e.code || String(e));
-        if (/permission|PERMISSION_DENIED|insufficient/i.test(msg)) {
-          return await TheVine.flock.memberCards.create(data);
-        }
-        throw e;
-      }
-    }
-    return TheVine.flock.memberCards.create(data);
-  }
-  async function _updateMemberCard(data) {
-    if (_isFirebaseComms()) {
-      try {
-        return await UpperRoom.updateMemberCard(data);
-      } catch (e) {
-        var msg = e && (e.message || e.code || String(e));
-        if (/permission|PERMISSION_DENIED|insufficient/i.test(msg)) {
-          return await TheVine.flock.memberCards.update(data);
-        }
-        throw e;
-      }
-    }
-    return TheVine.flock.memberCards.update(data);
-  }
-
-  // ── Church Identity bulk-save ───────────────────────────────────────────
-  async function _saveIdentity() {
-    var statusEl = document.getElementById('ci-save-status');
-    if (statusEl) statusEl.textContent = 'Saving\u2026';
-    var fields = document.querySelectorAll('[data-ci-key]');
-    var ops = [];
-    fields.forEach(function(inp) {
-      var k = inp.getAttribute('data-ci-key');
-      var v = inp.value.trim();
-      if (!k || v === '') return;
-      ops.push(
-        _setAppCfg({ key: k, value: v })
-      );
-    });
-    try {
-      await Promise.all(ops);
-      _toast('Church identity saved!', 'success');
-      if (statusEl) { statusEl.textContent = '\u2714 Saved'; setTimeout(function() { if (statusEl) statusEl.textContent = ''; }, 3000); }
-      _reload('config');
-    } catch(e) {
-      _toast('Error saving identity: ' + e.message, 'danger');
-      if (statusEl) statusEl.textContent = 'Error';
-    }
+      + '<input id="wiz-' + name + '" type="' + (type || 'text') + '" style="width:100%;background:rgba(255,255,255,0.07);border:1px solid var(--line);border-radius:6px;padding:8px 12px;color:var(--ink);font-size:max(1rem,16px);font-family:inherit;"></div>';
   }
 
   function newConfig() {
@@ -16729,20 +15820,8 @@ const Modules = (() => {
       { name: 'value',       label: 'Value',       required: true },
       { name: 'description', label: 'Description' },
     ], async data => {
-      await _setAppCfg(data);
+      await (_isFirebaseComms() ? UpperRoom.setAppConfig : TheVine.flock.config.set)(data);
       _reload('config');
-    });
-  }
-
-  function _cfgFilter(v) {
-    var term = (v || '').toLowerCase().trim();
-    document.querySelectorAll('.sys-cfg-card').forEach(function(card) {
-      var text = (card.textContent || '').toLowerCase();
-      card.style.display = (!term || text.indexOf(term) !== -1) ? '' : 'none';
-    });
-    document.querySelectorAll('.sys-cfg-group').forEach(function(group) {
-      var visibleCards = group.querySelectorAll('.sys-cfg-card:not([style*="display: none"]):not([style*="display:none"])');
-      group.style.display = visibleCards.length === 0 && term ? 'none' : '';
     });
   }
 
@@ -16761,7 +15840,7 @@ const Modules = (() => {
     } else {
       // Fallback: write to church-scoped appConfig (legacy GAS path)
       var val = on ? 'TRUE' : 'FALSE';
-      _setAppCfg({ key: 'LOCKDOWN', value: val, description: 'Emergency lockdown — blocks public portal, restricts admin to Pastor/Admin' })
+      (_isFirebaseComms() ? UpperRoom.setAppConfig : TheVine.flock.config.set)({ key: 'LOCKDOWN', value: val, description: 'Emergency lockdown — blocks public portal, restricts admin to Pastor/Admin' })
         .then(function() {
           _toast(on ? 'LOCKDOWN ACTIVATED — Public portal is now blocked.' : 'Lockdown lifted — site is live again.', 'danger');
           _reload('config');
@@ -16778,153 +15857,6 @@ const Modules = (() => {
     _reload('config');
   }
 
-  async function _configSeedFromGas() {
-    _toast('Pulling config from GAS\u2026');
-    try {
-      var gasRes  = await TheVine.flock.config.list();
-      var gasRows = _rows(gasRes);
-      if (!gasRows.length) {
-        _toast('GAS AppConfig sheet is empty. Keeping defaults.', 'warn');
-        return;
-      }
-      if (_isFirebaseComms()) {
-        await Promise.all(gasRows.map(function(r) { return UpperRoom.setAppConfig(r).catch(function(){}); }));
-      }
-      _toast('Seeded ' + gasRows.length + ' config entries from GAS.');
-      _reload('config');
-    } catch (e) {
-      _toast('GAS seed failed: ' + (e && e.message ? e.message : String(e)), 'danger');
-    }
-  }
-
-  // ── Master Config helpers ────────────────────────────────────────────
-
-  function _masterConfigRef() {
-    if (typeof firebase === 'undefined' || !firebase.firestore) throw new Error('Firebase not available');
-    return firebase.firestore().collection('masterConfig');
-  }
-
-  async function _masterConfigLoad() {
-    var snap = await _masterConfigRef().get();
-    var out  = [];
-    snap.forEach(function(d) {
-      var o = d.data();
-      o.key = o.key || d.id;
-      out.push(o);
-    });
-    if (out.length === 0) {
-      // Seed defaults into masterConfig if empty
-      out = _DEFAULT_APP_CONFIG.slice();
-      var batch = firebase.firestore().batch();
-      out.forEach(function(r) {
-        batch.set(_masterConfigRef().doc(r.key), r);
-      });
-      await batch.commit();
-    }
-    return out;
-  }
-
-  async function _masterConfigRender() {
-    var wrap = document.getElementById('master-config-table-wrap');
-    if (!wrap) return;
-    wrap.innerHTML = '<div style="padding:20px;text-align:center;color:var(--ink-muted);font-size:0.82rem;">Loading\u2026</div>';
-    try {
-      var rows = await _masterConfigLoad();
-      // Sort by category then key
-      rows.sort(function(a, b) {
-        var ca = a.category || 'zzz', cb = b.category || 'zzz';
-        return ca !== cb ? ca.localeCompare(cb) : a.key.localeCompare(b.key);
-      });
-      var html = '<table style="width:100%;border-collapse:collapse;font-size:0.82rem;">';
-      html += '<thead><tr style="background:var(--surface2,rgba(0,0,0,0.2));">';
-      html += '<th style="padding:9px 14px;text-align:left;color:var(--ink-muted);font-weight:600;">Key</th>';
-      html += '<th style="padding:9px 14px;text-align:left;color:var(--ink-muted);font-weight:600;">Value</th>';
-      html += '<th style="padding:9px 14px;text-align:left;color:var(--ink-muted);font-weight:600;">Category</th>';
-      html += '<th style="padding:9px 8px;text-align:center;color:var(--ink-muted);font-weight:600;">Save</th>';
-      html += '</tr></thead><tbody>';
-      var prevCat = null;
-      rows.forEach(function(r) {
-        var cat = r.category || 'Other';
-        if (cat !== prevCat) {
-          html += '<tr><td colspan="4" style="padding:10px 14px 4px;font-weight:700;font-size:0.74rem;color:var(--accent);letter-spacing:0.05em;text-transform:uppercase;background:var(--surface,rgba(0,0,0,0.1));">' + _e(cat) + '</td></tr>';
-          prevCat = cat;
-        }
-        var desc = r.description ? ' title="' + _e(r.description) + '"' : '';
-        html += '<tr style="border-bottom:1px solid var(--border,rgba(255,255,255,0.06));">';
-        html += '<td style="padding:8px 14px;font-family:monospace;font-size:0.8rem;color:var(--ink);" ' + desc + '>' + _e(r.key) + '</td>';
-        html += '<td style="padding:6px 10px;"><input type="text" class="settings-input" style="width:100%;min-width:120px;" data-mc-key="' + _e(r.key) + '" data-mc-cat="' + _e(cat) + '" data-mc-desc="' + _e(r.description || '') + '" value="' + _e(String(r.value != null ? r.value : '')) + '"></td>';
-        html += '<td style="padding:8px 10px;color:var(--ink-muted);font-size:0.76rem;">' + _e(cat) + '</td>';
-        html += '<td style="padding:6px 8px;text-align:center;"><button onclick="Modules._masterConfigSaveRow(this)" style="padding:4px 12px;border-radius:6px;border:1px solid var(--accent);background:transparent;color:var(--accent);font-size:0.74rem;cursor:pointer;font-family:inherit;">Save</button></td>';
-        html += '</tr>';
-      });
-      html += '</tbody></table>';
-      wrap.innerHTML = html;
-    } catch (e) {
-      wrap.innerHTML = '<div style="padding:20px;color:var(--danger,#f87171);font-size:0.82rem;">Error loading master config: ' + _e(e.message) + '</div>';
-    }
-  }
-
-  async function _masterConfigSaveRow(btn) {
-    var row  = btn.closest('tr');
-    var inp  = row ? row.querySelector('[data-mc-key]') : null;
-    if (!inp) return;
-    var key  = inp.dataset.mcKey;
-    var val  = inp.value;
-    var cat  = inp.dataset.mcCat  || '';
-    var desc = inp.dataset.mcDesc || '';
-    btn.disabled = true;
-    btn.textContent = '\u23F3';
-    try {
-      await _masterConfigRef().doc(key).set({ key: key, value: val, category: cat, description: desc }, { merge: true });
-      btn.textContent = '\u2713';
-      btn.style.color = 'var(--mint,#34d399)';
-      setTimeout(function() { btn.textContent = 'Save'; btn.style.color = ''; btn.disabled = false; }, 1800);
-    } catch (e) {
-      _toast('Save failed: ' + e.message, 'danger');
-      btn.textContent = 'Save';
-      btn.disabled = false;
-    }
-  }
-
-  function _masterConfigReload() {
-    _masterConfigRender();
-  }
-
-  async function _masterConfigPushAll() {
-    if (!_isFirebaseComms()) {
-      _toast('Firebase required for Master Config push.', 'warn'); return;
-    }
-    var resultEl = document.getElementById('master-config-push-result');
-    if (resultEl) resultEl.innerHTML = '<span style="color:var(--ink-muted);">&#128640; Pushing to all churches\u2026</span>';
-    try {
-      if (typeof firebase === 'undefined' || typeof firebase.functions !== 'function') {
-        if (resultEl) resultEl.innerHTML = '<span style="color:var(--danger);">Firebase Functions SDK not loaded. Add firebase-functions-compat.js to your page.</span>';
-        return;
-      }
-      var pushFn = firebase.functions().httpsCallable('pushAllMasterConfig');
-      var result = await pushFn({});
-      var data   = result.data;
-      if (!data || !data.results) {
-        if (resultEl) resultEl.innerHTML = '<span style="color:var(--ink-muted);">Done (no results returned).</span>';
-        return;
-      }
-      var lines = data.results.map(function(r) {
-        var icon  = r.fail === 0 ? '\u2705' : (r.ok === 0 ? '\u274C' : '\u26A0\uFE0F');
-        var label = _e(r.name || r.churchId);
-        var detail = r.fail === 0
-          ? r.ok + ' key' + (r.ok !== 1 ? 's' : '') + ' updated'
-          : r.ok + ' ok, ' + r.fail + ' failed: ' + _e((r.errors || []).join('; '));
-        return icon + ' <strong>' + label + '</strong> &mdash; ' + detail;
-      });
-      if (resultEl) resultEl.innerHTML = lines.join('<br>');
-      _toast('Push complete: ' + data.results.length + ' church(es) updated.');
-    } catch (e) {
-      var msg = e.message || String(e);
-      if (resultEl) resultEl.innerHTML = '<span style="color:var(--danger,#f87171);">&#10060; Push failed: ' + _e(msg) + '</span>';
-      _toast('Push failed: ' + msg, 'danger');
-    }
-  }
-
   function saveCardPrefix() {
     const input = document.getElementById('card-prefix-input');
     if (!input) return;
@@ -16932,7 +15864,7 @@ const Modules = (() => {
     if (!val || !/^[A-Z0-9]{1,10}$/.test(val)) {
       _toast('Prefix must be 1\u201310 alphanumeric characters.', 'warn'); return;
     }
-    _setAppCfg({ key: 'CARD_PREFIX', value: val, description: 'Member card number prefix' })
+    (_isFirebaseComms() ? UpperRoom.setAppConfig : TheVine.flock.config.set)({ key: 'CARD_PREFIX', value: val, description: 'Member card number prefix' })
       .then(() => { _toast('Card prefix saved: ' + val); })
       .catch(e => _toast('Error saving prefix: ' + e.message, 'danger'));
   }
@@ -16941,7 +15873,7 @@ const Modules = (() => {
     const sel = document.getElementById('global-theme-select');
     if (!sel) return;
     const val = sel.value;
-    _setAppCfg({ key: 'GLOBAL_THEME', value: val, description: 'Church-wide theme override (default = member choice)' })
+    (_isFirebaseComms() ? UpperRoom.setAppConfig : TheVine.flock.config.set)({ key: 'GLOBAL_THEME', value: val, description: 'Church-wide theme override (default = member choice)' })
       .then(() => {
         localStorage.setItem('flock_global_theme', val);
         if (val && val !== 'default' && typeof Adornment !== 'undefined') {
@@ -16974,7 +15906,7 @@ const Modules = (() => {
     var val = inp.value;
     localStorage.setItem('flock_font_scale', val);
     document.documentElement.style.fontSize = val + '%';
-    _setAppCfg({ key: 'FONT_SCALE', value: val, description: 'Desktop font size scale (percentage, default 100)', category: 'Display' })
+    (_isFirebaseComms() ? UpperRoom.setAppConfig : TheVine.flock.config.set)({ key: 'FONT_SCALE', value: val, description: 'Desktop font size scale (percentage, default 100)', category: 'Display' })
       .then(function() { _toast('Desktop font size saved: ' + val + '%'); _reload('config'); })
       .catch(function() { _toast('Desktop font size saved: ' + val + '%'); _reload('config'); });
   }
@@ -16985,7 +15917,7 @@ const Modules = (() => {
     var val = inp.value;
     localStorage.setItem('flock_font_scale_mobile', val);
     document.documentElement.style.fontSize = val + '%';
-    _setAppCfg({ key: 'FONT_SCALE_MOBILE', value: val, description: 'Mobile font size scale (percentage, default 100)', category: 'Display' })
+    (_isFirebaseComms() ? UpperRoom.setAppConfig : TheVine.flock.config.set)({ key: 'FONT_SCALE_MOBILE', value: val, description: 'Mobile font size scale (percentage, default 100)', category: 'Display' })
       .then(function() { _toast('Mobile font size saved: ' + val + '%'); _reload('config'); })
       .catch(function() { _toast('Mobile font size saved: ' + val + '%'); _reload('config'); });
   }
@@ -16995,14 +15927,13 @@ const Modules = (() => {
     if (!sel) return;
     var val = sel.value;
     localStorage.setItem('flock_quiz_size', val);
-    _setAppCfg({ key: 'QUIZ_SIZE', value: val, description: 'Number of questions per Bible Quiz attempt (0 = all)', category: 'Display' })
+    (_isFirebaseComms() ? UpperRoom.setAppConfig : TheVine.flock.config.set)({ key: 'QUIZ_SIZE', value: val, description: 'Number of questions per Bible Quiz attempt (0 = all)', category: 'Display' })
       .then(function() { _toast('Quiz size saved: ' + (val === '0' ? 'All Questions' : val + ' questions')); _reload('config'); })
       .catch(function() { _toast('Quiz size saved: ' + (val === '0' ? 'All Questions' : val + ' questions')); _reload('config'); });
   }
 
   // ── Interface Studio: live preview ──
   function _studioPreview() {
-    _cfgD.studioDirty = true;
     var obj = { vars: {}, fonts: {}, sizes: {}, pads: {}, custom: '' };
 
     // Fonts
@@ -17245,13 +16176,12 @@ const Modules = (() => {
     localStorage.setItem(Adornment.OVERRIDE_LS_KEY, JSON.stringify(obj));
 
     // Persist to backend
-    _setAppCfg({
+    (_isFirebaseComms() ? UpperRoom.setAppConfig : TheVine.flock.config.set)({
       key: 'INTERFACE_OVERRIDES',
       value: JSON.stringify(obj),
       description: 'Interface Studio overrides (fonts, sizes, padding, corners, shadows, custom CSS)',
       category: 'Display'
     }).then(function() {
-      _cfgD.studioDirty = false;
       _toast('Interface Studio settings saved successfully.');
     }).catch(function(e) {
       _toast('Saved locally but backend save failed: ' + e.message, 'danger');
@@ -17261,9 +16191,8 @@ const Modules = (() => {
   // ── Interface Studio: reset ──
   function _studioReset() {
     if (!confirm('Reset all Interface Studio customizations to defaults? This cannot be undone.')) return;
-    _cfgD.studioDirty = false;
     Adornment.clearOverrides();
-    _setAppCfg({
+    (_isFirebaseComms() ? UpperRoom.setAppConfig : TheVine.flock.config.set)({
       key: 'INTERFACE_OVERRIDES',
       value: '',
       description: 'Interface Studio overrides (fonts, sizes, padding, corners, shadows, custom CSS)',
@@ -17289,28 +16218,22 @@ const Modules = (() => {
   function _runHealthCheck() {
     var pill = document.getElementById('health-pill-database');
     var provPill = document.getElementById('prov-health-primary');
-    var connTypeEl = document.getElementById('health-conn-type');
     if (pill) { pill.className = 'health-pill health-pill-unknown'; pill.innerHTML = '<span class="health-dot"></span> Checking\u2026'; }
     if (provPill) { provPill.className = 'health-pill health-pill-unknown'; provPill.innerHTML = '<span class="health-dot"></span> \u2026'; }
-    if (connTypeEl) connTypeEl.innerHTML = '&#9203; Detecting\u2026';
 
     if (typeof TheVine === 'undefined' || !TheVine.manifest || !TheVine.manifest.diagnostics) {
       if (pill) { pill.className = 'health-pill health-pill-fail'; pill.innerHTML = '<span class="health-dot"></span> No API client'; }
       return;
     }
 
-    // Run GAS health check and connection type detection in parallel
-    Promise.all([
-      TheVine.manifest.diagnostics(),
-      _adConnectionCard(),
-    ]).then(function(results) {
-      var diag = results[0];
-      var connHtml = results[1];
-
-      // ── GAS health pill ──
+    TheVine.manifest.diagnostics().then(function(diag) {
       var branchList = diag.branches || [];
-      var flockBranch = branchList.find(function(r) { return r.alias === 'flock'; });
-      var best = flockBranch || branchList.find(function(r) { return r.status === 'online'; }) || branchList[0] || { status: 'offline', latencyMs: 0 };
+      // Use the first healthy branch result (all point to same endpoint now)
+      var best = null;
+      branchList.forEach(function(r) {
+        if (!best || (r.status === 'online' && (!best || r.latencyMs < best.latencyMs))) best = r;
+      });
+      if (!best) best = branchList[0] || { status: 'offline', latencyMs: 0 };
 
       var cls, txt;
       if (best.status === 'online') {
@@ -17324,17 +16247,11 @@ const Modules = (() => {
       if (pill) { pill.className = 'health-pill ' + cls; pill.innerHTML = '<span class="health-dot"></span> ' + txt; }
       if (provPill) { provPill.className = 'health-pill ' + cls; provPill.innerHTML = '<span class="health-dot"></span> ' + txt; }
 
-      // ── Connection type ──
-      if (connTypeEl) connTypeEl.innerHTML = connHtml;
-
       var ts = document.getElementById('health-timestamp');
       if (ts) ts.textContent = 'Last check: ' + new Date().toLocaleTimeString();
     }).catch(function(err) {
       if (pill) { pill.className = 'health-pill health-pill-fail'; pill.innerHTML = '<span class="health-dot"></span> Error'; }
     });
-
-    // Also refresh admin-dashboard card if open
-    if (document.getElementById('ad-conn-card')) _adRefreshConnCard();
   }
 
 
@@ -17344,7 +16261,7 @@ const Modules = (() => {
       _toast('Cannot save: API client unavailable.', 'danger');
       return;
     }
-    _setAppCfg({ key: 'ALLOW_CUSTOM_THEMES', value: checked ? 'TRUE' : 'FALSE' })
+    (_isFirebaseComms() ? UpperRoom.setAppConfig : TheVine.flock.config.set)({ key: 'ALLOW_CUSTOM_THEMES', value: checked ? 'TRUE' : 'FALSE' })
       .then(function() {
         localStorage.setItem('flock_allow_custom_themes', checked ? 'TRUE' : 'FALSE');
         _toast(checked ? 'Custom themes enabled for all users.' : 'Custom themes disabled — foundational theme enforced.');
@@ -17359,7 +16276,7 @@ const Modules = (() => {
 
   // ── Twilio: toggle SMS gateway ──
   function _twilioToggle(checked) {
-    _setAppCfg({ key: 'TWILIO_ENABLED', value: checked ? 'TRUE' : 'FALSE' })
+    (_isFirebaseComms() ? UpperRoom.setAppConfig : TheVine.flock.config.set)({ key: 'TWILIO_ENABLED', value: checked ? 'TRUE' : 'FALSE' })
       .then(function() { _toast(checked ? '📱 Twilio SMS gateway enabled.' : '📱 Twilio SMS gateway disabled — using native SMS app.'); })
       .catch(function(e) { _toast('Error saving setting: ' + e.message, 'danger'); });
   }
@@ -17439,7 +16356,7 @@ const Modules = (() => {
     const statusEl = document.getElementById('chunk-save-status');
     if (statusEl) statusEl.textContent = 'Saving\u2026';
     try {
-      await _setAppCfg({
+      await (_isFirebaseComms() ? UpperRoom.setAppConfig : TheVine.flock.config.set)({
         key: 'SHEET_CHUNKS',
         value: JSON.stringify(chunks),
         description: 'Parallel sheet chunk counts per domain (1\u20134)',
@@ -17479,7 +16396,7 @@ const Modules = (() => {
     localStorage.setItem('flock_provisioning', JSON.stringify(obj));
 
     // Persist to backend
-    _setAppCfg({
+    (_isFirebaseComms() ? UpperRoom.setAppConfig : TheVine.flock.config.set)({
       key: 'PROVISIONING_URLS',
       value: JSON.stringify(obj),
       description: 'GAS deployment URL',
@@ -17692,6 +16609,8 @@ const Modules = (() => {
   // ══════════════════════════════════════════════════════════════════════════
   // EDIT FORM ACTIONS  — called from clickable table rows
   // ══════════════════════════════════════════════════════════════════════════
+
+  // editCard removed — directory clicks now use _dirOpen → People detail page
 
   async function editGroup(id) {
     var dir = await _ensureMemberDir();
@@ -18040,49 +16959,23 @@ const Modules = (() => {
   function _euTab() {} // no-op stub (removed — tabs consolidated into _ppOpen sections)
   function _euSave() {} // no-op stub (removed — saves consolidated into _ppSaveAll)
 
-  // Copy visible Member ID pin to clipboard
-  function _ppCopyPin() {
-    var t = document.getElementById('pp-pin-val');
-    if (t) { navigator.clipboard.writeText(t.textContent.trim()); _toast('Copied!'); }
-  }
-
-  // Generate and save a new Member Pin (xxx-xx-xxxx) for an existing member record
-  async function _ppGenPin(memberId) {
-    if (!memberId) return;
-    var n = String(Math.floor(Math.random() * 900000000) + 100000000);
-    var pin = n.slice(0, 3) + '-' + n.slice(3, 5) + '-' + n.slice(5);
-    try {
-      await _updateMember({ id: memberId, memberPin: pin });
-      // Update display inline without full page reload
-      var el = document.getElementById('pp-pin-val');
-      if (el) {
-        el.style.fontFamily = 'monospace';
-        el.style.fontSize = '1.05rem';
-        el.style.letterSpacing = '0.12em';
-        el.style.fontWeight = '700';
-        el.style.color = 'var(--accent)';
-        el.textContent = pin;
-      }
-      _toast('Member ID assigned: ' + pin);
-    } catch (e) { _toast('Failed to assign ID: ' + (e.message || e), 'danger'); }
-  }
-
   // Create a new member record linked to this user
-  // Redirects to the canonical Add Member form so all member creation goes through
-  // one consistent workflow — including auto-care-assignment.
   async function _euCreateMember(email) {
     var r = (_dataCache['users'] || []).find(function(x) { return (x.email || x.id) === email; }) || {};
-    var prefill = {
-      primaryEmail: email,
-      firstName: r.firstName || '',
-      lastName: r.lastName || '',
-      cellPhone: r.phone || '',
-      photoUrl: r.photoUrl || ''
-    };
-    var modal = document.getElementById('eu-modal');
-    if (modal) modal.remove();
-    _activateHubView();
-    if (typeof TheLife !== 'undefined') TheLife.openAddMember('', prefill);
+    try {
+      var _memData = {
+        primaryEmail: email,
+        firstName: r.firstName || '',
+        lastName: r.lastName || '',
+        cellPhone: r.phone || '',
+        photoUrl: r.photoUrl || ''
+      };
+      await (_isFirebaseComms() ? UpperRoom.createMember(_memData) : TheVine.flock.call('members.create', _memData));
+      _toast('Member record created!');
+      var modal = document.getElementById('eu-modal');
+      if (modal) modal.remove();
+      _ppOpen(email);
+    } catch (e) { _toast('Failed: ' + (e.message || 'Unknown error'), 'danger'); }
   }
 
   // Create a new contact card linked to this user
@@ -18097,7 +16990,7 @@ const Modules = (() => {
         photoUrl: r.photoUrl || '',
         status: 'Active'
       };
-      await _createMemberCard(_cardData);
+      await (_isFirebaseComms() ? UpperRoom.createMemberCard(_cardData) : TheVine.flock.memberCards.create(_cardData));
       _toast('Contact card created!');
       var modal = document.getElementById('eu-modal');
       if (modal) modal.remove();
@@ -18212,7 +17105,7 @@ const Modules = (() => {
       groups: ['timothy', 'finance', 'pastoralmail', 'womens leader'] },
     { key: 'critical', label: 'Critical', color: '#dc2626', bg: '#dc262618',
       desc: 'Full permission bypass and/or all PII email types.',
-      groups: ['admin', 'lead pastor', 'master', 'allmail'] },
+      groups: ['admin', 'lead pastor', 'allmail'] },
   ];
 
   var _GRP_PREREQS = {
@@ -18220,7 +17113,6 @@ const Modules = (() => {
     'timothy':      ['elder', 'caremail', 'prayermail'],
     'pastoralmail': ['elder'],
     'lead pastor':  ['timothy', 'pastoralmail'],
-    'master':       ['timothy', 'pastoralmail'],
     'allmail':      ['caremail', 'prayermail', 'pastoralmail', 'finance'],
   };
 
@@ -18242,7 +17134,6 @@ const Modules = (() => {
     'womens leader': { label: "Women's Leader",        desc: 'Recognized by backend \u2014 reserved for future routing' },
     'admin':         { label: 'Admin',                 desc: 'Full permission bypass \u2014 elevates to level 5 at login' },
     'lead pastor':   { label: 'Lead Pastor',           desc: 'Full bypass + all pastoral emails. Pulls: timothy, pastoralmail' },
-    'master':        { label: 'Master',                 desc: 'Full bypass — treated as seed admin. Sees all notes, cases, modules. Pulls: timothy, pastoralmail' },
     'allmail':       { label: 'All Mail',              desc: 'ALL notification types. Pulls: caremail, prayermail, pastoralmail, finance' },
     'nopimail':      { label: 'No PII Mail',           desc: 'Soft block \u2014 removed from auto-routing; own CNP opt-in still honored' },
     'limitpii':      { label: 'Limit PII (Hard Block)',desc: 'HARD OVERRIDE \u2014 blocks ALL PII email delivery regardless of role, group, or CNP opt-in' },
@@ -18256,7 +17147,7 @@ const Modules = (() => {
   function _grpUpdateCritConfirm() {
     var box = document.getElementById('grp-critical-confirm');
     if (!box) return;
-    var anyCrit = ['admin', 'lead pastor', 'master', 'allmail'].some(function(g) {
+    var anyCrit = ['admin', 'lead pastor', 'allmail'].some(function(g) {
       var cb = _grpCb(g); return cb && cb.checked;
     });
     box.style.display = anyCrit ? '' : 'none';
@@ -18299,7 +17190,7 @@ const Modules = (() => {
       if (c.checked) groups.push(c.getAttribute('data-group'));
     });
     try {
-      await TheVine.flock.users.update({ targetEmail: targetEmail, groups: groups.join(', ') });
+      await (_isFirebaseComms() ? UpperRoom.updateUser({ targetEmail: targetEmail, groups: groups.join(', ') }) : TheVine.flock.users.update({ targetEmail: targetEmail, groups: groups.join(', ') }));
       if (st) { st.textContent = '\u2713 Saved'; setTimeout(function() { if (st) st.textContent = ''; }, 2000); }
     } catch (e) {
       if (st) st.textContent = 'Error: ' + (e.message || e);
@@ -18310,7 +17201,7 @@ const Modules = (() => {
     _edit('config', 'Edit Setting', [
       { name: 'value',       label: 'Value',       required: true },
       { name: 'description', label: 'Description' },
-    ], async p => { p.key = id; await _setAppCfg(p); }, id, null);
+    ], async p => { p.key = id; await (_isFirebaseComms() ? UpperRoom.setAppConfig : TheVine.flock.config.set)(p); }, id, null);
   }
 
   function editPrayer(id) { TheLife.openPrayer(id); }
@@ -18480,17 +17371,19 @@ const Modules = (() => {
   }
 
   async function _markPrayerAnswered(id) {
-    var modal = document.getElementById('fl-my-prayer');
-    if (modal) modal.remove();
-    _undoAction('\uD83D\uDE4F Prayer marked as answered!', async function() {
+    if (!confirm('Mark this prayer as answered? Praise God!')) return;
+    try {
       if (_isFirebaseComms()) { await UpperRoom.updatePrayer(id, { status: 'Answered' }); }
       else { await TheVine.flock.prayer.update({ id: id, status: 'Answered' }); }
+      var modal = document.getElementById('fl-my-prayer');
+      if (modal) modal.remove();
+      _toast('\uD83D\uDE4F Prayer marked as answered!');
       var activeModule = document.querySelector('.module-active');
       if (activeModule) {
         var modId = activeModule.getAttribute('data-module');
         if (modId) _reload(modId);
       }
-    });
+    } catch (e) { _toast('Update failed: ' + (e.message || e), 'danger'); }
   }
 
   // ── Member-facing care case detail view (view/edit own care cases) ──
@@ -18648,16 +17541,18 @@ const Modules = (() => {
   }
 
   async function _markCareResolved(id) {
-    var modal = document.getElementById('fl-my-care');
-    if (modal) modal.remove();
-    _undoAction('Care case resolved', async function() {
+    if (!confirm('Mark this care case as resolved?')) return;
+    try {
       await (_isFirebaseComms() ? UpperRoom.resolveCareCase(id) : TheVine.flock.care.resolve({ id: id }));
+      var modal = document.getElementById('fl-my-care');
+      if (modal) modal.remove();
+      _toast('Care case resolved!');
       var activeModule = document.querySelector('.module-active');
       if (activeModule) {
         var modId = activeModule.getAttribute('data-module');
         if (modId) _reload(modId);
       }
-    });
+    } catch (e) { _toast('Update failed: ' + (e.message || e), 'danger'); }
   }
 
   // ── Group detail view (view group info + member roster) ──
@@ -19150,7 +18045,7 @@ const Modules = (() => {
           var entry = j.entry || j['Entry'] || '';
           var mood = j.mood || j['Mood'] || '';
           var cat = j.category || j['Category'] || '';
-          var created = _dateStr(j.createdAt || j['Created At']);
+          var created = (j.createdAt || j['Created At'] || '').substring(0, 10);
           journalHtml += '<div onclick="Modules.editJournal(\'' + _e(jid) + '\')" style="cursor:pointer;padding:10px 12px;'
             + 'border:1px solid var(--line);border-radius:8px;margin-bottom:8px;background:var(--bg-raised);transition:opacity 0.15s;"'
             + ' onmouseover="this.style.opacity=\'0.85\'" onmouseout="this.style.opacity=\'1\'">'
@@ -19516,8 +18411,8 @@ const Modules = (() => {
       // Process services
       const allServices = _rows(svcRes);
       const upcoming = allServices
-        .filter(r => { const d = _localDate(r.serviceDate || r.date); return !isNaN(d) && d >= today; })
-        .sort((a, b) => _localDate(a.serviceDate || a.date) - _localDate(b.serviceDate || b.date))
+        .filter(r => { const d = new Date(r.serviceDate || r.date || 0); return d >= today; })
+        .sort((a, b) => new Date(a.serviceDate || a.date || 0) - new Date(b.serviceDate || b.date || 0))
         .slice(0, 5);
       const nextSvc = upcoming[0];
 
@@ -19528,7 +18423,7 @@ const Modules = (() => {
         return s === 'OPEN' || s === 'PENDING' || s === 'UNASSIGNED' || !r.status;
       });
       const scheduledThisMonth = allVols.filter(r => {
-        const d = _localDate(r.scheduledDate || r.serviceDate || r.date);
+        const d = new Date(r.scheduledDate || r.serviceDate || r.date || 0);
         return d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
       });
 
@@ -19726,7 +18621,6 @@ const Modules = (() => {
       var role = String(s.role || '').toLowerCase();
       if (role === 'admin' || role === 'pastor') hasAccess = true;
       if (s.permissions && s.permissions.deploymentGuide) hasAccess = true;
-      if (typeof Nehemiah !== 'undefined' && (Nehemiah.hasGroup('Master') || Nehemiah.hasGroup('Seed Admin') || Nehemiah.hasGroup('Lead Pastor'))) hasAccess = true;
     }
     if (!hasAccess) {
       el.innerHTML = '<div style="max-width:480px;margin:80px auto;text-align:center;padding:0 20px;">'
@@ -19736,243 +18630,66 @@ const Modules = (() => {
         + 'The Deployment Guide is available to Pastors, Admins, and users with the <strong>Deployment Guide</strong> permission.</p></div>';
       return;
     }
-    _shell(el, 'Deployment Guide', 'Comprehensive step-by-step instructions for deploying and configuring FlockOS.', '');
+    _shell(el, 'Deployment Guide', 'Step-by-step instructions for deploying and configuring FlockOS.', '');
     var html = '';
-    var _bdy = 'class="settings-accordion-body" style="font-size:0.85rem;line-height:1.7;color:var(--ink);"';
-    var _warn = 'style="background:var(--danger-bg,#fff3cd);border-left:4px solid var(--danger,#dc3545);padding:10px 14px;border-radius:6px;margin:10px 0;font-size:0.85rem;"';
     html += '<div style="max-width:740px;">';
 
-    // ─── GOLDEN RULE ───
-    html += '<div ' + _warn + '>'
-      + '&#x1F6A8; <strong>THE GOLDEN RULE:</strong> The GAS project gets ONLY <code>Master Code.gs.md</code> pasted as Code.gs. Never create additional files.</div>';
-
-    // ─── Phase 1: Prerequisites ───
+    // Step 1
     html += '<details class="settings-accordion" open>';
-    html += '<summary class="settings-accordion-trigger">Phase 1: Prerequisites</summary>';
-    html += '<div ' + _bdy + '>'
+    html += '<summary class="settings-accordion-trigger">Step 1: Google Apps Script Setup</summary>';
+    html += '<div class="settings-accordion-body" style="font-size:0.85rem;line-height:1.7;color:var(--ink);">'
+      + '<ol style="padding-left:20px;">'
+      + '<li>Create a new Google Apps Script project</li>'
+      + '<li>Paste <code>Single.gs</code> into the project as Code.gs</li>'
+      + '<li>Run <code>setupFlockOS()</code> once to initialize all spreadsheet tabs</li>'
+      + '<li>Deploy as Web App with &ldquo;Execute as me&rdquo; and &ldquo;Anyone&rdquo; access</li>'
+      + '</ol></div></details>';
+
+    // Step 2
+    html += '<details class="settings-accordion">';
+    html += '<summary class="settings-accordion-trigger">Step 2: Create First Admin</summary>';
+    html += '<div class="settings-accordion-body" style="font-size:0.85rem;line-height:1.7;color:var(--ink);">'
+      + '<ol style="padding-left:20px;">'
+      + '<li>Open the GAS project in Apps Script editor</li>'
+      + '<li>Run <code>createFirstAdmin()</code> from Single.gs</li>'
+      + '<li>This creates the initial admin user with a default passcode</li>'
+      + '<li>Log in and change your passcode immediately</li>'
+      + '</ol></div></details>';
+
+    // Step 3
+    html += '<details class="settings-accordion">';
+    html += '<summary class="settings-accordion-trigger">Step 3: Configure API Endpoints</summary>';
+    html += '<div class="settings-accordion-body" style="font-size:0.85rem;line-height:1.7;color:var(--ink);">'
+      + '<ol style="padding-left:20px;">'
+      + '<li>After deploying the unified API, copy the Web App URL</li>'
+      + '<li>Set <code>DATABASE_URL</code> in <code>the_true_vine.js</code></li>'
+      + '<li>Test the API with the health check in Settings</li>'
+      + '</ol></div></details>';
+
+    // Step 4
+    html += '<details class="settings-accordion">';
+    html += '<summary class="settings-accordion-trigger">Step 4: Host the Public Site</summary>';
+    html += '<div class="settings-accordion-body" style="font-size:0.85rem;line-height:1.7;color:var(--ink);">'
+      + '<ol style="padding-left:20px;">'
+      + '<li>Upload <code>index.html</code> and the <code>FlockOS</code> folder to your web host</li>'
+      + '<li>For GitHub Pages, push to a repository and enable Pages in settings</li>'
+      + '<li>Configure your custom domain (optional)</li>'
+      + '<li>Test the lockdown toggle from Settings before going live</li>'
+      + '</ol></div></details>';
+
+    // Step 5
+    html += '<details class="settings-accordion">';
+    html += '<summary class="settings-accordion-trigger">Step 5: Go Live Checklist</summary>';
+    html += '<div class="settings-accordion-body" style="font-size:0.85rem;line-height:1.7;color:var(--ink);">'
       + '<ul style="padding-left:20px;">'
-      + '<li>A Google Account (Workspace or personal Gmail)</li>'
-      + '<li>1 empty Google Sheet (will hold all 200 database tabs)</li>'
-      + '<li>Access to <a href="https://script.google.com" style="color:var(--accent)" target="_blank">script.google.com</a></li>'
-      + '<li>The <code>FlockOS/Tools/Master Deployment/Master Code.gs.md</code> file</li>'
-      + '<li>The <code>FlockOS/Scripts/</code> and <code>FlockOS/Pages/</code> folders</li>'
-      + '</ul></div></details>';
-
-    // ─── Phase 2: Create the Google Sheet ───
-    html += '<details class="settings-accordion">';
-    html += '<summary class="settings-accordion-trigger">Phase 2: Create the Google Sheet</summary>';
-    html += '<div ' + _bdy + '>'
-      + '<ol style="padding-left:20px;">'
-      + '<li>Create one Google Sheet named <strong>FlockOS Database</strong></li>'
-      + '<li>Copy the Sheet ID from the URL (the long string between <code>/d/</code> and <code>/edit</code>)</li>'
-      + '</ol></div></details>';
-
-    // ─── Phase 3: Create the GAS Project ───
-    html += '<details class="settings-accordion">';
-    html += '<summary class="settings-accordion-trigger">Phase 3: Create the GAS Project</summary>';
-    html += '<div ' + _bdy + '>'
-      + '<ol style="padding-left:20px;">'
-      + '<li>In the Google Sheet &rarr; Extensions &rarr; Apps Script</li>'
-      + '<li>Delete the default <code>Code.gs</code> content</li>'
-      + '<li>Open <code>FlockOS/Tools/Master Deployment/Master Code.gs.md</code> in VS Code</li>'
-      + '<li>Copy the entire contents and paste as <code>Code.gs</code></li>'
-      + '<li>Save (Ctrl+S)</li>'
-      + '</ol></div></details>';
-
-    // ─── Phase 4: Script Properties ───
-    html += '<details class="settings-accordion">';
-    html += '<summary class="settings-accordion-trigger">Phase 4: Script Properties</summary>';
-    html += '<div ' + _bdy + '>'
-      + '<p style="margin:0 0 8px;">Go to &#x2699; Project Settings &rarr; Script Properties. Add these:</p>'
-      + '<table style="width:100%;border-collapse:collapse;font-size:0.82rem;margin-bottom:8px;">'
-      + '<tr style="border-bottom:1px solid var(--border);"><th style="text-align:left;padding:4px 8px;">Property</th><th style="text-align:left;padding:4px 8px;">Value</th><th style="text-align:left;padding:4px 8px;">Notes</th></tr>'
-      + '<tr><td style="padding:4px 8px;"><code>SHEET_ID</code></td><td style="padding:4px 8px;">Your Google Sheet ID</td><td style="padding:4px 8px;">Required</td></tr>'
-      + '<tr><td style="padding:4px 8px;"><code>ADMIN_EMAIL</code></td><td style="padding:4px 8px;">admin@church.com</td><td style="padding:4px 8px;">Seed admin email</td></tr>'
-      + '<tr><td style="padding:4px 8px;"><code>ADMIN_FIRST</code></td><td style="padding:4px 8px;">Admin</td><td style="padding:4px 8px;">First name</td></tr>'
-      + '<tr><td style="padding:4px 8px;"><code>ADMIN_LAST</code></td><td style="padding:4px 8px;">User</td><td style="padding:4px 8px;">Last name</td></tr>'
-      + '<tr><td style="padding:4px 8px;"><code>ADMIN_PASSWORD</code></td><td style="padding:4px 8px;">temporary-password</td><td style="padding:4px 8px;">&#x26A0; Delete after setup!</td></tr>'
-      + '</table></div></details>';
-
-    // ─── Phase 5: Run Setup ───
-    html += '<details class="settings-accordion">';
-    html += '<summary class="settings-accordion-trigger">Phase 5: Run Setup</summary>';
-    html += '<div ' + _bdy + '>'
-      + '<ol style="padding-left:20px;">'
-      + '<li>In the GAS editor, select <code>setupFlockOS</code> from the function dropdown</li>'
-      + '<li>Click &#x25B6; Run</li>'
-      + '<li>Grant permissions when prompted</li>'
-      + '<li>Setup creates all tabs, initializes pepper, seeds admin account, runs smoke tests, installs triggers</li>'
-      + '</ol></div></details>';
-
-    // ─── Phase 6: Post-Setup Security ───
-    html += '<details class="settings-accordion">';
-    html += '<summary class="settings-accordion-trigger">Phase 6: Post-Setup Security</summary>';
-    html += '<div ' + _bdy + '>'
-      + '<div ' + _warn + '>'
-      + '&#x26A0; <strong>IMMEDIATELY</strong> go to Script Properties and <strong>delete ADMIN_PASSWORD</strong>. Exposed passwords are a security risk.'
-      + '</div></div></details>';
-
-    // ─── Phase 7: Deploy as Web App ───
-    html += '<details class="settings-accordion">';
-    html += '<summary class="settings-accordion-trigger">Phase 7: Deploy as Web App</summary>';
-    html += '<div ' + _bdy + '>'
-      + '<ol style="padding-left:20px;">'
-      + '<li>Click Deploy &rarr; New Deployment</li>'
-      + '<li>Type: Web App</li>'
-      + '<li>Execute as: <strong>Me</strong></li>'
-      + '<li>Who has access: <strong>Anyone</strong></li>'
-      + '<li>Click Deploy &rarr; copy the deployment URL</li>'
-      + '</ol></div></details>';
-
-    // ─── Phase 8: Register the URL ───
-    html += '<details class="settings-accordion">';
-    html += '<summary class="settings-accordion-trigger">Phase 8: Register the URL</summary>';
-    html += '<div ' + _bdy + '>'
-      + '<ol style="padding-left:20px;">'
-      + '<li>Set <code>CHURCH_APP_URL</code> in Script Properties (paste the deployment URL)</li>'
-      + '<li>Run <code>registerChurchUrl()</code> in the GAS editor</li>'
-      + '<li>This writes the URL to AppConfig so emails and TheVine can reference it</li>'
-      + '</ol></div></details>';
-
-    // ─── Phase 9: Configure Frontend ───
-    html += '<details class="settings-accordion">';
-    html += '<summary class="settings-accordion-trigger">Phase 9: Configure Frontend</summary>';
-    html += '<div ' + _bdy + '>'
-      + '<ol style="padding-left:20px;">'
-      + '<li>Update <code>the_true_vine.js</code> <code>_config</code> block with the new Database URL</li>'
-      + '<li>OR configure via the Settings &rarr; Provisioning page in the admin dashboard</li>'
-      + '<li>Test: open <code>[DATABASE_URL]?action=health</code> &mdash; should return <code>{ ok: true }</code></li>'
-      + '</ol></div></details>';
-
-    // ─── Phase 10: Optional Firebase Setup ───
-    html += '<details class="settings-accordion">';
-    html += '<summary class="settings-accordion-trigger">Phase 10: Optional Firebase Setup</summary>';
-    html += '<div ' + _bdy + '>'
-      + '<ol style="padding-left:20px;">'
-      + '<li>Create a Firebase project (e.g., <code>flockos-churchname</code>)</li>'
-      + '<li>Enable Firestore Database</li>'
-      + '<li>Enable Authentication (anonymous + email/password)</li>'
-      + '<li>Add web app in Firebase Console &rarr; copy <code>firebaseConfig</code> object</li>'
-      + '<li>Add to <code>FlockOS/Tools/Active Deployments/ChurchName.json</code></li>'
-      + '<li>Run <code>setupFirestoreSync()</code> from GAS to create <code>settings/sync</code> Firestore doc</li>'
-      + '<li>Deploy Cloud Functions: <code>firebase use &lt;project-id&gt; &amp;&amp; firebase deploy --only functions</code></li>'
-      + '</ol></div></details>';
-
-    // ─── Phase 11: Add to Build Script ───
-    html += '<details class="settings-accordion">';
-    html += '<summary class="settings-accordion-trigger">Phase 11: Add to Build Script</summary>';
-    html += '<div ' + _bdy + '>'
-      + '<ol style="padding-left:20px;">'
-      + '<li>Add the church&rsquo;s config block to <code>build_churches.sh</code></li>'
-      + '<li>Run <code>bash build_churches.sh</code> to generate the deployment</li>'
-      + '<li>Commit and push to GitHub Pages</li>'
-      + '</ol></div></details>';
-
-    // ─── Verification Checklist ───
-    html += '<details class="settings-accordion">';
-    html += '<summary class="settings-accordion-trigger">&#x2705; Verification Checklist</summary>';
-    html += '<div ' + _bdy + '>'
-      + '<ul style="padding-left:20px;">'
-      + '<li>&#9744; Health check: <code>?action=health</code> returns <code>ok: true</code></li>'
-      + '<li>&#9744; Login: seed admin can log in at <code>the_wall.html</code></li>'
-      + '<li>&#9744; Dashboard loads with greeting and sidebar</li>'
-      + '<li>&#9744; Members tab shows empty list (no errors)</li>'
-      + '<li>&#9744; Notification bell shows (may be empty)</li>'
-      + '<li>&#9744; Service Worker caches all assets on first load</li>'
-      + '<li>&#9744; PWA &ldquo;Add to Home Screen&rdquo; works on iOS/Android</li>'
+      + '<li>&#9744; Unified API endpoint deployed and tested</li>'
+      + '<li>&#9744; Admin account created and passcode changed</li>'
       + '<li>&#9744; Church name and branding configured in Settings</li>'
       + '<li>&#9744; Theme selected</li>'
       + '<li>&#9744; Lockdown disabled (public access enabled)</li>'
       + '<li>&#9744; Member import completed (if migrating from another system)</li>'
       + '<li>&#9744; Staff accounts created with appropriate roles</li>'
       + '</ul></div></details>';
-
-    // ─── Deployment Types ───
-    html += '<div style="margin-top:24px;border-top:1px solid var(--border);padding-top:16px;">'
-      + '<h3 style="font-size:1rem;font-weight:700;color:var(--ink);margin:0 0 12px;">Reference</h3></div>';
-
-    html += '<details class="settings-accordion">';
-    html += '<summary class="settings-accordion-trigger">Deployment Types &amp; Church Registry</summary>';
-    html += '<div ' + _bdy + '>'
-      + '<p style="margin:0 0 8px;">FlockOS supports <strong>four active church deployments</strong>, each with its own branding, database, and optional Firebase project. All share the same codebase served from GitHub Pages.</p>'
-      + '<h4 style="font-size:0.88rem;font-weight:600;margin:12px 0 6px;">What Each Build Gets</h4>'
-      + '<ul style="padding-left:20px;">'
-      + '<li><strong>Database URL</strong> &mdash; unique GAS endpoint per church</li>'
-      + '<li><strong>Church Name &amp; Tagline</strong> &mdash; injected into HTML titles, headers, meta tags</li>'
-      + '<li><strong>Theme Colors</strong> &mdash; primary accent color and background</li>'
-      + '<li><strong>Firebase Config</strong> &mdash; per-church project ID, API key, messaging sender ID</li>'
-      + '<li><strong>Analytics ID</strong> &mdash; Google Analytics measurement ID</li>'
-      + '<li><strong>Favicon &amp; Logo</strong> &mdash; per-church branding images</li>'
-      + '<li><strong>Truth Editor Target</strong> &mdash; <code>FLOCK_TRUTH_USE_LOCAL = true</code> so churches use their own Firestore</li>'
-      + '<li><strong>manifest.json</strong> &mdash; PWA name, short_name, theme_color updated via jq</li>'
-      + '</ul>'
-      + '<h4 style="font-size:0.88rem;font-weight:600;margin:12px 0 6px;">ROOT vs. Church Builds</h4>'
-      + '<table style="width:100%;border-collapse:collapse;font-size:0.82rem;margin-bottom:8px;">'
-      + '<tr style="border-bottom:1px solid var(--border);"><th style="text-align:left;padding:4px 8px;">Aspect</th><th style="text-align:left;padding:4px 8px;">ROOT (FlockOS/)</th><th style="text-align:left;padding:4px 8px;">Church Builds (Church/*/)</th></tr>'
-      + '<tr><td style="padding:4px 8px;">Source Editing</td><td style="padding:4px 8px;color:var(--success,green);">Edit here</td><td style="padding:4px 8px;color:var(--danger,red);">Never edit directly</td></tr>'
-      + '<tr><td style="padding:4px 8px;">Truth Editor Target</td><td style="padding:4px 8px;">flockos-truth (seed database)</td><td style="padding:4px 8px;">Local Firestore (per-church)</td></tr>'
-      + '<tr><td style="padding:4px 8px;">Build Script</td><td style="padding:4px 8px;">N/A (source of truth)</td><td style="padding:4px 8px;">Generated by <code>build_churches.sh</code></td></tr>'
-      + '</table>'
-      + '<div ' + _warn + '>&#x1F6A8; Make changes ONLY in the master/root copy (under <code>/FlockOS/</code>). NEVER touch <code>Church/*</code> deployments directly. Run <code>build_churches.sh</code> to propagate changes.</div>'
-      + '</div></details>';
-
-    // ─── Build System ───
-    html += '<details class="settings-accordion">';
-    html += '<summary class="settings-accordion-trigger">Build System &amp; Automation</summary>';
-    html += '<div ' + _bdy + '>'
-      + '<p style="margin:0 0 8px;">The build script at <code>FlockOS/Tools/Development Scripts/build_churches.sh</code> generates all church deployments from the master source:</p>'
-      + '<ol style="padding-left:20px;">'
-      + '<li><strong>rsync</strong> &mdash; Copy master FlockOS source into <code>Church/&lt;name&gt;/</code></li>'
-      + '<li><strong>Database URL</strong> &mdash; <code>sed</code> replaces the GAS endpoint URL in HTML/JS files</li>'
-      + '<li><strong>Tagline</strong> &mdash; Replace default tagline with church-specific tagline</li>'
-      + '<li><strong>Theme &amp; Background Colors</strong> &mdash; Inject primary accent color and background</li>'
-      + '<li><strong>manifest.json</strong> &mdash; <code>jq</code> updates PWA name, short_name, theme_color</li>'
-      + '<li><strong>Firebase Config</strong> &mdash; Inject per-church <code>firebaseConfig</code> object into the_upper_room.js</li>'
-      + '<li><strong>Truth Editor Local Flag</strong> &mdash; Inject <code>window.FLOCK_TRUTH_USE_LOCAL = true;</code></li>'
-      + '<li><strong>HTML Titles &amp; Meta</strong> &mdash; Update title, description, og:tags</li>'
-      + '<li><strong>Church Brand Name</strong> &mdash; Replace &ldquo;FlockOS&rdquo; references with church name</li>'
-      + '<li><strong>Per-page updates</strong> &mdash; the_wall.html, the_pentecost.html, fishing-for-men.html</li>'
-      + '<li><strong>Analytics</strong> &mdash; Inject Google Analytics measurement ID</li>'
-      + '<li><strong>Favicon &amp; Photos</strong> &mdash; Update image URLs to per-church assets</li>'
-      + '</ol>'
-      + '<h4 style="font-size:0.88rem;font-weight:600;margin:12px 0 6px;">Running the Build</h4>'
-      + '<code style="display:block;background:var(--surface-alt,#f5f5f5);padding:8px 12px;border-radius:6px;font-size:0.82rem;">'
-      + 'cd FlockOS/Tools/Development\\ Scripts/<br>bash build_churches.sh</code>'
-      + '<p style="margin:8px 0 0;font-size:0.82rem;">Output: <code>Church/FlockOS/</code>, <code>Church/GAS/</code>, <code>Church/TBC/</code>, <code>Church/TheForest/</code></p>'
-      + '</div></details>';
-
-    // ─── Troubleshooting ───
-    html += '<details class="settings-accordion">';
-    html += '<summary class="settings-accordion-trigger">Troubleshooting</summary>';
-    html += '<div ' + _bdy + '>'
-      + '<div ' + _warn + '>&#x1F6A8; If something isn&rsquo;t working, <strong>count your files</strong>. The GAS project should have exactly <strong>1 file (Code.gs)</strong>. If you have more, delete the extras.</div>'
-      + '<table style="width:100%;border-collapse:collapse;font-size:0.82rem;margin:10px 0;">'
-      + '<tr style="border-bottom:1px solid var(--border);"><th style="text-align:left;padding:4px 8px;">Error</th><th style="text-align:left;padding:4px 8px;">Cause</th><th style="text-align:left;padding:4px 8px;">Fix</th></tr>'
-      + '<tr><td style="padding:4px 8px;">&ldquo;Unknown action&rdquo;</td><td style="padding:4px 8px;">Action parameter doesn&rsquo;t match a route</td><td style="padding:4px 8px;">Actions are case-sensitive, dot-notation (e.g. <code>members.list</code>)</td></tr>'
-      + '<tr><td style="padding:4px 8px;"><code>ReferenceError: [function] is not defined</code></td><td style="padding:4px 8px;">Function name mistyped or renamed</td><td style="padding:4px 8px;">Search Master Code.gs for the function name</td></tr>'
-      + '<tr><td style="padding:4px 8px;">CORS / Cross-Origin errors</td><td style="padding:4px 8px;">Access set to &ldquo;Anyone with Google account&rdquo;</td><td style="padding:4px 8px;">Change to &ldquo;Anyone&rdquo;</td></tr>'
-      + '<tr><td style="padding:4px 8px;">&ldquo;Access denied&rdquo; / 403</td><td style="padding:4px 8px;">Session expired or RBAC role too low</td><td style="padding:4px 8px;">Re-login or check AccessControl tab</td></tr>'
-      + '<tr><td style="padding:4px 8px;">Login loop</td><td style="padding:4px 8px;">Session expired (6-hour TTL)</td><td style="padding:4px 8px;">Clear sessionStorage, re-login</td></tr>'
-      + '<tr><td style="padding:4px 8px;"><code>setupFlockOS()</code> fails</td><td style="padding:4px 8px;">SHEET_ID not set or wrong</td><td style="padding:4px 8px;">Verify Script Properties &rarr; SHEET_ID matches Sheet URL</td></tr>'
-      + '<tr><td style="padding:4px 8px;">Pepper lost</td><td style="padding:4px 8px;">GAS Script Properties wiped</td><td style="padding:4px 8px;">ALL passwords unrecoverable. Clear hashes, reset, run <code>migrateAllPasswords()</code></td></tr>'
-      + '<tr><td style="padding:4px 8px;">Truth Editor hits wrong Firestore</td><td style="padding:4px 8px;"><code>FLOCK_TRUTH_USE_LOCAL</code> not injected</td><td style="padding:4px 8px;">Rebuild churches via <code>build_churches.sh</code></td></tr>'
-      + '<tr><td style="padding:4px 8px;">Cloud Functions not syncing</td><td style="padding:4px 8px;">Missing <code>settings/sync</code> doc</td><td style="padding:4px 8px;">Run <code>setupFirestoreSync()</code> from GAS</td></tr>'
-      + '</table>'
-      + '<h4 style="font-size:0.88rem;font-weight:600;margin:12px 0 6px;">How to Update a Deployment</h4>'
-      + '<ol style="padding-left:20px;">'
-      + '<li>Make code changes in the GAS editor (or paste updated Master Code.gs)</li>'
-      + '<li>Deploy &rarr; Manage deployments &rarr; &#x270F;&#xFE0F; pencil icon</li>'
-      + '<li>Version &rarr; <strong>New version</strong> &rarr; Deploy</li>'
-      + '<li>URL stays the same &mdash; no config changes needed</li>'
-      + '</ol>'
-      + '<h4 style="font-size:0.88rem;font-weight:600;margin:12px 0 6px;">GAS Quotas</h4>'
-      + '<table style="width:100%;border-collapse:collapse;font-size:0.82rem;">'
-      + '<tr style="border-bottom:1px solid var(--border);"><th style="text-align:left;padding:4px 8px;">Limit</th><th style="text-align:left;padding:4px 8px;">Consumer Gmail</th><th style="text-align:left;padding:4px 8px;">Workspace</th></tr>'
-      + '<tr><td style="padding:4px 8px;">Script runtime</td><td style="padding:4px 8px;">6 min</td><td style="padding:4px 8px;">30 min</td></tr>'
-      + '<tr><td style="padding:4px 8px;">URL Fetch calls/day</td><td style="padding:4px 8px;">20,000</td><td style="padding:4px 8px;">100,000</td></tr>'
-      + '<tr><td style="padding:4px 8px;">Spreadsheet reads/day</td><td style="padding:4px 8px;">~50,000 (soft)</td><td style="padding:4px 8px;">~300,000 (soft)</td></tr>'
-      + '</table>'
-      + '</div></details>';
 
     html += '</div>';
     _body(el, html);
@@ -20033,32 +18750,6 @@ const Modules = (() => {
 
 
   // ═══════════════════════════════════════════════════════════════════════
-  // DEFAULT APP CONFIG — seeded when both Firebase and GAS return zero rows
-  // ═══════════════════════════════════════════════════════════════════════
-  var _DEFAULT_APP_CONFIG = [
-    { key: 'CARD_PREFIX',            value: 'FLOCK',   description: 'Member card number prefix (1-10 alphanumeric chars)',  category: 'Members' },
-    { key: 'GLOBAL_THEME',           value: 'default', description: 'Church-wide theme override (default = member choice)', category: 'Display' },
-    { key: 'FONT_SCALE',             value: '100',     description: 'Desktop font scale percentage',                        category: 'Display' },
-    { key: 'FONT_SCALE_MOBILE',      value: '100',     description: 'Mobile font scale percentage',                         category: 'Display' },
-    { key: 'QUIZ_SIZE',              value: '10',      description: 'Number of questions per quiz session',                 category: 'Learning' },
-    { key: 'MAINTENANCE_MODE',       value: 'FALSE',   description: 'Put the app in maintenance lockdown (TRUE/FALSE)',     category: 'System' },
-    { key: 'TWILIO_ENABLED',         value: 'FALSE',   description: 'Enable Twilio SMS notifications (TRUE/FALSE)',         category: 'Notifications' },
-    { key: 'ALLOW_SELF_REGISTER',    value: 'FALSE',   description: 'Allow new users to self-register (TRUE/FALSE)',        category: 'Access' },
-    { key: 'DEFAULT_ROLE',           value: 'member',  description: 'Role assigned to new registrations',                  category: 'Access' },
-    { key: 'BACKUP_ROW_LIMIT',       value: '5000',    description: 'Max rows per sheet tab in database backups',           category: 'System' },
-    { key: 'GIVING_CURRENCY',        value: 'USD',     description: 'Currency code for giving/pledges display',            category: 'Giving' },
-    { key: 'ATTENDANCE_AUTO_CLOSE',  value: '180',     description: 'Minutes before a check-in session auto-closes',       category: 'Attendance' },
-    { key: 'PRAYER_MAX_DAYS',        value: '30',      description: 'Days before unanswered prayers are auto-archived',    category: 'Prayer' },
-    { key: 'SERMON_UPLOAD_ENABLED',  value: 'FALSE',   description: 'Enable sermon file upload to cloud storage',          category: 'Sermons' },
-    { key: 'CHURCH_LOGO',            value: '',        description: 'URL of the church logo image',                        category: 'Display' },
-    { key: 'CHURCH_WEBSITE',         value: '',        description: 'Public website URL for the church',                   category: 'Church Info' },
-    { key: 'CHURCH_PHONE',           value: '',        description: 'Main church phone number',                            category: 'Church Info' },
-    { key: 'CHURCH_ADDRESS',         value: '',        description: 'Physical address of the church',                      category: 'Church Info' },
-    { key: 'CHURCH_EMAIL',           value: '',        description: 'Main contact email for the church',                   category: 'Church Info' },
-    { key: 'COMMS_MODE',             value: 'sheets',  description: 'Primary database mode: sheets or firebase',           category: 'System' },
-  ];
-
-  // ═══════════════════════════════════════════════════════════════════════
   // ADMIN DASHBOARD — GO BIG
   // ═══════════════════════════════════════════════════════════════════════
   const _SCRATCH_KEY = 'flock_admin_scratchpad';
@@ -20066,8 +18757,7 @@ const Modules = (() => {
 
   _def('admin-dashboard', async (el, session) => {
     var s = session || (typeof TheVine !== 'undefined' ? TheVine.session() : null);
-    var _hasAdminAccess = s && (typeof Nehemiah !== 'undefined' ? Nehemiah.canAccess('admin-dashboard') : TheVine.hasRole('admin'));
-    if (!_hasAdminAccess) {
+    if (!s || !TheVine.hasRole('admin')) {
       el.innerHTML = '<div style="text-align:center;padding:80px 20px;">'
         + '<div style="font-size:3rem;margin-bottom:12px;">&#128274;</div>'
         + '<p style="color:var(--ink-muted);">Admin access required.</p></div>';
@@ -20084,80 +18774,6 @@ const Modules = (() => {
     try { tasks = JSON.parse(localStorage.getItem(_ADMIN_TASKS_KEY) || '[]'); } catch (_) { tasks = []; }
 
     // ── Render skeleton instantly ────────────────────────────────────────
-    // Paint the full UI shell with local-only content first, then fill
-    // server-dependent sections (KPIs, care, events, etc.) progressively.
-
-    // Quick Actions grid
-    var qaButtons = [
-      { icon: '&#9881;&#65039;', label: 'Settings',         nav: 'config' },
-      { icon: '&#128101;',       label: 'Users',             nav: 'users' },
-      { icon: '&#128202;',       label: 'Statistics',        nav: 'statistics' },
-      { icon: '&#128196;',       label: 'Reports',           nav: 'reports' },
-      { icon: '&#128270;',       label: 'Audit Log',         nav: 'audit' },
-      { icon: '&#128030;',       label: 'Problems',          nav: 'problems' },
-      { icon: '&#128591;',       label: 'Prayers',           nav: 'prayer-admin' },
-      { icon: '&#127925;',       label: 'Music Stand',       nav: 'service-hub' },
-      { icon: '&#128197;',       label: 'Calendar',          nav: 'calendar' },
-      { icon: '&#128100;',       label: 'Directory',         nav: 'directory' },
-      { icon: '&#128640;',       label: 'Deploy Guide',      nav: 'deployment-guide' },
-      { icon: '&#9989;&#65039;', label: 'Great Commission',  href: 'the_great_commission.html' },
-      { icon: '&#9881;&#65039;', label: 'Generate Deploy',   href: 'bezalel.html' },
-    ];
-    var qaHtml = _adCard('&#128640; Quick Actions',
-      '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:7px;">'
-      + qaButtons.map(function (b) {
-          var action = b.href
-            ? 'window.location.href=\'' + b.href + '\''
-            : 'Modules._adGoTo(\'' + b.nav + '\',\'' + b.label + '\')'
-          return '<button onclick="' + action + '" style="display:flex;align-items:center;gap:6px;'
-            + 'padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:var(--bg);'
-            + 'color:var(--ink);cursor:pointer;font-size:0.77rem;font-family:inherit;text-align:left;">'
-            + '<span style="font-size:1rem;">' + b.icon + '</span>'
-            + _e(b.label) + '</button>';
-        }).join('')
-      + '</div>');
-
-    var connHtml = '<div id="ad-conn-card">' + _adCard('&#128268; Database Connection',
-      '<div style="font-size:0.78rem;color:var(--ink-muted);padding:4px 0;">Checking connection\u2026</div>') + '</div>';
-
-    // Scratchpad + Quick Tasks (local data only)
-    var scratchHtml = _adCard('&#128221; Scratchpad',
-      '<textarea id="ad-scratch" rows="5" style="width:100%;background:var(--bg);color:var(--ink);'
-      + 'border:1px solid var(--line);border-radius:8px;padding:10px;font-size:0.83rem;font-family:inherit;'
-      + 'resize:vertical;box-sizing:border-box;" placeholder="Quick notes, thoughts, reminders\u2026">'
-      + _e(scratch) + '</textarea>'
-      + '<button onclick="Modules._adSaveScratch()" style="margin-top:8px;padding:7px 18px;border-radius:8px;'
-      + 'border:none;background:var(--accent);color:var(--ink-inverse);font-weight:600;font-size:0.8rem;cursor:pointer;font-family:inherit;">Save Notes</button>');
-
-    var tasksHtml = _adCard('&#9745; Quick Tasks',
-      '<div style="display:flex;gap:6px;margin-bottom:10px;">'
-      + '<input id="ad-task-input" type="text" placeholder="Add a task\u2026" style="flex:1;padding:8px 10px;'
-      + 'border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font-size:0.83rem;box-sizing:border-box;"'
-      + ' onkeydown="if(event.key===\'Enter\')Modules._adAddTask()">'
-      + '<button onclick="Modules._adAddTask()" style="padding:8px 14px;border-radius:8px;border:none;'
-      + 'background:var(--accent);color:var(--ink-inverse);font-weight:600;cursor:pointer;font-size:0.83rem;font-family:inherit;">+</button>'
-      + '</div>'
-      + '<div id="ad-task-list" style="max-height:220px;overflow-y:auto;">' + _adRenderTasks(tasks) + '</div>');
-
-    // Font size config (local data only)
-    var curDesktop  = localStorage.getItem('flock_font_scale') || '100';
-    var curMobile   = localStorage.getItem('flock_font_scale_mobile') || '100';
-    var sizeOptions = ['75','90','100','110','125','150'];
-    var mkOpts = function (cur) {
-      return sizeOptions.map(function (sz) {
-        return '<option value="' + sz + '"' + (cur === sz ? ' selected' : '') + '>' + sz + '%' + (sz === '100' ? ' \u2013 Default' : '') + '</option>';
-      }).join('');
-    };
-    var fontHtml = _adCard('&#128295; Display &amp; Font Size',
-      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">'
-      + '<div><label style="font-size:0.75rem;font-weight:600;color:var(--ink-muted);display:block;margin-bottom:4px;">&#128421; Desktop</label>'
-      + '<select id="ad-font-desktop" style="width:100%;padding:7px 8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font-size:0.82rem;font-family:inherit;">' + mkOpts(curDesktop) + '</select></div>'
-      + '<div><label style="font-size:0.75rem;font-weight:600;color:var(--ink-muted);display:block;margin-bottom:4px;">&#128241; Mobile</label>'
-      + '<select id="ad-font-mobile" style="width:100%;padding:7px 8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font-size:0.82rem;font-family:inherit;">' + mkOpts(curMobile) + '</select></div>'
-      + '</div>'
-      + '<button onclick="Modules._adSaveFontSize()" style="margin-top:10px;padding:7px 18px;border-radius:8px;border:none;background:var(--accent);color:var(--ink-inverse);font-weight:600;font-size:0.8rem;cursor:pointer;font-family:inherit;">Save Font Sizes</button>');
-
-    // Paint full skeleton — KPIs and data cards are placeholders
     el.innerHTML = '<div id="ad-root" style="max-width:1100px;margin:0 auto;padding:20px 16px;">'
       + '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;'
       + 'margin-bottom:20px;padding:20px 24px;background:linear-gradient(135deg,var(--accent-soft),var(--lilac-soft));'
@@ -20169,114 +18785,43 @@ const Modules = (() => {
       + '<div style="font-size:0.72rem;font-style:italic;color:var(--ink-muted);max-width:300px;text-align:right;line-height:1.55;">'
       + '&ldquo;Whatever you do, work at it with all your heart.&rdquo; &mdash; Col\u00a03:23'
       + '</div></div>'
-      + '<div id="ad-kpis" style="margin-bottom:18px;"><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;">'
-      + _adKpi('Active Members', '\u2026', 'var(--ink-muted)', '&#128101;')
-      + '<div id="ad-kpi-prayer">' + _adKpi('Open Prayers', '\u2026', 'var(--ink-muted)', '&#128591;') + '</div>'
-      + _adKpi('Urgent Care', '\u2026', 'var(--ink-muted)', '&#10084;')
-      + _adKpi('Open Compassion', '\u2026', 'var(--ink-muted)', '&#128230;')
-      + _adKpi('Events (14d)', '\u2026', 'var(--ink-muted)', '&#128197;')
-      + _adKpi('Giving (30d)', '\u2026', 'var(--ink-muted)', '&#128176;')
-      + '</div></div>'
-      + '<div id="ad-body" style="display:flex;flex-direction:column;gap:16px;">'
-      + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">'
-      + '<div>' + qaHtml + '</div>'
-      + '<div>' + connHtml + '</div>'
+      + '<div id="ad-kpis" style="margin-bottom:18px;">' + _spinner() + '</div>'
+      + '<div id="ad-body" style="display:grid;grid-template-columns:1fr 320px;gap:16px;">'
+      + '<div id="ad-left">' + _spinner() + '</div>'
+      + '<div id="ad-right">' + _spinner() + '</div>'
       + '</div>'
-      + '<style>@media(max-width:700px){#ad-body>div:first-child{grid-template-columns:1fr !important}.ad-pair{grid-template-columns:1fr !important}}</style>'
-      + '<div id="ad-data-cards">' + _spinner() + '</div>'
-      + '<div class="ad-pair" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">'
-      + '<div>' + scratchHtml + '</div>'
-      + '<div>' + tasksHtml + '</div>'
-      + '</div>'
-      + fontHtml
-      + '</div>'
+      + '<style>#ad-body{grid-template-columns:1fr 320px}@media(max-width:860px){#ad-body{grid-template-columns:1fr!important}}</style>'
       + '</div>';
 
-    // ── Async: connection card ──────────────────────────────────────────
-    _adRefreshConnCard();
+    try {
+      var results = await Promise.all([
+        (_isFirebaseComms() ? UpperRoom.listMembers({ limit: 2000 }) : TheVine.flock.members.list({ limit: 2000 })).catch(function () { return null; }),
+        (_isFirebaseComms() ? UpperRoom.listPrayers({ limit: 500 }) : TheVine.flock.prayer.list({ limit: 500 })).catch(function () { return null; }),
+        (_isFirebaseComms() ? UpperRoom.listCareCases({ limit: 500 }) : TheVine.flock.care.list({ limit: 500 })).catch(function () { return null; }),
+        (_isFirebaseComms() ? UpperRoom.listCompassionRequests({ limit: 200 }) : TheVine.flock.compassion.requests.list({ limit: 200 })).catch(function () { return null; }),
+        (_isFirebaseComms() ? UpperRoom.listEvents({ limit: 100 }) : TheVine.flock.events.list({ limit: 100 })).catch(function () { return null; }),
+        (_isFirebaseComms() ? UpperRoom.listGiving({ limit: 200 }) : TheVine.flock.giving.list({ limit: 200 })).catch(function () { return null; }),
+        TheVine.flock.call('audit.list', { limit: 30 }).catch(function () { return null; }),
+        TheVine.flock.todo.list({ limit: 300 }).catch(function () { return null; }),
+      ]);
 
-    // ── Async: fire all data queries in background, fill DOM when ready ─
-    var _prayerPromise = (_isFirebaseComms() ? UpperRoom.listPrayers({ limit: 500 }) : TheVine.flock.prayer.list({ limit: 500 })).catch(function () { return null; });
-
-    // Fill prayer KPI independently
-    _prayerPromise.then(function (res) {
-      var prayers = _rows(res);
-      var count = prayers.filter(function (p) {
-        return !['answered','closed','archived'].includes(String(p.status || '').toLowerCase());
-      }).length;
-      var pEl = document.getElementById('ad-kpi-prayer');
-      if (pEl) pEl.innerHTML = _adKpi('Open Prayers', count, count > 0 ? 'var(--lilac)' : 'var(--ink-muted)', '&#128591;');
-    });
-
-    // Church Vault card — seed admin only (async)
-    if (_isSeedAdmin()) {
-      var _vCid = '';
-      try { _vCid = UpperRoom.churchId() || ''; } catch(_e_) {}
-      if (_vCid) {
-        firebase.firestore().collection('churchVault').doc(_vCid).get().then(function(snap) {
-          var vaultEl = document.getElementById('ad-vault-card');
-          if (!vaultEl) return;
-          var data = snap.exists ? snap.data() : {};
-          var notes = data.notes || '';
-          var creds = data.credentials || [];
-          var html = '';
-          if (notes) {
-            html += '<div style="font-size:0.82rem;color:var(--ink);white-space:pre-wrap;word-break:break-word;margin-bottom:10px;padding:8px;background:var(--bg-alt,var(--bg));border-radius:6px;border:1px solid var(--line);">' + _e(notes) + '</div>';
-          }
-          if (creds.length) {
-            html += '<div style="display:flex;flex-direction:column;gap:5px;">';
-            creds.forEach(function(c) {
-              html += '<div style="display:flex;align-items:center;gap:7px;font-size:0.81rem;">'
-                + '<span style="font-weight:600;color:var(--ink);min-width:110px;flex-shrink:0;">' + _e(c.label || '') + '</span>'
-                + '<span style="font-family:monospace;color:var(--ink-muted);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + _e(c.value || '') + '">\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022</span>'
-                + '<button onclick="var s=this.previousElementSibling;s.textContent=s.textContent===\'' + _e(c.value || '').replace(/'/g,"\\'") + '\'?\'\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\':\'' + _e(c.value || '').replace(/'/g,"\\'") + '\'" style="padding:2px 8px;font-size:0.72rem;border:1px solid var(--line);border-radius:4px;background:none;color:var(--ink);cursor:pointer;">Show</button>'
-                + '</div>';
-            });
-            html += '</div>';
-          }
-          if (!notes && !creds.length) html = '<div style="font-size:0.78rem;color:var(--ink-muted);">No vault record for this church yet.</div>';
-          if (data.updatedAt && data.updatedBy) {
-            var vd = data.updatedAt.toDate ? data.updatedAt.toDate() : new Date(data.updatedAt);
-            html += '<div style="font-size:0.7rem;color:var(--ink-muted);margin-top:8px;">Saved ' + vd.toLocaleDateString() + ' by ' + _e(data.updatedBy) + '</div>';
-          }
-          html += '<div style="margin-top:10px;"><a href="the_great_commission.html#vault" style="font-size:0.78rem;color:var(--accent);">Edit in Great Commission \u2197</a></div>';
-          vaultEl.innerHTML = _adCard('&#128272; Church Vault', html);
-        }).catch(function(vaultErr) {
-          console.error('[FLOCK-DEBUG] Church Vault read failed:', vaultErr);
-          var card = document.getElementById('ad-vault-card');
-          if (card) card.innerHTML = _adCard('&#128272; Church Vault',
-            '<div style="font-size:0.78rem;color:var(--danger);">&#9888;&#65039; Could not load vault: '
-            + _e(vaultErr && vaultErr.message ? vaultErr.message : 'Permission denied') + '</div>');
-        });
-      }
-    }
-
-    // Main data queries — fill KPIs and data cards when ready (non-blocking)
-    Promise.all([
-      (_isFirebaseComms() ? UpperRoom.listMembers({ limit: 500 }) : TheVine.flock.members.list({ limit: 500 })).catch(function () { return null; }),
-      (_isFirebaseComms() ? UpperRoom.listCareCases({ limit: 500 }) : TheVine.flock.care.list({ limit: 500 })).catch(function () { return null; }),
-      (_isFirebaseComms() ? UpperRoom.listCompassionRequests({ limit: 200 }) : TheVine.flock.compassion.requests.list({ limit: 200 })).catch(function () { return null; }),
-      (_isFirebaseComms() ? UpperRoom.listEvents({ limit: 100 }) : TheVine.flock.events.list({ limit: 100 })).catch(function () { return null; }),
-      (_isFirebaseComms() ? UpperRoom.listGiving({ limit: 200 }) : TheVine.flock.giving.list({ limit: 200 })).catch(function () { return null; }),
-      (_isFirebaseComms() ? UpperRoom.listAudit({ limit: 30 }) : TheVine.flock.call('audit.list', { limit: 30 })).catch(function () { return null; }),
-      TheVine.flock.todo.list({ limit: 300 }).catch(function () { return null; }),
-      (typeof firebase !== 'undefined' ? firebase.firestore().collection('problems')
-        .where('status', 'in', ['Open', 'In Progress'])
-        .orderBy('createdAt', 'desc').limit(50).get() : Promise.resolve(null)).catch(function () { return null; }),
-    ]).then(function (results) {
-      var members      = _rows(results[0]);
-      var careCases    = _rows(results[1]);
-      var compassions  = _rows(results[2]);
-      var events       = _rows(results[3]);
-      var givings      = _rows(results[4]);
-      var audits       = _rows(results[5]);
-      var todos        = _rows(results[6]);
-      var openProblems = results[7] ? results[7].docs.map(function(d) { return Object.assign({ _id: d.id }, d.data()); }) : [];
+      var members     = _rows(results[0]);
+      var prayers     = _rows(results[1]);
+      var careCases   = _rows(results[2]);
+      var compassions = _rows(results[3]);
+      var events      = _rows(results[4]);
+      var givings     = _rows(results[5]);
+      var audits      = _rows(results[6]);
+      var todos       = _rows(results[7]);
 
       // ── KPI calculations ─────────────────────────────────────────────────
       var activeMembers = members.filter(function (m) {
         return !['inactive','archived','removed'].includes(String(m.status || '').toLowerCase());
       }).length || members.length;
+
+      var openPrayer = prayers.filter(function (p) {
+        return !['answered','closed','archived'].includes(String(p.status || '').toLowerCase());
+      }).length;
 
       var urgentCare = careCases.filter(function (c) {
         return String(c.priority || '').toLowerCase() === 'urgent'
@@ -20291,17 +18836,17 @@ const Modules = (() => {
       var in7  = new Date(now.getTime() +  7 * 24 * 60 * 60 * 1000);
 
       var upcoming = events.filter(function (e) {
-        var d = _localDate(e.eventDate || e.startDate || e.date);
+        var d = new Date(e.eventDate || e.startDate || e.date || '');
         return !isNaN(d.getTime()) && d >= now && d <= in14;
       }).sort(function (a, b) {
-        return _localDate(a.eventDate || a.startDate || a.date)
-             - _localDate(b.eventDate || b.startDate || b.date);
+        return new Date(a.eventDate || a.startDate || a.date || 0)
+             - new Date(b.eventDate || b.startDate || b.date || 0);
       });
 
       var cutoff30 = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
       var giving30 = 0;
       givings.forEach(function (g) {
-        var d = _localDate(g.date || g.transactionDate || g.createdAt);
+        var d = new Date(g.date || g.transactionDate || g.createdAt || '');
         if (!isNaN(d.getTime()) && d >= cutoff30) giving30 += Number(g.amount || 0);
       });
 
@@ -20310,12 +18855,12 @@ const Modules = (() => {
         return t.dueDate && new Date(t.dueDate) < now;
       });
 
-      // ── Fill KPI Ribbon ──────────────────────────────────────────────────
+      // ── KPI Ribbon ───────────────────────────────────────────────────────
       var kpiEl = document.getElementById('ad-kpis');
       if (kpiEl) {
         kpiEl.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;">'
           + _adKpi('Active Members',  activeMembers,                    'var(--accent)',              '&#128101;')
-          + '<div id="ad-kpi-prayer">' + _adKpi('Open Prayers', '\u2026', 'var(--ink-muted)', '&#128591;') + '</div>'
+          + _adKpi('Open Prayers',    openPrayer,    openPrayer  > 0  ? 'var(--lilac)' : 'var(--ink-muted)', '&#128591;')
           + _adKpi('Urgent Care',     urgentCare,    urgentCare  > 0  ? 'var(--danger)' : 'var(--ink-muted)', '&#10084;')
           + _adKpi('Open Compassion', openCompassion, openCompassion > 0 ? 'var(--peach)' : 'var(--ink-muted)', '&#128230;')
           + _adKpi('Events (14d)',    upcoming.length,                  'var(--mint)',                '&#128197;')
@@ -20323,8 +18868,8 @@ const Modules = (() => {
           + '</div>';
       }
 
-      // ── Fill data cards ──────────────────────────────────────────────────
-      var cardsHtml = '';
+      // ── Left Column ──────────────────────────────────────────────────────
+      var leftHtml = '';
 
       // Urgent care alert
       var urgentCaseRows = careCases.filter(function (c) {
@@ -20332,7 +18877,7 @@ const Modules = (() => {
           && !['closed','resolved','archived'].includes(String(c.status || '').toLowerCase());
       }).slice(0, 5);
       if (urgentCaseRows.length) {
-        cardsHtml += _adCard('&#128680; Urgent Care Cases',
+        leftHtml += _adCard('&#128680; Urgent Care Cases',
           urgentCaseRows.map(function (c) {
             return '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);">'
               + '<div>'
@@ -20344,19 +18889,18 @@ const Modules = (() => {
           }).join(''));
       }
 
-      // Events + Problems — side-by-side on desktop
-      var eventsHtml = '';
+      // This week's events
       var next7Events = events.filter(function (e) {
-        var d = _localDate(e.eventDate || e.startDate || e.date);
+        var d = new Date(e.eventDate || e.startDate || e.date || '');
         return !isNaN(d.getTime()) && d >= now && d <= in7;
       }).sort(function (a, b) {
-        return _localDate(a.eventDate || a.startDate || a.date)
-             - _localDate(b.eventDate || b.startDate || b.date);
+        return new Date(a.eventDate || a.startDate || a.date || 0)
+             - new Date(b.eventDate || b.startDate || b.date || 0);
       }).slice(0, 6);
       if (next7Events.length) {
-        eventsHtml = _adCard('&#128197; This Week\u2019s Events',
+        leftHtml += _adCard('&#128197; This Week\u2019s Events',
           next7Events.map(function (e) {
-            var d = _localDate(e.eventDate || e.startDate || e.date);
+            var d = new Date(e.eventDate || e.startDate || e.date || '');
             var dayLabel = isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
             return '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);">'
               + '<div style="min-width:52px;text-align:center;background:var(--bg-sunken);border-radius:8px;padding:4px 6px;flex-shrink:0;">'
@@ -20371,45 +18915,9 @@ const Modules = (() => {
           }).join(''));
       }
 
-      // Open Problems
-      var pBadgeColor  = { Critical: 'var(--danger)', High: 'var(--danger)', Medium: 'var(--warning,#f59e0b)', Low: 'var(--ink-muted)' };
-      var pStatusColor = { 'Open': 'var(--danger)', 'In Progress': 'var(--warning,#f59e0b)' };
-      var problemRows = openProblems.slice(0, 6).map(function(p) {
-        var pColor = pBadgeColor[p.priority]  || 'var(--ink-muted)';
-        var sColor = pStatusColor[p.status]   || 'var(--ink-muted)';
-        var ghLink = p.githubIssueNumber
-          ? ' <a href="https://github.com/flock-os/FlockOS/issues/' + _e(String(p.githubIssueNumber)) + '" target="_blank" rel="noopener noreferrer" style="color:var(--accent);font-size:0.72rem;">#' + _e(String(p.githubIssueNumber)) + ' \u2197</a>'
-          : '';
-        return '<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--line);">'
-          + '<div style="width:7px;height:7px;border-radius:50%;background:' + pColor + ';flex-shrink:0;"></div>'
-          + '<div style="flex:1;min-width:0;">'
-          + '<div style="font-size:0.84rem;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _e(p.title || '\u2014') + ghLink + '</div>'
-          + '<div style="font-size:0.71rem;color:' + pColor + ';">' + _e(p.priority || '') + (p.assignedTo ? '<span style="color:var(--ink-muted);"> \u2022 ' + _e(p.assignedTo) + '</span>' : '') + '</div>'
-          + '</div>'
-          + '<span style="font-size:0.68rem;padding:2px 7px;border-radius:12px;background:' + sColor + ';color:#fff;white-space:nowrap;">' + _e(p.status || '') + '</span>'
-          + '</div>';
-      }).join('');
-      if (!openProblems.length) {
-        problemRows = '<div style="font-size:0.82rem;color:var(--ink-muted);padding:6px 0;">\u2705 No open problems.</div>';
-      } else if (openProblems.length > 6) {
-        problemRows += '<div style="font-size:0.73rem;color:var(--ink-muted);padding:5px 0;">' + (openProblems.length - 6) + ' more\u2026</div>';
-      }
-      problemRows += '<div style="margin-top:10px;display:flex;gap:6px;">'
-        + '<button onclick="Modules._problemsNew()" style="padding:6px 14px;border-radius:8px;border:none;background:var(--accent);color:var(--ink-inverse);font-weight:600;font-size:0.78rem;cursor:pointer;font-family:inherit;">+ New Problem</button>'
-        + '<button onclick="Modules._adGoTo(\'problems\',\'Problems\')" style="padding:6px 14px;border-radius:8px;border:1px solid var(--line);background:none;color:var(--ink);font-size:0.78rem;cursor:pointer;font-family:inherit;">View All \u2197</button>'
-        + '</div>';
-      var problemsHtml = _adCard('&#128030; Open Problems (' + openProblems.length + ')', problemRows);
-
-      if (eventsHtml || problemsHtml) {
-        cardsHtml += '<div class="ad-pair" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">'
-          + '<div>' + (eventsHtml || '') + '</div>'
-          + '<div>' + problemsHtml + '</div>'
-          + '</div>';
-      }
-
       // Overdue tasks
       if (overdueTodos.length) {
-        cardsHtml += _adCard('&#9888;&#65039; Overdue Tasks (' + overdueTodos.length + ')',
+        leftHtml += _adCard('&#9888;&#65039; Overdue Tasks (' + overdueTodos.length + ')',
           overdueTodos.slice(0, 5).map(function (t) {
             var due = t.dueDate ? new Date(t.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
             return '<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--line);">'
@@ -20420,17 +18928,63 @@ const Modules = (() => {
           }).join(''));
       }
 
+      // Scratchpad
+      leftHtml += _adCard('&#128221; Scratchpad',
+        '<textarea id="ad-scratch" rows="5" style="width:100%;background:var(--bg);color:var(--ink);'
+        + 'border:1px solid var(--line);border-radius:8px;padding:10px;font-size:0.83rem;font-family:inherit;'
+        + 'resize:vertical;box-sizing:border-box;" placeholder="Quick notes, thoughts, reminders\u2026">'
+        + _e(scratch) + '</textarea>'
+        + '<button onclick="Modules._adSaveScratch()" style="margin-top:8px;padding:7px 18px;border-radius:8px;'
+        + 'border:none;background:var(--accent);color:var(--ink-inverse);font-weight:600;font-size:0.8rem;cursor:pointer;font-family:inherit;">Save Notes</button>');
+
+      // Quick Tasks
+      leftHtml += _adCard('&#9745; Quick Tasks',
+        '<div style="display:flex;gap:6px;margin-bottom:10px;">'
+        + '<input id="ad-task-input" type="text" placeholder="Add a task\u2026" style="flex:1;padding:8px 10px;'
+        + 'border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font-size:0.83rem;box-sizing:border-box;"'
+        + ' onkeydown="if(event.key===\'Enter\')Modules._adAddTask()">'
+        + '<button onclick="Modules._adAddTask()" style="padding:8px 14px;border-radius:8px;border:none;'
+        + 'background:var(--accent);color:var(--ink-inverse);font-weight:600;cursor:pointer;font-size:0.83rem;font-family:inherit;">+</button>'
+        + '</div>'
+        + '<div id="ad-task-list" style="max-height:220px;overflow-y:auto;">' + _adRenderTasks(tasks) + '</div>');
+
+      // ── Right Column ─────────────────────────────────────────────────────
+      var rightHtml = '';
+
+      // Quick Actions grid
+      var qaButtons = [
+        { icon: '&#9881;&#65039;', label: 'Settings',      nav: 'config' },
+        { icon: '&#128101;',       label: 'Users',          nav: 'users' },
+        { icon: '&#128202;',       label: 'Statistics',     nav: 'statistics' },
+        { icon: '&#128196;',       label: 'Reports',        nav: 'reports' },
+        { icon: '&#128270;',       label: 'Audit Log',      nav: 'audit' },
+        { icon: '&#128591;',       label: 'Prayers',        nav: 'prayer-admin' },
+        { icon: '&#127925;',       label: 'Music Stand',    nav: 'service-hub' },
+        { icon: '&#128197;',       label: 'Calendar',       nav: 'calendar' },
+        { icon: '&#128100;',       label: 'Directory',      nav: 'directory' },
+        { icon: '&#128640;',       label: 'Deploy Guide',   nav: 'deployment-guide' },
+      ];
+      rightHtml += _adCard('&#128640; Quick Actions',
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:7px;">'
+        + qaButtons.map(function (b) {
+            return '<button onclick="navigate(\'' + b.nav + '\')" style="display:flex;align-items:center;gap:6px;'
+              + 'padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:var(--bg);'
+              + 'color:var(--ink);cursor:pointer;font-size:0.77rem;font-family:inherit;text-align:left;">'
+              + '<span style="font-size:1rem;">' + b.icon + '</span>'
+              + _e(b.label) + '</button>';
+          }).join('')
+        + '</div>');
+
       // Recent Activity (audit log)
       if (audits.length) {
         var feedItems = audits.slice(0, 14).map(function (a) {
           var action = String(a.action || a.event || a.type || '').replace(/\./g, ' ');
           var actor  = _e(a.actorName || a.actor || a.email || a.performedBy || '');
           var target = _e(String(a.targetName || a.target || a.details || '').substring(0, 52));
-          var ts     = a.timestamp || a.ts || a.createdAt || a.date || '';
+          var ts     = a.timestamp || a.createdAt || a.date || '';
           var when   = '';
           if (ts) {
-            var tsDate = ts.toDate ? ts.toDate() : new Date(ts);
-            var tdiff = Math.round((now - tsDate) / 60000);
+            var tdiff = Math.round((now - new Date(ts)) / 60000);
             if (!isNaN(tdiff)) {
               when = tdiff < 1 ? 'just now'
                    : tdiff < 60 ? tdiff + 'm ago'
@@ -20448,282 +19002,35 @@ const Modules = (() => {
             + (when ? '<div style="font-size:0.67rem;color:var(--ink-faint);white-space:nowrap;padding-left:4px;">' + _e(when) + '</div>' : '')
             + '</div>';
         }).join('');
-        cardsHtml += _adCard('&#128336; Recent Activity', '<div style="max-height:260px;overflow-y:auto;">' + feedItems + '</div>');
+        rightHtml += _adCard('&#128336; Recent Activity', '<div style="max-height:260px;overflow-y:auto;">' + feedItems + '</div>');
       }
 
-      // Vault placeholder (async-filled above)
-      if (_isSeedAdmin()) {
-        var _vc = '';
-        try { _vc = UpperRoom.churchId() || ''; } catch(_) {}
-        if (_vc) {
-          cardsHtml += '<div id="ad-vault-card">' + _adCard('&#128272; Church Vault',
-            '<div style="font-size:0.78rem;color:var(--ink-muted);padding:4px 0;">Loading vault\u2026</div>') + '</div>';
-        }
-      }
+      // Font size config (condensed)
+      var curDesktop  = localStorage.getItem('flock_font_scale') || '100';
+      var curMobile   = localStorage.getItem('flock_font_scale_mobile') || '100';
+      var sizeOptions = ['75','90','100','110','125','150'];
+      var mkOpts = function (cur) {
+        return sizeOptions.map(function (sz) {
+          return '<option value="' + sz + '"' + (cur === sz ? ' selected' : '') + '>' + sz + '%' + (sz === '100' ? ' \u2013 Default' : '') + '</option>';
+        }).join('');
+      };
+      rightHtml += _adCard('&#128295; Display &amp; Font Size',
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">'
+        + '<div><label style="font-size:0.75rem;font-weight:600;color:var(--ink-muted);display:block;margin-bottom:4px;">&#128421; Desktop</label>'
+        + '<select id="ad-font-desktop" style="width:100%;padding:7px 8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font-size:0.82rem;font-family:inherit;">' + mkOpts(curDesktop) + '</select></div>'
+        + '<div><label style="font-size:0.75rem;font-weight:600;color:var(--ink-muted);display:block;margin-bottom:4px;">&#128241; Mobile</label>'
+        + '<select id="ad-font-mobile" style="width:100%;padding:7px 8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font-size:0.82rem;font-family:inherit;">' + mkOpts(curMobile) + '</select></div>'
+        + '</div>'
+        + '<button onclick="Modules._adSaveFontSize()" style="margin-top:10px;padding:7px 18px;border-radius:8px;border:none;background:var(--accent);color:var(--ink-inverse);font-weight:600;font-size:0.8rem;cursor:pointer;font-family:inherit;">Save Font Sizes</button>');
 
-      var dataEl = document.getElementById('ad-data-cards');
-      if (dataEl) dataEl.innerHTML = cardsHtml || '<div style="font-size:0.82rem;color:var(--ink-muted);padding:8px 0;">No data cards to display.</div>';
-    }).catch(function (e) {
-      console.error('[FLOCK-DEBUG] Admin Hub data load error:', e);
-      var dataEl = document.getElementById('ad-data-cards');
-      if (dataEl) dataEl.innerHTML = _errHtml(e.message);
-    });
+      document.getElementById('ad-left').innerHTML  = leftHtml;
+      document.getElementById('ad-right').innerHTML = rightHtml;
+
+    } catch (e) {
+      var errEl = document.getElementById('ad-left');
+      if (errEl) errEl.innerHTML = _errHtml(e.message);
+    }
   });
-
-  // ── Connection diagnostics card — resolves asynchronously ──────────────
-  async function _adRefreshConnCard() {
-    var el = document.getElementById('ad-conn-card');
-    if (!el) return;
-    // Show spinner while running
-    el.innerHTML = _adCard('&#128268; Database Connection',
-      '<div style="font-size:0.78rem;color:var(--ink-muted);padding:4px 0;">&#9203; Testing connections\u2026</div>');
-    el.innerHTML = _adCard('&#128268; Database Connection', await _adConnectionCard());
-  }
-
-  async function _adConnectionCard() {
-    // ── 0. GitHub Issues API ping ─────────────────────────────────────────
-    var ghStatus = 'pending', ghLatency = null, ghErrorDetail = '', ghNote = '';
-    try {
-      var ghT0 = performance.now();
-      var ghResp = await fetch('https://api.github.com/repos/flock-os/FlockOS',
-        { headers: { 'Accept': 'application/vnd.github.v3+json' } });
-      ghLatency = Math.round(performance.now() - ghT0);
-      if (ghResp.ok) {
-        ghStatus = 'online';
-        try {
-          var ghData = await ghResp.json();
-          ghNote = 'Open issues: ' + (ghData.open_issues_count || 0)
-                 + (ghData.private ? ' — private repo' : ' — public repo');
-        } catch (_) {}
-      } else if (ghResp.status === 404) {
-        // Private repo — API is reachable but repo is not publicly visible
-        ghStatus = 'online';
-        ghNote = 'Private repo — API reachable. Token auth handled server-side.';
-      } else if (ghResp.status === 403) {
-        ghStatus = 'degraded';
-        ghErrorDetail = 'GitHub rate-limited or forbidden (HTTP 403)';
-      } else {
-        ghStatus = 'degraded';
-        ghErrorDetail = 'HTTP ' + ghResp.status;
-      }
-    } catch (ghErr) {
-      ghStatus = 'offline';
-      ghErrorDetail = ghErr && ghErr.message ? ghErr.message : 'Network error';
-    }
-
-    // ── 1. GAS health ping (FLOCK branch) ────────────────────────────────
-    var gasStatus = 'pending', gasLatency = null, gasUrl = '';
-    var gasErrorDetail = '';
-    try {
-      gasUrl = (typeof TheVine !== 'undefined') ? (TheVine.endpoints().FLOCK_URL || '') : '';
-      if (!gasUrl || gasUrl === '(not configured)') {
-        gasStatus = 'not configured';
-      } else {
-        var t0 = performance.now();
-        var gasResult = await TheVine.health('flock');
-        gasLatency = Math.round(performance.now() - t0);
-        gasStatus  = gasResult ? 'online' : 'offline';
-        if (!gasResult) gasErrorDetail = 'GAS returned a non-OK response. The Web App may need to be redeployed.';
-      }
-    } catch (err) {
-      gasStatus = 'offline';
-      gasErrorDetail = err && err.message ? err.message : 'Request failed';
-    }
-
-    // ── 2. Firebase / Firestore status ───────────────────────────────────
-    var fbAuthError = '';
-    if (typeof UpperRoom !== 'undefined') {
-      if (!UpperRoom.isReady()) {
-        try {
-          await UpperRoom.init();
-          await UpperRoom.authenticate();
-        } catch (fbErr) {
-          fbAuthError = fbErr && fbErr.message ? fbErr.message : String(fbErr);
-        }
-      }
-      // Re-read comms mode during connection test to clear stale values,
-      // but preserve the current value as fallback if the refresh fails.
-      if (UpperRoom.isReady()) {
-        var _prevMode = _commsMode;
-        _commsMode = null;
-        _commsModePromise = null;
-        try { await _loadCommsMode(); } catch (_) {
-          if (!_commsMode && _prevMode) _commsMode = _prevMode;
-        }
-      }
-    }
-    var fbReady = typeof UpperRoom !== 'undefined' && UpperRoom.isReady();
-    var fbMode  = _isFirebaseComms();
-    var fbProjectId = '';
-    try {
-      if (typeof firebase !== 'undefined' && firebase.app) {
-        fbProjectId = firebase.app().options.projectId || '';
-      }
-    } catch (_) {}
-
-    // ── 3. Sync doc check (Type C vs D) ──────────────────────────────────
-    // Primary: read Firestore settings/sync doc. This may be blocked by security rules
-    // (syncSecret is sensitive), so we fall back to the configured FLOCK_URL.
-    var hasSyncDoc = false;
-    var syncEndpoint = '';
-    if (fbReady && fbMode) {
-      try {
-        var churchId = UpperRoom.churchId();
-        if (churchId && typeof firebase !== 'undefined') {
-          var _fdb = firebase.firestore();
-          var syncDoc = await _fdb.collection('churches').doc(churchId)
-            .collection('settings').doc('sync').get();
-          if (syncDoc.exists) {
-            var sd = syncDoc.data();
-            hasSyncDoc  = !!(sd.gasEndpoint || sd.syncSecret);
-            syncEndpoint = sd.gasEndpoint || '';
-          }
-        }
-      } catch (_) {}
-      // Fallback: if Firestore read was blocked by rules, infer from configured GAS endpoint
-      if (!hasSyncDoc && gasUrl) {
-        hasSyncDoc   = true;
-        syncEndpoint = syncEndpoint || gasUrl;
-      }
-    }
-
-    // ── 4. Determine connection type ─────────────────────────────────────
-    var type, typeName, typeColor, typeDesc;
-    if (!fbReady) {
-      type = 'A'; typeName = 'GAS Only';
-      typeColor = 'var(--warning,#f59e0b)';
-      typeDesc  = 'Google Apps Script / Sheets is the sole database. All reads, writes, and auth route through the GAS endpoint.';
-    } else if (!fbMode) {
-      type = 'B'; typeName = 'GAS + Firestore Backup';
-      typeColor = 'var(--peach,#fb923c)';
-      typeDesc  = 'GAS/Sheets is primary. Firebase is initialized but not in primary mode. An hourly GAS trigger can mirror Firestore \u2192 Sheet.';
-    } else if (hasSyncDoc) {
-      type = 'D'; typeName = 'Full Real-Time Sync';
-      typeColor = 'var(--success,#4ade80)';
-      typeDesc  = 'Firestore is primary. Cloud Functions mirror every write to Sheets in real time via the GAS sync endpoint.';
-    } else {
-      type = 'C'; typeName = 'Firebase Primary';
-      typeColor = 'var(--mint,#34d399)';
-      typeDesc  = 'Firestore is the real-time database for all app modules. Auth tokens are still minted by GAS.';
-    }
-
-    // ── 5. Build HTML ─────────────────────────────────────────────────────
-    function _connRow(label, icon, statusStr, latMs, detail, url, noteHtml) {
-      var isOnline = statusStr === 'online' || statusStr === 'configured';
-      var isOff    = statusStr === 'offline' || statusStr === 'not configured';
-      var dotClr   = isOnline ? 'var(--success,#4ade80)' : isOff ? 'var(--danger,#f87171)' : 'var(--warning,#f59e0b)';
-      var dotChar  = isOnline ? '\u25cf' : isOff ? '\u25cf' : '\u25d4';
-      var latLabel = latMs !== null ? latMs + 'ms' : '';
-
-      var rowHtml = '<div style="display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);">'
-        + '<div style="margin-top:2px;font-size:0.85rem;color:' + dotClr + ';flex-shrink:0;">' + dotChar + '</div>'
-        + '<div style="flex:1;min-width:0;">'
-        + '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">'
-        + '<span style="font-size:0.82rem;font-weight:700;color:var(--ink);">' + icon + ' ' + _e(label) + '</span>'
-        + '<span style="font-size:0.68rem;padding:2px 8px;border-radius:20px;background:' + dotClr + ';color:' + (isOnline ? '#000' : '#fff') + ';font-weight:700;">'
-        + _e(statusStr.toUpperCase()) + '</span>'
-        + (latLabel ? '<span style="font-size:0.68rem;color:var(--ink-muted);">' + _e(latLabel) + '</span>' : '')
-        + '</div>';
-
-      if (url && url !== '(not configured)') {
-        var displayUrl = url.length > 52 ? url.substring(0, 52) + '\u2026' : url;
-        rowHtml += '<div style="font-size:0.68rem;color:var(--ink-muted);font-family:monospace;margin-top:2px;word-break:break-all;">'
-          + _e(displayUrl) + '</div>';
-      }
-      if (detail) {
-        rowHtml += '<div style="font-size:0.72rem;color:var(--danger,#f87171);margin-top:3px;">\u26a0\ufe0f ' + _e(detail) + '</div>';
-      }
-      if (noteHtml) {
-        rowHtml += '<div style="font-size:0.71rem;color:var(--ink-muted);margin-top:3px;line-height:1.45;">' + noteHtml + '</div>';
-      }
-      rowHtml += '</div></div>';
-      return rowHtml;
-    }
-
-    var html = '';
-
-    // Connection type badge row
-    html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;'
-      + 'padding:10px 12px;background:var(--bg-sunken);border-radius:8px;border-left:3px solid ' + typeColor + ';">'
-      + '<div style="width:32px;height:32px;border-radius:50%;border:2px solid ' + typeColor + ';display:flex;align-items:center;justify-content:center;flex-shrink:0;">'
-      + '<span style="font-size:0.88rem;font-weight:900;color:' + typeColor + ';">' + _e(type) + '</span>'
-      + '</div>'
-      + '<div>'
-      + '<div style="font-size:0.85rem;font-weight:700;color:var(--ink);">Type ' + _e(type) + ' \u2014 ' + _e(typeName) + '</div>'
-      + '<div style="font-size:0.72rem;color:var(--ink-muted);line-height:1.45;margin-top:1px;">' + _e(typeDesc) + '</div>'
-      + '</div></div>';
-
-    // GAS row — always shown first (runs auth for all types)
-    html += _connRow(
-      'Apps Script (GAS)',
-      '&#128196;',
-      gasStatus,
-      gasLatency,
-      gasErrorDetail,
-      gasUrl,
-      '<strong style="color:var(--ink);">Auth always runs here</strong> \u2014 GAS mints tokens and handles SMS for every connection type.'
-    );
-
-    // Firebase row
-    if (fbReady) {
-      html += _connRow(
-        'Firebase / Firestore',
-        '&#128293;',
-        'online',
-        null,
-        '',
-        fbProjectId ? 'Project: ' + fbProjectId : '',
-        fbMode
-          ? 'Firestore is the <strong style="color:var(--ink);">primary database</strong> for all real-time app modules.'
-          : 'Firebase is initialized but GAS/Sheets is primary (<em>commsMode = sheets</em>).'
-      );
-    } else {
-      html += _connRow(
-        'Firebase / Firestore',
-        '&#128293;',
-        'not connected',
-        null,
-        fbAuthError || 'Auth failed — see browser console for details.',
-        fbProjectId || '',
-        'Firebase is not initialized or not authenticated in this session.'
-      );
-    }
-
-    // Sync doc row (Type D only)
-    if (fbMode) {
-      html += _connRow(
-        'Cloud Fn \u2192 Sheet Sync',
-        '&#9889;',
-        hasSyncDoc ? 'configured' : 'not configured',
-        null,
-        '',
-        syncEndpoint || '',
-        hasSyncDoc
-          ? 'Real-time Firestore\u2192Sheet mirroring is active via Cloud Functions.'
-          : 'No <code>settings/sync</code> doc found. Add <code>gasEndpoint</code> + <code>syncSecret</code> to enable Type D sync.'
-      );
-    }
-
-    // GitHub Issues row
-    html += _connRow(
-      'GitHub Issues Sync',
-      '&#128030;',
-      ghStatus,
-      ghLatency,
-      ghErrorDetail,
-      'https://github.com/flock-os/FlockOS/issues',
-      ghNote || 'Problems sync via <code>syncProblems</code> Cloud Function. Token auth is server-side only.'
-    );
-
-    // Re-test button
-    html += '<div style="margin-top:10px;text-align:right;">'
-      + '<button onclick="Modules._adRefreshConnCard()" style="font-size:0.75rem;padding:5px 14px;'
-      + 'border-radius:6px;border:1px solid var(--line);background:none;color:var(--ink-muted);'
-      + 'cursor:pointer;font-family:inherit;">&#8635; Re-test</button>'
-      + '</div>';
-
-    return html;
-  }
 
   function _adRenderTasks(tasks) {
     if (!tasks.length) return '<div style="color:var(--ink-muted);font-size:0.82rem;padding:8px 0;">No tasks yet.</div>';
@@ -20782,39 +19089,12 @@ const Modules = (() => {
     if (window._applyFontScale) window._applyFontScale();
     // Also save to server config if available
     if (typeof TheVine !== 'undefined') {
-      if (dSel) _updateAppCfg({ key: 'FONT_SCALE', value: dSel.value }).catch(function(){});
-      if (mSel) _updateAppCfg({ key: 'FONT_SCALE_MOBILE', value: mSel.value }).catch(function(){});
+      if (dSel) (_isFirebaseComms() ? UpperRoom.updateAppConfig : TheVine.flock.config.update)({ key: 'FONT_SCALE', value: dSel.value }).catch(function(){});
+      if (mSel) (_isFirebaseComms() ? UpperRoom.updateAppConfig : TheVine.flock.config.update)({ key: 'FONT_SCALE_MOBILE', value: mSel.value }).catch(function(){});
     }
     _toast('Font sizes saved.');
   }
 
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // ADMIN HUB SUB-NAVIGATION
-  // ══════════════════════════════════════════════════════════════════════════
-  // Called by Admin Hub Quick Actions — navigates to a sub-module and inserts
-  // a sticky "← Admin Hub" back bar so the user can return without hunting the nav.
-  function _adGoTo(name, label) {
-    // Inject (or replace) the back bar into the top of #main
-    var main = document.getElementById('main');
-    var existing = document.getElementById('ad-back-bar');
-    if (existing) existing.remove();
-    if (main) {
-      var bar = document.createElement('div');
-      bar.id = 'ad-back-bar';
-      bar.style.cssText = 'position:sticky;top:0;z-index:200;background:var(--bg);'
-        + 'border-bottom:1px solid var(--line);padding:7px 20px;display:flex;'
-        + 'align-items:center;gap:10px;';
-      bar.innerHTML = '<button onclick="navigate(\'admin-dashboard\');" '
-        + 'style="display:flex;align-items:center;gap:5px;padding:5px 12px;'
-        + 'border-radius:6px;border:1px solid var(--line);background:none;'
-        + 'color:var(--accent);cursor:pointer;font-size:0.78rem;font-weight:600;'
-        + 'font-family:inherit;">&#8592; Admin Hub</button>'
-        + '<span style="font-size:0.78rem;color:var(--ink-muted);">/ ' + _e(label) + '</span>';
-      main.insertBefore(bar, main.firstChild);
-    }
-    if (typeof navigate === 'function') navigate(name);
-  }
 
   // ══════════════════════════════════════════════════════════════════════════
   // FULLSCREEN TOGGLE
@@ -20838,56 +19118,13 @@ const Modules = (() => {
    * Render a module into the given element.
    * Called by navigate() in index.html.
    * Returns true if a module renderer was found, false otherwise.
-   *
-   * Adaptive behavior:
-   *   • If a fresh cached copy exists (within TTL), show it instantly
-   *     and skip the network fetch. The user can pull-to-refresh or
-   *     re-tap the nav to force a fresh load.
-   *   • TTL is backend-aware: 30s for Firestore, 2min for GAS.
    */
   function render(name, el, session) {
-    console.log('[FLOCK-DEBUG] render("' + name + '") called — _commsMode=' + _commsMode + ', session=' + !!(session && session.email));
-    if (!_reg[name]) { console.warn('[FLOCK-DEBUG] render("' + name + '") — NOT REGISTERED'); return false; }
-    if (!_isModuleEnabled(name)) { console.warn('[FLOCK-DEBUG] render("' + name + '") — DISABLED'); return false; }
-
-    // Resolve backend profile on first render (session is known by now)
-    _perfDetect();
-
-    // Auto-initialize empty Firestore DB on first render
-    if (!_dbInitChecked) _ensureDbInitialized();
-
-    // Serve from view cache if fresh — instant navigation
-    var cached = _viewCacheGet(name);
-    if (cached) {
-      console.log('[FLOCK-DEBUG] render("' + name + '") — SERVING FROM CACHE');
-      el.innerHTML = cached;
-      el.dataset.loaded = '1';
-      return true;
-    }
-
+    if (!_reg[name]) return false;
+    if (!_isModuleEnabled(name)) return false;
     el.dataset.loaded = '1';
-
-    // Do NOT show an external spinner here — each view handler manages its
-    // own loading state via _shell() / _body(). An external spinner races
-    // with _shell() and can overwrite the view's real DOM.
-
-    var _renderStart = Date.now();
-    _loadCommsMode().catch(function() {}).then(function() {
-      console.log('[FLOCK-DEBUG] render("' + name + '") — executing view handler…');
-      return _reg[name](el, session);
-    }).then(function() {
-      console.log('[FLOCK-DEBUG] render("' + name + '") — COMPLETE (' + (Date.now() - _renderStart) + 'ms)');
-      // Cache the rendered view for quick re-navigation
-      _viewCacheSet(name, el);
-    }).catch(err => {
-      console.error('[FLOCK-DEBUG] render("' + name + '") — ERROR:', err);
-      el.innerHTML =
-        '<div style="padding:48px 24px;text-align:center;">'
-        + '<div style="font-size:2.4rem;margin-bottom:12px;">&#9888;&#65039;</div>'
-        + '<h2 style="font-size:1rem;font-weight:700;color:var(--danger);margin-bottom:8px;">This module could not load</h2>'
-        + '<p style="font-size:0.84rem;color:var(--ink-muted);max-width:420px;margin:0 auto 20px;line-height:1.6;">' + _e(err && err.message ? err.message : 'An unexpected error occurred.') + '</p>'
-        + '<button onclick="navigate(\'' + name + '\')" style="background:var(--accent);color:var(--ink-inverse);border:none;border-radius:7px;padding:8px 18px;font:inherit;font-weight:600;cursor:pointer;">&#8635; Retry</button>'
-        + '</div>';
+    Promise.resolve(_reg[name](el, session)).catch(err => {
+      console.error('Module error [' + name + ']:', err);
     });
     return true;
   }
@@ -20897,146 +19134,6 @@ const Modules = (() => {
   _def('content-admin', async (el, s) => { await TheTruth.render(el, s); });
 
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // PROBLEMS — Issue tracker synced to GitHub Issues
-  // ══════════════════════════════════════════════════════════════════════════
-  _def('problems', async function(el, session) {
-    var s = session || (typeof TheVine !== 'undefined' ? TheVine.session() : null);
-    if (!s || (!TheVine.hasRole('admin') && !(typeof Nehemiah !== 'undefined' && (Nehemiah.hasGroup('Master') || Nehemiah.hasGroup('Seed Admin') || Nehemiah.hasGroup('Lead Pastor'))))) {
-      el.innerHTML = '<div style="text-align:center;padding:80px 20px;">'
-        + '<div style="font-size:3rem;margin-bottom:12px;">&#128274;</div>'
-        + '<p style="color:var(--ink-muted);">Admin access required.</p></div>';
-      return;
-    }
-
-    el.innerHTML =
-      '<div class="page-header">'
-      + '<h1>\uD83D\uDC1B Problems</h1>'
-      + '<p>Log issues and track them to completion \u2014 each problem syncs to a GitHub Issue automatically.</p>'
-      + '<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">'
-      + '<button onclick="Modules._problemsNew()" style="padding:8px 18px;border-radius:8px;border:none;'
-      + 'background:var(--accent);color:var(--ink-inverse);font-weight:600;cursor:pointer;font-size:0.85rem;font-family:inherit;">'
-      + '+ New Problem</button>'
-      + '<a href="https://github.com/flock-os/FlockOS/issues" target="_blank" rel="noopener noreferrer" '
-      + 'style="display:inline-flex;align-items:center;gap:5px;padding:8px 16px;border-radius:8px;'
-      + 'border:1px solid var(--line);color:var(--ink);font-size:0.85rem;text-decoration:none;">'
-      + '&#128279; View on GitHub &#8599;</a>'
-      + '</div></div>'
-      + '<div id="ml-body">' + _spinner() + '</div>';
-    var main = document.getElementById('main'); if (main) main.scrollTop = 0;
-
-    await _problemsRefresh();
-  });
-
-  async function _problemsRefresh() {
-    var body = document.getElementById('ml-body');
-    if (!body) return;
-    try {
-      var fdb  = firebase.firestore();
-      var snap = await fdb.collection('problems').orderBy('createdAt', 'desc').limit(200).get();
-      var rows = snap.docs.map(function(d) { return Object.assign({ _id: d.id }, d.data()); });
-
-      if (!rows.length) {
-        body.innerHTML = _empty('\uD83D\uDC1B', 'No problems logged', 'Click "+ New Problem" to log your first issue. It will appear as a GitHub Issue automatically.');
-        return;
-      }
-
-      var html = '<div style="overflow-x:auto;"><table class="data-table"><thead><tr>'
-        + '<th>Title</th><th>Priority</th><th>Status</th><th>Assigned To</th><th>GitHub</th><th>Logged</th>'
-        + '</tr></thead><tbody>';
-
-      rows.forEach(function(r) {
-        var pBadge = { Critical: 'danger', High: 'danger', Medium: 'warn', Low: 'info' }[r.priority] || 'info';
-        var sBadge = { 'Open': 'danger', 'In Progress': 'warn', 'Closed': 'success' }[r.status] || 'info';
-        var created = '';
-        if (r.createdAt) {
-          var d = r.createdAt.toDate ? r.createdAt.toDate() : new Date(r.createdAt);
-          created = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-        }
-        var ghLink = r.githubIssueNumber
-          ? '<a href="https://github.com/flock-os/FlockOS/issues/' + _e(String(r.githubIssueNumber)) + '" '
-            + 'target="_blank" rel="noopener noreferrer" style="color:var(--accent);font-size:0.8rem;">'
-            + '#' + _e(String(r.githubIssueNumber)) + ' &#8599;</a>'
-          : '<span style="color:var(--ink-muted);font-size:0.75rem;">Pending\u2026</span>';
-        html += '<tr data-edit-id="' + _e(r._id) + '" onclick="Modules._problemsEdit(\'' + _e(r._id) + '\')">'
-          + '<td style="font-weight:600;">' + _e(r.title || '\u2014') + '</td>'
-          + '<td>' + _badge(r.priority || 'Medium', pBadge) + '</td>'
-          + '<td>' + _badge(r.status   || 'Open',   sBadge) + '</td>'
-          + '<td>' + _e(r.assignedTo || '\u2014') + '</td>'
-          + '<td>' + ghLink + '</td>'
-          + '<td style="font-size:0.78rem;color:var(--ink-muted);">' + _e(created || '\u2014') + '</td>'
-          + '</tr>';
-      });
-
-      html += '</tbody></table></div>';
-      body.innerHTML = html;
-    } catch (e) {
-      body.innerHTML = _errHtml(e.message);
-    }
-  }
-
-  function _problemsNew() {
-    _modal('\uD83D\uDC1B New Problem', [
-      { name: 'title',       label: 'Title',       type: 'text',     required: true },
-      { name: 'description', label: 'Description', type: 'textarea', rows: 4 },
-      { name: 'priority',    label: 'Priority',    type: 'select',   value: 'Medium',
-        options: ['Low', 'Medium', 'High', 'Critical'] },
-      { name: 'status',      label: 'Status',      type: 'select',   value: 'Open',
-        options: ['Open', 'In Progress', 'Closed'] },
-      { name: 'assignedTo',  label: 'Assigned To (optional)', type: 'text' },
-    ], async function(data) {
-      var s   = typeof TheVine !== 'undefined' ? TheVine.session() : null;
-      var fdb = firebase.firestore();
-      await fdb.collection('problems').add({
-        title:       data.title,
-        description: data.description || '',
-        priority:    data.priority,
-        status:      data.status,
-        assignedTo:  data.assignedTo || '',
-        createdBy:   s ? (s.displayName || s.email || '') : '',
-        createdAt:   firebase.firestore.FieldValue.serverTimestamp(),
-        updatedAt:   firebase.firestore.FieldValue.serverTimestamp(),
-      });
-      _toast('Problem logged \u2014 syncing to GitHub\u2026');
-      var el = document.getElementById('view-problems');
-      if (el) { delete el.dataset.loaded; Modules.render('problems', el); }
-    });
-  }
-
-  function _problemsEdit(id) {
-    firebase.firestore().collection('problems').doc(id).get()
-      .then(function(doc) {
-        if (!doc.exists) { _toast('Problem not found.', 'danger'); return; }
-        var r = doc.data();
-        _modal('\u270E Edit Problem', [
-          { name: 'title',       label: 'Title',       type: 'text',     required: true, value: r.title || '' },
-          { name: 'description', label: 'Description', type: 'textarea', rows: 4,        value: r.description || '' },
-          { name: 'priority',    label: 'Priority',    type: 'select',   value: r.priority || 'Medium',
-            options: ['Low', 'Medium', 'High', 'Critical'] },
-          { name: 'status',      label: 'Status',      type: 'select',   value: r.status || 'Open',
-            options: ['Open', 'In Progress', 'Closed'] },
-          { name: 'assignedTo',  label: 'Assigned To (optional)', type: 'text', value: r.assignedTo || '' },
-        ], async function(data) {
-          await firebase.firestore().collection('problems').doc(id).update({
-            title:       data.title,
-            description: data.description || '',
-            priority:    data.priority,
-            status:      data.status,
-            assignedTo:  data.assignedTo || '',
-            updatedAt:   firebase.firestore.FieldValue.serverTimestamp(),
-          });
-          _toast('Problem updated \u2014 syncing to GitHub\u2026');
-          var el = document.getElementById('view-problems');
-          if (el) { delete el.dataset.loaded; Modules.render('problems', el); }
-        }, async function() {
-          await firebase.firestore().collection('problems').doc(id).delete();
-          _toast('Problem deleted.');
-          var el = document.getElementById('view-problems');
-          if (el) { delete el.dataset.loaded; Modules.render('problems', el); }
-        });
-      })
-      .catch(function(e) { _toast(e.message, 'danger'); });
-  }
 
 
   // ── Background preload — warm caches before user clicks ──────────────
@@ -21046,112 +19143,6 @@ const Modules = (() => {
     if (!_isFirebaseComms()) { _fetch('comms-inbox', () => TheVine.flock.comms.messages.inbox({ limit: 60 }), _TTL.msg).catch(() => {}); }
     if (typeof TheSeason !== 'undefined' && TheSeason.preload) TheSeason.preload();
   }, 1500);
-
-  // ══ Network Admin ═══════════════════════════════════════════════════════
-  // Registry of all known FlockOS deployments — embedded at build time.
-  var _networkChurches = [
-    { id: 'flockos',   name: 'FlockOS',               shortName: 'FlockOS',    version: '3.0', firebaseProject: null,
-      databaseUrl: 'https://script.google.com/macros/s/AKfycbx2pemG039LB609OlVY-OcqLWK75qRV2ZgZNyf4Oc7dGogCR2HC4C__iWUqlG9JfYLt/exec' },
-    { id: 'trinity',   name: 'Trinity Baptist Church', shortName: 'TBC',        version: '3.0', firebaseProject: 'flockos-trinity',
-      databaseUrl: 'https://script.google.com/macros/s/AKfycbwAFp0BQvt0DiDJBjzBrycMripfUHOkP0PwiB_DSXgGVezP_y8jCOVxZWweTp58gai7/exec' },
-    { id: 'theforest', name: 'The Forest',             shortName: 'TheForest',  version: '3.0', firebaseProject: 'flockos-theforest',
-      databaseUrl: 'https://script.google.com/macros/s/AKfycbwH7HY6_HK8NnP2R4IXfhsVQYnyAhWRStV8t5KJwaD7pnga0QKNj1mxwX5OAYwxEKDI/exec' },
-  ];
-
-  function _networkRender(el) {
-    var refreshBtn = '<button onclick="Modules._networkRefresh()" style="padding:7px 16px;border-radius:8px;border:1px solid var(--line);background:none;color:var(--ink);font-size:0.82rem;cursor:pointer;font-family:inherit;">\u21BB Refresh</button>';
-    _shell(el, 'Network Admin', 'Monitor all connected FlockOS church deployments.', refreshBtn);
-
-    var html = '';
-    html += '<div class="cp-snapshot-grid" style="margin-bottom:20px;">';
-    html += '<div class="cp-snapshot-item"><div class="cp-snapshot-label">Deployments</div><div class="cp-snapshot-value">' + _networkChurches.length + '</div></div>';
-    html += '<div class="cp-snapshot-item"><div class="cp-snapshot-label">Online</div><div class="cp-snapshot-value" id="net-count-ok">\u2014</div></div>';
-    html += '<div class="cp-snapshot-item"><div class="cp-snapshot-label">Offline</div><div class="cp-snapshot-value" id="net-count-down">\u2014</div></div>';
-    html += '<div class="cp-snapshot-item"><div class="cp-snapshot-label">Avg Latency</div><div class="cp-snapshot-value" id="net-avg-latency">\u2014</div></div>';
-    html += '</div>';
-
-    html += '<div class="network-grid">';
-    _networkChurches.forEach(function(church) {
-      html += '<div class="network-card" id="net-card-' + _e(church.id) + '">';
-      html += '<div class="network-card-header">';
-      html += '<div><div class="network-card-name">' + _e(church.name) + '</div>';
-      html += '<div class="network-card-id">' + _e(church.shortName) + ' &mdash; v' + _e(church.version) + '</div></div>';
-      html += '<span class="network-pill network-pill-checking" id="net-pill-' + _e(church.id) + '">\u25CF Checking\u2026</span>';
-      html += '</div>';
-      html += '<div class="network-card-meta">';
-      html += '<div class="network-meta-row"><span class="network-meta-label">Firebase</span>';
-      if (church.firebaseProject) {
-        html += '<span class="network-meta-val">' + _e(church.firebaseProject) + '</span>';
-      } else {
-        html += '<span class="network-meta-muted">Not configured</span>';
-      }
-      html += '</div>';
-      html += '<div class="network-meta-row"><span class="network-meta-label">Endpoint</span>';
-      html += '<a href="' + _e(church.databaseUrl) + '" target="_blank" rel="noopener" class="network-meta-link">GAS Script \u2197</a></div>';
-      html += '</div>';
-      html += '<div class="network-card-latency" id="net-latency-' + _e(church.id) + '"></div>';
-      html += '</div>';
-    });
-    html += '</div>';
-
-    _body(el, html);
-
-    // Async ping all endpoints
-    var results = { ok: 0, down: 0, latencies: [] };
-    var pending = _networkChurches.length;
-
-    function _onResult() {
-      pending--;
-      if (pending > 0) return;
-      // Update summary row
-      var countOk  = document.getElementById('net-count-ok');
-      var countDwn = document.getElementById('net-count-down');
-      var avgLat   = document.getElementById('net-avg-latency');
-      if (countOk)  countOk.textContent  = String(results.ok);
-      if (countDwn) countDwn.textContent = String(results.down);
-      if (avgLat)   avgLat.textContent   = results.latencies.length
-        ? Math.round(results.latencies.reduce(function(a, b) { return a + b; }, 0) / results.latencies.length) + 'ms'
-        : '\u2014';
-    }
-
-    _networkChurches.forEach(function(church) {
-      var pill   = document.getElementById('net-pill-' + church.id);
-      var latEl  = document.getElementById('net-latency-' + church.id);
-      var t0     = Date.now();
-      var url    = church.databaseUrl + '?action=health&_nc=' + t0;
-
-      var controller = new AbortController();
-      var timer = setTimeout(function() { controller.abort(); }, 8000);
-
-      fetch(url, { method: 'GET', mode: 'no-cors', cache: 'no-store', signal: controller.signal })
-        .then(function() {
-          clearTimeout(timer);
-          var latency = Date.now() - t0;
-          results.ok++;
-          results.latencies.push(latency);
-          if (pill)  { pill.className = 'network-pill network-pill-ok'; pill.textContent = '\u25CF Online'; }
-          if (latEl) latEl.textContent = latency + 'ms';
-          _onResult();
-        })
-        .catch(function() {
-          clearTimeout(timer);
-          results.down++;
-          if (pill)  { pill.className = 'network-pill network-pill-down'; pill.textContent = '\u25CF Offline'; }
-          if (latEl) latEl.textContent = 'Unreachable';
-          _onResult();
-        });
-    });
-  }
-
-  var _networkEl = null;
-  function _networkRefresh() {
-    if (_networkEl) _networkRender(_networkEl);
-  }
-
-  _def('network', function(el) {
-    _networkEl = el;
-    _networkRender(el);
-  });
 
   return {
     render,
@@ -21164,22 +19155,9 @@ const Modules = (() => {
     _edit,
     _table,
     _toast,
-    _undoAction,
     _statusBadge,
     _bibleLink,
     _rows,
-    _printReport,
-    _rptPrintReport,
-    _givingStatementPrint,
-    _directoryPrint,
-    _attendancePrint,
-    _presenceStart,
-    _presenceStop,
-    _presenceWatch,
-    _presenceBadge,
-    _scheduleAdd,
-    _scheduleEdit,
-    _scheduleDelete,
 
     // Exposed create actions (called from inline onclick in module HTML)
     newGroup,
@@ -21229,7 +19207,7 @@ const Modules = (() => {
     _lrnRecNew, _lrnRecGenerate, _lrnRecAccept, _lrnRecDismiss,
     _lrnSermonSearch, _lrnSermonAdd,
     newTheologyCategory,
-    startQuiz, scoreQuiz, downloadQuizPDF, _quizNav, _quizSaveAnswer, _quizCertificate,
+    startQuiz, scoreQuiz, downloadQuizPDF,
     newMessage, replyMessage, forwardMessage, sendSms, newBroadcast, commsView,
     newDM,
     openMessage, deleteMessage, archiveMessage, markMessageUnread,
@@ -21257,16 +19235,7 @@ const Modules = (() => {
     newUser,
     newConfig,
     saveCardPrefix,
-    _saveIdentity,
-    _cfgFilter,
     _reloadConfig,
-    _configSeedFromGas,
-    _settingsTab,
-    _configTab: _settingsTab,
-    _masterConfigRender,
-    _masterConfigSaveRow,
-    _masterConfigReload,
-    _masterConfigPushAll,
     toggleLockdown,
     saveGlobalTheme,
     setPersonalTheme,
@@ -21374,8 +19343,6 @@ const Modules = (() => {
     _euSave,
     _euCreateMember,
     _euCreateCard,
-    _ppCopyPin,
-    _ppGenPin,
     _applyPermTemplate,
     _tabOnPermChkChange,
     _tabOnGrpChkChange,
@@ -21422,16 +19389,10 @@ const Modules = (() => {
     _adToggleTask,
     _adDeleteTask,
     _adSaveFontSize,
-    _adGoTo,
-    _problemsNew,
-    _problemsEdit,
     generateQR,
     showCardQR,
     geoCheckin,
     toggleFullscreen,
-    _viewCacheInvalidate,
-    _perfProfile,
-    _adRefreshConnCard,
 
   };
 
