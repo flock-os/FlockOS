@@ -204,6 +204,133 @@ const Modules = (() => {
          + '<h2>' + _e(title) + '</h2><p>' + _e(desc) + '</p></div>';
   }
 
+  // ── Pagination helpers ──────────────────────────────────────────────────
+  // Shared page-size picker + Prev / Next bar for list modules.
+  // Firebase path uses startAfter cursors; GAS path uses offset.
+  var _pgStates = {};
+  var _PG_SIZES = [25, 50, 75, 100];
+
+  // Get or initialize pager state for a module
+  function _pgState(id) {
+    if (!_pgStates[id]) {
+      _pgStates[id] = {
+        page: 0,               // current page number (0-based)
+        size: 25,              // page size
+        cursors: [null],       // Firebase cursor stack: cursors[n] = startAfter for page n
+        hasMore: false,        // true if more records exist beyond this page
+        total: null,           // total count (GAS only, when available)
+        count: 0,              // rows returned on current page
+      };
+    }
+    return _pgStates[id];
+  }
+
+  // Build the fetch opts for either Firebase or GAS path
+  function _pgFetchOpts(id) {
+    var s = _pgState(id);
+    if (_isFirebaseComms()) {
+      var o = { limit: s.size, paginate: true };
+      if (s.cursors[s.page]) o.startAfter = s.cursors[s.page];
+      return o;
+    }
+    // GAS path — offset-based
+    return { limit: s.size, offset: s.page * s.size };
+  }
+
+  // After fetching, update pager state with results
+  function _pgUpdate(id, res) {
+    var s = _pgState(id);
+    if (_isFirebaseComms()) {
+      // Paginated Firebase response: { results, lastDoc, hasMore }
+      if (res && res.lastDoc !== undefined) {
+        s.hasMore = !!res.hasMore;
+        s.count = (res.results || []).length;
+        if (res.lastDoc && s.hasMore) {
+          s.cursors[s.page + 1] = res.lastDoc;
+        }
+      } else {
+        // Plain array (legacy callers)
+        var arr = Array.isArray(res) ? res : [];
+        s.hasMore = arr.length >= s.size;
+        s.count = arr.length;
+      }
+    } else {
+      // GAS response — may include total from paginate()
+      var rows = _rows(res);
+      s.count = rows.length;
+      s.total = (res && res.total != null) ? res.total : null;
+      s.hasMore = rows.length >= s.size;
+    }
+  }
+
+  // Render the pagination bar HTML
+  function _pagerBar(id) {
+    var s = _pgState(id);
+    var from = s.page * s.size + 1;
+    var to = s.page * s.size + s.count;
+    var rangeText = s.count ? from + '–' + to : '0';
+    if (s.total != null) rangeText += ' of ' + s.total;
+
+    var html = '<div style="display:flex;align-items:center;gap:10px;padding:10px 0 2px;font-size:0.82rem;flex-wrap:wrap;">';
+
+    // Page-size picker
+    html += '<select onchange="Modules._pgSize(\'' + _e(id) + '\',+this.value)" '
+      + 'style="padding:4px 8px;border:1px solid var(--line);border-radius:5px;'
+      + 'background:var(--bg-raised);color:var(--ink);font-size:0.8rem;font-family:inherit;cursor:pointer;">';
+    _PG_SIZES.forEach(function(sz) {
+      html += '<option value="' + sz + '"' + (sz === s.size ? ' selected' : '') + '>' + sz + ' per page</option>';
+    });
+    html += '</select>';
+
+    // Range label
+    html += '<span style="color:var(--ink-muted);min-width:80px;text-align:center;">' + rangeText + '</span>';
+
+    // Prev
+    var prevDis = s.page === 0;
+    html += '<button onclick="Modules._pgPrev(\'' + _e(id) + '\')" '
+      + (prevDis ? 'disabled ' : '')
+      + 'style="padding:4px 10px;border:1px solid var(--line);border-radius:5px;'
+      + 'background:' + (prevDis ? 'var(--bg-sunken)' : 'var(--bg-raised)') + ';'
+      + 'color:' + (prevDis ? 'var(--ink-muted)' : 'var(--ink)') + ';'
+      + 'cursor:' + (prevDis ? 'default' : 'pointer') + ';font-size:0.8rem;font-family:inherit;">'
+      + '&#8249; Prev</button>';
+
+    // Next
+    var nextDis = !s.hasMore;
+    html += '<button onclick="Modules._pgNext(\'' + _e(id) + '\')" '
+      + (nextDis ? 'disabled ' : '')
+      + 'style="padding:4px 10px;border:1px solid var(--line);border-radius:5px;'
+      + 'background:' + (nextDis ? 'var(--bg-sunken)' : 'var(--bg-raised)') + ';'
+      + 'color:' + (nextDis ? 'var(--ink-muted)' : 'var(--ink)') + ';'
+      + 'cursor:' + (nextDis ? 'default' : 'pointer') + ';font-size:0.8rem;font-family:inherit;">'
+      + 'Next &#8250;</button>';
+
+    html += '</div>';
+    return html;
+  }
+
+  // Navigation handlers (exposed on Modules below)
+  function _pgNext(id) {
+    var s = _pgState(id);
+    if (!s.hasMore) return;
+    s.page++;
+    _reload(id);
+  }
+  function _pgPrev(id) {
+    var s = _pgState(id);
+    if (s.page <= 0) return;
+    s.page--;
+    _reload(id);
+  }
+  function _pgSize(id, newSize) {
+    var s = _pgState(id);
+    s.size = newSize;
+    s.page = 0;
+    s.cursors = [null];
+    s.hasMore = false;
+    _reload(id);
+  }
+
   // ── Inline SVG bar chart ────────────────────────────────────────────────
   // values: number[], labels: string[]|null
   // opts: { h, barColor, labelColor, showValues, maxVal }
@@ -2008,11 +2135,13 @@ const Modules = (() => {
     // ── Background async — fetch data and fill table when ready ──────────
     (async function _loadGroups() {
     try {
-      const res  = await _fetch('groups', () => _isFirebaseComms() ? UpperRoom.listGroups() : TheVine.flock.groups.list());
+      var pgO = _pgFetchOpts('groups');
+      const res  = await (_isFirebaseComms() ? UpperRoom.listGroups(pgO) : TheVine.flock.groups.list(pgO));
+      _pgUpdate('groups', res);
       const rows = _rows(res);
       _dataCache['groups'] = rows;
       var mLookup = _memberLookup();
-      if (!rows.length) { _body(el, _empty('&#128101;', 'No groups yet', 'Create your first small group to get started.')); return; }
+      if (!rows.length && _pgState('groups').page === 0) { _body(el, _empty('&#128101;', 'No groups yet', 'Create your first small group to get started.')); return; }
       var tableRows = rows.map(r => {
         var lid = r.leaderId || r.leader || r.leaderName || '';
         var leaderName = mLookup[lid] || mLookup[(lid || '').toLowerCase()] || lid;
@@ -2029,13 +2158,13 @@ const Modules = (() => {
       });
       var searchBar = '<div class="browse-search" style="margin-bottom:12px;">'
         + '<span class="browse-search-icon">&#128269;</span>'
-        + '<input type="text" class="browse-search-input" id="groups-search" placeholder="Search ' + rows.length + ' groups by name, type, leader, or location…" oninput="Modules._groupsFilter(this.value)">'
+        + '<input type="text" class="browse-search-input" id="groups-search" placeholder="Search groups…" oninput="Modules._groupsFilter(this.value)">'
         + '</div>';
       _body(el, searchBar + _table(
         ['Name', 'Type', 'Leader', 'Day / Time', 'Location', 'Members', 'Status'],
         tableRows,
         { editFn: 'editGroup', ids: rows.map(r => r.id), tableId: 'groups-table' }
-      ));
+      ) + _pagerBar('groups'));
     } catch (e) { _body(el, _errHtml(e.message)); }
     })();
   });
@@ -2059,14 +2188,16 @@ const Modules = (() => {
       _btn('Export Summary', "Modules.attendanceSummary()", false) +
       ' ' + _btn('📦 Print', "Modules._attendancePrint()"));
     try {
+      var pgO = _pgFetchOpts('attendance');
       const [listRes, sumRes] = await Promise.all([
-        _fetch('attendance', () => _isFirebaseComms() ? UpperRoom.listAttendance({ limit: 200 }) : TheVine.flock.attendance.list({ limit: 200 })),
+        (_isFirebaseComms() ? UpperRoom.listAttendance(pgO) : TheVine.flock.attendance.list(pgO)),
         _fetch('attendance-summary', () => _isFirebaseComms() ? UpperRoom.attendanceSummary() : TheVine.flock.attendance.summary({}), _TTL.ref).catch(() => null),
       ]);
+      _pgUpdate('attendance', listRes);
       const rows = _rows(listRes);
       _dataCache['attendance'] = rows;
 
-      if (!rows.length) { _body(el, _empty('&#128200;', 'No attendance records yet', 'Record your first service attendance to get started.')); return; }
+      if (!rows.length && _pgState('attendance').page === 0) { _body(el, _empty('&#128200;', 'No attendance records yet', 'Record your first service attendance to get started.')); return; }
 
       // ── Mini sparkline from summary ──────────────────────────────────
       var sparkHtml = '';
@@ -2111,7 +2242,7 @@ const Modules = (() => {
           _e(r.notes || ''),
         ]),
         { editFn: 'editAttendance', ids: rows.map(r => r.id), tableId: 'att-table' }
-      ));
+      ) + _pagerBar('attendance'));
     } catch (e) { _body(el, _errHtml(e.message)); }
   });
 
@@ -2144,7 +2275,9 @@ const Modules = (() => {
     _shell(el, 'Events', 'Upcoming services, activities & special events.',
       _btn('+ New Event', "Modules.newEvent()"));
     try {
-      const res  = await _fetch('events', () => _isFirebaseComms() ? UpperRoom.listEvents({ limit: 60 }) : TheVine.flock.events.list({ limit: 60 }));
+      var pgO = _pgFetchOpts('events');
+      const res  = await (_isFirebaseComms() ? UpperRoom.listEvents(pgO) : TheVine.flock.events.list(pgO));
+      _pgUpdate('events', res);
       const rows = _rows(res);
       _dataCache['events'] = rows;
       _body(el, _table(
@@ -2165,7 +2298,7 @@ const Modules = (() => {
           _statusBadge(r.status),
         ]),
         { editFn: 'editEvent', ids: rows.map(r => r.id) }
-      ));
+      ) + _pagerBar('events'));
     } catch (e) { _body(el, _errHtml(e.message)); }
   });
 
@@ -2321,11 +2454,13 @@ const Modules = (() => {
 
       } else {
         // list tab
-        const res  = await _fetch('sermons', () => _isFirebaseComms() ? UpperRoom.listSermons({ limit: 60 }) : TheVine.flock.sermons.list({ limit: 60 }));
+        var pgO = _pgFetchOpts('sermons');
+        const res  = await (_isFirebaseComms() ? UpperRoom.listSermons(pgO) : TheVine.flock.sermons.list(pgO));
+        _pgUpdate('sermons', res);
         const rows = _filterClosed(_rows(res));
         _dataCache['sermons'] = rows;
         let html = tabBar;
-        if (!rows.length) {
+        if (!rows.length && _pgState('sermons').page === 0) {
           html += _empty('&#128214;', 'No Sermons', 'Add your first sermon to get started.');
         } else {
           html += '<div style="background:var(--bg-sunken);border:1px solid var(--line);border-radius:10px;overflow:hidden;">';
@@ -2361,6 +2496,7 @@ const Modules = (() => {
           });
           html += '</div>';
         }
+        html += _pagerBar('sermons');
         _body(el, html);
       }
     } catch (e) { _body(el, _errHtml(e.message)); }
@@ -3413,7 +3549,9 @@ const Modules = (() => {
     _shell(el, 'Songs', 'Worship music catalog \u2014 browse, search & preview chord charts.', _btn('+ Add Song', 'Modules.newSong()'));
     var rows = [];
     try {
-      var res = await _fetch('songs', () => _isFirebaseComms() ? UpperRoom.listSongs() : TheVine.flock.call('songs.list', {}));
+      var pgO = _pgFetchOpts('songs');
+      var res = await (_isFirebaseComms() ? UpperRoom.listSongs(pgO) : TheVine.flock.call('songs.list', pgO));
+      _pgUpdate('songs', res);
       rows = _rows(res);
       _dataCache['songs'] = rows;
     } catch(e) { _body(el, _errHtml(e.message)); return; }
@@ -3429,6 +3567,7 @@ const Modules = (() => {
     var html = searchBar + '<div id="songs-list" style="display:flex;flex-direction:column;gap:6px;">';
     rows.forEach(function(r) { html += _buildSongCard(r); });
     html += '</div>';
+    html += _pagerBar('songs');
     _body(el, html);
   });
 
@@ -3704,7 +3843,9 @@ const Modules = (() => {
 
       } else {
         // list tab
-        const res  = await _fetch('ministries', () => _isFirebaseComms() ? UpperRoom.listMinistries() : TheVine.flock.ministries.list());
+        var pgO = _pgFetchOpts('ministries');
+        const res  = await (_isFirebaseComms() ? UpperRoom.listMinistries(pgO) : TheVine.flock.ministries.list(pgO));
+        _pgUpdate('ministries', res);
         const rows = _rows(res);
         _dataCache['ministries'] = rows;
         let html = tabBar;
@@ -3721,6 +3862,7 @@ const Modules = (() => {
           ]),
           { editFn: 'editMinistry', ids: rows.map(r => r.id) }
         );
+        html += _pagerBar('ministries');
         _body(el, html);
       }
     } catch (e) { _body(el, _errHtml(e.message)); }
@@ -3820,10 +3962,12 @@ const Modules = (() => {
     _shell(el, 'Volunteers', 'Volunteer schedule & team assignments.',
       _btn('+ Schedule Volunteer', "Modules.newVolunteer()"));
     try {
+      var pgO = _pgFetchOpts('volunteers');
       const [volRes, dirRes] = await Promise.all([
-        _fetch('volunteers', () => _isFirebaseComms() ? UpperRoom.listVolunteers({ limit: 60 }) : TheVine.flock.volunteers.list({ limit: 60 })),
+        (_isFirebaseComms() ? UpperRoom.listVolunteers(pgO) : TheVine.flock.volunteers.list(pgO)),
         _ensureMemberDir()
       ]);
+      _pgUpdate('volunteers', volRes);
       const rows = _rows(volRes);
       const dir  = _rows(dirRes);
       // Build memberId → display name lookup
@@ -3855,7 +3999,7 @@ const Modules = (() => {
           ];
         }),
         { editFn: 'editVolunteer', ids: rows.map(r => r.id) }
-      ));
+      ) + _pagerBar('volunteers'));
     } catch (e) { _body(el, _errHtml(e.message)); }
   });
 
@@ -9397,7 +9541,9 @@ const Modules = (() => {
 
       } else {
         // gifts tab — API fields: memberId, donorName, amount, currency, date, fund, method, checkNumber, transactionRef, isTaxDeductible, notes
-        const res  = await (_isFirebaseComms() ? UpperRoom.listGiving({ limit: 60 }) : TheVine.flock.giving.list({ limit: 60 }));
+        var pgO = _pgFetchOpts('giving');
+        const res  = await (_isFirebaseComms() ? UpperRoom.listGiving(pgO) : TheVine.flock.giving.list(pgO));
+        _pgUpdate('giving', res);
         const rows = _rows(res);
         _dataCache['giving'] = rows;
         let html = tabBar;
@@ -9414,6 +9560,7 @@ const Modules = (() => {
           ]),
           { editFn: 'editGift', ids: rows.map(r => r.id) }
         );
+        html += _pagerBar('giving');
         _body(el, html);
       }
     } catch (e) { _body(el, _errHtml(e.message)); }
@@ -21340,6 +21487,9 @@ const Modules = (() => {
     _mirrorSaveToNotes,
     _groupsFilter,
     _attFilter,
+    _pgNext,
+    _pgPrev,
+    _pgSize,
     _urSaveJournal,
     _urSubmitPrayer,
     _geneToggleView,

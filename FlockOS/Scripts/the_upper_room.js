@@ -68,6 +68,34 @@
     return _db;
   }
   var _churchDoc = _churchRef;
+
+  /* ── Universal pagination helper ──────────────────────────────────── */
+  var _DEFAULT_PAGE = 25;
+  /**
+   * Apply startAfter cursor + limit to a query, execute, and return either
+   * a plain array (legacy callers) or { results, lastDoc, hasMore, total? }.
+   *   q      – Firestore query (already has orderBy)
+   *   opts   – caller opts: { limit, startAfter, paginate, ...extras }
+   *   mapFn  – optional: function(doc) → row  (default: doc.data() + id)
+   */
+  function _paginatedGet(q, opts, mapFn) {
+    opts = opts || {};
+    var lim = opts.limit || _DEFAULT_PAGE;
+    q = q.limit(lim);
+    if (opts.startAfter) q = q.startAfter(opts.startAfter);
+    var _map = mapFn || function(doc) { var d = doc.data(); d.id = doc.id; return d; };
+    return q.get().then(function(snap) {
+      var results = [];
+      snap.forEach(function(doc) { results.push(_map(doc)); });
+      if (!opts.startAfter && !opts.paginate) return results;
+      return {
+        results: results,
+        lastDoc: snap.docs.length ? snap.docs[snap.docs.length - 1] : null,
+        hasMore: snap.docs.length === lim
+      };
+    });
+  }
+
   function _convosRef() {
     return _churchRef().collection('conversations');
   }
@@ -750,7 +778,8 @@
     if (!opts.allUsers && _userEmail) {
       q = q.where('createdBy', '==', _userEmail);
     }
-    q = q.orderBy('submittedAt', 'desc').limit(opts.limit || 100);
+    q = q.orderBy('submittedAt', 'desc').limit(opts.limit || _DEFAULT_PAGE);
+    if (opts.startAfter) q = q.startAfter(opts.startAfter);
     console.log('[FLOCK-DEBUG] UpperRoom.listPrayers() executing query…');
     var _lpStart = Date.now();
     return q.get().then(function(snap) {
@@ -761,7 +790,8 @@
         results.push(d);
       });
       console.log('[FLOCK-DEBUG] UpperRoom.listPrayers() DONE: ' + results.length + ' rows in ' + (Date.now() - _lpStart) + 'ms');
-      return results;
+      if (!opts.startAfter && !opts.paginate) return results;
+      return { results: results, lastDoc: snap.docs.length ? snap.docs[snap.docs.length - 1] : null, hasMore: snap.docs.length === (opts.limit || _DEFAULT_PAGE) };
     });
   }
 
@@ -835,16 +865,8 @@
 
   function listTodos(opts) {
     opts = opts || {};
-    var q = _todosRef().orderBy('createdAt', 'desc').limit(opts.limit || 200);
-    return q.get().then(function(snap) {
-      var results = [];
-      snap.forEach(function(doc) {
-        var d = doc.data();
-        d.id = doc.id;
-        results.push(d);
-      });
-      return results;
-    });
+    var q = _todosRef().orderBy('createdAt', 'desc');
+    return _paginatedGet(q, opts);
   }
 
   function myTodos() {
@@ -1127,19 +1149,9 @@
 
   function listMembers(opts) {
     opts = opts || {};
-    var q = _membersRef().orderBy('lastName').limit(opts.limit || 25);
+    var q = _membersRef().orderBy('lastName');
     if (opts.membershipStatus) q = q.where('membershipStatus', '==', opts.membershipStatus);
-    if (opts.startAfter) q = q.startAfter(opts.startAfter);
-    return q.get().then(function(snap) {
-      var results = [];
-      snap.forEach(function(doc) {
-        var d = doc.data(); d.id = doc.id; results.push(d);
-      });
-      var out = { results: results, lastDoc: snap.docs.length ? snap.docs[snap.docs.length - 1] : null, hasMore: snap.docs.length === (opts.limit || 25) };
-      // Legacy: callers that expect a plain array get one (no startAfter = old behavior)
-      if (!opts.startAfter && !opts.paginate) return results;
-      return out;
-    });
+    return _paginatedGet(q, opts);
   }
 
   function getMember(idOrEmail) {
@@ -1338,19 +1350,10 @@
 
   function listMemberCards(opts) {
     opts = opts || {};
-    var q = _memberCardsRef().orderBy('lastName').limit(opts.limit || 25);
+    var q = _memberCardsRef().orderBy('lastName');
     if (opts.status) q = q.where('status', '==', opts.status);
     if (opts.visibility) q = q.where('visibility', '==', opts.visibility);
-    if (opts.startAfter) q = q.startAfter(opts.startAfter);
-    return q.get().then(function(snap) {
-      var results = [];
-      snap.forEach(function(doc) {
-        var d = doc.data(); d.id = doc.id; results.push(d);
-      });
-      var out = { results: results, lastDoc: snap.docs.length ? snap.docs[snap.docs.length - 1] : null, hasMore: snap.docs.length === (opts.limit || 25) };
-      if (!opts.startAfter && !opts.paginate) return results;
-      return out;
-    });
+    return _paginatedGet(q, opts);
   }
 
   function getMemberCard(idOrNumber) {
@@ -1449,11 +1452,9 @@
 
   function listCareCases(opts) {
     opts = opts || {};
-    var q = _careCasesRef().orderBy('createdAt', 'desc').limit(opts.limit || 200);
+    var q = _careCasesRef().orderBy('createdAt', 'desc');
     if (opts.status) q = q.where('status', '==', opts.status);
-    return q.get().then(function(snap) {
-      return snap.docs.map(function(d) { return Object.assign({ id: d.id }, d.data()); });
-    });
+    return _paginatedGet(q, opts, function(d) { return Object.assign({ id: d.id }, d.data()); });
   }
 
   function getCareCase(id) {
@@ -1635,11 +1636,9 @@
 
   function listCompassionRequests(opts) {
     opts = opts || {};
-    var q = _compassionRef().orderBy('createdAt', 'desc').limit(opts.limit || 200);
+    var q = _compassionRef().orderBy('createdAt', 'desc');
     if (opts.status) q = q.where('status', '==', opts.status);
-    return q.get().then(function(snap) {
-      return snap.docs.map(function(d) { return Object.assign({ id: d.id }, d.data()); });
-    });
+    return _paginatedGet(q, opts, function(d) { return Object.assign({ id: d.id }, d.data()); });
   }
 
   function getCompassionRequest(id) {
@@ -1806,11 +1805,9 @@
 
   function listOutreachContacts(opts) {
     opts = opts || {};
-    var q = _outreachContactsRef().orderBy('createdAt', 'desc').limit(opts.limit || 200);
+    var q = _outreachContactsRef().orderBy('createdAt', 'desc');
     if (opts.status) q = q.where('status', '==', opts.status);
-    return q.get().then(function(snap) {
-      return snap.docs.map(function(d) { return Object.assign({ id: d.id }, d.data()); });
-    });
+    return _paginatedGet(q, opts, function(d) { return Object.assign({ id: d.id }, d.data()); });
   }
 
   function getOutreachContact(id) {
@@ -1969,17 +1966,9 @@
 
   function listEvents(opts) {
     opts = opts || {};
-    var q = _eventsRef().orderBy('startDate', 'desc').limit(opts.limit || 200);
+    var q = _eventsRef().orderBy('startDate', 'desc');
     if (opts.status) q = q.where('status', '==', opts.status);
-    return q.get().then(function(snap) {
-      var results = [];
-      snap.forEach(function(doc) {
-        var d = doc.data();
-        d.id = doc.id;
-        results.push(d);
-      });
-      return results;
-    });
+    return _paginatedGet(q, opts);
   }
 
   function getEvent(id) {
@@ -2195,15 +2184,9 @@
 
   function listGroups(opts) {
     opts = opts || {};
-    var q = _groupsRef().orderBy('groupName').limit(opts.limit || 200);
+    var q = _groupsRef().orderBy('groupName');
     if (opts.status) q = q.where('status', '==', opts.status);
-    return q.get().then(function(snap) {
-      var results = [];
-      snap.forEach(function(doc) {
-        var d = doc.data(); d.id = doc.id; results.push(d);
-      });
-      return results;
-    });
+    return _paginatedGet(q, opts);
   }
 
   function getGroup(id) {
@@ -2299,14 +2282,8 @@
 
   function listAttendance(opts) {
     opts = opts || {};
-    var q = _attendanceRef().orderBy('date', 'desc').limit(opts.limit || 200);
-    return q.get().then(function(snap) {
-      var results = [];
-      snap.forEach(function(doc) {
-        var d = doc.data(); d.id = doc.id; results.push(d);
-      });
-      return results;
-    });
+    var q = _attendanceRef().orderBy('date', 'desc');
+    return _paginatedGet(q, opts);
   }
 
   function getAttendance(id) {
@@ -2435,12 +2412,8 @@
     if (opts.serviceDate) q = q.where('serviceDate', '==', opts.serviceDate);
     if (opts.ministryId)  q = q.where('ministryId', '==', opts.ministryId);
     if (opts.memberId)    q = q.where('memberId', '==', opts.memberId);
-    q = q.orderBy('serviceDate', 'desc').limit(opts.limit || 200);
-    return q.get().then(function(snap) {
-      var out = [];
-      snap.forEach(function(d) { var o = d.data(); o.id = d.id; out.push(o); });
-      return out;
-    });
+    q = q.orderBy('serviceDate', 'desc');
+    return _paginatedGet(q, opts);
   }
 
   function getVolunteer(id) {
@@ -2494,12 +2467,8 @@
     opts = opts || {};
     var q = _ministriesRef();
     if (opts.status) q = q.where('status', '==', opts.status);
-    q = q.orderBy('name', 'asc').limit(opts.limit || 200);
-    return q.get().then(function(snap) {
-      var out = [];
-      snap.forEach(function(d) { var o = d.data(); o.id = d.id; out.push(o); });
-      return out;
-    });
+    q = q.orderBy('name', 'asc');
+    return _paginatedGet(q, opts);
   }
 
   function getMinistry(id) {
@@ -2564,12 +2533,8 @@
     var q = _servicePlansRef();
     if (opts.id) return getServicePlan(opts.id).then(function(r) { return [r]; });
     if (opts.status) q = q.where('status', '==', opts.status);
-    q = q.orderBy('serviceDate', 'desc').limit(opts.limit || 100);
-    return q.get().then(function(snap) {
-      var out = [];
-      snap.forEach(function(d) { var o = d.data(); o.id = d.id; out.push(o); });
-      return out;
-    });
+    q = q.orderBy('serviceDate', 'desc');
+    return _paginatedGet(q, opts);
   }
 
   function getServicePlan(id) {
@@ -2617,12 +2582,8 @@
     opts = opts || {};
     var q = _songsRef();
     if (opts.genre) q = q.where('genre', '==', opts.genre);
-    q = q.orderBy('title', 'asc').limit(opts.limit || 200);
-    return q.get().then(function(snap) {
-      var out = [];
-      snap.forEach(function(d) { var o = d.data(); o.id = d.id; out.push(o); });
-      return out;
-    });
+    q = q.orderBy('title', 'asc');
+    return _paginatedGet(q, opts);
   }
 
   function getSong(id) {
@@ -2716,12 +2677,8 @@
     var q = _sermonsRef();
     if (opts.status) q = q.where('status', '==', opts.status);
     if (opts.preacher) q = q.where('preacher', '==', opts.preacher);
-    q = q.orderBy('date', 'desc').limit(opts.limit || 100);
-    return q.get().then(function(snap) {
-      var out = [];
-      snap.forEach(function(d) { var o = d.data(); o.id = d.id; out.push(o); });
-      return out;
-    });
+    q = q.orderBy('date', 'desc');
+    return _paginatedGet(q, opts);
   }
 
   function getSermon(id) {
@@ -2890,12 +2847,8 @@
     var q = _givingRef();
     if (opts.memberId) q = q.where('memberId', '==', opts.memberId);
     if (opts.fund)     q = q.where('fund', '==', opts.fund);
-    q = q.orderBy('date', 'desc').limit(opts.limit || 200);
-    return q.get().then(function(snap) {
-      var out = [];
-      snap.forEach(function(d) { var o = d.data(); o.id = d.id; out.push(o); });
-      return out;
-    });
+    q = q.orderBy('date', 'desc');
+    return _paginatedGet(q, opts);
   }
 
   function createGiving(data) {
@@ -2989,14 +2942,16 @@
     if (!opts.allUsers && _userEmail) {
       q = q.where('createdBy', '==', _userEmail);
     }
-    q = q.orderBy('createdAt', 'desc').limit(opts.limit || 200);
+    q = q.orderBy('createdAt', 'desc').limit(opts.limit || _DEFAULT_PAGE);
+    if (opts.startAfter) q = q.startAfter(opts.startAfter);
     console.log('[FLOCK-DEBUG] UpperRoom.listJournal() executing query…');
     var _ljStart = Date.now();
     return q.get().then(function(snap) {
       var out = [];
       snap.forEach(function(d) { var o = d.data(); o.id = d.id; out.push(o); });
       console.log('[FLOCK-DEBUG] UpperRoom.listJournal() DONE: ' + out.length + ' rows in ' + (Date.now() - _ljStart) + 'ms');
-      return out;
+      if (!opts.startAfter && !opts.paginate) return out;
+      return { results: out, lastDoc: snap.docs.length ? snap.docs[snap.docs.length - 1] : null, hasMore: snap.docs.length === (opts.limit || _DEFAULT_PAGE) };
     });
   }
 
@@ -4369,23 +4324,10 @@
     });
   }
 
-  /* ── Error Telemetry ──────────────────────────────────────────────── */
-  function logError(data) {
-    if (!_db || !_ready) return;
-    try {
-      _churchRef().collection('errors').add({
-        message:   String(data.message || '').substring(0, 500),
-        source:    String(data.source || '').substring(0, 200),
-        line:      data.line || null,
-        col:       data.col || null,
-        stack:     String(data.stack || '').substring(0, 2000),
-        userEmail: _userEmail || '',
-        churchId:  _churchId || '',
-        url:       window.location.href.substring(0, 200),
-        userAgent: navigator.userAgent.substring(0, 200),
-        timestamp: _now()
-      });
-    } catch (_) {}
+  /* ── Error Telemetry (disabled — manual debugging only) ──────────── */
+  function logError() {
+    // Firestore error logging disabled to reduce writes.
+    // Use browser console + copy/paste for debugging.
   }
 
   /* ══════════════════════════════════════════════════════════════════

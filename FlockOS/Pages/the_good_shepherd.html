@@ -498,10 +498,6 @@
     if (label.indexOf('Notification') !== -1 || label.indexOf('user gesture') !== -1) return;
     if (label.length > 120) label = label.substring(0, 117) + '\u2026';
     _showErrToast(label);
-    // Log to Firestore if UpperRoom is available
-    if (typeof UpperRoom !== 'undefined' && UpperRoom.logError) {
-      try { UpperRoom.logError({ message: String(msg), source: src, line: line, col: col, stack: err && err.stack }); } catch (_) {}
-    }
   };
 
   window.onunhandledrejection = function(ev) {
@@ -511,9 +507,6 @@
     if (msg.indexOf('AbortError') !== -1 || msg.indexOf('cancelled') !== -1) return;
     if (msg.length > 120) msg = msg.substring(0, 117) + '\u2026';
     _showErrToast(msg);
-    if (typeof UpperRoom !== 'undefined' && UpperRoom.logError) {
-      try { UpperRoom.logError({ message: msg, stack: reason && reason.stack }); } catch (_) {}
-    }
   };
 })();
 </script>
