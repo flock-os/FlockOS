@@ -146,7 +146,7 @@ mkdir -p "$CHURCH_DIR"
 # ── Regenerate bezalel_codex.js from master Code.gs ────────────────────────
 # This file embeds the full Code.gs content as a JS variable so bezalel.html
 # and bezalel_matrix.html can offer a one-click Copy for Code.gs as well.
-MASTER_CODE="$REPO_ROOT/FlockOS/Tools/Master Deployment/10-Master Code.md"
+MASTER_CODE="$REPO_ROOT/FlockOS/Tools/Master Deployment/8-Master Code.md"
 CODEX_OUT="$SOURCE_DIR/Pages/bezalel_codex.js"
 if [ -f "$MASTER_CODE" ] && command -v python3 &>/dev/null; then
   python3 -c "
