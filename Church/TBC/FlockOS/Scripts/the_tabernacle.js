@@ -20385,7 +20385,7 @@ const Modules = (() => {
     _adRefreshConnCard();
 
     // ── Async: fire all data queries in background, fill DOM when ready ─
-    var _prayerPromise = (_isFirebaseComms() ? UpperRoom.listPrayers({ limit: 500 }) : TheVine.flock.prayer.list({ limit: 500 })).catch(function () { return null; });
+    var _prayerPromise = (_isFirebaseComms() ? UpperRoom.listPrayers({ limit: 50 }) : TheVine.flock.prayer.list({ limit: 50 })).catch(function () { return null; });
 
     // Fill prayer KPI independently
     _prayerPromise.then(function (res) {
@@ -20442,16 +20442,16 @@ const Modules = (() => {
 
     // Main data queries — fill KPIs and data cards when ready (non-blocking)
     Promise.all([
-      (_isFirebaseComms() ? UpperRoom.listMembers({ limit: 500 }) : TheVine.flock.members.list({ limit: 500 })).catch(function () { return null; }),
-      (_isFirebaseComms() ? UpperRoom.listCareCases({ limit: 500 }) : TheVine.flock.care.list({ limit: 500 })).catch(function () { return null; }),
-      (_isFirebaseComms() ? UpperRoom.listCompassionRequests({ limit: 200 }) : TheVine.flock.compassion.requests.list({ limit: 200 })).catch(function () { return null; }),
-      (_isFirebaseComms() ? UpperRoom.listEvents({ limit: 100 }) : TheVine.flock.events.list({ limit: 100 })).catch(function () { return null; }),
-      (_isFirebaseComms() ? UpperRoom.listGiving({ limit: 200 }) : TheVine.flock.giving.list({ limit: 200 })).catch(function () { return null; }),
+      (_isFirebaseComms() ? UpperRoom.listMembers({ limit: 100 }) : TheVine.flock.members.list({ limit: 100 })).catch(function () { return null; }),
+      (_isFirebaseComms() ? UpperRoom.listCareCases({ limit: 50 }) : TheVine.flock.care.list({ limit: 50 })).catch(function () { return null; }),
+      (_isFirebaseComms() ? UpperRoom.listCompassionRequests({ limit: 50 }) : TheVine.flock.compassion.requests.list({ limit: 50 })).catch(function () { return null; }),
+      (_isFirebaseComms() ? UpperRoom.listEvents({ limit: 25 }) : TheVine.flock.events.list({ limit: 25 })).catch(function () { return null; }),
+      (_isFirebaseComms() ? UpperRoom.listGiving({ limit: 100 }) : TheVine.flock.giving.list({ limit: 100 })).catch(function () { return null; }),
       (_isFirebaseComms() ? UpperRoom.listAudit({ limit: 30 }) : TheVine.flock.call('audit.list', { limit: 30 })).catch(function () { return null; }),
-      TheVine.flock.todo.list({ limit: 300 }).catch(function () { return null; }),
+      TheVine.flock.todo.list({ limit: 50 }).catch(function () { return null; }),
       (typeof firebase !== 'undefined' ? firebase.firestore().collection('problems')
         .where('status', 'in', ['Open', 'In Progress'])
-        .orderBy('createdAt', 'desc').limit(50).get() : Promise.resolve(null)).catch(function () { return null; }),
+        .orderBy('createdAt', 'desc').limit(25).get() : Promise.resolve(null)).catch(function () { return null; }),
     ]).then(function (results) {
       var members      = _rows(results[0]);
       var careCases    = _rows(results[1]);
