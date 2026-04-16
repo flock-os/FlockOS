@@ -10544,7 +10544,7 @@ const Modules = (() => {
 
       // table (paginated slice) + pager bar
       h += '<div id="pp-tbl">' + _ppTable(pageSlice) + '</div>';
-      h += _pagerBar('users');
+      h += '<div id="pp-pager">' + _pagerBar('users') + '</div>';
       _body(el, h);
     } catch (e) { _body(el, _errHtml(e.message)); }
   }
@@ -10587,24 +10587,62 @@ const Modules = (() => {
   }
 
   /* ── Search / filter helpers ────────────────────────────────────────── */
-  function _ppSearch(q) {
-    q = (q || '').toLowerCase().trim();
-    document.querySelectorAll('.pp-row').forEach(function(r) {
-      r.style.display = (!q || (r.dataset.search || '').indexOf(q) >= 0) ? '' : 'none';
+  // Both search and filter operate against the full _ppData in memory so they
+  // work across all pages, not just the rows currently rendered in the DOM.
+
+  function _ppApplyView() {
+    var q    = ((document.getElementById('pp-search') || {}).value || '').toLowerCase().trim();
+    var val  = ((document.getElementById('pp-type')   || {}).value || 'all');
+    var all  = Object.values(_ppData);
+
+    var filtered = all.filter(function(p) {
+      // Type filter
+      if (val === 'user'    && !p.user)                          return false;
+      if (val === 'member'  && !p.member)                        return false;
+      if (val === 'both'    && !(p.user && p.member))            return false;
+      if (val === 'card'    && !p.card)                          return false;
+      if (val === 'pending' && !(p.user && p.user.status === 'pending')) return false;
+      // Text search
+      if (q) {
+        var u = p.user || {}, m = p.member || {}, c = p.card || {};
+        var hay = (
+          (u.firstName || m.firstName || c.firstName || '') + ' ' +
+          (u.lastName  || m.lastName  || c.lastName  || '') + ' ' +
+          (p.email || '') + ' ' +
+          (u.phone || m.cellPhone || c.phone || '')
+        ).toLowerCase();
+        if (hay.indexOf(q) < 0) return false;
+      }
+      return true;
     });
+
+    var tbl = document.getElementById('pp-tbl');
+    if (!tbl) return;
+
+    if (q || val !== 'all') {
+      // While a filter/search is active: show all matches, no pagination
+      tbl.innerHTML = _ppTable(filtered)
+        + (filtered.length ? '<div style="font-size:0.8rem;color:var(--ink-muted);padding:6px 0;">'
+          + filtered.length + ' result' + (filtered.length === 1 ? '' : 's') + '</div>' : '');
+    } else {
+      // Restore paginated view
+      var pg = _pgState('users');
+      var start = pg.page * pg.size;
+      var slice = all.slice(start, start + pg.size);
+      pg.count   = slice.length;
+      pg.hasMore = start + pg.size < all.length;
+      pg.total   = all.length;
+      tbl.innerHTML = _ppTable(slice);
+      var pagerEl = document.getElementById('pp-pager');
+      if (pagerEl) pagerEl.innerHTML = _pagerBar('users');
+    }
   }
+
+  function _ppSearch(q) { _ppApplyView(); }
   function _ppFilter(val) {
     var sel = document.getElementById('pp-type');
     if (sel && sel.value !== val) sel.value = val;
-    document.querySelectorAll('.pp-row').forEach(function(r) {
-      var show = true;
-      if      (val === 'user')    show = r.dataset.tu === '1';
-      else if (val === 'member')  show = r.dataset.tm === '1';
-      else if (val === 'both')    show = r.dataset.tu === '1' && r.dataset.tm === '1';
-      else if (val === 'card')    show = r.dataset.tc === '1';
-      else if (val === 'pending') show = r.dataset.pend === '1';
-      r.style.display = show ? '' : 'none';
-    });
+    _ppApplyView();
   }
 
   /* ── Approve / Deny self-registrations ──────────────────────────────── */
