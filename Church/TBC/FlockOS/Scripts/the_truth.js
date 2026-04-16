@@ -77,6 +77,73 @@ const TheTruth = (() => {
   var _truthDb    = null;
   var _truthReady = false;
 
+  // ── Truth cache — weekly refresh every Monday at 6AM Pacific ─────────────
+  // Offline persistence stores all truth reads in IndexedDB. Subsequent loads
+  // serve from cache (zero Firestore reads) until the weekly refresh window.
+  // Only applies to the ROOT flockos-truth database (not church-local deployments).
+
+  var TRUTH_CACHE_KEY = 'flock_truth_refreshed';
+
+  // Returns the UTC millisecond timestamp of the most recent Monday 6:00 AM Pacific.
+  // DST-aware via Intl.DateTimeFormat with America/Los_Angeles.
+  function _lastMonday6amPacificMs() {
+    var now = Date.now();
+    var fmt = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/Los_Angeles',
+      weekday: 'short', year: 'numeric', month: '2-digit',
+      day: '2-digit', hour: '2-digit', hour12: false
+    });
+    var parts = fmt.formatToParts(new Date(now));
+    var get = function(type) {
+      var p = parts.find(function(x) { return x.type === type; });
+      return p ? p.value : '0';
+    };
+    var wd = get('weekday'); // 'Mon', 'Tue', etc.
+    var yr = +get('year');
+    var mo = +get('month') - 1;
+    var dy = +get('day');
+    var hr = +get('hour'); // 0-23
+
+    // Days since last Monday (Mon=0, Tue=1, ..., Sun=6)
+    var wdMap = { Mon: 0, Tue: 1, Wed: 2, Thu: 3, Fri: 4, Sat: 5, Sun: 6 };
+    var daysBack = (wdMap[wd] != null) ? wdMap[wd] : 0;
+    // If today IS Monday but before 6AM, roll back 7 more days to previous Monday
+    if (daysBack === 0 && hr < 6) daysBack = 7;
+
+    // Calendar date of last Monday in Pacific time
+    var monUTC = Date.UTC(yr, mo, dy - daysBack);
+    var monDate = new Date(monUTC);
+    var monYr = monDate.getUTCFullYear();
+    var monMo = monDate.getUTCMonth();
+    var monDy = monDate.getUTCDate();
+
+    // Find UTC equivalent of Pacific 6:00 AM on that Monday.
+    // Sample noon UTC on that day, read back as Pacific hour to get DST offset.
+    var noonUTC = Date.UTC(monYr, monMo, monDy, 12, 0, 0);
+    var noonFmt = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/Los_Angeles', hour: '2-digit', hour12: false
+    });
+    var noonPacHr = +noonFmt.format(new Date(noonUTC)); // how many Pacific hours from midnight noon is
+    var offsetHrs = noonPacHr - 12; // Pacific is UTC + offsetHrs (negative, e.g. -7 or -8)
+    // Pacific 6AM → UTC = 6 - offsetHrs
+    return Date.UTC(monYr, monMo, monDy, 6 - offsetHrs, 0, 0);
+  }
+
+  // Returns 'server' if a weekly refresh is due, 'cache' if still fresh.
+  // Call setTruthRefreshed() after a successful server fetch.
+  function _truthFetchSource() {
+    try {
+      var last = parseInt(localStorage.getItem(TRUTH_CACHE_KEY) || '0', 10);
+      return (last < _lastMonday6amPacificMs()) ? 'server' : 'cache';
+    } catch (_) {
+      return 'server'; // localStorage unavailable (private browsing edge case)
+    }
+  }
+
+  function _markTruthRefreshed() {
+    try { localStorage.setItem(TRUTH_CACHE_KEY, String(Date.now())); } catch (_) {}
+  }
+
   async function _initTruth() {
     if (_truthReady) return;
     if (typeof firebase === 'undefined') throw new Error('Firebase SDK not loaded');
@@ -91,6 +158,10 @@ const TheTruth = (() => {
       if (!truthApp) truthApp = firebase.initializeApp(TRUTH_CONFIG, 'truth');
       _truthDb = firebase.firestore(truthApp);
       try { _truthDb.settings({ experimentalAutoDetectLongPolling: true, merge: true }); } catch (_) {}
+
+      // Enable offline persistence so reads are served from IndexedDB when cache is fresh.
+      // synchronizeTabs: false — truth data is read-only for most users; single-tab is fine.
+      try { await _truthDb.enablePersistence({ synchronizeTabs: false }); } catch (_) {}
 
       // Sign in anonymously for write access
       var truthAuth = firebase.auth(truthApp);
@@ -484,7 +555,22 @@ const TheTruth = (() => {
       container.innerHTML = _spinner();
       try {
         await _initTruth();
-        var snap = await _truthDb.collection(tab.key).get();
+        var snap;
+        if (window.FLOCK_TRUTH_USE_LOCAL) {
+          // Church deployment — always fetch live (church data changes frequently)
+          snap = await _truthDb.collection(tab.key).get();
+        } else {
+          // ROOT truth database — serve from IndexedDB cache unless weekly refresh is due
+          var src = _truthFetchSource();
+          try {
+            snap = await _truthDb.collection(tab.key).get({ source: src });
+            if (src === 'server') _markTruthRefreshed();
+          } catch (_cacheErr) {
+            // Cache miss (first load, cleared browser data, etc.) — fall back to server
+            snap = await _truthDb.collection(tab.key).get({ source: 'server' });
+            _markTruthRefreshed();
+          }
+        }
         _allRows[tab.key] = snap.docs.map(function(doc, i) {
           var d = doc.data();
           d._docId = doc.id;
