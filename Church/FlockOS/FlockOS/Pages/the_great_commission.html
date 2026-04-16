@@ -393,6 +393,116 @@
       margin-bottom: 20px; background: rgba(251,189,36,0.06);
       border-radius: 0 6px 6px 0; padding: 10px 12px;
     }
+
+    /* ── Org Chart ────────────────────────────────────────────────────── */
+    .org-chart-wrap {
+      overflow-x: auto;
+      padding: 8px 0 32px;
+    }
+    .org-chart {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-width: fit-content;
+      padding: 0 24px;
+    }
+    /* Root node */
+    .org-root-node {
+      background: linear-gradient(135deg, rgba(126,170,204,0.14) 0%, var(--bg-raised, #16213e) 100%);
+      border: 2px solid var(--accent, #7eaacc);
+      border-radius: 14px;
+      padding: 18px 32px;
+      text-align: center;
+      min-width: 240px;
+      position: relative;
+      box-shadow: 0 0 0 4px rgba(126,170,204,0.07);
+    }
+    .org-root-node::after {
+      content: '';
+      position: absolute;
+      bottom: -32px; left: 50%; transform: translateX(-50%);
+      width: 2px; height: 32px;
+      background: var(--accent, #7eaacc);
+      opacity: 0.4;
+    }
+    .org-root-icon  { font-size: 1.6rem; margin-bottom: 6px; }
+    .org-root-title { font-size: 1rem; font-weight: 700; color: var(--accent, #7eaacc); }
+    .org-root-sub   { font-size: 0.72rem; color: var(--ink-muted, #888); margin-top: 3px; text-transform: uppercase; letter-spacing: 0.06em; }
+    /* Horizontal bar between root and children */
+    .org-h-bar-wrap {
+      display: flex;
+      align-items: flex-start;
+      width: 100%;
+      justify-content: center;
+      margin-top: 0;
+    }
+    .org-h-bar {
+      position: relative;
+      height: 32px;
+      /* width set inline by JS */
+    }
+    .org-h-bar::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: rgba(126,170,204,0.25);
+    }
+    /* Children row */
+    .org-children-row {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 16px;
+      align-items: flex-start;
+      position: relative;
+      padding-top: 0;
+    }
+    /* Horizontal connector spanning ~80% of the row, centered */
+    .org-children-row::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 10%; right: 10%;
+      height: 2px;
+      background: rgba(126,170,204,0.25);
+      pointer-events: none;
+    }
+    /* Each child column (stem + card) */
+    .org-branch {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .org-branch-stem {
+      width: 2px;
+      height: 32px;
+      background: rgba(126,170,204,0.25);
+      flex-shrink: 0;
+    }
+    /* Child card */
+    .org-child-card {
+      background: var(--bg-raised, #16213e);
+      border: 1px solid var(--line, rgba(255,255,255,0.1));
+      border-radius: 10px;
+      padding: 14px 16px;
+      min-width: 190px;
+      max-width: 230px;
+      text-align: center;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .org-child-card:hover {
+      border-color: var(--accent, #7eaacc);
+      box-shadow: 0 0 0 3px rgba(126,170,204,0.08);
+    }
+    .org-child-name { font-weight: 700; font-size: 0.9rem; color: var(--ink, #e0e0e0); margin-bottom: 2px; }
+    .org-child-id   { font-size: 0.69rem; color: var(--ink-muted, #888); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+    .org-child-pill { margin-bottom: 10px; }
+    .org-child-actions { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; }
+    /* Empty-branch placeholder */
+    .org-empty {
+      text-align: center; padding: 40px 20px;
+      color: var(--ink-muted, #888); font-size: 0.88rem;
+    }
   </style>
 </head>
 <body>
@@ -675,32 +785,47 @@ function _gcRenderOverview() {
     + _sc(noDb,   'No DB URL',      'color:var(--warning,#fbbd24)')
     + '</div>';
 
-  // Mini health grid
-  html += '<div class="section-label">Live Health</div>';
+  // ── Org Chart ─────────────────────────────────────────────────────────
+  html += '<div class="section-label">Deployment Tree</div>';
+  html += '<div class="org-chart-wrap"><div class="org-chart">';
+
+  // Root node
+  html += '<div class="org-root-node">'
+    + '<div class="org-root-icon">&#9728;</div>'
+    + '<div class="org-root-title">FlockOS</div>'
+    + '<div class="org-root-sub">Root &mdash; Master Deployment</div>'
+    + '</div>';
+
   if (!_churches.length) {
-    html += '<div class="empty-state"><div class="icon">&#9962;</div><h3>No churches registered yet.</h3></div>';
+    html += '<div class="org-empty" style="margin-top:32px;">No church deployments registered yet.<br>'
+      + '<button class="btn btn-primary" onclick="_gcRegisterChurch()" style="margin-top:14px;">+ Register Church</button></div>';
   } else {
-    html += '<div class="gc-health-grid" id="ov-health-grid">';
+    html += '<div class="org-children-row">';
     _churches.forEach(function(c) {
       var cid = _e(c.churchId);
-      html += '<div class="gc-health-card">'
-        + '<div class="gc-health-card-top">'
-        + '<div><div class="gc-health-name">' + _e(c.churchName||c.shortName||cid) + '</div>'
-        + '<div class="gc-health-id">' + _e(c.shortName||cid) + '</div></div>'
-        + '<span class="gc-pill gc-pill-checking" id="ov-pill-' + cid + '">\u25CF Checking\u2026</span>'
+      html += '<div class="org-branch">'
+        + '<div class="org-branch-stem"></div>'
+        + '<div class="org-child-card">'
+        + '<div class="org-child-name">' + _e(c.churchName || c.shortName || cid) + '</div>'
+        + '<div class="org-child-id">' + _e(c.shortName || cid) + '</div>'
+        + '<div class="org-child-pill"><span class="gc-pill gc-pill-checking" id="ov-pill-' + cid + '">\u25CF Checking\u2026</span></div>'
+        + '<div style="font-size:0.72rem;color:var(--ink-muted,#888);margin-bottom:8px;">'
+        + '<span id="ov-lat-' + cid + '">\u2014</span>'
+        + (c.databaseUrl
+            ? '&ensp;&bull;&ensp;<span style="color:#4ade80;">&#10003; Endpoint</span>'
+            : '&ensp;&bull;&ensp;<span style="color:#fbbd24;">&#9888; No URL</span>')
         + '</div>'
-        + '<div class="gc-health-meta">'
-        + '<div class="gc-meta-row"><span class="gc-meta-lbl">Latency</span><span class="gc-meta-val" id="ov-lat-' + cid + '">\u2014</span></div>'
-        + '<div class="gc-meta-row"><span class="gc-meta-lbl">Endpoint</span><span class="gc-meta-val">' + (c.databaseUrl ? '\u2713 Set' : '<span style="color:#fbbd24;">\u26A0 Missing</span>') + '</span></div>'
+        + '<div class="org-child-actions">'
+        + (c.databaseUrl ? '<button class="btn btn-sm" onclick="_gcTab(\'probe\');_gcPreFillProbe(\'' + _e(c.databaseUrl) + '\');">Probe &#8599;</button>' : '')
+        + '<button class="btn btn-sm" onclick="_gcEditChurch(\'' + cid + '\');">Edit</button>'
         + '</div>'
-        + '<div class="gc-health-foot">'
-        + '<button class="btn btn-sm" onclick="_gcTab(\'probe\');_gcPreFillProbe(\'' + _e(c.databaseUrl||'') + '\');">Probe \u2197</button>'
-        + '<button class="btn btn-sm" onclick="_gcEditChurch(\'' + cid + '\')">Edit</button>'
         + '</div>'
         + '</div>';
     });
-    html += '</div>';
+    html += '</div>'; // org-children-row
   }
+
+  html += '</div></div>'; // org-chart + org-chart-wrap
 
   panel.innerHTML = html;
   _gcRunHealthMonitor('ov');  // run pings against overview pills
