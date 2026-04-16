@@ -835,19 +835,10 @@
             <input type="text" id="f_CHURCH_FOLDER_ID" placeholder="Google Drive folder ID" oninput="_update()">
           </div>
           <div class="field span2" style="border:1px solid var(--line);border-radius:8px;padding:12px 14px;background:var(--bg-raised);">
-            <label style="margin-bottom:8px;display:block;">TRUTH CONTENT SOURCE</label>
-            <div style="display:flex;gap:8px;margin-bottom:10px;">
-              <button id="truth-src-firestore" class="btn btn-sm btn-gold" onclick="_setTruthSource('firestore')" style="flex:1;">&#128293; Firestore Replication</button>
-              <button id="truth-src-sheet" class="btn btn-sm" onclick="_setTruthSource('sheet')" style="flex:1;">&#128196; Sheet ID</button>
-            </div>
-            <div id="truth-src-firestore-field">
-              <label style="font-size:0.74rem;margin-bottom:4px;display:block;">TRUTH_SERVICE_ACCOUNT <span class="field-note" style="display:inline;">Service account JSON for flockos-truth. Enables Firestore-to-Firestore replication during setup.</span></label>
-              <textarea id="f_TRUTH_SERVICE_ACCOUNT" rows="3" placeholder='{"type":"service_account","project_id":"flockos-truth",...}' oninput="_update()" style="width:100%;background:var(--bg);border:1px solid var(--line);color:var(--ink);font-family:var(--font-mono,monospace);font-size:0.72rem;padding:7px 9px;border-radius:6px;resize:vertical;"></textarea>
-            </div>
-            <div id="truth-src-sheet-field" style="display:none;">
-              <label style="font-size:0.74rem;margin-bottom:4px;display:block;">TRUTH_SHEET_ID <span class="field-note" style="display:inline;">Google Sheets ID of the master Truth sheet (legacy / manual import).</span></label>
-              <input type="text" id="f_TRUTH_SHEET_ID" placeholder="Google Sheets ID for Truth database" oninput="_update()" style="width:100%;">
-            </div>
+            <label style="margin-bottom:4px;display:block;">TRUTH_SHEET_ID</label>
+            <input type="text" id="f_TRUTH_SHEET_ID" value="1ZuLKjP1RUI7TibeHKEC_wUsnjiWq0ic-AXt_LIPKSbM" oninput="_update()" style="width:100%;">
+            <span class="field-note">Master Truth Google Sheet — always seeded via Sheets copy. Pre-filled with the canonical Truth DB.</span>
+            <input type="hidden" id="f_TRUTH_SERVICE_ACCOUNT" value="">
           </div>
         </div>
       </div>
@@ -1305,7 +1296,7 @@ function _genPassword() {
 }
 
 // ── Truth Source Toggle ───────────────────────────────────────────────────────────────
-var _truthSource = 'firestore'; // 'firestore' | 'sheet'
+var _truthSource = 'sheet'; // always sheet — one master Truth sheet for all churches
 
 function _setTruthSource(src) {
   _truthSource = src;
