@@ -1,5 +1,3 @@
-window.FLOCK_FIREBASE_CONFIG = {"apiKey":"AIzaSyBA-fkxjABbwIHn0i6MPiXbGwahfJmuJeo","authDomain":"flockos-notify.firebaseapp.com","projectId":"flockos-notify","storageBucket":"flockos-notify.firebasestorage.app","messagingSenderId":"321766738616","appId":"1:321766738616:web:d2c1c53ad7493fcde4c24d"};
-window.FLOCK_CHURCH_ID = "flockos";
 /* ═══════════════════════════════════════════════════════════════════════
    THE UPPER ROOM — Firebase Firestore Comms Module for FlockOS
    Real-time messaging: DMs, Chat Rooms, Channels, Notifications
@@ -34,6 +32,7 @@ window.FLOCK_CHURCH_ID = "flockos";
   var _listeners  = {};     // active snapshot listeners (keyed by path)
   var _unreadDM   = 0;      // unread DM count
   var _unreadRoom = 0;      // unread room count
+  var _permModulesCache = null; // session cache for static permissionModules config doc
 
   /* ── Timeout constant ───────────────────────────────────────────── */
   var FIRESTORE_TIMEOUT_MS = 8000; // 8 seconds — Firestore reads are typically sub-second
@@ -1371,10 +1370,20 @@ window.FLOCK_CHURCH_ID = "flockos";
   }
 
   function searchMemberCards(query) {
-    // Client-side filter — needs all cards, so use a higher limit
+    var q = (query || '').toLowerCase();
+    if (!q) return listMemberCards({ limit: 200 });
+    // Fast path: when the query looks like an email address, resolve it with a
+    // single targeted index lookup instead of fetching up to 200 docs client-side.
+    if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(q)) {
+      return _memberCardsRef().where('email', '==', q).limit(1).get()
+        .then(function(snap) {
+          var results = [];
+          snap.forEach(function(doc) { var d = doc.data(); d.id = doc.id; results.push(d); });
+          return results;
+        });
+    }
+    // Client-side filter for name/title searches
     return listMemberCards({ limit: 200 }).then(function(cards) {
-      var q = (query || '').toLowerCase();
-      if (!q) return cards;
       return cards.filter(function(c) {
         return (c.firstName || '').toLowerCase().indexOf(q) >= 0 ||
                (c.lastName || '').toLowerCase().indexOf(q) >= 0 ||
@@ -1425,11 +1434,13 @@ window.FLOCK_CHURCH_ID = "flockos";
   }
 
   function listPermissionModules() {
-    // Static config — stored as a single doc
+    // Static config — stored as a single doc; cache for the session to avoid
+    // a redundant read on every profile open (this doc changes very rarely).
+    if (_permModulesCache) return Promise.resolve(_permModulesCache);
     return _churchRef().collection('settings').doc('permissionModules').get()
       .then(function(doc) {
-        if (!doc.exists) return { modules: {} };
-        return doc.data();
+        _permModulesCache = doc.exists ? doc.data() : { modules: {} };
+        return _permModulesCache;
       });
   }
 
