@@ -796,6 +796,12 @@
     });
   }
 
+
+  function countOpenPrayers() {
+    return _prayersRef()
+      .where('status', 'not-in', ['answered','closed','archived'])
+      .count().get().then(function(snap) { return snap.data().count; });
+  }
   function getPrayer(id) {
     return _prayersRef().doc(id).get().then(function(doc) {
       if (!doc.exists) return null;
@@ -1155,6 +1161,10 @@
     return _paginatedGet(q, opts);
   }
 
+
+  function countMembers() {
+    return _membersRef().count().get().then(function(snap) { return snap.data().count; });
+  }
   function getMember(idOrEmail) {
     // Try by doc ID first, fall back to email query
     return _membersRef().doc(idOrEmail).get().then(function(doc) {
@@ -1654,6 +1664,12 @@
     return _paginatedGet(q, opts, function(d) { return Object.assign({ id: d.id }, d.data()); });
   }
 
+
+  function countOpenCompassionRequests() {
+    return _compassionRef()
+      .where('status', 'not-in', ['closed','completed','resolved','archived'])
+      .count().get().then(function(snap) { return snap.data().count; });
+  }
   function getCompassionRequest(id) {
     return _compassionRef().doc(id).get().then(function(doc) {
       if (!doc.exists) return null;
@@ -4394,6 +4410,7 @@
 
     // Prayer Requests
     listPrayers:    listPrayers,
+    countOpenPrayers: countOpenPrayers,
     getPrayer:      getPrayer,
     createPrayer:   createPrayer,
     updatePrayer:   updatePrayer,
@@ -4450,6 +4467,7 @@
 
     // Members
     listMembers:     listMembers,
+    countMembers:    countMembers,
     getMember:       getMember,
     createMember:    createMember,
     updateMember:    updateMember,
@@ -4494,6 +4512,7 @@
 
     // Compassion Requests
     listCompassionRequests:    listCompassionRequests,
+    countOpenCompassionRequests: countOpenCompassionRequests,
     getCompassionRequest:      getCompassionRequest,
     createCompassionRequest:   createCompassionRequest,
     updateCompassionRequest:   updateCompassionRequest,

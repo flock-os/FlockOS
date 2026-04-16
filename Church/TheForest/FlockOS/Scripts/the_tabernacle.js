@@ -20385,12 +20385,11 @@ const Modules = (() => {
     _adRefreshConnCard();
 
     // ── Async: fire all data queries in background, fill DOM when ready ─
-    var _prayerPromise = (_isFirebaseComms() ? UpperRoom.listPrayers({ limit: 50 }) : TheVine.flock.prayer.list({ limit: 50 })).catch(function () { return null; });
+    var _prayerPromise = (_isFirebaseComms() ? UpperRoom.countOpenPrayers() : TheVine.flock.prayer.list({ limit: 50 })).catch(function () { return null; });
 
     // Fill prayer KPI independently
     _prayerPromise.then(function (res) {
-      var prayers = _rows(res);
-      var count = prayers.filter(function (p) {
+      var count = typeof res === 'number' ? res : _rows(res).filter(function (p) {
         return !['answered','closed','archived'].includes(String(p.status || '').toLowerCase());
       }).length;
       var pEl = document.getElementById('ad-kpi-prayer');
@@ -20442,9 +20441,9 @@ const Modules = (() => {
 
     // Main data queries — fill KPIs and data cards when ready (non-blocking)
     Promise.all([
-      (_isFirebaseComms() ? UpperRoom.listMembers({ limit: 100 }) : TheVine.flock.members.list({ limit: 100 })).catch(function () { return null; }),
+      (_isFirebaseComms() ? UpperRoom.countMembers() : TheVine.flock.members.list({ limit: 100 })).catch(function () { return null; }),
       (_isFirebaseComms() ? UpperRoom.listCareCases({ limit: 50 }) : TheVine.flock.care.list({ limit: 50 })).catch(function () { return null; }),
-      (_isFirebaseComms() ? UpperRoom.listCompassionRequests({ limit: 50 }) : TheVine.flock.compassion.requests.list({ limit: 50 })).catch(function () { return null; }),
+      (_isFirebaseComms() ? UpperRoom.countOpenCompassionRequests() : TheVine.flock.compassion.requests.list({ limit: 50 })).catch(function () { return null; }),
       (_isFirebaseComms() ? UpperRoom.listEvents({ limit: 25 }) : TheVine.flock.events.list({ limit: 25 })).catch(function () { return null; }),
       (_isFirebaseComms() ? UpperRoom.listGiving({ limit: 100 }) : TheVine.flock.giving.list({ limit: 100 })).catch(function () { return null; }),
       (_isFirebaseComms() ? UpperRoom.listAudit({ limit: 30 }) : TheVine.flock.call('audit.list', { limit: 30 })).catch(function () { return null; }),
@@ -20463,16 +20462,16 @@ const Modules = (() => {
       var openProblems = results[7] ? results[7].docs.map(function(d) { return Object.assign({ _id: d.id }, d.data()); }) : [];
 
       // ── KPI calculations ─────────────────────────────────────────────────
-      var activeMembers = members.filter(function (m) {
+      var activeMembers = typeof results[0] === 'number' ? results[0] : (members.filter(function (m) {
         return !['inactive','archived','removed'].includes(String(m.status || '').toLowerCase());
-      }).length || members.length;
+      }).length || members.length);
 
       var urgentCare = careCases.filter(function (c) {
         return String(c.priority || '').toLowerCase() === 'urgent'
           && !['closed','resolved','archived'].includes(String(c.status || '').toLowerCase());
       }).length;
 
-      var openCompassion = compassions.filter(function (c) {
+      var openCompassion = typeof results[2] === 'number' ? results[2] : compassions.filter(function (c) {
         return !['closed','completed','resolved','archived'].includes(String(c.status || '').toLowerCase());
       }).length;
 
