@@ -947,6 +947,20 @@ const TheWord = (() => {
     }).catch(() => {});
   }
 
+  function _positionMenu(menu, anchorRect) {
+    menu.style.display = 'block';
+    menu.style.left = '0';
+    menu.style.top  = '0';
+    const menuW = menu.offsetWidth  || 200;
+    const vw    = window.innerWidth;
+    // Align right edge of menu to right edge of anchor, but clamp to viewport
+    let left = anchorRect.right - menuW;
+    left = Math.max(8, Math.min(left, vw - menuW - 8));
+    menu.style.left = left + 'px';
+    menu.style.top  = (anchorRect.bottom + 6) + 'px';
+    menu.style.display = 'none'; // caller will show it
+  }
+
   // ─────────────────────────────────────────────────────────────────────────
   // USER STATUS MENU
   // ─────────────────────────────────────────────────────────────────────────
@@ -958,10 +972,9 @@ const TheWord = (() => {
       const pill = e.target.closest('#topbar-user-pill');
       if (pill) {
         e.stopPropagation();
-        const rect = pill.getBoundingClientRect();
-        menu.style.left    = rect.left + 'px';
-        menu.style.top     = (rect.bottom + 6) + 'px';
-        menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+        if (menu.style.display === 'block') { menu.style.display = 'none'; return; }
+        _positionMenu(menu, pill.getBoundingClientRect());
+        menu.style.display = 'block';
         return;
       }
       if (!menu.contains(e.target)) menu.style.display = 'none';
@@ -1114,11 +1127,9 @@ const TheWord = (() => {
     // ── Mobile: hamburger + scrim + bottom nav ──
     const isMobile = () => window.innerWidth <= 640;
 
-    // Show/hide mobile chrome based on viewport
+    // Show/hide bottom nav based on viewport (hamburger handled by CSS)
     function _applyMobileChrome() {
-      const mobile = isMobile();
-      _el('btn-sidebar-toggle').style.display = mobile ? '' : 'none';
-      _el('bottom-nav').style.display = mobile ? 'flex' : 'none';
+      _el('bottom-nav').style.display = isMobile() ? 'flex' : 'none';
     }
     _applyMobileChrome();
     window.addEventListener('resize', _applyMobileChrome);
@@ -1142,10 +1153,8 @@ const TheWord = (() => {
       _closeSidebar();
       // Open user menu
       const pill = _el('topbar-user-pill');
-      const rect = pill.getBoundingClientRect();
       const menu = _el('user-menu');
-      menu.style.left    = Math.max(8, rect.right - 180) + 'px';
-      menu.style.top     = (rect.bottom + 6) + 'px';
+      _positionMenu(menu, pill.getBoundingClientRect());
       menu.style.display = 'block';
     });
   }
@@ -1216,7 +1225,7 @@ const TheWord = (() => {
     document.body.classList.remove('auth-open');
 
     // Set topbar user info
-    _el('topbar-uname').textContent = _me.displayName;
+    _el('topbar-uname').textContent = (_me.displayName || '').split(' ')[0];
     const av = _el('topbar-avatar');
     av.textContent = _initials(_me.displayName);
 

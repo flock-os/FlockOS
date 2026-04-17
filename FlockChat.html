@@ -954,6 +954,9 @@
     }
     #loading-overlay p { font-size: 0.83rem; color: var(--ink-muted); }
 
+    /* Hamburger hidden by default; shown by mobile @media */
+    #btn-sidebar-toggle { display: none; }
+
     /* ── Responsive ─────────────────────────────────────────────────────────── */
 
     /* Tablet: hide details, narrow sidebar */
@@ -977,6 +980,8 @@
         width: 100%;
         height: 100%;
       }
+
+      /* ── Hamburger: hide on desktop (shown only in mobile @media) ── */
 
       /* ── Topbar ── */
       .topbar-brand {
@@ -1065,6 +1070,9 @@
         padding: 24px 20px;
       }
 
+      /* ── Hamburger: only show on mobile ── */
+      #btn-sidebar-toggle { display: inline-flex !important; }
+
       /* ── User pill — hide name on very small screens ── */
       .user-pill .uname { display: none; }
       .user-pill #topbar-status-dot { display: none; }
@@ -1114,7 +1122,7 @@
 
   <!-- Top Bar -->
   <div class="topbar">
-    <button class="topbar-icon-btn" id="btn-sidebar-toggle" style="margin-left:8px;display:none" title="Menu">☰</button>
+    <button class="topbar-icon-btn" id="btn-sidebar-toggle" title="Menu">☰</button>
     <div class="topbar-brand">
       <img src="./FlockChat/Images/FlockOS_Angels.png" alt="FlockChat" style="height:30px;width:auto;margin-right:6px;vertical-align:middle">
       <span class="wordmark">FlockChat</span>
