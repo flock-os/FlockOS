@@ -29,6 +29,7 @@ Thumbs.db
 # ── Internal tools folder — never publish ────────────────────────────────
 # Contains deployment guides, admin credentials, API URLs, build scripts.
 FlockOS/Tools/Flock Secrets/
+FlockOS/Tools/Flock Deployments/
 FlockOS/Tools/Production Notes/
 FlockOS/Planning/
 # ── Internal reference docs ───────────────────────────────────────────────
