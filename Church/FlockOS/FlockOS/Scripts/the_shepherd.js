@@ -92,10 +92,19 @@ const TheShepherd = (() => {
   function _pp2(a, b) {
     return '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0 12px;">' + a + b + '</div>';
   }
-  function _ppSec(title, id, content) {
-    return '<details class="pp-section" open style="margin-bottom:16px;border:1px solid var(--line);border-radius:8px;overflow:hidden;">'
+  function _ppSec(title, id, content, isOpen) {
+    var open = (isOpen === false) ? '' : ' open';
+    return '<details class="pp-section"' + open + ' style="margin-bottom:16px;border:1px solid var(--line);border-radius:8px;overflow:hidden;">'
       + '<summary style="padding:12px 16px;background:rgba(255,255,255,0.04);cursor:pointer;font-weight:700;font-size:0.82rem;color:var(--accent);user-select:none;">' + _e(title) + '</summary>'
       + '<div style="padding:16px;" id="pp-sec-' + id + '">' + content + '</div></details>';
+  }
+  // Renders a closed <details> whose content is fetched the first time it's opened.
+  // loaderCall: JS expression to evaluate on first open (e.g. "TheShepherd._loadPerms('email')")
+  function _ppSecLazy(title, id, loaderCall) {
+    return '<details class="pp-section" style="margin-bottom:16px;border:1px solid var(--line);border-radius:8px;overflow:hidden;"'
+      + ' ontoggle="if(this.open&&!this.dataset.loaded){this.dataset.loaded=1;' + loaderCall + '}">'
+      + '<summary style="padding:12px 16px;background:rgba(255,255,255,0.04);cursor:pointer;font-weight:700;font-size:0.82rem;color:var(--accent);user-select:none;">' + _e(title) + '</summary>'
+      + '<div style="padding:16px;" id="pp-sec-' + id + '"><span style="color:var(--ink-muted);font-size:0.84rem;">\u23F3 Loading\u2026</span></div></details>';
   }
 
   var _ROLE_LEVELS = {
@@ -302,6 +311,367 @@ const TheShepherd = (() => {
     });
   }
 
+  // ── Lazy section loaders ────────────────────────────────────────────────
+
+  async function _loadPerms(email) {
+    var el = document.getElementById('pp-sec-permissions');
+    if (!el) return;
+    var isMidKey = (email || '').indexOf('_mid_') === 0;
+    var p = _ppData[(email || '').toLowerCase()] || {};
+    var u = p.user || {};
+    var eid = _e(email);
+    var permData = { overrides: [], permissions: {} }, moduleMap = {};
+    try {
+      var res = await Promise.allSettled([
+        isMidKey ? Promise.resolve(null) : (_isFB() ? UpperRoom.getPermissions(email) : TheVine.flock.call('permissions.get', { targetEmail: email })),
+        _isFB() ? UpperRoom.listPermissionModules() : TheVine.flock.call('permissions.list', {}),
+      ]);
+      permData  = (res[0].status === 'fulfilled' && res[0].value) || permData;
+      moduleMap = (res[1].status === 'fulfilled' && res[1].value && res[1].value.modules) || {};
+    } catch (_) {}
+
+    var ovList = permData.overrides || [];
+    var ovMap = {};
+    ovList.forEach(function(o) { if (o && o.module) ovMap[o.module] = String(o.access || 'none').toLowerCase(); });
+    var memberRole = u.role || permData.role || '';
+
+    var PERM_ROWS = [
+      { group: 'People & Directory', items: [
+        { key: 'my-flock',                label: 'My Flock Access',           desc: 'View assigned flock list and basic member profiles.',                        risk: 'low' },
+        { key: 'my-flock.full-directory',  label: 'Full Flock Directory',      desc: 'View all member contact details including addresses and phone numbers.',     risk: 'medium' },
+        { key: 'my-flock.add-edit-members',label: 'Add / Edit Members',        desc: 'Create new member records and modify existing ones.',                        risk: 'high' },
+        { key: 'my-flock.remove-members',  label: 'Remove Members',            desc: 'Delete or archive member records permanently.',                              risk: 'critical' },
+        { key: 'directory',                label: 'Directory Access',           desc: 'View the church member directory.',                                          risk: 'low' },
+        { key: 'directory.contact-details',label: 'Directory Contact Details', desc: 'See phone numbers, emails, and addresses in the directory.',                 risk: 'medium' },
+        { key: 'directory.export',         label: 'Export Directory',           desc: 'Download the directory as a spreadsheet.',                                   risk: 'high' },
+      ]},
+      { group: 'Pastoral Care', items: [
+        { key: 'care',              label: 'Care Cases — Own Assigned', desc: 'View and update care cases assigned to this user.',               risk: 'low' },
+        { key: 'care.create',       label: 'Create Care Cases',         desc: 'Open new care cases for members.',                                risk: 'low' },
+        { key: 'care.edit',         label: 'Edit Own Care Cases',       desc: 'Modify details on care cases assigned to this user.',              risk: 'low' },
+        { key: 'care.view-all',     label: 'View All Care Cases',       desc: 'See every active care case across the church.',                   risk: 'high' },
+        { key: 'care.edit-all',     label: 'Edit All Care Cases',       desc: 'Modify any care case, not just assigned ones.',                   risk: 'high' },
+        { key: 'care.reassign',     label: 'Reassign Care Cases',       desc: 'Transfer care cases between caregivers.',                         risk: 'high' },
+        { key: 'care.close',        label: 'Close Care Cases',          desc: 'Mark care cases as resolved or completed.',                       risk: 'medium' },
+        { key: 'care.notes',        label: 'Pastoral Care Notes',       desc: 'Read and write sensitive pastoral notes on care cases.',           risk: 'critical' },
+        { key: 'care.interactions', label: 'Care Interactions',         desc: 'Log and view interactions on assigned care cases.',               risk: 'low' },
+        { key: 'care.follow-ups',   label: 'Care Follow-Ups',           desc: 'Schedule and manage follow-up tasks on care cases.',              risk: 'low' },
+        { key: 'care.assignments',  label: 'Care Assignments',          desc: 'View and manage caregiver assignment lists.',                     risk: 'medium' },
+      ]},
+      { group: 'Prayer', items: [
+        { key: 'prayer-admin',              label: 'Prayer Admin — Full Control', desc: 'Full management of all prayer requests: edit, delete, reassign.',  risk: 'high' },
+        { key: 'prayer-admin.public',       label: 'Prayer — Non-Confidential',  desc: 'View prayer requests marked as shareable with the team.',          risk: 'low' },
+        { key: 'prayer-admin.confidential', label: 'Prayer — Confidential',      desc: 'Access private prayer requests shared in confidence.',             risk: 'high' },
+        { key: 'prayer-admin.notes',        label: 'Prayer Notes',               desc: 'Read and write private pastoral notes on prayer requests.',        risk: 'critical' },
+      ]},
+      { group: 'Compassion & Benevolence', items: [
+        { key: 'compassion',               label: 'Compassion Fund Access', desc: 'View compassion requests and assistance tracking.',               risk: 'medium' },
+        { key: 'compassion.approve',       label: 'Approve Requests',       desc: 'Approve or deny compassion fund requests.',                      risk: 'medium' },
+        { key: 'compassion.amount',        label: 'View Amounts',           desc: 'See financial amounts on compassion cases.',                     risk: 'medium' },
+        { key: 'compassion.notes',         label: 'Compassion Notes',       desc: 'Read and write sensitive notes on compassion cases.',             risk: 'critical' },
+        { key: 'compassion.resources',     label: 'Compassion Resources',   desc: 'View available compassion resources and referrals.',             risk: 'low' },
+        { key: 'compassion.resources.edit',label: 'Edit Resources',         desc: 'Add, modify, or remove compassion resources.',                   risk: 'medium' },
+        { key: 'compassion.log',           label: 'Compassion Log',         desc: 'View the compassion activity log.',                              risk: 'low' },
+        { key: 'compassion.log.create',    label: 'Create Log Entries',     desc: 'Add new entries to the compassion log.',                         risk: 'low' },
+      ]},
+      { group: 'Groups, Attendance & Check-In', items: [
+        { key: 'groups',              label: 'Small Groups',          desc: 'View small group rosters, schedules, and assignments.',            risk: 'low' },
+        { key: 'groups.manage',       label: 'Manage Groups',         desc: 'Edit group details, rosters, and schedules.',                     risk: 'low' },
+        { key: 'groups.create',       label: 'Create Groups',         desc: 'Create new small groups.',                                        risk: 'medium' },
+        { key: 'attendance',          label: 'Attendance',            desc: 'Record and view attendance for services and events.',              risk: 'low' },
+        { key: 'attendance.record',   label: 'Record Attendance',     desc: 'Mark attendance for services and events.',                        risk: 'low' },
+        { key: 'attendance.edit-past',label: 'Edit Past Attendance',  desc: 'Modify attendance records for previous dates.',                   risk: 'medium' },
+        { key: 'checkin.manage',      label: 'Check-In Management',   desc: 'Manage the check-in system for services and events.',             risk: 'medium' },
+        { key: 'checkin.sessions',    label: 'Check-In Sessions',     desc: 'Create and manage check-in sessions.',                            risk: 'medium' },
+      ]},
+      { group: 'Outreach', items: [
+        { key: 'outreach',               label: 'Outreach',               desc: 'Manage community outreach programs and engagement.',         risk: 'low' },
+        { key: 'outreach.contacts',      label: 'Outreach Contacts',      desc: 'View outreach contact records.',                             risk: 'low' },
+        { key: 'outreach.contacts.edit', label: 'Edit Outreach Contacts', desc: 'Add and modify outreach contact records.',                   risk: 'medium' },
+        { key: 'outreach.campaigns',     label: 'Outreach Campaigns',     desc: 'View outreach campaign details.',                            risk: 'medium' },
+        { key: 'outreach.campaigns.edit',label: 'Edit Campaigns',         desc: 'Create and modify outreach campaigns.',                      risk: 'medium' },
+        { key: 'outreach.follow-ups',    label: 'Outreach Follow-Ups',    desc: 'Manage outreach follow-up tasks.',                           risk: 'low' },
+      ]},
+      { group: 'Giving & Finance', items: [
+        { key: 'giving',             label: 'Giving Records',     desc: 'Access giving history. Sensitive financial data.',                risk: 'critical' },
+        { key: 'giving.individual',  label: 'Individual Giving',  desc: 'View individual member giving records.',                          risk: 'critical' },
+        { key: 'giving.enter',       label: 'Enter Giving',       desc: 'Record new giving transactions.',                                risk: 'critical' },
+        { key: 'giving.edit',        label: 'Edit Giving',        desc: 'Modify or delete existing giving records.',                      risk: 'critical' },
+        { key: 'giving.statements',  label: 'Giving Statements',  desc: 'Generate and view giving statements for members.',               risk: 'high' },
+        { key: 'giving.pledges',     label: 'View Pledges',       desc: 'View pledge commitments.',                                        risk: 'medium' },
+        { key: 'giving.pledges.edit',label: 'Edit Pledges',       desc: 'Create and modify pledge records.',                              risk: 'high' },
+      ]},
+      { group: 'Discipleship & Growth', items: [
+        { key: 'discipleship',                    label: 'Discipleship',            desc: 'Access discipleship pathways and progress tracking.',        risk: 'low' },
+        { key: 'discipleship.paths',              label: 'View Pathways',           desc: 'Browse available discipleship pathways.',                    risk: 'low' },
+        { key: 'discipleship.paths.edit',         label: 'Edit Pathways',           desc: 'Create and modify discipleship pathways.',                   risk: 'medium' },
+        { key: 'discipleship.enroll',             label: 'Enroll Members',          desc: 'Enroll members into discipleship programs.',                 risk: 'low' },
+        { key: 'discipleship.advance',            label: 'Advance Members',         desc: 'Move members through discipleship stages.',                  risk: 'medium' },
+        { key: 'discipleship.mentoring.edit',     label: 'Edit Mentoring',          desc: 'Manage mentor-mentee assignments.',                          risk: 'medium' },
+        { key: 'discipleship.assessments',        label: 'Assessments',             desc: 'View and manage discipleship assessments.',                  risk: 'medium' },
+        { key: 'discipleship.certificates',       label: 'Certificates',            desc: 'View discipleship completion certificates.',                 risk: 'low' },
+        { key: 'discipleship.certificates.issue', label: 'Issue Certificates',      desc: 'Issue certificates for completed pathways.',                 risk: 'medium' },
+        { key: 'discipleship.resources.edit',     label: 'Edit Resources',          desc: 'Manage discipleship learning resources.',                    risk: 'medium' },
+      ]},
+      { group: 'Worship & Media', items: [
+        { key: 'songs',                label: 'Song Library',      desc: 'View the worship song library.',                                 risk: 'low' },
+        { key: 'songs.edit',           label: 'Edit Songs',        desc: 'Add and modify songs in the library.',                          risk: 'low' },
+        { key: 'songs.setlist',        label: 'Set Lists',         desc: 'Create and manage worship set lists.',                          risk: 'low' },
+        { key: 'services.edit',        label: 'Edit Services',     desc: 'Manage service schedules and details.',                         risk: 'medium' },
+        { key: 'sermons.edit',         label: 'Edit Sermons',      desc: 'Add, edit, or remove sermon records.',                          risk: 'medium' },
+        { key: 'sermons.upload',       label: 'Upload Sermons',    desc: 'Upload sermon audio and video files.',                          risk: 'low' },
+        { key: 'sermons.approve',      label: 'Approve Sermons',   desc: 'Review and approve sermons for publication.',                   risk: 'medium' },
+        { key: 'sermons.series',       label: 'Sermon Series',     desc: 'Manage sermon series and categories.',                          risk: 'low' },
+        { key: 'albums',               label: 'Albums',            desc: 'View media albums.',                                            risk: 'low' },
+        { key: 'albums.manage',        label: 'Manage Albums',     desc: 'Create and edit media albums.',                                 risk: 'low' },
+        { key: 'content-admin',        label: 'Content Editor',    desc: 'Edit and publish app content.',                                 risk: 'medium' },
+        { key: 'content-admin.publish',label: 'Publish Content',   desc: 'Approve and publish content to all members.',                   risk: 'medium' },
+      ]},
+      { group: 'Calendar, Events & Volunteers', items: [
+        { key: 'calendar.create',   label: 'Create Events',      desc: 'Add new events to the calendar.',                                risk: 'low' },
+        { key: 'calendar.edit',     label: 'Edit Events',        desc: 'Modify existing calendar events.',                               risk: 'low' },
+        { key: 'calendar.delete',   label: 'Delete Events',      desc: 'Remove events from the calendar.',                               risk: 'medium' },
+        { key: 'calendar.share',    label: 'Share Events',       desc: 'Share events with groups or members.',                            risk: 'low' },
+        { key: 'calendar.delegate', label: 'Delegate Calendar',  desc: 'Grant calendar management to others.',                            risk: 'high' },
+        { key: 'events.edit',       label: 'Edit Event Details', desc: 'Modify event registration and details.',                          risk: 'medium' },
+        { key: 'events.rsvp-list',  label: 'View RSVP Lists',    desc: 'See who has registered for events.',                              risk: 'low' },
+        { key: 'volunteers',        label: 'Volunteer Access',   desc: 'View volunteer rosters and schedules.',                           risk: 'low' },
+        { key: 'volunteers.manage', label: 'Manage Volunteers',  desc: 'Assign and schedule volunteers.',                                risk: 'low' },
+        { key: 'volunteers.swap',   label: 'Swap Volunteers',    desc: 'Reassign volunteer shifts between people.',                      risk: 'medium' },
+      ]},
+      { group: 'Communications', items: [
+        { key: 'comms',                 label: 'Communications Hub',   desc: 'Access the communications system.',                         risk: 'high' },
+        { key: 'comms.send-individual', label: 'Send to Individuals',  desc: 'Send messages to individual members.',                      risk: 'medium' },
+        { key: 'comms.send-group',      label: 'Send to Groups',       desc: 'Send messages to groups and teams.',                        risk: 'medium' },
+        { key: 'comms.send-all',        label: 'Send to All',          desc: 'Send church-wide announcements to all members.',            risk: 'high' },
+        { key: 'comms.channels',        label: 'Manage Channels',      desc: 'Create and configure communication channels.',              risk: 'high' },
+        { key: 'comms.templates',       label: 'Message Templates',    desc: 'Create and manage message templates.',                       risk: 'medium' },
+        { key: 'comms.delete',          label: 'Delete Messages',      desc: 'Permanently delete sent messages.',                         risk: 'critical' },
+      ]},
+      { group: 'Missions', items: [
+        { key: 'missions',               label: 'Missions Hub',         desc: 'Access mission trips, partnerships, and initiatives.',     risk: 'low' },
+        { key: 'missions.registry',      label: 'Mission Registry',     desc: 'View the missions registry.',                              risk: 'low' },
+        { key: 'missions.registry.edit', label: 'Edit Registry',        desc: 'Add and modify mission registry entries.',                 risk: 'medium' },
+        { key: 'missions.partners',      label: 'Mission Partners',     desc: 'View mission partner details.',                            risk: 'low' },
+        { key: 'missions.partners.edit', label: 'Edit Partners',        desc: 'Manage mission partner records.',                          risk: 'medium' },
+        { key: 'missions.regions',       label: 'Mission Regions',      desc: 'View and manage mission regions.',                         risk: 'low' },
+        { key: 'missions.prayer',        label: 'Mission Prayer',       desc: 'View mission prayer requests.',                            risk: 'low' },
+        { key: 'missions.prayer.edit',   label: 'Edit Mission Prayer',  desc: 'Manage mission prayer requests.',                          risk: 'medium' },
+        { key: 'missions.updates',       label: 'Mission Updates',      desc: 'View mission field updates.',                              risk: 'low' },
+        { key: 'missions.updates.edit',  label: 'Edit Mission Updates', desc: 'Post and manage mission updates.',                         risk: 'medium' },
+      ]},
+      { group: 'Member Cards', items: [
+        { key: 'memberCards',            label: 'Member Cards Hub',        desc: 'Access the member cards system.',                        risk: 'medium' },
+        { key: 'memberCards.directory',  label: 'Card Directory',          desc: 'Browse the member card directory.',                      risk: 'low' },
+        { key: 'memberCards.create',     label: 'Create Cards',            desc: 'Issue new member cards.',                                risk: 'high' },
+        { key: 'memberCards.edit',       label: 'Edit Cards',              desc: 'Modify existing member card records.',                   risk: 'high' },
+        { key: 'memberCards.archive',    label: 'Archive Cards',           desc: 'Archive or deactivate member cards.',                    risk: 'critical' },
+        { key: 'memberCards.links',      label: 'Card Links',              desc: 'Manage linked accounts on member cards.',                risk: 'high' },
+        { key: 'memberCards.views',      label: 'Card Views',              desc: 'Access advanced card viewing modes.',                    risk: 'medium' },
+        { key: 'memberCards.bulk',       label: 'Bulk Card Operations',    desc: 'Perform bulk actions on member cards.',                  risk: 'critical' },
+        { key: 'memberCards.scan',       label: 'Scan Cards',              desc: 'Scan member cards for check-in and verification.',       risk: 'low' },
+      ]},
+      { group: 'Reports & Analytics', items: [
+        { key: 'reports',           label: 'Reports',                 desc: 'Generate and view church-wide reports.',                     risk: 'medium' },
+        { key: 'reports.sensitive', label: 'Sensitive Reports',       desc: 'Access reports containing PII and financial data.',          risk: 'high' },
+        { key: 'reports.export',    label: 'Export Reports',          desc: 'Download report data as spreadsheets.',                      risk: 'critical' },
+        { key: 'statistics',        label: 'Statistics & Analytics',  desc: 'View aggregate statistical dashboards.',                     risk: 'low' },
+        { key: 'ministry',          label: 'Ministry Hub',            desc: 'Access the ministry management dashboard.',                  risk: 'medium' },
+      ]},
+      { group: 'Administration', items: [
+        { key: 'audit',             label: 'Activity & Audit Log',  desc: 'View the complete log of all system actions.',                 risk: 'medium' },
+        { key: 'users',             label: 'User Management',       desc: 'Access the user management system.',                          risk: 'critical' },
+        { key: 'users.create',      label: 'Create Users',          desc: 'Create new user accounts.',                                   risk: 'critical' },
+        { key: 'users.edit',        label: 'Edit Users',            desc: 'Modify user account details and roles.',                       risk: 'high' },
+        { key: 'users.deactivate',  label: 'Deactivate Users',      desc: 'Disable user accounts.',                                      risk: 'critical' },
+        { key: 'users.delete',      label: 'Delete Users',          desc: 'Permanently delete user accounts and all associated data.',    risk: 'critical' },
+        { key: 'users.permissions', label: 'Edit Permissions',      desc: 'Modify other users\' permission grants.',                     risk: 'critical' },
+        { key: 'config',            label: 'System Settings',       desc: 'Access church-wide configuration.',                           risk: 'critical' },
+        { key: 'config.edit',       label: 'Edit Settings',         desc: 'Modify system settings \u2014 incorrect changes can break the app.', risk: 'critical' },
+        { key: 'access',            label: 'Access Requests',       desc: 'View pending access requests.',                               risk: 'high' },
+        { key: 'access.approve',    label: 'Approve Access',        desc: 'Approve or deny access requests.',                            risk: 'critical' },
+        { key: 'bulk',              label: 'Bulk Operations',       desc: 'Access bulk data operations.',                                risk: 'critical' },
+        { key: 'bulk.import',       label: 'Bulk Import',           desc: 'Import data in bulk from files.',                             risk: 'critical' },
+        { key: 'bulk.export',       label: 'Bulk Export',           desc: 'Export data in bulk to files.',                               risk: 'critical' },
+        { key: 'church',            label: 'Church Profile',        desc: 'View church profile and settings.',                            risk: 'high' },
+        { key: 'church.edit',       label: 'Edit Church Profile',   desc: 'Modify church profile information.',                           risk: 'critical' },
+      ]},
+    ];
+
+    var _riskMeta = {
+      low:      { label: 'Low Risk',    color: '#16a34a', bg: '#16a34a18' },
+      medium:   { label: 'Medium Risk', color: '#b45309', bg: '#b4530918' },
+      high:     { label: 'High Risk',   color: '#ea580c', bg: '#ea580c18' },
+      critical: { label: 'Critical',    color: '#dc2626', bg: '#dc262618' },
+    };
+    var _roleMeta = {
+      readonly:       { label: 'Read Only',      color: '#6b7280' },
+      member:         { label: 'Member',         color: '#6b7280' },
+      volunteer:      { label: 'Volunteer',      color: '#7c6f3e' },
+      care:           { label: 'Care Team',      color: '#2d7d9a' },
+      deacon:         { label: 'Deacon',         color: '#5a6e3a' },
+      leader:         { label: 'Leader',         color: '#7c3aed' },
+      elder:          { label: 'Elder',          color: '#1d6f5f' },
+      timothy:        { label: 'Timothy',        color: '#8b5e3c' },
+      pastor:         { label: 'Pastor',         color: '#b45309' },
+      admin:          { label: 'Admin',          color: '#dc2626' },
+      tech:           { label: 'Tech',           color: '#4f46e5' },
+      finance:        { label: 'Finance',        color: '#0e7490' },
+      'church-office':{ label: 'Church Office',  color: '#9333ea' },
+    };
+    var _rm = _roleMeta[(memberRole || '').toLowerCase()] || { label: memberRole || 'No Role', color: '#6b7280' };
+
+    window._shepPermTemplates = {
+      member: [],
+      leader: ['my-flock', 'care', 'care.create', 'care.edit', 'care.interactions', 'care.follow-ups', 'prayer-admin.public', 'compassion', 'compassion.resources', 'groups', 'groups.manage', 'attendance', 'attendance.record', 'outreach', 'outreach.contacts', 'outreach.follow-ups', 'discipleship', 'discipleship.paths', 'volunteers', 'volunteers.manage', 'events.rsvp-list', 'sermons.upload', 'albums', 'albums.manage', 'calendar.create', 'calendar.edit', 'calendar.share', 'songs.setlist'],
+      deacon: ['my-flock', 'care', 'care.create', 'care.edit', 'care.interactions', 'care.follow-ups', 'care.view-all', 'prayer-admin.public', 'prayer-admin.confidential', 'compassion', 'compassion.resources', 'compassion.approve', 'compassion.amount', 'compassion.log', 'compassion.log.create', 'directory', 'directory.contact-details', 'groups', 'groups.manage', 'attendance', 'attendance.record', 'outreach', 'outreach.contacts', 'outreach.contacts.edit', 'outreach.follow-ups', 'discipleship', 'discipleship.paths', 'giving', 'giving.pledges', 'volunteers', 'volunteers.manage', 'volunteers.swap', 'events.rsvp-list', 'events.edit', 'sermons.upload', 'sermons.series', 'albums', 'albums.manage', 'calendar.create', 'calendar.edit', 'calendar.share', 'songs', 'songs.edit', 'songs.setlist', 'services.edit', 'comms.send-group', 'memberCards.directory', 'memberCards.scan', 'checkin.manage', 'checkin.sessions'],
+      care: ['my-flock', 'care', 'care.create', 'care.edit', 'care.interactions', 'care.follow-ups', 'care.view-all', 'prayer-admin.public', 'prayer-admin.confidential', 'compassion', 'compassion.resources', 'compassion.log', 'compassion.approve', 'compassion.amount', 'outreach.contacts', 'outreach.follow-ups'],
+      elder: ['my-flock', 'care', 'care.create', 'care.edit', 'care.interactions', 'care.follow-ups', 'care.view-all', 'care.edit-all', 'care.reassign', 'care.close', 'care.assignments', 'prayer-admin.public', 'prayer-admin.confidential', 'compassion', 'compassion.resources', 'compassion.approve', 'compassion.amount', 'compassion.log', 'compassion.log.create', 'compassion.notes', 'compassion.resources.edit', 'directory', 'directory.contact-details', 'groups', 'groups.manage', 'groups.create', 'attendance', 'attendance.record', 'attendance.edit-past', 'outreach', 'outreach.contacts', 'outreach.contacts.edit', 'outreach.campaigns', 'outreach.campaigns.edit', 'outreach.follow-ups', 'discipleship', 'discipleship.paths', 'discipleship.enroll', 'discipleship.advance', 'discipleship.mentoring.edit', 'discipleship.assessments', 'discipleship.certificates', 'giving', 'giving.individual', 'giving.pledges', 'volunteers', 'volunteers.manage', 'volunteers.swap', 'events.rsvp-list', 'events.edit', 'sermons.upload', 'sermons.series', 'albums', 'albums.manage', 'calendar.create', 'calendar.edit', 'calendar.delete', 'calendar.share', 'songs', 'songs.edit', 'songs.setlist', 'services.edit', 'comms.send-group', 'memberCards.directory', 'memberCards.scan', 'checkin.manage', 'checkin.sessions', 'reports', 'statistics', 'ministry'],
+      timothy: ['my-flock', 'my-flock.full-directory', 'my-flock.add-edit-members', 'directory', 'directory.contact-details', 'care', 'care.create', 'care.edit', 'care.view-all', 'care.edit-all', 'care.close', 'care.reassign', 'care.interactions', 'care.follow-ups', 'care.assignments', 'prayer-admin', 'prayer-admin.public', 'prayer-admin.confidential', 'compassion', 'compassion.approve', 'compassion.amount', 'compassion.resources', 'compassion.resources.edit', 'compassion.log', 'compassion.log.create', 'groups', 'groups.manage', 'groups.create', 'attendance', 'attendance.record', 'attendance.edit-past', 'giving', 'giving.individual', 'giving.pledges', 'discipleship', 'discipleship.paths', 'discipleship.paths.edit', 'discipleship.enroll', 'discipleship.advance', 'discipleship.mentoring.edit', 'discipleship.assessments', 'discipleship.certificates', 'discipleship.certificates.issue', 'discipleship.resources.edit', 'outreach', 'outreach.contacts', 'outreach.contacts.edit', 'outreach.campaigns', 'outreach.campaigns.edit', 'outreach.follow-ups', 'missions', 'missions.registry', 'missions.registry.edit', 'missions.partners', 'missions.partners.edit', 'missions.regions', 'missions.prayer', 'missions.prayer.edit', 'missions.updates', 'missions.updates.edit', 'comms', 'comms.send-individual', 'comms.send-group', 'comms.channels', 'comms.templates', 'content-admin', 'content-admin.publish', 'sermons.edit', 'sermons.upload', 'sermons.approve', 'sermons.series', 'albums', 'albums.manage', 'calendar.create', 'calendar.edit', 'calendar.delete', 'calendar.share', 'events.edit', 'events.rsvp-list', 'services.edit', 'volunteers', 'volunteers.manage', 'volunteers.swap', 'memberCards', 'memberCards.directory', 'memberCards.create', 'memberCards.edit', 'memberCards.scan', 'checkin.manage', 'checkin.sessions', 'reports', 'reports.sensitive', 'statistics', 'ministry', 'songs', 'songs.edit', 'songs.setlist'],
+      pastor: ['my-flock', 'my-flock.full-directory', 'my-flock.add-edit-members', 'my-flock.remove-members', 'directory', 'directory.contact-details', 'directory.export', 'care', 'care.create', 'care.edit', 'care.view-all', 'care.edit-all', 'care.close', 'care.reassign', 'care.interactions', 'care.follow-ups', 'care.assignments', 'care.notes', 'prayer-admin', 'prayer-admin.public', 'prayer-admin.confidential', 'prayer-admin.notes', 'compassion', 'compassion.approve', 'compassion.amount', 'compassion.notes', 'compassion.resources', 'compassion.resources.edit', 'compassion.log', 'compassion.log.create', 'groups', 'groups.manage', 'groups.create', 'attendance', 'attendance.record', 'attendance.edit-past', 'giving', 'giving.individual', 'giving.enter', 'giving.statements', 'giving.pledges', 'giving.pledges.edit', 'discipleship', 'discipleship.paths', 'discipleship.paths.edit', 'discipleship.enroll', 'discipleship.advance', 'discipleship.mentoring.edit', 'discipleship.assessments', 'discipleship.certificates', 'discipleship.certificates.issue', 'discipleship.resources.edit', 'outreach', 'outreach.contacts', 'outreach.contacts.edit', 'outreach.campaigns', 'outreach.campaigns.edit', 'outreach.follow-ups', 'missions', 'missions.registry', 'missions.registry.edit', 'missions.partners', 'missions.partners.edit', 'missions.regions', 'missions.prayer', 'missions.prayer.edit', 'missions.updates', 'missions.updates.edit', 'comms', 'comms.send-individual', 'comms.send-group', 'comms.send-all', 'comms.channels', 'comms.templates', 'content-admin', 'content-admin.publish', 'sermons.edit', 'sermons.upload', 'sermons.approve', 'sermons.series', 'albums', 'albums.manage', 'calendar.create', 'calendar.edit', 'calendar.delete', 'calendar.share', 'events.edit', 'events.rsvp-list', 'services.edit', 'volunteers', 'volunteers.manage', 'volunteers.swap', 'memberCards', 'memberCards.directory', 'memberCards.create', 'memberCards.edit', 'memberCards.scan', 'checkin.manage', 'checkin.sessions', 'reports', 'reports.sensitive', 'statistics', 'ministry', 'songs', 'songs.edit', 'songs.setlist', 'audit', 'users.edit', 'users.permissions'],
+      admin: ['my-flock', 'my-flock.full-directory', 'my-flock.add-edit-members', 'my-flock.remove-members', 'directory', 'directory.contact-details', 'directory.export', 'care', 'care.create', 'care.edit', 'care.view-all', 'care.edit-all', 'care.close', 'care.reassign', 'care.interactions', 'care.follow-ups', 'care.assignments', 'care.notes', 'prayer-admin', 'prayer-admin.public', 'prayer-admin.confidential', 'prayer-admin.notes', 'compassion', 'compassion.approve', 'compassion.amount', 'compassion.notes', 'compassion.resources', 'compassion.resources.edit', 'compassion.log', 'compassion.log.create', 'groups', 'groups.manage', 'groups.create', 'attendance', 'attendance.record', 'attendance.edit-past', 'giving', 'giving.individual', 'giving.enter', 'giving.edit', 'giving.statements', 'giving.pledges', 'giving.pledges.edit', 'discipleship', 'discipleship.paths', 'discipleship.paths.edit', 'discipleship.enroll', 'discipleship.advance', 'discipleship.mentoring.edit', 'discipleship.assessments', 'discipleship.certificates', 'discipleship.certificates.issue', 'discipleship.resources.edit', 'outreach', 'outreach.contacts', 'outreach.contacts.edit', 'outreach.campaigns', 'outreach.campaigns.edit', 'outreach.follow-ups', 'missions', 'missions.registry', 'missions.registry.edit', 'missions.partners', 'missions.partners.edit', 'missions.regions', 'missions.prayer', 'missions.prayer.edit', 'missions.updates', 'missions.updates.edit', 'comms', 'comms.send-individual', 'comms.send-group', 'comms.send-all', 'comms.channels', 'comms.templates', 'comms.delete', 'content-admin', 'content-admin.publish', 'sermons.edit', 'sermons.upload', 'sermons.approve', 'sermons.series', 'albums', 'albums.manage', 'calendar.create', 'calendar.edit', 'calendar.delete', 'calendar.share', 'calendar.delegate', 'events.edit', 'events.rsvp-list', 'services.edit', 'volunteers', 'volunteers.manage', 'volunteers.swap', 'memberCards', 'memberCards.directory', 'memberCards.create', 'memberCards.edit', 'memberCards.archive', 'memberCards.links', 'memberCards.views', 'memberCards.bulk', 'memberCards.scan', 'checkin.manage', 'checkin.sessions', 'reports', 'reports.sensitive', 'reports.export', 'statistics', 'ministry', 'songs', 'songs.edit', 'songs.setlist', 'audit', 'users', 'users.create', 'users.edit', 'users.deactivate', 'users.delete', 'users.permissions', 'config', 'config.edit', 'access', 'access.approve', 'bulk', 'bulk.import', 'bulk.export', 'church', 'church.edit'],
+      'church-office': ['my-flock', 'my-flock.full-directory', 'my-flock.add-edit-members', 'directory', 'directory.contact-details', 'care', 'prayer-admin.public', 'compassion', 'memberCards', 'memberCards.directory', 'memberCards.create', 'memberCards.edit', 'memberCards.scan', 'memberCards.archive', 'memberCards.links', 'memberCards.views', 'calendar.create', 'calendar.edit', 'calendar.delete', 'calendar.share', 'events.edit', 'events.rsvp-list', 'services.edit', 'volunteers', 'volunteers.manage', 'volunteers.swap', 'checkin.manage', 'checkin.sessions', 'attendance', 'attendance.record', 'attendance.edit-past', 'groups', 'groups.manage', 'groups.create', 'comms', 'comms.send-individual', 'comms.send-group', 'comms.channels', 'comms.templates', 'comms.delete', 'users', 'users.create', 'users.edit', 'users.permissions', 'reports', 'statistics'],
+      worship: ['songs', 'songs.edit', 'songs.setlist', 'services.edit', 'sermons.upload', 'sermons.series', 'albums', 'albums.manage', 'calendar.create', 'calendar.edit', 'calendar.share', 'events.rsvp-list', 'comms.send-group', 'volunteers', 'volunteers.manage', 'volunteers.swap', 'attendance', 'attendance.record'],
+      children: ['checkin.manage', 'checkin.sessions', 'groups', 'groups.manage', 'attendance', 'attendance.record', 'calendar.create', 'calendar.edit', 'calendar.share', 'events.rsvp-list', 'comms.send-group', 'volunteers', 'volunteers.manage'],
+      media: ['content-admin', 'content-admin.publish', 'sermons.upload', 'sermons.approve', 'sermons.series', 'albums', 'albums.manage', 'comms.channels', 'comms.templates', 'calendar.create', 'calendar.share', 'events.rsvp-list'],
+      tech: ['config', 'config.edit', 'audit', 'church', 'church.edit', 'bulk', 'bulk.import', 'bulk.export'],
+      finance: ['giving', 'giving.individual', 'giving.enter', 'giving.edit', 'giving.statements', 'giving.pledges', 'giving.pledges.edit', 'memberCards', 'memberCards.directory', 'reports', 'reports.sensitive', 'reports.export', 'statistics', 'directory'],
+    };
+
+    var ph = '';
+
+    if (memberRole) {
+      ph += '<div style="margin-bottom:18px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">';
+      ph += '<span style="font-size:0.82rem;color:var(--ink-muted);">System Role:</span>';
+      ph += '<span style="display:inline-block;padding:3px 12px;border-radius:20px;font-size:0.8rem;font-weight:700;letter-spacing:0.04em;'
+         + 'background:' + _rm.color + '22;color:' + _rm.color + ';border:1px solid ' + _rm.color + '55;">'
+         + _e(_rm.label) + '</span>';
+      ph += '<span style="font-size:0.76rem;color:var(--ink-faint);font-style:italic;">The role is informational only \u2014 access is determined entirely by the selections below.</span>';
+      ph += '</div>';
+    }
+
+    ph += '<div style="margin-bottom:20px;">';
+    ph += '<span style="font-size:0.82rem;color:var(--ink-muted);display:block;margin-bottom:8px;font-weight:600;">Quick Presets'
+       + ' <span style="color:var(--ink-faint);font-weight:400;font-style:italic;"> \u2014 sets a standard starting point, then adjust individually below</span></span>';
+    ph += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px;">';
+    [{ val:'member',label:'Member'},{val:'leader',label:'Leader'},{val:'deacon',label:'Deacon'},{val:'care',label:'Care'},{val:'elder',label:'Elder'},{val:'timothy',label:'Timothy'},{val:'pastor',label:'Pastor'},{val:'admin',label:'Admin'}].forEach(function(t) {
+      ph += '<button type="button" onclick="TheShepherd._applyPermTemplate(\'' + t.val + '\')"'
+         + ' style="background:none;border:1px solid var(--line);border-radius:6px;padding:6px 16px;cursor:pointer;color:var(--ink);font-size:0.82rem;font-family:inherit;font-weight:600;">'
+         + _e(t.label) + '</button>';
+    });
+    ph += '</div><div style="display:flex;gap:8px;flex-wrap:wrap;">';
+    [{ val:'church-office',label:'Church Office'},{val:'worship',label:'Worship'},{val:'children',label:'Children'},{val:'media',label:'Media'},{val:'tech',label:'Tech'},{val:'finance',label:'Finance'}].forEach(function(t) {
+      ph += '<button type="button" onclick="TheShepherd._applyPermTemplate(\'' + t.val + '\')"'
+         + ' style="background:none;border:1px solid var(--line);border-radius:6px;padding:6px 14px;cursor:pointer;color:var(--ink-muted);font-size:0.78rem;font-family:inherit;font-weight:600;">'
+         + _e(t.label) + '</button>';
+    });
+    ph += '<button type="button" onclick="TheShepherd._applyPermTemplate(\'none\')"'
+       + ' style="background:none;border:1px solid var(--line);border-radius:6px;padding:6px 16px;cursor:pointer;color:var(--ink-muted);font-size:0.82rem;font-family:inherit;">Clear All</button>';
+    ph += '</div></div>';
+
+    ph += '<table style="width:100%;border-collapse:collapse;font-size:0.83rem;">';
+    ph += '<thead><tr style="border-bottom:2px solid var(--line);">'
+       + '<th style="text-align:left;padding:8px 12px;color:var(--ink-muted);font-weight:600;font-size:0.78rem;text-transform:uppercase;letter-spacing:0.04em;">Permission</th>'
+       + '<th style="text-align:center;padding:8px 12px;color:var(--ink-muted);font-weight:600;font-size:0.78rem;text-transform:uppercase;letter-spacing:0.04em;width:120px;">Access</th>'
+       + '</tr></thead><tbody>';
+
+    var _riskGroups = { low: [], medium: [], high: [], critical: [] };
+    PERM_ROWS.forEach(function(section) {
+      section.items.forEach(function(item) {
+        var lvl = item.risk || 'low';
+        if (_riskGroups[lvl]) _riskGroups[lvl].push({ item: item, group: section.group });
+      });
+    });
+    ['low', 'medium', 'high', 'critical'].forEach(function(lvl) {
+      var entries = _riskGroups[lvl];
+      if (!entries.length) return;
+      var rm = _riskMeta[lvl];
+      var headId = 'shep-grp-' + lvl;
+      ph += '<tr><td style="padding:14px 12px 6px;border-top:2px solid var(--line);">'
+         + '<span style="display:inline-block;padding:3px 14px;border-radius:20px;font-size:0.72rem;font-weight:800;letter-spacing:0.07em;text-transform:uppercase;'
+         + 'background:' + rm.bg + ';color:' + rm.color + ';border:1px solid ' + rm.color + '55;">' + _e(rm.label) + '</span></td>'
+         + '<td style="text-align:center;padding:14px 12px 6px;border-top:2px solid var(--line);vertical-align:middle;">'
+         + '<input type="checkbox" id="' + headId + '" class="shep-grp-chk" data-risk-group="' + lvl + '"'
+         + ' onchange="TheShepherd._onGrpChkChange(this)" style="width:18px;height:18px;accent-color:' + rm.color + ';cursor:pointer;"'
+         + ' title="Toggle all ' + rm.label + ' permissions"></td></tr>';
+      entries.forEach(function(e) {
+        var item = e.item, group = e.group;
+        var val  = ovMap[item.key] || 'none';
+        var selId = 'spsel-' + item.key.replace(/\./g, '-');
+        ph += '<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">'
+           + '<td style="padding:10px 12px;vertical-align:top;">'
+           + '<div style="font-weight:600;color:var(--ink);margin-bottom:2px;">' + _e(item.label) + '</div>'
+           + '<div style="font-size:0.77rem;color:var(--ink-muted);line-height:1.45;margin-bottom:2px;">' + _e(item.desc) + '</div>'
+           + '<div style="font-size:0.70rem;color:var(--ink-faint);font-style:italic;">' + _e(group) + '</div></td>'
+           + '<td style="text-align:center;padding:10px 12px;vertical-align:middle;">'
+           + '<input type="checkbox" id="' + selId + '" class="shep-perm-chk" data-perm-key="' + _e(item.key) + '" data-risk="' + _e(item.risk || 'low') + '"'
+           + (val === 'grant' ? ' checked' : '')
+           + ' onchange="TheShepherd._onPermChkChange(this)" style="width:18px;height:18px;accent-color:var(--accent);cursor:pointer;"></td></tr>';
+      });
+    });
+    ph += '</tbody></table>';
+
+    ph += '<div id="shep-crit-confirm" style="display:none;border:2px solid #dc2626;border-radius:10px;background:#dc262610;padding:16px 18px;margin:16px 0;">'
+       + '<div style="font-weight:800;color:#dc2626;font-size:0.8rem;letter-spacing:0.06em;margin-bottom:10px;">\uD83D\uDD34 CRITICAL PERMISSION \u2014 CONFIRMATION REQUIRED</div>'
+       + '<p style="font-size:0.84rem;color:var(--ink);margin:0 0 12px;">One or more critical permissions are selected. Please confirm before saving.</p>'
+       + '<label style="display:flex;align-items:flex-start;gap:10px;margin-bottom:12px;cursor:pointer;">'
+       + '<input type="checkbox" id="shep-crit-chk" style="margin-top:2px;accent-color:#dc2626;">'
+       + '<span style="font-size:0.84rem;color:var(--ink);">I understand this grants critical-level system access to this person</span></label>'
+       + '<input type="text" id="shep-crit-txt" placeholder="Type Yes to confirm"'
+       + ' style="border:1px solid #dc262666;border-radius:6px;padding:6px 12px;font-size:0.84rem;background:var(--bg);color:var(--ink);font-family:inherit;width:200px;">'
+       + '<div style="font-size:0.76rem;color:var(--ink-muted);font-style:italic;margin-top:10px;">\uD83D\uDCE3 Pastoral leads will be notified when critical permissions are granted.</div></div>';
+
+    ph += '<div style="margin-top:14px;display:flex;align-items:center;gap:12px;">'
+       + '<button type="button" onclick="TheShepherd._savePerms(\'' + eid + '\')" style="background:var(--accent);color:var(--ink-inverse);border:none;border-radius:6px;padding:9px 22px;cursor:pointer;font-weight:700;font-size:0.86rem;font-family:inherit;">Save Permissions</button>'
+       + '<span id="shep-perm-status" style="font-size:0.82rem;color:var(--ink-muted);"></span></div>';
+
+    el.innerHTML = ph;
+  }
+
+  async function _loadVolunteers(email) {
+    var el = document.getElementById('pp-sec-volunteers');
+    if (!el) return;
+    var p = _ppData[(email || '').toLowerCase()] || {};
+    var u = p.user || {};
+    var volRows = [];
+    try {
+      var res = await TheVine.flock.call('volunteers.list', {});
+      var aVol = (res && res.rows) || [];
+      volRows = aVol.filter(function(v) {
+        return (v.memberId || '').toLowerCase() === email.toLowerCase()
+          || (v.memberName || '').toLowerCase().indexOf((u.firstName || '').toLowerCase()) >= 0;
+      });
+    } catch (_) {}
+    var vh = '';
+    if (volRows.length) {
+      vh += '<table style="width:100%;font-size:0.78rem;border-collapse:collapse;">'
+          + '<tr style="border-bottom:1px solid var(--line);"><th style="text-align:left;padding:6px;">Ministry</th>'
+          + '<th style="text-align:left;padding:6px;">Role</th><th style="text-align:left;padding:6px;">Date</th>'
+          + '<th style="text-align:left;padding:6px;">Status</th></tr>';
+      volRows.forEach(function(v) {
+        vh += '<tr style="border-top:1px solid var(--line);">'
+            + '<td style="padding:4px 6px;">' + _e(v.ministryTeam || '') + '</td>'
+            + '<td style="padding:4px 6px;">' + _e(v.role || '') + '</td>'
+            + '<td style="padding:4px 6px;">' + _e(v.scheduledDate || '') + '</td>'
+            + '<td style="padding:4px 6px;">' + _e(v.status || '') + '</td></tr>';
+      });
+      vh += '</table>';
+    } else {
+      vh = '<p style="color:var(--ink-muted);font-size:0.84rem;">No volunteer assignments found.</p>';
+    }
+    el.innerHTML = vh;
+  }
+
+  function _loadHistory(email) {
+    var el = document.getElementById('pp-sec-scrolls');
+    if (!el) return;
+    if (typeof TheScrolls !== 'undefined') {
+      el.innerHTML = TheScrolls.renderPersonTimeline(email);
+    } else {
+      el.innerHTML = '<p style="color:var(--ink-muted);font-size:0.84rem;">Interaction history unavailable.</p>';
+    }
+  }
+
   // ── Approve / Deny ──────────────────────────────────────────────────────
   async function _approve(email) {
     if (!confirm('Approve ' + email + ' for membership?')) return;
@@ -342,31 +712,10 @@ const TheShepherd = (() => {
     var u = p.user || {};
     var eid = _e(email);
 
-    // Parallel load detailed records
-    var permData = { overrides: [], permissions: {} }, moduleMap = {};
-    var memberRec = null, cardRec = null, volRows = [];
-    try {
-      var fetches = [
-        isMidKey ? Promise.resolve(null) : (_isFB() ? UpperRoom.getPermissions(email)       : TheVine.flock.call('permissions.get', { targetEmail: email })),
-        _isFB() ? UpperRoom.listPermissionModules()                                          : TheVine.flock.call('permissions.list', {}),
-        isMidKey ? (_isFB() ? UpperRoom.getMember(midId) : TheVine.flock.call('members.get', { id: midId }))
-                 : (_isFB() ? UpperRoom.getMember(email) : TheVine.flock.call('members.get', { email: email })),
-        isMidKey ? Promise.resolve([]) : (_isFB() ? UpperRoom.searchMemberCards(email)       : TheVine.flock.memberCards.search({ q: email })),
-        TheVine.flock.call('volunteers.list', {}),
-      ];
-      var f = await Promise.allSettled(fetches);
-      permData  = (f[0].status === 'fulfilled' && f[0].value) || permData;
-      moduleMap = (f[1].status === 'fulfilled' && f[1].value && f[1].value.modules) || {};
-      memberRec = (f[2].status === 'fulfilled' && f[2].value && !f[2].value.error) ? f[2].value : null;
-      var cArr  = (f[3].status === 'fulfilled' && Array.isArray(f[3].value)) ? f[3].value : [];
-      cardRec   = isMidKey ? null : cArr.find(function(c) { return (c.email || '').toLowerCase() === email.toLowerCase(); }) || null;
-      var aVol  = (f[4].status === 'fulfilled' && f[4].value && f[4].value.rows) || [];
-      volRows   = aVol.filter(function(v) {
-        return (v.memberId || '').toLowerCase() === email.toLowerCase()
-          || (v.memberName || '').toLowerCase().indexOf((u.firstName || '').toLowerCase()) >= 0;
-      });
-    } catch (_) {}
-
+    // Use already-cached member and card records from the directory load.
+    // Permissions and volunteer data are lazy-loaded when those sections are opened.
+    var memberRec = p.member || null;
+    var cardRec   = isMidKey ? null : (p.card || null);
     _openEmail = email;
     _openMemId = memberRec ? (memberRec.id || '') : '';
     _openCardId = cardRec ? (cardRec.id || '') : '';
@@ -423,7 +772,7 @@ const TheShepherd = (() => {
       _ppF('Email', 'id_email', email, 'email'),
       _ppF('Phone', 'id_phone', u.phone || (memberRec && memberRec.cellPhone) || (cardRec && cardRec.phone), 'tel'));
     idSec += _ppF('Photo URL', 'id_photoUrl', u.photoUrl || (memberRec && memberRec.photoUrl) || (cardRec && cardRec.photoUrl), 'text');
-    html += _ppSec('Identity', 'identity', idSec);
+    html += _ppSec('Identity', 'identity', idSec, true);
 
     // ═══ SECTION: Account ═══
     if (p.user && !isMidKey) {
@@ -441,12 +790,12 @@ const TheShepherd = (() => {
          + ' style="background:var(--destructive,#c0392b);color:#fff;border:none;border-radius:6px;padding:6px 14px;font-weight:600;cursor:pointer;font-size:0.78rem;">'
          + '\uD83D\uDDD1\uFE0F Delete User</button>';
       s1 += '</div>';
-      html += _ppSec('Account', 'account', s1);
+      html += _ppSec('Account', 'account', s1, false);
     } else if (!isMidKey) {
       html += _ppSec('Account', 'account',
         '<p style="color:var(--ink-muted);font-size:0.84rem;">This person does not have a login account.</p>'
         + '<button type="button" onclick="TheShepherd._createUserAccount(\'' + eid + '\')"'
-        + ' style="background:var(--accent);color:var(--ink-inverse);border:none;border-radius:6px;padding:8px 16px;font-weight:600;cursor:pointer;font-size:0.84rem;">+ Create User Account</button>');
+        + ' style="background:var(--accent);color:var(--ink-inverse);border:none;border-radius:6px;padding:8px 16px;font-weight:600;cursor:pointer;font-size:0.84rem;">+ Create User Account</button>', false);
     }
 
     // ═══ MEMBER SECTIONS ═══
@@ -462,7 +811,7 @@ const TheShepherd = (() => {
           ['','Single','Married','Divorced','Widowed','Separated']),
         _ppF('Spouse Name', 'mem_spouseName', memberRec.spouseName, 'text'));
       dem += mid;
-      html += _ppSec('Demographics', 'demographics', dem);
+      html += _ppSec('Demographics', 'demographics', dem, false);
 
       var con = '';
       con += _pp2(
@@ -472,7 +821,7 @@ const TheShepherd = (() => {
         _ppF('Work Phone', 'mem_workPhone', memberRec.workPhone, 'tel'),
         _ppF('Preferred Contact', 'mem_preferredContact', memberRec.preferredContact, 'select',
           ['Email','Cell','Home','Work','Text']));
-      html += _ppSec('Contact', 'contact', con);
+      html += _ppSec('Contact', 'contact', con, false);
 
       var adr = '';
       adr += _ppF('Street 1', 'mem_address1', memberRec.address1, 'text');
@@ -483,7 +832,7 @@ const TheShepherd = (() => {
       adr += _pp2(
         _ppF('ZIP', 'mem_zip', memberRec.zip, 'text'),
         _ppF('Country', 'mem_country', memberRec.country, 'text'));
-      html += _ppSec('Address', 'address', adr);
+      html += _ppSec('Address', 'address', adr, false);
 
       var mbr = '';
       mbr += _pp2(
@@ -498,7 +847,7 @@ const TheShepherd = (() => {
         _ppF('Family Role', 'mem_familyRole', memberRec.familyRole, 'select',
           ['','Head','Spouse','Child','Dependent','Other']),
         _ppF('Death Date', 'mem_dateOfDeath', (memberRec.dateOfDeath || memberRec.deathDate || '').substring(0,10), 'date'));
-      html += _ppSec('Membership', 'membership', mbr);
+      html += _ppSec('Membership', 'membership', mbr, false);
 
       var spr = '';
       spr += _pp2(
@@ -507,13 +856,13 @@ const TheShepherd = (() => {
       spr += _pp2(
         _ppF('Spiritual Gifts', 'mem_spiritualGifts', memberRec.spiritualGifts, 'text'),
         _ppF('Small Group', 'mem_smallGroup', memberRec.smallGroup, 'text'));
-      html += _ppSec('Spiritual', 'spiritual', spr);
+      html += _ppSec('Spiritual', 'spiritual', spr, false);
 
       var emg = '';
       emg += _pp2(
         _ppF('Contact Name', 'mem_emergencyContact', memberRec.emergencyContact, 'text'),
         _ppF('Contact Phone', 'mem_emergencyPhone', memberRec.emergencyPhone, 'tel'));
-      html += _ppSec('Emergency', 'emergency', emg);
+      html += _ppSec('Emergency', 'emergency', emg, false);
 
       var min = '';
       min += _pp2(
@@ -530,7 +879,7 @@ const TheShepherd = (() => {
       min += _pp2(
         _ppF('Tags', 'mem_tags', memberRec.tags, 'text'),
         _ppF('Website', 'mem_website', memberRec.website, 'text'));
-      html += _ppSec('Ministry & Follow-Up', 'ministry', min);
+      html += _ppSec('Ministry & Follow-Up', 'ministry', min, false);
 
       // ─ Delete member record (admins only) ─
       var memDelId = _e(memberRec.id || '');
@@ -543,7 +892,7 @@ const TheShepherd = (() => {
       html += _ppSec('Member Record', 'member-none',
         '<p style="color:var(--ink-muted);font-size:0.84rem;">No member record linked to this account.</p>'
         + '<button type="button" onclick="TheShepherd._createMember(\'' + eid + '\')"'
-        + ' style="background:var(--accent);color:var(--ink-inverse);border:none;border-radius:6px;padding:8px 16px;font-weight:600;cursor:pointer;font-size:0.84rem;">+ Create Member Record</button>');
+        + ' style="background:var(--accent);color:var(--ink-inverse);border:none;border-radius:6px;padding:8px 16px;font-weight:600;cursor:pointer;font-size:0.84rem;">+ Create Member Record</button>', false);
     }
 
     // ═══ SECTION: Contact Card ═══
@@ -581,375 +930,26 @@ const TheShepherd = (() => {
           [{value:'TRUE',label:'Yes'},{value:'FALSE',label:'No'}]));
       cd += _ppF('Card Footer', 'card_cardFooter', cardRec.cardFooter, 'textarea');
       cd += '<input type="hidden" id="pp-card_id" value="' + _e(cardRec.id || '') + '">';
-      html += _ppSec('Contact Card', 'card', cd);
+      html += _ppSec('Contact Card', 'card', cd, false);
     } else {
       html += _ppSec('Contact Card', 'card-none',
         '<p style="color:var(--ink-muted);font-size:0.84rem;">No contact card linked to this account.</p>'
         + '<button type="button" onclick="TheShepherd._createCard(\'' + eid + '\')"'
-        + ' style="background:var(--accent);color:var(--ink-inverse);border:none;border-radius:6px;padding:8px 16px;font-weight:600;cursor:pointer;font-size:0.84rem;">+ Create Contact Card</button>');
+        + ' style="background:var(--accent);color:var(--ink-inverse);border:none;border-radius:6px;padding:8px 16px;font-weight:600;cursor:pointer;font-size:0.84rem;">+ Create Contact Card</button>', false);
     }
 
-    // ═══ SECTION: Permissions ═══
-    (function() {
-      var ovList = permData.overrides || [];
-      var ovMap = {};
-      ovList.forEach(function(o) { if (o && o.module) ovMap[o.module] = String(o.access || 'none').toLowerCase(); });
-      var memberRole = u.role || permData.role || '';
-
-      var PERM_ROWS = [
-        { group: 'People & Directory', items: [
-          { key: 'my-flock',                label: 'My Flock Access',        desc: 'View assigned flock list and basic member profiles.',                         risk: 'low' },
-          { key: 'my-flock.full-directory',  label: 'Full Flock Directory',   desc: 'View all member contact details including addresses and phone numbers.',      risk: 'medium' },
-          { key: 'my-flock.add-edit-members',label: 'Add / Edit Members',     desc: 'Create new member records and modify existing ones.',                         risk: 'high' },
-          { key: 'my-flock.remove-members',  label: 'Remove Members',         desc: 'Delete or archive member records permanently.',                               risk: 'critical' },
-          { key: 'directory',                label: 'Directory Access',        desc: 'View the church member directory.',                                           risk: 'low' },
-          { key: 'directory.contact-details',label: 'Directory Contact Details', desc: 'See phone numbers, emails, and addresses in the directory.',               risk: 'medium' },
-          { key: 'directory.export',         label: 'Export Directory',        desc: 'Download the directory as a spreadsheet.',                                    risk: 'high' },
-        ]},
-        { group: 'Pastoral Care', items: [
-          { key: 'care',              label: 'Care Cases — Own Assigned', desc: 'View and update care cases assigned to this user.',               risk: 'low' },
-          { key: 'care.create',       label: 'Create Care Cases',        desc: 'Open new care cases for members.',                                risk: 'low' },
-          { key: 'care.edit',         label: 'Edit Own Care Cases',      desc: 'Modify details on care cases assigned to this user.',              risk: 'low' },
-          { key: 'care.view-all',     label: 'View All Care Cases',      desc: 'See every active care case across the church.',                   risk: 'high' },
-          { key: 'care.edit-all',     label: 'Edit All Care Cases',      desc: 'Modify any care case, not just assigned ones.',                   risk: 'high' },
-          { key: 'care.reassign',     label: 'Reassign Care Cases',      desc: 'Transfer care cases between caregivers.',                         risk: 'high' },
-          { key: 'care.close',        label: 'Close Care Cases',         desc: 'Mark care cases as resolved or completed.',                       risk: 'medium' },
-          { key: 'care.notes',        label: 'Pastoral Care Notes',      desc: 'Read and write sensitive pastoral notes on care cases.',           risk: 'critical' },
-          { key: 'care.interactions',  label: 'Care Interactions',        desc: 'Log and view interactions on assigned care cases.',               risk: 'low' },
-          { key: 'care.follow-ups',    label: 'Care Follow-Ups',          desc: 'Schedule and manage follow-up tasks on care cases.',              risk: 'low' },
-          { key: 'care.assignments',   label: 'Care Assignments',         desc: 'View and manage caregiver assignment lists.',                    risk: 'medium' },
-        ]},
-        { group: 'Prayer', items: [
-          { key: 'prayer-admin',              label: 'Prayer Admin — Full Control', desc: 'Full management of all prayer requests: edit, delete, reassign.',  risk: 'high' },
-          { key: 'prayer-admin.public',       label: 'Prayer — Non-Confidential',  desc: 'View prayer requests marked as shareable with the team.',          risk: 'low' },
-          { key: 'prayer-admin.confidential', label: 'Prayer — Confidential',      desc: 'Access private prayer requests shared in confidence.',             risk: 'high' },
-          { key: 'prayer-admin.notes',        label: 'Prayer Notes',               desc: 'Read and write private pastoral notes on prayer requests.',        risk: 'critical' },
-        ]},
-        { group: 'Compassion & Benevolence', items: [
-          { key: 'compassion',                label: 'Compassion Fund Access',      desc: 'View compassion requests and assistance tracking.',               risk: 'medium' },
-          { key: 'compassion.approve',         label: 'Approve Requests',            desc: 'Approve or deny compassion fund requests.',                      risk: 'medium' },
-          { key: 'compassion.amount',          label: 'View Amounts',                desc: 'See financial amounts on compassion cases.',                     risk: 'medium' },
-          { key: 'compassion.notes',           label: 'Compassion Notes',            desc: 'Read and write sensitive notes on compassion cases.',             risk: 'critical' },
-          { key: 'compassion.resources',       label: 'Compassion Resources',        desc: 'View available compassion resources and referrals.',             risk: 'low' },
-          { key: 'compassion.resources.edit',  label: 'Edit Resources',              desc: 'Add, modify, or remove compassion resources.',                   risk: 'medium' },
-          { key: 'compassion.log',             label: 'Compassion Log',              desc: 'View the compassion activity log.',                              risk: 'low' },
-          { key: 'compassion.log.create',      label: 'Create Log Entries',          desc: 'Add new entries to the compassion log.',                         risk: 'low' },
-        ]},
-        { group: 'Groups, Attendance & Check-In', items: [
-          { key: 'groups',             label: 'Small Groups',           desc: 'View small group rosters, schedules, and assignments.',             risk: 'low' },
-          { key: 'groups.manage',      label: 'Manage Groups',          desc: 'Edit group details, rosters, and schedules.',                      risk: 'low' },
-          { key: 'groups.create',      label: 'Create Groups',          desc: 'Create new small groups.',                                         risk: 'medium' },
-          { key: 'attendance',         label: 'Attendance',             desc: 'Record and view attendance for services and events.',               risk: 'low' },
-          { key: 'attendance.record',  label: 'Record Attendance',      desc: 'Mark attendance for services and events.',                         risk: 'low' },
-          { key: 'attendance.edit-past',label: 'Edit Past Attendance',  desc: 'Modify attendance records for previous dates.',                    risk: 'medium' },
-          { key: 'checkin.manage',     label: 'Check-In Management',   desc: 'Manage the check-in system for services and events.',              risk: 'medium' },
-          { key: 'checkin.sessions',   label: 'Check-In Sessions',     desc: 'Create and manage check-in sessions.',                             risk: 'medium' },
-        ]},
-        { group: 'Outreach', items: [
-          { key: 'outreach',                label: 'Outreach',               desc: 'Manage community outreach programs and engagement.',             risk: 'low' },
-          { key: 'outreach.contacts',        label: 'Outreach Contacts',      desc: 'View outreach contact records.',                               risk: 'low' },
-          { key: 'outreach.contacts.edit',   label: 'Edit Outreach Contacts', desc: 'Add and modify outreach contact records.',                     risk: 'medium' },
-          { key: 'outreach.campaigns',       label: 'Outreach Campaigns',     desc: 'View outreach campaign details.',                              risk: 'medium' },
-          { key: 'outreach.campaigns.edit',  label: 'Edit Campaigns',         desc: 'Create and modify outreach campaigns.',                        risk: 'medium' },
-          { key: 'outreach.follow-ups',      label: 'Outreach Follow-Ups',    desc: 'Manage outreach follow-up tasks.',                             risk: 'low' },
-        ]},
-        { group: 'Giving & Finance', items: [
-          { key: 'giving',              label: 'Giving Records',       desc: 'Access giving history. Sensitive financial data.',                  risk: 'critical' },
-          { key: 'giving.individual',    label: 'Individual Giving',    desc: 'View individual member giving records.',                           risk: 'critical' },
-          { key: 'giving.enter',         label: 'Enter Giving',         desc: 'Record new giving transactions.',                                  risk: 'critical' },
-          { key: 'giving.edit',          label: 'Edit Giving',          desc: 'Modify or delete existing giving records.',                        risk: 'critical' },
-          { key: 'giving.statements',    label: 'Giving Statements',    desc: 'Generate and view giving statements for members.',                 risk: 'high' },
-          { key: 'giving.pledges',       label: 'View Pledges',         desc: 'View pledge commitments.',                                         risk: 'medium' },
-          { key: 'giving.pledges.edit',  label: 'Edit Pledges',         desc: 'Create and modify pledge records.',                                risk: 'high' },
-        ]},
-        { group: 'Discipleship & Growth', items: [
-          { key: 'discipleship',                   label: 'Discipleship',           desc: 'Access discipleship pathways and progress tracking.',           risk: 'low' },
-          { key: 'discipleship.paths',             label: 'View Pathways',          desc: 'Browse available discipleship pathways.',                       risk: 'low' },
-          { key: 'discipleship.paths.edit',        label: 'Edit Pathways',          desc: 'Create and modify discipleship pathways.',                      risk: 'medium' },
-          { key: 'discipleship.enroll',            label: 'Enroll Members',         desc: 'Enroll members into discipleship programs.',                    risk: 'low' },
-          { key: 'discipleship.advance',           label: 'Advance Members',        desc: 'Move members through discipleship stages.',                     risk: 'medium' },
-          { key: 'discipleship.mentoring.edit',    label: 'Edit Mentoring',         desc: 'Manage mentor-mentee assignments.',                            risk: 'medium' },
-          { key: 'discipleship.assessments',       label: 'Assessments',            desc: 'View and manage discipleship assessments.',                     risk: 'medium' },
-          { key: 'discipleship.certificates',      label: 'Certificates',           desc: 'View discipleship completion certificates.',                    risk: 'low' },
-          { key: 'discipleship.certificates.issue',label: 'Issue Certificates',     desc: 'Issue certificates for completed pathways.',                    risk: 'medium' },
-          { key: 'discipleship.resources.edit',    label: 'Edit Resources',         desc: 'Manage discipleship learning resources.',                       risk: 'medium' },
-        ]},
-        { group: 'Worship & Media', items: [
-          { key: 'songs',               label: 'Song Library',          desc: 'View the worship song library.',                                    risk: 'low' },
-          { key: 'songs.edit',          label: 'Edit Songs',            desc: 'Add and modify songs in the library.',                              risk: 'low' },
-          { key: 'songs.setlist',       label: 'Set Lists',             desc: 'Create and manage worship set lists.',                              risk: 'low' },
-          { key: 'services.edit',       label: 'Edit Services',         desc: 'Manage service schedules and details.',                             risk: 'medium' },
-          { key: 'sermons.edit',        label: 'Edit Sermons',          desc: 'Add, edit, or remove sermon records.',                              risk: 'medium' },
-          { key: 'sermons.upload',      label: 'Upload Sermons',        desc: 'Upload sermon audio and video files.',                              risk: 'low' },
-          { key: 'sermons.approve',     label: 'Approve Sermons',       desc: 'Review and approve sermons for publication.',                       risk: 'medium' },
-          { key: 'sermons.series',      label: 'Sermon Series',         desc: 'Manage sermon series and categories.',                              risk: 'low' },
-          { key: 'albums',              label: 'Albums',                desc: 'View media albums.',                                                risk: 'low' },
-          { key: 'albums.manage',       label: 'Manage Albums',         desc: 'Create and edit media albums.',                                     risk: 'low' },
-          { key: 'content-admin',       label: 'Content Editor',        desc: 'Edit and publish app content.',                                     risk: 'medium' },
-          { key: 'content-admin.publish',label: 'Publish Content',      desc: 'Approve and publish content to all members.',                       risk: 'medium' },
-        ]},
-        { group: 'Calendar, Events & Volunteers', items: [
-          { key: 'calendar.create',   label: 'Create Events',          desc: 'Add new events to the calendar.',                                   risk: 'low' },
-          { key: 'calendar.edit',     label: 'Edit Events',            desc: 'Modify existing calendar events.',                                  risk: 'low' },
-          { key: 'calendar.delete',   label: 'Delete Events',          desc: 'Remove events from the calendar.',                                  risk: 'medium' },
-          { key: 'calendar.share',    label: 'Share Events',           desc: 'Share events with groups or members.',                               risk: 'low' },
-          { key: 'calendar.delegate', label: 'Delegate Calendar',      desc: 'Grant calendar management to others.',                               risk: 'high' },
-          { key: 'events.edit',       label: 'Edit Event Details',     desc: 'Modify event registration and details.',                             risk: 'medium' },
-          { key: 'events.rsvp-list',  label: 'View RSVP Lists',       desc: 'See who has registered for events.',                                 risk: 'low' },
-          { key: 'volunteers',        label: 'Volunteer Access',       desc: 'View volunteer rosters and schedules.',                              risk: 'low' },
-          { key: 'volunteers.manage', label: 'Manage Volunteers',      desc: 'Assign and schedule volunteers.',                                   risk: 'low' },
-          { key: 'volunteers.swap',   label: 'Swap Volunteers',        desc: 'Reassign volunteer shifts between people.',                          risk: 'medium' },
-        ]},
-        { group: 'Communications', items: [
-          { key: 'comms',                label: 'Communications Hub',    desc: 'Access the communications system.',                                risk: 'high' },
-          { key: 'comms.send-individual',label: 'Send to Individuals',  desc: 'Send messages to individual members.',                             risk: 'medium' },
-          { key: 'comms.send-group',     label: 'Send to Groups',       desc: 'Send messages to groups and teams.',                               risk: 'medium' },
-          { key: 'comms.send-all',       label: 'Send to All',          desc: 'Send church-wide announcements to all members.',                   risk: 'high' },
-          { key: 'comms.channels',       label: 'Manage Channels',      desc: 'Create and configure communication channels.',                     risk: 'high' },
-          { key: 'comms.templates',      label: 'Message Templates',    desc: 'Create and manage message templates.',                              risk: 'medium' },
-          { key: 'comms.delete',         label: 'Delete Messages',      desc: 'Permanently delete sent messages.',                                 risk: 'critical' },
-        ]},
-        { group: 'Missions', items: [
-          { key: 'missions',               label: 'Missions Hub',          desc: 'Access mission trips, partnerships, and initiatives.',            risk: 'low' },
-          { key: 'missions.registry',      label: 'Mission Registry',      desc: 'View the missions registry.',                                    risk: 'low' },
-          { key: 'missions.registry.edit', label: 'Edit Registry',         desc: 'Add and modify mission registry entries.',                       risk: 'medium' },
-          { key: 'missions.partners',      label: 'Mission Partners',      desc: 'View mission partner details.',                                  risk: 'low' },
-          { key: 'missions.partners.edit', label: 'Edit Partners',         desc: 'Manage mission partner records.',                                risk: 'medium' },
-          { key: 'missions.regions',       label: 'Mission Regions',       desc: 'View and manage mission regions.',                               risk: 'low' },
-          { key: 'missions.prayer',        label: 'Mission Prayer',        desc: 'View mission prayer requests.',                                  risk: 'low' },
-          { key: 'missions.prayer.edit',   label: 'Edit Mission Prayer',   desc: 'Manage mission prayer requests.',                                risk: 'medium' },
-          { key: 'missions.updates',       label: 'Mission Updates',       desc: 'View mission field updates.',                                    risk: 'low' },
-          { key: 'missions.updates.edit',  label: 'Edit Mission Updates',  desc: 'Post and manage mission updates.',                               risk: 'medium' },
-        ]},
-        { group: 'Member Cards', items: [
-          { key: 'memberCards',           label: 'Member Cards Hub',       desc: 'Access the member cards system.',                                risk: 'medium' },
-          { key: 'memberCards.directory', label: 'Card Directory',         desc: 'Browse the member card directory.',                              risk: 'low' },
-          { key: 'memberCards.create',    label: 'Create Cards',           desc: 'Issue new member cards.',                                        risk: 'high' },
-          { key: 'memberCards.edit',      label: 'Edit Cards',             desc: 'Modify existing member card records.',                           risk: 'high' },
-          { key: 'memberCards.archive',   label: 'Archive Cards',          desc: 'Archive or deactivate member cards.',                            risk: 'critical' },
-          { key: 'memberCards.links',     label: 'Card Links',             desc: 'Manage linked accounts on member cards.',                        risk: 'high' },
-          { key: 'memberCards.views',     label: 'Card Views',             desc: 'Access advanced card viewing modes.',                            risk: 'medium' },
-          { key: 'memberCards.bulk',      label: 'Bulk Card Operations',   desc: 'Perform bulk actions on member cards.',                          risk: 'critical' },
-          { key: 'memberCards.scan',      label: 'Scan Cards',             desc: 'Scan member cards for check-in and verification.',               risk: 'low' },
-        ]},
-        { group: 'Reports & Analytics', items: [
-          { key: 'reports',           label: 'Reports',                desc: 'Generate and view church-wide reports.',                             risk: 'medium' },
-          { key: 'reports.sensitive', label: 'Sensitive Reports',      desc: 'Access reports containing PII and financial data.',                  risk: 'high' },
-          { key: 'reports.export',    label: 'Export Reports',         desc: 'Download report data as spreadsheets.',                              risk: 'critical' },
-          { key: 'statistics',        label: 'Statistics & Analytics', desc: 'View aggregate statistical dashboards.',                             risk: 'low' },
-          { key: 'ministry',          label: 'Ministry Hub',           desc: 'Access the ministry management dashboard.',                          risk: 'medium' },
-        ]},
-        { group: 'Administration', items: [
-          { key: 'audit',              label: 'Activity & Audit Log',  desc: 'View the complete log of all system actions.',                      risk: 'medium' },
-          { key: 'users',              label: 'User Management',       desc: 'Access the user management system.',                                risk: 'critical' },
-          { key: 'users.create',       label: 'Create Users',          desc: 'Create new user accounts.',                                         risk: 'critical' },
-          { key: 'users.edit',         label: 'Edit Users',            desc: 'Modify user account details and roles.',                             risk: 'high' },
-          { key: 'users.deactivate',   label: 'Deactivate Users',     desc: 'Disable user accounts.',                                             risk: 'critical' },
-          { key: 'users.delete',       label: 'Delete Users',          desc: 'Permanently delete user accounts and all associated data.',          risk: 'critical' },
-          { key: 'users.permissions',  label: 'Edit Permissions',      desc: 'Modify other users\' permission grants.',                           risk: 'critical' },
-          { key: 'config',             label: 'System Settings',       desc: 'Access church-wide configuration.',                                  risk: 'critical' },
-          { key: 'config.edit',        label: 'Edit Settings',         desc: 'Modify system settings \u2014 incorrect changes can break the app.', risk: 'critical' },
-          { key: 'access',             label: 'Access Requests',       desc: 'View pending access requests.',                                      risk: 'high' },
-          { key: 'access.approve',     label: 'Approve Access',        desc: 'Approve or deny access requests.',                                   risk: 'critical' },
-          { key: 'bulk',               label: 'Bulk Operations',       desc: 'Access bulk data operations.',                                       risk: 'critical' },
-          { key: 'bulk.import',        label: 'Bulk Import',           desc: 'Import data in bulk from files.',                                    risk: 'critical' },
-          { key: 'bulk.export',        label: 'Bulk Export',           desc: 'Export data in bulk to files.',                                      risk: 'critical' },
-          { key: 'church',             label: 'Church Profile',        desc: 'View church profile and settings.',                                   risk: 'high' },
-          { key: 'church.edit',        label: 'Edit Church Profile',   desc: 'Modify church profile information.',                                  risk: 'critical' },
-        ]},
-      ];
-
-      var _riskMeta = {
-        low:      { label: 'Low Risk',    color: '#16a34a', bg: '#16a34a18' },
-        medium:   { label: 'Medium Risk', color: '#b45309', bg: '#b4530918' },
-        high:     { label: 'High Risk',   color: '#ea580c', bg: '#ea580c18' },
-        critical: { label: 'Critical',    color: '#dc2626', bg: '#dc262618' },
-      };
-      var _roleMeta = {
-        readonly:       { label: 'Read Only',      color: '#6b7280' },
-        member:         { label: 'Member',         color: '#6b7280' },
-        volunteer:      { label: 'Volunteer',      color: '#7c6f3e' },
-        care:           { label: 'Care Team',      color: '#2d7d9a' },
-        deacon:         { label: 'Deacon',         color: '#5a6e3a' },
-        leader:         { label: 'Leader',         color: '#7c3aed' },
-        elder:          { label: 'Elder',          color: '#1d6f5f' },
-        timothy:        { label: 'Timothy',        color: '#8b5e3c' },
-        pastor:         { label: 'Pastor',         color: '#b45309' },
-        admin:          { label: 'Admin',          color: '#dc2626' },
-        tech:           { label: 'Tech',           color: '#4f46e5' },
-        finance:        { label: 'Finance',        color: '#0e7490' },
-        'church-office': { label: 'Church Office', color: '#9333ea' },
-      };
-      var _rm = _roleMeta[(memberRole || '').toLowerCase()] || { label: memberRole || 'No Role', color: '#6b7280' };
-
-      window._shepPermTemplates = {
-        member: [],
-        leader: ['my-flock', 'care', 'care.create', 'care.edit', 'care.interactions', 'care.follow-ups', 'prayer-admin.public', 'compassion', 'compassion.resources', 'groups', 'groups.manage', 'attendance', 'attendance.record', 'outreach', 'outreach.contacts', 'outreach.follow-ups', 'discipleship', 'discipleship.paths', 'volunteers', 'volunteers.manage', 'events.rsvp-list', 'sermons.upload', 'albums', 'albums.manage', 'calendar.create', 'calendar.edit', 'calendar.share', 'songs.setlist'],
-        deacon: ['my-flock', 'care', 'care.create', 'care.edit', 'care.interactions', 'care.follow-ups', 'care.view-all', 'prayer-admin.public', 'prayer-admin.confidential', 'compassion', 'compassion.resources', 'compassion.approve', 'compassion.amount', 'compassion.log', 'compassion.log.create', 'directory', 'directory.contact-details', 'groups', 'groups.manage', 'attendance', 'attendance.record', 'outreach', 'outreach.contacts', 'outreach.contacts.edit', 'outreach.follow-ups', 'discipleship', 'discipleship.paths', 'giving', 'giving.pledges', 'volunteers', 'volunteers.manage', 'volunteers.swap', 'events.rsvp-list', 'events.edit', 'sermons.upload', 'sermons.series', 'albums', 'albums.manage', 'calendar.create', 'calendar.edit', 'calendar.share', 'songs', 'songs.edit', 'songs.setlist', 'services.edit', 'comms.send-group', 'memberCards.directory', 'memberCards.scan', 'checkin.manage', 'checkin.sessions'],
-        care: ['my-flock', 'care', 'care.create', 'care.edit', 'care.interactions', 'care.follow-ups', 'care.view-all', 'prayer-admin.public', 'prayer-admin.confidential', 'compassion', 'compassion.resources', 'compassion.log', 'compassion.approve', 'compassion.amount', 'outreach.contacts', 'outreach.follow-ups'],
-        elder: ['my-flock', 'care', 'care.create', 'care.edit', 'care.interactions', 'care.follow-ups', 'care.view-all', 'care.edit-all', 'care.reassign', 'care.close', 'care.assignments', 'prayer-admin.public', 'prayer-admin.confidential', 'compassion', 'compassion.resources', 'compassion.approve', 'compassion.amount', 'compassion.log', 'compassion.log.create', 'compassion.notes', 'compassion.resources.edit', 'directory', 'directory.contact-details', 'groups', 'groups.manage', 'groups.create', 'attendance', 'attendance.record', 'attendance.edit-past', 'outreach', 'outreach.contacts', 'outreach.contacts.edit', 'outreach.campaigns', 'outreach.campaigns.edit', 'outreach.follow-ups', 'discipleship', 'discipleship.paths', 'discipleship.enroll', 'discipleship.advance', 'discipleship.mentoring.edit', 'discipleship.assessments', 'discipleship.certificates', 'giving', 'giving.individual', 'giving.pledges', 'volunteers', 'volunteers.manage', 'volunteers.swap', 'events.rsvp-list', 'events.edit', 'sermons.upload', 'sermons.series', 'albums', 'albums.manage', 'calendar.create', 'calendar.edit', 'calendar.delete', 'calendar.share', 'songs', 'songs.edit', 'songs.setlist', 'services.edit', 'comms.send-group', 'memberCards.directory', 'memberCards.scan', 'checkin.manage', 'checkin.sessions', 'reports', 'statistics', 'ministry'],
-        timothy: ['my-flock', 'my-flock.full-directory', 'my-flock.add-edit-members', 'directory', 'directory.contact-details', 'care', 'care.create', 'care.edit', 'care.view-all', 'care.edit-all', 'care.close', 'care.reassign', 'care.interactions', 'care.follow-ups', 'care.assignments', 'prayer-admin', 'prayer-admin.public', 'prayer-admin.confidential', 'compassion', 'compassion.approve', 'compassion.amount', 'compassion.resources', 'compassion.resources.edit', 'compassion.log', 'compassion.log.create', 'groups', 'groups.manage', 'groups.create', 'attendance', 'attendance.record', 'attendance.edit-past', 'giving', 'giving.individual', 'giving.pledges', 'discipleship', 'discipleship.paths', 'discipleship.paths.edit', 'discipleship.enroll', 'discipleship.advance', 'discipleship.mentoring.edit', 'discipleship.assessments', 'discipleship.certificates', 'discipleship.certificates.issue', 'discipleship.resources.edit', 'outreach', 'outreach.contacts', 'outreach.contacts.edit', 'outreach.campaigns', 'outreach.campaigns.edit', 'outreach.follow-ups', 'missions', 'missions.registry', 'missions.registry.edit', 'missions.partners', 'missions.partners.edit', 'missions.regions', 'missions.prayer', 'missions.prayer.edit', 'missions.updates', 'missions.updates.edit', 'comms', 'comms.send-individual', 'comms.send-group', 'comms.channels', 'comms.templates', 'content-admin', 'content-admin.publish', 'sermons.edit', 'sermons.upload', 'sermons.approve', 'sermons.series', 'albums', 'albums.manage', 'calendar.create', 'calendar.edit', 'calendar.delete', 'calendar.share', 'events.edit', 'events.rsvp-list', 'services.edit', 'volunteers', 'volunteers.manage', 'volunteers.swap', 'memberCards', 'memberCards.directory', 'memberCards.create', 'memberCards.edit', 'memberCards.scan', 'checkin.manage', 'checkin.sessions', 'reports', 'reports.sensitive', 'statistics', 'ministry', 'songs', 'songs.edit', 'songs.setlist'],
-        pastor: ['my-flock', 'my-flock.full-directory', 'my-flock.add-edit-members', 'my-flock.remove-members', 'directory', 'directory.contact-details', 'directory.export', 'care', 'care.create', 'care.edit', 'care.view-all', 'care.edit-all', 'care.close', 'care.reassign', 'care.interactions', 'care.follow-ups', 'care.assignments', 'care.notes', 'prayer-admin', 'prayer-admin.public', 'prayer-admin.confidential', 'prayer-admin.notes', 'compassion', 'compassion.approve', 'compassion.amount', 'compassion.notes', 'compassion.resources', 'compassion.resources.edit', 'compassion.log', 'compassion.log.create', 'groups', 'groups.manage', 'groups.create', 'attendance', 'attendance.record', 'attendance.edit-past', 'giving', 'giving.individual', 'giving.enter', 'giving.statements', 'giving.pledges', 'giving.pledges.edit', 'discipleship', 'discipleship.paths', 'discipleship.paths.edit', 'discipleship.enroll', 'discipleship.advance', 'discipleship.mentoring.edit', 'discipleship.assessments', 'discipleship.certificates', 'discipleship.certificates.issue', 'discipleship.resources.edit', 'outreach', 'outreach.contacts', 'outreach.contacts.edit', 'outreach.campaigns', 'outreach.campaigns.edit', 'outreach.follow-ups', 'missions', 'missions.registry', 'missions.registry.edit', 'missions.partners', 'missions.partners.edit', 'missions.regions', 'missions.prayer', 'missions.prayer.edit', 'missions.updates', 'missions.updates.edit', 'comms', 'comms.send-individual', 'comms.send-group', 'comms.send-all', 'comms.channels', 'comms.templates', 'content-admin', 'content-admin.publish', 'sermons.edit', 'sermons.upload', 'sermons.approve', 'sermons.series', 'albums', 'albums.manage', 'calendar.create', 'calendar.edit', 'calendar.delete', 'calendar.share', 'events.edit', 'events.rsvp-list', 'services.edit', 'volunteers', 'volunteers.manage', 'volunteers.swap', 'memberCards', 'memberCards.directory', 'memberCards.create', 'memberCards.edit', 'memberCards.scan', 'checkin.manage', 'checkin.sessions', 'reports', 'reports.sensitive', 'statistics', 'ministry', 'songs', 'songs.edit', 'songs.setlist', 'audit', 'users.edit', 'users.permissions'],
-        admin: ['my-flock', 'my-flock.full-directory', 'my-flock.add-edit-members', 'my-flock.remove-members', 'directory', 'directory.contact-details', 'directory.export', 'care', 'care.create', 'care.edit', 'care.view-all', 'care.edit-all', 'care.close', 'care.reassign', 'care.interactions', 'care.follow-ups', 'care.assignments', 'care.notes', 'prayer-admin', 'prayer-admin.public', 'prayer-admin.confidential', 'prayer-admin.notes', 'compassion', 'compassion.approve', 'compassion.amount', 'compassion.notes', 'compassion.resources', 'compassion.resources.edit', 'compassion.log', 'compassion.log.create', 'groups', 'groups.manage', 'groups.create', 'attendance', 'attendance.record', 'attendance.edit-past', 'giving', 'giving.individual', 'giving.enter', 'giving.edit', 'giving.statements', 'giving.pledges', 'giving.pledges.edit', 'discipleship', 'discipleship.paths', 'discipleship.paths.edit', 'discipleship.enroll', 'discipleship.advance', 'discipleship.mentoring.edit', 'discipleship.assessments', 'discipleship.certificates', 'discipleship.certificates.issue', 'discipleship.resources.edit', 'outreach', 'outreach.contacts', 'outreach.contacts.edit', 'outreach.campaigns', 'outreach.campaigns.edit', 'outreach.follow-ups', 'missions', 'missions.registry', 'missions.registry.edit', 'missions.partners', 'missions.partners.edit', 'missions.regions', 'missions.prayer', 'missions.prayer.edit', 'missions.updates', 'missions.updates.edit', 'comms', 'comms.send-individual', 'comms.send-group', 'comms.send-all', 'comms.channels', 'comms.templates', 'comms.delete', 'content-admin', 'content-admin.publish', 'sermons.edit', 'sermons.upload', 'sermons.approve', 'sermons.series', 'albums', 'albums.manage', 'calendar.create', 'calendar.edit', 'calendar.delete', 'calendar.share', 'calendar.delegate', 'events.edit', 'events.rsvp-list', 'services.edit', 'volunteers', 'volunteers.manage', 'volunteers.swap', 'memberCards', 'memberCards.directory', 'memberCards.create', 'memberCards.edit', 'memberCards.archive', 'memberCards.links', 'memberCards.views', 'memberCards.bulk', 'memberCards.scan', 'checkin.manage', 'checkin.sessions', 'reports', 'reports.sensitive', 'reports.export', 'statistics', 'ministry', 'songs', 'songs.edit', 'songs.setlist', 'audit', 'users', 'users.create', 'users.edit', 'users.deactivate', 'users.delete', 'users.permissions', 'config', 'config.edit', 'access', 'access.approve', 'bulk', 'bulk.import', 'bulk.export', 'church', 'church.edit'],
-        'church-office': ['my-flock', 'my-flock.full-directory', 'my-flock.add-edit-members', 'directory', 'directory.contact-details', 'care', 'prayer-admin.public', 'compassion', 'memberCards', 'memberCards.directory', 'memberCards.create', 'memberCards.edit', 'memberCards.scan', 'memberCards.archive', 'memberCards.links', 'memberCards.views', 'calendar.create', 'calendar.edit', 'calendar.delete', 'calendar.share', 'events.edit', 'events.rsvp-list', 'services.edit', 'volunteers', 'volunteers.manage', 'volunteers.swap', 'checkin.manage', 'checkin.sessions', 'attendance', 'attendance.record', 'attendance.edit-past', 'groups', 'groups.manage', 'groups.create', 'comms', 'comms.send-individual', 'comms.send-group', 'comms.channels', 'comms.templates', 'comms.delete', 'users', 'users.create', 'users.edit', 'users.permissions', 'reports', 'statistics'],
-        worship: ['songs', 'songs.edit', 'songs.setlist', 'services.edit', 'sermons.upload', 'sermons.series', 'albums', 'albums.manage', 'calendar.create', 'calendar.edit', 'calendar.share', 'events.rsvp-list', 'comms.send-group', 'volunteers', 'volunteers.manage', 'volunteers.swap', 'attendance', 'attendance.record'],
-        children: ['checkin.manage', 'checkin.sessions', 'groups', 'groups.manage', 'attendance', 'attendance.record', 'calendar.create', 'calendar.edit', 'calendar.share', 'events.rsvp-list', 'comms.send-group', 'volunteers', 'volunteers.manage'],
-        media: ['content-admin', 'content-admin.publish', 'sermons.upload', 'sermons.approve', 'sermons.series', 'albums', 'albums.manage', 'comms.channels', 'comms.templates', 'calendar.create', 'calendar.share', 'events.rsvp-list'],
-        tech: ['config', 'config.edit', 'audit', 'church', 'church.edit', 'bulk', 'bulk.import', 'bulk.export'],
-        finance: ['giving', 'giving.individual', 'giving.enter', 'giving.edit', 'giving.statements', 'giving.pledges', 'giving.pledges.edit', 'memberCards', 'memberCards.directory', 'reports', 'reports.sensitive', 'reports.export', 'statistics', 'directory'],
-      };
-
-      var ph = '';
-
-      // Role badge
-      if (memberRole) {
-        ph += '<div style="margin-bottom:18px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">';
-        ph += '<span style="font-size:0.82rem;color:var(--ink-muted);">System Role:</span>';
-        ph += '<span style="display:inline-block;padding:3px 12px;border-radius:20px;font-size:0.8rem;font-weight:700;letter-spacing:0.04em;'
-           + 'background:' + _rm.color + '22;color:' + _rm.color + ';border:1px solid ' + _rm.color + '55;">'
-           + _e(_rm.label) + '</span>';
-        ph += '<span style="font-size:0.76rem;color:var(--ink-faint);font-style:italic;">The role is informational only — access is determined entirely by the selections below.</span>';
-        ph += '</div>';
-      }
-
-      // Preset buttons
-      ph += '<div style="margin-bottom:20px;">';
-      ph += '<span style="font-size:0.82rem;color:var(--ink-muted);display:block;margin-bottom:8px;font-weight:600;">Quick Presets'
-         + ' <span style="color:var(--ink-faint);font-weight:400;font-style:italic;"> — sets a standard starting point, then adjust individually below</span></span>';
-      ph += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px;">';
-      [
-        { val: 'member', label: 'Member' },
-        { val: 'leader', label: 'Leader' },
-        { val: 'deacon', label: 'Deacon' },
-        { val: 'care',   label: 'Care' },
-        { val: 'elder',  label: 'Elder' },
-        { val: 'timothy',label: 'Timothy' },
-        { val: 'pastor', label: 'Pastor' },
-        { val: 'admin',  label: 'Admin' },
-      ].forEach(function(t) {
-        ph += '<button type="button" onclick="TheShepherd._applyPermTemplate(\'' + t.val + '\')"'
-           + ' style="background:none;border:1px solid var(--line);border-radius:6px;padding:6px 16px;'
-           + 'cursor:pointer;color:var(--ink);font-size:0.82rem;font-family:inherit;font-weight:600;">'
-           + _e(t.label) + '</button>';
-      });
-      ph += '</div>';
-      ph += '<div style="display:flex;gap:8px;flex-wrap:wrap;">';
-      [
-        { val: 'church-office', label: 'Church Office' },
-        { val: 'worship',       label: 'Worship' },
-        { val: 'children',      label: 'Children' },
-        { val: 'media',         label: 'Media' },
-        { val: 'tech',          label: 'Tech' },
-        { val: 'finance',       label: 'Finance' },
-      ].forEach(function(t) {
-        ph += '<button type="button" onclick="TheShepherd._applyPermTemplate(\'' + t.val + '\')"'
-           + ' style="background:none;border:1px solid var(--line);border-radius:6px;padding:6px 14px;'
-           + 'cursor:pointer;color:var(--ink-muted);font-size:0.78rem;font-family:inherit;font-weight:600;">'
-           + _e(t.label) + '</button>';
-      });
-      ph += '<button type="button" onclick="TheShepherd._applyPermTemplate(\'none\')"'
-         + ' style="background:none;border:1px solid var(--line);border-radius:6px;padding:6px 16px;'
-         + 'cursor:pointer;color:var(--ink-muted);font-size:0.82rem;font-family:inherit;">Clear All</button>';
-      ph += '</div></div>';
-
-      // Matrix table — grouped by access level
-      ph += '<table style="width:100%;border-collapse:collapse;font-size:0.83rem;">';
-      ph += '<thead><tr style="border-bottom:2px solid var(--line);">';
-      ph += '<th style="text-align:left;padding:8px 12px;color:var(--ink-muted);font-weight:600;font-size:0.78rem;text-transform:uppercase;letter-spacing:0.04em;">Permission</th>';
-      ph += '<th style="text-align:center;padding:8px 12px;color:var(--ink-muted);font-weight:600;font-size:0.78rem;text-transform:uppercase;letter-spacing:0.04em;width:120px;">Access</th>';
-      ph += '</tr></thead><tbody>';
-
-      // Flatten PERM_ROWS into risk buckets: low → medium → high → critical
-      var _riskGroups = { low: [], medium: [], high: [], critical: [] };
-      PERM_ROWS.forEach(function(section) {
-        section.items.forEach(function(item) {
-          var lvl = item.risk || 'low';
-          if (_riskGroups[lvl]) _riskGroups[lvl].push({ item: item, group: section.group });
-        });
-      });
-
-      ['low', 'medium', 'high', 'critical'].forEach(function(lvl) {
-        var entries = _riskGroups[lvl];
-        if (!entries.length) return;
-        var rm = _riskMeta[lvl];
-        var headId = 'shep-grp-' + lvl;
-        ph += '<tr><td style="padding:14px 12px 6px;border-top:2px solid var(--line);">';
-        ph += '<span style="display:inline-block;padding:3px 14px;border-radius:20px;font-size:0.72rem;font-weight:800;letter-spacing:0.07em;text-transform:uppercase;'
-           + 'background:' + rm.bg + ';color:' + rm.color + ';border:1px solid ' + rm.color + '55;">'
-           + _e(rm.label) + '</span>';
-        ph += '</td>';
-        ph += '<td style="text-align:center;padding:14px 12px 6px;border-top:2px solid var(--line);vertical-align:middle;">'
-           + '<input type="checkbox" id="' + headId + '" class="shep-grp-chk" data-risk-group="' + lvl + '"'
-           + ' onchange="TheShepherd._onGrpChkChange(this)"'
-           + ' style="width:18px;height:18px;accent-color:' + rm.color + ';cursor:pointer;"'
-           + ' title="Toggle all ' + rm.label + ' permissions">'
-           + '</td>';
-        ph += '</tr>';
-        entries.forEach(function(e) {
-          var item  = e.item;
-          var group = e.group;
-          var val   = ovMap[item.key] || 'none';
-          var selId = 'spsel-' + item.key.replace(/\./g, '-');
-          ph += '<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">';
-          ph += '<td style="padding:10px 12px;vertical-align:top;">'
-             + '<div style="font-weight:600;color:var(--ink);margin-bottom:2px;">' + _e(item.label) + '</div>'
-             + '<div style="font-size:0.77rem;color:var(--ink-muted);line-height:1.45;margin-bottom:2px;">' + _e(item.desc) + '</div>'
-             + '<div style="font-size:0.70rem;color:var(--ink-faint);font-style:italic;">' + _e(group) + '</div>'
-             + '</td>';
-          ph += '<td style="text-align:center;padding:10px 12px;vertical-align:middle;">'
-             + '<input type="checkbox" id="' + selId + '" class="shep-perm-chk" data-perm-key="' + _e(item.key) + '" data-risk="' + _e(item.risk || 'low') + '"'
-             + (val === 'grant' ? ' checked' : '')
-             + ' onchange="TheShepherd._onPermChkChange(this)"'
-             + ' style="width:18px;height:18px;accent-color:var(--accent);cursor:pointer;">'
-             + '</td>';
-          ph += '</tr>';
-        });
-      });
-
-      ph += '</tbody></table>';
-
-      // Single shared critical-permission confirmation box
-      ph += '<div id="shep-crit-confirm" style="display:none;border:2px solid #dc2626;border-radius:10px;background:#dc262610;padding:16px 18px;margin:16px 0;">'
-         + '<div style="font-weight:800;color:#dc2626;font-size:0.8rem;letter-spacing:0.06em;margin-bottom:10px;">'
-         + '\uD83D\uDD34 CRITICAL PERMISSION \u2014 CONFIRMATION REQUIRED</div>'
-         + '<p style="font-size:0.84rem;color:var(--ink);margin:0 0 12px;">One or more critical permissions are selected. Please confirm before saving.</p>'
-         + '<label style="display:flex;align-items:flex-start;gap:10px;margin-bottom:12px;cursor:pointer;">'
-         + '<input type="checkbox" id="shep-crit-chk" style="margin-top:2px;accent-color:#dc2626;">'
-         + '<span style="font-size:0.84rem;color:var(--ink);">I understand this grants critical-level system access to this person</span>'
-         + '</label>'
-         + '<input type="text" id="shep-crit-txt" placeholder="Type Yes to confirm"'
-         + ' style="border:1px solid #dc262666;border-radius:6px;padding:6px 12px;font-size:0.84rem;'
-         + 'background:var(--bg);color:var(--ink);font-family:inherit;width:200px;">'
-         + '<div style="font-size:0.76rem;color:var(--ink-muted);font-style:italic;margin-top:10px;">'
-         + '\uD83D\uDCE3 Pastoral leads will be notified when critical permissions are granted.</div>'
-         + '</div>';
-
-      ph += '<div style="margin-top:14px;display:flex;align-items:center;gap:12px;">';
-      ph += '<button type="button" onclick="TheShepherd._savePerms(\'' + eid + '\')" style="background:var(--accent);color:var(--ink-inverse);border:none;border-radius:6px;padding:9px 22px;cursor:pointer;font-weight:700;font-size:0.86rem;font-family:inherit;">Save Permissions</button>';
-      ph += '<span id="shep-perm-status" style="font-size:0.82rem;color:var(--ink-muted);"></span>';
-      ph += '</div>';
-
-      html += _ppSec('Permissions', 'permissions', ph);
-    })();
-
-    // ═══ SECTION: Volunteer Assignments ═══
-    var vh = '';
-    if (volRows.length) {
-      vh += '<table style="width:100%;font-size:0.78rem;border-collapse:collapse;"><tr style="border-bottom:1px solid var(--line);"><th style="text-align:left;padding:6px;">Ministry</th><th style="text-align:left;padding:6px;">Role</th><th style="text-align:left;padding:6px;">Date</th><th style="text-align:left;padding:6px;">Status</th></tr>';
-      volRows.forEach(function(v) {
-        vh += '<tr style="border-top:1px solid var(--line);"><td style="padding:4px 6px;">' + _e(v.ministryTeam || '') + '</td><td style="padding:4px 6px;">' + _e(v.role || '') + '</td><td style="padding:4px 6px;">' + _e(v.scheduledDate || '') + '</td><td style="padding:4px 6px;">' + _e(v.status || '') + '</td></tr>';
-      });
-      vh += '</table>';
-    } else {
-      vh += '<p style="color:var(--ink-muted);font-size:0.84rem;">No volunteer assignments found.</p>';
+    // ═══ SECTION: Permissions (lazy — fetched when opened) ═══
+    if (!isMidKey && p.user) {
+      html += _ppSecLazy('Permissions', 'permissions', "TheShepherd._loadPerms('" + eid + "')");
     }
-    html += _ppSec('Volunteer Assignments', 'volunteers', vh);
 
-    // ═══ SECTION: Interaction History (TheScrolls) ═══
-    if (typeof TheScrolls !== 'undefined') {
-      var scrollHtml = TheScrolls.renderPersonTimeline(email);
-      html += _ppSec('Interaction History', 'scrolls', scrollHtml);
-    }
+    // ═══ SECTION: Volunteer Assignments (lazy — fetched when opened) ═══
+    html += _ppSecLazy('Volunteer Assignments', 'volunteers', "TheShepherd._loadVolunteers('" + eid + "')");
+
+    // ═══ SECTION: Interaction History (lazy — rendered when opened) ═══
+    html += _ppSecLazy('Interaction History', 'scrolls', "TheShepherd._loadHistory('" + eid + "')");
+
+
 
     // ── Bottom Save ─────────────────────────────────────────────────────
     html += '<div style="margin-top:20px;padding:16px 0;border-top:1px solid var(--line);display:flex;gap:10px;align-items:center;">';
@@ -1366,6 +1366,9 @@ const TheShepherd = (() => {
     _onPermChkChange:   _onPermChkChange,
     _onGrpChkChange:    _onGrpChkChange,
     _savePerms:         _savePerms,
+    _loadPerms:         _loadPerms,
+    _loadVolunteers:    _loadVolunteers,
+    _loadHistory:       _loadHistory,
     _deleteUser: _deleteUser,
     _deleteMember: _deleteMember,
     _resetPasscode: _resetPasscode,
