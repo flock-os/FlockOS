@@ -2656,55 +2656,49 @@ const TheWay = (() => {
   }
 
   // ══════════════════════════════════════════════════════════════════════════
-  // 11. COUNSELING — Biblical counseling resources
+  // 11. COUNSELING — Biblical counseling resources (lazy-load per card)
   // ══════════════════════════════════════════════════════════════════════════
+
+  // Cache: id → full doc data (populated on first card open)
+  var _counselCache = {};
 
   async function _renderCounseling() {
     _panel(_spinner());
     try {
-      var data = [];
+      // ── Load catalog stub (1 Firestore read) ──
+      var stubs = [];
       try {
         if (_isFB() && typeof UpperRoom !== 'undefined') {
-          var res = await _withTimeout(UpperRoom.listAppContent('counseling'));
-          data = Array.isArray(res) ? res : _rows(res);
+          var cat = await _withTimeout(UpperRoom.getAppContent('counseling', '_catalog'));
+          if (cat && Array.isArray(cat.items)) {
+            stubs = cat.items;
+          } else {
+            // Fallback: full fetch if _catalog not yet seeded
+            var res = await _withTimeout(UpperRoom.listAppContent('counseling'));
+            var allDocs = Array.isArray(res) ? res : _rows(res);
+            allDocs.forEach(function(d) {
+              if (d.id !== '_catalog') {
+                _counselCache[d.id] = d; // cache full docs from fallback
+                stubs.push({ id: d.id, title: d['Title'] || d.title || d.id,
+                              icon: d['Icon'] || d.icon || '\u2695',
+                              color: d['Color'] || d.color || 'var(--mint)' });
+              }
+            });
+          }
         } else if (typeof TheVine !== 'undefined' && TheVine.app && TheVine.app.counseling) {
           var res = await _withTimeout(TheVine.app.counseling());
-          data = _rows(res);
+          var allDocs = _rows(res);
+          allDocs.forEach(function(d) {
+            _counselCache[d.id || d['ID']] = d;
+            stubs.push({ id: d.id || d['ID'], title: d['Title'] || 'Topic',
+                          icon: d['Icon'] || '\u2695', color: d['Color'] || 'var(--mint)' });
+          });
         }
       } catch (_) {}
 
-      if (!data.length) {
+      if (!stubs.length) {
         _panel(_empty('\u2695', 'Counseling resources coming soon', 'Biblical counseling wisdom and protocols will appear here.'));
         return;
-      }
-
-      // ── Parse scriptures into {ref, text} objects ──
-      function parseScriptures(raw) {
-        if (!raw) return [];
-        // Pattern: "Book Ch:V-V: verse text" — split on refs
-        var parts = raw.split(/(?=(?:[123]?\s?[A-Z][a-z]+\s+\d+:\d+))/g);
-        var out = [];
-        parts.forEach(function(p) {
-          p = p.trim();
-          if (!p) return;
-          var m = p.match(/^([123]?\s?[A-Za-z]+\s+\d+:\d+(?:-\d+)?):?\s*(.*)/s);
-          if (m) { out.push({ ref: m[1].trim(), text: m[2].replace(/[.;,\s]+$/, '').trim() }); }
-          else { out.push({ ref: '', text: p.replace(/[.;,\s]+$/, '').trim() }); }
-        });
-        return out;
-      }
-
-      // ── Parse steps into array, convert inline refs to links ──
-      function parseSteps(raw) {
-        if (!raw) return [];
-        return raw.split(/[;\n]+/).map(function(s) { return s.trim(); }).filter(Boolean);
-      }
-
-      function linkifyStep(text) {
-        // Convert inline "(Book Ch:V)" references to Bible links
-        return text.replace(/\(([123]?\s?[A-Za-z]+\s+\d+:\d+(?:-\d+)?)\)/g, function(_, ref) {
-          return '(' + _bibleLink(ref) + ')';
-        });
       }
 
       // ── Hero header ──
@@ -2718,85 +2712,137 @@ const TheWay = (() => {
 
       // ── Search ──
       html += '<div style="margin:18px 0 14px;">';
-      html += '<input type="text" placeholder="\uD83D\uDD0D Search topics, scriptures, or steps\u2026" '
+      html += '<input type="text" placeholder="\uD83D\uDD0D Search topics\u2026" '
             + 'oninput="TheWay._filterPanel(\'counsel\',this.value)" '
             + 'style="width:100%;max-width:480px;padding:11px 14px 11px 14px;border:1px solid var(--line);border-radius:10px;'
             + 'background:var(--bg-raised);color:var(--ink);font-size:max(0.9rem,16px);font-family:inherit;"></div>';
 
       // ── Topic count ──
-      html += '<div style="font-size:0.78rem;color:var(--ink-muted);margin-bottom:16px;">' + data.length + ' topics available</div>';
+      html += '<div style="font-size:0.78rem;color:var(--ink-muted);margin-bottom:16px;">' + stubs.length + ' topics available</div>';
 
-      // ── Card grid ──
+      // ── Card grid — stub cards only ──
       html += '<div id="counsel-grid" class="coun-grid">';
 
-      data.forEach(function(item) {
-        var title = item['Title'] || 'Topic';
-        var icon = item['Icon'] || '\u2695';
-        var color = item['Color'] || 'var(--mint)';
-        var definition = item['Definition'] || '';
-        var scriptures = parseScriptures(item['Scriptures'] || '');
-        var steps = parseSteps(item['Steps'] || '');
-        var searchText = (title + ' ' + definition + ' ' + (item['Scriptures'] || '') + ' ' + (item['Steps'] || '')).toLowerCase();
+      stubs.forEach(function(stub) {
+        var id    = stub.id || '';
+        var title = stub.title || stub['Title'] || 'Topic';
+        var icon  = stub.icon  || stub['Icon']  || '\u2695';
+        var color = stub.color || stub['Color'] || 'var(--mint)';
 
-        // ── Card wrapper ──
-        html += '<div class="browse-item coun-card" data-search="' + _e(searchText) + '">';
-
-        // ── Card header (always visible) ──
-        html += '<div class="coun-card-head" style="border-top:3px solid ' + _e(color) + ';">';
+        html += '<div class="browse-item coun-card" data-search="' + _e(title.toLowerCase()) + '" data-cid="' + _e(id) + '">';
+        html += '<div class="coun-card-head" style="border-top:3px solid ' + _e(color) + ';" '
+              + 'onclick="TheWay._openCounselCard(this,\'' + _e(id) + '\')" style="cursor:pointer;">';
         html += '<div class="coun-card-icon" style="background:' + _e(color) + '22;color:' + _e(color) + ';">' + icon + '</div>';
         html += '<h3 class="coun-card-title">' + _e(title) + '</h3>';
-        // Scripture count badge
-        if (scriptures.length) {
-          html += '<div class="coun-badge" style="color:' + _e(color) + ';border-color:' + _e(color) + '40;">' + scriptures.length + ' scripture' + (scriptures.length > 1 ? 's' : '') + '</div>';
-        }
+        html += '<div class="coun-card-chevron" style="margin-left:auto;font-size:0.75rem;color:var(--ink-muted);">&#9660;</div>';
         html += '</div>';
-
-        // ── Definition ──
-        if (definition) {
-          html += '<div class="coun-definition">' + _e(definition) + '</div>';
-        }
-
-        // ── Scriptures ──
-        if (scriptures.length) {
-          html += '<div class="coun-section">';
-          html += '<div class="coun-section-label" style="color:var(--gold,#d4b870);"><span>&#128214;</span> Scripture Foundation</div>';
-          scriptures.forEach(function(s) {
-            html += '<div class="coun-verse">';
-            if (s.ref) {
-              html += '<div class="coun-verse-ref">' + _bibleLink(s.ref) + '</div>';
-            }
-            if (s.text) {
-              html += '<div class="coun-verse-text">\u201C' + _e(s.text) + '\u201D</div>';
-            }
-            html += '</div>';
-          });
-          html += '</div>';
-        }
-
-        // ── Steps ──
-        if (steps.length) {
-          html += '<div class="coun-section">';
-          html += '<div class="coun-section-label" style="color:var(--mint,#8cc5a2);"><span>&#128161;</span> Faith Response Steps</div>';
-          html += '<ol class="coun-steps">';
-          steps.forEach(function(s, i) {
-            html += '<li class="coun-step">';
-            html += '<span class="coun-step-num" style="background:' + _e(color) + '18;color:' + _e(color) + ';">' + (i + 1) + '</span>';
-            html += '<span class="coun-step-text">' + linkifyStep(_e(s)) + '</span>';
-            html += '</li>';
-          });
-          html += '</ol>';
-          html += '</div>';
-        }
-
-        html += '</div>'; // end card
+        // Detail area — populated on first open
+        html += '<div class="coun-card-body" id="coun-body-' + _e(id) + '" style="display:none;"></div>';
+        html += '</div>';
       });
 
-      html += '</div>'; // end grid
-
+      html += '</div>';
       _panel(html);
     } catch (e) {
       _panel(_errHtml(e.message));
     }
+  }
+
+  // Called when a card header is clicked; lazily fetches and renders full content
+  async function _openCounselCard(headEl, id) {
+    var bodyEl = document.getElementById('coun-body-' + id);
+    if (!bodyEl) return;
+
+    // Toggle if already populated
+    if (bodyEl.style.display !== 'none') {
+      bodyEl.style.display = 'none';
+      var chev = headEl.querySelector('.coun-card-chevron');
+      if (chev) chev.innerHTML = '&#9660;';
+      return;
+    }
+
+    // Show chevron-up
+    var chev = headEl.querySelector('.coun-card-chevron');
+    if (chev) chev.innerHTML = '&#9650;';
+
+    // If not yet cached, fetch the full doc (1 Firestore read)
+    if (!_counselCache[id]) {
+      bodyEl.style.display = 'block';
+      bodyEl.innerHTML = '<div style="padding:12px;color:var(--ink-muted);font-size:0.85rem;">\u29D7 Loading\u2026</div>';
+      try {
+        var doc = null;
+        if (_isFB() && typeof UpperRoom !== 'undefined') {
+          doc = await _withTimeout(UpperRoom.getAppContent('counseling', id));
+        }
+        if (doc) { _counselCache[id] = doc; }
+      } catch (_) {}
+    }
+
+    var item = _counselCache[id];
+    if (!item) {
+      bodyEl.innerHTML = '<div style="padding:12px;color:var(--err,#c0392b);font-size:0.85rem;">Could not load content.</div>';
+      bodyEl.style.display = 'block';
+      return;
+    }
+
+    // ── Parse helpers (scoped here so they don't pollute the outer closure) ──
+    function parseScriptures(raw) {
+      if (!raw) return [];
+      var parts = raw.split(/(?=(?:[123]?\s?[A-Z][a-z]+\s+\d+:\d+))/g);
+      var out = [];
+      parts.forEach(function(p) {
+        p = p.trim(); if (!p) return;
+        var m = p.match(/^([123]?\s?[A-Za-z]+\s+\d+:\d+(?:-\d+)?):?\s*(.*)/s);
+        if (m) { out.push({ ref: m[1].trim(), text: m[2].replace(/[.;,\s]+$/, '').trim() }); }
+        else   { out.push({ ref: '', text: p.replace(/[.;,\s]+$/, '').trim() }); }
+      });
+      return out;
+    }
+    function parseSteps(raw) {
+      if (!raw) return [];
+      return raw.split(/[;\n]+/).map(function(s) { return s.trim(); }).filter(Boolean);
+    }
+    function linkifyStep(text) {
+      return text.replace(/\(([123]?\s?[A-Za-z]+\s+\d+:\d+(?:-\d+)?)\)/g, function(_, ref) {
+        return '(' + _bibleLink(ref) + ')';
+      });
+    }
+
+    var color      = item['Color'] || item.color || 'var(--mint)';
+    var definition = item['Definition'] || item.definition || '';
+    var scriptures = parseScriptures(item['Scriptures'] || item.scriptures || '');
+    var steps      = parseSteps(item['Steps'] || item.steps || '');
+
+    var b = '';
+    if (definition) {
+      b += '<div class="coun-definition">' + _e(definition) + '</div>';
+    }
+    if (scriptures.length) {
+      b += '<div class="coun-section">';
+      b += '<div class="coun-section-label" style="color:var(--gold,#d4b870);"><span>&#128214;</span> Scripture Foundation</div>';
+      scriptures.forEach(function(s) {
+        b += '<div class="coun-verse">';
+        if (s.ref) b += '<div class="coun-verse-ref">' + _bibleLink(s.ref) + '</div>';
+        if (s.text) b += '<div class="coun-verse-text">\u201C' + _e(s.text) + '\u201D</div>';
+        b += '</div>';
+      });
+      b += '</div>';
+    }
+    if (steps.length) {
+      b += '<div class="coun-section">';
+      b += '<div class="coun-section-label" style="color:var(--mint,#8cc5a2);"><span>&#128161;</span> Faith Response Steps</div>';
+      b += '<ol class="coun-steps">';
+      steps.forEach(function(s, i) {
+        b += '<li class="coun-step">';
+        b += '<span class="coun-step-num" style="background:' + _e(color) + '18;color:' + _e(color) + ';">' + (i + 1) + '</span>';
+        b += '<span class="coun-step-text">' + linkifyStep(_e(s)) + '</span>';
+        b += '</li>';
+      });
+      b += '</ol></div>';
+    }
+
+    bodyEl.innerHTML = b || '<div style="padding:12px;color:var(--ink-muted);font-size:0.85rem;">No details available.</div>';
+    bodyEl.style.display = 'block';
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -3481,6 +3527,7 @@ const TheWay = (() => {
 
     // Filters & browsing
     _filterPanel:       _filterPanel,
+    _openCounselCard:   _openCounselCard,
     _lexTestament:      _twLexFilter,   // backward compat alias
     _twLexFilter:       _twLexFilter,
     _twLexSelect:       _twLexSelect,

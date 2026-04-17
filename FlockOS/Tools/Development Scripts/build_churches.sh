@@ -166,7 +166,7 @@ print('  → bezalel_codex.js regenerated (' + str(lines) + ' lines)')
 fi
 
 # ── Regenerate bezalel_firestoresync_codex.js from FirestoreSync.md ──────────
-FIRESTORESYNC_MD="$REPO_ROOT/FlockOS/Tools/Master Deployment/4-FirestoreSync.md"
+FIRESTORESYNC_MD="$REPO_ROOT/FlockOS/Tools/Master Deployment/2-FirestoreSync.md"
 FIRESTORESYNC_OUT="$SOURCE_DIR/Pages/bezalel_firestoresync_codex.js"
 if [ -f "$FIRESTORESYNC_MD" ] && command -v python3 &>/dev/null; then
   python3 -c "

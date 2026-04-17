@@ -4362,6 +4362,13 @@
     });
   }
 
+  function getAppContent(type, id) {
+    return _appContentRef(type).doc(id).get().then(function(snap) {
+      if (!snap.exists) return null;
+      var o = snap.data(); o.id = snap.id; return o;
+    });
+  }
+
   /* ── Error Telemetry (disabled — manual debugging only) ──────────── */
   function logError() {
     // Firestore error logging disabled to reduce writes.
@@ -4797,6 +4804,7 @@
 
     // App Content (global reference data)
     listAppContent:  listAppContent,
+    getAppContent:   getAppContent,
 
     // Albums
     listAlbums:    listAlbums,
