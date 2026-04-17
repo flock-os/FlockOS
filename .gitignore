@@ -28,9 +28,9 @@ Thumbs.db
 
 # ── Internal tools folder — never publish ────────────────────────────────
 # Contains deployment guides, admin credentials, API URLs, build scripts.
-FlockOS/Tools/
+FlockOS/Tools/Flock Secrets/
+FlockOS/Tools/Production Notes/
 FlockOS/Planning/
-FlockOS/Secrets/
 # ── Internal reference docs ───────────────────────────────────────────────
 # Large citation/reference markdown — useful locally, not for the repo.
 \#\ Code\ Citations.md
@@ -54,6 +54,6 @@ CurrentFBPW.json
 
 # ── Local-only utility scripts ───────────────────────────────────────────
 # One-off scripts (e.g. Firestore checks, data migrations) — local only.
-check_firestore.py
+FlockOS/Tools/Flock Scripts/H-Check_Firestore.py
 check_*.py
 migrate_*.py

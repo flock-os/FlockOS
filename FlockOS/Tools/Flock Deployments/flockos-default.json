@@ -1,0 +1,18 @@
+{
+  "id": "flockos",
+  "sheetId": "1OuH0XE5_XUya0LILjzQbyFogZx-2w3wV6diPmU6X9PE",
+  "name": "FlockOS",
+  "shortName": "FlockOS",
+  "brandName": "FlockOS",
+  "tagline": "Church Management & Ministry Platform",
+  "favicon": "FlockOS_Camo.png",
+  "portrait": "FlockOS_Camo.png",
+  "themeColor": "#e8a838",
+  "backgroundColor": "#1a1a2e",
+  "databaseUrl": "https://script.google.com/macros/s/AKfycbx2pemG039LB609OlVY-OcqLWK75qRV2ZgZNyf4Oc7dGogCR2HC4C__iWUqlG9JfYLt/exec",
+  "photosUrl": "",
+  "adminEmail": "",
+  "analyticsId": "G-D7V88DPF3T",
+  "firebaseConfig": null,
+  "version": "3.0"
+}
