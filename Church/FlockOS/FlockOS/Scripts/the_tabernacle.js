@@ -20399,7 +20399,6 @@ const Modules = (() => {
       + '<div id="ad-kpis" style="margin-bottom:18px;"><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;">'
       + _adKpi('Active Members', '\u2026', 'var(--ink-muted)', '&#128101;')
       + '<div id="ad-kpi-prayer">' + _adKpi('Open Prayers', '\u2026', 'var(--ink-muted)', '&#128591;') + '</div>'
-      + _adKpi('Urgent Care', '\u2026', 'var(--ink-muted)', '&#10084;')
       + _adKpi('Open Compassion', '\u2026', 'var(--ink-muted)', '&#128230;')
       + _adKpi('Events (14d)', '\u2026', 'var(--ink-muted)', '&#128197;')
       + _adKpi('Giving (30d)', '\u2026', 'var(--ink-muted)', '&#128176;')
@@ -20437,7 +20436,7 @@ const Modules = (() => {
     // Main data queries — fill KPIs and data cards when ready (non-blocking)
     Promise.all([
       (_isFirebaseComms() ? UpperRoom.countMembers() : TheVine.flock.members.list({ limit: 100 })).catch(function () { return null; }),
-      (_isFirebaseComms() ? UpperRoom.listCareCases({ limit: 50 }) : TheVine.flock.care.list({ limit: 50 })).catch(function () { return null; }),
+      Promise.resolve(null),
       (_isFirebaseComms() ? UpperRoom.countOpenCompassionRequests() : TheVine.flock.compassion.requests.list({ limit: 50 })).catch(function () { return null; }),
       (_isFirebaseComms() ? UpperRoom.listEvents({ limit: 25 }) : TheVine.flock.events.list({ limit: 25 })).catch(function () { return null; }),
       (_isFirebaseComms() ? UpperRoom.listGiving({ limit: 100 }) : TheVine.flock.giving.list({ limit: 100 })).catch(function () { return null; }),
@@ -20446,7 +20445,6 @@ const Modules = (() => {
       (typeof firebase !== 'undefined' ? firebase.firestore().collection('problems')
         .where('status', 'in', ['Open', 'In Progress'])
         .orderBy('createdAt', 'desc').limit(25).get() : Promise.resolve(null)).catch(function () { return null; }),
-      _ensureMemberDir().catch(function () { return []; }),
     ]).then(function (results) {
       var members      = _rows(results[0]);
       var careCases    = _rows(results[1]);
@@ -20461,11 +20459,6 @@ const Modules = (() => {
       var activeMembers = typeof results[0] === 'number' ? results[0] : (members.filter(function (m) {
         return !['inactive','archived','removed'].includes(String(m.status || '').toLowerCase());
       }).length || members.length);
-
-      var urgentCare = careCases.filter(function (c) {
-        return String(c.priority || c.Priority || '').toLowerCase() === 'urgent'
-          && !['closed','resolved','archived'].includes(String(c.status || c.Status || '').toLowerCase());
-      }).length;
 
       var openCompassion = typeof results[2] === 'number' ? results[2] : compassions.filter(function (c) {
         return !['closed','completed','resolved','archived'].includes(String(c.status || '').toLowerCase());
@@ -20500,7 +20493,6 @@ const Modules = (() => {
         kpiEl.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;">'
           + _adKpi('Active Members',  activeMembers,                    'var(--accent)',              '&#128101;')
           + '<div id="ad-kpi-prayer">' + _adKpi('Open Prayers', '\u2026', 'var(--ink-muted)', '&#128591;') + '</div>'
-          + _adKpi('Urgent Care',     urgentCare,    urgentCare  > 0  ? 'var(--danger)' : 'var(--ink-muted)', '&#10084;')
           + _adKpi('Open Compassion', openCompassion, openCompassion > 0 ? 'var(--peach)' : 'var(--ink-muted)', '&#128230;')
           + _adKpi('Events (14d)',    upcoming.length,                  'var(--mint)',                '&#128197;')
           + _adKpi('Giving (30d)',    '$' + Number(giving30).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), 'var(--success)', '&#128176;')
@@ -20509,30 +20501,6 @@ const Modules = (() => {
 
       // ── Fill data cards ──────────────────────────────────────────────────
       var cardsHtml = '';
-
-      // Urgent care alert
-      var urgentCaseRows = careCases.filter(function (c) {
-        return String(c.priority || c.Priority || '').toLowerCase() === 'urgent'
-          && !['closed','resolved','archived'].includes(String(c.status || c.Status || '').toLowerCase());
-      }).slice(0, 5);
-      if (urgentCaseRows.length) {
-        cardsHtml += _adCard('&#128680; Urgent Care Cases',
-          urgentCaseRows.map(function (c) {
-            var memberLabel = c.memberName || c['Member Name'] || c.member || c.name
-              || _memberName(c.memberId || c['Member ID'] || c.memberEmail || c['Member Email'])
-              || c.memberId || c['Member ID'] || '—';
-            var typeLabel = c.caseType || c['Case Type'] || c.careType || c['Care Type']
-              || c.type || c['Type'] || c.category || c['Category'] || '';
-            var statusLabel = c.status || c.Status || '';
-            return '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);">'
-              + '<div>'
-              + '<div style="font-size:0.86rem;font-weight:600;color:var(--ink);">' + _e(memberLabel) + '</div>'
-              + '<div style="font-size:0.74rem;color:var(--ink-muted);">' + _e(typeLabel) + (statusLabel ? ' \u2022 ' + _e(statusLabel) : '') + '</div>'
-              + '</div>'
-              + '<button onclick="navigate(\'my-flock\')" style="font-size:0.72rem;padding:4px 10px;border:1px solid var(--danger);color:var(--danger);background:none;border-radius:6px;cursor:pointer;font-family:inherit;">View</button>'
-              + '</div>';
-          }).join(''));
-      }
 
       // Events + Problems — side-by-side on desktop
       var eventsHtml = '';
