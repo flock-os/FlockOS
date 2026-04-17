@@ -38,6 +38,7 @@ FlockOS/Planning/
 
 # ── Firebase CLI artifacts ───────────────────────────────────────────────
 .firebase/
+flockchat-public/
 
 # ── Node / build artifacts (future-proofing) ─────────────────────────────
 node_modules/

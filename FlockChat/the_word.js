@@ -19,12 +19,6 @@
 
 'use strict';
 
-// ── Wait for _FC to be ready (set by FlockChat.html inline module) ──────────
-(function waitForFC() {
-  if (!window._FC) { setTimeout(waitForFC, 50); return; }
-  TheWord.init();
-})();
-
 const TheWord = (() => {
 
   // ── Firebase handles ───────────────────────────────────────────────────
@@ -73,6 +67,8 @@ const TheWord = (() => {
     _bindModals();
     _bindSidebar();
     _bindTopbar();
+    _bindUserMenu();
+    _bindAdminPanel();
 
     // Auth state observer
     F.onAuthStateChanged(auth, async (user) => {
@@ -185,30 +181,40 @@ const TheWord = (() => {
   }
 
   async function _onSignedIn(user) {
-    // Ensure user doc exists (in case they signed in before registering via this UI)
-    const userRef  = F.doc(db, 'users', user.uid);
-    const userSnap = await F.getDoc(userRef);
-    if (!userSnap.exists()) {
-      await F.setDoc(userRef, {
+    // Ensure user doc exists — wrapped in try/catch so a rules denial
+    // doesn't block the whole app from loading.
+    try {
+      const userRef  = F.doc(db, 'users', user.uid);
+      const userSnap = await F.getDoc(userRef);
+      if (!userSnap.exists()) {
+        await F.setDoc(userRef, {
+          displayName: user.displayName || user.email.split('@')[0],
+          email:       user.email,
+          role:        'volunteer',
+          avatar:      '',
+          status:      'available',
+          lastSeen:    F.serverTimestamp(),
+          createdAt:   F.serverTimestamp()
+        });
+      } else {
+        await F.updateDoc(userRef, { lastSeen: F.serverTimestamp() }).catch(() => {});
+      }
+
+      _me = {
+        uid:         user.uid,
+        displayName: user.displayName || userSnap.data()?.displayName || user.email.split('@')[0],
+        email:       user.email,
+        role:        userSnap.data()?.role || 'volunteer'
+      };
+    } catch (err) {
+      console.warn('Firestore user doc unavailable — continuing with auth identity only.', err);
+      _me = {
+        uid:         user.uid,
         displayName: user.displayName || user.email.split('@')[0],
         email:       user.email,
-        role:        'volunteer',
-        avatar:      '',
-        status:      'available',
-        lastSeen:    F.serverTimestamp(),
-        createdAt:   F.serverTimestamp()
-      });
+        role:        'volunteer'
+      };
     }
-
-    _me = {
-      uid:         user.uid,
-      displayName: user.displayName || userSnap.data()?.displayName || user.email.split('@')[0],
-      email:       user.email,
-      role:        userSnap.data()?.role || 'volunteer'
-    };
-
-    // Update lastSeen
-    await F.updateDoc(userRef, { lastSeen: F.serverTimestamp() });
 
     // Presence
     _initPresence();
@@ -218,6 +224,7 @@ const TheWord = (() => {
 
     // Boot UI
     _showApp();
+    _loadUserReads();
     _startChannelListener();
     _startDMListener();
   }
@@ -300,13 +307,16 @@ const TheWord = (() => {
     _channels
       .filter(ch => !search || ch.name.toLowerCase().includes(search))
       .forEach(ch => {
+        const lastRead = _userReads[ch.id] || 0;
+        const lastTs   = ch.lastTimestamp?.toMillis?.() || 0;
+        const hasUnread = lastTs > lastRead && ch.id !== _activeId;
         const item = document.createElement('div');
-        item.className = 'sidebar-item' + (_activeId === ch.id ? ' active' : '');
+        item.className = 'sidebar-item' + (_activeId === ch.id ? ' active' : '') + (hasUnread ? ' has-unread' : '');
         item.dataset.id = ch.id;
         item.innerHTML = `
           <span class="sigil">${ch.type === 'private' ? '🔒' : '#'}</span>
           <span class="ch-name">${_esc(ch.name)}</span>
-          <span class="unread-badge" id="badge-${ch.id}"></span>`;
+          <span class="unread-badge" id="badge-${ch.id}">${hasUnread ? '●' : ''}</span>`;
         item.addEventListener('click', () => _openChannel(ch));
         container.appendChild(item);
       });
@@ -353,8 +363,12 @@ const TheWord = (() => {
       dot.className = 'dm-presence';
       _watchPresence(otherId, dot);
 
+      const lastRead  = _userReads[dm.id] || 0;
+      const lastTs    = dm.lastTimestamp?.toMillis?.() || 0;
+      const hasUnread = lastTs > lastRead && dm.id !== _activeId;
+      item.className += hasUnread ? ' has-unread' : '';
       item.innerHTML = `<span class="ch-name">${_esc(otherName)}</span>
-        <span class="unread-badge" id="badge-${dm.id}"></span>`;
+        <span class="unread-badge" id="badge-${dm.id}">${hasUnread ? '●' : ''}</span>`;
       item.insertBefore(dot, item.firstChild);
       item.addEventListener('click', () => _openDM(dm, otherName));
       container.appendChild(item);
@@ -365,6 +379,7 @@ const TheWord = (() => {
   // OPEN CHANNEL
   // ─────────────────────────────────────────────────────────────────────────
   function _openChannel(ch) {
+    const isMember = (ch.members || []).includes(_me?.uid);
     _setActive(ch.id, 'channel');
     _el('topbar-channel-name').innerHTML =
       `<span class="sigil">${ch.type === 'private' ? '🔒' : '#'}</span><span id="topbar-channel-label">${_esc(ch.name)}</span>`;
@@ -373,6 +388,22 @@ const TheWord = (() => {
     _el('details-title').textContent = `# ${ch.name}`;
     _el('details-desc').textContent  = ch.description || 'No description.';
     _renderDetails(ch);
+
+    // Show/hide join banner & composer
+    const banner   = _el('join-banner');
+    const composer = _el('composer');
+    if (isMember) {
+      banner.style.display   = 'none';
+      composer.style.display = '';
+      _el('btn-join-channel').onclick = null;
+    } else {
+      banner.style.display   = 'flex';
+      composer.style.display = 'none';
+      _el('btn-join-channel').onclick = () => _joinChannel(ch);
+    }
+
+    // Mark read
+    _markRead(ch.id);
     _listenMessages('channels', ch.id);
     _renderChannelList();
   }
@@ -387,6 +418,9 @@ const TheWord = (() => {
     _el('composer-input').placeholder = `Message ${otherName}…`;
     _el('details-title').textContent = otherName;
     _el('details-desc').textContent  = 'Direct Message';
+    _el('join-banner').style.display   = 'none';
+    _el('composer').style.display = '';
+    _markRead(dm.id);
     _listenMessages('dms', dm.id);
     _renderDMList();
   }
@@ -755,6 +789,12 @@ const TheWord = (() => {
   }
 
   async function _createChannel() {
+    // Role gate: only admin or pastor may create channels
+    if (!['admin', 'pastor'].includes(_me?.role)) {
+      _toast('Only pastors and admins can create channels.', 'error');
+      return;
+    }
+
     const name = _el('new-ch-name').value.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
     const desc = _el('new-ch-desc').value.trim();
     const type = _el('new-ch-type').value;
@@ -832,6 +872,210 @@ const TheWord = (() => {
   function _closeModal(id) { _el(id).classList.remove('open'); }
 
   // ─────────────────────────────────────────────────────────────────────────
+  // CHANNEL JOIN / LEAVE
+  // ─────────────────────────────────────────────────────────────────────────
+  async function _joinChannel(ch) {
+    if (!_me) return;
+    try {
+      await F.updateDoc(F.doc(db, 'channels', ch.id), {
+        members: F.arrayUnion(_me.uid)
+      });
+      _toast(`Joined #${ch.name}!`, 'success');
+      _el('join-banner').style.display = 'none';
+      _el('composer').style.display = '';
+    } catch (err) {
+      _toast('Could not join channel.', 'error');
+      console.error(err);
+    }
+  }
+
+  async function _leaveChannel(chId, chName) {
+    if (!_me) return;
+    if (!confirm(`Leave #${chName}?`)) return;
+    try {
+      await F.updateDoc(F.doc(db, 'channels', chId), {
+        members: F.arrayRemove(_me.uid)
+      });
+      _toast(`Left #${chName}.`, 'success');
+      if (_activeId === chId) {
+        _activeId = null; _activeType = null;
+        _el('thread-pane').style.display = 'none';
+        _el('no-channel').style.display  = 'flex';
+        if (_msgUnsub) { _msgUnsub(); _msgUnsub = null; }
+      }
+    } catch (err) {
+      _toast('Could not leave channel.', 'error');
+      console.error(err);
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // UNREAD TRACKING
+  // ─────────────────────────────────────────────────────────────────────────
+  function _markRead(id) {
+    const now = Date.now();
+    _userReads[id] = now;
+    // Persist in Firestore (best-effort)
+    if (_me) {
+      F.setDoc(
+        F.doc(db, 'userReads', _me.uid + '_' + id),
+        { uid: _me.uid, targetId: id, lastRead: F.serverTimestamp() },
+        { merge: true }
+      ).catch(() => {});
+    }
+  }
+
+  function _loadUserReads() {
+    if (!_me) return;
+    F.getDocs(F.query(
+      F.collection(db, 'userReads'),
+      F.where('uid', '==', _me.uid)
+    )).then(snap => {
+      snap.forEach(d => {
+        const data = d.data();
+        const ts = data.lastRead?.toMillis?.() || 0;
+        _userReads[data.targetId] = ts;
+      });
+      _renderChannelList();
+      _renderDMList();
+    }).catch(() => {});
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // USER STATUS MENU
+  // ─────────────────────────────────────────────────────────────────────────
+  function _bindUserMenu() {
+    const menu = _el('user-menu');
+
+    // Toggle on avatar/name click
+    document.addEventListener('click', (e) => {
+      const pill = e.target.closest('#topbar-user-pill');
+      if (pill) {
+        e.stopPropagation();
+        const rect = pill.getBoundingClientRect();
+        menu.style.left    = rect.left + 'px';
+        menu.style.top     = (rect.bottom + 6) + 'px';
+        menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+        return;
+      }
+      if (!menu.contains(e.target)) menu.style.display = 'none';
+    });
+
+    // Status items
+    menu.querySelectorAll('.user-menu-item[data-status]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        _setUserStatus(btn.dataset.status);
+        menu.style.display = 'none';
+      });
+    });
+
+    // Admin panel
+    _el('btn-open-admin').addEventListener('click', () => {
+      menu.style.display = 'none';
+      _openAdminPanel();
+    });
+
+    // Sign out
+    _el('btn-user-menu-signout').addEventListener('click', async () => {
+      menu.style.display = 'none';
+      await F.signOut(auth);
+    });
+  }
+
+  async function _setUserStatus(status) {
+    if (!_me) return;
+    const stateMap = { available: 'online', away: 'away', dnd: 'dnd' };
+    const presRef  = F.ref(rtdb, `/presence/${_me.uid}`);
+    F.set(presRef, { state: stateMap[status] || 'online', lastChanged: F.rtdbTs() });
+    await F.updateDoc(F.doc(db, 'users', _me.uid), { status }).catch(() => {});
+    _me.status = status;
+    const labels = { available: '🟢', away: '🟡', dnd: '🔴' };
+    const dot = _el('topbar-status-dot');
+    if (dot) dot.textContent = labels[status] || '🟢';
+    _toast(`Status set to ${status}.`, 'success');
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // USER ADMIN PANEL
+  // ─────────────────────────────────────────────────────────────────────────
+  function _bindAdminPanel() {
+    _el('btn-close-admin').addEventListener('click', () => _closeModal('modal-admin'));
+  }
+
+  async function _openAdminPanel() {
+    if (_me?.role !== 'admin') {
+      _toast('Only admins can manage users.', 'error');
+      return;
+    }
+    _openModal('modal-admin');
+    const container = _el('admin-user-list');
+    container.innerHTML = '<div class="spinner" style="margin:20px auto"></div>';
+
+    try {
+      const snap = await F.getDocs(F.collection(db, 'users'));
+      container.innerHTML = '';
+      snap.forEach(d => {
+        const data = d.data();
+        const uid  = d.id;
+        const initials = _initials(data.displayName || uid);
+        const isSelf = uid === _me.uid;
+
+        const row = document.createElement('div');
+        row.className = 'admin-row';
+        row.innerHTML = `
+          <div class="member-avatar">${_esc(initials)}</div>
+          <div class="admin-info">
+            <div class="admin-name">${_esc(data.displayName || uid)}${isSelf ? ' <em style="font-size:0.72rem;color:var(--ink-faint)">(you)</em>' : ''}</div>
+            <div class="admin-email">${_esc(data.email || '')}</div>
+          </div>
+          <select id="role-sel-${uid}" ${isSelf ? 'disabled' : ''}>
+            <option value="volunteer" ${data.role === 'volunteer' ? 'selected' : ''}>Volunteer</option>
+            <option value="leader"    ${data.role === 'leader'    ? 'selected' : ''}>Leader</option>
+            <option value="pastor"    ${data.role === 'pastor'    ? 'selected' : ''}>Pastor</option>
+            <option value="admin"     ${data.role === 'admin'     ? 'selected' : ''}>Admin</option>
+          </select>
+          ${!isSelf ? `<button class="btn-remove" data-uid="${uid}">Remove</button>` : ''}`;
+
+        const sel = row.querySelector(`#role-sel-${uid}`);
+        if (sel) {
+          sel.addEventListener('change', () => _setUserRole(uid, sel.value));
+        }
+        const removeBtn = row.querySelector('.btn-remove');
+        if (removeBtn) {
+          removeBtn.addEventListener('click', () => _removeUser(uid, data.displayName, row));
+        }
+        container.appendChild(row);
+      });
+      if (!snap.size) container.innerHTML = '<p style="color:var(--ink-muted);font-size:0.85rem">No users found.</p>';
+    } catch (err) {
+      container.innerHTML = '<p style="color:var(--danger)">Could not load users.</p>';
+      console.error(err);
+    }
+  }
+
+  async function _setUserRole(uid, role) {
+    try {
+      await F.updateDoc(F.doc(db, 'users', uid), { role });
+      _toast('Role updated.', 'success');
+    } catch (err) {
+      _toast('Failed to update role.', 'error');
+      console.error(err);
+    }
+  }
+
+  async function _removeUser(uid, name, rowEl) {
+    if (!confirm(`Remove ${name || uid} from the workspace? This cannot be undone.`)) return;
+    try {
+      await F.deleteDoc(F.doc(db, 'users', uid));
+      rowEl.remove();
+      _toast(`${name} removed.`, 'success');
+    } catch (err) {
+      _toast('Failed to remove user.', 'error');
+      console.error(err);
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
   // SIDEBAR SEARCH
   // ─────────────────────────────────────────────────────────────────────────
   function _bindSidebar() {
@@ -845,9 +1089,9 @@ const TheWord = (() => {
   // TOPBAR CONTROLS
   // ─────────────────────────────────────────────────────────────────────────
   function _bindTopbar() {
-    _el('btn-signout').addEventListener('click', async () => {
-      await F.signOut(auth);
-    });
+    // Legacy sign-out button (kept for backwards compat — sign-out also in user menu)
+    const oldSignout = _el('btn-signout');
+    if (oldSignout) oldSignout.addEventListener('click', async () => { await F.signOut(auth); });
 
     _el('btn-details-toggle').addEventListener('click', () => {
       _detailsOpen = !_detailsOpen;
@@ -864,7 +1108,13 @@ const TheWord = (() => {
 
   async function _renderDetails(ch) {
     const el = _el('details-members');
-    el.innerHTML = '<div class="spinner" style="margin:12px auto"></div>';
+    el.innerHTML = '<div class="spinner" style="margin:12px auto"></div>';\n
+    // Show/hide Leave button based on membership
+    const isMember = (ch.members || []).includes(_me?.uid);
+    const leaveSection = _el('details-leave-section');
+    const leaveBtn     = _el('btn-leave-channel');
+    if (leaveSection) leaveSection.style.display = isMember ? 'block' : 'none';
+    if (leaveBtn) leaveBtn.onclick = () => _leaveChannel(ch.id, ch.name);
     try {
       const members = ch.members || [];
       const rows = await Promise.all(members.map(async uid => {
@@ -895,6 +1145,16 @@ const TheWord = (() => {
     _el('topbar-uname').textContent = _me.displayName;
     const av = _el('topbar-avatar');
     av.textContent = _initials(_me.displayName);
+
+    // Set user menu name
+    const menuName = _el('user-menu-name');
+    if (menuName) menuName.textContent = _me.displayName;
+
+    // Role-gate channel creation button
+    const btnNewCh = _el('btn-new-channel');
+    if (btnNewCh) {
+      btnNewCh.style.display = ['admin', 'pastor'].includes(_me?.role) ? '' : 'none';
+    }
   }
 
   function _hideApp() {
@@ -943,4 +1203,10 @@ const TheWord = (() => {
 
   // ─────────────────────────────────────────────────────────────────────────
   return { init };
+})();
+
+// ── Wait for _FC to be ready (set by FlockChat.html inline module) ──────────
+(function waitForFC() {
+  if (!window._FC) { setTimeout(waitForFC, 50); return; }
+  TheWord.init();
 })();
