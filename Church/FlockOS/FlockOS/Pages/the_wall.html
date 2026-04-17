@@ -602,6 +602,13 @@ document.addEventListener('DOMContentLoaded', function() {
   window.handleForgot   = handleForgot;
   window.handleReset    = handleReset;
 
+  // ── GAS Warm Ping ─────────────────────────────────────────────────────────
+  // GAS cold-starts can take 30-60s. Fire a silent health check on page load
+  // so the server is awake by the time the user submits their credentials.
+  if (typeof TheVine !== 'undefined' && TheVine.health) {
+    TheVine.health('flock').catch(function() { /* silent — warm-up only */ });
+  }
+
 }); /* DOMContentLoaded */
 </script>
 <script>
