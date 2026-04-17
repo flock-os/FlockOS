@@ -980,6 +980,33 @@ document.addEventListener('DOMContentLoaded', function() {
 Adornment.init();
 if (typeof TheVine !== 'undefined' && TheVine.lifecycle) TheVine.lifecycle.start();
 
+// ── Global App Config Bootstrap ───────────────────────────────────────────
+// Load all AppConfig keys into localStorage (flock_cfg_<KEY>) immediately on
+// boot so every module can read config synchronously without its own fetch.
+(function() {
+  function _applyConfigRows(rows) {
+    if (!Array.isArray(rows)) return;
+    rows.forEach(function(r) {
+      var k = r.key || r.configKey || '';
+      if (k && r.value != null) localStorage.setItem('flock_cfg_' + k, String(r.value));
+    });
+  }
+  try {
+    var _isFB = typeof Modules !== 'undefined' && Modules._isFirebaseComms && Modules._isFirebaseComms();
+    if (_isFB && typeof UpperRoom !== 'undefined' && UpperRoom.listAppConfig) {
+      UpperRoom.listAppConfig().then(function(res) {
+        var rows = Array.isArray(res) ? res : (res && (res.rows || res.data || res.results || res.items) ? (res.rows || res.data || res.results || res.items) : []);
+        _applyConfigRows(rows);
+      }).catch(function() {});
+    } else if (typeof TheVine !== 'undefined' && TheVine.flock && TheVine.flock.config) {
+      TheVine.flock.config.list().then(function(res) {
+        var rows = Array.isArray(res) ? res : (res && (res.rows || res.data || res.results || res.items) ? (res.rows || res.data || res.results || res.items) : []);
+        _applyConfigRows(rows);
+      }).catch(function() {});
+    }
+  } catch (_) {}
+})();
+
 // ── Splash logo: use CHURCH_LOGO from AppConfig, fallback to favicon ─────
 (function() {
   var img = document.getElementById('church-splash-logo');

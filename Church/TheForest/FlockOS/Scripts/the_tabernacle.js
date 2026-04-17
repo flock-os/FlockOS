@@ -20283,6 +20283,7 @@ const Modules = (() => {
     { key: 'CHURCH_ADDRESS',         value: '',        description: 'Physical address of the church',                      category: 'Church Info' },
     { key: 'CHURCH_EMAIL',           value: '',        description: 'Main contact email for the church',                   category: 'Church Info' },
     { key: 'COMMS_MODE',             value: 'sheets',  description: 'Primary database mode: sheets or firebase',           category: 'System' },
+    { key: 'QUARTERLY_PLANNER',      value: 'TRUE',    description: 'Show the Quarterly Planner module and navigation link (TRUE/FALSE)', category: 'Modules' },
   ];
 
   // ═══════════════════════════════════════════════════════════════════════

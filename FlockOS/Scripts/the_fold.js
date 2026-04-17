@@ -72,14 +72,13 @@ const TheFold = (() => {
       var res = await Promise.allSettled([
         _isFB() ? UpperRoom.listGroups() : TheVine.flock.groups.list(),
         _isFB() ? UpperRoom.listAttendance({ limit: 60 }) : TheVine.flock.attendance.list({ limit: 60 }),
-        _isFB() ? UpperRoom.listAppConfig() : TheVine.flock.config.list(),
       ]);
       _cache.groups     = _rows(res[0].status === 'fulfilled' ? res[0].value : []);
       _cache.attendance = _rows(res[1].status === 'fulfilled' ? res[1].value : []);
-      var cfgRows = _rows(res[2].status === 'fulfilled' ? res[2].value : []);
-      var cfgQP = cfgRows.find(function(r) { return (r.key || r.configKey || '') === 'QUARTERLY_PLANNER'; });
-      _cache.quarterlyPlanner = !cfgQP || String(cfgQP.value || 'TRUE').toUpperCase() !== 'FALSE';
-    } catch (_) { _cache.quarterlyPlanner = true; }
+    } catch (_) {}
+    // Read QUARTERLY_PLANNER from global config cache (set at boot)
+    var _qpRaw = localStorage.getItem('flock_cfg_QUARTERLY_PLANNER');
+    _cache.quarterlyPlanner = _qpRaw === null || String(_qpRaw).toUpperCase() !== 'FALSE';
 
     var nG = _cache.groups.length;
     var nA = _cache.attendance.length;
