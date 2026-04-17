@@ -20446,6 +20446,7 @@ const Modules = (() => {
       (typeof firebase !== 'undefined' ? firebase.firestore().collection('problems')
         .where('status', 'in', ['Open', 'In Progress'])
         .orderBy('createdAt', 'desc').limit(25).get() : Promise.resolve(null)).catch(function () { return null; }),
+      _ensureMemberDir().catch(function () { return []; }),
     ]).then(function (results) {
       var members      = _rows(results[0]);
       var careCases    = _rows(results[1]);
