@@ -1163,7 +1163,7 @@
 
 
   function countMembers() {
-    return _membersRef().count().get().then(function(snap) { return snap.data().count; });
+    return _membersRef().get().then(function(snap) { return snap.size; });
   }
   function getMember(idOrEmail) {
     // Try by doc ID first, fall back to email query
