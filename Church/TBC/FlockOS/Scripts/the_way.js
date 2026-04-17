@@ -2160,10 +2160,7 @@ const TheWay = (() => {
     try {
       var words = [];
       try {
-        if (_isFB() && typeof UpperRoom !== 'undefined') {
-          var res = await _withTimeout(UpperRoom.listAppContent('words'));
-          words = Array.isArray(res) ? res : _rows(res);
-        } else if (typeof TheVine !== 'undefined' && TheVine.app && TheVine.app.words) {
+        if (typeof TheVine !== 'undefined' && TheVine.app && TheVine.app.words) {
           var res = await _withTimeout(TheVine.app.words());
           words = _rows(res);
         }
@@ -2964,7 +2961,7 @@ const TheWay = (() => {
   async function _renderGenealogy() {
     _panel(_spinner());
     try {
-      var raw = await _withTimeout(_isFB() && typeof UpperRoom !== 'undefined' ? UpperRoom.listAppContent('genealogy') : TheVine.app.genealogy());
+      var raw = await _withTimeout(TheVine.app.genealogy());
       var rows = Array.isArray(raw) ? raw : _rows(raw);
       if (!rows.length) { _panel(_empty('\uD83D\uDC65', 'No genealogy data yet', 'Add entries in the Matthew spreadsheet.')); return; }
 
