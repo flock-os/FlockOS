@@ -72,10 +72,14 @@ const TheFold = (() => {
       var res = await Promise.allSettled([
         _isFB() ? UpperRoom.listGroups() : TheVine.flock.groups.list(),
         _isFB() ? UpperRoom.listAttendance({ limit: 60 }) : TheVine.flock.attendance.list({ limit: 60 }),
+        _isFB() ? UpperRoom.listAppConfig() : TheVine.flock.config.list(),
       ]);
       _cache.groups     = _rows(res[0].status === 'fulfilled' ? res[0].value : []);
       _cache.attendance = _rows(res[1].status === 'fulfilled' ? res[1].value : []);
-    } catch (_) {}
+      var cfgRows = _rows(res[2].status === 'fulfilled' ? res[2].value : []);
+      var cfgQP = cfgRows.find(function(r) { return (r.key || r.configKey || '') === 'QUARTERLY_PLANNER'; });
+      _cache.quarterlyPlanner = !cfgQP || String(cfgQP.value || 'TRUE').toUpperCase() !== 'FALSE';
+    } catch (_) { _cache.quarterlyPlanner = true; }
 
     var nG = _cache.groups.length;
     var nA = _cache.attendance.length;
@@ -124,11 +128,13 @@ const TheFold = (() => {
          + ';font-size:0.84rem;cursor:pointer;font-family:inherit;transition:all .15s;">'
          + labels[key] + ' <span style="font-size:0.72rem;opacity:0.7;">(' + counts[key] + ')</span></button>';
     });
-    h += '<a href="quarterly_worship.html"'
-       + ' style="padding:10px 18px;border:none;background:transparent;color:var(--ink);'
-       + 'border-radius:8px 8px 0 0;font-weight:500;font-size:0.84rem;cursor:pointer;'
-       + 'font-family:inherit;transition:all .15s;text-decoration:none;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;">'
-       + '\uD83D\uDCC5 Quarterly Planner</a>';
+    if (_cache.quarterlyPlanner !== false) {
+      h += '<a href="quarterly_worship.html"'
+         + ' style="padding:10px 18px;border:none;background:transparent;color:var(--ink);'
+         + 'border-radius:8px 8px 0 0;font-weight:500;font-size:0.84rem;cursor:pointer;'
+         + 'font-family:inherit;transition:all .15s;text-decoration:none;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;">'
+         + '\uD83D\uDCC5 Quarterly Planner</a>';
+    }
     h += '</div>';
 
     // Panels
