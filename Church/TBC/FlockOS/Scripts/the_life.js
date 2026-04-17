@@ -337,8 +337,10 @@ const TheLife = (() => {
   }
 
   // Get the hub view element
+  var _fpEditorSource = 'my-flock'; // tracks which view opened the current editor
+
   function _hubEl() {
-    return document.getElementById('view-my-flock');
+    return document.getElementById('view-' + _fpEditorSource) || document.getElementById('view-my-flock');
   }
 
   // Inject HTML into hub's body
@@ -1623,7 +1625,8 @@ const TheLife = (() => {
 
   var _fpPrayerId = '';
 
-  async function openPrayer(id) {
+  async function openPrayer(id, sourceView) {
+    _fpEditorSource = sourceView || 'my-flock';
     var el = _hubEl();
     if (!el) return;
     _fpPrayerId = id || '';
@@ -3191,8 +3194,9 @@ const TheLife = (() => {
     var el = _hubEl();
     if (el) {
       el.dataset.loaded = '';
-      Modules.render('my-flock', el, Nehemiah.getSession());
+      Modules.render(_fpEditorSource, el, Nehemiah.getSession());
     }
+    _fpEditorSource = 'my-flock'; // reset after navigating back
     var _m = document.getElementById('main'); if (_m) _m.scrollTop = 0;
   }
 

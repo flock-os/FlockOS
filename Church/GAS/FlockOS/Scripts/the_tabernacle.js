@@ -18574,7 +18574,7 @@ const Modules = (() => {
     ], async p => { p.key = id; await _setAppCfg(p); }, id, null);
   }
 
-  function editPrayer(id) { TheLife.openPrayer(id); }
+  function editPrayer(id) { TheLife.openPrayer(id, 'prayer-admin'); }
 
   // ── Member-facing prayer detail view (view/edit own requests) ──
   function viewMyPrayer(id) {
