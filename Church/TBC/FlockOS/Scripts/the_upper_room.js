@@ -1670,7 +1670,7 @@ window.FLOCK_CHURCH_ID = "tbc";
   function countOpenCompassionRequests() {
     return _compassionRef()
       .where('status', 'not-in', ['closed','completed','resolved','archived'])
-      .count().get().then(function(snap) { return snap.data().count; });
+      .get().then(function(snap) { return snap.size; });
   }
   function getCompassionRequest(id) {
     return _compassionRef().doc(id).get().then(function(doc) {
