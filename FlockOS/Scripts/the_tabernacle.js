@@ -11638,7 +11638,10 @@ const Modules = (() => {
         _cfgD.seededDefaults = _configSource === 'defaults';
         _cfgD.studioDirty = false;
 
-        // Sync display keys to localStorage
+        // Sync ALL config keys to global localStorage cache (flock_cfg_*)
+        // so any module can read config values synchronously without its own fetch.
+        rows.forEach(function(r) { var k = r.key || r.configKey || ''; if (k && r.value != null) localStorage.setItem('flock_cfg_' + k, String(r.value)); });
+        // Also sync legacy display-specific keys
         var sk = { FONT_SCALE: 'flock_font_scale', FONT_SCALE_MOBILE: 'flock_font_scale_mobile', QUIZ_SIZE: 'flock_quiz_size', CHURCH_LOGO: 'flock_church_logo' };
         rows.forEach(function(r) { var k = r.key || r.configKey || ''; if (sk[k] && r.value != null) localStorage.setItem(sk[k], String(r.value)); });
         if (window._applyFontScale) window._applyFontScale();
@@ -16840,7 +16843,13 @@ const Modules = (() => {
   }
 
   // ── Config write helpers — try Firestore, fall back to GAS on permission denial ─
+  function _cfgToLocalStorage(data) {
+    // Keep the global flock_cfg_* cache in sync so modules read the new value immediately
+    var k = data && (data.key || data.configKey);
+    if (k && data.value != null) localStorage.setItem('flock_cfg_' + k, String(data.value));
+  }
   async function _setAppCfg(data) {
+    _cfgToLocalStorage(data);
     if (_isFirebaseComms()) {
       try {
         return await UpperRoom.setAppConfig(data);
@@ -16855,6 +16864,7 @@ const Modules = (() => {
     return TheVine.flock.config.set(data);
   }
   async function _updateAppCfg(data) {
+    _cfgToLocalStorage(data);
     if (_isFirebaseComms()) {
       try {
         return await UpperRoom.updateAppConfig(data);
