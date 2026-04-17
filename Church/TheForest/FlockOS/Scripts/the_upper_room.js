@@ -802,7 +802,7 @@ window.FLOCK_CHURCH_ID = "theforest";
   function countOpenPrayers() {
     return _prayersRef()
       .where('status', 'not-in', ['answered','closed','archived'])
-      .count().get().then(function(snap) { return snap.data().count; });
+      .get().then(function(snap) { return snap.size; });
   }
   function getPrayer(id) {
     return _prayersRef().doc(id).get().then(function(doc) {
