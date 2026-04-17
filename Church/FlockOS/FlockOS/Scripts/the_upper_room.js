@@ -4346,6 +4346,15 @@ window.FLOCK_CHURCH_ID = "flockos";
   function listAppContent(type, opts) {
     opts = opts || {};
     var q = _appContentRef(type);
+    // Devotionals: fetch only today + next 29 days (30-day window) to minimise reads.
+    if (type === 'devotionals' && !opts.skipDateFilter) {
+      var _today = new Date();
+      var _end   = new Date(_today);
+      _end.setDate(_end.getDate() + 29);
+      function _pad(n) { return n < 10 ? '0' + n : '' + n; }
+      function _ymd(d) { return d.getFullYear() + '-' + _pad(d.getMonth() + 1) + '-' + _pad(d.getDate()); }
+      q = q.where('date', '>=', _ymd(_today)).where('date', '<=', _ymd(_end));
+    }
     if (opts.orderBy) q = q.orderBy(opts.orderBy, opts.dir || 'asc');
     if (opts.limit) q = q.limit(opts.limit);
     return q.get().then(function(snap) {
