@@ -4,7 +4,7 @@
     "public": "flockchat-public",
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
     "predeploy": [
-      "mkdir -p flockchat-public/FlockChat/Images && cp FlockChat.html flockchat-public/ && cp FlockChat/the_word.js flockchat-public/FlockChat/ && cp FlockChat/Images/FlockOS_Angels.png flockchat-public/FlockChat/Images/"
+      "mkdir -p flockchat-public/FlockChat/Images && cp FlockChat.html flockchat-public/ && cp FlockChat/the_word.js flockchat-public/FlockChat/ && cp FlockChat/Images/FlockOS_Angels.png flockchat-public/FlockChat/Images/ && cp FlockChat/firebase-messaging-sw.js flockchat-public/"
     ],
     "rewrites": [
       { "source": "**", "destination": "/FlockChat.html" }
@@ -15,7 +15,7 @@
     "indexes": "FlockOS/Tools/firestore.indexes.json"
   },
   "functions": {
-    "source": "functions",
+    "source": "flockchat-functions",
     "runtime": "nodejs22",
     "ignore": [
       "node_modules",

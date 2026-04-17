@@ -1339,6 +1339,8 @@
            writeBatch, Timestamp }                     from 'https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore.js';
   import { getDatabase, ref, set, onValue,
            onDisconnect, serverTimestamp as rtdbTs }   from 'https://www.gstatic.com/firebasejs/11.6.0/firebase-database.js';
+  import { getMessaging, getToken,
+           onMessage }                                 from 'https://www.gstatic.com/firebasejs/11.6.0/firebase-messaging.js';
 
   // ── Firebase Config — FlockOS-Comms ─────────────────────────────────────
   const FIREBASE_CONFIG = {
@@ -1353,20 +1355,22 @@
   };
 
   // ── Bootstrap ──────────────────────────────────────────────────────────
-  const fbApp  = initializeApp(FIREBASE_CONFIG);
-  const auth   = getAuth(fbApp);
-  const db     = getFirestore(fbApp);
-  const rtdb   = getDatabase(fbApp);
+  const fbApp    = initializeApp(FIREBASE_CONFIG);
+  const auth     = getAuth(fbApp);
+  const db       = getFirestore(fbApp);
+  const rtdb     = getDatabase(fbApp);
+  const messaging = getMessaging(fbApp);
 
   // Expose to the_word.js module loaded below
-  window._FC = { fbApp, auth, db, rtdb,
+  window._FC = { fbApp, auth, db, rtdb, messaging,
     firebase: {
       initializeApp, getAuth, createUserWithEmailAndPassword,
       signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile,
       getFirestore, collection, doc, addDoc, setDoc, updateDoc, deleteDoc,
       getDoc, getDocs, query, where, orderBy, limit, startAfter, onSnapshot,
       serverTimestamp, arrayUnion, arrayRemove, increment, writeBatch, Timestamp,
-      getDatabase, ref, set, onValue, onDisconnect, rtdbTs
+      getDatabase, ref, set, onValue, onDisconnect, rtdbTs,
+      getMessaging, getToken, onMessage
     }
   };
 

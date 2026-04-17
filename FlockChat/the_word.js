@@ -22,7 +22,11 @@
 const TheWord = (() => {
 
   // ── Firebase handles ───────────────────────────────────────────────────
-  let auth, db, rtdb, F; // F = firebase function imports
+  let auth, db, rtdb, messaging, F; // F = firebase function imports
+
+  // ── VAPID key — Web Push certificate from Firebase Console ────────────
+  // Project Settings → Cloud Messaging → Web configuration → Key pair
+  const VAPID_KEY = 'BDWyEyfi_O53MvhfeiIbb58qvhY-U71uRtwXieQYAQFullLURDjU75ihHcPGZZndTt4bhg0kNeFPV6fIuBMICc0';
 
   // ── State ──────────────────────────────────────────────────────────────
   let _me          = null;   // { uid, displayName, email, role }
@@ -58,7 +62,7 @@ const TheWord = (() => {
   // INIT
   // ─────────────────────────────────────────────────────────────────────────
   function init() {
-    ({ auth, db, rtdb } = window._FC);
+    ({ auth, db, rtdb, messaging } = window._FC);
     F = window._FC.firebase;
 
     _buildEmojiPicker();
@@ -219,6 +223,9 @@ const TheWord = (() => {
     // Presence
     _initPresence();
 
+    // Push notifications (non-blocking — user may deny permission)
+    _initPushNotifications();
+
     // Seed default channels (no-op if they already exist)
     await _seedChannels();
 
@@ -253,6 +260,44 @@ const TheWord = (() => {
       F.onDisconnect(presRef).set({ state: 'offline', lastChanged: F.rtdbTs() });
       F.set(presRef, { state: 'online', lastChanged: F.rtdbTs() });
     });
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // PUSH NOTIFICATIONS (FCM)
+  // ─────────────────────────────────────────────────────────────────────────
+  async function _initPushNotifications() {
+    if (!messaging || !_me) return;
+    if (VAPID_KEY === 'REPLACE_WITH_YOUR_VAPID_KEY') {
+      console.warn('FlockChat: VAPID_KEY not set — push notifications disabled.');
+      return;
+    }
+
+    try {
+      // Register the service worker
+      const reg = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+
+      // Request permission
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') return;
+
+      // Get FCM token and save to user doc
+      const token = await F.getToken(messaging, { vapidKey: VAPID_KEY, serviceWorkerRegistration: reg });
+      if (token) {
+        await F.updateDoc(F.doc(db, 'users', _me.uid), { fcmToken: token })
+          .catch(() => F.setDoc(F.doc(db, 'users', _me.uid), { fcmToken: token }, { merge: true }));
+      }
+
+      // Foreground messages — show as toast while app is open
+      F.onMessage(messaging, (payload) => {
+        const n = payload.notification || {};
+        // Don't show if the active channel is the source
+        if (payload.data?.channelId && payload.data.channelId === _activeId) return;
+        _toast(`${n.title || 'FlockChat'}: ${n.body || ''}`, 'info');
+      });
+
+    } catch (err) {
+      console.warn('Push notification setup failed:', err.message);
+    }
   }
 
   function _watchPresence(userId, dotEl) {
@@ -297,6 +342,9 @@ const TheWord = (() => {
         .map(d => ({ id: d.id, ...d.data() }))
         .sort((a, b) => a.name.localeCompare(b.name));
       _renderChannelList();
+    }, (err) => {
+      console.error('Channel listener error:', err);
+      _toast('Could not load channels: ' + err.message, 'error');
     });
   }
 
@@ -1018,6 +1066,9 @@ const TheWord = (() => {
     _toast(`Status set to ${status}.`, 'success');
   }
 
+  // Returns true for both admin and pastor roles
+  function _isAdmin() { return ['admin', 'pastor'].includes(_me?.role); }
+
   // ─────────────────────────────────────────────────────────────────────────
   // USER ADMIN PANEL
   // ─────────────────────────────────────────────────────────────────────────
@@ -1026,8 +1077,8 @@ const TheWord = (() => {
   }
 
   async function _openAdminPanel() {
-    if (_me?.role !== 'admin') {
-      _toast('Only admins can manage users.', 'error');
+    if (!_isAdmin()) {
+      _toast('Only pastors and admins can manage users.', 'error');
       return;
     }
     _openModal('modal-admin');
@@ -1237,11 +1288,11 @@ const TheWord = (() => {
     const menuName = _el('user-menu-name');
     if (menuName) menuName.textContent = _me.displayName;
 
-    // Role-gate channel creation button
+    // Role-gate channel creation button and admin menu item
     const btnNewCh = _el('btn-new-channel');
-    if (btnNewCh) {
-      btnNewCh.style.display = ['admin', 'pastor'].includes(_me?.role) ? '' : 'none';
-    }
+    if (btnNewCh) btnNewCh.style.display = _isAdmin() ? '' : 'none';
+    const btnAdmin = _el('btn-open-admin');
+    if (btnAdmin) btnAdmin.style.display = _isAdmin() ? '' : 'none';
   }
 
   function _hideApp() {

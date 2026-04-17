@@ -43,6 +43,7 @@ flockchat-public/
 
 # ── Node / build artifacts (future-proofing) ─────────────────────────────
 node_modules/
+flockchat-functions/node_modules/
 .env
 .env.*
 
