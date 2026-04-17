@@ -13063,7 +13063,7 @@ const Modules = (() => {
     var hour     = now.getHours();
     var greeting = hour < 12 ? 'Good Morning' : hour < 17 ? 'Good Afternoon' : 'Good Evening';
     var firstName = isLoggedIn
-      ? (session.name || session.displayName || session.email || '').split(/[\s@]/)[0]
+      ? session.firstName || (session.name || session.displayName || '').split(/[\s]/)[0] || ''
       : '';
     var dateOpts = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
     var todayStr = now.toLocaleDateString('en-US', dateOpts);
@@ -13189,7 +13189,7 @@ const Modules = (() => {
       const hour = now.getHours();
       const greeting = hour < 12 ? 'Good Morning' : hour < 17 ? 'Good Afternoon' : 'Good Evening';
       const firstName = isLoggedIn
-        ? (session.name || session.displayName || session.email || '').split(/[\s@]/)[0]
+        ? session.firstName || (session.name || session.displayName || '').split(/[\s]/)[0] || ''
         : '';
 
       // ── Prayer stats ──

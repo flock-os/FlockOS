@@ -1159,7 +1159,7 @@ async function _pushSubscribe() {
 setTimeout(function() { _pushSubscribe(); }, 3000);
 
 // ── Populate Top Bar ───────────────────────────────────────────────────────
-const _firstName = (session.displayName || '').split(' ')[0] || session.email;
+const _firstName = session.firstName || (session.displayName || '').split(' ')[0] || session.email;
 document.getElementById('userName').textContent = _firstName;
 document.getElementById('userRole').textContent = session.role;
 
@@ -1254,7 +1254,7 @@ _collapseNavGroups();
 // ── Dashboard Greeting ─────────────────────────────────────────────────────
 (function setGreeting() {
   const h = new Date().getHours();
-  const name = (session.displayName || '').split(' ')[0] || 'friend';
+  const name = session.firstName || (session.displayName || '').split(' ')[0] || 'friend';
   let greet = 'Good evening';
   if (h < 12) greet = 'Good morning';
   else if (h < 17) greet = 'Good afternoon';
