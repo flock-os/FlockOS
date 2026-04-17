@@ -610,6 +610,37 @@ exports.pushOnCriticalCare = onDocumentWritten("care/{docId}", async (event) => 
 // the church's GAS endpoint, and sends summary emails via push notification.
 // ══════════════════════════════════════════════════════════════════════════
 
+// ══════════════════════════════════════════════════════════════════════════
+// DAILY PASTORAL SUMMARY — runs every day at 14:00 UTC (≈6 AM Pacific)
+// Calls the church's GAS endpoint with action=daily.summary + syncSecret,
+// which triggers dailyPastoralSummary() on the GAS side and sends email
+// to all configured pastoral slots via GmailApp.
+//
+// Requires settings/sync to have: { gasEndpoint, syncSecret }
+// DAILY_SUMMARY_ENABLED (AppConfig) controls whether GAS sends the email.
+// ══════════════════════════════════════════════════════════════════════════
+
+exports.dailyPastoralSummaryTask = onSchedule("every day 14:00", async () => {
+  const config = await _getConfig();
+  if (!config || !config.gasEndpoint || !config.syncSecret) {
+    console.log("[dailyPastoralSummaryTask] No GAS endpoint/syncSecret configured — skipping.");
+    return;
+  }
+
+  const url = config.gasEndpoint + "?action=daily.summary&syncSecret=" + encodeURIComponent(config.syncSecret);
+  try {
+    const resp = await fetch(url, { method: "GET", redirect: "follow" });
+    const body = await resp.json().catch(() => ({}));
+    if (body.ok) {
+      console.log("[dailyPastoralSummaryTask] ✓ Daily summary triggered successfully.");
+    } else {
+      console.warn("[dailyPastoralSummaryTask] GAS returned error:", body.error || JSON.stringify(body));
+    }
+  } catch (err) {
+    console.error("[dailyPastoralSummaryTask]", err.message);
+  }
+});
+
 exports.processScheduledReports = onSchedule("every monday 07:00", async () => {
   const now = new Date();
   const dayOfMonth = now.getDate();
