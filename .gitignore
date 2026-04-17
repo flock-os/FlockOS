@@ -36,6 +36,9 @@ FlockOS/Planning/
 \#\ Code\ Citations.md
 \#\ Code\ References.md
 
+# ── Firebase CLI artifacts ───────────────────────────────────────────────
+.firebase/
+
 # ── Node / build artifacts (future-proofing) ─────────────────────────────
 node_modules/
 .env
