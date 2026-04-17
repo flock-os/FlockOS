@@ -290,11 +290,12 @@ const TheWord = (() => {
   // ─────────────────────────────────────────────────────────────────────────
   function _startChannelListener() {
     const q = F.query(
-      F.collection(db, 'channels'),
-      F.orderBy('name')
+      F.collection(db, 'channels')
     );
     _chUnsub = F.onSnapshot(q, (snap) => {
-      _channels = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      _channels = snap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => a.name.localeCompare(b.name));
       _renderChannelList();
     });
   }
@@ -329,11 +330,12 @@ const TheWord = (() => {
     if (!_me) return;
     const q = F.query(
       F.collection(db, 'dms'),
-      F.where('members', 'array-contains', _me.uid),
-      F.orderBy('lastTimestamp', 'desc')
+      F.where('members', 'array-contains', _me.uid)
     );
     _dmUnsub = F.onSnapshot(q, async (snap) => {
-      _dms = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      _dms = snap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => (b.lastTimestamp?.toMillis?.() || 0) - (a.lastTimestamp?.toMillis?.() || 0));
       await _renderDMList();
     });
   }
@@ -441,10 +443,12 @@ const TheWord = (() => {
   // ─────────────────────────────────────────────────────────────────────────
   function _listenMessages(collection, parentId) {
     const msgCol = F.collection(db, collection, parentId, 'messages');
-    const q = F.query(msgCol, F.orderBy('timestamp', 'asc'), F.limit(60));
+    const q = F.query(msgCol, F.limit(200));
 
     _msgUnsub = F.onSnapshot(q, (snap) => {
-      const msgs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const msgs = snap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => (a.timestamp?.toMillis?.() || 0) - (b.timestamp?.toMillis?.() || 0));
       _renderMessages(msgs);
     });
 
