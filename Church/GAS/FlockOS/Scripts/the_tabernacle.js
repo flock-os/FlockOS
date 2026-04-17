@@ -5653,7 +5653,7 @@ const Modules = (() => {
             const text     = p['Prayer Text'] || p.prayerText || '';
             const cat      = p['Category'] || p.category || '';
             const assigned = p['Assigned To'] || p.assignedTo || p['Caregiver'] || p.caregiver || '';
-            const date     = (p['Submitted At'] || p.submittedAt || '').substring(0, 10);
+            const date     = _dateStr(p['Submitted At'] || p.submittedAt);
             const pid      = p.id || p['ID'] || '';
             const answered = status.toLowerCase() === 'answered';
             h += '<div class="dev-prayer-entry' + (answered ? ' dev-answered' : '') + '" onclick="Modules.viewMyPrayer(\'' + _e(pid) + '\')" style="cursor:pointer;">'
@@ -9029,7 +9029,7 @@ const Modules = (() => {
       + '<div style="font-size:0.80rem;color:var(--ink-muted);line-height:1.5;margin-bottom:8px;">' + _e((r.body || r.Body || r.description || '').substring(0, 220)) + '</div>'
       + '<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;font-size:0.70rem;color:var(--ink-muted);">'
       + (r.source ? '<span>📡 ' + _e(r.source) + '</span>' : '')
-      + (r.createdAt ? '<span>🕒 ' + _e(String(r.createdAt).substring(0, 10)) + '</span>' : '')
+      + (r.createdAt ? '<span>🕒 ' + _e(_dateStr(r.createdAt)) + '</span>' : '')
       + '</div>'
       + '</div>'
       + '</div>'
@@ -12288,7 +12288,7 @@ const Modules = (() => {
             h += '<td data-label="Display Name">' + _e(r.displayName || '\u2014') + '</td>';
             h += '<td data-label="Role">' + _rSel(r.email, r.role) + '</td>';
             h += '<td data-label="Active">' + _badge(isActive ? 'Active' : 'Inactive', isActive ? 'success' : 'warn') + '</td>';
-            h += '<td data-label="Updated" style="font-size:0.76rem;color:var(--ink-muted);">' + _e((r.updatedAt || '').substring(0, 10) || '\u2014') + '</td>';
+            h += '<td data-label="Updated" style="font-size:0.76rem;color:var(--ink-muted);">' + _e(_dateStr(r.updatedAt) || '\u2014') + '</td>';
             h += '<td><button type="button" onclick="Modules._accessRemove(\'' + ee + '\')"'
                + ' style="background:none;border:1px solid var(--danger);border-radius:5px;padding:3px 10px;'
                + 'font-size:0.74rem;cursor:pointer;color:var(--danger);">Remove</button></td>';
@@ -12853,7 +12853,7 @@ const Modules = (() => {
             + (answered ? _badge('Answered', 'success') : _badge(r['Status'] || r.status || 'New', 'warn'))
             + '</div></div>'
             + '<p style="font-size:0.84rem;color:var(--ink);margin:0 0 12px;line-height:1.7;">' + _e(r['Prayer Text'] || r.prayerText || '') + '</p>'
-            + '<span style="font-size:0.74rem;color:var(--ink-faint);">' + _e(r['Submitted At'] || r.submittedAt || '') + '</span>'
+            + '<span style="font-size:0.74rem;color:var(--ink-faint);">' + _e(_dateStr(r['Submitted At'] || r.submittedAt)) + '</span>'
             + '</div>';
         });
         html += '</div>';
@@ -12932,7 +12932,7 @@ const Modules = (() => {
           const text     = r['Prayer Text'] || r.prayerText || '';
           const cat      = r['Category'] || r.category || '';
           const assigned = r['Assigned To'] || r.assignedTo || r['Caregiver'] || r.caregiver || '';
-          const date     = (r['Submitted At'] || r.submittedAt || '').substring(0, 10);
+          const date     = _dateStr(r['Submitted At'] || r.submittedAt);
           const pid      = r.id || r['ID'] || '';
           const answered = status.toLowerCase() === 'answered';
           html += '<div class="my-request-card" onclick="Modules.viewMyPrayer(\'' + _e(pid) + '\')" style="cursor:pointer;">';
@@ -12966,7 +12966,7 @@ const Modules = (() => {
           const type     = r['Care Type'] || r.careType || r['Type'] || r.type || '';
           const notes    = r['Notes'] || r.notes || r['Description'] || r.description || '';
           const assigned = r['Assigned To'] || r.assignedTo || r['Caregiver'] || r.caregiver || r['Pastor'] || r.pastor || '';
-          const date     = (r['Created At'] || r.createdAt || r['Date'] || r.date || '').substring(0, 10);
+          const date     = _dateStr(r['Created At'] || r.createdAt || r['Date'] || r.date);
           const cid      = r.id || r['ID'] || '';
           const resolved = status.toLowerCase() === 'resolved' || status.toLowerCase() === 'closed';
           html += '<div class="my-request-card" onclick="Modules.viewMyCare(\'' + _e(cid) + '\')" style="cursor:pointer;">';
@@ -12999,7 +12999,7 @@ const Modules = (() => {
           const type     = r['Request Type'] || r.requestType || r['Type'] || r.type || '';
           const notes    = r['Description'] || r.description || r['Notes'] || r.notes || '';
           const assigned = r['Assigned To'] || r.assignedTo || r['Case Worker'] || r.caseWorker || '';
-          const date     = (r['Created At'] || r.createdAt || r['Submitted At'] || r.submittedAt || '').substring(0, 10);
+          const date     = _dateStr(r['Created At'] || r.createdAt || r['Submitted At'] || r.submittedAt);
           const resolved = status.toLowerCase() === 'resolved' || status.toLowerCase() === 'approved' || status.toLowerCase() === 'complete';
           html += '<div class="my-request-card">';
           html += '<div class="my-request-header">';
@@ -13396,9 +13396,9 @@ const Modules = (() => {
           var text     = p['Prayer Text'] || p.prayerText || '';
           var cat      = p['Category'] || p.category || '';
           var assigned = p['Assigned To'] || p.assignedTo || p['Caregiver'] || p.caregiver || '';
-          var date     = (p['Submitted At'] || p.submittedAt || '').substring(0, 10);
+          var date     = _dateStr(p['Submitted At'] || p.submittedAt);
           var notes    = p['Admin Notes'] || p.adminNotes || '';
-          var lastUpd  = (p['Last Updated'] || p.lastUpdated || '').substring(0, 10);
+          var lastUpd  = _dateStr(p['Last Updated'] || p.lastUpdated);
           var updBy    = p['Updated By'] || p.updatedBy || '';
           var pMemberId = p['Member ID'] || p.memberId || '';
           var pid      = p.id || p['ID'] || '';
@@ -13432,7 +13432,7 @@ const Modules = (() => {
               h += '<div class="ur-prayer-contacts">';
               h += '<div class="ur-prayer-contacts-label">&#128222; Follow-Up Contacts</div>';
               pContacts.forEach(function(c) {
-                var cDate  = (c['Contact Date'] || c.contactDate || '').substring(0, 10);
+                var cDate  = _dateStr(c['Contact Date'] || c.contactDate);
                 var cType  = c['Contact Type'] || c.contactType || '';
                 var cDir   = c['Direction'] || c.direction || '';
                 var cSubj  = c['Subject'] || c.subject || '';
@@ -13482,7 +13482,7 @@ const Modules = (() => {
             var type     = r['Care Type'] || r.careType || r['Type'] || r.type || '';
             var notes    = r['Notes'] || r.notes || r['Description'] || r.description || '';
             var assigned = r['Assigned To'] || r.assignedTo || r['Caregiver'] || r.caregiver || r['Pastor'] || r.pastor || '';
-            var date     = (r['Created At'] || r.createdAt || r['Date'] || r.date || '').substring(0, 10);
+            var date     = _dateStr(r['Created At'] || r.createdAt || r['Date'] || r.date);
             var cid      = r.id || r['ID'] || '';
             var resolved = status.toLowerCase() === 'resolved' || status.toLowerCase() === 'closed';
             h += '<div class="ur-entry-card' + (resolved ? ' ur-resolved' : '') + '" onclick="Modules.viewMyCare(\'' + _e(cid) + '\')" style="cursor:pointer;">';
@@ -13510,7 +13510,7 @@ const Modules = (() => {
             var type     = r['Request Type'] || r.requestType || r['Type'] || r.type || '';
             var notes    = r['Description'] || r.description || r['Notes'] || r.notes || '';
             var assigned = r['Assigned To'] || r.assignedTo || r['Case Worker'] || r.caseWorker || '';
-            var date     = (r['Created At'] || r.createdAt || r['Submitted At'] || r.submittedAt || '').substring(0, 10);
+            var date     = _dateStr(r['Created At'] || r.createdAt || r['Submitted At'] || r.submittedAt);
             var resolved = status.toLowerCase() === 'resolved' || status.toLowerCase() === 'approved' || status.toLowerCase() === 'complete';
             h += '<div class="ur-entry-card' + (resolved ? ' ur-resolved' : '') + '">';
             h += '<div class="ur-entry-header">';
@@ -13692,7 +13692,7 @@ const Modules = (() => {
         const cat = r.category || r['Category'] || '';
         const mood = r.mood || r['Mood'] || '';
         const ref = r.scriptureRef || r['Scripture Ref'] || '';
-        const created = (r.createdAt || r['Created At'] || '').substring(0, 10);
+        const created = _dateStr(r.createdAt || r['Created At']);
         html += '<div style="background:var(--bg-raised);border:1px solid var(--line);border-radius:var(--radius);padding:16px 20px;cursor:pointer;" onclick="Modules.editJournal(\'' + _e(r.id || r['ID'] || '') + '\')">'
           + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">'
           + '<h3 style="margin:0;font-size:0.93rem;color:var(--accent);">' + _e(r.title || r['Title'] || 'Untitled') + '</h3>'
@@ -13781,7 +13781,7 @@ const Modules = (() => {
         const isFU     = String(r['Follow-Up Requested'] || r.followUpRequested || '').toUpperCase() === 'TRUE';
         const status   = r['Status'] || r.status || 'New';
         const assigned = _memberName(r['Assigned To'] || r.assignedTo) || '';
-        const date     = r['Submitted At'] || r.submittedAt || '';
+        const date     = _dateStr(r['Submitted At'] || r.submittedAt);
 
         // Pills row
         let pills = _statusBadge(status);
@@ -18576,10 +18576,10 @@ const Modules = (() => {
     var text    = row.prayerText || row['Prayer Text'] || '';
     var status  = row.status || row['Status'] || 'New';
     var cat     = row.category || row['Category'] || '';
-    var date    = (row.submittedAt || row['Submitted At'] || '').substring(0, 10);
+    var date    = _dateStr(row.submittedAt || row['Submitted At']);
     var notes   = row.adminNotes || row['Admin Notes'] || '';
     var assigned = row.assignedTo || row['Assigned To'] || '';
-    var updated  = (row.lastUpdated || row['Last Updated'] || '').substring(0, 10);
+    var updated  = _dateStr(row.lastUpdated || row['Last Updated']);
     var updBy    = row.updatedBy || row['Updated By'] || '';
     var rid      = row.id || row['ID'] || '';
     var isNew    = status.toLowerCase() === 'new';
@@ -18751,8 +18751,8 @@ const Modules = (() => {
     var summary  = row.summary || row['Summary'] || row.notes || row['Notes'] || row.description || row['Description'] || '';
     var assigned = row.assignedTo || row['Assigned To'] || row.caregiver || row['Caregiver'] || row.pastor || row['Pastor'] || '';
     var second   = row.secondaryCaregiverId || row['Secondary Caregiver'] || '';
-    var created  = (row.createdAt || row['Created At'] || row.date || row['Date'] || '').substring(0, 10);
-    var updated  = (row.updatedAt || row['Updated At'] || row.lastUpdated || row['Last Updated'] || '').substring(0, 10);
+    var created  = _dateStr(row.createdAt || row['Created At'] || row.date || row['Date']);
+    var updated  = _dateStr(row.updatedAt || row['Updated At'] || row.lastUpdated || row['Last Updated']);
     var rid      = row.id || row['ID'] || '';
     var sLower   = status.toLowerCase();
     var isOpen   = sLower === 'open' || sLower === 'new';
@@ -18992,7 +18992,7 @@ const Modules = (() => {
         var mName = m.memberName || m.name || mLookup[m.memberId] || mLookup[(m.memberId || '').toLowerCase()] || m.memberId || 'Unknown';
         var mRole = m.role || m['Role'] || 'member';
         var mStatus = m.status || m['Status'] || 'Active';
-        var joined = (m.joinedDate || m['Joined Date'] || '').substring(0, 10);
+        var joined = _dateStr(m.joinedDate || m['Joined Date']);
         var isLeader = mRole.toLowerCase() === 'leader' || mRole.toLowerCase() === 'co-leader';
         h += '<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;'
            + 'background:rgba(255,255,255,0.04);border:1px solid var(--line);">';
@@ -19089,7 +19089,7 @@ const Modules = (() => {
           var mName = m.memberName || m.name || mLookup[m.memberId] || mLookup[(m.memberId || '').toLowerCase()] || m.memberId || 'Unknown';
           var mRole = m.role || m['Role'] || 'member';
           var mStatus = m.status || m['Status'] || 'Active';
-          var joined = (m.joinedDate || m['Joined Date'] || '').substring(0, 10);
+          var joined = _dateStr(m.joinedDate || m['Joined Date']);
           var mId = m.memberId || m['Member ID'] || '';
           h += '<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;'
              + 'background:rgba(255,255,255,0.04);border:1px solid var(--line);">';
@@ -19344,7 +19344,7 @@ const Modules = (() => {
           var status = p['Status'] || p.status || 'New';
           var text = p['Prayer Text'] || p.prayerText || '';
           var cat = p['Category'] || p.category || '';
-          var date = (p['Submitted At'] || p.submittedAt || '').substring(0, 10);
+          var date = _dateStr(p['Submitted At'] || p.submittedAt);
           var notes = p['Admin Notes'] || p.adminNotes || '';
           var answered = status.toLowerCase() === 'answered';
           prayerHtml += '<div onclick="Modules.viewMyPrayer(\'' + _e(pid) + '\')" style="cursor:pointer;padding:10px 12px;'
@@ -19435,7 +19435,7 @@ const Modules = (() => {
         + _mpInput('mp-preferredName', 'Preferred Name', row.preferredName)
         + _mpSelect('mp-gender', 'Gender', row.gender, ['','Male','Female'])
         + '</div>'
-        + _mpInput('mp-dob', 'Date of Birth', (row.dateOfBirth || '').substring(0, 10), 'date')
+        + _mpInput('mp-dob', 'Date of Birth', _dateStr(row.dateOfBirth), 'date')
         + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">'
         + _mpSelect('mp-maritalStatus', 'Marital Status', row.maritalStatus, ['','Single','Married','Widowed','Divorced','Separated'])
         + _mpInput('mp-spouseName', 'Spouse Name', row.spouseName)
