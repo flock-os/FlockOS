@@ -1108,7 +1108,8 @@ const TheWord = (() => {
 
   async function _renderDetails(ch) {
     const el = _el('details-members');
-    el.innerHTML = '<div class="spinner" style="margin:12px auto"></div>';\n
+    el.innerHTML = '<div class="spinner" style="margin:12px auto"></div>';
+
     // Show/hide Leave button based on membership
     const isMember = (ch.members || []).includes(_me?.uid);
     const leaveSection = _el('details-leave-section');
