@@ -20434,49 +20434,6 @@ const Modules = (() => {
       if (pEl) pEl.innerHTML = _adKpi('Open Prayers', count, count > 0 ? 'var(--lilac)' : 'var(--ink-muted)', '&#128591;');
     });
 
-    // Church Vault card — seed admin only (async)
-    if (_isSeedAdmin()) {
-      var _vCid = '';
-      try { _vCid = UpperRoom.churchId() || ''; } catch(_e_) {}
-      if (_vCid) {
-        firebase.firestore().collection('churchVault').doc(_vCid).get().then(function(snap) {
-          var vaultEl = document.getElementById('ad-vault-card');
-          if (!vaultEl) return;
-          var data = snap.exists ? snap.data() : {};
-          var notes = data.notes || '';
-          var creds = data.credentials || [];
-          var html = '';
-          if (notes) {
-            html += '<div style="font-size:0.82rem;color:var(--ink);white-space:pre-wrap;word-break:break-word;margin-bottom:10px;padding:8px;background:var(--bg-alt,var(--bg));border-radius:6px;border:1px solid var(--line);">' + _e(notes) + '</div>';
-          }
-          if (creds.length) {
-            html += '<div style="display:flex;flex-direction:column;gap:5px;">';
-            creds.forEach(function(c) {
-              html += '<div style="display:flex;align-items:center;gap:7px;font-size:0.81rem;">'
-                + '<span style="font-weight:600;color:var(--ink);min-width:110px;flex-shrink:0;">' + _e(c.label || '') + '</span>'
-                + '<span style="font-family:monospace;color:var(--ink-muted);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + _e(c.value || '') + '">\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022</span>'
-                + '<button onclick="var s=this.previousElementSibling;s.textContent=s.textContent===\'' + _e(c.value || '').replace(/'/g,"\\'") + '\'?\'\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\\u2022\':\'' + _e(c.value || '').replace(/'/g,"\\'") + '\'" style="padding:2px 8px;font-size:0.72rem;border:1px solid var(--line);border-radius:4px;background:none;color:var(--ink);cursor:pointer;">Show</button>'
-                + '</div>';
-            });
-            html += '</div>';
-          }
-          if (!notes && !creds.length) html = '<div style="font-size:0.78rem;color:var(--ink-muted);">No vault record for this church yet.</div>';
-          if (data.updatedAt && data.updatedBy) {
-            var vd = data.updatedAt.toDate ? data.updatedAt.toDate() : new Date(data.updatedAt);
-            html += '<div style="font-size:0.7rem;color:var(--ink-muted);margin-top:8px;">Saved ' + vd.toLocaleDateString() + ' by ' + _e(data.updatedBy) + '</div>';
-          }
-          html += '<div style="margin-top:10px;"><a href="the_great_commission.html#vault" style="font-size:0.78rem;color:var(--accent);">Edit in Great Commission \u2197</a></div>';
-          vaultEl.innerHTML = _adCard('&#128272; Church Vault', html);
-        }).catch(function(vaultErr) {
-          console.error('[FLOCK-DEBUG] Church Vault read failed:', vaultErr);
-          var card = document.getElementById('ad-vault-card');
-          if (card) card.innerHTML = _adCard('&#128272; Church Vault',
-            '<div style="font-size:0.78rem;color:var(--danger);">&#9888;&#65039; Could not load vault: '
-            + _e(vaultErr && vaultErr.message ? vaultErr.message : 'Permission denied') + '</div>');
-        });
-      }
-    }
-
     // Main data queries — fill KPIs and data cards when ready (non-blocking)
     Promise.all([
       (_isFirebaseComms() ? UpperRoom.countMembers() : TheVine.flock.members.list({ limit: 100 })).catch(function () { return null; }),
@@ -20505,8 +20462,8 @@ const Modules = (() => {
       }).length || members.length);
 
       var urgentCare = careCases.filter(function (c) {
-        return String(c.priority || '').toLowerCase() === 'urgent'
-          && !['closed','resolved','archived'].includes(String(c.status || '').toLowerCase());
+        return String(c.priority || c.Priority || '').toLowerCase() === 'urgent'
+          && !['closed','resolved','archived'].includes(String(c.status || c.Status || '').toLowerCase());
       }).length;
 
       var openCompassion = typeof results[2] === 'number' ? results[2] : compassions.filter(function (c) {
@@ -20554,16 +20511,22 @@ const Modules = (() => {
 
       // Urgent care alert
       var urgentCaseRows = careCases.filter(function (c) {
-        return String(c.priority || '').toLowerCase() === 'urgent'
-          && !['closed','resolved','archived'].includes(String(c.status || '').toLowerCase());
+        return String(c.priority || c.Priority || '').toLowerCase() === 'urgent'
+          && !['closed','resolved','archived'].includes(String(c.status || c.Status || '').toLowerCase());
       }).slice(0, 5);
       if (urgentCaseRows.length) {
         cardsHtml += _adCard('&#128680; Urgent Care Cases',
           urgentCaseRows.map(function (c) {
+            var memberLabel = c.memberName || c['Member Name'] || c.member || c.name
+              || _memberName(c.memberId || c['Member ID'] || c.memberEmail || c['Member Email'])
+              || c.memberId || c['Member ID'] || '—';
+            var typeLabel = c.caseType || c['Case Type'] || c.careType || c['Care Type']
+              || c.type || c['Type'] || c.category || c['Category'] || '';
+            var statusLabel = c.status || c.Status || '';
             return '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);">'
               + '<div>'
-              + '<div style="font-size:0.86rem;font-weight:600;color:var(--ink);">' + _e(c.memberName || c.member || '—') + '</div>'
-              + '<div style="font-size:0.74rem;color:var(--ink-muted);">' + _e(c.caseType || c.type || '') + (c.status ? ' \u2022 ' + _e(c.status) : '') + '</div>'
+              + '<div style="font-size:0.86rem;font-weight:600;color:var(--ink);">' + _e(memberLabel) + '</div>'
+              + '<div style="font-size:0.74rem;color:var(--ink-muted);">' + _e(typeLabel) + (statusLabel ? ' \u2022 ' + _e(statusLabel) : '') + '</div>'
               + '</div>'
               + '<button onclick="navigate(\'my-flock\')" style="font-size:0.72rem;padding:4px 10px;border:1px solid var(--danger);color:var(--danger);background:none;border-radius:6px;cursor:pointer;font-family:inherit;">View</button>'
               + '</div>';
@@ -20675,16 +20638,6 @@ const Modules = (() => {
             + '</div>';
         }).join('');
         cardsHtml += _adCard('&#128336; Recent Activity', '<div style="max-height:260px;overflow-y:auto;">' + feedItems + '</div>');
-      }
-
-      // Vault placeholder (async-filled above)
-      if (_isSeedAdmin()) {
-        var _vc = '';
-        try { _vc = UpperRoom.churchId() || ''; } catch(_) {}
-        if (_vc) {
-          cardsHtml += '<div id="ad-vault-card">' + _adCard('&#128272; Church Vault',
-            '<div style="font-size:0.78rem;color:var(--ink-muted);padding:4px 0;">Loading vault\u2026</div>') + '</div>';
-        }
       }
 
       var dataEl = document.getElementById('ad-data-cards');
