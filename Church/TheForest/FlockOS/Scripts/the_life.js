@@ -1644,8 +1644,16 @@ const TheLife = (() => {
     var _prayerP = null;
     var rec = {};
     if (id) {
-      rec = (_cache.allPrayer || []).find(function(r) { return (r.id || r.ID) === id; }) || {};
-      if (!rec.id) _prayerP = TheVine.flock.prayer.get({ id: id }).catch(function() { return null; });
+      // Check both TheLife's own cache and the tabernacle's prayer-admin data cache
+      var _adminCache = (typeof Modules !== 'undefined' && Modules._dataCache) ? (Modules._dataCache['prayer-admin'] || []) : [];
+      rec = (_cache.allPrayer || []).find(function(r) { return (r.id || r.ID) === id; })
+         || _adminCache.find(function(r) { return (r.id || r.ID) === id; })
+         || {};
+      if (!rec.id && !rec.ID) {
+        _prayerP = _isFB()
+          ? UpperRoom.getPrayer(id).catch(function() { return null; })
+          : TheVine.flock.prayer.get({ id: id }).catch(function() { return null; });
+      }
     }
     var dir = await _dirP;
     var mOpts = _memberOpts(dir);
