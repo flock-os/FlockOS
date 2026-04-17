@@ -408,6 +408,7 @@ const TheWord = (() => {
     _markRead(ch.id);
     _listenMessages('channels', ch.id);
     _renderChannelList();
+    _closeSidebar();
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -425,6 +426,7 @@ const TheWord = (() => {
     _markRead(dm.id);
     _listenMessages('dms', dm.id);
     _renderDMList();
+    _closeSidebar();
   }
 
   function _setActive(id, type) {
@@ -1093,7 +1095,7 @@ const TheWord = (() => {
   // TOPBAR CONTROLS
   // ─────────────────────────────────────────────────────────────────────────
   function _bindTopbar() {
-    // Legacy sign-out button (kept for backwards compat — sign-out also in user menu)
+    // Legacy sign-out button
     const oldSignout = _el('btn-signout');
     if (oldSignout) oldSignout.addEventListener('click', async () => { await F.signOut(auth); });
 
@@ -1108,6 +1110,72 @@ const TheWord = (() => {
       _el('details-pane').classList.add('collapsed');
       _el('btn-details-toggle').classList.remove('active');
     });
+
+    // ── Mobile: hamburger + scrim + bottom nav ──
+    const isMobile = () => window.innerWidth <= 640;
+
+    // Show/hide mobile chrome based on viewport
+    function _applyMobileChrome() {
+      const mobile = isMobile();
+      _el('btn-sidebar-toggle').style.display = mobile ? '' : 'none';
+      _el('bottom-nav').style.display = mobile ? 'flex' : 'none';
+    }
+    _applyMobileChrome();
+    window.addEventListener('resize', _applyMobileChrome);
+
+    // Hamburger opens sidebar drawer
+    _el('btn-sidebar-toggle').addEventListener('click', () => _toggleSidebar());
+
+    // Scrim closes sidebar drawer
+    _el('sidebar-scrim').addEventListener('click', () => _closeSidebar());
+
+    // Bottom nav
+    _el('btn-nav-channels').addEventListener('click', () => {
+      _setSidebarTab('channels');
+      _toggleSidebar(true);
+    });
+    _el('btn-nav-dms').addEventListener('click', () => {
+      _setSidebarTab('dms');
+      _toggleSidebar(true);
+    });
+    _el('btn-nav-me').addEventListener('click', () => {
+      _closeSidebar();
+      // Open user menu
+      const pill = _el('topbar-user-pill');
+      const rect = pill.getBoundingClientRect();
+      const menu = _el('user-menu');
+      menu.style.left    = Math.max(8, rect.right - 180) + 'px';
+      menu.style.top     = (rect.bottom + 6) + 'px';
+      menu.style.display = 'block';
+    });
+  }
+
+  function _toggleSidebar(forceOpen) {
+    const sidebar = _el('sidebar');
+    const scrim   = _el('sidebar-scrim');
+    const isOpen  = sidebar.classList.contains('open');
+    if (forceOpen === true || !isOpen) {
+      sidebar.classList.add('open');
+      scrim.classList.add('open');
+    } else {
+      _closeSidebar();
+    }
+  }
+
+  function _closeSidebar() {
+    _el('sidebar').classList.remove('open');
+    _el('sidebar-scrim').classList.remove('open');
+  }
+
+  function _setSidebarTab(tab) {
+    // Scroll sidebar to channels or DMs section
+    const target = tab === 'dms' ? _el('dm-list') : _el('channel-list');
+    if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    // Update bottom nav active state
+    _el('btn-nav-channels').classList.toggle('active', tab === 'channels');
+    _el('btn-nav-dms').classList.toggle('active', tab === 'dms');
+    _el('btn-nav-me').classList.remove('active');
   }
 
   async function _renderDetails(ch) {
@@ -1145,6 +1213,7 @@ const TheWord = (() => {
     _el('loading-overlay').style.display = 'none';
     _el('auth-screen').style.display     = 'none';
     _el('app').style.display             = 'flex';
+    document.body.classList.remove('auth-open');
 
     // Set topbar user info
     _el('topbar-uname').textContent = _me.displayName;
@@ -1170,6 +1239,7 @@ const TheWord = (() => {
     _el('no-channel').style.display      = 'flex';
     _el('channel-list').innerHTML        = '';
     _el('dm-list').innerHTML             = '';
+    document.body.classList.add('auth-open');
   }
 
   // ─────────────────────────────────────────────────────────────────────────

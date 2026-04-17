@@ -62,6 +62,10 @@
       height: 100dvh;
       overflow: hidden;
     }
+    body.auth-open {
+      overflow: auto;
+      height: auto;
+    }
     button { font-family: inherit; cursor: pointer; }
     input, textarea { font-family: inherit; }
     a { color: var(--accent); text-decoration: none; }
@@ -75,7 +79,9 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      height: 100vh;
+      min-height: 100vh;
+      overflow-y: auto;
+      padding: 40px 16px;
       background: var(--bg);
     }
     .auth-card {
@@ -84,6 +90,7 @@
       border-radius: 14px;
       padding: 40px 36px;
       width: 380px;
+      max-width: 100%;
       box-shadow: var(--shadow-lg);
     }
     .auth-logo {
@@ -948,20 +955,123 @@
     #loading-overlay p { font-size: 0.83rem; color: var(--ink-muted); }
 
     /* ── Responsive ─────────────────────────────────────────────────────────── */
-    @media (max-width: 768px) {
-      :root {
-        --sidebar-w: 220px;
-        --details-w: 0px;
-      }
-      .details-pane { display: none; }
+
+    /* Tablet: hide details, narrow sidebar */
+    @media (max-width: 900px) {
+      :root { --details-w: 0px; }
+      .details-pane { display: none !important; }
+      .topbar-channel-desc { display: none; }
     }
-    @media (max-width: 500px) {
-      .sidebar { position: fixed; left: -var(--sidebar-w); z-index: 60; transition: left 0.2s; }
-      .sidebar.open { left: 0; }
+
+    /* Mobile: drawer sidebar, bottom nav, full-width thread */
+    @media (max-width: 640px) {
+      :root {
+        --sidebar-w:   280px;
+        --topbar-h:    52px;
+      }
+
+      /* Body fills viewport exactly, no scrolling on app */
+      body:not(.auth-open) {
+        overflow: hidden;
+        position: fixed;
+        width: 100%;
+        height: 100%;
+      }
+
+      /* ── Topbar ── */
+      .topbar-brand {
+        width: auto;
+        border-right: none;
+        padding: 0 12px;
+        gap: 6px;
+      }
+      .topbar-brand img { height: 24px; }
+      .topbar-brand .build-tag { display: none; }
+      .topbar-context { padding: 0 8px; min-width: 0; }
+      .topbar-channel-desc { display: none; }
+      .topbar-icon-btn { padding: 6px 8px; font-size: 0.8rem; }
+      #btn-details-toggle { display: none; }
+
+      /* ── Sidebar drawer ── */
+      .sidebar {
+        position: fixed;
+        top: 0; left: 0; bottom: 0;
+        width: var(--sidebar-w);
+        z-index: 150;
+        transform: translateX(-100%);
+        transition: transform 0.25s ease;
+        box-shadow: var(--shadow-lg);
+        /* push down below topbar */
+        top: var(--topbar-h);
+      }
+      .sidebar.open { transform: translateX(0); }
+
+      /* Scrim behind open drawer */
+      #sidebar-scrim {
+        display: none;
+        position: fixed;
+        inset: 0;
+        top: var(--topbar-h);
+        background: rgba(27,38,79,0.35);
+        z-index: 140;
+      }
+      #sidebar-scrim.open { display: block; }
+
+      /* ── Thread pane fills screen ── */
+      .app-body { position: relative; }
+      .thread-pane { width: 100%; }
+
+      /* ── Bottom nav ── */
+      #bottom-nav {
+        display: flex;
+        position: fixed;
+        bottom: 0; left: 0; right: 0;
+        height: 56px;
+        background: var(--bg-raised);
+        border-top: 1px solid var(--line);
+        z-index: 100;
+        align-items: stretch;
+      }
+      .bottom-nav-btn {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 2px;
+        background: none;
+        border: none;
+        color: var(--ink-muted);
+        font-size: 0.6rem;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        cursor: pointer;
+        transition: color 0.15s;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .bottom-nav-btn .nav-icon { font-size: 1.3rem; line-height: 1; }
+      .bottom-nav-btn.active { color: var(--accent); }
+
+      /* ── Composer ── */
+      .composer { padding-bottom: max(12px, env(safe-area-inset-bottom)); }
+      /* Extra room so content isn't hidden behind bottom nav */
+      .message-list { padding-bottom: 64px; }
+      #thread-pane { padding-bottom: 56px; }
+
+      /* ── Modals full-width on mobile ── */
+      .modal-card {
+        width: calc(100vw - 32px);
+        padding: 24px 20px;
+      }
+
+      /* ── User pill — hide name on very small screens ── */
+      .user-pill .uname { display: none; }
+      .user-pill #topbar-status-dot { display: none; }
     }
   </style>
 </head>
-<body>
+<body class="auth-open">
 
 <!-- ─── Loading Overlay ─────────────────────────────────────────────────── -->
 <div id="loading-overlay">
@@ -974,6 +1084,7 @@
 <div id="auth-screen">
   <div class="auth-card">
     <div class="auth-logo">
+      <img src="./FlockChat/Images/FlockOS_Angels.png" alt="FlockChat" style="height:72px;width:auto;margin-bottom:10px">
       <h1>FlockChat</h1>
       <p id="auth-subtitle">Sign in to your workspace</p>
     </div>
@@ -1003,7 +1114,9 @@
 
   <!-- Top Bar -->
   <div class="topbar">
+    <button class="topbar-icon-btn" id="btn-sidebar-toggle" style="margin-left:8px;display:none" title="Menu">☰</button>
     <div class="topbar-brand">
+      <img src="./FlockChat/Images/FlockOS_Angels.png" alt="FlockChat" style="height:30px;width:auto;margin-right:6px;vertical-align:middle">
       <span class="wordmark">FlockChat</span>
       <span class="build-tag">Test</span>
     </div>
@@ -1108,6 +1221,22 @@
     </div>
 
   </div><!-- /app-body -->
+
+  <!-- Sidebar scrim (mobile) -->
+  <div id="sidebar-scrim"></div>
+
+  <!-- Bottom Nav (mobile only) -->
+  <div id="bottom-nav" style="display:none">
+    <button class="bottom-nav-btn active" id="btn-nav-channels" title="Channels">
+      <span class="nav-icon">#</span>Channels
+    </button>
+    <button class="bottom-nav-btn" id="btn-nav-dms" title="Direct Messages">
+      <span class="nav-icon">💬</span>Messages
+    </button>
+    <button class="bottom-nav-btn" id="btn-nav-me" title="You">
+      <span class="nav-icon">👤</span>You
+    </button>
+  </div>
 </div><!-- /app -->
 
 <!-- ─── User Menu ────────────────────────────────────────────────────── -->
