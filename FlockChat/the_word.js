@@ -948,17 +948,21 @@ const TheWord = (() => {
   }
 
   function _positionMenu(menu, anchorRect) {
-    menu.style.display = 'block';
-    menu.style.left = '0';
-    menu.style.top  = '0';
-    const menuW = menu.offsetWidth  || 200;
-    const vw    = window.innerWidth;
-    // Align right edge of menu to right edge of anchor, but clamp to viewport
+    // Make visible off-screen to measure real width
+    menu.style.visibility = 'hidden';
+    menu.style.display    = 'block';
+    menu.style.left = '-9999px';
+    menu.style.top  = '-9999px';
+    const menuW = menu.offsetWidth || 200;
+    menu.style.visibility = '';
+    menu.style.display    = 'none'; // caller shows it
+
+    const vw   = window.innerWidth;
+    // Prefer right-aligned to anchor; clamp so it never overflows either edge
     let left = anchorRect.right - menuW;
     left = Math.max(8, Math.min(left, vw - menuW - 8));
     menu.style.left = left + 'px';
     menu.style.top  = (anchorRect.bottom + 6) + 'px';
-    menu.style.display = 'none'; // caller will show it
   }
 
   // ─────────────────────────────────────────────────────────────────────────
