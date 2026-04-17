@@ -1749,6 +1749,13 @@ const TheLife = (() => {
     }
     data.id = _fpPrayerId;
 
+    // Fill in prayer text from the cached record if not present in the form
+    // (savePrayer only collects the response section fields, not the original text)
+    if (!data.prayerText && !data['Prayer Text']) {
+      var _cachedRec = (_cache.allPrayer || []).find(function(r) { return (r.id || r.ID) === _fpPrayerId; }) || {};
+      data.prayerText = _cachedRec.prayerText || _cachedRec['Prayer Text'] || '';
+    }
+
     // Validate — at minimum, prayer text should exist
     if (!_requireField(data.prayerText || data['Prayer Text'], 'Prayer Text')) { if (btn) { btn.disabled = false; btn.textContent = '\uD83D\uDCBE Save'; } return; }
 
