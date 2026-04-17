@@ -51,3 +51,9 @@ android/
 __pycache__/
 *.pyc
 CurrentFBPW.json
+
+# ── Local-only utility scripts ───────────────────────────────────────────
+# One-off scripts (e.g. Firestore checks, data migrations) — local only.
+check_firestore.py
+check_*.py
+migrate_*.py
