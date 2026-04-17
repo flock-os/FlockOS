@@ -19233,8 +19233,8 @@ const Modules = (() => {
     html += '</select></div>';
     return html;
   }
-  function _mpSec(title, body) {
-    return '<details open style="margin-bottom:12px;border:1px solid var(--line);border-radius:8px;overflow:hidden;">'
+  function _mpSec(title, body, open) {
+    return '<details' + (open ? ' open' : '') + ' style="margin-bottom:12px;border:1px solid var(--line);border-radius:8px;overflow:hidden;">'
       + '<summary style="padding:10px 14px;background:rgba(255,255,255,0.04);cursor:pointer;'
       + 'font-weight:700;font-size:0.8rem;color:var(--accent);user-select:none;">' + _e(title) + '</summary>'
       + '<div style="padding:12px 14px;">' + body + '</div></details>';
@@ -19371,7 +19371,7 @@ const Modules = (() => {
         prayerHtml += '<div style="text-align:center;padding:16px;color:var(--ink-muted);font-size:0.78rem;">'
           + 'No prayer requests yet. Submit one to start your prayer journey.</div>';
       }
-      html += _mpSec('My Prayers', prayerHtml);
+      html += _mpSec('My Prayers', prayerHtml, true);
 
       // ── My Journal ─────────────────────────────────────────────
       var moodIcons = { Grateful: '\uD83D\uDE4F', Joyful: '\uD83D\uDE0A', Peaceful: '\u262E\uFE0F', Struggling: '\uD83D\uDE14', Seeking: '\uD83D\uDD0D', Hopeful: '\uD83C\uDF1F' };
@@ -19411,7 +19411,7 @@ const Modules = (() => {
         journalHtml += '<div style="text-align:center;padding:16px;color:var(--ink-muted);font-size:0.78rem;">'
           + 'No journal entries yet. Start writing to reflect on your spiritual journey.</div>';
       }
-      html += _mpSec('My Journal', journalHtml);
+      html += _mpSec('My Journal', journalHtml, true);
 
       // ── Change Passcode ─────────────────────────────────────
       var passHtml = '<p style="font-size:0.78rem;color:var(--ink-muted);margin-bottom:12px;">Update your login passcode. You must enter your current passcode to confirm.</p>'
