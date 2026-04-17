@@ -10553,6 +10553,7 @@ const Modules = (() => {
   function _ppTable(list) {
     if (!list.length) return _empty('\uD83D\uDC64', 'No people found', 'Adjust filters or add a new person.');
     var t = '<table class="data-table"><thead><tr><th>Name</th><th>Email</th><th>Type</th><th>Role</th><th>Status</th><th></th></tr></thead><tbody>';
+    var mc = '';  // mobile cards
     list.forEach(function(p) {
       var u = p.user || {}, m = p.member || {}, c = p.card || {};
       var name = ((u.firstName || m.firstName || c.firstName || '') + ' ' + (u.lastName || m.lastName || c.lastName || '')).trim() || u.displayName || 'Unknown';
@@ -10565,11 +10566,13 @@ const Modules = (() => {
       var status = u.status || m.membershipStatus || c.status || '\u2014';
       var isPending = u.status === 'pending';
       var eid = _e(p.email);
+      var dataAttrs = ' data-email="' + eid + '"'
+        + ' data-search="' + _e((name + ' ' + p.email + ' ' + (u.phone || m.cellPhone || c.phone || '')).toLowerCase()) + '"'
+        + ' data-tu="' + (p.user ? 1 : 0) + '" data-tm="' + (p.member ? 1 : 0) + '" data-tc="' + (p.card ? 1 : 0) + '"'
+        + ' data-pend="' + (isPending ? 1 : 0) + '"';
 
-      t += '<tr class="pp-row" data-email="' + eid + '"'
-         + ' data-search="' + _e((name + ' ' + p.email + ' ' + (u.phone || m.cellPhone || c.phone || '')).toLowerCase()) + '"'
-         + ' data-tu="' + (p.user ? 1 : 0) + '" data-tm="' + (p.member ? 1 : 0) + '" data-tc="' + (p.card ? 1 : 0) + '"'
-         + ' data-pend="' + (isPending ? 1 : 0) + '"'
+      // Desktop table row
+      t += '<tr class="pp-row"' + dataAttrs
          + ' style="cursor:pointer;" onclick="Modules._ppOpen(\'' + eid + '\')">';
       t += '<td data-label="Name"><strong>' + _e(name) + '</strong></td>';
       t += '<td data-label="Email" style="font-size:0.82rem;">' + _e(p.email) + '</td>';
@@ -10582,8 +10585,29 @@ const Modules = (() => {
         t += '<button onclick="event.stopPropagation();Modules._ppDeny(\'' + eid + '\')" style="background:var(--danger);color:#fff;border:none;border-radius:4px;padding:3px 8px;font-size:0.72rem;cursor:pointer;">Deny</button>';
       }
       t += '</td></tr>';
+
+      // Mobile card (name + role only)
+      var typeLabel = role !== '\u2014' ? _e(role) : (types.join(' \u00B7 ') || '\u2014');
+      mc += '<div class="pp-row"' + dataAttrs
+          + ' style="cursor:pointer;" onclick="Modules._ppOpen(\'' + eid + '\')">'
+          + '<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;'
+          + 'background:var(--bg-raised);border:1px solid var(--line);border-radius:8px;margin-bottom:8px;">'
+          + '<div>'
+          + '<div style="font-weight:600;font-size:0.95rem;">' + _e(name) + '</div>'
+          + '<div style="font-size:0.8rem;color:var(--ink-muted);margin-top:2px;">' + typeLabel + '</div>'
+          + '</div>';
+      if (isPending) {
+        mc += '<div style="display:flex;gap:6px;">'
+            + '<button onclick="event.stopPropagation();Modules._ppApprove(\'' + eid + '\')" style="background:var(--success);color:#fff;border:none;border-radius:4px;padding:4px 10px;font-size:0.75rem;cursor:pointer;">Approve</button>'
+            + '<button onclick="event.stopPropagation();Modules._ppDeny(\'' + eid + '\')" style="background:var(--danger);color:#fff;border:none;border-radius:4px;padding:4px 10px;font-size:0.75rem;cursor:pointer;">Deny</button>'
+            + '</div>';
+      } else {
+        mc += '<span style="color:var(--accent);font-size:1.1rem;">\u203A</span>';
+      }
+      mc += '</div></div>';
     });
-    return t + '</tbody></table>';
+    return '<div class="hide-mobile">' + t + '</tbody></table></div>'
+         + '<div class="show-mobile">' + mc + '</div>';
   }
 
   /* ── Search / filter helpers ────────────────────────────────────────── */
