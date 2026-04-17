@@ -3,6 +3,9 @@
     "site": "flockos-comms",
     "public": "flockchat-public",
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "predeploy": [
+      "mkdir -p flockchat-public/FlockChat && cp FlockChat.html flockchat-public/ && cp FlockChat/the_word.js flockchat-public/FlockChat/"
+    ],
     "rewrites": [
       { "source": "**", "destination": "/FlockChat.html" }
     ]

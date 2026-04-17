@@ -9,26 +9,41 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
   <style>
-    /* ── CSS Variables — Vesper (dark) theme ──────────────────────────────── */
+    /* ── CSS Variables — America theme (Old Glory Red, White & Blue) ─────── */
     :root {
-      --bg:           #0f1117;
-      --bg-raised:    #1a1d27;
-      --bg-hover:     #22263a;
-      --bg-active:    #2a2f48;
-      --line:         #2e3350;
-      --ink:          #e2e4f0;
-      --ink-muted:    #7b82a6;
-      --ink-faint:    #444965;
-      --accent:       #7b93ff;
-      --accent-soft:  rgba(123,147,255,0.12);
-      --gold:         #e8a838;
-      --gold-soft:    rgba(232,168,56,0.12);
-      --danger:       #ef4444;
-      --success:      #22c55e;
-      --warn:         #f59e0b;
-      --online:       #22c55e;
-      --away:         #f59e0b;
-      --dnd:          #ef4444;
+      --bg:           #f7f8fb;
+      --bg-raised:    #ffffff;
+      --bg-sunken:    #edf0f6;
+      --bg-hover:     #f0f3f9;
+      --bg-active:    #e6eaf4;
+      --line:         #d4d9e6;
+      --line-strong:  #bec5d6;
+      --ink:          #1b264f;
+      --ink-muted:    #4a5578;
+      --ink-faint:    #8890a5;
+      --ink-inverse:  #f7f8fb;
+      --accent:       #3c3b6e;
+      --accent-hover: #2d2c55;
+      --accent-soft:  rgba(60,59,110,0.12);
+      --gold:         #c5a44e;
+      --gold-soft:    rgba(197,164,78,0.12);
+      --danger:       #b22234;
+      --danger-soft:  rgba(178,34,52,0.10);
+      --success:      #3d7a4f;
+      --success-soft: rgba(61,122,79,0.10);
+      --warn:         #b58d2a;
+      --online:       #3d7a4f;
+      --away:         #b58d2a;
+      --dnd:          #b22234;
+      --mint:         #6ea9d7;
+      --mint-soft:    rgba(110,169,215,0.12);
+      --peach:        #b22234;
+      --peach-soft:   rgba(178,34,52,0.10);
+      --lilac:        #8b9cc7;
+      --sky:          #5b8fbf;
+      --shadow-sm:    0 1px 3px rgba(27,38,79,0.06);
+      --shadow-md:    0 4px 12px rgba(27,38,79,0.08);
+      --shadow-lg:    0 8px 24px rgba(27,38,79,0.10);
       --sidebar-w:    260px;
       --details-w:    280px;
       --topbar-h:     52px;
@@ -69,7 +84,7 @@
       border-radius: 14px;
       padding: 40px 36px;
       width: 380px;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+      box-shadow: var(--shadow-lg);
     }
     .auth-logo {
       text-align: center;
@@ -713,7 +728,7 @@
     .modal-backdrop {
       display: none;
       position: fixed; inset: 0;
-      background: rgba(0,0,0,0.6);
+      background: rgba(27,38,79,0.35);
       z-index: 200;
       align-items: center;
       justify-content: center;
@@ -726,7 +741,7 @@
       padding: 28px 28px 24px;
       width: 400px;
       max-width: calc(100vw - 32px);
-      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+      box-shadow: var(--shadow-lg);
     }
     .modal-card h2 {
       font-size: 1rem;
@@ -801,7 +816,7 @@
       border: 1px solid var(--line);
       border-radius: 10px;
       padding: 10px;
-      box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+      box-shadow: var(--shadow-md);
       width: 260px;
     }
     .emoji-grid {
@@ -837,7 +852,7 @@
       padding: 10px 16px;
       font-size: 0.83rem;
       color: var(--ink);
-      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+      box-shadow: var(--shadow-sm);
       animation: slideInToast 0.25s ease;
       max-width: 300px;
     }
@@ -1099,7 +1114,7 @@
 <div id="user-menu" style="
   display:none;position:fixed;z-index:300;
   background:var(--bg-raised);border:1px solid var(--line);border-radius:10px;
-  padding:6px;box-shadow:0 8px 30px rgba(0,0,0,0.4);min-width:180px;">
+  padding:6px;box-shadow:var(--shadow-md);min-width:180px;">
   <div id="user-menu-name" style="padding:8px 12px 6px;font-size:0.8rem;font-weight:700;color:var(--ink-muted);border-bottom:1px solid var(--line);margin-bottom:4px"></div>
   <button class="user-menu-item" data-status="available">🟢 Available</button>
   <button class="user-menu-item" data-status="away">🟡 Away</button>
