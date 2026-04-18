@@ -56,16 +56,27 @@ async function _removeStaleTokens(staleTokens) {
   await batch.commit().catch(() => {});
 }
 
+// ── Helper: remove stale tokens scoped to a church tenant ─────────────
+async function _removeStaleTokensScoped(staleTokens, usersCol) {
+  const usersSnap = await usersCol
+    .where('fcmToken', 'in', staleTokens)
+    .get();
+  const batch = db.batch();
+  usersSnap.forEach(doc => batch.update(doc.ref, { fcmToken: null }));
+  await batch.commit().catch(() => {});
+}
+
 // ── Helper: get FCM tokens for a list of uids (excluding sender) ──────
-async function _getTokens(uids, excludeUid) {
+async function _getTokens(uids, excludeUid, usersCol) {
   const targets = uids.filter(uid => uid !== excludeUid);
   if (targets.length === 0) return [];
 
+  const col = usersCol || db.collection('users');
   // Firestore 'in' supports up to 30 items; batch if needed
   const tokens = [];
   for (let i = 0; i < targets.length; i += 30) {
     const chunk = targets.slice(i, i + 30);
-    const snap  = await db.collection('users')
+    const snap  = await col
       .where('__name__', 'in', chunk)
       .get();
     snap.forEach(doc => {
@@ -76,58 +87,80 @@ async function _getTokens(uids, excludeUid) {
   return tokens;
 }
 
-// ── Trigger 1: new message in a channel ───────────────────────────────
+// ── Trigger 1a: new message in a channel (default / legacy) ──────────
 exports.notifyChannelMessage = onDocumentCreated(
   'channels/{chId}/messages/{msgId}',
   async (event) => {
     const msg  = event.data?.data();
     if (!msg) return;
-
-    const chId      = event.params.chId;
-    const senderUid = msg.senderUid || msg.uid || '';
+    const chId       = event.params.chId;
+    const senderUid  = msg.senderUid || msg.uid || '';
     const senderName = msg.senderName || msg.displayName || 'Someone';
-    const text      = msg.text || (msg.imageUrl ? '📎 attachment' : '…');
-
-    // Get channel doc for name + member list
+    const text       = msg.text || (msg.imageUrl ? '📎 attachment' : '…');
     const chDoc = await db.collection('channels').doc(chId).get();
     if (!chDoc.exists) return;
     const ch      = chDoc.data();
     const members = ch.members || [];
     const chName  = ch.name || 'channel';
-
-    const tokens = await _getTokens(members, senderUid);
-    await _sendPush(
-      tokens,
-      `#${chName}`,
-      `${senderName}: ${text.substring(0, 120)}`,
-      { channelId: chId, type: 'channel' }
-    );
+    const tokens = await _getTokens(members, senderUid, db.collection('users'));
+    await _sendPush(tokens, `#${chName}`, `${senderName}: ${text.substring(0, 120)}`, { channelId: chId, type: 'channel' });
   }
 );
 
-// ── Trigger 2: new message in a DM ────────────────────────────────────
+// ── Trigger 1b: new message in a channel (multi-tenant) ───────────────
+exports.notifyChannelMessageTenant = onDocumentCreated(
+  'churches/{churchId}/channels/{chId}/messages/{msgId}',
+  async (event) => {
+    const msg  = event.data?.data();
+    if (!msg) return;
+    const { churchId, chId } = event.params;
+    const senderUid  = msg.senderUid || msg.uid || '';
+    const senderName = msg.senderName || msg.displayName || 'Someone';
+    const text       = msg.text || (msg.imageUrl ? '📎 attachment' : '…');
+    const base   = db.collection('churches').doc(churchId);
+    const chDoc  = await base.collection('channels').doc(chId).get();
+    if (!chDoc.exists) return;
+    const ch      = chDoc.data();
+    const members = ch.members || [];
+    const chName  = ch.name || 'channel';
+    const tokens = await _getTokens(members, senderUid, base.collection('users'));
+    await _sendPush(tokens, `#${chName}`, `${senderName}: ${text.substring(0, 120)}`, { channelId: chId, churchId, type: 'channel' });
+  }
+);
+
+// ── Trigger 2a: new message in a DM (default / legacy) ────────────────
 exports.notifyDMMessage = onDocumentCreated(
   'dms/{dmId}/messages/{msgId}',
   async (event) => {
     const msg  = event.data?.data();
     if (!msg) return;
-
     const dmId       = event.params.dmId;
     const senderUid  = msg.senderUid || msg.uid || '';
     const senderName = msg.senderName || msg.displayName || 'Someone';
     const text       = msg.text || (msg.imageUrl ? '📎 attachment' : '…');
-
-    // Get DM doc for member list
     const dmDoc = await db.collection('dms').doc(dmId).get();
     if (!dmDoc.exists) return;
     const members = dmDoc.data()?.members || [];
+    const tokens = await _getTokens(members, senderUid, db.collection('users'));
+    await _sendPush(tokens, senderName, text.substring(0, 120), { channelId: dmId, type: 'dm' });
+  }
+);
 
-    const tokens = await _getTokens(members, senderUid);
-    await _sendPush(
-      tokens,
-      senderName,
-      text.substring(0, 120),
-      { channelId: dmId, type: 'dm' }
-    );
+// ── Trigger 2b: new message in a DM (multi-tenant) ────────────────────
+exports.notifyDMMessageTenant = onDocumentCreated(
+  'churches/{churchId}/dms/{dmId}/messages/{msgId}',
+  async (event) => {
+    const msg  = event.data?.data();
+    if (!msg) return;
+    const { churchId, dmId } = event.params;
+    const senderUid  = msg.senderUid || msg.uid || '';
+    const senderName = msg.senderName || msg.displayName || 'Someone';
+    const text       = msg.text || (msg.imageUrl ? '📎 attachment' : '…');
+    const base  = db.collection('churches').doc(churchId);
+    const dmDoc = await base.collection('dms').doc(dmId).get();
+    if (!dmDoc.exists) return;
+    const members = dmDoc.data()?.members || [];
+    const tokens = await _getTokens(members, senderUid, base.collection('users'));
+    await _sendPush(tokens, senderName, text.substring(0, 120), { channelId: dmId, churchId, type: 'dm' });
   }
 );

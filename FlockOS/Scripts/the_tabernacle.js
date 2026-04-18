@@ -7962,6 +7962,27 @@ const Modules = (() => {
   }
 
   _def('comms', async el => {
+    // ── FlockChat iframe path — if FLOCKCHAT_URL config is set, embed it ──
+    var _fcUrl = '';
+    try {
+      var _cfgRows = (typeof TheVine !== 'undefined' && TheVine.config) ? (TheVine.config()._rows || []) : [];
+      // Try GAS config rows first
+      var _fcRow = _cfgRows.find(function(r) { return (r.key || r.configKey) === 'FLOCKCHAT_URL'; });
+      if (_fcRow) _fcUrl = (_fcRow.value || _fcRow.configValue || '').trim();
+      // Firebase config fallback
+      if (!_fcUrl && typeof UpperRoom !== 'undefined' && UpperRoom.getConfigValue) {
+        _fcUrl = ((await UpperRoom.getConfigValue('FLOCKCHAT_URL').catch(function() { return ''; })) || '').trim();
+      }
+    } catch(_) {}
+
+    if (_fcUrl) {
+      el.innerHTML = '<iframe class="flockchat-frame" src="' + _fcUrl + '" allow="notifications; clipboard-write" loading="lazy"></iframe>';
+      // Signal navigate() to apply edge-to-edge CSS
+      var mainEl = document.getElementById('main');
+      if (mainEl) mainEl.classList.add('flockchat-active');
+      return;
+    }
+
     // Determine comms mode (Firebase default, Sheets fallback)
     await _loadCommsMode();
     var _fb = _isFirebaseComms();
@@ -20317,6 +20338,7 @@ const Modules = (() => {
     { key: 'CHURCH_ADDRESS',         value: '',        description: 'Physical address of the church',                      category: 'Church Info' },
     { key: 'CHURCH_EMAIL',           value: '',        description: 'Main contact email for the church',                   category: 'Church Info' },
     { key: 'COMMS_MODE',             value: 'sheets',  description: 'Primary database mode: sheets or firebase',           category: 'System' },
+    { key: 'FLOCKCHAT_URL',          value: '',        description: 'URL of the FlockChat instance to embed (leave blank for native GAS comms)', category: 'Comms' },
     { key: 'QUARTERLY_PLANNER',      value: 'TRUE',    description: 'Show the Quarterly Planner module and navigation link (TRUE/FALSE)', category: 'Modules' },
   ];
 

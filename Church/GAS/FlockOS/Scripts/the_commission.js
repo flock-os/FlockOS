@@ -1206,6 +1206,7 @@ TheVine.configure({
       { key: 'MODULE_VOLUNTEERS',        default: 'TRUE',               category: 'Modules'       },
       { key: 'MODULE_COMMUNICATIONS',    default: 'TRUE',               category: 'Modules'       },
       { key: 'MODULE_COMMS_HUB',         default: 'TRUE',               category: 'Modules'       },
+      { key: 'FLOCKCHAT_URL',            default: '',                   category: 'Comms'         },
       { key: 'MODULE_CHECKIN',           default: 'TRUE',               category: 'Modules'       },
       { key: 'MODULE_MINISTRIES',        default: 'TRUE',               category: 'Modules'       },
       { key: 'MODULE_SERVICE_PLANS',     default: 'TRUE',               category: 'Modules'       },

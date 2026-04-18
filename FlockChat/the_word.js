@@ -28,6 +28,24 @@ const TheWord = (() => {
   // Project Settings → Cloud Messaging → Web configuration → Key pair
   const VAPID_KEY = 'BDWyEyfi_O53MvhfeiIbb58qvhY-U71uRtwXieQYAQFullLURDjU75ihHcPGZZndTt4bhg0kNeFPV6fIuBMICc0';
 
+  // ── Multi-tenant church isolation ─────────────────────────────────────
+  // churchId comes from ?church= URL param (e.g. ?church=theforest)
+  // All Firestore paths are prefixed: churches/{churchId}/{collection}
+  // RTDB paths:                        /{collection}/{churchId}/...
+  // If no param, falls back to 'default' (standalone / test mode)
+  let _churchId = 'default';
+
+  // Firestore collection helper — returns scoped collection path string
+  function _col(name) {
+    return _churchId === 'default' ? name : 'churches/' + _churchId + '/' + name;
+  }
+
+  // RTDB path helper — prepends /{churchId} scope
+  function _rpath(path) {
+    // path starts with '/' e.g. '/presence/uid' → '/theforest/presence/uid'
+    return _churchId === 'default' ? path : '/' + _churchId + path;
+  }
+
   // ── State ──────────────────────────────────────────────────────────────
   let _me          = null;   // { uid, displayName, email, role }
   let _activeId    = null;   // channelId or dmId
@@ -64,6 +82,12 @@ const TheWord = (() => {
   function init() {
     ({ auth, db, rtdb, messaging } = window._FC);
     F = window._FC.firebase;
+
+    // Read church tenant from URL param (?church=theforest)
+    const _urlChurch = new URLSearchParams(window.location.search).get('church');
+    if (_urlChurch && /^[a-z0-9_-]+$/i.test(_urlChurch)) {
+      _churchId = _urlChurch.toLowerCase();
+    }
 
     _buildEmojiPicker();
     _bindAuthUI();
@@ -139,7 +163,7 @@ const TheWord = (() => {
         const cred = await F.createUserWithEmailAndPassword(auth, email, pass);
         await F.updateProfile(cred.user, { displayName: name });
         // Create user doc in Firestore
-        await F.setDoc(F.doc(db, 'users', cred.user.uid), {
+        await F.setDoc(F.doc(db, _col('users'), cred.user.uid), {
           displayName: name,
           email:       email,
           role:        'volunteer',
@@ -188,7 +212,7 @@ const TheWord = (() => {
     // Ensure user doc exists — wrapped in try/catch so a rules denial
     // doesn't block the whole app from loading.
     try {
-      const userRef  = F.doc(db, 'users', user.uid);
+      const userRef  = F.doc(db, _col('users'), user.uid);
       const userSnap = await F.getDoc(userRef);
       if (!userSnap.exists()) {
         await F.setDoc(userRef, {
@@ -251,7 +275,7 @@ const TheWord = (() => {
   // ─────────────────────────────────────────────────────────────────────────
   function _initPresence() {
     if (!_me) return;
-    const presRef = F.ref(rtdb, `/presence/${_me.uid}`);
+    const presRef = F.ref(rtdb, _rpath(`/presence/${_me.uid}`));
 
     // Mark online when connected
     const connRef = F.ref(rtdb, '.info/connected');
@@ -283,8 +307,8 @@ const TheWord = (() => {
       // Get FCM token and save to user doc
       const token = await F.getToken(messaging, { vapidKey: VAPID_KEY, serviceWorkerRegistration: reg });
       if (token) {
-        await F.updateDoc(F.doc(db, 'users', _me.uid), { fcmToken: token })
-          .catch(() => F.setDoc(F.doc(db, 'users', _me.uid), { fcmToken: token }, { merge: true }));
+        await F.updateDoc(F.doc(db, _col('users'), _me.uid), { fcmToken: token })
+          .catch(() => F.setDoc(F.doc(db, _col('users'), _me.uid), { fcmToken: token }, { merge: true }));
       }
 
       // Foreground messages — show as toast while app is open
@@ -301,7 +325,7 @@ const TheWord = (() => {
   }
 
   function _watchPresence(userId, dotEl) {
-    const presRef = F.ref(rtdb, `/presence/${userId}`);
+    const presRef = F.ref(rtdb, _rpath(`/presence/${userId}`));
     F.onValue(presRef, (snap) => {
       const data  = snap.val();
       const state = data?.state || 'offline';
@@ -313,7 +337,7 @@ const TheWord = (() => {
   // CHANNEL SEEDING
   // ─────────────────────────────────────────────────────────────────────────
   async function _seedChannels() {
-    const colRef = F.collection(db, 'channels');
+    const colRef = F.collection(db, _col('channels'));
     const snap   = await F.getDocs(F.query(colRef, F.limit(1)));
     if (!snap.empty) return; // already seeded
 
@@ -335,7 +359,7 @@ const TheWord = (() => {
   // ─────────────────────────────────────────────────────────────────────────
   function _startChannelListener() {
     const q = F.query(
-      F.collection(db, 'channels')
+      F.collection(db, _col('channels'))
     );
     _chUnsub = F.onSnapshot(q, (snap) => {
       _channels = snap.docs
@@ -377,7 +401,7 @@ const TheWord = (() => {
   function _startDMListener() {
     if (!_me) return;
     const q = F.query(
-      F.collection(db, 'dms'),
+      F.collection(db, _col('dms')),
       F.where('members', 'array-contains', _me.uid)
     );
     _dmUnsub = F.onSnapshot(q, async (snap) => {
@@ -399,7 +423,7 @@ const TheWord = (() => {
 
       let otherName = dm.otherName || otherId;
       try {
-        const uSnap = await F.getDoc(F.doc(db, 'users', otherId));
+        const uSnap = await F.getDoc(F.doc(db, _col('users'), otherId));
         if (uSnap.exists()) otherName = uSnap.data().displayName || otherName;
       } catch (_) { /* offline */ }
 
@@ -492,7 +516,7 @@ const TheWord = (() => {
   // MESSAGE LISTENER
   // ─────────────────────────────────────────────────────────────────────────
   function _listenMessages(collection, parentId) {
-    const msgCol = F.collection(db, collection, parentId, 'messages');
+    const msgCol = F.collection(db, _col(collection), parentId, 'messages');
     const q = F.query(msgCol, F.limit(200));
 
     _msgUnsub = F.onSnapshot(q, (snap) => {
@@ -503,7 +527,7 @@ const TheWord = (() => {
     });
 
     // Typing indicator
-    const typRef = F.ref(rtdb, `/typing/${parentId}`);
+    const typRef = F.ref(rtdb, _rpath(`/typing/${parentId}`));
     F.onValue(typRef, (snap) => {
       const data = snap.val() || {};
       const others = Object.entries(data)
@@ -636,7 +660,7 @@ const TheWord = (() => {
 
   function _setTyping(active) {
     if (!_activeId || !_me) return;
-    const typRef = F.ref(rtdb, `/typing/${_activeId}/${_me.uid}`);
+    const typRef = F.ref(rtdb, _rpath(`/typing/${_activeId}/${_me.uid}`));
     F.set(typRef, active ? true : null);
   }
 
@@ -676,7 +700,7 @@ const TheWord = (() => {
     if (!text || !_activeId || !_me) return;
 
     const collPath = _activeType === 'channel' ? 'channels' : 'dms';
-    const msgCol   = F.collection(db, collPath, _activeId, 'messages');
+    const msgCol   = F.collection(db, _col(collPath), _activeId, 'messages');
 
     input.value = '';
     input.style.height = 'auto';
@@ -695,7 +719,7 @@ const TheWord = (() => {
         timestamp:   F.serverTimestamp()
       });
       // Update parent doc lastMessage
-      await F.updateDoc(F.doc(db, collPath, _activeId), {
+      await F.updateDoc(F.doc(db, _col(collPath), _activeId), {
         lastMessage:   text.substring(0, 100),
         lastTimestamp: F.serverTimestamp()
       }).catch(() => {});
@@ -727,7 +751,7 @@ const TheWord = (() => {
       const newText = ta.value.trim();
       if (!newText) return;
       const collPath = _activeType === 'channel' ? 'channels' : 'dms';
-      const msgRef   = F.doc(db, collPath, _activeId, 'messages', msg.id);
+      const msgRef   = F.doc(db, _col(collPath), _activeId, 'messages', msg.id);
       await F.updateDoc(msgRef, { text: newText, editedAt: F.serverTimestamp() });
     });
     textEl.querySelector('#edit-cancel').addEventListener('click', () => {
@@ -738,14 +762,14 @@ const TheWord = (() => {
   async function _deleteMessage(msgId) {
     if (!confirm('Delete this message?')) return;
     const collPath = _activeType === 'channel' ? 'channels' : 'dms';
-    const msgRef   = F.doc(db, collPath, _activeId, 'messages', msgId);
+    const msgRef   = F.doc(db, _col(collPath), _activeId, 'messages', msgId);
     await F.updateDoc(msgRef, { deletedAt: F.serverTimestamp(), text: '' });
   }
 
   async function _toggleReaction(msgId, emoji) {
     if (!_me || !_activeId) return;
     const collPath = _activeType === 'channel' ? 'channels' : 'dms';
-    const msgRef   = F.doc(db, collPath, _activeId, 'messages', msgId);
+    const msgRef   = F.doc(db, _col(collPath), _activeId, 'messages', msgId);
     const snap     = await F.getDoc(msgRef);
     if (!snap.exists()) return;
 
@@ -859,7 +883,7 @@ const TheWord = (() => {
     if (existing) { _toast(`#${name} already exists.`, 'error'); return; }
 
     try {
-      const ref = await F.addDoc(F.collection(db, 'channels'), {
+      const ref = await F.addDoc(F.collection(db, _col('channels')), {
         name, description: desc, type,
         createdBy: _me.uid,
         createdAt: F.serverTimestamp(),
@@ -884,7 +908,7 @@ const TheWord = (() => {
     _openModal('modal-new-dm');
 
     try {
-      const snap = await F.getDocs(F.collection(db, 'users'));
+      const snap = await F.getDocs(F.collection(db, _col('users')));
       select.innerHTML = '<option value="">— Select a person —</option>';
       snap.forEach(d => {
         if (d.id === _me.uid) return;
@@ -904,10 +928,10 @@ const TheWord = (() => {
 
     // DM ID = sorted pair
     const dmId = [_me.uid, otherId].sort().join('_');
-    const dmRef = F.doc(db, 'dms', dmId);
+    const dmRef = F.doc(db, _col('dms'), dmId);
     const snap  = await F.getDoc(dmRef);
 
-    const otherSnap = await F.getDoc(F.doc(db, 'users', otherId));
+    const otherSnap = await F.getDoc(F.doc(db, _col('users'), otherId));
     const otherName = otherSnap.data()?.displayName || 'Unknown';
 
     if (!snap.exists()) {
@@ -931,7 +955,7 @@ const TheWord = (() => {
   async function _joinChannel(ch) {
     if (!_me) return;
     try {
-      await F.updateDoc(F.doc(db, 'channels', ch.id), {
+      await F.updateDoc(F.doc(db, _col('channels'), ch.id), {
         members: F.arrayUnion(_me.uid)
       });
       _toast(`Joined #${ch.name}!`, 'success');
@@ -947,7 +971,7 @@ const TheWord = (() => {
     if (!_me) return;
     if (!confirm(`Leave #${chName}?`)) return;
     try {
-      await F.updateDoc(F.doc(db, 'channels', chId), {
+      await F.updateDoc(F.doc(db, _col('channels'), chId), {
         members: F.arrayRemove(_me.uid)
       });
       _toast(`Left #${chName}.`, 'success');
@@ -972,7 +996,7 @@ const TheWord = (() => {
     // Persist in Firestore (best-effort)
     if (_me) {
       F.setDoc(
-        F.doc(db, 'userReads', _me.uid + '_' + id),
+        F.doc(db, _col('userReads'), _me.uid + '_' + id),
         { uid: _me.uid, targetId: id, lastRead: F.serverTimestamp() },
         { merge: true }
       ).catch(() => {});
@@ -982,7 +1006,7 @@ const TheWord = (() => {
   function _loadUserReads() {
     if (!_me) return;
     F.getDocs(F.query(
-      F.collection(db, 'userReads'),
+      F.collection(db, _col('userReads')),
       F.where('uid', '==', _me.uid)
     )).then(snap => {
       snap.forEach(d => {
@@ -1056,9 +1080,9 @@ const TheWord = (() => {
   async function _setUserStatus(status) {
     if (!_me) return;
     const stateMap = { available: 'online', away: 'away', dnd: 'dnd' };
-    const presRef  = F.ref(rtdb, `/presence/${_me.uid}`);
+    const presRef  = F.ref(rtdb, _rpath(`/presence/${_me.uid}`));
     F.set(presRef, { state: stateMap[status] || 'online', lastChanged: F.rtdbTs() });
-    await F.updateDoc(F.doc(db, 'users', _me.uid), { status }).catch(() => {});
+    await F.updateDoc(F.doc(db, _col('users'), _me.uid), { status }).catch(() => {});
     _me.status = status;
     const labels = { available: '🟢', away: '🟡', dnd: '🔴' };
     const dot = _el('topbar-status-dot');
@@ -1086,7 +1110,7 @@ const TheWord = (() => {
     container.innerHTML = '<div class="spinner" style="margin:20px auto"></div>';
 
     try {
-      const snap = await F.getDocs(F.collection(db, 'users'));
+      const snap = await F.getDocs(F.collection(db, _col('users')));
       container.innerHTML = '';
       snap.forEach(d => {
         const data = d.data();
@@ -1129,7 +1153,7 @@ const TheWord = (() => {
 
   async function _setUserRole(uid, role) {
     try {
-      await F.updateDoc(F.doc(db, 'users', uid), { role });
+      await F.updateDoc(F.doc(db, _col('users'), uid), { role });
       _toast('Role updated.', 'success');
     } catch (err) {
       _toast('Failed to update role.', 'error');
@@ -1140,7 +1164,7 @@ const TheWord = (() => {
   async function _removeUser(uid, name, rowEl) {
     if (!confirm(`Remove ${name || uid} from the workspace? This cannot be undone.`)) return;
     try {
-      await F.deleteDoc(F.doc(db, 'users', uid));
+      await F.deleteDoc(F.doc(db, _col('users'), uid));
       rowEl.remove();
       _toast(`${name} removed.`, 'success');
     } catch (err) {
@@ -1255,7 +1279,7 @@ const TheWord = (() => {
     try {
       const members = ch.members || [];
       const rows = await Promise.all(members.map(async uid => {
-        const snap = await F.getDoc(F.doc(db, 'users', uid));
+        const snap = await F.getDoc(F.doc(db, _col('users'), uid));
         const data = snap.data() || {};
         const initials = _initials(data.displayName || uid);
         return `<div class="member-row">

@@ -436,6 +436,13 @@
     /* ── Performance: Containment for module views ── */
     .module-view { contain: content; }
     .module-view:not(.active) { display: none; }
+
+    /* ── FlockChat iframe — edge-to-edge, no padding ── */
+    .main.flockchat-active { padding: 0 !important; overflow: hidden; }
+    .flockchat-frame {
+      width: 100%; height: 100%;
+      border: none; display: block;
+    }
   </style>
 </head>
 <body>
@@ -662,7 +669,7 @@
           <span class="icon">&#128197;</span> Quarterly Planner
         </a>
         <a class="nav-item" data-view="comms" data-module="comms" onclick="navigate('comms')">
-          <span class="icon">&#9993;</span> Messages
+          <span class="icon">&#128172;</span> FlockChat
         </a>
         <a class="nav-item" data-view="directory" data-module="directory" onclick="navigate('directory')">
           <span class="icon">&#9906;</span> People
@@ -1995,6 +2002,9 @@ function navigate(viewName) {
   // Reset scroll to top so the page-header is visible
   const mainEl = document.getElementById('main');
   if (mainEl) mainEl.scrollTop = 0;
+
+  // Toggle edge-to-edge mode for FlockChat iframe view
+  if (mainEl) mainEl.classList.toggle('flockchat-active', viewName === 'comms' && document.querySelector('#view-comms iframe') !== null);
 
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   const navItem = document.querySelector('.nav-item[data-view="' + viewName + '"]');
