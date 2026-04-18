@@ -210,8 +210,23 @@ const TheWord = (() => {
   }
 
   async function _onSignedIn(user) {
-    // Ensure user doc exists — wrapped in try/catch so a rules denial
-    // doesn't block the whole app from loading.
+    // Set a baseline identity immediately so _showApp() can render right away.
+    _me = {
+      uid:         user.uid,
+      displayName: user.displayName || user.email.split('@')[0],
+      email:       user.email,
+      role:        user.email === 'flockos.notify@gmail.com' ? 'admin' : 'volunteer'
+    };
+
+    // Show the app now — no need to wait on Firestore before unblocking the UI.
+    _initPresence();
+    _initPushNotifications();
+    _showApp();
+    _loadUserReads();
+    _startChannelListener();
+    _startDMListener();
+
+    // Fetch/create the user doc in the background, then patch role + re-render.
     try {
       const userRef  = F.doc(db, _col('users'), user.uid);
       const userSnap = await F.getDoc(userRef);
@@ -219,46 +234,30 @@ const TheWord = (() => {
         await F.setDoc(userRef, {
           displayName: user.displayName || user.email.split('@')[0],
           email:       user.email,
-          role:        user.email === 'flockos.notify@gmail.com' ? 'admin' : 'volunteer',
+          role:        _me.role,
           avatar:      '',
           status:      'available',
           lastSeen:    F.serverTimestamp(),
           createdAt:   F.serverTimestamp()
         });
       } else {
-        await F.updateDoc(userRef, { lastSeen: F.serverTimestamp() }).catch(() => {});
+        const data = userSnap.data();
+        // Patch role in case it differs from our optimistic guess
+        if (data.role && data.role !== _me.role) {
+          _me.role = data.role;
+          // Re-render role-gated UI elements now that we have the real role
+          _showApp();
+          _renderChannelList();
+        }
+        if (data.displayName) _me.displayName = data.displayName;
+        F.updateDoc(userRef, { lastSeen: F.serverTimestamp() }).catch(() => {});
       }
-
-      _me = {
-        uid:         user.uid,
-        displayName: user.displayName || userSnap.data()?.displayName || user.email.split('@')[0],
-        email:       user.email,
-        role:        userSnap.data()?.role || 'volunteer'
-      };
     } catch (err) {
       console.warn('Firestore user doc unavailable — continuing with auth identity only.', err);
-      _me = {
-        uid:         user.uid,
-        displayName: user.displayName || user.email.split('@')[0],
-        email:       user.email,
-        role:        user.email === 'flockos.notify@gmail.com' ? 'admin' : 'volunteer'
-      };
     }
 
-    // Presence
-    _initPresence();
-
-    // Push notifications (non-blocking — user may deny permission)
-    _initPushNotifications();
-
     // Seed default channels (no-op if they already exist)
-    await _seedChannels().catch(err => console.warn('Seed channels failed (non-fatal):', err));
-
-    // Boot UI
-    _showApp();
-    _loadUserReads();
-    _startChannelListener();
-    _startDMListener();
+    _seedChannels().catch(err => console.warn('Seed channels failed (non-fatal):', err));
   }
 
   function _onSignedOut() {

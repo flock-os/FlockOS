@@ -119,6 +119,21 @@ const TheLife = (() => {
     if (!String(val || '').trim()) { _toast(label + ' is required.', 'warn'); return false; }
     return true;
   }
+  // Converts Firestore Timestamps ({seconds,nanoseconds}), ISO strings, or
+  // numeric milliseconds into a human-readable "Month D, YYYY h:mm AM/PM" string.
+  function _fmtDate(val) {
+    if (!val) return '';
+    var ms;
+    if (typeof val === 'object' && typeof val.seconds === 'number') {
+      ms = val.seconds * 1000;
+    } else if (typeof val === 'number') {
+      ms = val > 1e10 ? val : val * 1000; // handle both ms and seconds
+    } else {
+      ms = Date.parse(String(val));
+    }
+    if (isNaN(ms)) return String(val);
+    return new Date(ms).toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+  }
 
   // ── Local data cache ────────────────────────────────────────────────────
   var _cache = {};
@@ -447,10 +462,23 @@ const TheLife = (() => {
 
     // ── Section: Case Details ──
     var detSec = '';
-    detSec += _fp2(
-      _fpField('Member', 'memberId', rec.memberId, 'select', mOpts),
-      _fpField('Care Type', 'careType', rec.careType || rec.type, 'select',
+    // Member select + non-member name fallback
+    var memberSelectHtml = _fpField('Member', 'memberId', rec.memberId, 'select', mOpts);
+    // Inject onchange onto the select to toggle the guest name row
+    memberSelectHtml = memberSelectHtml.replace(
+      'data-field="memberId"',
+      'data-field="memberId" onchange="(function(s){var row=document.getElementById(\'fp-nonmember-row\');if(row)row.style.display=s.value?\'none\':\'block\';})(this)"'
+    );
+    var nonMemberVisible = !rec.memberId ? '' : 'none';
+    var nonMemberRow = '<div id="fp-nonmember-row" style="margin-bottom:12px;display:' + nonMemberVisible + ';">'
+      + '<label style="display:block;font-size:0.72rem;color:var(--ink-muted);margin-bottom:3px;">Guest / Non-member Name</label>'
+      + '<input id="fp-memberName" data-field="memberName" type="text" value="' + _e(rec.memberName || '') + '"'
+      + ' placeholder="Full name of person receiving care\u2026"'
+      + ' style="width:100%;background:rgba(255,255,255,0.07);border:1px solid var(--line);border-radius:6px;padding:7px 10px;color:var(--ink);font-size:max(0.92rem,16px);font-family:inherit;">'
+      + '</div>';
+    detSec += _fp2(memberSelectHtml, _fpField('Care Type', 'careType', rec.careType || rec.type, 'select',
         ['Shepherding','Elder Care','Crisis','Abuse / Domestic Violence','Immigration / Deportation','Incarceration & Re-Entry','Grief','Pregnancy & Infant Loss','Marriage','Pre-Marriage','Addiction','Pornography / Sexual Addiction','Hospital Visit','Medical','Terminal Illness / End of Life','New Believer','New Member Integration','Restoration','Counseling','Mental Health','Gender Identity / Sexuality','Discipleship','Family','Financial','Other']));
+    detSec += nonMemberRow;
     detSec += _fp2(
       _fpField('Priority', 'priority', rec.priority, 'select', ['Low','Normal','High','Urgent']),
       _fpField('Status', 'status', rec.status || 'Open', 'select', ['Open','In Progress','Follow-Up','Resolved','Referred','Closed']));
@@ -1290,6 +1318,8 @@ const TheLife = (() => {
     // Remove readonly fields
     delete data.createdAt;
     delete data.updatedAt;
+    // If a directory member is selected, clear the guest name so it doesn't pollute the record
+    if (data.memberId) delete data.memberName;
 
     // Validate required fields
     if (!_requireField(data.careType || data['Care Type'], 'Care Type')) { if (btn) { btn.disabled = false; btn.textContent = '\uD83D\uDCBE Save Care Case'; } return; }
@@ -1689,7 +1719,7 @@ const TheLife = (() => {
     prSec += '<div class="fp-request-header">';
     prSec += '<div class="fp-request-name">' + _e(name) + '</div>';
     prSec += '<div class="fp-request-meta">';
-    if (date) prSec += '<span>' + _e(date) + '</span>';
+    if (date) prSec += '<span>' + _fmtDate(date) + '</span>';
     if (cat) prSec += _badge(cat, 'info');
     if (isConf) prSec += '<span class="badge badge-warn">\uD83D\uDD12 Confidential</span>';
     if (isFU) prSec += '<span class="badge badge-danger">Follow-up Requested</span>';
@@ -1733,13 +1763,31 @@ const TheLife = (() => {
     reSec += '</div>';
     html += _fpSec('Reply & Contact', 'prayer-reply', reSec);
 
-    // Bottom save
-    html += '<div class="fp-bottom-bar">'
+    // Bottom save + Convert to Care Case
+    html += '<div class="fp-bottom-bar" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">'
       + '<button type="button" onclick="TheLife.savePrayer()" class="fp-save-btn">\uD83D\uDCBE Save Changes</button>'
       + '<span id="fp-save-status2" class="fp-save-status"></span>'
+      + '<button type="button" onclick="TheLife.convertPrayerToCare()" class="fp-action-btn" style="margin-left:auto;background:rgba(var(--accent-rgb,99,102,241),0.12);border-color:var(--accent);color:var(--accent);">\uD83E\uDEA6 Convert to Care Case</button>'
       + '</div>';
 
     document.getElementById('fp-body').innerHTML = html;
+  }
+
+  async function convertPrayerToCare() {
+    if (!_fpPrayerId) return;
+    var rec = (_cache.allPrayer || []).find(function(r) { return (r.id || r.ID) === _fpPrayerId; }) || {};
+    var name    = rec.submitterName || rec['Submitter Name'] || '';
+    var memberId = rec.memberId || rec['Member ID'] || '';
+    var notes   = rec.prayerText || rec['Prayer Text'] || '';
+    var email   = rec.submitterEmail || rec['Submitter Email'] || '';
+    if (!confirm('Convert this prayer request into a Spiritual Care Case? This will open the New Care Case form with the details pre-filled.')) return;
+    var defaults = {};
+    if (memberId) defaults.memberId = memberId;
+    if (name) defaults.memberName = name;
+    if (email) defaults.memberEmail = email;
+    if (notes) defaults.notes = 'Originated from prayer request: ' + notes;
+    defaults.linkedPrayerRequestId = _fpPrayerId;
+    TheLife.openCareCase('', defaults);
   }
 
   async function savePrayer() {
@@ -1766,9 +1814,6 @@ const TheLife = (() => {
       var _cachedRec = (_cache.allPrayer || []).find(function(r) { return (r.id || r.ID) === _fpPrayerId; }) || {};
       data.prayerText = _cachedRec.prayerText || _cachedRec['Prayer Text'] || '';
     }
-
-    // Validate — at minimum, prayer text should exist
-    if (!_requireField(data.prayerText || data['Prayer Text'], 'Prayer Text')) { if (btn) { btn.disabled = false; btn.textContent = '\uD83D\uDCBE Save'; } return; }
 
     try {
       _stat('Updating prayer\u2026');
@@ -2726,7 +2771,7 @@ const TheLife = (() => {
     if (opts.body) h += '<div class="flock-card-body">' + opts.body + '</div>';
     var foot = [];
     if (opts.assigned) foot.push('<span class="assigned">' + _e(opts.assigned) + '</span>');
-    if (opts.date) foot.push('<span>' + _e(opts.date) + '</span>');
+    if (opts.date) foot.push('<span>' + _fmtDate(opts.date) + '</span>');
     if (opts.extra) foot.push(opts.extra);
     if (foot.length) h += '<div class="flock-card-foot">' + foot.join(' \u00B7 ') + '</div>';
     h += '</div>';
@@ -4422,10 +4467,11 @@ const TheLife = (() => {
     _careSummaryPrint:     _careSummaryPrint,
 
     // Full-page editors: Prayer
-    openPrayer:      openPrayer,
-    savePrayer:      savePrayer,
-    sendPrayerReply: sendPrayerReply,
-    _prayerPageNav:  _prayerPageNav,
+    openPrayer:         openPrayer,
+    savePrayer:         savePrayer,
+    sendPrayerReply:    sendPrayerReply,
+    convertPrayerToCare: convertPrayerToCare,
+    _prayerPageNav:     _prayerPageNav,
 
     // Full-page editors: Compassion
     openCompassion:  openCompassion,
