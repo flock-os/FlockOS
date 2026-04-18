@@ -1272,7 +1272,7 @@ _collapseNavGroups();
 (function buildQuickCards() {
   const cards = [
     { view: 'directory',    icon: '&#9906;',  title: 'Directory',    desc: 'Member cards & search',  role: 'volunteer', zone: 'gates' },
-    { view: 'comms',        icon: '&#9993;',  title: 'Messages',     desc: 'Inbox & notifications',  role: 'volunteer', zone: 'gates' },
+    { view: 'comms',        icon: '&#128172;',title: 'FlockChat',    desc: 'Team messaging & notifications', role: 'volunteer', zone: 'gates' },
     { view: 'todo',         icon: '&#9744;',  title: 'Tasks',        desc: 'My to-do list',          role: 'volunteer', zone: 'gates' },
     { view: 'my-flock',     icon: '&#128101;',title: 'My Flock',     desc: 'Your assigned members',  role: 'care',      zone: 'courts' },
     { view: '_quarterly',   icon: '&#128197;',title: 'Quarterly Planner', desc: 'Plan worship & volunteers by quarter', role: 'volunteer', zone: 'courts', href: 'quarterly_worship.html' },
@@ -1556,7 +1556,7 @@ _collapseNavGroups();
     var msgRows = Array.isArray(msgRes) ? msgRes : (msgRes && msgRes.rows ? msgRes.rows : []);
     if (msgRows.length > 0) {
       html += '<div class="card" onclick="navigate(\'comms\')" style="cursor:pointer;">'
-            + '<div class="card-title">&#9993; Messages</div>'
+            + '<div class="card-title">&#128172; FlockChat</div>'
             + '<div style="font-size:1.6rem;font-weight:700;color:var(--accent);">' + msgRows.length + '</div>'
             + '<div class="card-desc">unread</div></div>';
     }
