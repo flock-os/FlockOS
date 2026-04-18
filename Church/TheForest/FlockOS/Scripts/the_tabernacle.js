@@ -11272,62 +11272,107 @@ const Modules = (() => {
          + 'cursor:pointer;color:var(--ink-muted);font-size:0.82rem;font-family:inherit;">Clear All</button>';
       ph += '</div></div>';
 
-      // Matrix table — grouped by access level
-      ph += '<table style="width:100%;border-collapse:collapse;font-size:0.83rem;">';
-      ph += '<thead><tr style="border-bottom:2px solid var(--line);">';
-      ph += '<th style="text-align:left;padding:8px 12px;color:var(--ink-muted);font-weight:600;font-size:0.78rem;text-transform:uppercase;letter-spacing:0.04em;">Permission</th>';
-      ph += '<th style="text-align:center;padding:8px 12px;color:var(--ink-muted);font-weight:600;font-size:0.78rem;text-transform:uppercase;letter-spacing:0.04em;width:120px;">Access</th>';
-      ph += '</tr></thead><tbody>';
+      // ── Category-card permissions UI ──────────────────────────────────
+      // Each category gets a single ON/OFF toggle that auto-grants all non-critical
+      // items. Critical items (PII, destructive, financial) always show as individual
+      // checkboxes inside the card so they must be explicitly granted.
+      var _criticalKeys = {
+        'directory.contact-details': true, 'directory.export': true,
+        'giving.individual': true, 'giving.statements': true,
+        'reports.sensitive': true, 'reports.export': true,
+        'comms.send-all': true, 'comms.delete': true,
+        'memberCards.archive': true, 'memberCards.bulk': true,
+        'users': true, 'users.create': true, 'users.edit': true,
+        'users.deactivate': true, 'users.permissions': true,
+        'config': true, 'config.edit': true,
+        'access.approve': true,
+        'bulk.import': true, 'bulk.export': true,
+        'church.edit': true,
+        'admin-dashboard': true, 'admin-dashboard.care': true,
+        'admin-dashboard.giving': true, 'admin-dashboard.audit': true,
+      };
 
-      // Flatten PERM_ROWS into risk buckets: low → medium → high → critical
-      var _riskGroups = { low: [], medium: [], high: [], critical: [] };
+      ph += '<div style="display:flex;flex-direction:column;gap:12px;margin-top:4px;">';
+
       PERM_ROWS.forEach(function(section) {
-        section.items.forEach(function(item) {
-          var lvl = item.risk || 'low';
-          if (_riskGroups[lvl]) _riskGroups[lvl].push({ item: item, group: section.group });
-        });
-      });
+        var catKey   = 'tabcat-' + section.group.replace(/[^a-z0-9]/gi, '-').toLowerCase();
+        var nonCrit  = section.items.filter(function(i) { return !_criticalKeys[i.key]; });
+        var critItems = section.items.filter(function(i) { return _criticalKeys[i.key]; });
 
-      ['low', 'medium', 'high', 'critical'].forEach(function(lvl) {
-        var entries = _riskGroups[lvl];
-        if (!entries.length) return;
-        var rm = _riskMeta[lvl];
-        var headId = 'tab-grp-' + lvl;
-        ph += '<tr><td style="padding:14px 12px 6px;border-top:2px solid var(--line);">';
-        ph += '<span style="display:inline-block;padding:3px 14px;border-radius:20px;font-size:0.72rem;font-weight:800;letter-spacing:0.07em;text-transform:uppercase;'
-           + 'background:' + rm.bg + ';color:' + rm.color + ';border:1px solid ' + rm.color + '55;">'
-           + _e(rm.label) + '</span>';
-        ph += '</td>';
-        ph += '<td style="text-align:center;padding:14px 12px 6px;border-top:2px solid var(--line);vertical-align:middle;">'
-           + '<input type="checkbox" id="' + headId + '" class="tab-grp-chk" data-risk-group="' + lvl + '"'
-           + ' onchange="Modules._tabOnGrpChkChange(this)"'
-           + ' style="width:18px;height:18px;accent-color:' + rm.color + ';cursor:pointer;"'
-           + ' title="Toggle all ' + rm.label + ' permissions">'
-           + '</td>';
-        ph += '</tr>';
-        entries.forEach(function(e) {
-          var item  = e.item;
-          var group = e.group;
+        // Is the whole category "on"? True when ALL non-critical items are granted.
+        var catOn = nonCrit.length > 0 && nonCrit.every(function(i) { return (ovMap[i.key] || 'none') === 'grant'; });
+
+        ph += '<div style="border:1px solid var(--line);border-radius:10px;overflow:hidden;">';
+
+        // ── Category header row with master toggle ──────────────────────
+        ph += '<div style="display:flex;align-items:center;justify-content:space-between;'
+           + 'padding:12px 16px;background:var(--bg-sunken,var(--bg));">';
+        ph += '<div>';
+        ph += '<div style="font-weight:700;color:var(--ink);font-size:0.88rem;">' + _e(section.group) + '</div>';
+        if (critItems.length) {
+          ph += '<div style="font-size:0.72rem;color:var(--ink-muted);margin-top:2px;">'
+             + critItems.length + ' sensitive item' + (critItems.length > 1 ? 's' : '') + ' require individual approval below</div>';
+        }
+        ph += '</div>';
+
+        // Hidden checkboxes for all non-critical items (read by _savePerms, toggled by category switch)
+        nonCrit.forEach(function(item) {
           var val   = ovMap[item.key] || 'none';
           var selId = 'tabsel-' + item.key.replace(/\./g, '-');
-          var keyId = 'tab-' + item.key.replace(/\./g, '-');
-          ph += '<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">';
-          ph += '<td style="padding:10px 12px;vertical-align:top;">'
-             + '<div style="font-weight:600;color:var(--ink);margin-bottom:2px;">' + _e(item.label) + '</div>'
-             + '<div style="font-size:0.77rem;color:var(--ink-muted);line-height:1.45;margin-bottom:2px;">' + _e(item.desc) + '</div>'
-             + '<div style="font-size:0.70rem;color:var(--ink-faint);font-style:italic;">' + _e(group) + '</div>'
-             + '</td>';
-          ph += '<td style="text-align:center;padding:10px 12px;vertical-align:middle;">'
-             + '<input type="checkbox" id="' + selId + '" class="tab-perm-chk" data-perm-key="' + _e(item.key) + '" data-risk="' + _e(item.risk || 'low') + '"'
+          ph += '<input type="checkbox" id="' + selId + '" class="tab-perm-chk"'
+             + ' data-perm-key="' + _e(item.key) + '" data-risk="' + _e(item.risk || 'low') + '"'
+             + ' data-cat="' + _e(section.group) + '"'
              + (val === 'grant' ? ' checked' : '')
              + ' onchange="Modules._tabOnPermChkChange(this)"'
-             + ' style="width:18px;height:18px;accent-color:var(--accent);cursor:pointer;">'
-             + '</td>';
-          ph += '</tr>';
+             + ' style="display:none;">';
         });
+
+        // Category toggle row
+        ph += '<div style="display:flex;align-items:center;justify-content:space-between;'
+           + 'padding:8px 16px 12px;background:var(--bg-sunken,var(--bg));">';
+        ph += '<span style="font-size:0.76rem;color:var(--ink-faint);font-style:italic;">'
+           + (nonCrit.length ? nonCrit.length + ' general permission' + (nonCrit.length > 1 ? 's' : '') : 'No general permissions') + '</span>';
+        if (nonCrit.length > 0) {
+          ph += '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none;">';
+          ph += '<span id="' + catKey + '-lbl" style="font-size:0.78rem;color:var(--ink-muted);font-weight:600;">'
+             + (catOn ? 'Granted' : 'Grant All') + '</span>';
+          ph += '<input type="checkbox" id="' + catKey + '" class="tab-cat-chk" data-cat="' + _e(section.group) + '"'
+             + (catOn ? ' checked' : '')
+             + ' onchange="Modules._tabOnCatChkChange(this)"'
+             + ' style="width:18px;height:18px;accent-color:var(--accent);cursor:pointer;">';
+          ph += '</label>';
+        } else {
+          ph += '<span style="font-size:0.76rem;color:var(--ink-faint);font-style:italic;">Individual only</span>';
+        }
+        ph += '</div>';
+
+        // ── Critical items — always visible ────────────────────────────
+        if (critItems.length) {
+          ph += '<div style="padding:10px 16px 12px;border-top:1px solid var(--line);'
+             + 'background:var(--bg);display:flex;flex-direction:column;gap:8px;">';
+          critItems.forEach(function(item) {
+            var val   = ovMap[item.key] || 'none';
+            var selId = 'tabsel-' + item.key.replace(/\./g, '-');
+            ph += '<label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;">';
+            ph += '<input type="checkbox" id="' + selId + '" class="tab-perm-chk" data-perm-key="' + _e(item.key) + '" data-risk="' + _e(item.risk || 'critical') + '"'
+               + (val === 'grant' ? ' checked' : '')
+               + ' onchange="Modules._tabOnPermChkChange(this)"'
+               + ' style="margin-top:2px;width:16px;height:16px;accent-color:#dc2626;cursor:pointer;flex-shrink:0;">';
+            ph += '<div>'
+               + '<div style="font-weight:600;color:var(--ink);font-size:0.83rem;">' + _e(item.label)
+               + ' <span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:0.67rem;font-weight:700;'
+               + 'background:#dc262618;color:#dc2626;border:1px solid #dc262655;vertical-align:middle;margin-left:4px;">Sensitive</span></div>'
+               + '<div style="font-size:0.74rem;color:var(--ink-muted);margin-top:1px;">' + _e(item.desc) + '</div>'
+               + '</div>';
+            ph += '</label>';
+          });
+          ph += '</div>';
+        }
+
+        ph += '</div>'; // card
       });
 
-      ph += '</tbody></table>';
+      ph += '</div>'; // category list
 
       // Single shared critical-permission confirmation box
       ph += '<div id="tab-crit-confirm" style="display:none;border:2px solid #dc2626;border-radius:10px;background:#dc262610;padding:16px 18px;margin:16px 0;">'
@@ -18394,6 +18439,21 @@ const Modules = (() => {
     _syncCritConfirm();
   }
 
+  /* ── Category toggle: grant/revoke all non-critical items in that category ── */
+  function _tabOnCatChkChange(catChk) {
+    var catName  = catChk.getAttribute('data-cat');
+    var isOn     = catChk.checked;
+    // Toggle all hidden non-critical checkboxes for this category
+    document.querySelectorAll('.tab-perm-chk[data-cat="' + catName + '"]').forEach(function(c) {
+      c.checked = isOn;
+    });
+    // Update the label next to the toggle
+    var catKey = catChk.id;
+    var lbl = document.getElementById(catKey + '-lbl');
+    if (lbl) lbl.textContent = isOn ? 'Granted' : 'Grant All';
+    _syncCritConfirm();
+  }
+
   /* ── Group header checkbox: toggle all child perms in that risk group ── */
   function _tabOnGrpChkChange(grpChk) {
     var lvl = grpChk.getAttribute('data-risk-group');
@@ -18425,6 +18485,17 @@ const Modules = (() => {
   /* ── Sync all group headers (after template application) ── */
   function _syncAllGrpHeaders() {
     ['low', 'medium', 'high', 'critical'].forEach(_syncGrpHeader);
+    // Also sync category toggles
+    document.querySelectorAll('.tab-cat-chk').forEach(function(catChk) {
+      var catName = catChk.getAttribute('data-cat');
+      var children = document.querySelectorAll('.tab-perm-chk[data-cat="' + catName + '"]');
+      if (!children.length) return;
+      var allOn = true;
+      children.forEach(function(c) { if (!c.checked) allOn = false; });
+      catChk.checked = allOn;
+      var lbl = document.getElementById(catChk.id + '-lbl');
+      if (lbl) lbl.textContent = allOn ? 'Granted' : 'Grant All';
+    });
   }
 
   /* ── Show/hide the critical-permission confirmation box ── */
@@ -21587,6 +21658,7 @@ const Modules = (() => {
     _applyPermTemplate,
     _tabOnPermChkChange,
     _tabOnGrpChkChange,
+    _tabOnCatChkChange,
     _savePerms,
     _grpOnChange,
     _grpSave,

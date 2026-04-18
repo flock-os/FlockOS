@@ -21,6 +21,7 @@
   <script src="bezalel_codex.js"></script>
   <script src="bezalel_firestoresync_codex.js"></script>
   <script src="bezalel_synchandler_codex.js"></script>
+  <script src="bezalel_camelcase_codex.js"></script>
   <style>
     :root {
       color-scheme: dark;
@@ -879,6 +880,17 @@
 // Validates SYNC_SECRET and maps Firestore collections to Sheet tabs.</div>
       </div>
 
+      <!-- CamelCase.gs output -->
+      <div class="output-card" style="margin-bottom:16px;">
+        <div class="output-toolbar">
+          <span class="output-title">&#128196; CamelCase.gs — Firestore Field Name Map</span>
+          <span id="camelCaseLineCt" style="font-size:0.7rem;color:var(--ink-muted);margin-right:auto;"></span>
+          <button class="btn btn-sm btn-gold" onclick="_copyCamelCase(this)">&#128203; Copy</button>
+        </div>
+        <div class="output-body" style="color:var(--ink-muted);font-style:italic;min-height:40px;">// Maps every Firestore camelCase field name to its Title Case sheet column header.
+// Paste alongside SyncHandler.gs — prevents duplicate camelCase columns on all tabs.</div>
+      </div>
+
       <!-- Setup.gs output -->
       <div class="output-card">
         <div class="output-toolbar">
@@ -1509,6 +1521,10 @@ function _initCodeGsPanel() {
   if (shct && window.BEZALEL_SYNCHANDLER_GS_LINES) {
     shct.textContent = window.BEZALEL_SYNCHANDLER_GS_LINES.toLocaleString() + ' lines';
   }
+  var ccct = document.getElementById('camelCaseLineCt');
+  if (ccct && window.BEZALEL_CAMELCASE_GS_LINES) {
+    ccct.textContent = window.BEZALEL_CAMELCASE_GS_LINES.toLocaleString() + ' lines';
+  }
 }
 document.addEventListener('DOMContentLoaded', _initCodeGsPanel);
 
@@ -1691,6 +1707,12 @@ function _copySyncHandler(btn) {
   var content = window.BEZALEL_SYNCHANDLER_GS;
   if (!content) { alert('SyncHandler.gs not loaded. Run build_churches.sh to generate bezalel_synchandler_codex.js first.'); return; }
   _copyGsFile(btn, content, '\u2713 SyncHandler.gs copied to clipboard');
+}
+
+function _copyCamelCase(btn) {
+  var content = window.BEZALEL_CAMELCASE_GS;
+  if (!content) { alert('CamelCase.gs not loaded. Run build_churches.sh to generate bezalel_camelcase_codex.js first.'); return; }
+  _copyGsFile(btn, content, '\u2713 CamelCase.gs copied to clipboard');
 }
 
 function _copyGsFile(btn, content, toastMsg) {
