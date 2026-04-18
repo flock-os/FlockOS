@@ -252,7 +252,7 @@ const TheWord = (() => {
     _initPushNotifications();
 
     // Seed default channels (no-op if they already exist)
-    await _seedChannels();
+    await _seedChannels().catch(err => console.warn('Seed channels failed (non-fatal):', err));
 
     // Boot UI
     _showApp();
@@ -865,7 +865,7 @@ const TheWord = (() => {
   // ─────────────────────────────────────────────────────────────────────────
   function _bindModals() {
     // New Channel
-    _el('btn-new-channel').addEventListener('click', () => _openModal('modal-new-channel'));
+    _el('btn-new-channel').addEventListener('click', () => { _openModal('modal-new-channel'); _loadNewChannelMembers(); });
     _el('btn-cancel-channel').addEventListener('click', () => _closeModal('modal-new-channel'));
     _el('btn-create-channel').addEventListener('click', _createChannel);
 
@@ -880,6 +880,26 @@ const TheWord = (() => {
         if (e.target === backdrop) _closeModal(backdrop.id);
       });
     });
+  }
+
+  async function _loadNewChannelMembers() {
+    const sel = _el('new-ch-members');
+    sel.innerHTML = '<option value="" disabled>Loading…</option>';
+    try {
+      const snap = await F.getDocs(F.collection(db, _col('users')));
+      sel.innerHTML = '';
+      snap.forEach(d => {
+        if (d.id === _me.uid) return;
+        const opt = document.createElement('option');
+        opt.value       = d.id;
+        opt.textContent = d.data().displayName || d.data().email;
+        sel.appendChild(opt);
+      });
+      if (!sel.options.length) sel.innerHTML = '<option value="" disabled>No other users yet</option>';
+    } catch (err) {
+      sel.innerHTML = '<option value="" disabled>Could not load users</option>';
+      console.warn('_loadNewChannelMembers:', err);
+    }
   }
 
   async function _createChannel() {
@@ -901,11 +921,14 @@ const TheWord = (() => {
     if (existing) { _toast(`#${name} already exists.`, 'error'); return; }
 
     try {
+      const pickedMembers = Array.from(_el('new-ch-members').selectedOptions).map(o => o.value).filter(Boolean);
+      const members = [_me.uid, ...pickedMembers.filter(id => id !== _me.uid)];
+
       const ref = await F.addDoc(F.collection(db, _col('channels')), {
         name, description: desc, type, access, minRole,
         createdBy: _me.uid,
         createdAt: F.serverTimestamp(),
-        members: [_me.uid],
+        members,
         messageCount: 0
       });
       _toast(`#${name} created!`, 'success');
@@ -914,6 +937,7 @@ const TheWord = (() => {
       _el('new-ch-desc').value = '';
       _el('new-ch-access').value = 'public';
       _el('new-ch-minrole-row').style.display = 'none';
+      Array.from(_el('new-ch-members').options).forEach(o => o.selected = false);
       // Open it immediately
       _openChannel({ id: ref.id, name, description: desc, type, access, minRole });
     } catch (err) {
