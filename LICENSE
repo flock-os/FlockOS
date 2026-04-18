@@ -3,7 +3,53 @@ FlockOS License
 Copyright (c) 2026 Greg Granger. All rights reserved.
 
 
-1. CRM SOFTWARE (Proprietary)
+PROPRIETARY SOFTWARE — ALL RIGHTS RESERVED
+
+This repository and all of its contents — including but not limited to
+all source code, scripts, HTML pages, stylesheets, configuration files,
+build tools, assets, and documentation — are the exclusive intellectual
+property of Greg Granger.
+
+No portion of this software may be used, accessed, copied, reproduced,
+modified, merged, published, distributed, sublicensed, sold, or deployed
+in any form or by any means — in whole or in part — without the express
+prior written permission of the copyright holder.
+
+This restriction applies to all components without exception, including:
+
+  - CRM and church management software (member management, authentication,
+    pastoral care, service planning, music stand, communications, compassion,
+    outreach, discipleship, statistics, multi-church modules, and all
+    related scripts and interfaces)
+
+  - Messaging software (FlockChat and all related source files)
+
+  - Educational and learning modules (Bible explorer, devotionals, lexicon,
+    theology reference, quiz, counseling, and all related content)
+
+  - Build systems, deployment scripts, configuration templates, and tools
+
+  - All derivative works, adaptations, or ports of any of the above
+
+
+LICENSING
+
+Licensing for churches, organizations, and developers is available upon
+request. Development and deployment fees may apply.
+
+For licensing inquiries, contact: Greg Granger
+
+
+WARRANTY DISCLAIMER
+
+THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM,
+DAMAGES, OR OTHER LIABILITY OF ANY KIND ARISING FROM, OUT OF, OR IN
+CONNECTION WITH THE SOFTWARE OR THE USE, DEPLOYMENT, OR OTHER DEALINGS
+IN THE SOFTWARE.
+
 
 The church management software — including but not limited to member
 management, authentication, pastoral care, service planning, songs and
