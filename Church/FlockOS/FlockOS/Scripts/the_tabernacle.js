@@ -7962,20 +7962,14 @@ const Modules = (() => {
   }
 
   _def('comms', async el => {
+    // Ensure UpperRoom is ready before checking config
+    await _loadCommsMode();
+    var _fb = _isFirebaseComms();
+
     // ── FlockChat iframe path — if FLOCKCHAT_URL config is set, embed it ──
     var _fcUrl = '';
     try {
-      // Try GAS config first (Firestore deployment: flock.config.list)
-      if (typeof TheVine !== 'undefined' && TheVine.flock && TheVine.flock.config) {
-        var _cfgRes = await TheVine.flock.config.list().catch(function() { return null; });
-        if (_cfgRes) {
-          var _cfgRows = (_cfgRes.rows || _cfgRes._rows || _cfgRes.configs || []);
-          var _fcRow = _cfgRows.find(function(r) { return (r.key || r.configKey) === 'FLOCKCHAT_URL'; });
-          if (_fcRow) _fcUrl = (_fcRow.value || _fcRow.configValue || '').trim();
-        }
-      }
-      // Firebase UpperRoom fallback — use listAppConfig
-      if (!_fcUrl && typeof UpperRoom !== 'undefined' && UpperRoom.listAppConfig) {
+      if (typeof UpperRoom !== 'undefined' && UpperRoom.listAppConfig) {
         var _appCfg = await UpperRoom.listAppConfig().catch(function() { return null; });
         if (Array.isArray(_appCfg)) {
           var _appRow = _appCfg.find(function(r) { return (r.key || r.configKey) === 'FLOCKCHAT_URL'; });
@@ -7986,15 +7980,10 @@ const Modules = (() => {
 
     if (_fcUrl) {
       el.innerHTML = '<iframe class="flockchat-frame" src="' + _fcUrl + '" allow="notifications; clipboard-write" loading="lazy"></iframe>';
-      // Signal navigate() to apply edge-to-edge CSS
       var mainEl = document.getElementById('main');
       if (mainEl) mainEl.classList.add('flockchat-active');
       return;
     }
-
-    // Determine comms mode (Firebase default, Sheets fallback)
-    await _loadCommsMode();
-    var _fb = _isFirebaseComms();
 
     _shell(el, 'Messages', _fb ? 'Real-time communications powered by Firebase.' : 'Church communications via Google Sheets.',
       (_fb
