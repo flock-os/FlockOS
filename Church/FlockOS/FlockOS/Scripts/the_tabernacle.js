@@ -7965,13 +7965,22 @@ const Modules = (() => {
     // ── FlockChat iframe path — if FLOCKCHAT_URL config is set, embed it ──
     var _fcUrl = '';
     try {
-      var _cfgRows = (typeof TheVine !== 'undefined' && TheVine.config) ? (TheVine.config()._rows || []) : [];
-      // Try GAS config rows first
-      var _fcRow = _cfgRows.find(function(r) { return (r.key || r.configKey) === 'FLOCKCHAT_URL'; });
-      if (_fcRow) _fcUrl = (_fcRow.value || _fcRow.configValue || '').trim();
-      // Firebase config fallback
-      if (!_fcUrl && typeof UpperRoom !== 'undefined' && UpperRoom.getConfigValue) {
-        _fcUrl = ((await UpperRoom.getConfigValue('FLOCKCHAT_URL').catch(function() { return ''; })) || '').trim();
+      // Try GAS config first (Firestore deployment: flock.config.list)
+      if (typeof TheVine !== 'undefined' && TheVine.flock && TheVine.flock.config) {
+        var _cfgRes = await TheVine.flock.config.list().catch(function() { return null; });
+        if (_cfgRes) {
+          var _cfgRows = (_cfgRes.rows || _cfgRes._rows || _cfgRes.configs || []);
+          var _fcRow = _cfgRows.find(function(r) { return (r.key || r.configKey) === 'FLOCKCHAT_URL'; });
+          if (_fcRow) _fcUrl = (_fcRow.value || _fcRow.configValue || '').trim();
+        }
+      }
+      // Firebase UpperRoom fallback — use listAppConfig
+      if (!_fcUrl && typeof UpperRoom !== 'undefined' && UpperRoom.listAppConfig) {
+        var _appCfg = await UpperRoom.listAppConfig().catch(function() { return null; });
+        if (Array.isArray(_appCfg)) {
+          var _appRow = _appCfg.find(function(r) { return (r.key || r.configKey) === 'FLOCKCHAT_URL'; });
+          if (_appRow) _fcUrl = (_appRow.value || '').trim();
+        }
       }
     } catch(_) {}
 
