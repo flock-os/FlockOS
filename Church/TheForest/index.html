@@ -974,8 +974,21 @@ window.navigate = navigate;
 window.toggleSidebar = toggleSidebar;
 
 // ── What's New / Changelog ─────────────────────────────────────────────────
-var FLOCKOS_CHANGELOG_VERSION = '3.18';
+var FLOCKOS_CHANGELOG_VERSION = '3.19';
 var _changelogEntries = [
+  {
+    version: '3.19', date: 'April 2026', title: 'FlockChat & Firestore Live',
+    items: [
+      'FlockChat: full church messaging platform with role-gated channels, direct messages, and real-time presence',
+      'Push notifications via Firebase Cloud Messaging — service worker, client token registration, and Cloud Functions',
+      'FlockChat PWA: installable app with manifest, custom icons, and offline support',
+      'Firestore/Wellspring backend now powers all modules — live data sync replaces GAS for real-time reads and writes',
+      'Daily pastoral summary email delivered via Cloud Function with priority badges and mobile-responsive HTML',
+      'Admin navigation rebranded: Flock Users, Flock Admin, Flock Content; new Other Courts group',
+      'Simplified permissions UI — category-level toggles with individual checks only for sensitive actions',
+      'Care module: non-member support, convert prayer request to care case, improved date formatting'
+    ]
+  },
   {
     version: '3.18', date: 'June 2025', title: 'Analytics, Undo & Polish',
     items: [
