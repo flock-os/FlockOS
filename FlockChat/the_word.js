@@ -52,6 +52,7 @@ const TheWord = (() => {
   let _activeType  = null;   // 'channel' | 'dm'
   let _channels    = [];
   let _dms         = [];
+  let _userReads   = {};     // { [id]: timestamp } — local read-state cache
   let _msgUnsub    = null;   // unsubscribe for current message listener
   let _chUnsub     = null;   // unsubscribe for channel list
   let _dmUnsub     = null;
@@ -166,7 +167,7 @@ const TheWord = (() => {
         await F.setDoc(F.doc(db, _col('users'), cred.user.uid), {
           displayName: name,
           email:       email,
-          role:        'volunteer',
+          role:        email === 'flockos.notify@gmail.com' ? 'admin' : 'volunteer',
           avatar:      '',
           status:      'available',
           lastSeen:    F.serverTimestamp(),
@@ -218,7 +219,7 @@ const TheWord = (() => {
         await F.setDoc(userRef, {
           displayName: user.displayName || user.email.split('@')[0],
           email:       user.email,
-          role:        'volunteer',
+          role:        user.email === 'flockos.notify@gmail.com' ? 'admin' : 'volunteer',
           avatar:      '',
           status:      'available',
           lastSeen:    F.serverTimestamp(),
@@ -240,7 +241,7 @@ const TheWord = (() => {
         uid:         user.uid,
         displayName: user.displayName || user.email.split('@')[0],
         email:       user.email,
-        role:        'volunteer'
+        role:        user.email === 'flockos.notify@gmail.com' ? 'admin' : 'volunteer'
       };
     }
 
@@ -902,6 +903,80 @@ const TheWord = (() => {
     }
   }
 
+  // ─────────────────────────────────────────────────────────────────────────
+  // MANAGE USERS (admin only)
+  // ─────────────────────────────────────────────────────────────────────────
+  async function _openManageUsers() {
+    if (!_isAdmin()) return;
+    _openModal('modal-manage-users');
+    const listEl = _el('manage-users-list');
+    listEl.innerHTML = '<div style="text-align:center;padding:24px"><div class="spinner"></div></div>';
+
+    try {
+      const snap = await F.getDocs(F.collection(db, _col('users')));
+      if (snap.empty) { listEl.innerHTML = '<p style="padding:12px;color:var(--ink-muted)">No users found.</p>'; return; }
+
+      const ROLES = ['volunteer', 'pastor', 'admin'];
+      let html = '';
+      snap.forEach(d => {
+        const u = d.data();
+        const uid = d.id;
+        const isSelf = uid === _me?.uid;
+        const initials = _initials(u.displayName || u.email || '?');
+        const roleOptions = ROLES.map(r =>
+          `<option value="${r}"${u.role === r ? ' selected' : ''}>${r}</option>`
+        ).join('');
+        html += `<div class="user-mgmt-row" id="umrow-${uid}">
+          <div class="msg-avatar" style="width:34px;height:34px;font-size:0.8rem;flex-shrink:0">${_esc(initials)}</div>
+          <div class="user-mgmt-info">
+            <div class="user-mgmt-name">${_esc(u.displayName || '—')}</div>
+            <div class="user-mgmt-email">${_esc(u.email || uid)}</div>
+          </div>
+          <select class="user-mgmt-role" data-uid="${uid}" ${isSelf ? 'disabled title="Cannot change your own role"' : ''}>
+            ${roleOptions}
+          </select>
+          ${!isSelf ? `<button class="user-mgmt-remove" data-uid="${uid}" title="Remove user">✕</button>` : ''}
+        </div>`;
+      });
+      listEl.innerHTML = html;
+
+      // Role change
+      listEl.querySelectorAll('.user-mgmt-role').forEach(sel => {
+        sel.addEventListener('change', async () => {
+          const uid = sel.dataset.uid;
+          const newRole = sel.value;
+          try {
+            await F.updateDoc(F.doc(db, _col('users'), uid), { role: newRole });
+            _toast('Role updated.', 'success');
+          } catch (e) {
+            _toast('Failed to update role.', 'error');
+            console.error(e);
+          }
+        });
+      });
+
+      // Remove user
+      listEl.querySelectorAll('.user-mgmt-remove').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const uid = btn.dataset.uid;
+          if (!confirm('Remove this user from FlockChat? This only removes their profile — they can still log in.')) return;
+          try {
+            await F.deleteDoc(F.doc(db, _col('users'), uid));
+            document.getElementById(`umrow-${uid}`)?.remove();
+            _toast('User removed.', 'success');
+          } catch (e) {
+            _toast('Failed to remove user.', 'error');
+            console.error(e);
+          }
+        });
+      });
+
+    } catch (err) {
+      listEl.innerHTML = '<p style="padding:12px;color:#e57373">Failed to load users.</p>';
+      console.error(err);
+    }
+  }
+
   async function _openDMModal() {
     const select = _el('dm-user-select');
     select.innerHTML = '<option value="">Loading…</option>';
@@ -1191,6 +1266,11 @@ const TheWord = (() => {
     const oldSignout = _el('btn-signout');
     if (oldSignout) oldSignout.addEventListener('click', async () => { await F.signOut(auth); });
 
+    const btnManageUsers = _el('btn-manage-users');
+    if (btnManageUsers) btnManageUsers.addEventListener('click', _openManageUsers);
+    const btnCloseManageUsers = _el('btn-close-manage-users');
+    if (btnCloseManageUsers) btnCloseManageUsers.addEventListener('click', () => _closeModal('modal-manage-users'));
+
     _el('btn-details-toggle').addEventListener('click', () => {
       _detailsOpen = !_detailsOpen;
       _el('details-pane').classList.toggle('collapsed', !_detailsOpen);
@@ -1317,6 +1397,8 @@ const TheWord = (() => {
     if (btnNewCh) btnNewCh.style.display = _isAdmin() ? '' : 'none';
     const btnAdmin = _el('btn-open-admin');
     if (btnAdmin) btnAdmin.style.display = _isAdmin() ? '' : 'none';
+    const btnUsers = _el('btn-manage-users');
+    if (btnUsers) btnUsers.style.display = _isAdmin() ? '' : 'none';
   }
 
   function _hideApp() {

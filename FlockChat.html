@@ -793,6 +793,22 @@
       justify-content: flex-end;
       margin-top: 18px;
     }
+    .user-mgmt-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 4px;
+      border-bottom: 1px solid var(--line);
+    }
+    .user-mgmt-row:last-child { border-bottom: none; }
+    .user-mgmt-info { flex: 1; min-width: 0; }
+    .user-mgmt-name { font-weight: 600; font-size: 0.88rem; }
+    .user-mgmt-email { font-size: 0.78rem; color: var(--ink-muted); }
+    .user-mgmt-role { font-size: 0.8rem; padding: 4px 8px; border-radius: 6px;
+      border: 1px solid var(--line); background: var(--bg); color: var(--ink); cursor: pointer; }
+    .user-mgmt-remove { background: none; border: none; color: #e57373; font-size: 1rem;
+      cursor: pointer; padding: 4px 6px; border-radius: 6px; }
+    .user-mgmt-remove:hover { background: rgba(229,115,115,.15); }
     .btn-secondary {
       background: none;
       border: 1px solid var(--line);
@@ -1145,6 +1161,7 @@
         <span class="uname" id="topbar-uname">—</span>
         <span id="topbar-status-dot" style="font-size:0.65rem;margin-left:2px">🟢</span>
       </div>
+      <button class="topbar-icon-btn" id="btn-manage-users" title="Manage Users" style="display:none">👥 Users</button>
       <button class="topbar-icon-btn" id="btn-signout" title="Sign Out" style="display:none">Sign Out</button>
     </div>
   </div>
@@ -1315,6 +1332,19 @@
     <div class="modal-actions">
       <button class="btn-secondary" id="btn-cancel-dm">Cancel</button>
       <button class="btn-primary" id="btn-open-dm">Open DM</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── Manage Users Modal ──────────────────────────────────────────── -->
+<div class="modal-backdrop" id="modal-manage-users">
+  <div class="modal-card" style="width:520px;max-width:100%">
+    <h2>Manage Users</h2>
+    <div id="manage-users-list" style="max-height:360px;overflow-y:auto;margin-bottom:12px">
+      <div style="text-align:center;padding:24px"><div class="spinner"></div></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" id="btn-close-manage-users">Close</button>
     </div>
   </div>
 </div>
