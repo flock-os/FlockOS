@@ -2321,7 +2321,7 @@ input, select, textarea {
   color: var(--ink);
 }
 .rp-cell a {
-  color: var(--gold);
+  color: var(--accent);
   font-weight: 600;
   text-decoration: underline;
   text-decoration-style: dotted;

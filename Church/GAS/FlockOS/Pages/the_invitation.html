@@ -14,8 +14,8 @@
         html, body { overscroll-behavior: none; }
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #faf9f6;
-            color: #2c2c2c;
+            background-color: var(--bg, #faf9f6);
+            color: var(--ink, #2c2c2c);
             line-height: 1.6;
             -webkit-font-smoothing: antialiased;
         }
@@ -32,7 +32,7 @@
 
         /* ── Navigation ─────────────────────────────────────────── */
         .top-nav {
-            background: #fff; border-bottom: 1px solid #e7e5e4;
+            background: var(--bg-raised, #fff); border-bottom: 1px solid var(--line, #e7e5e4);
             position: sticky; top: 0; z-index: 50;
         }
         .top-nav-inner {
@@ -40,95 +40,95 @@
             height: 4rem;
         }
         .top-nav-brand { display: flex; align-items: center; flex-shrink: 0; }
-        .top-nav-brand .icon { font-size: 1.5rem; color: #115e59; margin-right: 0.5rem; }
-        .top-nav-brand .label { font-weight: 700; font-size: 1.25rem; letter-spacing: -0.01em; color: #292524; }
-        .top-nav-back { font-size: 0.875rem; color: #0f766e; font-weight: 600; text-decoration: none; }
-        .top-nav-back:hover { color: #134e4a; }
+        .top-nav-brand .icon { font-size: 1.5rem; color: var(--accent, #7eaacc); margin-right: 0.5rem; }
+        .top-nav-brand .label { font-weight: 700; font-size: 1.25rem; letter-spacing: -0.01em; color: var(--ink, #292524); }
+        .top-nav-back { font-size: 0.875rem; color: var(--accent, #7eaacc); font-weight: 600; text-decoration: none; }
+        .top-nav-back:hover { color: var(--accent-hover, #6394ba); }
 
         /* ── Header ────────────────────────────────────────────── */
         .hero { text-align: center; margin-bottom: 3rem; padding-top: 2rem; }
-        .hero h1 { font-size: 2.25rem; font-weight: 700; color: #1c1917; margin-bottom: 1rem; }
+        .hero h1 { font-size: 2.25rem; font-weight: 700; color: var(--ink, #1c1917); margin-bottom: 1rem; }
         @media (min-width: 768px) { .hero h1 { font-size: 3rem; } }
-        .hero .subtitle { font-size: 1.125rem; color: #57534e; max-width: 48rem; margin: 0 auto; }
-        .hero .epigraph { font-size: 0.875rem; color: #a8a29e; margin-top: 0.75rem; font-style: italic; }
+        .hero .subtitle { font-size: 1.125rem; color: var(--ink-muted, #57534e); max-width: 48rem; margin: 0 auto; }
+        .hero .epigraph { font-size: 0.875rem; color: var(--ink-faint, #a8a29e); margin-top: 0.75rem; font-style: italic; }
         .hero .cta {
             display: inline-block; margin-top: 2rem;
-            background: #0f766e; color: #fff; padding: 0.75rem 2rem;
+            background: var(--accent, #7eaacc); color: var(--ink-inverse, #faf9f6); padding: 0.75rem 2rem;
             border-radius: 0.5rem; font-weight: 600; font-size: 0.875rem;
             letter-spacing: 0.05em; text-decoration: none;
             box-shadow: 0 1px 2px rgba(0,0,0,0.05); transition: background 0.2s;
         }
-        .hero .cta:hover { background: #115e59; }
+        .hero .cta:hover { background: var(--accent-hover, #6394ba); }
 
         /* ── Sections ──────────────────────────────────────────── */
         .card-section {
-            background: #fff; border-radius: 1rem;
+            background: var(--bg-raised, #fff); border-radius: 1rem;
             box-shadow: 0 1px 2px rgba(0,0,0,0.04);
-            border: 1px solid #e7e5e4;
+            border: 1px solid var(--line, #e7e5e4);
             padding: 1.5rem; margin-bottom: 3rem;
         }
         @media (min-width: 768px) { .card-section { padding: 2rem; } }
-        .card-section h2 { font-size: 1.5rem; font-weight: 700; color: #292524; margin-bottom: 0.5rem; }
-        .card-section > .intro { color: #57534e; margin-bottom: 2rem; }
+        .card-section h2 { font-size: 1.5rem; font-weight: 700; color: var(--ink, #292524); margin-bottom: 0.5rem; }
+        .card-section > .intro { color: var(--ink-muted, #57534e); margin-bottom: 2rem; }
 
         /* ── Invitations grid ──────────────────────────────────── */
         .inv-grid { display: grid; grid-template-columns: 1fr; gap: 1.5rem; }
         @media (min-width: 768px) { .inv-grid { grid-template-columns: repeat(3, 1fr); } }
         .inv-card {
-            background: #fafaf9; border-radius: 0.75rem; padding: 1.5rem;
-            border: 1px solid #e7e5e4; cursor: pointer;
+            background: var(--bg-sunken, #fafaf9); border-radius: 0.75rem; padding: 1.5rem;
+            border: 1px solid var(--line, #e7e5e4); cursor: pointer;
             transition: border-color 0.3s, box-shadow 0.3s;
         }
-        .inv-card:hover { border-color: #7eaacc; box-shadow: 0 4px 6px rgba(0,0,0,0.04); }
+        .inv-card:hover { border-color: var(--accent, #7eaacc); box-shadow: 0 4px 6px rgba(0,0,0,0.04); }
         .inv-card .icon { font-size: 1.875rem; margin-bottom: 1rem; }
-        .inv-card h3 { font-size: 1.125rem; font-weight: 700; color: #292524; margin-bottom: 0.5rem; }
-        .inv-card:hover h3 { color: #0f766e; }
-        .inv-card .quote { color: #78716c; font-style: italic; font-size: 0.875rem; margin-bottom: 0.75rem; }
-        .inv-card .ref { font-size: 0.75rem; font-weight: 600; color: #a8a29e; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 1rem; }
+        .inv-card h3 { font-size: 1.125rem; font-weight: 700; color: var(--ink, #292524); margin-bottom: 0.5rem; }
+        .inv-card:hover h3 { color: var(--accent, #7eaacc); }
+        .inv-card .quote { color: var(--ink-muted, #78716c); font-style: italic; font-size: 0.875rem; margin-bottom: 0.75rem; }
+        .inv-card .ref { font-size: 0.75rem; font-weight: 600; color: var(--ink-faint, #a8a29e); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 1rem; }
         .inv-card .insight {
-            display: none; padding-top: 1rem; border-top: 1px solid #e7e5e4;
-            font-size: 0.875rem; line-height: 1.7; color: #57534e;
+            display: none; padding-top: 1rem; border-top: 1px solid var(--line, #e7e5e4);
+            font-size: 0.875rem; line-height: 1.7; color: var(--ink-muted, #57534e);
         }
         .inv-card .insight.open { display: block; animation: fadeIn 0.3s; }
-        .inv-card .insight-label { display: block; color: #0f766e; font-weight: 700; font-size: 0.625rem; text-transform: uppercase; letter-spacing: 0.15em; margin-bottom: 0.25rem; }
-        .inv-card .toggle { text-align: center; margin-top: 1rem; color: #a8a29e; font-size: 1.25rem; font-weight: 300; }
-        .inv-card:hover .toggle { color: #0f766e; }
+        .inv-card .insight-label { display: block; color: var(--accent, #7eaacc); font-weight: 700; font-size: 0.625rem; text-transform: uppercase; letter-spacing: 0.15em; margin-bottom: 0.25rem; }
+        .inv-card .toggle { text-align: center; margin-top: 1rem; color: var(--ink-faint, #a8a29e); font-size: 1.25rem; font-weight: 300; }
+        .inv-card:hover .toggle { color: var(--accent, #7eaacc); }
 
         /* ── I AM panel ────────────────────────────────────────── */
-        .iam-container { border-radius: 0.75rem; border: 1px solid #e7e5e4; overflow: hidden; min-height: 450px; }
+        .iam-container { border-radius: 0.75rem; border: 1px solid var(--line, #e7e5e4); overflow: hidden; min-height: 450px; }
         .iam-grid { display: grid; grid-template-columns: 1fr; }
         @media (min-width: 1024px) { .iam-grid { grid-template-columns: 4fr 8fr; } }
-        .iam-sidebar { background: #fafaf9; padding: 1.5rem; display: flex; flex-direction: column; justify-content: center; gap: 0.25rem; }
-        @media (min-width: 1024px) { .iam-sidebar { border-right: 1px solid #e7e5e4; } }
+        .iam-sidebar { background: var(--bg-sunken, #fafaf9); padding: 1.5rem; display: flex; flex-direction: column; justify-content: center; gap: 0.25rem; }
+        @media (min-width: 1024px) { .iam-sidebar { border-right: 1px solid var(--line, #e7e5e4); } }
         .iam-nav-item {
             padding: 0.75rem 1rem; cursor: pointer; border-radius: 0 0.5rem 0.5rem 0;
-            font-size: 0.875rem; font-weight: 500; color: #78716c;
+            font-size: 0.875rem; font-weight: 500; color: var(--ink-muted, #78716c);
             border-left: 3px solid transparent; transition: all 0.3s;
         }
         .iam-nav-item.active {
-            background: rgba(126,170,204,0.1); border-left-color: #7eaacc;
-            color: #292524; font-weight: 600; padding-left: 1.5rem;
+            background: var(--accent-soft, rgba(126,170,204,0.1)); border-left-color: var(--accent, #7eaacc);
+            color: var(--ink, #292524); font-weight: 600; padding-left: 1.5rem;
         }
         .iam-content { padding: 2rem; display: flex; flex-direction: column; justify-content: center; }
         @media (min-width: 768px) { .iam-content { padding: 3rem; } }
         .iam-badge {
             display: inline-block; padding: 0.25rem 0.75rem; border-radius: 9999px;
-            border: 1px solid #e7e5e4; background: #fafaf9;
+            border: 1px solid var(--line, #e7e5e4); background: var(--bg-sunken, #fafaf9);
             font-size: 0.625rem; font-weight: 700; letter-spacing: 0.2em;
-            text-transform: uppercase; color: #0f766e; margin-bottom: 1.5rem;
+            text-transform: uppercase; color: var(--accent, #7eaacc); margin-bottom: 1.5rem;
         }
-        .iam-title { font-size: 2.25rem; font-weight: 700; color: #1c1917; line-height: 1.2; margin-bottom: 1.5rem; }
+        .iam-title { font-size: 2.25rem; font-weight: 700; color: var(--ink, #1c1917); line-height: 1.2; margin-bottom: 1.5rem; }
         @media (min-width: 768px) { .iam-title { font-size: 3rem; } }
-        .iam-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 2rem; padding-top: 2rem; border-top: 1px solid #e7e5e4; }
-        .iam-meta-label { font-size: 0.625rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.15em; color: #a8a29e; margin-bottom: 0.25rem; }
-        .iam-meta .need { font-size: 1.125rem; color: #292524; font-style: italic; }
-        .iam-meta .verse { font-size: 0.875rem; color: #0f766e; font-family: monospace; }
-        .iam-desc { margin-top: 2rem; font-size: 1rem; color: #57534e; line-height: 1.7; max-width: 36rem; }
+        .iam-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 2rem; padding-top: 2rem; border-top: 1px solid var(--line, #e7e5e4); }
+        .iam-meta-label { font-size: 0.625rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.15em; color: var(--ink-faint, #a8a29e); margin-bottom: 0.25rem; }
+        .iam-meta .need { font-size: 1.125rem; color: var(--ink, #292524); font-style: italic; }
+        .iam-meta .verse { font-size: 0.875rem; color: var(--accent, #7eaacc); font-family: monospace; }
+        .iam-desc { margin-top: 2rem; font-size: 1rem; color: var(--ink-muted, #57534e); line-height: 1.7; max-width: 36rem; }
 
         /* ── Timeline ──────────────────────────────────────────── */
         .timeline-layout { display: flex; flex-direction: column; gap: 1.5rem; }
         @media (min-width: 768px) { .timeline-layout { flex-direction: row; } }
-        .timeline-nav { width: 100%; border-left: 2px solid #e7e5e4; }
+        .timeline-nav { width: 100%; border-left: 2px solid var(--line, #e7e5e4); }
         @media (min-width: 768px) { .timeline-nav { width: 33.33%; } }
         .timeline-content { width: 100%; }
         @media (min-width: 768px) { .timeline-content { width: 66.67%; padding-left: 1.5rem; } }
@@ -136,35 +136,35 @@
             padding: 1rem 1.25rem; margin-left: -3px;
             border-left: 4px solid transparent; cursor: pointer; transition: all 0.3s;
         }
-        .tl-item:hover { border-left-color: #d6d3d1; }
-        .tl-item.active { border-left-color: #0f766e; }
-        .tl-item h4 { font-weight: 700; font-size: 1rem; color: #a8a29e; }
-        .tl-item.active h4 { color: #292524; }
-        .tl-item .sub { font-size: 0.625rem; text-transform: uppercase; letter-spacing: 0.15em; color: #a8a29e; margin-top: 0.25rem; }
+        .tl-item:hover { border-left-color: var(--line, #d6d3d1); }
+        .tl-item.active { border-left-color: var(--accent, #7eaacc); }
+        .tl-item h4 { font-weight: 700; font-size: 1rem; color: var(--ink-faint, #a8a29e); }
+        .tl-item.active h4 { color: var(--ink, #292524); }
+        .tl-item .sub { font-size: 0.625rem; text-transform: uppercase; letter-spacing: 0.15em; color: var(--ink-faint, #a8a29e); margin-top: 0.25rem; }
         .tl-panel {
-            background: #fafaf9; padding: 2rem; border-radius: 0.75rem;
-            border: 1px solid #e7e5e4; height: 100%;
+            background: var(--bg-sunken, #fafaf9); padding: 2rem; border-radius: 0.75rem;
+            border: 1px solid var(--line, #e7e5e4); height: 100%;
             display: flex; flex-direction: column; justify-content: center;
         }
-        .tl-panel h3 { font-size: 1.875rem; font-weight: 700; color: #292524; margin-bottom: 0.25rem; }
-        .tl-panel .sub { color: #0f766e; font-weight: 700; text-transform: uppercase; letter-spacing: 0.15em; font-size: 0.75rem; margin-bottom: 1.5rem; }
-        .tl-panel .mission-label { font-size: 0.625rem; font-weight: 700; color: #a8a29e; text-transform: uppercase; letter-spacing: 0.15em; margin-bottom: 0.5rem; padding-bottom: 0.5rem; border-bottom: 1px solid #e7e5e4; }
-        .tl-panel .mission { color: #57534e; font-size: 1rem; line-height: 1.7; margin-bottom: 2rem; }
+        .tl-panel h3 { font-size: 1.875rem; font-weight: 700; color: var(--ink, #292524); margin-bottom: 0.25rem; }
+        .tl-panel .sub { color: var(--accent, #7eaacc); font-weight: 700; text-transform: uppercase; letter-spacing: 0.15em; font-size: 0.75rem; margin-bottom: 1.5rem; }
+        .tl-panel .mission-label { font-size: 0.625rem; font-weight: 700; color: var(--ink-faint, #a8a29e); text-transform: uppercase; letter-spacing: 0.15em; margin-bottom: 0.5rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--line, #e7e5e4); }
+        .tl-panel .mission { color: var(--ink-muted, #57534e); font-size: 1rem; line-height: 1.7; margin-bottom: 2rem; }
         .tl-hope {
-            background: #fff; padding: 1.25rem; border-radius: 0.5rem;
-            border-left: 4px solid #0f766e; box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+            background: var(--bg-raised, #fff); padding: 1.25rem; border-radius: 0.5rem;
+            border-left: 4px solid var(--accent, #7eaacc); box-shadow: 0 1px 2px rgba(0,0,0,0.04);
         }
-        .tl-hope-label { font-size: 0.625rem; font-weight: 700; color: #0f766e; text-transform: uppercase; letter-spacing: 0.15em; margin-bottom: 0.25rem; }
-        .tl-hope p { color: #292524; font-weight: 500; font-style: italic; font-size: 1rem; line-height: 1.7; }
+        .tl-hope-label { font-size: 0.625rem; font-weight: 700; color: var(--accent, #7eaacc); text-transform: uppercase; letter-spacing: 0.15em; margin-bottom: 0.25rem; }
+        .tl-hope p { color: var(--ink, #292524); font-weight: 500; font-style: italic; font-size: 1rem; line-height: 1.7; }
 
         /* ── Footer ────────────────────────────────────────────── */
         .page-footer {
-            background: #fff; border-top: 1px solid #e7e5e4;
+            background: var(--bg-raised, #fff); border-top: 1px solid var(--line, #e7e5e4);
             padding: 4rem 1rem; text-align: center;
         }
-        .page-footer h2 { font-size: 1.5rem; font-weight: 700; color: #115e59; margin-bottom: 1rem; }
-        .page-footer .verse { color: #78716c; font-size: 1.125rem; line-height: 1.7; font-style: italic; max-width: 48rem; margin: 0 auto 2rem; }
-        .page-footer .sign-off { font-size: 0.75rem; color: #a8a29e; text-transform: uppercase; letter-spacing: 0.15em; }
+        .page-footer h2 { font-size: 1.5rem; font-weight: 700; color: var(--accent, #7eaacc); margin-bottom: 1rem; }
+        .page-footer .verse { color: var(--ink-muted, #78716c); font-size: 1.125rem; line-height: 1.7; font-style: italic; max-width: 48rem; margin: 0 auto 2rem; }
+        .page-footer .sign-off { font-size: 0.75rem; color: var(--ink-faint, #a8a29e); text-transform: uppercase; letter-spacing: 0.15em; }
     </style>
 </head>
 <body>
@@ -255,13 +255,13 @@
         ];
 
         const iamData = [
-            { label: 'Bread of Life', need: 'Spiritual Hunger', verse: 'John 6:35', description: 'Just as physical bread sustains the body, Jesus is the essential nutrient for the soul. Without Him, the spirit starves; with Him, there is enduring life.', color: '#0f766e', icon: '\uD83C\uDF5E' },
+            { label: 'Bread of Life', need: 'Spiritual Hunger', verse: 'John 6:35', description: 'Just as physical bread sustains the body, Jesus is the essential nutrient for the soul. Without Him, the spirit starves; with Him, there is enduring life.', color: 'var(--accent, #7eaacc)', icon: '\uD83C\uDF5E' },
             { label: 'Light of the World', need: 'Guidance in Darkness', verse: 'John 8:12', description: 'In a world of confusion, Jesus provides absolute clarity. Following Him guarantees you will walk in the light of life.', color: '#8B7028', icon: '\uD83D\uDD6F\uFE0F' },
             { label: 'Door of the Sheep', need: 'Security & Access', verse: 'John 10:9', description: 'Jesus is the singular entry point to safety. Through Him, one finds protection from spiritual predators and the freedom of abundant life.', color: '#7eaacc', icon: '\uD83D\uDEAA' },
             { label: 'Good Shepherd', need: 'Care & Protection', verse: 'John 10:11', description: 'Unlike a hired hand, the Good Shepherd loves so profoundly that He willingly lays down His life for the vulnerable.', color: '#3d8b4f', icon: '\uD83D\uDC11' },
             { label: 'Resurrection & Life', need: 'Victory over Death', verse: 'John 11:25', description: 'Faced with the terror of death, Jesus claims total authority. He is the resurrection; in Him, death is merely a doorway.', color: '#7e57c2', icon: '\uD83C\uDF31' },
             { label: 'Way, Truth, Life', need: 'Direction & Reality', verse: 'John 14:6', description: 'The embodiment of ultimate reality and the source of all existence. All human searching ends in Him.', color: '#2563eb', icon: '\uD83E\uDDED' },
-            { label: 'True Vine', need: 'Purpose & Fruitfulness', verse: 'John 15:1', description: 'By abiding in (and remaining) attached to Jesus, believers draw on His endless grace, mercy and strength to produce true, biblical: love, joy, peace, patience, kindness, goodness, faithfulness, gentleness, and self-control that lasts eternally.', color: '#0f766e', icon: '\uD83C\uDF47' }
+            { label: 'True Vine', need: 'Purpose & Fruitfulness', verse: 'John 15:1', description: 'By abiding in (and remaining) attached to Jesus, believers draw on His endless grace, mercy and strength to produce true, biblical: love, joy, peace, patience, kindness, goodness, faithfulness, gentleness, and self-control that lasts eternally.', color: 'var(--accent, #7eaacc)', icon: '\uD83C\uDF47' }
         ];
 
         const workData = [

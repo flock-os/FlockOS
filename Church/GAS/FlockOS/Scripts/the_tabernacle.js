@@ -5069,7 +5069,7 @@ const Modules = (() => {
         const isNT = testament === 'New';
         const accentColor = isNT ? 'var(--accent)' : 'var(--gold)';
         const pillClass = _typePill[bookType.toLowerCase()] || (isNT ? 'pill-accent' : 'pill-gold');
-        const pillLabel = bookType || testament;
+        const pillLabel = bookType || (isNT ? 'New Testament' : 'Old Testament');
         const searchText = (name + ' ' + testament + ' ' + genre + ' ' + summary + ' ' + theology + ' ' + application).toLowerCase();
 
         html += '<details class="browse-item" data-search="' + _e(searchText) + '" data-testament="' + (isNT ? 'nt' : 'ot') + '">';
@@ -6693,7 +6693,7 @@ const Modules = (() => {
     const rows = allRows || _quizData;
     if (!rows.length) return;
     var all = rows.slice().sort(() => Math.random() - 0.5);
-    var limit = Number(localStorage.getItem('flock_quiz_size') || 0);
+    var limit = Number(localStorage.getItem('flock_quiz_size') || localStorage.getItem('flock_cfg_QUIZ_SIZE') || 0);
     _quizPicked = (limit > 0 && limit < all.length) ? all.slice(0, limit) : all;
     _quizIdx = 0;
     _quizAnswers = {};

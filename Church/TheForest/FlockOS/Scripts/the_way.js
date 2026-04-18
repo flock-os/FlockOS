@@ -334,7 +334,10 @@ const TheWay = (() => {
     // Skip for unauthenticated users — UpperRoom requires a session
     var hasSession = _session && (_session.email || _session.token);
     if (hasSession && typeof UpperRoom !== 'undefined' && !UpperRoom.isReady()) {
-      try { await UpperRoom.init(); await UpperRoom.authenticate(); } catch (_) {}
+      try {
+        await _withTimeout(UpperRoom.init(), 8000);
+        await _withTimeout(UpperRoom.authenticate(), 8000);
+      } catch (_) {}
     }
 
     el.innerHTML = '<div style="max-width:1200px;margin:0 auto;">'
