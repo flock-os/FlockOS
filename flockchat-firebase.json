@@ -1,5 +1,5 @@
 {
   "firestore": {
-    "rules": "flockchat-firestore.rules"
+    "rules": "FlockChat.Firestore.Rules"
   }
 }
