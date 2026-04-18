@@ -922,6 +922,14 @@
       transition: all 0.15s; white-space: nowrap;
     }
     .admin-row .btn-remove:hover { border-color: var(--danger); color: var(--danger); }
+    /* ── Admin Tabs ─────────────────────────────────────────────────────────── */
+    .admin-tab {
+      background: none; border: none; border-bottom: 2px solid transparent;
+      color: var(--ink-muted); font-size: 0.85rem; font-weight: 600;
+      padding: 6px 14px; cursor: pointer; transition: all 0.15s;
+    }
+    .admin-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .admin-tab:hover:not(.active) { color: var(--ink); }
 
     /* ── Unread dot on sidebar ──────────────────────────────────────────────── */
     .sidebar-item.has-unread .ch-name { font-weight: 700; color: var(--ink); }
@@ -1273,13 +1281,38 @@
 
 <!-- ─── User Admin Modal ──────────────────────────────────────────────── -->
 <div class="modal-backdrop" id="modal-admin">
-  <div class="modal-card" style="width:520px;max-height:80vh;display:flex;flex-direction:column">
-    <h2>Manage Users</h2>
-    <div id="admin-user-list" style="flex:1;overflow-y:auto;margin-bottom:16px">
-      <div class="spinner" style="margin:20px auto"></div>
+  <div class="modal-card" style="width:580px;max-height:85vh;display:flex;flex-direction:column">
+    <h2 style="margin-bottom:10px">Admin Dashboard</h2>
+    <div style="display:flex;gap:2px;margin-bottom:14px;border-bottom:1px solid var(--line)">
+      <button class="admin-tab active" data-tab="users">👥 Users</button>
+      <button class="admin-tab" data-tab="rooms">🏠 Rooms</button>
+    </div>
+    <div id="admin-tab-users" style="flex:1;overflow-y:auto;margin-bottom:16px">
+      <div id="admin-user-list"><div class="spinner" style="margin:20px auto"></div></div>
+    </div>
+    <div id="admin-tab-rooms" style="flex:1;overflow-y:auto;margin-bottom:16px;display:none">
+      <div id="admin-room-list"><div class="spinner" style="margin:20px auto"></div></div>
     </div>
     <div class="modal-actions">
       <button class="btn-secondary" id="btn-close-admin">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── Invite to Room Modal ─────────────────────────────────────────── -->
+<div class="modal-backdrop" id="modal-invite-room">
+  <div class="modal-card">
+    <h2>Invite to Channel</h2>
+    <p id="invite-room-label" style="font-size:0.85rem;color:var(--ink-muted);margin-bottom:12px"></p>
+    <div class="modal-field">
+      <label>Select User</label>
+      <select id="invite-room-user">
+        <option value="">— Select a user —</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" id="btn-cancel-invite-room">Cancel</button>
+      <button class="btn-primary" id="btn-confirm-invite-room">Invite</button>
     </div>
   </div>
 </div>
@@ -1297,10 +1330,22 @@
       <input type="text" id="new-ch-desc" placeholder="What's this channel for?">
     </div>
     <div class="modal-field">
-      <label>Type</label>
-      <select id="new-ch-type">
+      <label>Access</label>
+      <select id="new-ch-access">
         <option value="public">Public — anyone can join</option>
         <option value="private">Private — invite only</option>
+        <option value="role-gated">Role-Gated — minimum role required</option>
+      </select>
+    </div>
+    <div class="modal-field" id="new-ch-minrole-row" style="display:none">
+      <label>Minimum Role</label>
+      <select id="new-ch-minrole">
+        <option value="readonly">Read Only</option>
+        <option value="volunteer">Volunteer</option>
+        <option value="care">Care Team</option>
+        <option value="leader" selected>Leader</option>
+        <option value="pastor">Pastor</option>
+        <option value="admin">Admin</option>
       </select>
     </div>
     <div class="modal-actions">

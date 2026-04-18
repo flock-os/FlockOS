@@ -379,7 +379,11 @@ const TheWord = (() => {
     container.innerHTML = '';
 
     _channels
-      .filter(ch => !search || ch.name.toLowerCase().includes(search))
+      .filter(ch => {
+        if (ch.access === 'private' && !(ch.members || []).includes(_me?.uid) && !_isAdmin()) return false;
+        if (ch.access === 'role-gated' && ch.minRole && !_hasRole(ch.minRole) && !_isAdmin()) return false;
+        return !search || ch.name.toLowerCase().includes(search);
+      })
       .forEach(ch => {
         const lastRead = _userReads[ch.id] || 0;
         const lastTs   = ch.lastTimestamp?.toMillis?.() || 0;
@@ -466,14 +470,26 @@ const TheWord = (() => {
     // Show/hide join banner & composer
     const banner   = _el('join-banner');
     const composer = _el('composer');
+    const joinBtn  = _el('btn-join-channel');
     if (isMember) {
       banner.style.display   = 'none';
       composer.style.display = '';
-      _el('btn-join-channel').onclick = null;
-    } else {
+      if (joinBtn) joinBtn.onclick = null;
+    } else if (ch.access === 'role-gated' && ch.minRole && !_hasRole(ch.minRole)) {
+      banner.querySelector('p').textContent = `This channel requires ${ch.minRole} access or higher.`;
+      if (joinBtn) joinBtn.style.display = 'none';
       banner.style.display   = 'flex';
       composer.style.display = 'none';
-      _el('btn-join-channel').onclick = () => _joinChannel(ch);
+    } else if (ch.access === 'private') {
+      banner.querySelector('p').textContent = 'This is a private channel. Contact an admin to be invited.';
+      if (joinBtn) joinBtn.style.display = 'none';
+      banner.style.display   = 'flex';
+      composer.style.display = 'none';
+    } else {
+      banner.querySelector('p').textContent = "You're not a member of this channel.";
+      if (joinBtn) { joinBtn.style.display = ''; joinBtn.onclick = () => _joinChannel(ch); }
+      banner.style.display   = 'flex';
+      composer.style.display = 'none';
     }
 
     // Mark read
@@ -867,15 +883,17 @@ const TheWord = (() => {
   }
 
   async function _createChannel() {
-    // Role gate: only admin or pastor may create channels
-    if (!['admin', 'pastor'].includes(_me?.role)) {
-      _toast('Only pastors and admins can create channels.', 'error');
+    // Role gate: only leader+ may create channels
+    if (!_hasRole('leader')) {
+      _toast('Only leaders, pastors, and admins can create channels.', 'error');
       return;
     }
 
-    const name = _el('new-ch-name').value.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-    const desc = _el('new-ch-desc').value.trim();
-    const type = _el('new-ch-type').value;
+    const name    = _el('new-ch-name').value.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+    const desc    = _el('new-ch-desc').value.trim();
+    const access  = _el('new-ch-access').value;
+    const minRole = access === 'role-gated' ? (_el('new-ch-minrole').value || 'leader') : '';
+    const type    = access === 'private' ? 'private' : 'public';
 
     if (!name) { _toast('Channel name is required.', 'error'); return; }
 
@@ -884,7 +902,7 @@ const TheWord = (() => {
 
     try {
       const ref = await F.addDoc(F.collection(db, _col('channels')), {
-        name, description: desc, type,
+        name, description: desc, type, access, minRole,
         createdBy: _me.uid,
         createdAt: F.serverTimestamp(),
         members: [_me.uid],
@@ -894,8 +912,10 @@ const TheWord = (() => {
       _closeModal('modal-new-channel');
       _el('new-ch-name').value = '';
       _el('new-ch-desc').value = '';
+      _el('new-ch-access').value = 'public';
+      _el('new-ch-minrole-row').style.display = 'none';
       // Open it immediately
-      _openChannel({ id: ref.id, name, description: desc, type });
+      _openChannel({ id: ref.id, name, description: desc, type, access, minRole });
     } catch (err) {
       _toast('Failed to create channel.', 'error');
       console.error(err);
@@ -905,77 +925,6 @@ const TheWord = (() => {
   // ─────────────────────────────────────────────────────────────────────────
   // MANAGE USERS (admin only)
   // ─────────────────────────────────────────────────────────────────────────
-  async function _openManageUsers() {
-    if (!_isAdmin()) return;
-    _openModal('modal-manage-users');
-    const listEl = _el('manage-users-list');
-    listEl.innerHTML = '<div style="text-align:center;padding:24px"><div class="spinner"></div></div>';
-
-    try {
-      const snap = await F.getDocs(F.collection(db, _col('users')));
-      if (snap.empty) { listEl.innerHTML = '<p style="padding:12px;color:var(--ink-muted)">No users found.</p>'; return; }
-
-      const ROLES = ['volunteer', 'pastor', 'admin'];
-      let html = '';
-      snap.forEach(d => {
-        const u = d.data();
-        const uid = d.id;
-        const isSelf = uid === _me?.uid;
-        const initials = _initials(u.displayName || u.email || '?');
-        const roleOptions = ROLES.map(r =>
-          `<option value="${r}"${u.role === r ? ' selected' : ''}>${r}</option>`
-        ).join('');
-        html += `<div class="user-mgmt-row" id="umrow-${uid}">
-          <div class="msg-avatar" style="width:34px;height:34px;font-size:0.8rem;flex-shrink:0">${_esc(initials)}</div>
-          <div class="user-mgmt-info">
-            <div class="user-mgmt-name">${_esc(u.displayName || '—')}</div>
-            <div class="user-mgmt-email">${_esc(u.email || uid)}</div>
-          </div>
-          <select class="user-mgmt-role" data-uid="${uid}" ${isSelf ? 'disabled title="Cannot change your own role"' : ''}>
-            ${roleOptions}
-          </select>
-          ${!isSelf ? `<button class="user-mgmt-remove" data-uid="${uid}" title="Remove user">✕</button>` : ''}
-        </div>`;
-      });
-      listEl.innerHTML = html;
-
-      // Role change
-      listEl.querySelectorAll('.user-mgmt-role').forEach(sel => {
-        sel.addEventListener('change', async () => {
-          const uid = sel.dataset.uid;
-          const newRole = sel.value;
-          try {
-            await F.updateDoc(F.doc(db, _col('users'), uid), { role: newRole });
-            _toast('Role updated.', 'success');
-          } catch (e) {
-            _toast('Failed to update role.', 'error');
-            console.error(e);
-          }
-        });
-      });
-
-      // Remove user
-      listEl.querySelectorAll('.user-mgmt-remove').forEach(btn => {
-        btn.addEventListener('click', async () => {
-          const uid = btn.dataset.uid;
-          if (!confirm('Remove this user from FlockChat? This only removes their profile — they can still log in.')) return;
-          try {
-            await F.deleteDoc(F.doc(db, _col('users'), uid));
-            document.getElementById(`umrow-${uid}`)?.remove();
-            _toast('User removed.', 'success');
-          } catch (e) {
-            _toast('Failed to remove user.', 'error');
-            console.error(e);
-          }
-        });
-      });
-
-    } catch (err) {
-      listEl.innerHTML = '<p style="padding:12px;color:#e57373">Failed to load users.</p>';
-      console.error(err);
-    }
-  }
-
   async function _openDMModal() {
     const select = _el('dm-user-select');
     select.innerHTML = '<option value="">Loading…</option>';
@@ -1165,24 +1114,67 @@ const TheWord = (() => {
   }
 
   // Returns true for both admin and pastor roles
-  function _isAdmin() { return ['admin', 'pastor'].includes(_me?.role); }
+  const ROLE_LEVELS = { readonly: 0, volunteer: 1, care: 2, leader: 3, pastor: 4, admin: 5 };
+  function _hasRole(required) {
+    return (ROLE_LEVELS[_me?.role] || 0) >= (ROLE_LEVELS[required] || 0);
+  }
+  function _isAdmin() { return _hasRole('pastor'); }
 
   // ─────────────────────────────────────────────────────────────────────────
   // USER ADMIN PANEL
   // ─────────────────────────────────────────────────────────────────────────
   function _bindAdminPanel() {
     _el('btn-close-admin').addEventListener('click', () => _closeModal('modal-admin'));
+
+    // Tab switching
+    document.querySelectorAll('.admin-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        const which = tab.dataset.tab;
+        _el('admin-tab-users').style.display = which === 'users' ? '' : 'none';
+        _el('admin-tab-rooms').style.display = which === 'rooms' ? '' : 'none';
+        if (which === 'rooms') _loadAdminRoomsTab();
+      });
+    });
+
+    // Access type show/hide minRole row in new-channel modal
+    const accessSel = _el('new-ch-access');
+    if (accessSel) {
+      accessSel.addEventListener('change', () => {
+        _el('new-ch-minrole-row').style.display = accessSel.value === 'role-gated' ? '' : 'none';
+      });
+    }
+
+    // Invite room modal
+    _el('btn-cancel-invite-room').addEventListener('click', () => _closeModal('modal-invite-room'));
+    _el('btn-confirm-invite-room').addEventListener('click', _confirmRoomInvite);
   }
+
+  let _inviteRoomId = null;
 
   async function _openAdminPanel() {
     if (!_isAdmin()) {
-      _toast('Only pastors and admins can manage users.', 'error');
+      _toast('Only pastors and admins can access the admin dashboard.', 'error');
       return;
     }
+    // Reset to users tab
+    document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
+    const usersTab = document.querySelector('.admin-tab[data-tab="users"]');
+    if (usersTab) usersTab.classList.add('active');
+    _el('admin-tab-users').style.display = '';
+    _el('admin-tab-rooms').style.display = 'none';
+
     _openModal('modal-admin');
+    _loadAdminUsersTab();
+  }
+
+  const ALL_ROLES = ['readonly', 'volunteer', 'care', 'leader', 'pastor', 'admin'];
+  const ROLE_LABELS = { readonly: 'Read Only', volunteer: 'Volunteer', care: 'Care Team', leader: 'Leader', pastor: 'Pastor', admin: 'Admin' };
+
+  async function _loadAdminUsersTab() {
     const container = _el('admin-user-list');
     container.innerHTML = '<div class="spinner" style="margin:20px auto"></div>';
-
     try {
       const snap = await F.getDocs(F.collection(db, _col('users')));
       container.innerHTML = '';
@@ -1191,7 +1183,9 @@ const TheWord = (() => {
         const uid  = d.id;
         const initials = _initials(data.displayName || uid);
         const isSelf = uid === _me.uid;
-
+        const roleOptions = ALL_ROLES.map(r =>
+          `<option value="${r}"${data.role === r ? ' selected' : ''}>${ROLE_LABELS[r]}</option>`
+        ).join('');
         const row = document.createElement('div');
         row.className = 'admin-row';
         row.innerHTML = `
@@ -1200,28 +1194,122 @@ const TheWord = (() => {
             <div class="admin-name">${_esc(data.displayName || uid)}${isSelf ? ' <em style="font-size:0.72rem;color:var(--ink-faint)">(you)</em>' : ''}</div>
             <div class="admin-email">${_esc(data.email || '')}</div>
           </div>
-          <select id="role-sel-${uid}" ${isSelf ? 'disabled' : ''}>
-            <option value="volunteer" ${data.role === 'volunteer' ? 'selected' : ''}>Volunteer</option>
-            <option value="leader"    ${data.role === 'leader'    ? 'selected' : ''}>Leader</option>
-            <option value="pastor"    ${data.role === 'pastor'    ? 'selected' : ''}>Pastor</option>
-            <option value="admin"     ${data.role === 'admin'     ? 'selected' : ''}>Admin</option>
-          </select>
+          <select id="role-sel-${uid}" ${isSelf ? 'disabled' : ''}>${roleOptions}</select>
           ${!isSelf ? `<button class="btn-remove" data-uid="${uid}">Remove</button>` : ''}`;
-
         const sel = row.querySelector(`#role-sel-${uid}`);
-        if (sel) {
-          sel.addEventListener('change', () => _setUserRole(uid, sel.value));
-        }
+        if (sel) sel.addEventListener('change', () => _setUserRole(uid, sel.value));
         const removeBtn = row.querySelector('.btn-remove');
-        if (removeBtn) {
-          removeBtn.addEventListener('click', () => _removeUser(uid, data.displayName, row));
-        }
+        if (removeBtn) removeBtn.addEventListener('click', () => _removeUser(uid, data.displayName, row));
         container.appendChild(row);
       });
       if (!snap.size) container.innerHTML = '<p style="color:var(--ink-muted);font-size:0.85rem">No users found.</p>';
     } catch (err) {
       container.innerHTML = '<p style="color:var(--danger)">Could not load users.</p>';
       console.error(err);
+    }
+  }
+
+  async function _loadAdminRoomsTab() {
+    const container = _el('admin-room-list');
+    container.innerHTML = '<div class="spinner" style="margin:20px auto"></div>';
+    try {
+      const [chSnap, userSnap] = await Promise.all([
+        F.getDocs(F.collection(db, _col('channels'))),
+        F.getDocs(F.collection(db, _col('users')))
+      ]);
+      const usersMap = {};
+      userSnap.forEach(d => { usersMap[d.id] = d.data(); });
+
+      container.innerHTML = '';
+      if (chSnap.empty) {
+        container.innerHTML = '<p style="color:var(--ink-muted);font-size:0.85rem">No channels found.</p>';
+        return;
+      }
+
+      chSnap.forEach(d => {
+        const ch = { id: d.id, ...d.data() };
+        const accessOptions = ['public', 'private', 'role-gated'].map(a =>
+          `<option value="${a}"${(ch.access || 'public') === a ? ' selected' : ''}>${a}</option>`
+        ).join('');
+        const roleOptions = ALL_ROLES.map(r =>
+          `<option value="${r}"${ch.minRole === r ? ' selected' : ''}>${ROLE_LABELS[r]}</option>`
+        ).join('');
+        const isRoleGated = ch.access === 'role-gated';
+        const isPrivate   = ch.access === 'private';
+
+        const row = document.createElement('div');
+        row.className = 'admin-row';
+        row.id = `rmrow-${ch.id}`;
+        row.innerHTML = `
+          <div class="admin-info">
+            <div class="admin-name"># ${_esc(ch.name)}</div>
+            <div class="admin-email">${(ch.members || []).length} member(s)</div>
+          </div>
+          <select class="room-access-sel" data-id="${ch.id}" style="font-size:0.78rem">${accessOptions}</select>
+          <select class="room-minrole-sel" data-id="${ch.id}" style="font-size:0.78rem${isRoleGated ? '' : ';display:none'}">${roleOptions}</select>
+          <button class="btn-invite-room" data-id="${ch.id}" data-name="${_esc(ch.name)}" style="font-size:0.78rem;padding:4px 10px;background:var(--accent);color:#fff;border:none;border-radius:6px;cursor:pointer${isPrivate ? '' : ';display:none'}">Invite</button>`;
+
+        const accessSel  = row.querySelector('.room-access-sel');
+        const roleSel    = row.querySelector('.room-minrole-sel');
+        const inviteBtn  = row.querySelector('.btn-invite-room');
+
+        accessSel.addEventListener('change', async () => {
+          const newAccess = accessSel.value;
+          roleSel.style.display   = newAccess === 'role-gated' ? '' : 'none';
+          inviteBtn.style.display = newAccess === 'private'    ? '' : 'none';
+          try {
+            await F.updateDoc(F.doc(db, _col('channels'), ch.id), { access: newAccess });
+            _toast('Channel access updated.', 'success');
+          } catch (e) { _toast('Failed to update.', 'error'); }
+        });
+
+        roleSel.addEventListener('change', async () => {
+          try {
+            await F.updateDoc(F.doc(db, _col('channels'), ch.id), { minRole: roleSel.value });
+            _toast('Minimum role updated.', 'success');
+          } catch (e) { _toast('Failed to update.', 'error'); }
+        });
+
+        inviteBtn.addEventListener('click', () => _openInviteRoom(ch, usersMap));
+        container.appendChild(row);
+      });
+    } catch (err) {
+      container.innerHTML = '<p style="color:var(--danger)">Could not load channels.</p>';
+      console.error(err);
+    }
+  }
+
+  function _openInviteRoom(ch, usersMap) {
+    _inviteRoomId = ch.id;
+    _el('invite-room-label').textContent = `Invite a user to #${ch.name}`;
+    const sel = _el('invite-room-user');
+    const members = ch.members || [];
+    sel.innerHTML = '<option value="">— Select a user —</option>';
+    Object.entries(usersMap).forEach(([uid, u]) => {
+      if (members.includes(uid)) return;
+      const opt = document.createElement('option');
+      opt.value = uid;
+      opt.textContent = u.displayName || u.email || uid;
+      sel.appendChild(opt);
+    });
+    if (sel.options.length === 1) {
+      _toast('All users are already members of this channel.', 'info');
+      return;
+    }
+    _openModal('modal-invite-room');
+  }
+
+  async function _confirmRoomInvite() {
+    const uid = _el('invite-room-user').value;
+    if (!uid || !_inviteRoomId) { _toast('Select a user first.', 'error'); return; }
+    try {
+      await F.updateDoc(F.doc(db, _col('channels'), _inviteRoomId), { members: F.arrayUnion(uid) });
+      _toast('User invited to channel.', 'success');
+      _closeModal('modal-invite-room');
+      _inviteRoomId = null;
+      _loadAdminRoomsTab();
+    } catch (e) {
+      _toast('Failed to invite user.', 'error');
     }
   }
 
@@ -1266,7 +1354,7 @@ const TheWord = (() => {
     if (oldSignout) oldSignout.addEventListener('click', async () => { await F.signOut(auth); });
 
     const btnManageUsers = _el('btn-manage-users');
-    if (btnManageUsers) btnManageUsers.addEventListener('click', _openManageUsers);
+    if (btnManageUsers) btnManageUsers.addEventListener('click', _openAdminPanel);
     const btnCloseManageUsers = _el('btn-close-manage-users');
     if (btnCloseManageUsers) btnCloseManageUsers.addEventListener('click', () => _closeModal('modal-manage-users'));
 
@@ -1393,7 +1481,7 @@ const TheWord = (() => {
 
     // Role-gate channel creation button and admin menu item
     const btnNewCh = _el('btn-new-channel');
-    if (btnNewCh) btnNewCh.style.display = _isAdmin() ? '' : 'none';
+    if (btnNewCh) btnNewCh.style.display = _hasRole('leader') ? '' : 'none';
     const btnAdmin = _el('btn-open-admin');
     if (btnAdmin) btnAdmin.style.display = _isAdmin() ? '' : 'none';
     const btnUsers = _el('btn-manage-users');
