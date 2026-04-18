@@ -9,7 +9,7 @@
 #   Church/GAS/       → https://flock-os.github.io/FlockOS/Church/GAS/
 #   Church/TBC/       → https://flock-os.github.io/FlockOS/Church/TBC/
 #   Church/TheForest/ → https://flock-os.github.io/FlockOS/Church/TheForest/
-# Note: GAS/TBC/TheForest configs are fetched from the master API (master-api.json).
+# Note: GAS/TBC/TheForest configs are fetched from the master API (Master-API.json).
 # ======================================================================
 set -euo pipefail
 
@@ -31,7 +31,7 @@ ROOT_MANIFEST="$REPO_ROOT/manifest.json"
 ROOT_SW="$REPO_ROOT/the_living_water.js"
 
 # ── Default values (hardcoded in source for GitHub Pages root) ────────
-DEFAULT_CONFIG="$CONFIGS_DIR/flockos-default.json"
+DEFAULT_CONFIG="$CONFIGS_DIR/FlockOS-Root.json"
 DEF_NAME=$(jq -r '.name' "$DEFAULT_CONFIG")
 DEF_TAGLINE=$(jq -r '.tagline' "$DEFAULT_CONFIG")
 DEF_FAVICON=$(jq -r '.favicon' "$DEFAULT_CONFIG")
@@ -73,7 +73,7 @@ done
 # Validate JSON configs
 for jf in "$CONFIGS_DIR"/*.json; do
   [[ "$(basename "$jf")" == "ChurchTemplate.json" ]] && continue
-  [[ "$(basename "$jf")" == "master-api.json" ]] && continue
+  [[ "$(basename "$jf")" == "Master-API.json" ]] && continue
   if ! jq empty "$jf" 2>/dev/null; then
     echo "  ✗ INVALID JSON: $(basename "$jf")"
     PREFLIGHT_OK=false
@@ -107,9 +107,9 @@ echo "  ✓ All pre-flight checks passed"
 echo ""
 
 # ── Optional: fetch church configs from the master FlockOS API ─────────────
-# Create Active\ Deployments/master-api.json with { "apiUrl": "...", "apiToken": "..." }
+# Create Active\ Deployments/Master-API.json with { "apiUrl": "...", "apiToken": "..." }
 # to build church deployments from the Church Registry instead of local JSON files.
-MASTER_API_FILE="$CONFIGS_DIR/master-api.json"
+MASTER_API_FILE="$CONFIGS_DIR/Master-API.json"
 BUILD_CONFIGS_DIR="$CONFIGS_DIR"  # default: use local JSON files
 
 if [ -f "$MASTER_API_FILE" ]; then
@@ -205,8 +205,8 @@ print('  → bezalel_synchandler_codex.js regenerated (' + str(lines) + ' lines)
 " "$SYNCHANDLER_MD" "$SYNCHANDLER_OUT"
 fi
 
-# ── Count configs (excluding template and master-api) ───────────────────────
-CONFIG_COUNT=$(find "$BUILD_CONFIGS_DIR" -maxdepth 1 -name '*.json' ! -name 'ChurchTemplate.json' ! -name 'master-api.json' | wc -l | tr -d ' ')
+# ── Count configs (excluding template and Master-API) ───────────────────────
+CONFIG_COUNT=$(find "$BUILD_CONFIGS_DIR" -maxdepth 1 -name '*.json' ! -name 'ChurchTemplate.json' ! -name 'Master-API.json' | wc -l | tr -d ' ')
 if [ "$CONFIG_COUNT" -eq 0 ]; then
   echo "No church configs found in $BUILD_CONFIGS_DIR"
   exit 1
@@ -218,7 +218,7 @@ echo ""
 for config in "$BUILD_CONFIGS_DIR"/*.json; do
   # Skip template and API auth files
   [[ "$(basename "$config")" == "ChurchTemplate.json" ]] && continue
-  [[ "$(basename "$config")" == "master-api.json" ]] && continue
+  [[ "$(basename "$config")" == "Master-API.json" ]] && continue
 
   CHURCH_NAME=$(jq -r '.name' "$config")
   CHURCH_SHORT=$(jq -r '.shortName' "$config")

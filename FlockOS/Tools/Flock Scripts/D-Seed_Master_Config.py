@@ -35,7 +35,7 @@ CREDS = Path(__file__).resolve().parents[3] / "CurrentFBPW.json"
 DEPLOYMENTS_DIR = Path(__file__).resolve().parents[1] / "Flock Deployments"
 
 CHURCH_FILES = [
-    "flockos-default.json",
+    "FlockOS-Root.json",
     "TheForest.json",
     "Trinity.json",
 ]

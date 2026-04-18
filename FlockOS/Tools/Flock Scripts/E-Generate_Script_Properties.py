@@ -35,7 +35,7 @@ SECRETS_DIR   = REPO_ROOT / "FlockOS" / "Tools" / "Flock Secrets"
 
 # ── Church configs (id → json file) ─────────────────────────────────────────
 CHURCH_FILES = {
-    "flockos":    "flockos-default.json",
+    "flockos":    "FlockOS-Root.json",
     "tbc":        "Trinity.json",
     "trinity":    "Trinity.json",
     "theforest":  "TheForest.json",
