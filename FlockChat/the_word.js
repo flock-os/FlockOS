@@ -457,7 +457,7 @@ const TheWord = (() => {
     const isMember = (ch.members || []).includes(_me?.uid);
     _setActive(ch.id, 'channel');
     _el('topbar-channel-name').innerHTML =
-      `<span class="sigil">${ch.type === 'private' ? '🔒' : '#'}</span><span id="topbar-channel-label">${_esc(ch.name)}</span>`;
+      `<span id="topbar-channel-label">${ch.type === 'private' ? '🔒 ' : ''}${_esc(ch.name)}</span>`;
     _el('topbar-channel-desc').textContent = ch.description || '';
     _el('composer-input').placeholder = `Message #${ch.name}…`;
     _el('details-title').textContent = `# ${ch.name}`;
