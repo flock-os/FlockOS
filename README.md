@@ -64,7 +64,7 @@ FlockOS/
 │   ├── manifest.json             PWA manifest for FlockChat
 │   └── Images/                   FlockChat icons
 │
-├── flockchat-functions/          Firebase Cloud Functions
+├── FlockChat-Functions/           Firebase Cloud Functions
 │   └── index.js                  FCM push notification dispatcher
 │
 └── FlockOS/                      ← SOURCE — edit here only
@@ -141,7 +141,7 @@ FlockOS/
 |------|------:|------|
 | `FlockChat.html` | 1,457 | Single-page app shell — Firebase config, CSS, HTML structure |
 | `FlockChat/the_word.js` | 1,567 | All client logic — auth, channels, DMs, roles, admin dashboard |
-| `flockchat-functions/index.js` | 166 | Cloud Function — FCM push notification dispatcher |
+| `FlockChat-Functions/index.js` | 166 | Cloud Function — FCM push notification dispatcher |
 
 **Deployed to:** `https://flockos-comms.web.app` (serves all churches via `?church=` URL param)
 

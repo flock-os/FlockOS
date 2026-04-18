@@ -1,5 +1,5 @@
 {
-  "name": "flockchat-functions",
+  "name": "FlockChat-Functions",
   "version": "1.0.0",
   "description": "FlockChat FCM push notification Cloud Functions",
   "main": "index.js",
