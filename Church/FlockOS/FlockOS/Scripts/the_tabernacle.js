@@ -10490,7 +10490,7 @@ const Modules = (() => {
       return;
     }
     _ppEl = el;
-    _shell(el, 'People', 'Unified user, member & card management.',
+    _shell(el, 'Flock Users', 'Unified user, member & card management.',
       _btn('+ New Person', "Modules.newUser()") + ' '
       + _btn('Pending', "Modules._ppFilter('pending')", false));
     await _ppLoadList(el);
@@ -20443,7 +20443,7 @@ const Modules = (() => {
     // Quick Actions grid
     var qaButtons = [
       { icon: '&#9881;&#65039;', label: 'Settings',         nav: 'config' },
-      { icon: '&#128101;',       label: 'Users',             nav: 'users' },
+      { icon: '&#128101;',       label: 'Flock Users',       nav: 'users' },
       { icon: '&#128202;',       label: 'Statistics',        nav: 'statistics' },
       { icon: '&#128196;',       label: 'Reports',           nav: 'reports' },
       { icon: '&#128270;',       label: 'Audit Log',         nav: 'audit' },
