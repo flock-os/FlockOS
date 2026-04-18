@@ -1386,7 +1386,7 @@ const TheWord = (() => {
     // Set topbar user info
     _el('topbar-uname').textContent = (_me.displayName || '').split(' ')[0];
     const av = _el('topbar-avatar');
-    av.textContent = _initials(_me.displayName);
+    if (av) av.textContent = _initials(_me.displayName);
 
     // Set user menu name
     const menuName = _el('user-menu-name');
