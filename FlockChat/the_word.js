@@ -456,9 +456,8 @@ const TheWord = (() => {
   function _openChannel(ch) {
     const isMember = (ch.members || []).includes(_me?.uid);
     _setActive(ch.id, 'channel');
-    _el('topbar-channel-name').innerHTML =
-      `<span id="topbar-channel-label">${ch.type === 'private' ? '🔒 ' : ''}${_esc(ch.name)}</span>`;
-    _el('topbar-channel-desc').textContent = ch.description || '';
+    const _tcn = _el('topbar-channel-name'); if (_tcn) _tcn.innerHTML = `<span id="topbar-channel-label">${ch.type === 'private' ? '🔒 ' : ''}${_esc(ch.name)}</span>`;
+    const _tcd = _el('topbar-channel-desc'); if (_tcd) _tcd.textContent = ch.description || '';
     _el('composer-input').placeholder = `Message #${ch.name}…`;
     _el('details-title').textContent = `# ${ch.name}`;
     _el('details-desc').textContent  = ch.description || 'No description.';
@@ -489,8 +488,8 @@ const TheWord = (() => {
   // ─────────────────────────────────────────────────────────────────────────
   function _openDM(dm, otherName) {
     _setActive(dm.id, 'dm');
-    _el('topbar-channel-name').innerHTML = `<span id="topbar-channel-label">${_esc(otherName)}</span>`;
-    _el('topbar-channel-desc').textContent = 'Direct Message';
+    const _tcn2 = _el('topbar-channel-name'); if (_tcn2) _tcn2.innerHTML = `<span id="topbar-channel-label">${_esc(otherName)}</span>`;
+    const _tcd2 = _el('topbar-channel-desc'); if (_tcd2) _tcd2.textContent = 'Direct Message';
     _el('composer-input').placeholder = `Message ${otherName}…`;
     _el('details-title').textContent = otherName;
     _el('details-desc').textContent  = 'Direct Message';
