@@ -512,6 +512,7 @@
     var msg = (reason && reason.message) || String(reason || 'Unknown async error');
     // Suppress known non-critical rejections
     if (msg.indexOf('AbortError') !== -1 || msg.indexOf('cancelled') !== -1) return;
+    if (msg.indexOf('Not authenticated') !== -1 || msg.indexOf('not authenticated') !== -1) return;
     if (msg.length > 120) msg = msg.substring(0, 117) + '\u2026';
     _showErrToast(msg);
   };
