@@ -134,11 +134,19 @@ const TheShepherd = (() => {
   async function renderApp(container, opts) {
     _container = container;
     opts = opts || {};
+    // Derive the pager/reload ID from the container element (e.g. 'view-directory' → 'directory').
+    // This is critical: when TheShepherd is mounted inside 'directory' or 'my-flock', pagination
+    // buttons must call _reload('directory'), not _reload('users'), otherwise Next/Prev silently
+    // re-renders a hidden element and nothing changes on screen.
+    var _pgId = (container.id || 'users').replace(/^view-/, '') || 'users';
     container.innerHTML = _spinner();
 
     try {
       // Re-use cached data on paginate / reload; fetch fresh on first load
       if (!_allPeople) {
+        // Clear stale search/filter state when loading fresh data
+        _searchQ = '';
+        _filterVal = 'all';
         // Load ALL users, members, cards (high limit bypasses _DEFAULT_PAGE 25)
         var fbAll = { limit: 9999 };
         var res = await Promise.allSettled([
@@ -173,7 +181,7 @@ const TheShepherd = (() => {
 
       // ── Client-side pagination via Modules pager state ──────────────
       var pg = (typeof Modules !== 'undefined' && Modules._pgState)
-             ? Modules._pgState('users') : null;
+             ? Modules._pgState(_pgId) : null;
       var pageSlice = people;
       if (pg) {
         var start = pg.page * pg.size;
@@ -202,15 +210,16 @@ const TheShepherd = (() => {
       h += '<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:14px;">';
       h += '<input id="shep-q" type="search" placeholder="Search name, email, phone\u2026"'
          + ' oninput="TheShepherd._search(this.value)"'
+         + ' value="' + _e(_searchQ) + '"'
          + ' style="flex:1;min-width:200px;background:rgba(255,255,255,0.07);border:1px solid var(--line);border-radius:6px;padding:8px 12px;color:var(--ink);font-size:0.88rem;font-family:inherit;">';
       h += '<select id="shep-filter" onchange="TheShepherd._filter(this.value)"'
          + ' style="background:rgba(255,255,255,0.07);border:1px solid var(--line);border-radius:6px;padding:8px 12px;color:var(--ink);font-size:0.84rem;font-family:inherit;">'
-         + '<option value="all">All People</option>'
-         + '<option value="user">Users Only</option>'
-         + '<option value="member">Members Only</option>'
-         + '<option value="both">Users + Members</option>'
-         + '<option value="card">Has Card</option>'
-         + '<option value="pending">Pending Approval</option></select>';
+         + '<option value="all"' + (_filterVal === 'all' ? ' selected' : '') + '>All People</option>'
+         + '<option value="user"' + (_filterVal === 'user' ? ' selected' : '') + '>Users Only</option>'
+         + '<option value="member"' + (_filterVal === 'member' ? ' selected' : '') + '>Members Only</option>'
+         + '<option value="both"' + (_filterVal === 'both' ? ' selected' : '') + '>Users + Members</option>'
+         + '<option value="card"' + (_filterVal === 'card' ? ' selected' : '') + '>Has Card</option>'
+         + '<option value="pending"' + (_filterVal === 'pending' ? ' selected' : '') + '>Pending Approval</option></select>';
       h += '</div>';
 
       // stat pills
@@ -223,7 +232,7 @@ const TheShepherd = (() => {
       // table (paginated slice) + pager bar
       h += '<div id="shep-tbl">' + _buildTable(pageSlice) + '</div>';
       if (pg && typeof Modules !== 'undefined' && Modules._pagerBar) {
-        h += Modules._pagerBar('users');
+        h += Modules._pagerBar(_pgId);
       }
       container.innerHTML = h;
     } catch (e) { container.innerHTML = _errHtml(e.message); }
@@ -290,25 +299,62 @@ const TheShepherd = (() => {
   }
 
   // ── Search & filter ─────────────────────────────────────────────────────
+  // _searchQ tracks current query; _filterVal tracks current type filter
+  var _searchQ   = '';
+  var _filterVal = 'all';
+
   function _search(q) {
-    q = (q || '').toLowerCase().trim();
-    document.querySelectorAll('.shep-row').forEach(function(r) {
-      r.style.display = (!q || (r.dataset.search || '').indexOf(q) >= 0) ? '' : 'none';
-    });
-    if (q && typeof TheScrolls !== 'undefined') {
-      TheScrolls.log(TheScrolls.TYPES.SEARCH, '', 'People search: ' + q);
+    _searchQ = (q || '').toLowerCase().trim();
+    _renderFiltered();
+    if (_searchQ && typeof TheScrolls !== 'undefined') {
+      TheScrolls.log(TheScrolls.TYPES.SEARCH, '', 'People search: ' + _searchQ);
     }
   }
   function _filter(val) {
-    document.querySelectorAll('.shep-row').forEach(function(r) {
-      var show = true;
-      if      (val === 'user')    show = r.dataset.tu === '1';
-      else if (val === 'member')  show = r.dataset.tm === '1';
-      else if (val === 'both')    show = r.dataset.tu === '1' && r.dataset.tm === '1';
-      else if (val === 'card')    show = r.dataset.tc === '1';
-      else if (val === 'pending') show = r.dataset.pend === '1';
-      r.style.display = show ? '' : 'none';
+    _filterVal = val || 'all';
+    _renderFiltered();
+  }
+
+  // Re-render the table from _allPeople using current search + filter state.
+  // When a query is active we show ALL matches (no pagination) so users can
+  // find anyone regardless of which page they are on.
+  function _renderFiltered() {
+    var tbl = document.getElementById('shep-tbl');
+    if (!tbl || !_allPeople) return;
+    var q   = _searchQ;
+    var val = _filterVal;
+    var list = _allPeople.filter(function(p) {
+      // type filter
+      if      (val === 'user')    { if (!p.user) return false; }
+      else if (val === 'member')  { if (!p.member) return false; }
+      else if (val === 'both')    { if (!p.user || !p.member) return false; }
+      else if (val === 'card')    { if (!p.card) return false; }
+      else if (val === 'pending') { if (!(p.user && p.user.status === 'pending')) return false; }
+      // text search
+      if (q) {
+        var u = p.user || {}, m = p.member || {}, c = p.card || {};
+        var name = ((u.firstName || m.firstName || c.firstName || '') + ' ' + (u.lastName || m.lastName || c.lastName || '')).trim();
+        var haystack = (name + ' ' + (p.email || '') + ' ' + (u.phone || m.cellPhone || c.phone || '')).toLowerCase();
+        if (haystack.indexOf(q) < 0) return false;
+      }
+      return true;
     });
+
+    // When searching, bypass pagination and show all matches.
+    // When not searching, re-apply the current page slice.
+    var showList = list;
+    if (!q) {
+      var pg = (typeof Modules !== 'undefined' && Modules._pgState && _container)
+        ? Modules._pgState((_container.id || 'users').replace(/^view-/, '') || 'users') : null;
+      if (pg) {
+        var start = pg.page * pg.size;
+        showList = list.slice(start, start + pg.size);
+        pg.count   = showList.length;
+        pg.hasMore = start + pg.size < list.length;
+        pg.total   = list.length;
+      }
+    }
+    tbl.innerHTML = _buildTable(showList);
   }
 
   // ── Lazy section loaders ────────────────────────────────────────────────
