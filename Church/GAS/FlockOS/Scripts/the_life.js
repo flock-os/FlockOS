@@ -243,6 +243,10 @@ const TheLife = (() => {
         // Always pull users.list to get role/groups for staff identification.
         // Uses Promise.allSettled so a users.list failure doesn't block members.
         try { fetches.push(TheVine.flock.call('users.list', {})); } catch(_) {}
+        // Also fetch the configured Lead Pastor ID in parallel
+        var _lpCfgP = (_isFB() ? UpperRoom.getAppConfig({ key: 'LEAD_PASTOR_MEMBER_ID' })
+                                : TheVine.flock.call('appconfig.get', { key: 'LEAD_PASTOR_MEMBER_ID' }))
+                      .catch(function() { return { value: '' }; });
         var res = await Promise.allSettled(fetches);
         var members = _rows(res[0].status === 'fulfilled' ? res[0].value : []);
         // Merge AuthUsers: enrich existing Members with role/groups, add missing ones
@@ -274,6 +278,9 @@ const TheLife = (() => {
             }
           });
         }
+        // Cache the configured LP ID so _findLP can fall back to it
+        var _lpCfg = await _lpCfgP;
+        if (_lpCfg && _lpCfg.value) _cache.lpId = String(_lpCfg.value).trim();
         _cache.memberDir = members;
         return members;
       })().catch(function() { return []; });
@@ -326,13 +333,17 @@ const TheLife = (() => {
   }
 
   // Shared Lead Pastor finder — works on any array of member/user objects.
-  // Checks groups first (most specific), then falls back to role.
+  // Priority: 1) groups contains "lead pastor", 2) role === "pastor",
+  // 3) memberPin/id/memberNumber matches the LEAD_PASTOR_MEMBER_ID AppConfig value.
   function _findLP(list) {
     return (list || []).find(function(m) {
       return String(m.groups || '').toLowerCase().indexOf('lead pastor') !== -1;
     }) || (list || []).find(function(m) {
       return (m.role || '').toLowerCase() === 'pastor';
-    }) || null;
+    }) || (_cache.lpId ? (list || []).find(function(m) {
+      var id = _cache.lpId;
+      return (m.memberPin === id || m.id === id || m.memberNumber === id);
+    }) : null) || null;
   }
 
   function _memberName(emailOrId) {
