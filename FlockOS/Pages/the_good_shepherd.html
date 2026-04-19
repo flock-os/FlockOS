@@ -672,7 +672,7 @@
         <a class="nav-item" data-view="my-flock" data-module="my-flock" onclick="navigate('my-flock')" style="font-weight:700;">
           <span class="icon">&#128101;</span> Flock Dashboard
         </a>
-        <a class="nav-item" href="quarterly_worship.html">
+        <a class="nav-item" data-view="quarterly" onclick="navigate('quarterly')">
           <span class="icon">&#128197;</span> Quarterly Planner
         </a>
         <a class="nav-item" data-view="comms" data-module="comms" onclick="navigate('comms')">
@@ -841,6 +841,7 @@
     <div class="module-view" id="view-my-flock"></div>
     <div class="module-view" id="view-photos"></div>
     <div class="module-view" id="view-comms"></div>
+    <div class="module-view" id="view-quarterly"></div>
     <div class="module-view" id="view-missions"></div>
     <div class="module-view" id="view-giving"></div>
     <div class="module-view" id="view-todo"></div>
@@ -2054,7 +2055,7 @@ function navigate(viewName) {
   if (mainEl) mainEl.scrollTop = 0;
 
   // Toggle edge-to-edge mode for FlockChat iframe view
-  if (mainEl) mainEl.classList.toggle('flockchat-active', viewName === 'comms' && document.querySelector('#view-comms iframe') !== null);
+  if (mainEl) mainEl.classList.toggle('flockchat-active', (viewName === 'comms' && document.querySelector('#view-comms iframe') !== null) || viewName === 'quarterly');
 
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   const navItem = document.querySelector('.nav-item[data-view="' + viewName + '"]');

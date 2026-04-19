@@ -2605,6 +2605,13 @@ const Modules = (() => {
   // 6. SERVICES  — Planning Center–style worship service planner
   // ═══════════════════════════════════════════════════════════════════════
   var _svcViewPlanId    = null;   // null=list view, string=detail view
+  // ── QUARTERLY PLANNER — embedded iframe ─────────────────────────────
+  _def('quarterly', function(el) {
+    el.innerHTML = '<iframe src="quarterly_worship.html?embedded=1" style="width:100%;height:100%;border:none;display:block;"></iframe>';
+    var mainEl = document.getElementById('main');
+    if (mainEl) mainEl.classList.add('flockchat-active');
+  });
+
   var _svcViewPlanTitle = '';
   var _svcViewPlanData  = null;   // cached plan object for detail header
   var _svcTab           = 'order'; // 'order' | 'songs' | 'team'
