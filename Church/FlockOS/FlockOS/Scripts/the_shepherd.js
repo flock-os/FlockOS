@@ -848,6 +848,20 @@ const TheShepherd = (() => {
     if (memberRec) {
       var mid = '<input type="hidden" id="pp-mem_id" value="' + _e(memberRec.id || '') + '">';
 
+      // ── Member ID bar (read-only PIN for physical card) ──
+      var _pin = memberRec.memberPin || '';
+      html += '<div style="display:flex;align-items:center;gap:12px;background:var(--bg-raised,var(--surface));border:1px solid var(--line);border-radius:8px;padding:10px 16px;margin-bottom:14px;flex-wrap:wrap;">';
+      html += '<span style="font-size:0.75rem;color:var(--ink-muted);white-space:nowrap;">&#128272; Member ID</span>';
+      if (_pin) {
+        html += '<span style="font-family:monospace;font-size:1.05rem;letter-spacing:0.12em;font-weight:700;color:var(--accent);">' + _e(_pin) + '</span>';
+        html += '<button type="button" onclick="navigator.clipboard.writeText(\'' + _e(_pin) + '\').then(function(){var b=this;b.textContent=\'Copied!\';setTimeout(function(){b.textContent=\'Copy\';},1500);}.bind(this))"'
+          + ' style="margin-left:auto;background:none;border:1px solid var(--line);border-radius:5px;padding:3px 10px;cursor:pointer;font-size:0.77rem;color:var(--ink-muted);">Copy</button>';
+      } else {
+        html += '<span style="color:var(--ink-muted);font-size:0.83rem;">Not yet assigned</span>';
+        html += '<span style="margin-left:auto;font-size:0.75rem;color:var(--ink-muted);">Generate from the admin panel</span>';
+      }
+      html += '</div>';
+
       var dem = '';
       dem += _pp2(
         _ppF('Date of Birth', 'mem_dateOfBirth', (memberRec.dateOfBirth || '').substring(0,10), 'date'),
