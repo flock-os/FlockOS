@@ -92,6 +92,15 @@ const TheLife = (() => {
       return _TERMINAL_STATUSES.indexOf(s) === -1;
     });
   }
+  function _filterClosedPrayer(rows, statusKey) {
+    // Prayer requests should fall out of pastor queues once terminal.
+    // Seed admins retain the same recent-history visibility model.
+    if (_isSeedAdmin()) return _filterClosed(rows, statusKey);
+    return rows.filter(function(r) {
+      var s = String(statusKey ? r[statusKey] : (r.status || r['Status'] || r.stage || '')).toLowerCase();
+      return _TERMINAL_STATUSES.indexOf(s) === -1;
+    });
+  }
   function _phoneActions(phone) {
     if (!phone) return '';
     return '<span style="display:inline-flex;gap:4px;margin-left:6px;">'
@@ -1812,6 +1821,8 @@ const TheLife = (() => {
       });
     }
     data.id = _fpPrayerId;
+    var _prev = (_cache.allPrayer || []).find(function(r) { return (r.id || r.ID) === _fpPrayerId; }) || {};
+    var _prevStatus = (_prev.status || _prev['Status'] || '').toLowerCase();
 
     // Fill in prayer text from the cached record if not present in the form
     // (savePrayer only collects the response section fields, not the original text)
@@ -1822,11 +1833,45 @@ const TheLife = (() => {
 
     try {
       _stat('Updating prayer\u2026');
-      await TheVine.flock.prayer.update(data);
+      if (_isFB()) { await UpperRoom.updatePrayer(_fpPrayerId, data); }
+      else {
+        var payload = Object.assign({}, data);
+        // Keep GAS compatibility where sheet-column keys can be referenced directly.
+        if (payload.status != null) payload['Status'] = payload.status;
+        if (payload.assignedTo != null) payload['Assigned To'] = payload.assignedTo;
+        if (payload.adminNotes != null) payload['Admin Notes'] = payload.adminNotes;
+        await TheVine.flock.prayer.update(payload);
+      }
       _audit('prayer.update', 'PrayerRequests', _fpPrayerId, data.status || '');
+      var _newStatus = (data.status || '').toLowerCase();
+      if (_prevStatus !== _newStatus) {
+        _audit('prayer.status', 'PrayerRequests', _fpPrayerId, (_prevStatus || 'unknown') + ' \u2192 ' + (_newStatus || 'unknown'));
+        if (_newStatus === 'closed' || _newStatus === 'answered' || _newStatus === 'new') {
+          _audit('prayer.status.' + _newStatus, 'PrayerRequests', _fpPrayerId, data.status || '');
+        }
+      }
+      if (_cache.allPrayer && _cache.allPrayer.length) {
+        _cache.allPrayer = _cache.allPrayer.map(function(r) {
+          return (r.id || r.ID) === _fpPrayerId ? Object.assign({}, r, data) : r;
+        });
+      }
+      if (_flockData && _flockData.allPrayer && _flockData.allPrayer.length) {
+        _flockData.allPrayer = _flockData.allPrayer.map(function(r) {
+          return (r.id || r.ID) === _fpPrayerId ? Object.assign({}, r, data) : r;
+        });
+      }
       if (btn) { btn.disabled = false; btn.textContent = '\uD83D\uDCBE Save Changes'; }
       _toast('Prayer request updated!', 'success');
       _stat('Saved \u2713');
+      if (_TERMINAL_STATUSES.indexOf(_newStatus) !== -1 && !_isSeedAdmin()) {
+        if (_cache.allPrayer && _cache.allPrayer.length) {
+          _cache.allPrayer = _cache.allPrayer.filter(function(r) { return (r.id || r.ID) !== _fpPrayerId; });
+        }
+        if (_flockData && _flockData.allPrayer && _flockData.allPrayer.length) {
+          _flockData.allPrayer = _flockData.allPrayer.filter(function(r) { return (r.id || r.ID) !== _fpPrayerId; });
+        }
+        backToHub();
+      }
     } catch (err) {
       if (btn) { btn.disabled = false; btn.textContent = '\uD83D\uDCBE Save Changes'; }
       _stat('');
@@ -3815,7 +3860,7 @@ const TheLife = (() => {
 
       // ── Async prayer KPI backfill ──
       _prayerPromise.then(function(res) {
-        var prayerRows = _filterClosed(_rows(res), 'Status');
+        var prayerRows = _filterClosedPrayer(_rows(res), 'Status');
         _cache.allPrayer = prayerRows;
         _flockData.allPrayer = prayerRows;
 
