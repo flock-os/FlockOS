@@ -576,12 +576,12 @@ const Temple = (() => {
     'reports.dashboard':        { api: APIS.FLOCK, minRole: RBAC.leader },
 
     /* ── MULTI-CHURCH & BATCH ─── */
-    'church.create':            { api: APIS.FLOCK, minRole: RBAC.pastor },
-    'church.update':            { api: APIS.FLOCK, minRole: RBAC.pastor },
-    'church.setup':             { api: APIS.FLOCK, minRole: RBAC.pastor },
+    'church.create':            { api: APIS.FLOCK, minRole: RBAC.admin },
+    'church.update':            { api: APIS.FLOCK, minRole: RBAC.admin },
+    'church.setup':             { api: APIS.FLOCK, minRole: RBAC.admin },
     'church.configs':           { api: APIS.FLOCK, minRole: RBAC.pastor },
     'church.list':              { api: APIS.FLOCK, minRole: RBAC.pastor },
-    'church.delete':            { api: APIS.FLOCK, minRole: RBAC.pastor },
+    'church.delete':            { api: APIS.FLOCK, minRole: RBAC.admin },
     'bulk.membersImport':       { api: APIS.FLOCK, minRole: RBAC.pastor },
     'bulk.dataExport':          { api: APIS.FLOCK, minRole: RBAC.pastor },
 
