@@ -9129,7 +9129,9 @@ const Modules = (() => {
   }
 
   // ── MISSIONS _def ───────────────────────────────────────────────────────
+  var _missionsRenderToken = 0;
   _def('missions', async el => {
+    const _myToken = ++_missionsRenderToken;
 
     const tabBar = '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px;padding-bottom:14px;border-bottom:1px solid var(--line);">'
       + _mTab('🌍 World',    'world',    '')
@@ -9505,8 +9507,8 @@ const Modules = (() => {
         }
       }
 
-      _body(el, html);
-    } catch (e) { _body(el, _errHtml(e.message)); }
+      if (_myToken === _missionsRenderToken) _body(el, html);
+    } catch (e) { if (_myToken === _missionsRenderToken) _body(el, _errHtml(e.message)); }
   });
 
   // ═══════════════════════════════════════════════════════════════════════
