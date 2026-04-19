@@ -33,7 +33,7 @@ const Modules = (() => {
   // GAS is slow (2-8s cold starts)       → generous timeouts, longer cache, patient UX.
   var _perfProfile = {
     backend:       null,    // 'firebase' | 'gas' — null until resolved
-    cacheTTL:      60000,   // default: 1 minute (overridden once backend is known)
+    cacheTTL:      1,        // DEV: cache disabled — restore to 60000 before deploy
     spinnerDelay:  0,       // ms before showing spinner (Firestore = 150ms, GAS = 0)
   };
 
@@ -51,11 +51,11 @@ const Modules = (() => {
 
     if (fb) {
       _perfProfile.backend      = 'firebase';
-      _perfProfile.cacheTTL     = 30000;   // 30s — Firestore is fast, keep cache short
+      _perfProfile.cacheTTL     = 1;        // DEV: cache disabled — restore to 30000 before deploy
       _perfProfile.spinnerDelay = 120;     // slight delay before spinner (most reads < 120ms)
     } else if (gas) {
       _perfProfile.backend      = 'gas';
-      _perfProfile.cacheTTL     = 120000;  // 2 min — GAS is slow, cache longer
+      _perfProfile.cacheTTL     = 1;        // DEV: cache disabled — restore to 120000 before deploy
       _perfProfile.spinnerDelay = 0;       // show spinner immediately (expect wait)
     }
   }

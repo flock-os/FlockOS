@@ -493,6 +493,145 @@
     #rainbowBar { position:relative; z-index:2; }
     /* add padding so last row of table isn't hidden behind bottom-bar */
     .page-wrap { padding-bottom: 80px; }
+
+    /* ══════════════════════════════════════════════════════════════════
+       CALENDAR VIEW
+       ══════════════════════════════════════════════════════════════════ */
+    /* View-mode tabs in grid card-head */
+    .cal-mode-bar { display:flex; gap:3px; flex-shrink:0; margin-left:4px; }
+    .cal-tab {
+      background:rgba(255,255,255,.10); border:1px solid rgba(255,255,255,.18);
+      border-radius:6px; color:rgba(224,231,255,.75); font:inherit;
+      font-size:.66rem; font-weight:700; padding:3px 9px; cursor:pointer;
+      transition:all .15s; letter-spacing:.04em; white-space:nowrap;
+    }
+    .cal-tab:hover { background:rgba(255,255,255,.20); color:#e0e7ff; }
+    .cal-tab.active {
+      background:rgba(255,255,255,.22); color:#fff;
+      border-color:rgba(255,255,255,.50); box-shadow:0 1px 6px rgba(79,70,229,.30);
+    }
+    /* Calendar nav toolbar */
+    .cal-toolbar {
+      display:flex; align-items:center; gap:10px;
+      padding:10px 16px; border-bottom:1px solid var(--line);
+      background:var(--bg-sunken); flex-wrap:wrap;
+    }
+    .cal-nav {
+      background:var(--bg-raised); border:1.5px solid var(--line-strong);
+      border-radius:7px; color:var(--ink-muted); font:inherit;
+      font-size:.78rem; font-weight:700; padding:5px 11px; cursor:pointer;
+      transition:all .15s;
+    }
+    .cal-nav:hover { border-color:var(--accent); color:var(--accent); }
+    .cal-today-btn {
+      background:var(--accent-soft); border:1.5px solid var(--accent);
+      border-radius:7px; color:var(--accent); font:inherit;
+      font-size:.74rem; font-weight:700; padding:4px 10px; cursor:pointer;
+    }
+    .cal-period-label { font-weight:700; color:var(--ink); font-size:.9rem; min-width:170px; text-align:center; }
+
+    /* Month view */
+    .cal-month { overflow:auto; }
+    .cal-month-header { display:grid; grid-template-columns:repeat(7,1fr); border-bottom:2px solid var(--line); }
+    .cal-dow-hdr {
+      text-align:center; font-size:.63rem; font-weight:800;
+      text-transform:uppercase; letter-spacing:.08em;
+      color:var(--ink-muted); padding:7px 0;
+    }
+    .cal-month-body { display:grid; grid-template-columns:repeat(7,1fr); }
+    .cal-cell {
+      min-height:78px; padding:5px 5px 3px;
+      border-right:1px solid var(--line); border-bottom:1px solid var(--line);
+      background:var(--bg-raised); overflow:hidden;
+    }
+    .cal-cell.other-month { background:var(--bg-sunken); opacity:.65; }
+    .cal-cell.cal-today { background:rgba(79,70,229,.05); }
+    .cal-month-body .cal-cell:nth-child(7n) { border-right:none; }
+    .cal-day-num {
+      display:inline-flex; align-items:center; justify-content:center;
+      width:22px; height:22px; border-radius:50%;
+      font-size:.72rem; font-weight:700; color:var(--ink-muted); margin-bottom:3px;
+    }
+    .cal-today .cal-day-num { background:var(--accent); color:#fff; }
+    .cal-chip {
+      display:block; padding:2px 5px; border-radius:4px;
+      font-size:.63rem; font-weight:700; margin-bottom:2px;
+      overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+      cursor:pointer; background:var(--accent-soft); color:var(--accent);
+      border:1px solid rgba(79,70,229,.20); transition:background .12s;
+    }
+    .cal-chip:hover { background:rgba(79,70,229,.20); }
+    .cal-chip.has-preacher { background:rgba(5,150,105,.12); color:var(--success); border-color:rgba(5,150,105,.20); }
+    .cal-chip.is-full { background:rgba(79,70,229,.15); color:var(--accent); border-color:var(--accent); }
+
+    /* Week view */
+    .cal-week { overflow-x:auto; }
+    .cal-week-grid { display:grid; grid-template-columns:repeat(7,1fr); min-width:540px; }
+    .cal-week-col-hdr {
+      text-align:center; padding:8px 4px; font-size:.72rem; font-weight:700;
+      border-bottom:2px solid var(--line); border-right:1px solid var(--line);
+      background:var(--bg-sunken);
+    }
+    .cal-week-col-hdr:last-child { border-right:none; }
+    .cal-week-col-hdr.cal-wk-today { background:rgba(79,70,229,.08); color:var(--accent); }
+    .cal-week-body { display:grid; grid-template-columns:repeat(7,1fr); min-width:540px; }
+    .cal-week-cell {
+      min-height:110px; padding:6px; border-right:1px solid var(--line);
+      border-bottom:1px solid var(--line); background:var(--bg-raised);
+    }
+    .cal-week-cell:last-child { border-right:none; }
+    .cal-week-cell.cal-wk-today { background:rgba(79,70,229,.04); }
+
+    /* Day view */
+    .cal-day-body { padding:16px; }
+    .cal-service-card {
+      background:var(--bg-raised); border:1.5px solid var(--line-strong);
+      border-radius:12px; padding:14px 16px; margin-bottom:12px;
+      border-left:4px solid var(--accent);
+    }
+    .cal-service-card.is-full { border-left-color:var(--success); }
+    .cal-service-card .sc-time { font-size:.74rem; font-weight:700; color:var(--accent); margin-bottom:6px; }
+    .cal-service-card .sc-row { display:flex; gap:8px; margin-bottom:4px; font-size:.82rem; flex-wrap:wrap; }
+    .cal-service-card .sc-label { color:var(--ink-muted); font-weight:700; min-width:80px; font-size:.74rem; flex-shrink:0; }
+    .cal-empty { text-align:center; padding:40px 20px; color:var(--ink-muted); font-size:.84rem; }
+
+    /* Agenda view */
+    .cal-agenda { padding:12px 16px; }
+    .cal-agenda-group { margin-bottom:18px; }
+    .cal-agenda-month-lbl {
+      font-size:.70rem; font-weight:800; text-transform:uppercase; letter-spacing:.1em;
+      color:var(--ink-muted); margin-bottom:8px; padding-bottom:4px;
+      border-bottom:2px solid var(--line);
+    }
+    .cal-agenda-item {
+      display:flex; gap:12px; align-items:flex-start; padding:10px 12px;
+      border-radius:10px; border:1px solid var(--line-strong);
+      background:var(--bg-raised); margin-bottom:6px; cursor:pointer;
+      transition:all .14s;
+    }
+    .cal-agenda-item:hover { border-color:var(--accent); background:var(--accent-soft); }
+    .cal-agenda-item.is-full { border-left:3px solid var(--success); }
+    .cal-agenda-date { text-align:center; min-width:42px; flex-shrink:0; }
+    .cal-agenda-date .ad-dow { font-size:.62rem; font-weight:800; text-transform:uppercase; color:var(--accent); }
+    .cal-agenda-date .ad-day { font-size:1.3rem; font-weight:800; color:var(--ink); line-height:1; }
+    .cal-agenda-date .ad-mon { font-size:.62rem; font-weight:700; color:var(--ink-muted); }
+    .cal-agenda-info { flex:1; min-width:0; }
+    .cal-agenda-info .ai-time { font-size:.72rem; font-weight:700; color:var(--accent); }
+    .cal-agenda-info .ai-title { font-size:.84rem; font-weight:700; color:var(--ink); }
+    .cal-agenda-info .ai-sub { font-size:.75rem; color:var(--ink-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+    /* Matrix overrides for calendar */
+    html[data-matrix="1"] .cal-nav { background:rgba(0,20,0,.5) !important; border-color:rgba(0,255,65,.3) !important; color:#00aa2a !important; }
+    html[data-matrix="1"] .cal-nav:hover { border-color:#00ff41 !important; color:#00ff41 !important; }
+    html[data-matrix="1"] .cal-today-btn { background:rgba(0,255,65,.12) !important; border-color:#00ff41 !important; color:#00ff41 !important; }
+    html[data-matrix="1"] .cal-cell, html[data-matrix="1"] .cal-week-cell { background:var(--bg-raised) !important; }
+    html[data-matrix="1"] .cal-cell.other-month, html[data-matrix="1"] .cal-week-cell { background:var(--bg-sunken) !important; }
+    html[data-matrix="1"] .cal-chip { background:rgba(0,255,65,.12) !important; color:#00ff41 !important; border-color:rgba(0,255,65,.25) !important; }
+    html[data-matrix="1"] .cal-service-card { border-color:rgba(0,255,65,.25) !important; border-left-color:#00ff41 !important; background:var(--bg-raised) !important; }
+    html[data-matrix="1"] .cal-agenda-item { border-color:rgba(0,255,65,.18) !important; background:var(--bg-raised) !important; }
+    html[data-matrix="1"] .cal-agenda-item:hover { background:rgba(0,255,65,.07) !important; border-color:#00ff41 !important; }
+    html[data-matrix="1"] .cal-toolbar { background:var(--bg-sunken) !important; border-color:rgba(0,255,65,.18) !important; }
+    html[data-matrix="1"] .cal-dow-hdr, html[data-matrix="1"] .cal-week-col-hdr { background:var(--bg-sunken) !important; }
   </style>
 </head>
 <body>
@@ -593,10 +732,24 @@
 
       <!-- Grid card -->
       <div class="card c-grid">
-        <div class="card-head">
-          <span class="card-head-title">Schedule Grid</span>
-          <span style="font-size:.78rem;color:var(--ink-muted);"><span id="rowCt">0</span> Sundays</span>
-          <div class="dow-filters" id="dowFilters">
+        <div class="card-head" style="flex-direction:column;align-items:flex-start;gap:8px;">
+          <!-- Row 1: title + row count + calendar tabs -->
+          <div style="display:flex;align-items:center;gap:8px;width:100%;flex-wrap:wrap;">
+            <span class="card-head-title">Schedule Grid</span>
+            <span style="font-size:.78rem;color:rgba(224,231,255,.6);"><span id="rowCt">0</span> Sundays</span>
+            <div style="margin-left:auto;">
+              <!-- Calendar view mode tabs -->
+              <div class="cal-mode-bar" id="calModeBar">
+                <button class="cal-tab active" data-mode="grid" title="Spreadsheet grid view">≡ Grid</button>
+                <button class="cal-tab" data-mode="month" title="Month calendar">Month</button>
+                <button class="cal-tab" data-mode="week" title="Week calendar">Week</button>
+                <button class="cal-tab" data-mode="day" title="Day view">Day</button>
+                <button class="cal-tab" data-mode="agenda" title="Agenda list">Agenda</button>
+              </div>
+            </div>
+          </div>
+          <!-- Row 2: day-of-week filters (only shown in grid mode) -->
+          <div class="dow-filters" id="dowFilters" style="margin-left:0;">
             <button type="button" class="dow-tick active" data-dow="-1">All</button>
             <button type="button" class="dow-tick" data-dow="0">Sun</button>
             <button type="button" class="dow-tick" data-dow="1">Mon</button>
@@ -607,7 +760,7 @@
             <button type="button" class="dow-tick" data-dow="6">Sat</button>
           </div>
         </div>
-        <div class="tscroll">
+        <div class="tscroll" id="gridTscroll">
           <table>
             <thead><tr>
               <th style="min-width:130px;width:130px;">Date</th>
@@ -626,6 +779,8 @@
             <tbody id="gridBody"></tbody>
           </table>
         </div>
+        <!-- Calendar View container (hidden when grid is active) -->
+        <div id="calView" style="display:none;"></div>
       </div>
 
   </div><!-- /page-wrap -->
@@ -841,6 +996,294 @@
       document.getElementById('rowCt').textContent = _dowFilter === -1 ? S.rows.length : visibleCount + '/' + S.rows.length;
       updateSummary();
     }
+
+    /* ══════════════════════════════════════════════════════════════════
+       CALENDAR VIEW  — Month / Week / Day / Agenda
+       ══════════════════════════════════════════════════════════════════ */
+    var _calMode = 'grid';  // 'grid'|'month'|'week'|'day'|'agenda'
+    var _calDate = new Date();
+
+    var _CAL_MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    var _CAL_MONTHS_LONG  = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    var _CAL_DAYS_SHORT   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+    function _calIso(d) {
+      return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+    }
+    function _calTodayIso() { return _calIso(new Date()); }
+    function _calRowsByDate() {
+      var m = {};
+      S.rows.forEach(function(r) { if (r.date) { if (!m[r.date]) m[r.date]=[]; m[r.date].push(r); } });
+      return m;
+    }
+    function _calSortedRows() {
+      return S.rows.filter(function(r){ return r.date; }).sort(function(a,b){ return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
+    }
+    function _calEsc(s) {
+      if (!s) return '';
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function switchCalMode(mode) {
+      _calMode = mode;
+      document.querySelectorAll('.cal-tab').forEach(function(b){ b.classList.toggle('active', b.dataset.mode === mode); });
+      var tscroll  = document.getElementById('gridTscroll');
+      var actionRow = document.querySelector('.c-grid .action-row');
+      var dowFilters = document.getElementById('dowFilters');
+      var calView  = document.getElementById('calView');
+      var isGrid   = (mode === 'grid');
+      tscroll.style.display   = isGrid ? '' : 'none';
+      if (actionRow) actionRow.style.display = isGrid ? '' : 'none';
+      dowFilters.style.display = isGrid ? '' : 'none';
+      calView.style.display   = isGrid ? 'none' : '';
+      if (isGrid) { render(); } else { renderCalView(); }
+    }
+
+    function renderCalView() {
+      var el = document.getElementById('calView');
+      if (!el || _calMode === 'grid') return;
+      if      (_calMode === 'month')  _calRenderMonth(el);
+      else if (_calMode === 'week')   _calRenderWeek(el);
+      else if (_calMode === 'day')    _calRenderDay(el);
+      else if (_calMode === 'agenda') _calRenderAgenda(el);
+    }
+
+    function _calNavBar(label, prevFn, nextFn) {
+      var bar = document.createElement('div'); bar.className = 'cal-toolbar';
+      var prev = document.createElement('button'); prev.className = 'cal-nav'; prev.textContent = '◀'; prev.title = 'Previous';
+      prev.addEventListener('click', function(){ prevFn(); renderCalView(); });
+      var today = document.createElement('button'); today.className = 'cal-today-btn'; today.textContent = 'Today';
+      today.addEventListener('click', function(){ _calDate = new Date(); renderCalView(); });
+      var lbl = document.createElement('span'); lbl.className = 'cal-period-label'; lbl.textContent = label;
+      var next = document.createElement('button'); next.className = 'cal-nav'; next.textContent = '▶'; next.title = 'Next';
+      next.addEventListener('click', function(){ nextFn(); renderCalView(); });
+      bar.appendChild(prev); bar.appendChild(today); bar.appendChild(lbl); bar.appendChild(next);
+      return bar;
+    }
+
+    /* ── MONTH ───────────────────────────────────────────────────────── */
+    function _calRenderMonth(el) {
+      el.innerHTML = '';
+      var y = _calDate.getFullYear(), m = _calDate.getMonth();
+      el.appendChild(_calNavBar(
+        _CAL_MONTHS_LONG[m] + ' ' + y,
+        function(){ _calDate = new Date(y, m-1, 1); },
+        function(){ _calDate = new Date(y, m+1, 1); }
+      ));
+
+      var wrap = document.createElement('div'); wrap.className = 'cal-month';
+      var hdrRow = document.createElement('div'); hdrRow.className = 'cal-month-header';
+      _CAL_DAYS_SHORT.forEach(function(d){ var h = document.createElement('div'); h.className='cal-dow-hdr'; h.textContent=d; hdrRow.appendChild(h); });
+      wrap.appendChild(hdrRow);
+
+      var body = document.createElement('div'); body.className = 'cal-month-body';
+      var firstDow    = new Date(y, m, 1).getDay();
+      var daysInMonth = new Date(y, m+1, 0).getDate();
+      var daysInPrev  = new Date(y, m, 0).getDate();
+      var byDate      = _calRowsByDate();
+      var todayIso    = _calTodayIso();
+
+      // Leading filler (prev month)
+      for (var i = firstDow-1; i >= 0; i--) {
+        var c = document.createElement('div'); c.className = 'cal-cell other-month';
+        var n = document.createElement('span'); n.className = 'cal-day-num'; n.textContent = daysInPrev - i;
+        c.appendChild(n); body.appendChild(c);
+      }
+      // Current month days
+      for (var d = 1; d <= daysInMonth; d++) {
+        var iso = y + '-' + String(m+1).padStart(2,'0') + '-' + String(d).padStart(2,'0');
+        var c = document.createElement('div');
+        c.className = 'cal-cell' + (iso === todayIso ? ' cal-today' : '');
+        var n = document.createElement('span'); n.className = 'cal-day-num'; n.textContent = d;
+        c.appendChild(n);
+        if (byDate[iso]) {
+          byDate[iso].forEach(function(row) {
+            var isFull = row.worship.trim() && row.preacher.trim() && row.scripture.trim();
+            var chip = document.createElement('span');
+            chip.className = 'cal-chip' + (isFull ? ' is-full' : row.preacher.trim() ? ' has-preacher' : '');
+            var label = row.preacher || row.worship || row.notes || row.serviceTime || 'Service';
+            chip.textContent = label.length > 14 ? label.slice(0,13)+'…' : label;
+            chip.title = [row.serviceTime, row.preacher, row.worship, row.scripture].filter(Boolean).join(' · ');
+            (function(cellIso){ chip.addEventListener('click', function(e){ e.stopPropagation(); _calDate = new Date(cellIso+'T00:00:00'); switchCalMode('day'); }); })(iso);
+            c.appendChild(chip);
+          });
+        }
+        body.appendChild(c);
+      }
+      // Trailing filler
+      var total = firstDow + daysInMonth;
+      var trail = total % 7 === 0 ? 0 : 7 - (total % 7);
+      for (var t = 1; t <= trail; t++) {
+        var c = document.createElement('div'); c.className = 'cal-cell other-month';
+        var n = document.createElement('span'); n.className = 'cal-day-num'; n.textContent = t;
+        c.appendChild(n); body.appendChild(c);
+      }
+      wrap.appendChild(body); el.appendChild(wrap);
+    }
+
+    /* ── WEEK ────────────────────────────────────────────────────────── */
+    function _calRenderWeek(el) {
+      el.innerHTML = '';
+      var sow = new Date(_calDate);
+      sow.setDate(_calDate.getDate() - _calDate.getDay()); sow.setHours(0,0,0,0);
+      var eow = new Date(sow); eow.setDate(sow.getDate()+6);
+      var lbl = _CAL_MONTHS_SHORT[sow.getMonth()] + ' ' + sow.getDate() + ' – ' +
+                (sow.getMonth()!==eow.getMonth() ? _CAL_MONTHS_SHORT[eow.getMonth()]+' ' : '') +
+                eow.getDate() + ', ' + eow.getFullYear();
+      el.appendChild(_calNavBar(lbl,
+        function(){ _calDate = new Date(_calDate); _calDate.setDate(_calDate.getDate()-7); },
+        function(){ _calDate = new Date(_calDate); _calDate.setDate(_calDate.getDate()+7); }
+      ));
+
+      var byDate   = _calRowsByDate();
+      var todayIso = _calTodayIso();
+      var wrap     = document.createElement('div'); wrap.className = 'cal-week';
+      var hdrGrid  = document.createElement('div'); hdrGrid.className = 'cal-week-grid';
+      var bodyGrid = document.createElement('div'); bodyGrid.className = 'cal-week-body';
+
+      for (var i = 0; i < 7; i++) {
+        var day = new Date(sow); day.setDate(sow.getDate()+i);
+        var iso = _calIso(day);
+        var isToday = (iso === todayIso);
+
+        var hdr = document.createElement('div');
+        hdr.className = 'cal-week-col-hdr' + (isToday ? ' cal-wk-today' : '');
+        hdr.innerHTML = '<div style="font-size:.60rem;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-faint);">' + _CAL_DAYS_SHORT[day.getDay()] + '</div>' +
+                        '<div style="font-size:1.05rem;font-weight:800;line-height:1.1;">' + day.getDate() + '</div>' +
+                        '<div style="font-size:.60rem;color:var(--ink-faint);">' + _CAL_MONTHS_SHORT[day.getMonth()] + '</div>';
+        hdrGrid.appendChild(hdr);
+
+        var cell = document.createElement('div');
+        cell.className = 'cal-week-cell' + (isToday ? ' cal-wk-today' : '');
+        if (byDate[iso]) {
+          byDate[iso].forEach(function(row){ cell.appendChild(_calServiceCard(row, true)); });
+        }
+        bodyGrid.appendChild(cell);
+      }
+      wrap.appendChild(hdrGrid); wrap.appendChild(bodyGrid); el.appendChild(wrap);
+    }
+
+    /* ── DAY ─────────────────────────────────────────────────────────── */
+    function _calRenderDay(el) {
+      el.innerHTML = '';
+      var iso     = _calIso(_calDate);
+      var dayLbl  = _calDate.toLocaleDateString(undefined, { weekday:'long', month:'long', day:'numeric', year:'numeric' });
+      el.appendChild(_calNavBar(dayLbl,
+        function(){ _calDate = new Date(_calDate); _calDate.setDate(_calDate.getDate()-1); },
+        function(){ _calDate = new Date(_calDate); _calDate.setDate(_calDate.getDate()+1); }
+      ));
+      var body   = document.createElement('div'); body.className = 'cal-day-body';
+      var rows   = (_calRowsByDate()[iso] || []);
+      if (!rows.length) {
+        var empty = document.createElement('div'); empty.className = 'cal-empty';
+        empty.innerHTML = '<div style="font-size:2rem;margin-bottom:8px;">📅</div>No services scheduled for this day.';
+        body.appendChild(empty);
+      } else {
+        rows.forEach(function(row){ body.appendChild(_calServiceCard(row, false)); });
+      }
+      el.appendChild(body);
+    }
+
+    /* ── AGENDA ──────────────────────────────────────────────────────── */
+    function _calRenderAgenda(el) {
+      el.innerHTML = '';
+      var bar = document.createElement('div'); bar.className = 'cal-toolbar';
+      bar.innerHTML = '<span style="font-weight:700;color:var(--ink);">All Services — Agenda</span>' +
+        '<span style="font-size:.76rem;color:var(--ink-muted);margin-left:auto;">' +
+        S.rows.filter(function(r){return r.date;}).length + ' scheduled</span>';
+      el.appendChild(bar);
+
+      var sorted = _calSortedRows();
+      if (!sorted.length) {
+        var empty = document.createElement('div'); empty.className = 'cal-empty'; empty.style.padding = '40px';
+        empty.innerHTML = '<div style="font-size:2rem;margin-bottom:8px;">📋</div>No services with dates yet. Generate or add rows in Grid view.';
+        el.appendChild(empty); return;
+      }
+
+      var wrap = document.createElement('div'); wrap.className = 'cal-agenda';
+      var byMonth = {};
+      sorted.forEach(function(row){
+        var key = row.date.slice(0,7);
+        if (!byMonth[key]) byMonth[key] = [];
+        byMonth[key].push(row);
+      });
+
+      Object.keys(byMonth).sort().forEach(function(key){
+        var parts = key.split('-');
+        var group = document.createElement('div'); group.className = 'cal-agenda-group';
+        var lbl = document.createElement('div'); lbl.className = 'cal-agenda-month-lbl';
+        lbl.textContent = _CAL_MONTHS_LONG[parseInt(parts[1],10)-1] + ' ' + parts[0];
+        group.appendChild(lbl);
+
+        byMonth[key].forEach(function(row){
+          var dp = row.date.split('-').map(Number);
+          var d  = new Date(dp[0], dp[1]-1, dp[2]);
+          var isFull = row.worship.trim() && row.preacher.trim() && row.scripture.trim();
+          var item = document.createElement('div');
+          item.className = 'cal-agenda-item' + (isFull ? ' is-full' : '');
+          item.title = 'Click to view day';
+          (function(r){ item.addEventListener('click', function(){ _calDate = new Date(r.date+'T00:00:00'); switchCalMode('day'); }); })(row);
+
+          var dateDiv = document.createElement('div'); dateDiv.className = 'cal-agenda-date';
+          dateDiv.innerHTML = '<div class="ad-dow">' + _CAL_DAYS_SHORT[d.getDay()] + '</div>' +
+                              '<div class="ad-day">' + dp[2] + '</div>' +
+                              '<div class="ad-mon">' + _CAL_MONTHS_SHORT[dp[1]-1] + '</div>';
+          var infoDiv = document.createElement('div'); infoDiv.className = 'cal-agenda-info';
+          var title   = row.notes || (row.preacher ? 'Message by ' + row.preacher : row.worship ? 'Worship: ' + row.worship : 'Service');
+          var sub     = [row.preacher && ('🎤 '+row.preacher), row.worship && ('🎵 '+row.worship), row.scripture && ('📖 '+row.scripture)].filter(Boolean).join('  ·  ');
+          infoDiv.innerHTML = (row.serviceTime ? '<div class="ai-time">⏰ ' + _calEsc(row.serviceTime) + '</div>' : '') +
+                              '<div class="ai-title">' + _calEsc(title) + '</div>' +
+                              (sub ? '<div class="ai-sub">' + _calEsc(sub) + '</div>' : '');
+          item.appendChild(dateDiv); item.appendChild(infoDiv);
+          group.appendChild(item);
+        });
+        wrap.appendChild(group);
+      });
+      el.appendChild(wrap);
+    }
+
+    /* ── Service card (week & day views) ─────────────────────────────── */
+    function _calServiceCard(row, compact) {
+      var isFull = row.worship.trim() && row.preacher.trim() && row.scripture.trim();
+      var card = document.createElement('div');
+      card.className = 'cal-service-card' + (isFull ? ' is-full' : '');
+      if (row.serviceTime) {
+        var td = document.createElement('div'); td.className = 'sc-time'; td.textContent = '⏰ ' + row.serviceTime;
+        card.appendChild(td);
+      }
+      if (compact) {
+        var p = document.createElement('div');
+        p.style.cssText = 'font-size:.72rem;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink);';
+        p.textContent = [row.preacher, row.worship, row.scripture||row.notes].filter(Boolean).join(' · ') || 'Service';
+        card.appendChild(p);
+      } else {
+        var fields = [
+          {l:'Preacher',  v:row.preacher},  {l:'Scripture', v:row.scripture},
+          {l:'Worship',   v:row.worship},   {l:'Prayer',    v:row.prayer},
+          {l:'Psalm',     v:row.psalm},     {l:'Proverb',   v:row.proverb},
+          {l:'Announce',  v:row.announce},  {l:'Theme',     v:row.notes}
+        ];
+        fields.forEach(function(f){
+          if (!f.v || !f.v.trim()) return;
+          var r = document.createElement('div'); r.className = 'sc-row';
+          r.innerHTML = '<span class="sc-label">' + f.l + '</span><span>' + _calEsc(f.v) + '</span>';
+          card.appendChild(r);
+        });
+      }
+      return card;
+    }
+
+    /* ── Wire up view-mode tab bar ───────────────────────────────────── */
+    document.getElementById('calModeBar').addEventListener('click', function(e){
+      var btn = e.target.closest('.cal-tab');
+      if (!btn) return;
+      // Seed cal date from first data row if calDate is still "today" and rows exist
+      if (_calMode === 'grid' && S.rows.length && S.rows[0].date) {
+        var fp = S.rows[0].date.split('-').map(Number);
+        _calDate = new Date(fp[0], fp[1]-1, fp[2]);
+      }
+      switchCalMode(btn.dataset.mode);
+    });
 
     function rowById(id) { return S.rows.find(function (r) { return r.id === id; }) || null; }
 
@@ -1626,8 +2069,8 @@
         _saveLocal();
         try { await saveToFirestore(false); } catch(e) { /* error already shown, local backup is safe */ }
 
-        /* 2 — navigate back */
-        window.location.href = getDashboardUrl();
+        /* 2 — navigate back (use top-level window so iframe doesn't load the shell inside itself) */
+        window.top.location.href = getDashboardUrl();
       }
       document.getElementById('btnSaveCloseTop').addEventListener('click', saveAndClose);
       document.getElementById('btnSaveCloseBot').addEventListener('click', saveAndClose);
