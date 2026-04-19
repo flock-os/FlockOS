@@ -1342,6 +1342,12 @@ const TheSeason = (() => {
       html += '<button type="button" onclick="Modules.calDeletePersonal(\'' + _e(ev.id) + '\')" style="flex:1;padding:8px;background:var(--danger);color:#fff;border:none;border-radius:var(--radius);cursor:pointer;font-weight:600;">\uD83D\uDDD1\uFE0F Delete</button>';
       html += '</div>';
     }
+    if (ev.source === 'Service Plan' && ev.id) {
+      var _svcLabel = _e((ev.type !== '_service' ? ev.type : ev.title) || ev.title || 'Service Plan').replace(/'/g, "\\'");
+      html += '<div style="display:flex;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line);">';
+      html += '<button type="button" onclick="var _m=document.getElementById(\'fl-modal\');if(_m)_m.remove();navigate(\'services\');Modules._svcOpen(\'' + _e(ev.id) + '\',\'' + _svcLabel + '\')" style="flex:1;padding:8px;background:var(--accent);color:var(--ink-inverse);border:none;border-radius:var(--radius);cursor:pointer;font-weight:600;font-size:0.82rem;">✏️ Open &amp; Edit in Services</button>';
+      html += '</div>';
+    }
     if (ev.source === 'Events' && ev.id) {
       var isCancelled = (ev.status || '').toLowerCase() === 'cancelled';
       var myRole = String((_session.role || 'readonly')).toLowerCase();
