@@ -240,25 +240,35 @@ const TheLife = (() => {
       // Admins also pull users.list (AuthUsers) to catch staff not in Members.
       _memberDirPromise = (async function() {
         var fetches = [_isFB() ? UpperRoom.listMembers({ limit: 200 }) : TheVine.flock.call('members.list', { limit: 200 })];
-        if (Nehemiah.hasRole('admin') || Nehemiah.hasGroup('Master') || Nehemiah.hasGroup('Seed Admin') || Nehemiah.hasGroup('Lead Pastor')) {
-          fetches.push(TheVine.flock.call('users.list', {}));
-        }
+        // Always pull users.list to get role/groups for staff identification.
+        // Uses Promise.allSettled so a users.list failure doesn't block members.
+        try { fetches.push(TheVine.flock.call('users.list', {})); } catch(_) {}
         var res = await Promise.allSettled(fetches);
         var members = _rows(res[0].status === 'fulfilled' ? res[0].value : []);
-        // Merge AuthUsers who aren't already in the Members table
+        // Merge AuthUsers: enrich existing Members with role/groups, add missing ones
         if (res.length > 1 && res[1].status === 'fulfilled') {
           var authUsers = _rows(res[1].value);
-          var seen = {};
+          // Build a lookup of existing members by email
+          var byEmail = {};
           members.forEach(function(m) {
-            if (m.email) seen[m.email.toLowerCase()] = true;
-            if (m.primaryEmail) seen[m.primaryEmail.toLowerCase()] = true;
+            if (m.email) byEmail[m.email.toLowerCase()] = m;
+            if (m.primaryEmail) byEmail[m.primaryEmail.toLowerCase()] = m;
           });
           authUsers.forEach(function(u) {
-            if (u.email && !seen[u.email.toLowerCase()]) {
-              seen[u.email.toLowerCase()] = true;
+            if (!u.email) return;
+            var key = u.email.toLowerCase();
+            var existing = byEmail[key];
+            if (existing) {
+              // Enrich the existing member record with auth data
+              if (u.role && !existing.role) existing.role = u.role;
+              if (u.groups && !existing.groups) existing.groups = u.groups;
+            } else {
+              // AuthUser not in Members — add them
+              byEmail[key] = true;
               members.push({
                 email: u.email, firstName: u.firstName || '',
                 lastName: u.lastName || '', role: u.role || '',
+                groups: u.groups || '',
                 _source: 'auth'
               });
             }
