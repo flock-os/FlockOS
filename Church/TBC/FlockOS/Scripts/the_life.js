@@ -3279,10 +3279,12 @@ const TheLife = (() => {
     var btn = document.querySelector('[onclick="TheLife._autoAssignPrayersToLP()"]');
     if (btn) { btn.disabled = true; btn.textContent = 'Assigning…'; }
 
-    var dir = _cache.memberDir || [];
+    var dir = await _ensureDir();
     var _lpMember = dir.find(function(m) {
-      if (!m.groups) return false;
-      return String(m.groups).toLowerCase().split(',').map(function(g) { return g.trim(); }).indexOf('lead pastor') !== -1;
+      var gl = String(m.groups || '').toLowerCase();
+      return gl.indexOf('lead pastor') !== -1;
+    }) || dir.find(function(m) {
+      return (m.role || '').toLowerCase() === 'pastor';
     });
     if (!_lpMember) { _toast('Lead Pastor not found in member directory.', 'error'); if (btn) { btn.disabled = false; btn.textContent = 'Auto-Assign All to Lead Pastor'; } return; }
     var _lpId = _lpMember.memberPin || _lpMember.id || _lpMember.email;
@@ -3579,10 +3581,12 @@ const TheLife = (() => {
     var btn = document.querySelector('[onclick="TheLife._autoAssignToLP()"]');
     if (btn) { btn.disabled = true; btn.textContent = 'Assigning…'; }
 
-    var dir = _cache.memberDir || [];
+    var dir = await _ensureDir();
     var _lpMember = dir.find(function(m) {
-      if (!m.groups) return false;
-      return String(m.groups).toLowerCase().split(',').map(function(g) { return g.trim(); }).indexOf('lead pastor') !== -1;
+      var gl = String(m.groups || '').toLowerCase();
+      return gl.indexOf('lead pastor') !== -1;
+    }) || dir.find(function(m) {
+      return (m.role || '').toLowerCase() === 'pastor';
     });
     if (!_lpMember) { _toast('Lead Pastor not found in member directory.', 'error'); if (btn) { btn.disabled = false; btn.textContent = 'Auto-Assign All to Lead Pastor'; } return; }
     var _lpId = _lpMember.memberPin || _lpMember.id || _lpMember.email;
@@ -3609,10 +3613,12 @@ const TheLife = (() => {
   }
 
   async function _autoAssignCasesToLP() {
-    var dir = _cache.memberDir || [];
+    var dir = await _ensureDir();
     var _lpMember = dir.find(function(m) {
-      if (!m.groups) return false;
-      return String(m.groups).toLowerCase().split(',').map(function(g) { return g.trim(); }).indexOf('lead pastor') !== -1;
+      var gl = String(m.groups || '').toLowerCase();
+      return gl.indexOf('lead pastor') !== -1;
+    }) || dir.find(function(m) {
+      return (m.role || '').toLowerCase() === 'pastor';
     });
     if (!_lpMember) { _toast('Lead Pastor not found in member directory. Ensure a member has the "Lead Pastor" group assigned.', 'error'); return; }
     var _lpId   = _lpMember.memberPin || _lpMember.id || _lpMember.email;
