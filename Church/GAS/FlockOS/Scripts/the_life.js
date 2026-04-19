@@ -1918,11 +1918,11 @@ const TheLife = (() => {
           await UpperRoom.addPrayerInteraction(prayerId, data);
         }
         overlay.remove();
-        _showToast('Interaction saved.');
+        _toast('Interaction saved.');
         openPrayer(prayerId, _fpEditorSource);
       } catch (err) {
         btn.disabled = false; btn.textContent = '\uD83D\uDCBE Save Interaction';
-        _showToast('Error saving: ' + (err.message || err), 'error');
+        _toast('Error saving: ' + (err.message || err), 'error');
       }
     };
   }
@@ -3284,7 +3284,7 @@ const TheLife = (() => {
       if (!m.groups) return false;
       return String(m.groups).toLowerCase().split(',').map(function(g) { return g.trim(); }).indexOf('lead pastor') !== -1;
     });
-    if (!_lpMember) { _showToast('Lead Pastor not found in member directory.', 'error'); if (btn) { btn.disabled = false; btn.textContent = 'Auto-Assign All to Lead Pastor'; } return; }
+    if (!_lpMember) { _toast('Lead Pastor not found in member directory.', 'error'); if (btn) { btn.disabled = false; btn.textContent = 'Auto-Assign All to Lead Pastor'; } return; }
     var _lpId = _lpMember.memberPin || _lpMember.id || _lpMember.email;
 
     var allPrayers = _cache.allPrayer || [];
@@ -3299,10 +3299,10 @@ const TheLife = (() => {
         return _isFB() ? UpperRoom.updatePrayer(id, { assignedTo: _lpId }) : TheVine.flock.prayer.update({ id: id, assignedTo: _lpId });
       }));
       unassigned.forEach(function(r) { r.assignedTo = _lpId; });
-      _showToast(unassigned.length + ' request' + (unassigned.length !== 1 ? 's' : '') + ' assigned to Lead Pastor.');
+      _toast(unassigned.length + ' request' + (unassigned.length !== 1 ? 's' : '') + ' assigned to Lead Pastor.');
       showUnassignedPrayers();
     } catch (err) {
-      _showToast('Error: ' + (err.message || err), 'error');
+      _toast('Error: ' + (err.message || err), 'error');
       if (btn) { btn.disabled = false; btn.textContent = 'Auto-Assign All to Lead Pastor'; }
     }
   }
@@ -3584,7 +3584,7 @@ const TheLife = (() => {
       if (!m.groups) return false;
       return String(m.groups).toLowerCase().split(',').map(function(g) { return g.trim(); }).indexOf('lead pastor') !== -1;
     });
-    if (!_lpMember) { _showToast('Lead Pastor not found in member directory.', 'error'); if (btn) { btn.disabled = false; btn.textContent = 'Auto-Assign All to Lead Pastor'; } return; }
+    if (!_lpMember) { _toast('Lead Pastor not found in member directory.', 'error'); if (btn) { btn.disabled = false; btn.textContent = 'Auto-Assign All to Lead Pastor'; } return; }
     var _lpId = _lpMember.memberPin || _lpMember.id || _lpMember.email;
 
     var allCases = _cache.care || [];
@@ -3600,10 +3600,10 @@ const TheLife = (() => {
       }));
       // Refresh cache
       unassigned.forEach(function(c) { c.primaryCaregiverId = _lpId; c.assignedTo = _lpId; });
-      _showToast(unassigned.length + ' case' + (unassigned.length !== 1 ? 's' : '') + ' assigned to Lead Pastor.');
+      _toast(unassigned.length + ' case' + (unassigned.length !== 1 ? 's' : '') + ' assigned to Lead Pastor.');
       showUnassignedCases();
     } catch (err) {
-      _showToast('Error: ' + (err.message || err), 'error');
+      _toast('Error: ' + (err.message || err), 'error');
       if (btn) { btn.disabled = false; btn.textContent = 'Auto-Assign All to Lead Pastor'; }
     }
   }
@@ -3614,7 +3614,7 @@ const TheLife = (() => {
       if (!m.groups) return false;
       return String(m.groups).toLowerCase().split(',').map(function(g) { return g.trim(); }).indexOf('lead pastor') !== -1;
     });
-    if (!_lpMember) { _showToast('Lead Pastor not found in member directory. Ensure a member has the "Lead Pastor" group assigned.', 'error'); return; }
+    if (!_lpMember) { _toast('Lead Pastor not found in member directory. Ensure a member has the "Lead Pastor" group assigned.', 'error'); return; }
     var _lpId   = _lpMember.memberPin || _lpMember.id || _lpMember.email;
     var _lpName = _lpMember.preferredName || ((_lpMember.firstName || '') + ' ' + (_lpMember.lastName || '')).trim();
 
@@ -3624,7 +3624,7 @@ const TheLife = (() => {
       return st !== 'resolved' && st !== 'closed' && !c.primaryCaregiverId && !c.assignedTo;
     });
 
-    if (!unassigned.length) { _showToast('All care cases are already assigned!'); return; }
+    if (!unassigned.length) { _toast('All care cases are already assigned!'); return; }
 
     try {
       await Promise.all(unassigned.map(function(c) {
@@ -3632,10 +3632,10 @@ const TheLife = (() => {
         return _isFB() ? UpperRoom.updateCareCase(Object.assign({ id: c.id }, upd)) : TheVine.flock.care.update(Object.assign({ id: c.id }, upd));
       }));
       unassigned.forEach(function(c) { c.primaryCaregiverId = _lpId; c.assignedTo = _lpId; });
-      _showToast(unassigned.length + ' case' + (unassigned.length !== 1 ? 's' : '') + ' assigned to ' + (_lpName || 'Lead Pastor') + '.');
+      _toast(unassigned.length + ' case' + (unassigned.length !== 1 ? 's' : '') + ' assigned to ' + (_lpName || 'Lead Pastor') + '.');
       refresh();
     } catch (err) {
-      _showToast('Error: ' + (err.message || err), 'error');
+      _toast('Error: ' + (err.message || err), 'error');
     }
   }
 
