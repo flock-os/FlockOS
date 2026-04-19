@@ -2017,6 +2017,11 @@ function navigate(viewName) {
     if (currentView !== 'dashboard') navigate('dashboard');
     return;
   }
+  // When navigating to services from outside (navbar), reset the detail state
+  // so we always land on the list view, not a stuck spinner from a previous plan.
+  if (viewName === 'services' && currentView !== 'services' && typeof Modules !== 'undefined') {
+    try { Modules._svcViewPlanId = null; Modules._svcViewPlanTitle = ''; Modules._svcViewPlanData = null; } catch(_) {}
+  }
   // Clear any pending auto-refresh for the previous view
   if (_autoRefreshTimer) { clearTimeout(_autoRefreshTimer); _autoRefreshTimer = null; }
 

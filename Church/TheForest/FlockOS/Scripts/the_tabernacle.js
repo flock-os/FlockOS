@@ -2636,7 +2636,7 @@ const Modules = (() => {
   }
 
   _def('services', async el => {
-    // If a plan is selected, render the detail view
+    // If a plan is selected (e.g. navigated from calendar via _svcOpen), render detail.
     if (_svcViewPlanId) { await _svcRenderDetail(el); return; }
 
     // ── List view ──────────────────────────────────────────────────────
