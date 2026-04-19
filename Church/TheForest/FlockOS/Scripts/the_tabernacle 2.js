@@ -9218,11 +9218,7 @@ const Modules = (() => {
           + '<a href="https://www.vom.org" target="_blank" rel="noopener" style="font-size:0.78rem;color:var(--accent);text-decoration:none;padding:4px 10px;border:1px solid var(--line);border-radius:5px;">✝️ Voice of the Martyrs</a>'
           + '<a href="https://operationworld.org" target="_blank" rel="noopener" style="font-size:0.78rem;color:var(--accent);text-decoration:none;padding:4px 10px;border:1px solid var(--line);border-radius:5px;">🌐 Operation World</a>'
           + '<a href="https://finishingthetask.com" target="_blank" rel="noopener" style="font-size:0.78rem;color:var(--accent);text-decoration:none;padding:4px 10px;border:1px solid var(--line);border-radius:5px;">🏁 Finishing the Task</a>'
-          + '<a href="https://www.frontlinesinternational.org" target="_blank" rel="noopener" style="font-size:0.78rem;color:var(--accent);text-decoration:none;padding:4px 10px;border:1px solid var(--line);border-radius:5px;">🗺 Frontlines Intl</a>'
-          + '<a href="https://www.bibleproject.com" target="_blank" rel="noopener" style="font-size:0.78rem;color:var(--accent);text-decoration:none;padding:4px 10px;border:1px solid var(--line);border-radius:5px;">📖 BibleProject</a>'
-          + '<a href="https://flockos.yhwh.one" target="_blank" rel="noopener" style="font-size:0.78rem;color:var(--accent);text-decoration:none;padding:4px 10px;border:1px solid var(--line);border-radius:5px;">🕊 FlockOS</a>'
-          + '<a href="https://flockos-comms.web.app" target="_blank" rel="noopener" style="font-size:0.78rem;color:var(--accent);text-decoration:none;padding:4px 10px;border:1px solid var(--line);border-radius:5px;">💬 FlockChat</a>'
-          + '<a href="https://www.bibleaccesslist.org" target="_blank" rel="noopener" style="font-size:0.78rem;color:var(--accent);text-decoration:none;padding:4px 10px;border:1px solid var(--line);border-radius:5px;">📋 Bible Access List</a>'
+          + '<a href="https://www.frontline.international" target="_blank" rel="noopener" style="font-size:0.78rem;color:var(--accent);text-decoration:none;padding:4px 10px;border:1px solid var(--line);border-radius:5px;">🗺 Frontlines Intl</a>'
           + '</div>'
           + '</div>';
 
@@ -12721,8 +12717,8 @@ const Modules = (() => {
       { name: 'photosUrl',   label: 'Photos Album URL',                 type: 'url',    value: '' },
       { name: 'adminEmail',  label: 'Admin / Notification Email',       type: 'email',  value: '' },
       { name: 'analyticsId', label: 'Google Analytics ID (G-\u2026)',   type: 'text',   value: '' },
-      { name: 'favicon',     label: 'Favicon filename',                 type: 'text',   value: 'FlockOS_ODCamo.png' },
-      { name: 'portrait',    label: 'Portrait / Logo filename',         type: 'text',   value: 'FlockOS_ODCamo.png' },
+      { name: 'favicon',     label: 'Favicon filename',                 type: 'text',   value: 'FlockOS_OD.png' },
+      { name: 'portrait',    label: 'Portrait / Logo filename',         type: 'text',   value: 'FlockOS_OD.png' },
       { name: 'version',     label: 'Version',                          type: 'text',   value: '1.0' },
     ], async data => {
       await TheVine.flock.church.create(data);
@@ -12846,8 +12842,8 @@ const Modules = (() => {
       { name: 'photosUrl',   label: 'Photos Album URL',                 type: 'url',    value: c.photosUrl   || '' },
       { name: 'adminEmail',  label: 'Admin / Notification Email',       type: 'email',  value: c.adminEmail  || '' },
       { name: 'analyticsId', label: 'Google Analytics ID',              type: 'text',   value: c.analyticsId || '' },
-      { name: 'favicon',     label: 'Favicon filename',                 type: 'text',   value: c.favicon     || 'FlockOS_ODCamo.png' },
-      { name: 'portrait',    label: 'Portrait / Logo filename',         type: 'text',   value: c.portrait    || 'FlockOS_ODCamo.png' },
+      { name: 'favicon',     label: 'Favicon filename',                 type: 'text',   value: c.favicon     || 'FlockOS_OD.png' },
+      { name: 'portrait',    label: 'Portrait / Logo filename',         type: 'text',   value: c.portrait    || 'FlockOS_OD.png' },
       { name: 'version',     label: 'Version',                          type: 'text',   value: c.version     || '1.0' },
       { name: 'status',      label: 'Status',                           type: 'select', options: ['Active', 'Inactive', 'Locked', 'Suspended'], value: c.status || 'Active' },
       { name: '_controls', type: 'html', html:
@@ -21249,7 +21245,7 @@ const Modules = (() => {
   // Registry of all known FlockOS deployments — embedded at build time.
   var _networkChurches = [
     { id: 'flockos',   name: 'FlockOS',               shortName: 'FlockOS',    version: '3.0', firebaseProject: null,
-      databaseUrl: 'https://script.google.com/macros/s/AKfycbzR1z1qf0PEJK5Znm1IM-vE6ls4xjfVDjtqOVm7zBVeINS5PRByeOAfa6G3flwPQZTZiQ/exec' },
+      databaseUrl: 'https://script.google.com/macros/s/AKfycbwH7HY6_HK8NnP2R4IXfhsVQYnyAhWRStV8t5KJwaD7pnga0QKNj1mxwX5OAYwxEKDI/exec' },
     { id: 'trinity',   name: 'Trinity Baptist Church', shortName: 'TBC',        version: '3.0', firebaseProject: 'flockos-trinity',
       databaseUrl: 'https://script.google.com/macros/s/AKfycbwAFp0BQvt0DiDJBjzBrycMripfUHOkP0PwiB_DSXgGVezP_y8jCOVxZWweTp58gai7/exec' },
     { id: 'theforest', name: 'The Forest',             shortName: 'TheForest',  version: '3.0', firebaseProject: 'flockos-theforest',

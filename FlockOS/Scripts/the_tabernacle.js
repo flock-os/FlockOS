@@ -9220,7 +9220,8 @@ const Modules = (() => {
           + '<a href="https://finishingthetask.com" target="_blank" rel="noopener" style="font-size:0.78rem;color:var(--accent);text-decoration:none;padding:4px 10px;border:1px solid var(--line);border-radius:5px;">🏁 Finishing the Task</a>'
           + '<a href="https://www.frontlinesinternational.org" target="_blank" rel="noopener" style="font-size:0.78rem;color:var(--accent);text-decoration:none;padding:4px 10px;border:1px solid var(--line);border-radius:5px;">🗺 Frontlines Intl</a>'
           + '<a href="https://www.bibleproject.com" target="_blank" rel="noopener" style="font-size:0.78rem;color:var(--accent);text-decoration:none;padding:4px 10px;border:1px solid var(--line);border-radius:5px;">📖 BibleProject</a>'
-          + '<a href="https://flockos.yhwh.one" target="_blank" rel="noopener" style="font-size:0.78rem;color:var(--accent);text-decoration:none;padding:4px 10px;border:1px solid var(--line);border-radius:5px;">🕊 FlockOS YHWH</a>'
+          + '<a href="https://flockos.yhwh.one" target="_blank" rel="noopener" style="font-size:0.78rem;color:var(--accent);text-decoration:none;padding:4px 10px;border:1px solid var(--line);border-radius:5px;">🕊 FlockOS</a>'
+          + '<a href="https://flockos-comms.web.app" target="_blank" rel="noopener" style="font-size:0.78rem;color:var(--accent);text-decoration:none;padding:4px 10px;border:1px solid var(--line);border-radius:5px;">💬 FlockChat</a>'
           + '<a href="https://www.bibleaccesslist.org" target="_blank" rel="noopener" style="font-size:0.78rem;color:var(--accent);text-decoration:none;padding:4px 10px;border:1px solid var(--line);border-radius:5px;">📋 Bible Access List</a>'
           + '</div>'
           + '</div>';
