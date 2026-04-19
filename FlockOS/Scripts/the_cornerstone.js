@@ -719,7 +719,6 @@ const Temple = (() => {
       { id: 'A3', name: 'Pastoral Dashboard', route: '/pastoral',     minRole: RBAC.pastor },
       { id: 'A4', name: 'Prayer Management',  route: '/prayer/manage',minRole: RBAC.readonly },
       { id: 'A5', name: 'Todo / Task Manager',route: '/tasks',        minRole: RBAC.readonly },
-      { id: 'A6', name: 'Settings',           route: '/settings',     minRole: RBAC.readonly },
       { id: 'A7', name: 'Admin Provisioning', route: '/admin',        minRole: RBAC.admin }
     ],
     future: [
