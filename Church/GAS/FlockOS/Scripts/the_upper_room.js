@@ -841,6 +841,20 @@
     return _prayersRef().doc(id).delete();
   }
 
+  function listPrayerInteractions(prayerId) {
+    return _prayersRef().doc(prayerId).collection('interactions')
+      .orderBy('createdAt', 'desc').limit(100).get()
+      .then(function(snap) {
+        return snap.docs.map(function(d) { return Object.assign({ id: d.id }, d.data()); });
+      });
+  }
+
+  function addPrayerInteraction(prayerId, data) {
+    var rec = Object.assign({}, data, { createdAt: _now(), createdBy: _userEmail });
+    return _prayersRef().doc(prayerId).collection('interactions').add(rec)
+      .then(function(ref) { return Object.assign({ id: ref.id }, rec); });
+  }
+
   /* ── Listen to prayers (real-time for public wall) ──────────────── */
   function listenPrayers(callback) {
     var key = 'prayers';
@@ -4442,6 +4456,8 @@
     updatePrayer:   updatePrayer,
     deletePrayer:   deletePrayer,
     listenPrayers:  listenPrayers,
+    listPrayerInteractions: listPrayerInteractions,
+    addPrayerInteraction:   addPrayerInteraction,
 
     // Todos / Tasks
     listTodos:      listTodos,

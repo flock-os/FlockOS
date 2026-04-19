@@ -65,6 +65,7 @@ const TheLife = (() => {
   }
   function _mapPrayerDataForGAS(data) {
     var payload = Object.assign({}, data);
+    // Keep GAS compatibility where sheet-column keys can be referenced directly.
     if (payload.status != null) payload['Status'] = payload.status;
     if (payload.assignedTo != null) payload['Assigned To'] = payload.assignedTo;
     if (payload.adminNotes != null) payload['Admin Notes'] = payload.adminNotes;
@@ -103,6 +104,8 @@ const TheLife = (() => {
     });
   }
   function _filterClosedPrayer(rows, statusKey) {
+    // Prayer requests should fall out of pastor queues once terminal.
+    // Seed admins retain the same recent-history visibility model.
     if (_isSeedAdmin()) return _filterClosed(rows, statusKey);
     return rows.filter(function(r) {
       return _TERMINAL_STATUSES.indexOf(_getStatusLowerCase(r, statusKey)) === -1;
@@ -1698,12 +1701,12 @@ const TheLife = (() => {
       + '<div id="fp-body">' + _spinner() + '</div></div>';
     var _m = document.getElementById('main'); if (_m) _m.scrollTop = 0;
 
-    // Parallel: fire _ensureDir while checking cache / fetching prayer record
+    // Parallel: fire _ensureDir, fetch prayer record, fetch interactions
     var _dirP = _ensureDir();
     var _prayerP = null;
+    var _ixP = null;
     var rec = {};
     if (id) {
-      // Check both TheLife's own cache and the tabernacle's prayer-admin data cache
       var _adminCache = (typeof Modules !== 'undefined' && Modules._dataCache) ? (Modules._dataCache['prayer-admin'] || []) : [];
       rec = (_cache.allPrayer || []).find(function(r) { return (r.id || r.ID) === id; })
          || _adminCache.find(function(r) { return (r.id || r.ID) === id; })
@@ -1713,6 +1716,9 @@ const TheLife = (() => {
           ? UpperRoom.getPrayer(id).catch(function() { return null; })
           : TheVine.flock.prayer.get({ id: id }).catch(function() { return null; });
       }
+      if (_isFB()) {
+        _ixP = UpperRoom.listPrayerInteractions(id).catch(function() { return []; });
+      }
     }
     var dir = await _dirP;
     var mOpts = _memberOpts(dir);
@@ -1720,8 +1726,9 @@ const TheLife = (() => {
       var pRes = await _prayerP;
       if (pRes && !pRes.error) rec = pRes;
     }
+    var interactions = _ixP ? (await _ixP) : [];
 
-    // Normalize field names (API returns mixed formats)
+    // Normalize field names
     var name     = rec.submitterName || rec['Submitter Name'] || 'Anonymous';
     var email    = rec.submitterEmail || rec['Submitter Email'] || '';
     var phone    = rec.submitterPhone || rec['Submitter Phone'] || '';
@@ -1733,6 +1740,7 @@ const TheLife = (() => {
     var assigned = rec.assignedTo || rec['Assigned To'] || '';
     var notes    = rec.adminNotes || rec['Admin Notes'] || '';
     var date     = rec.submittedAt || rec['Submitted At'] || '';
+    var prayerCount = rec.prayerCount || 0;
 
     var html = '';
 
@@ -1764,10 +1772,49 @@ const TheLife = (() => {
     // ── Section: Pastoral Response ──
     var rpSec = '';
     rpSec += _fp2(
-      _fpField('Status', 'status', status, 'select', ['New','In Progress','Answered','Closed']),
+      _fpField('Status', 'status', status, 'select', ['New','Praying','In Progress','Answered','Closed']),
       _fpField('Assigned To', 'assignedTo', assigned, 'select', mOpts));
     rpSec += _fpField('Admin Notes', 'adminNotes', notes, 'textarea');
     html += _fpSec('Pastoral Response', 'prayer-response', rpSec);
+
+    // ── Section: Interaction Timeline ──
+    if (id) {
+      var tlSec = '';
+      tlSec += '<div style="margin-bottom:12px;display:flex;gap:10px;flex-wrap:wrap;">'
+        + '<button type="button" onclick="TheLife.addPrayerInteraction(\'' + _e(id) + '\')" class="fp-action-btn">+ Log Prayer / Interaction</button>'
+        + '</div>';
+      if (interactions.length) {
+        tlSec += '<div class="fp-timeline">';
+        interactions.forEach(function(ix) {
+          var ixIcon = { 'Prayed': '\uD83D\uDE4F', 'Called': '\uD83D\uDCDE', 'Emailed': '\u2709\uFE0F', 'Texted': '\uD83D\uDCAC', 'Visited': '\uD83D\uDEAA', 'Counseled': '\uD83E\uDDD1\u200D\uD83D\uDCAC', 'Note': '\uD83D\uDCDD', 'Follow-Up': '\uD83D\uDCC5' }[ix.interactionType || ix.type] || '\uD83D\uDCDD';
+          tlSec += '<div class="fp-timeline-item">'
+            + '<div class="fp-timeline-dot"></div>'
+            + '<div class="fp-timeline-content">'
+            + '<div class="fp-timeline-head">'
+            + '<span class="fp-timeline-type">' + ixIcon + ' ' + _e(ix.interactionType || ix.type || 'Note') + '</span>'
+            + '<span class="fp-timeline-date">' + _e(ix.date || (ix.createdAt ? ix.createdAt.substring(0,10) : '')) + '</span>'
+            + (ix.createdBy ? '<span style="font-size:0.72rem;color:var(--ink-faint);margin-left:6px;">' + _e(ix.createdBy) + '</span>' : '')
+            + '</div>'
+            + (ix.notes ? '<div class="fp-timeline-body">' + _e(ix.notes) + '</div>' : '')
+            + (ix.followUpDate ? '<div class="fp-timeline-fu">\uD83D\uDCC5 Follow-up: ' + _e(ix.followUpDate) + '</div>' : '')
+            + '</div></div>';
+        });
+        tlSec += '</div>';
+      } else {
+        tlSec += '<div class="flock-empty"><div class="flock-empty-icon">\uD83D\uDE4F</div>No interactions logged yet. Log the first time you prayed over this request.</div>';
+      }
+      html += _fpSec('Prayer Log', 'prayer-timeline', tlSec);
+    }
+
+    // ── Section: Quick Actions ──
+    if (id) {
+      var actSec = '<div style="display:flex;gap:10px;flex-wrap:wrap;">';
+      actSec += '<button type="button" onclick="TheLife.addPrayerInteraction(\'' + _e(id) + '\',\'Prayed\')" class="fp-action-btn">\uD83D\uDE4F I Prayed For This</button>';
+      actSec += '<button type="button" onclick="TheLife.addPrayerInteraction(\'' + _e(id) + '\',\'Follow-Up\')" class="fp-action-btn">\uD83D\uDCC5 Schedule Follow-Up</button>';
+      actSec += '<button type="button" onclick="TheLife.convertPrayerToCare()" class="fp-action-btn">\uD83E\uDEA6 Convert to Care Case</button>';
+      actSec += '</div>';
+      html += _fpSec('Quick Actions', 'prayer-actions', actSec);
+    }
 
     // ── Section: Reply / Contact ──
     var reSec = '';
@@ -1792,7 +1839,7 @@ const TheLife = (() => {
     reSec += '</div>';
     html += _fpSec('Reply & Contact', 'prayer-reply', reSec);
 
-    // Bottom save + Convert to Care Case
+    // Bottom save
     html += '<div class="fp-bottom-bar" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">'
       + '<button type="button" onclick="TheLife.savePrayer()" class="fp-save-btn">\uD83D\uDCBE Save Changes</button>'
       + '<span id="fp-save-status2" class="fp-save-status"></span>'
@@ -1800,6 +1847,65 @@ const TheLife = (() => {
       + '</div>';
 
     document.getElementById('fp-body').innerHTML = html;
+  }
+
+  async function addPrayerInteraction(prayerId, presetType) {
+    var iTypes = ['Prayed', 'Called', 'Emailed', 'Texted', 'Visited', 'Counseled', 'Follow-Up', 'Note'];
+    var typeOpts = iTypes.map(function(t) {
+      return '<option value="' + _e(t) + '"' + (presetType === t ? ' selected' : '') + '>' + t + '</option>';
+    }).join('');
+    var today = new Date().toISOString().substring(0, 10);
+
+    var overlay = document.createElement('div');
+    overlay.id = 'fp-ix-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;';
+    overlay.innerHTML = '<div style="background:var(--surface,#1e1e2e);border-radius:12px;padding:24px;width:100%;max-width:420px;box-shadow:0 8px 40px rgba(0,0,0,0.5);">'
+      + '<h3 style="margin:0 0 16px;font-size:1rem;font-weight:700;color:var(--ink);">Log Prayer Interaction</h3>'
+      + '<div style="margin-bottom:12px;">'
+      + '<label style="font-size:0.78rem;font-weight:600;color:var(--ink-muted);display:block;margin-bottom:6px;">Type</label>'
+      + '<select id="fp-ix-type" style="width:100%;padding:9px 12px;border-radius:6px;border:1px solid var(--line);background:rgba(255,255,255,0.07);color:var(--ink);font-size:0.9rem;">' + typeOpts + '</select>'
+      + '</div>'
+      + '<div style="margin-bottom:12px;">'
+      + '<label style="font-size:0.78rem;font-weight:600;color:var(--ink-muted);display:block;margin-bottom:6px;">Date</label>'
+      + '<input type="date" id="fp-ix-date" value="' + today + '" style="width:100%;padding:9px 12px;border-radius:6px;border:1px solid var(--line);background:rgba(255,255,255,0.07);color:var(--ink);font-size:0.9rem;" />'
+      + '</div>'
+      + '<div style="margin-bottom:12px;">'
+      + '<label style="font-size:0.78rem;font-weight:600;color:var(--ink-muted);display:block;margin-bottom:6px;">Notes</label>'
+      + '<textarea id="fp-ix-notes" rows="3" placeholder="Notes about this interaction\u2026" style="width:100%;padding:9px 12px;border-radius:6px;border:1px solid var(--line);background:rgba(255,255,255,0.07);color:var(--ink);font-size:0.88rem;font-family:inherit;resize:vertical;"></textarea>'
+      + '</div>'
+      + '<div style="margin-bottom:16px;">'
+      + '<label style="font-size:0.78rem;font-weight:600;color:var(--ink-muted);display:block;margin-bottom:6px;">Follow-Up Date (optional)</label>'
+      + '<input type="date" id="fp-ix-fu" style="width:100%;padding:9px 12px;border-radius:6px;border:1px solid var(--line);background:rgba(255,255,255,0.07);color:var(--ink);font-size:0.9rem;" />'
+      + '</div>'
+      + '<div style="display:flex;gap:10px;">'
+      + '<button type="button" id="fp-ix-save" class="fp-action-btn" style="background:var(--accent);color:var(--ink-inverse);border-color:var(--accent);font-weight:600;flex:1;">\uD83D\uDCBE Save Interaction</button>'
+      + '<button type="button" onclick="document.getElementById(\'fp-ix-overlay\').remove()" class="fp-action-btn">Cancel</button>'
+      + '</div>'
+      + '</div>';
+    document.body.appendChild(overlay);
+    overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+
+    document.getElementById('fp-ix-save').onclick = async function() {
+      var btn = document.getElementById('fp-ix-save');
+      btn.disabled = true; btn.textContent = 'Saving\u2026';
+      var data = {
+        interactionType: document.getElementById('fp-ix-type').value,
+        date:            document.getElementById('fp-ix-date').value,
+        notes:           document.getElementById('fp-ix-notes').value.trim(),
+        followUpDate:    document.getElementById('fp-ix-fu').value || null
+      };
+      try {
+        if (_isFB()) {
+          await UpperRoom.addPrayerInteraction(prayerId, data);
+        }
+        overlay.remove();
+        _showToast('Interaction saved.');
+        openPrayer(prayerId, _fpEditorSource);
+      } catch (err) {
+        btn.disabled = false; btn.textContent = '\uD83D\uDCBE Save Interaction';
+        _showToast('Error saving: ' + (err.message || err), 'error');
+      }
+    };
   }
 
   async function convertPrayerToCare() {
@@ -1836,6 +1942,10 @@ const TheLife = (() => {
       });
     }
     data.id = _fpPrayerId;
+    var _prevPrayerRecord = (_cache.allPrayer || []).find(function(r) { return (r.id || r.ID) === _fpPrayerId; })
+      || ((_flockData && _flockData.allPrayer) ? _flockData.allPrayer.find(function(r) { return (r.id || r.ID) === _fpPrayerId; }) : null)
+      || {};
+    var _prevStatus = (_prevPrayerRecord.status || _prevPrayerRecord['Status'] || '').toLowerCase();
 
     // Fill in prayer text from the cached record if not present in the form
     // (savePrayer only collects the response section fields, not the original text)
@@ -1846,11 +1956,36 @@ const TheLife = (() => {
 
     try {
       _stat('Updating prayer\u2026');
-      await TheVine.flock.prayer.update(data);
+      if (_isFB()) { await UpperRoom.updatePrayer(_fpPrayerId, data); }
+      else {
+        var payload = _mapPrayerDataForGAS(data);
+        await TheVine.flock.prayer.update(payload);
+      }
       _audit('prayer.update', 'PrayerRequests', _fpPrayerId, data.status || '');
+      var _newStatus = (data.status || '').toLowerCase();
+      if (_prevStatus !== _newStatus) {
+        _audit('prayer.status', 'PrayerRequests', _fpPrayerId, (_prevStatus || 'unknown') + ' \u2192 ' + (_newStatus || 'unknown'));
+        if (_PRAYER_STATUS_AUDIT_EVENTS.indexOf(_newStatus) !== -1) {
+          _audit('prayer.status.' + _newStatus, 'PrayerRequests', _fpPrayerId, data.status || '');
+        }
+      }
+      if (_cache.allPrayer && _cache.allPrayer.length) {
+        _cache.allPrayer = _cache.allPrayer.map(function(r) {
+          return (r.id || r.ID) === _fpPrayerId ? Object.assign({}, r, data) : r;
+        });
+      }
+      if (_flockData && _flockData.allPrayer && _flockData.allPrayer.length) {
+        _flockData.allPrayer = _flockData.allPrayer.map(function(r) {
+          return (r.id || r.ID) === _fpPrayerId ? Object.assign({}, r, data) : r;
+        });
+      }
       if (btn) { btn.disabled = false; btn.textContent = '\uD83D\uDCBE Save Changes'; }
       _toast('Prayer request updated!', 'success');
       _stat('Saved \u2713');
+      if (_TERMINAL_STATUSES.indexOf(_newStatus) !== -1 && !_isSeedAdmin()) {
+        _removePrayerFromCaches(_fpPrayerId);
+        backToHub();
+      }
     } catch (err) {
       if (btn) { btn.disabled = false; btn.textContent = '\uD83D\uDCBE Save Changes'; }
       _stat('');
@@ -4499,6 +4634,7 @@ const TheLife = (() => {
     openPrayer:         openPrayer,
     savePrayer:         savePrayer,
     sendPrayerReply:    sendPrayerReply,
+    addPrayerInteraction: addPrayerInteraction,
     convertPrayerToCare: convertPrayerToCare,
     _prayerPageNav:     _prayerPageNav,
 
