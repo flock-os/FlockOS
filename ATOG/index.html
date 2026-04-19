@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A Touch of the Gospel</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#020617">
+    <meta name="description" content="A Touch of the Gospel — Interactive biblical study, theology, and prayer resources powered by FlockOS.">
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,400;0,700;0,900;1,400&family=Inter:wght@300;400;500;600;700&family=Cinzel:wght@400;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+
+    <!-- Theme -->
+    <link rel="stylesheet" href="Styles/the_garment.css">
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+    <!-- ═══ Stars Canvas ═══════════════════════════════════ -->
+    <canvas id="stars-canvas"></canvas>
+
+    <!-- ═══ Topbar ═════════════════════════════════════════ -->
+    <header id="topbar">
+        <div id="hamburger" onclick="ATOG.toggleSidebar()">
+            <span></span><span></span><span></span>
+        </div>
+        <div style="flex:1; display:flex; align-items:center; gap:12px;">
+            <div>
+                <span class="brand">A Touch of the Gospel</span>
+                <span class="brand-sub">atouchofthegospel.com</span>
+            </div>
+        </div>
+        <div style="display:flex; align-items:center; gap:6px;" id="lang-switcher">
+            <button class="lang-btn active" data-lang="en" onclick="ATOG.setLang('en')">EN</button>
+            <button class="lang-btn" data-lang="es" onclick="ATOG.setLang('es')">ES</button>
+            <button class="lang-btn" data-lang="km" onclick="ATOG.setLang('km')">KM</button>
+            <button class="lang-btn" data-lang="ps" onclick="ATOG.setLang('ps')">PS</button>
+        </div>
+    </header>
+
+    <!-- ═══ Sidebar ════════════════════════════════════════ -->
+    <aside id="sidebar">
+        <nav>
+            <div class="nav-zone">
+                <a class="nav-item active" data-view="home" onclick="ATOG.navigate('home')">
+                    <span class="nav-icon">&#127968;</span> Home
+                </a>
+            </div>
+
+            <div class="nav-zone">
+                <div class="nav-zone-label">Study</div>
+                <a class="nav-item" data-view="theology" onclick="ATOG.navigate('theology')">
+                    <span class="nav-icon">&#128220;</span> Theology
+                </a>
+                <a class="nav-item" data-view="books" onclick="ATOG.navigate('books')">
+                    <span class="nav-icon">&#128214;</span> Books of the Bible
+                </a>
+                <a class="nav-item" data-view="lexicon" onclick="ATOG.navigate('lexicon')">
+                    <span class="nav-icon">&#128300;</span> Greek &amp; Hebrew Lexicon
+                </a>
+                <a class="nav-item" data-view="characters" onclick="ATOG.navigate('characters')">
+                    <span class="nav-icon">&#128101;</span> Bible Characters
+                </a>
+            </div>
+
+            <div class="nav-zone">
+                <div class="nav-zone-label">Grow</div>
+                <a class="nav-item" data-view="counseling" onclick="ATOG.navigate('counseling')">
+                    <span class="nav-icon">&#128156;</span> Counseling
+                </a>
+                <a class="nav-item" data-view="heart" onclick="ATOG.navigate('heart')">
+                    <span class="nav-icon">&#10084;&#65039;</span> Heart Check
+                </a>
+                <a class="nav-item" data-view="mirror" onclick="ATOG.navigate('mirror')">
+                    <span class="nav-icon">&#129668;</span> The Mirror
+                </a>
+            </div>
+
+            <div class="nav-zone">
+                <div class="nav-zone-label">Engage</div>
+                <a class="nav-item" data-view="quiz" onclick="ATOG.navigate('quiz')">
+                    <span class="nav-icon">&#127919;</span> Bible Quiz
+                </a>
+                <a class="nav-item" data-view="apologetics" onclick="ATOG.navigate('apologetics')">
+                    <span class="nav-icon">&#9961;</span> Apologetics &amp; FAQs
+                </a>
+            </div>
+
+            <div class="nav-zone">
+                <div class="nav-zone-label">Pray</div>
+                <a class="nav-item" data-view="prayer" onclick="ATOG.navigate('prayer')">
+                    <span class="nav-icon">&#128591;</span> Prayer Request
+                </a>
+            </div>
+
+            <div class="nav-zone">
+                <div class="nav-zone-label">Research</div>
+                <a class="nav-item" href="Pages/biblical_worship.html">
+                    <span class="nav-icon">&#127926;</span> Biblical Worship
+                </a>
+                <a class="nav-item" href="Pages/biblical_family.html">
+                    <span class="nav-icon">&#127968;</span> The Biblical Family
+                </a>
+                <a class="nav-item" href="Pages/prayer_and_intercession.html">
+                    <span class="nav-icon">&#128214;</span> Prayer &amp; Intercession
+                </a>
+                <a class="nav-item" href="Pages/praying_the_psalms.html">
+                    <span class="nav-icon">&#127932;</span> Praying the Psalms
+                </a>
+            </div>
+        </nav>
+    </aside>
+
+    <!-- ═══ Sidebar Overlay (mobile) ══════════════════════ -->
+    <div id="sidebar-overlay" onclick="ATOG.toggleSidebar()"></div>
+
+    <!-- ═══ Main Content ══════════════════════════════════ -->
+    <main id="main">
+
+        <!-- ── Home / Hero ────────────────────────────────── -->
+        <div class="module-view active" id="view-home">
+            <div class="glass-heavy rounded-3xl p-10 relative overflow-hidden mb-12">
+                <div class="hero-glow" style="width:400px;height:400px;background:var(--neon-blue);top:-100px;right:-80px;"></div>
+                <div class="hero-glow" style="width:300px;height:300px;background:var(--neon-purple);bottom:-80px;left:-60px;"></div>
+                <div class="relative z-10 text-center max-w-3xl mx-auto">
+                    <span class="pill uppercase tracking-widest font-bold mb-6" style="color:var(--neon-teal); border-color:rgba(45,212,191,0.3); background:rgba(45,212,191,0.06); padding:0.25rem 1rem; font-size:0.65rem;">
+                        Powered by FlockOS
+                    </span>
+                    <h1 class="font-display text-4xl font-bold text-white mb-6 leading-tight" style="text-shadow:0 0 40px rgba(56,189,248,0.15);">
+                        A Touch of <span class="gradient-text">the Gospel</span>
+                    </h1>
+                    <p class="text-lg text-slate-300 leading-relaxed mb-10">
+                        Explore the depth of Scripture through interactive theology, biblical lexicon,
+                        character studies, counseling resources, self-assessments, and prayer — all
+                        in one place.
+                    </p>
+                    <div class="flex flex-wrap justify-center gap-4">
+                        <button onclick="ATOG.navigate('theology')" class="btn btn-primary">Begin Studying</button>
+                        <button onclick="ATOG.navigate('prayer')" class="btn btn-ghost">Submit a Prayer</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 gap-5" id="home-cards"></div>
+        </div>
+
+        <!-- ── Dynamic Section Containers ─────────────────── -->
+        <div class="module-view" id="view-theology"></div>
+        <div class="module-view" id="view-books"></div>
+        <div class="module-view" id="view-lexicon"></div>
+        <div class="module-view" id="view-characters"></div>
+        <div class="module-view" id="view-counseling"></div>
+        <div class="module-view" id="view-heart"></div>
+        <div class="module-view" id="view-mirror"></div>
+        <div class="module-view" id="view-quiz"></div>
+        <div class="module-view" id="view-apologetics"></div>
+        <div class="module-view" id="view-prayer"></div>
+
+    </main>
+
+    <!-- ═══ Footer ═════════════════════════════════════════ -->
+    <footer id="app-footer">
+        <p>A Touch of the Gospel &mdash; atouchofthegospel.com</p>
+        <p class="mt-1" style="color:#334155;">Scripture quotations are from the ESV&reg; Bible. Powered by <span style="color:var(--slate-500);">FlockOS</span>.</p>
+    </footer>
+
+    <!-- ═══ Scripts ═════════════════════════════════════════ -->
+    <script defer src="Scripts/the_gospel.js"></script>
+    <script defer src="Scripts/the_touch.js"></script>
+
+    <!-- ═══ Inline Bootstrap ══════════════════════════════ -->
+    <script>
+    window.ATOG = window.ATOG || {};
+
+    ATOG.toggleSidebar = function () {
+        document.getElementById('sidebar').classList.toggle('open');
+        document.getElementById('hamburger').classList.toggle('open');
+    };
+
+    ATOG.navigate = function (viewName) {
+        document.querySelectorAll('.module-view').forEach(function (v) { v.classList.remove('active'); });
+        var target = document.getElementById('view-' + viewName);
+        if (target) target.classList.add('active');
+        document.querySelectorAll('.nav-item[data-view]').forEach(function (n) {
+            n.classList.toggle('active', n.dataset.view === viewName);
+        });
+        document.getElementById('sidebar').classList.remove('open');
+        document.getElementById('hamburger').classList.remove('open');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        history.replaceState(null, '', '#' + viewName);
+        if (window.Touch && Touch.render) Touch.render(viewName);
+    };
+
+    ATOG.lang = 'en';
+    ATOG.setLang = function (code) {
+        ATOG.lang = code;
+        document.querySelectorAll('.lang-btn').forEach(function (b) {
+            b.classList.toggle('active', b.dataset.lang === code);
+        });
+        document.documentElement.lang = code;
+        if (window.Touch && Touch.onLangChange) Touch.onLangChange(code);
+    };
+
+    window.addEventListener('DOMContentLoaded', function () {
+        var hash = location.hash.replace('#', '');
+        if (hash && document.getElementById('view-' + hash)) ATOG.navigate(hash);
+    });
+
+    /* ── Animated Star Field ──────────────────────────── */
+    (function () {
+        var c = document.getElementById('stars-canvas');
+        var ctx = c.getContext('2d');
+        var stars = [], COUNT = 180;
+        function resize() { c.width = window.innerWidth; c.height = window.innerHeight; }
+        function init() {
+            resize(); stars = [];
+            for (var i = 0; i < COUNT; i++) {
+                stars.push({ x: Math.random()*c.width, y: Math.random()*c.height,
+                    r: Math.random()*1.2+0.3, a: Math.random()*0.6+0.1,
+                    d: Math.random()*0.0004+0.0001, p: Math.random()*Math.PI*2 });
+            }
+        }
+        function draw() {
+            ctx.clearRect(0,0,c.width,c.height);
+            var t = Date.now();
+            for (var i=0; i<stars.length; i++) {
+                var s = stars[i], alpha = s.a + Math.sin(t*s.d+s.p)*0.25;
+                if (alpha < 0.02) alpha = 0.02;
+                ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
+                ctx.fillStyle = 'rgba(255,255,255,'+alpha+')'; ctx.fill();
+            }
+            requestAnimationFrame(draw);
+        }
+        init(); draw(); window.addEventListener('resize', init);
+    })();
+    </script>
+</body>
+</html>
