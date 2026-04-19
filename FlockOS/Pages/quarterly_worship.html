@@ -2069,8 +2069,8 @@
         _saveLocal();
         try { await saveToFirestore(false); } catch(e) { /* error already shown, local backup is safe */ }
 
-        /* 2 — navigate back */
-        window.location.href = getDashboardUrl();
+        /* 2 — navigate back (use top-level window so iframe doesn't load the shell inside itself) */
+        window.top.location.href = getDashboardUrl();
       }
       document.getElementById('btnSaveCloseTop').addEventListener('click', saveAndClose);
       document.getElementById('btnSaveCloseBot').addEventListener('click', saveAndClose);
