@@ -3132,6 +3132,17 @@ const TheLife = (() => {
 
   function _buildPrayerPanel(rows) {
     if (!rows.length) return _flockEmpty('\uD83D\uDE4F', 'No prayer requests. All caught up!');
+
+    var unassignedCount = rows.filter(function(r) {
+      var st = (r.status || r['Status'] || '').toLowerCase();
+      return st !== 'answered' && st !== 'closed' && !(r.assignedTo || r['Assigned To']);
+    }).length;
+
+    var h = '<div class="flock-actions">'
+      + (unassignedCount ? '<button onclick="TheLife.showUnassignedPrayers()" style="position:relative;">Unassigned'
+        + '<span style="position:absolute;top:-6px;right:-8px;background:#c94c4c;color:#fff;border-radius:999px;font-size:0.65rem;font-weight:700;padding:1px 5px;line-height:1.4;">' + unassignedCount + '</span></button>' : '')
+      + '</div>';
+
     var total = rows.length;
     var pages = Math.ceil(total / _PANEL_PAGE_SIZE);
     if (_prayerPage >= pages) _prayerPage = pages - 1;
@@ -3139,7 +3150,7 @@ const TheLife = (() => {
     var start = _prayerPage * _PANEL_PAGE_SIZE;
     var page  = rows.slice(start, start + _PANEL_PAGE_SIZE);
 
-    var h = '<div class="flock-card-grid">';
+    h += '<div class="flock-card-grid">';
     page.forEach(function(r) {
       var rid    = _e(String(r.id || r.ID || ''));
       var name   = _e(r.submitterName || r['Submitter Name'] || 'Anonymous');
