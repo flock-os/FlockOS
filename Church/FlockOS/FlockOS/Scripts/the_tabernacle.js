@@ -2754,7 +2754,7 @@ const Modules = (() => {
     var header = '<div style="padding:16px 20px;background:var(--bg-raised);border:1px solid var(--line);border-radius:12px;margin-bottom:18px;">'
       + '<div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:10px;">'
       + '<div><div style="font-size:1.15rem;font-weight:800;color:var(--ink);">' + _e(planData.serviceType || 'Sunday Service') + '</div>'
-      + '<div style="font-size:0.82rem;color:var(--ink-muted);margin-top:2px;">' + _e(dateStr) + '</div>'
+      + '<div style="font-size:0.82rem;color:var(--ink-muted);margin-top:2px;">' + _e(dateStr) + (planData.serviceTime ? ' \u00b7 ' + _e(planData.serviceTime) : '') + '</div>'
       + (planData.sermonTitle ? '<div style="font-size:0.8rem;color:var(--ink-muted);margin-top:3px;">&#128228; <em>' + _e(planData.sermonTitle) + '</em></div>' : '')
       + (planData.theme       ? '<div style="font-size:0.8rem;color:var(--ink-muted);">Theme: <em>' + _e(planData.theme) + '</em></div>' : '')
       + (planData.scriptureFocus ? '<div style="font-size:0.8rem;color:var(--ink-muted);">&#128214; ' + _e(planData.scriptureFocus) + '</div>' : '')
@@ -2971,6 +2971,7 @@ const Modules = (() => {
         options: ['Sunday Morning','Sunday Evening','Wednesday','Special','Conference','Other'],
         value: r.serviceType || '' },
       { name: 'serviceDate',  label: 'Date',          type: 'date',     value: r.serviceDate || r.date || '' },
+      { name: 'serviceTime',  label: 'Service Time',  type: 'time',     value: r.serviceTime || '' },
       { name: 'psalmReader',  label: 'Psalm',         value: r.psalmReader || '' },
       { name: 'worshipLeader',label: 'Worship',       value: r.worshipLeader || '' },
       { name: 'announcements',label: 'Announcements', value: r.announcements || '' },
@@ -14296,6 +14297,7 @@ const Modules = (() => {
       { name: 'serviceDate',      label: 'Service Date',     type: 'date',     required: true },
       { name: 'serviceType',      label: 'Service Type',     type: 'select',
         options: ['Sunday AM','Sunday PM','Wednesday','Special','Good Friday','Easter','Christmas','Other'] },
+      { name: 'serviceTime',      label: 'Service Time',     type: 'time' },
       { name: 'theme',            label: 'Theme' },
       { name: 'scriptureFocus',   label: 'Scripture Focus' },
       { name: 'sermonTitle',      label: 'Sermon Title' },
