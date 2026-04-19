@@ -1775,6 +1775,19 @@ const Modules = (() => {
       + '</span>';
   }
 
+  function _contactActions(phone, email) {
+    var h = '<span style="display:inline-flex;gap:4px;margin-left:8px;vertical-align:middle;">';
+    if (phone) {
+      h += '<button type="button" onclick="Modules._trumpetCall(\'' + _e(phone) + '\')" style="background:none;border:none;cursor:pointer;font-size:1rem;padding:1px 2px;line-height:1;" title="Call">\uD83D\uDCDE</button>';
+      h += '<button type="button" onclick="Modules._trumpetSms(\'' + _e(phone) + '\')" style="background:none;border:none;cursor:pointer;font-size:1rem;padding:1px 2px;line-height:1;" title="Text">\uD83D\uDCAC</button>';
+    }
+    if (email) {
+      h += '<a href="mailto:' + _e(email) + '" style="font-size:1rem;padding:1px 2px;line-height:1;text-decoration:none;" title="Email">\u2709\uFE0F</a>';
+    }
+    h += '</span>';
+    return (phone || email) ? h : '';
+  }
+
 
   // ── Modal (generic create / edit form) ──────────────────────────────────
   /**
@@ -2122,7 +2135,7 @@ const Modules = (() => {
         ['#', 'Name', 'Card Title', 'Ministry', 'Small Group', 'Visibility'],
         pageSlice.map(r => [
           _e(r.memberNumber),
-          _e([r.preferredName || r.firstName, r.lastName].filter(Boolean).join(' ')),
+          _e([r.preferredName || r.firstName, r.lastName].filter(Boolean).join(' ')) + _contactActions(r.cellPhone || r.homePhone || r.workPhone || r.phone, r.email || r.primaryEmail),
           _e(r.cardTitle),
           _e(r.ministry),
           _e(r.smallGroup),
@@ -21579,7 +21592,7 @@ const Modules = (() => {
     _trumpetShare,
     _trumpetCall,
     _trumpetSms,
-    _phoneActions,
+    _phoneActions, _contactActions,
     editConfig,
     editPrayer,
     viewMyPrayer,
