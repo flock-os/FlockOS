@@ -301,15 +301,19 @@ const TheLife = (() => {
   var _STAFF_GROUP_WORDS = ['pastor', 'admin', 'elder', 'deacon', 'staff', 'care', 'lead'];
 
   function _staffOpts(dir) {
+    var all = dir || _cache.memberDir || [];
+    var staff = all.filter(function(m) {
+      if (m.role && _STAFF_ROLES[m.role.toLowerCase()]) return true;
+      if (m.groups) {
+        var gl = String(m.groups).toLowerCase();
+        return _STAFF_GROUP_WORDS.some(function(w) { return gl.indexOf(w) !== -1; });
+      }
+      return false;
+    });
+    // If enrichment failed and no staff were identified, fall back to full list
+    var list = staff.length ? staff : all;
     return [{ value: '', label: '(none)' }].concat(
-      (dir || _cache.memberDir || []).filter(function(m) {
-        if (m.role && _STAFF_ROLES[m.role.toLowerCase()]) return true;
-        if (m.groups) {
-          var gl = String(m.groups).toLowerCase();
-          return _STAFF_GROUP_WORDS.some(function(w) { return gl.indexOf(w) !== -1; });
-        }
-        return false;
-      }).map(function(m) {
+      list.map(function(m) {
         var name = m.preferredName || ((m.firstName || '') + ' ' + (m.lastName || '')).trim();
         return { value: m.memberPin || m.id || m.email, label: name || m.memberNumber || m.email || m.id };
       })
@@ -4070,6 +4074,7 @@ const TheLife = (() => {
       var _myIds = [email];
       if (_me.id && _me.id !== email) _myIds.push(_me.id);
       if (_me.memberNumber && _me.memberNumber !== email) _myIds.push(_me.memberNumber);
+      if (_me.memberPin && _me.memberPin !== email) _myIds.push(_me.memberPin);
       if (_me.email && _me.email !== email) _myIds.push(_me.email);
       if (_me.primaryEmail && _me.primaryEmail !== email) _myIds.push(_me.primaryEmail);
       function _isMe(val) { return val && _myIds.indexOf(val) !== -1; }
