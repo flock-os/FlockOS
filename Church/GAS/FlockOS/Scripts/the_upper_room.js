@@ -2058,6 +2058,11 @@
     });
   }
 
+  function deleteEvent(id) {
+    if (typeof id === 'object') id = id.id;
+    return _eventsRef().doc(id).delete();
+  }
+
   function publicEvents(opts) {
     opts = opts || {};
     return _eventsRef()
@@ -4581,6 +4586,7 @@
     createEvent:        createEvent,
     updateEvent:        updateEvent,
     cancelEvent:        cancelEvent,
+    deleteEvent:        deleteEvent,
     publicEvents:       publicEvents,
 
     // RSVPs

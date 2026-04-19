@@ -2060,6 +2060,11 @@ window.FLOCK_CHURCH_ID = "flockos";
     });
   }
 
+  function deleteEvent(id) {
+    if (typeof id === 'object') id = id.id;
+    return _eventsRef().doc(id).delete();
+  }
+
   function publicEvents(opts) {
     opts = opts || {};
     return _eventsRef()
@@ -4583,6 +4588,7 @@ window.FLOCK_CHURCH_ID = "flockos";
     createEvent:        createEvent,
     updateEvent:        updateEvent,
     cancelEvent:        cancelEvent,
+    deleteEvent:        deleteEvent,
     publicEvents:       publicEvents,
 
     // RSVPs

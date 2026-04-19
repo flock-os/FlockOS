@@ -473,6 +473,7 @@ const TheSeason = (() => {
   var _calDate  = new Date();           // currently viewed month pivot
   var _calView  = 'day';                // month | week | day | agenda
   var _calEvents = [];                  // merged event pool for current range
+  var _session  = {};                   // session passed in via renderCalendar(el, s)
   var _calIcalCache = {};               // keyed by feed URL → parsed entries
   var _calMode  = 'calendar';           // 'calendar' | 'tasks' | 'checkin'
   var _calTZ;                           // IANA timezone from CHURCH_TIMEZONE config
@@ -611,13 +612,11 @@ const TheSeason = (() => {
     var v = String(vis || 'public').toLowerCase();
     if (v === 'public') return true;
     if (v === 'private') {
-      var sess = (typeof session !== 'undefined') ? session : {};
-      var myEmail = (sess.email || '').toLowerCase();
+      var myEmail = (_session.email || '').toLowerCase();
       if (myEmail === (createdBy || '').toLowerCase()) return true;
       return _delegatedOwners.indexOf((createdBy || '').toLowerCase()) >= 0;
     }
-    var sess = (typeof session !== 'undefined') ? session : {};
-    var myRole = String(sess.role || 'readonly').toLowerCase();
+    var myRole = String((_session.role || 'readonly')).toLowerCase();
     var myLevel = _roleLevels[myRole] || 0;
     var reqRole = _visRoleMap[v] || 'readonly';
     var reqLevel = _roleLevels[reqRole] || 0;
@@ -859,6 +858,7 @@ const TheSeason = (() => {
     // ── 1. Internal events ───────────────────────────────────────────────
     if (evRes) {
       _rows(evRes).forEach(function(r) {
+        if ((r.status || '').toLowerCase() === 'archived') return;
         var vis = r.visibility || 'public';
         if (!_canSeeVis(vis, r.createdBy)) return;
         pool.push({
@@ -1344,13 +1344,18 @@ const TheSeason = (() => {
     }
     if (ev.source === 'Events' && ev.id) {
       var isCancelled = (ev.status || '').toLowerCase() === 'cancelled';
+      var myRole = String((_session.role || 'readonly')).toLowerCase();
+      var canDelete = myRole === 'admin' || myRole === 'pastor';
       html += '<div style="display:flex;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line);flex-wrap:wrap;">';
       if (!isCancelled) {
-        html += '<button type="button" onclick="Modules.calEditEvent(\'' + _e(ev.id) + '\')" style="flex:1;padding:8px;background:var(--accent);color:var(--ink-inverse);border:none;border-radius:var(--radius);cursor:pointer;font-weight:600;font-size:0.82rem;">\u270F\uFE0F Edit</button>';
-        html += '<button type="button" onclick="Modules.calArchiveEvent(\'' + _e(ev.id) + '\')" style="flex:1;padding:8px;background:var(--gold,#d97706);color:#fff;border:none;border-radius:var(--radius);cursor:pointer;font-weight:600;font-size:0.82rem;">\uD83D\uDCE6 Archive</button>';
-        html += '<button type="button" onclick="Modules.calCancelEvent(\'' + _e(ev.id) + '\')" style="flex:1;padding:8px;background:var(--danger);color:#fff;border:none;border-radius:var(--radius);cursor:pointer;font-weight:600;font-size:0.82rem;">\u2716 Cancel</button>';
+        html += '<button type="button" onclick="Modules.calEditEvent(\'' + _e(ev.id) + '\')" style="flex:1;padding:8px;background:var(--accent);color:var(--ink-inverse);border:none;border-radius:var(--radius);cursor:pointer;font-weight:600;font-size:0.82rem;">✏️ Edit</button>';
+        html += '<button type="button" onclick="Modules.calArchiveEvent(\'' + _e(ev.id) + '\')" style="flex:1;padding:8px;background:var(--gold,#d97706);color:#fff;border:none;border-radius:var(--radius);cursor:pointer;font-weight:600;font-size:0.82rem;">📦 Archive</button>';
+        html += '<button type="button" onclick="Modules.calCancelEvent(\'' + _e(ev.id) + '\')" style="flex:1;padding:8px;background:var(--danger);color:#fff;border:none;border-radius:var(--radius);cursor:pointer;font-weight:600;font-size:0.82rem;">✖ Cancel</button>';
       } else {
-        html += '<button type="button" onclick="Modules.calEditEvent(\'' + _e(ev.id) + '\')" style="flex:1;padding:8px;background:var(--accent);color:var(--ink-inverse);border:none;border-radius:var(--radius);cursor:pointer;font-weight:600;font-size:0.82rem;">\u270F\uFE0F Edit / Restore</button>';
+        html += '<button type="button" onclick="Modules.calEditEvent(\'' + _e(ev.id) + '\')" style="flex:1;padding:8px;background:var(--accent);color:var(--ink-inverse);border:none;border-radius:var(--radius);cursor:pointer;font-weight:600;font-size:0.82rem;">✏️ Edit / Restore</button>';
+      }
+      if (canDelete) {
+        html += '<button type="button" onclick="Modules.calDeleteEvent(\'' + _e(ev.id) + '\')" style="width:100%;padding:8px;background:var(--danger);color:#fff;border:none;border-radius:var(--radius);cursor:pointer;font-weight:600;font-size:0.82rem;margin-top:4px;">🗑️ Delete Permanently</button>';
       }
       html += '</div>';
     }
@@ -1533,6 +1538,16 @@ const TheSeason = (() => {
     if (!confirm('Delete this event? This cannot be undone.')) return;
     if (_isFB()) { await UpperRoom.deleteCalendarEvent(eventId); }
     else { await TheVine.flock.call('calendar.delete', { EventID: eventId }); }
+    await _calLoad(true);
+    _calRender(document.getElementById('cal-body'));
+  }
+
+  async function calDeleteEvent(eventId) {
+    var overlay = document.getElementById('fl-modal');
+    if (overlay) overlay.remove();
+    if (!confirm('Permanently delete this event? This cannot be undone.')) return;
+    if (_isFB()) { await UpperRoom.deleteEvent(eventId); }
+    else { await TheVine.flock.events.delete({ id: eventId }); }
     await _calLoad(true);
     _calRender(document.getElementById('cal-body'));
   }
@@ -2309,7 +2324,8 @@ const TheSeason = (() => {
   // MODULE RENDERERS
   // ═══════════════════════════════════════════════════════════════════════
 
-  function renderCalendar(el) {
+  function renderCalendar(el, sess) {
+    _session = sess || {};
     var s = _calSettings();
     _calView = s.defaultView || 'day';
     _calDate = new Date();
@@ -2488,6 +2504,7 @@ const TheSeason = (() => {
     calNewPersonal,
     calEditPersonal,
     calDeletePersonal,
+    calDeleteEvent,
     calEditEvent,
     calArchiveEvent,
     calCancelEvent,
