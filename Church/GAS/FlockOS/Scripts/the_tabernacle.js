@@ -84,7 +84,7 @@ const Modules = (() => {
     var html = el.innerHTML;
     // Don't cache views that still have a spinner — the handler's promise
     // resolved before _body() filled in the real content.
-    if (html.indexOf('class="loading"') !== -1 || html.indexOf('class="spin"') !== -1) {
+    if (html.indexOf('class="loading"') !== -1 || html.indexOf('class="spin"') !== -1 || html.indexOf('class="spinner"') !== -1) {
       console.log('[FLOCK-DEBUG] _viewCacheSet("' + viewName + '") SKIPPED — still contains spinner');
       return;
     }
@@ -2112,7 +2112,7 @@ const Modules = (() => {
   _def('directory', async el => {
     // Delegate to TheShepherd when loaded
     if (typeof TheShepherd !== 'undefined' && TheShepherd.renderApp) {
-      TheShepherd.renderApp(el, { embedded: true });
+      await TheShepherd.renderApp(el, { embedded: true });
       return;
     }
     _shell(el, 'Directory', 'Member cards & contact list.',
