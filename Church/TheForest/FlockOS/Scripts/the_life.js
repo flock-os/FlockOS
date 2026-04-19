@@ -281,11 +281,17 @@ const TheLife = (() => {
   }
 
   var _STAFF_ROLES = { care: 1, deacon: 1, pastor: 1, admin: 1, staff: 1, elder: 1 };
+  var _STAFF_GROUP_WORDS = ['pastor', 'admin', 'elder', 'deacon', 'staff', 'care', 'lead'];
 
   function _staffOpts(dir) {
     return [{ value: '', label: '(none)' }].concat(
       (dir || _cache.memberDir || []).filter(function(m) {
-        return m.role && _STAFF_ROLES[m.role.toLowerCase()];
+        if (m.role && _STAFF_ROLES[m.role.toLowerCase()]) return true;
+        if (m.groups) {
+          var gl = String(m.groups).toLowerCase();
+          return _STAFF_GROUP_WORDS.some(function(w) { return gl.indexOf(w) !== -1; });
+        }
+        return false;
       }).map(function(m) {
         var name = m.preferredName || ((m.firstName || '') + ' ' + (m.lastName || '')).trim();
         return { value: m.memberPin || m.id || m.email, label: name || m.memberNumber || m.email || m.id };
@@ -2307,7 +2313,7 @@ const TheLife = (() => {
       _fpField('First Name', 'firstName', rec.firstName, 'text'),
       _fpField('Last Name', 'lastName', rec.lastName, 'text'));
     infoSec += _fp2(
-      _fpField('Email', 'contactEmail', rec.email, 'email'),
+      _fpField('Email', 'email', rec.email, 'email'),
       _fpField('Phone', 'phone', rec.phone, 'tel'));
     infoSec += _fp2(
       _fpField('Address', 'address', rec.address, 'text'),
@@ -2401,7 +2407,7 @@ const TheLife = (() => {
     delete data.lastContact; // read-only; backend sets this via follow-up log, not direct update
 
     // Validate required fields
-    if (!_requireField(data.name || data.firstName || data['First Name'], 'Contact Name')) { if (btn) { btn.disabled = false; btn.textContent = '\uD83D\uDCBE Save'; } return; }
+    if (!_requireField(data.name || data.firstName || data.lastName || data['First Name'], 'Contact Name')) { if (btn) { btn.disabled = false; btn.textContent = '\uD83D\uDCBE Save'; } return; }
     // Validate email format if provided
     if (data.email && !_validEmail(data.email)) { _toast('Please enter a valid email address.', 'warn'); if (btn) { btn.disabled = false; btn.textContent = '\uD83D\uDCBE Save'; } return; }
     // Validate phone format if provided
