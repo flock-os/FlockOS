@@ -441,6 +441,39 @@
     html[data-matrix="1"] #matrixCanvas { display:block !important; }
     html[data-matrix="1"] #matrixCanvas { display:block !important; }
 
+    /* ── Mobile card layout ────────────────────────────────────────────── */
+    @media (max-width: 680px) {
+      .tscroll { overflow-x:hidden; max-height:none; }
+      table { min-width:0 !important; width:100%; }
+      thead { display:none; }
+      tbody tr {
+        display:block;
+        background:var(--bg-raised);
+        border-radius:12px;
+        border:1px solid var(--line-strong);
+        margin-bottom:12px;
+        padding:10px 10px 6px;
+        box-shadow:var(--shadow-sm);
+      }
+      tbody tr td { display:block; width:100%; border:none; padding:4px 0; background:transparent !important; }
+      tbody tr td[data-label]::before {
+        content: attr(data-label);
+        display:block;
+        font-size:.63rem;
+        font-weight:700;
+        text-transform:uppercase;
+        letter-spacing:.07em;
+        color:var(--ink-faint);
+        margin-bottom:3px;
+      }
+      tbody tr td[data-label=""] { display:flex; gap:8px; align-items:center; justify-content:space-between; padding-top:6px; }
+      .ci { font-size:max(1rem,16px) !important; padding:9px 10px; min-height:40px; }
+      .ci.date-ci { font-size:max(1rem,16px) !important; }
+      .row-btns { justify-content:flex-start; }
+      .ib { width:36px; height:36px; font-size:.85rem; }
+      .push-ck { width:20px; height:20px; }
+    }
+
     /* ── Bottom bar ────────────────────────────────────────────────────── */
     .bottom-bar {
       position: fixed; bottom: 0; left: 0; right: 0; z-index: 90;
@@ -739,6 +772,7 @@
 
         /* Date cell */
         var dtd = document.createElement('td');
+        dtd.dataset.label = 'Date';
         var dw  = document.createElement('div'); dw.className = 'cw';
         var di  = document.createElement('input');
         di.type = 'date'; di.className = 'ci date-ci'; di.value = row.date || '';
@@ -749,8 +783,10 @@
         dw.appendChild(di); dtd.appendChild(dw); tr.appendChild(dtd);
 
         /* Data field cells */
+        var FIELD_LABELS = { serviceTime:'Time', psalm:'Psalm', worship:'Worship Leader', announce:'Announcements', prayer:'Prayer', preacher:'Preacher', scripture:'Scripture', proverb:'Proverb', notes:'Theme / Notes' };
         FIELDS.forEach(function (key) {
           var td = document.createElement('td');
+          td.dataset.label = FIELD_LABELS[key] || key;
           var w  = document.createElement('div'); w.className = 'cw';
           var inp = document.createElement('input');
           inp.type = FIELD_TYPES[key] || 'text'; inp.className = 'ci'; inp.placeholder = PLACEHOLDERS[key] || '';
@@ -768,6 +804,7 @@
 
         /* Actions */
         var atd = document.createElement('td');
+        atd.dataset.label = '';
         var rb  = document.createElement('div'); rb.className = 'row-btns';
 
         /* imported check */
@@ -789,6 +826,7 @@
 
         /* Push checkbox */
         var pktd = document.createElement('td'); pktd.style.textAlign = 'center';
+        pktd.dataset.label = '';
         var pk = document.createElement('input');
         pk.type = 'checkbox'; pk.className = 'push-ck'; pk.dataset.id = row.id;
         pk.title = 'Select for push';
