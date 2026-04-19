@@ -248,7 +248,7 @@ const TheLife = (() => {
     return [{ value: '', label: '(none)' }].concat(
       (dir || _cache.memberDir || []).map(function(m) {
         var name = m.preferredName || ((m.firstName || '') + ' ' + (m.lastName || '')).trim();
-        return { value: m.id || m.email, label: name || m.memberNumber || m.email || m.id };
+        return { value: m.memberPin || m.id || m.email, label: name || m.memberNumber || m.email || m.id };
       })
     );
   }
@@ -276,7 +276,8 @@ const TheLife = (() => {
     for (var i = 0; i < dir.length; i++) {
       var m = dir[i];
       var name = m.preferredName || ((m.firstName || '') + ' ' + (m.lastName || '')).trim();
-      if ((m.email && m.email.toLowerCase() === key) || m.id === emailOrId || m.memberNumber === emailOrId) {
+      if ((m.email && m.email.toLowerCase() === key) || (m.primaryEmail && m.primaryEmail.toLowerCase() === key)
+        || m.id === emailOrId || m.memberNumber === emailOrId || m.memberPin === emailOrId) {
         return name || emailOrId;
       }
     }
@@ -292,7 +293,7 @@ const TheLife = (() => {
       var m = dir[i];
       if ((m.email && m.email.toLowerCase() === key)
         || (m.primaryEmail && m.primaryEmail.toLowerCase() === key)
-        || m.id === emailOrId || m.memberNumber === emailOrId) {
+        || m.id === emailOrId || m.memberNumber === emailOrId || m.memberPin === emailOrId) {
         return m;
       }
     }
@@ -420,11 +421,15 @@ const TheLife = (() => {
         if (!cg.groups) return false;
         return String(cg.groups).toLowerCase().split(',').map(function(g) { return g.trim(); }).indexOf('lead pastor') !== -1;
       });
-      var _lpId = _lpCg ? _lpCg.email : '';
+      var _lpId = _lpCg ? (_lpCg.memberPin || _lpCg.email) : '';
+      // Resolve current user to their memberPin
+      var _mePin = _me;
+      var _meMember = (_cache.memberDir || []).find(function(m) { return (m.email && m.email.toLowerCase() === _me.toLowerCase()) || (m.primaryEmail && m.primaryEmail.toLowerCase() === _me.toLowerCase()); });
+      if (_meMember && _meMember.memberPin) _mePin = _meMember.memberPin;
       // Only auto-populate if the current user is NOT the Lead Pastor
-      if (_lpId && _me && _lpId.toLowerCase() !== _me.toLowerCase()) {
+      if (_lpId && _mePin && _lpId !== _mePin) {
         rec.primaryCaregiverId = _lpId;
-        rec.secondaryCaregiverId = _me;
+        rec.secondaryCaregiverId = _mePin;
       }
       // Apply any pre-fill defaults (e.g. from createLinkedCase)
       if (defaults) { for (var _dk in defaults) { if (defaults.hasOwnProperty(_dk)) rec[_dk] = defaults[_dk]; } }
