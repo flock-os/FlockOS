@@ -3,6 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <title>FlockChat</title>
   <link rel="manifest" href="./FlockChat/manifest.json">
   <link rel="icon" type="image/png" href="./FlockChat/Images/FlockChat_1.png">
@@ -1071,7 +1074,7 @@
         background: none;
         border: none;
         color: var(--ink-muted);
-        font-size: 0.6rem;
+        font-size: 0.72rem;
         font-weight: 600;
         letter-spacing: 0.04em;
         text-transform: uppercase;
@@ -1079,7 +1082,7 @@
         transition: color 0.15s;
         -webkit-tap-highlight-color: transparent;
       }
-      .bottom-nav-btn .nav-icon { font-size: 1.3rem; line-height: 1; }
+      .bottom-nav-btn .nav-icon { font-size: 1.7rem; line-height: 1; }
       .bottom-nav-btn.active { color: var(--accent); }
 
       /* ── Composer ── */
@@ -1104,6 +1107,171 @@
 
     /* ── Embedded mode: hide brand bar when loaded inside an iframe ── */
     body.embedded .topbar-brand { display: none !important; }
+
+    /* ── Dark Mode ──────────────────────────────────────────────────────────── */
+    html.dark-mode {
+      --bg:           #0d1117;
+      --bg-raised:    #161b22;
+      --bg-hover:     #1c2128;
+      --bg-active:    #21262d;
+      --line:         #30363d;
+      --ink:          #e6edf3;
+      --ink-muted:    #8b949e;
+      --ink-faint:    #484f58;
+      --shadow-sm:    0 1px 3px rgba(0,0,0,0.5);
+      --shadow-md:    0 4px 12px rgba(0,0,0,0.6);
+      --shadow-lg:    0 8px 30px rgba(0,0,0,0.7);
+    }
+
+    /* ── Markdown Rendering ─────────────────────────────────────────────────── */
+    .msg-text code {
+      background: var(--bg-active);
+      border-radius: 4px;
+      padding: 1px 5px;
+      font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+      font-size: 0.85em;
+    }
+    .msg-text pre {
+      background: var(--bg-active);
+      border-radius: 6px;
+      padding: 10px 14px;
+      overflow-x: auto;
+      margin: 4px 0;
+      border: 1px solid var(--line);
+    }
+    .msg-text pre code { background: none; padding: 0; font-size: 0.88em; }
+    .msg-text blockquote {
+      border-left: 3px solid var(--accent);
+      padding-left: 10px;
+      margin: 3px 0;
+      color: var(--ink-muted);
+    }
+    .msg-text del { opacity: 0.55; }
+    .msg-text a { color: var(--accent); }
+    .msg-text a:hover { text-decoration: underline; }
+
+    /* ── Pin Strip ──────────────────────────────────────────────────────────── */
+    .pin-strip {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 16px;
+      background: var(--bg-raised);
+      border-bottom: 1px solid var(--line);
+      font-size: 0.78rem;
+      color: var(--ink-muted);
+      cursor: pointer;
+      transition: background 0.12s;
+      flex-shrink: 0;
+    }
+    .pin-strip:hover { background: var(--bg-hover); }
+    .pin-strip .pin-icon { color: var(--gold); flex-shrink: 0; }
+    .pin-strip .pin-text { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .pin-strip .pin-count { font-size: 0.7rem; color: var(--ink-faint); flex-shrink: 0; }
+
+    /* ── Load More Button ───────────────────────────────────────────────────── */
+    .load-more-btn {
+      display: block;
+      margin: 8px auto 4px;
+      background: none;
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      color: var(--ink-muted);
+      font-size: 0.78rem;
+      padding: 4px 18px;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .load-more-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .load-more-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* ── Message Search Bar ─────────────────────────────────────────────────── */
+    .search-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 16px;
+      background: var(--bg-raised);
+      border-bottom: 1px solid var(--line);
+      flex-shrink: 0;
+    }
+    .search-bar input {
+      flex: 1;
+      background: var(--bg);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 5px 10px;
+      font-size: 0.85rem;
+      color: var(--ink);
+      outline: none;
+    }
+    .search-bar input:focus { border-color: var(--accent); }
+    .search-count { font-size: 0.75rem; color: var(--ink-faint); white-space: nowrap; }
+    .search-close-btn {
+      background: none; border: none;
+      color: var(--ink-muted); font-size: 1rem;
+      padding: 2px 5px; border-radius: 4px; cursor: pointer;
+    }
+    .search-close-btn:hover { color: var(--ink); }
+    .msg-row.search-hidden { display: none; }
+    .msg-text mark {
+      background: var(--gold-soft);
+      color: var(--gold);
+      border-radius: 2px;
+      padding: 0 1px;
+    }
+
+    /* ── Quick Switcher (Ctrl+K) ────────────────────────────────────────────── */
+    #quick-switcher {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(27,38,79,0.45);
+      z-index: 400;
+      align-items: flex-start;
+      justify-content: center;
+      padding-top: 14vh;
+    }
+    #quick-switcher.open { display: flex; }
+    .qs-card {
+      background: var(--bg-raised);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      width: 480px;
+      max-width: calc(100vw - 32px);
+      box-shadow: var(--shadow-lg);
+      overflow: hidden;
+    }
+    .qs-input {
+      width: 100%;
+      background: none;
+      border: none;
+      border-bottom: 1px solid var(--line);
+      padding: 14px 18px;
+      font-size: 1rem;
+      color: var(--ink);
+      outline: none;
+    }
+    .qs-input::placeholder { color: var(--ink-faint); }
+    .qs-list { max-height: 320px; overflow-y: auto; padding: 6px 0; }
+    .qs-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 16px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      color: var(--ink-muted);
+      transition: background 0.1s;
+    }
+    .qs-item:hover, .qs-item.qs-selected { background: var(--bg-hover); color: var(--ink); }
+    .qs-sigil { color: var(--ink-faint); width: 18px; text-align: center; flex-shrink: 0; }
+    .qs-hint {
+      padding: 7px 16px;
+      font-size: 0.7rem;
+      color: var(--ink-faint);
+      border-top: 1px solid var(--line);
+    }
   </style>
 </head>
 <body class="auth-open">
@@ -1141,6 +1309,9 @@
       <span id="auth-toggle-text">No account?</span>
       <a id="auth-toggle-link">Create one</a>
     </div>
+    <div class="auth-toggle" id="auth-forgot-row" style="margin-top:8px">
+      <a id="auth-forgot-link" style="color:var(--ink-faint);font-size:0.8rem">Forgot your password?</a>
+    </div>
   </div>
 </div>
 
@@ -1155,7 +1326,13 @@
       <span class="build-tag">Comms</span>
     </div>
 
+    <div class="topbar-context">
+      <span class="topbar-channel-name" id="topbar-channel-name"></span>
+      <span class="topbar-channel-desc" id="topbar-channel-desc"></span>
+    </div>
+
     <div class="topbar-actions">
+      <button class="topbar-icon-btn" id="btn-msg-search" title="Search messages (Ctrl+F)" style="display:none">🔍</button>
       <button class="topbar-icon-btn" id="btn-details-toggle" title="Channel Details">
         ☰ Details
       </button>
@@ -1203,6 +1380,16 @@
     </div>
 
     <div class="thread-pane" id="thread-pane" style="display:none">
+      <div id="pin-strip" class="pin-strip" style="display:none">
+        <span class="pin-icon">📌</span>
+        <span class="pin-text" id="pin-strip-text"></span>
+        <span class="pin-count" id="pin-strip-count"></span>
+      </div>
+      <div id="msg-search-bar" class="search-bar" style="display:none">
+        <input type="text" id="msg-search-input" placeholder="Search messages…" autocomplete="off">
+        <span id="msg-search-count" class="search-count"></span>
+        <button class="search-close-btn" id="msg-search-close">✕</button>
+      </div>
       <div class="message-list" id="message-list"></div>
       <div class="typing-indicator" id="typing-indicator"></div>
       <div id="join-banner" class="join-banner" style="display:none">
@@ -1278,6 +1465,7 @@
   <button class="user-menu-item" data-status="away">🟡 Away</button>
   <button class="user-menu-item" data-status="dnd">🔴 Do Not Disturb</button>
   <div style="border-top:1px solid var(--line);margin:4px 0"></div>
+  <button class="user-menu-item" id="btn-open-profile">👤 Edit Profile</button>
   <button class="user-menu-item" id="btn-open-admin">👥 Manage Users</button>
   <button class="user-menu-item" id="btn-user-menu-signout">Sign Out</button>
 </div>
@@ -1392,6 +1580,42 @@
   </div>
 </div>
 
+<!-- ─── Quick Switcher (Ctrl+K) ─────────────────────────────────────────── -->
+<div id="quick-switcher">
+  <div class="qs-card">
+    <input type="text" class="qs-input" id="qs-input" placeholder="Jump to a channel or DM…" autocomplete="off">
+    <div class="qs-list" id="qs-list"></div>
+    <div class="qs-hint">↑↓ navigate · Enter select · Esc close</div>
+  </div>
+</div>
+
+<!-- ─── Profile Modal ────────────────────────────────────────────────────── -->
+<div class="modal-backdrop" id="modal-profile">
+  <div class="modal-card">
+    <h2>Edit Profile</h2>
+    <div class="modal-field">
+      <label>Display Name</label>
+      <input type="text" id="profile-name" placeholder="Your name" maxlength="60">
+    </div>
+    <div class="modal-field">
+      <label>Email</label>
+      <input type="email" id="profile-email" disabled style="opacity:0.55">
+    </div>
+    <div class="modal-field">
+      <label>Role</label>
+      <input type="text" id="profile-role" disabled style="opacity:0.55;text-transform:capitalize">
+    </div>
+    <div class="modal-field">
+      <label>Custom Status <span style="font-weight:400;opacity:0.6;font-size:0.85em">(shown in your user menu)</span></label>
+      <input type="text" id="profile-status-text" placeholder="What are you working on?" maxlength="100">
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" id="btn-cancel-profile">Cancel</button>
+      <button class="btn-primary" id="btn-save-profile">Save Changes</button>
+    </div>
+  </div>
+</div>
+
 <!-- ─── Emoji Picker ──────────────────────────────────────────────────── -->
 <div id="emoji-picker">
   <div class="emoji-grid" id="emoji-grid"></div>
@@ -1405,7 +1629,8 @@
   import { initializeApp }                             from 'https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js';
   import { getAuth, createUserWithEmailAndPassword,
            signInWithEmailAndPassword, signOut,
-           onAuthStateChanged, updateProfile }         from 'https://www.gstatic.com/firebasejs/11.6.0/firebase-auth.js';
+           onAuthStateChanged, updateProfile,
+           sendPasswordResetEmail }                   from 'https://www.gstatic.com/firebasejs/11.6.0/firebase-auth.js';
   import { getFirestore, collection, doc,
            addDoc, setDoc, updateDoc, deleteDoc,
            getDoc, getDocs, query, where, orderBy,
@@ -1448,6 +1673,7 @@
     firebase: {
       initializeApp, getAuth, createUserWithEmailAndPassword,
       signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile,
+      sendPasswordResetEmail,
       getFirestore, collection, doc, addDoc, setDoc, updateDoc, deleteDoc,
       getDoc, getDocs, query, where, orderBy, limit, startAfter, onSnapshot,
       serverTimestamp, arrayUnion, arrayRemove, increment, writeBatch, Timestamp,

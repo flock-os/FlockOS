@@ -61,6 +61,11 @@ const TheWord = (() => {
   let _lastMsgTs   = null;   // for pagination cursor
   let _detailsOpen = false;
   let _authMode    = 'signin'; // 'signin' | 'register'
+  let _msgDocs     = [];     // all loaded message objects (live + paginated)
+  let _msgCursor   = null;   // Firestore doc snapshot cursor for "load earlier"
+  let _hasMoreMsgs = false;  // whether older messages may exist
+  let _searchActive = false; // is message search bar open
+  let _searchQuery  = '';    // current search filter text
   let _emojiTarget = null;   // message id for reaction target (null = composer)
 
   // ── Emoji set ──────────────────────────────────────────────────────────
@@ -98,6 +103,9 @@ const TheWord = (() => {
     _bindTopbar();
     _bindUserMenu();
     _bindAdminPanel();
+    _bindQuickSwitcher();
+    _bindMessageSearch();
+    _bindProfileModal();
 
     // Auth state observer
     F.onAuthStateChanged(auth, async (user) => {
@@ -142,8 +150,27 @@ const TheWord = (() => {
         toggleLink.textContent   = 'Create one';
         nameField.style.display  = 'none';
       }
+      const forgotRow = _el('auth-forgot-row');
+      if (forgotRow) forgotRow.style.display = _authMode === 'register' ? 'none' : '';
       _clearAuthError();
     });
+
+    // Forgot password link
+    const forgotLink = _el('auth-forgot-link');
+    if (forgotLink) {
+      forgotLink.addEventListener('click', () => {
+        _authMode = 'reset';
+        submitBtn.textContent    = 'Send Reset Email';
+        subtitle.textContent     = 'Reset your password';
+        toggleText.textContent   = 'Remember it?';
+        toggleLink.textContent   = 'Sign in';
+        nameField.style.display  = 'none';
+        _el('auth-pass').closest('.auth-field').style.display = 'none';
+        const forgotRow = _el('auth-forgot-row');
+        if (forgotRow) forgotRow.style.display = 'none';
+        _clearAuthError();
+      });
+    }
   }
 
   async function _handleAuthSubmit() {
@@ -153,6 +180,38 @@ const TheWord = (() => {
     const btn   = _el('auth-submit-btn');
 
     _clearAuthError();
+
+    // Password reset mode
+    if (_authMode === 'reset') {
+      if (!email) { _showAuthError('Enter your email address.'); return; }
+      btn.disabled = true;
+      btn.textContent = 'Sending…';
+      try {
+        await F.sendPasswordResetEmail(auth, email);
+        const errEl = _el('auth-error');
+        errEl.style.background   = 'rgba(61,122,79,0.1)';
+        errEl.style.borderColor  = 'rgba(61,122,79,0.3)';
+        errEl.style.color        = 'var(--success)';
+        errEl.textContent        = 'Reset email sent! Check your inbox.';
+        errEl.style.display      = 'block';
+        setTimeout(() => {
+          _authMode = 'signin';
+          btn.textContent = 'Sign In';
+          _el('auth-subtitle').textContent = 'Sign in to your workspace';
+          _el('auth-toggle-text').textContent = 'No account?';
+          _el('auth-toggle-link').textContent = 'Create one';
+          _el('auth-pass').closest('.auth-field').style.display = '';
+          const forgotRow = _el('auth-forgot-row');
+          if (forgotRow) forgotRow.style.display = '';
+          _clearAuthError();
+        }, 3000);
+      } catch (err) {
+        _showAuthError(_friendlyAuthError(err.code));
+      }
+      btn.disabled = false;
+      btn.textContent = 'Send Reset Email';
+      return;
+    }
     if (!email || !pass) { _showAuthError('Email and password are required.'); return; }
 
     btn.disabled = true;
@@ -491,7 +550,9 @@ const TheWord = (() => {
       composer.style.display = 'none';
     }
 
-    // Mark read
+    // Show search button once a conversation is open
+    const srchBtn = _el('btn-msg-search');
+    if (srchBtn) srchBtn.style.display = '';
     _markRead(ch.id);
     _listenMessages('channels', ch.id);
     _renderChannelList();
@@ -510,6 +571,9 @@ const TheWord = (() => {
     _el('details-desc').textContent  = 'Direct Message';
     _el('join-banner').style.display   = 'none';
     _el('composer').style.display = '';
+    // Show search button once a conversation is open
+    const srchBtn2 = _el('btn-msg-search');
+    if (srchBtn2) srchBtn2.style.display = '';
     _markRead(dm.id);
     _listenMessages('dms', dm.id);
     _renderDMList();
@@ -532,13 +596,27 @@ const TheWord = (() => {
   // ─────────────────────────────────────────────────────────────────────────
   function _listenMessages(collection, parentId) {
     const msgCol = F.collection(db, _col(collection), parentId, 'messages');
-    const q = F.query(msgCol, F.limit(200));
+    const q = F.query(msgCol, F.orderBy('timestamp', 'desc'), F.limit(50));
+    _msgDocs     = [];
+    _msgCursor   = null;
+    _hasMoreMsgs = false;
 
     _msgUnsub = F.onSnapshot(q, (snap) => {
-      const msgs = snap.docs
+      if (!snap.empty) {
+        // In descending order, last doc = oldest in this page
+        _msgCursor   = snap.docs[snap.docs.length - 1];
+        _hasMoreMsgs = snap.docs.length >= 50;
+      }
+      const recent = snap.docs
         .map(d => ({ id: d.id, ...d.data() }))
-        .sort((a, b) => (a.timestamp?.toMillis?.() || 0) - (b.timestamp?.toMillis?.() || 0));
-      _renderMessages(msgs);
+        .reverse(); // convert to oldest→newest
+      // Merge: keep any pre-loaded older messages, replace recent with live data
+      const recentIds = new Set(recent.map(m => m.id));
+      const older     = _msgDocs.filter(m => !recentIds.has(m.id));
+      _msgDocs = [...older, ...recent];
+      _renderMessages(_msgDocs);
+    }, (err) => {
+      console.error('Message listener error:', err);
     });
 
     // Typing indicator
@@ -555,29 +633,51 @@ const TheWord = (() => {
   // ─────────────────────────────────────────────────────────────────────────
   // RENDER MESSAGES
   // ─────────────────────────────────────────────────────────────────────────
-  function _renderMessages(msgs) {
+  function _renderMessages(msgs, preserveScroll) {
     const list = _el('message-list');
     const wasAtBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 80;
+    const prevScrollTop = list.scrollTop;
+    const prevScrollHeight = list.scrollHeight;
 
     list.innerHTML = '';
+
+    // ─ Load Earlier button ─
+    if (_hasMoreMsgs) {
+      const btn = document.createElement('button');
+      btn.id = 'load-more-btn';
+      btn.className = 'load-more-btn';
+      btn.textContent = '↑ Load earlier messages';
+      btn.addEventListener('click', _loadEarlierMessages);
+      list.appendChild(btn);
+    }
     let lastDate = null;
     let lastAuthor = null;
     let lastTs = null;
 
     if (msgs.length === 0) {
-      list.innerHTML = `<div class="empty-thread">
+      list.innerHTML += `<div class="empty-thread">
         <div class="icon">✉️</div>
         <h3>No messages yet</h3>
         <p>Be the first to say something!</p>
       </div>`;
+      _renderPinStrip();
       return;
     }
+
+    // Active pins for pin button state
+    const activeCh   = _activeType === 'channel' ? _channels.find(c => c.id === _activeId) : null;
+    const activePins = activeCh?.pins || [];
 
     msgs.forEach(msg => {
       const ts       = msg.timestamp?.toDate?.() || new Date();
       const dateStr  = ts.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric' });
       const grouped  = lastAuthor === msg.authorId
                        && lastTs && (ts - lastTs < 5 * 60 * 1000);
+
+      // Search filter
+      const msgMatchesSearch = !_searchActive || !_searchQuery ||
+        (msg.text || '').toLowerCase().includes(_searchQuery.toLowerCase()) ||
+        (msg.authorName || '').toLowerCase().includes(_searchQuery.toLowerCase());
 
       if (dateStr !== lastDate) {
         const div = document.createElement('div');
@@ -588,13 +688,14 @@ const TheWord = (() => {
       }
 
       const row = document.createElement('div');
-      row.className = 'msg-row' + (grouped ? ' grouped' : '');
+      row.className = 'msg-row' + (grouped ? ' grouped' : '') + (msgMatchesSearch ? '' : ' search-hidden');
       row.dataset.msgId = msg.id;
 
       const initials = _initials(msg.authorName || '?');
       const timeStr  = ts.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit' });
       const reactions = _renderReactionChips(msg.reactions || {}, msg.id);
       const canEdit   = msg.authorId === _me?.uid && !msg.deletedAt;
+      const isPinned  = activePins.some(p => p.id === msg.id);
       const text      = msg.deletedAt
         ? '<em style="color:var(--ink-faint)">This message was deleted.</em>'
         : _formatText(msg.text || '');
@@ -611,6 +712,7 @@ const TheWord = (() => {
         </div>
         ${!msg.deletedAt ? `<div class="msg-actions">
           <button class="msg-action-btn" title="React" data-action="react" data-id="${msg.id}">😊</button>
+          ${_hasRole('leader') ? `<button class="msg-action-btn" title="${isPinned ? 'Unpin' : 'Pin'}" data-action="pin" data-id="${msg.id}" data-text="${_esc((msg.text || '').substring(0,100))}">${isPinned ? '📌' : '📎'}</button>` : ''}
           ${canEdit ? `<button class="msg-action-btn" title="Edit"   data-action="edit"   data-id="${msg.id}">✏️</button>` : ''}
           ${canEdit ? `<button class="msg-action-btn" title="Delete" data-action="delete" data-id="${msg.id}">🗑️</button>` : ''}
         </div>` : ''}`;
@@ -625,6 +727,7 @@ const TheWord = (() => {
           e.stopPropagation();
           const { action, id } = btn.dataset;
           if (action === 'react')   _showEmojiPicker(e, id);
+          if (action === 'pin')     _togglePinMessage(id, btn.dataset.text);
           if (action === 'edit')    _editMessage(msg);
           if (action === 'delete')  _deleteMessage(msg.id);
         });
@@ -635,9 +738,15 @@ const TheWord = (() => {
       lastTs     = ts;
     });
 
-    if (wasAtBottom || msgs.length <= 3) {
+    if (preserveScroll) {
+      // Keep scroll position after loading older messages
+      list.scrollTop = list.scrollHeight - prevScrollHeight + prevScrollTop;
+    } else if (wasAtBottom || msgs.length <= 3) {
       list.scrollTop = list.scrollHeight;
     }
+
+    _renderPinStrip();
+    _updateSearchCount();
   }
 
   function _renderReactionChips(reactions, msgId) {
@@ -654,12 +763,32 @@ const TheWord = (() => {
   }
 
   function _formatText(text) {
-    // Escape HTML, then apply mention/link formatting
     let t = _esc(text);
+    // Multi-line code blocks first (protect interior from further processing)
+    t = t.replace(/```([\s\S]*?)```/g, (_, code) => `<pre><code>${code.trim()}</code></pre>`);
+    // Inline code
+    t = t.replace(/`([^`\n]+)`/g, '<code>$1</code>');
+    // Bold **text**
+    t = t.replace(/\*\*(.+?)\*\*/gs, '<strong>$1</strong>');
+    // Italic *text* or _text_
+    t = t.replace(/\*([^*\n]+)\*/g, '<em>$1</em>');
+    t = t.replace(/_([^_\n]+)_/g, '<em>$1</em>');
+    // Strikethrough ~~text~~
+    t = t.replace(/~~(.+?)~~/g, '<del>$1</del>');
+    // Blockquote lines (> text — escaped to &gt; by _esc)
+    t = t.replace(/(^|\n)&gt; (.+)/g, '$1<blockquote>$2</blockquote>');
+    // Auto-link URLs
+    t = t.replace(/(https?:\/\/[^\s<>"&]+)/g,
+      '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
+    // @channel / @here broadcasts — always highlight
+    t = t.replace(/@(channel|here)/gi, '<span class="mention self">@$1</span>');
+    // @user mentions
     t = t.replace(/@(\w[\w.]*)/g, (_, name) => {
       const isSelf = name.toLowerCase() === (_me?.displayName || '').toLowerCase();
-      return `<span class="mention${isSelf ? ' self' : ''}">@${_esc(name)}</span>`;
+      return `<span class="mention${isSelf ? ' self' : ''}">@${name}</span>`;
     });
+    // Preserve newlines
+    t = t.replace(/\n/g, '<br>');
     return t;
   }
 
@@ -850,13 +979,342 @@ const TheWord = (() => {
     const picker = _el('emoji-picker');
     const rect   = el.getBoundingClientRect();
     picker.style.display = 'block';
-    picker.style.left    = Math.min(rect.left, window.innerWidth - 280) + 'px';
-    picker.style.top     = (rect.bottom + 6) + 'px';
+    const pickerH = picker.offsetHeight || 240;
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const left = Math.min(rect.left, window.innerWidth - 280);
+    picker.style.left = Math.max(4, left) + 'px';
+    if (spaceBelow >= pickerH + 10) {
+      picker.style.top    = (rect.bottom + 6) + 'px';
+      picker.style.bottom = 'auto';
+    } else {
+      picker.style.bottom = (window.innerHeight - rect.top + 6) + 'px';
+      picker.style.top    = 'auto';
+    }
   }
 
   function _closeEmojiPicker() {
     _el('emoji-picker').style.display = 'none';
     _emojiTarget = null;
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // LOAD EARLIER MESSAGES
+  // ─────────────────────────────────────────────────────────────────────────
+  async function _loadEarlierMessages() {
+    if (!_msgCursor || !_activeId) return;
+    const btn = _el('load-more-btn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Loading…'; }
+    const collPath = _activeType === 'channel' ? 'channels' : 'dms';
+    const msgCol   = F.collection(db, _col(collPath), _activeId, 'messages');
+    try {
+      const q    = F.query(msgCol, F.orderBy('timestamp', 'desc'), F.startAfter(_msgCursor), F.limit(50));
+      const snap = await F.getDocs(q);
+      if (!snap.empty) {
+        _msgCursor   = snap.docs[snap.docs.length - 1];
+        _hasMoreMsgs = snap.docs.length >= 50;
+        const older  = snap.docs.map(d => ({ id: d.id, ...d.data() })).reverse();
+        _msgDocs = [...older, ..._msgDocs];
+      } else {
+        _hasMoreMsgs = false;
+      }
+      _renderMessages(_msgDocs, true);
+    } catch (err) {
+      _toast('Could not load earlier messages.', 'error');
+      console.error(err);
+      if (btn) { btn.disabled = false; btn.textContent = '↑ Load earlier messages'; }
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // PIN MESSAGES
+  // ─────────────────────────────────────────────────────────────────────────
+  async function _togglePinMessage(msgId, msgText) {
+    if (!_hasRole('leader')) { _toast('Only leaders+ can pin messages.', 'error'); return; }
+    if (_activeType !== 'channel') { _toast('Pinning is only supported in channels.', 'error'); return; }
+    const chRef  = F.doc(db, _col('channels'), _activeId);
+    const snap   = await F.getDoc(chRef);
+    const pins   = snap.data()?.pins || [];
+    const existing = pins.find(p => p.id === msgId);
+    if (existing) {
+      await F.updateDoc(chRef, { pins: F.arrayRemove(existing) });
+      _toast('Message unpinned.', 'success');
+    } else {
+      if (pins.length >= 10) { _toast('Max 10 pinned messages per channel.', 'error'); return; }
+      const newPin = { id: msgId, text: (msgText || '').substring(0, 100), pinnedBy: _me.uid, pinnedAt: Date.now() };
+      await F.updateDoc(chRef, { pins: F.arrayUnion(newPin) });
+      _toast('Message pinned! 📌', 'success');
+    }
+  }
+
+  function _renderPinStrip() {
+    const strip = _el('pin-strip');
+    if (!strip) return;
+    if (_activeType !== 'channel') { strip.style.display = 'none'; return; }
+    const ch   = _channels.find(c => c.id === _activeId);
+    const pins = ch?.pins || [];
+    if (!pins.length) { strip.style.display = 'none'; return; }
+    const latest = pins[pins.length - 1];
+    strip.style.display = 'flex';
+    const textEl = _el('pin-strip-text');
+    const countEl = _el('pin-strip-count');
+    if (textEl)  textEl.textContent  = latest.text || '(message)';
+    if (countEl) countEl.textContent = pins.length > 1 ? `+${pins.length - 1} more` : '';
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // DARK MODE TOGGLE
+  // ─────────────────────────────────────────────────────────────────────────
+  function _toggleDarkMode() {
+    _darkMode = !_darkMode;
+    document.documentElement.classList.toggle('dark-mode', _darkMode);
+    const btn = _el('btn-dark-mode');
+    if (btn) btn.textContent = _darkMode ? '☀️' : '🌙';
+    try { localStorage.setItem('flockchat-dark', _darkMode ? '1' : '0'); } catch (_) {}
+  }
+
+  function _initDarkMode() {
+    try {
+      if (localStorage.getItem('flockchat-dark') === '1') {
+        _darkMode = true;
+        document.documentElement.classList.add('dark-mode');
+        const btn = _el('btn-dark-mode');
+        if (btn) btn.textContent = '☀️';
+      }
+    } catch (_) {}
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // QUICK SWITCHER (Ctrl+K)
+  // ─────────────────────────────────────────────────────────────────────────
+  function _bindQuickSwitcher() {
+    const overlay = _el('quick-switcher');
+    const input   = _el('qs-input');
+    if (!overlay || !input) return;
+
+    // Keyboard shortcut
+    document.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        overlay.classList.contains('open') ? _closeQuickSwitcher() : _openQuickSwitcher();
+      }
+      if (e.key === 'Escape' && overlay.classList.contains('open')) _closeQuickSwitcher();
+    });
+
+    // Close on backdrop click
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) _closeQuickSwitcher();
+    });
+
+    // Input filtering + keyboard nav
+    let _qsIndex = -1;
+    input.addEventListener('input', () => {
+      _qsIndex = -1;
+      _renderQSList(input.value.trim());
+    });
+    input.addEventListener('keydown', (e) => {
+      const items = _el('qs-list').querySelectorAll('.qs-item');
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        _qsIndex = Math.min(_qsIndex + 1, items.length - 1);
+        items.forEach((it, i) => it.classList.toggle('qs-selected', i === _qsIndex));
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        _qsIndex = Math.max(_qsIndex - 1, 0);
+        items.forEach((it, i) => it.classList.toggle('qs-selected', i === _qsIndex));
+      } else if (e.key === 'Enter') {
+        const sel = _el('qs-list').querySelector('.qs-selected');
+        if (sel) sel.click();
+        else if (items.length > 0) items[0].click();
+      }
+    });
+  }
+
+  function _openQuickSwitcher() {
+    const overlay = _el('quick-switcher');
+    const input   = _el('qs-input');
+    if (!overlay) return;
+    overlay.classList.add('open');
+    if (input) { input.value = ''; input.focus(); }
+    _renderQSList('');
+  }
+
+  function _closeQuickSwitcher() {
+    const overlay = _el('quick-switcher');
+    if (overlay) overlay.classList.remove('open');
+  }
+
+  function _renderQSList(query) {
+    const list = _el('qs-list');
+    if (!list) return;
+    list.innerHTML = '';
+    const q = query.toLowerCase();
+
+    const chMatches = _channels.filter(ch => {
+      if (ch.access === 'private' && !(ch.members || []).includes(_me?.uid) && !_isAdmin()) return false;
+      return !q || ch.name.toLowerCase().includes(q);
+    }).slice(0, 8);
+
+    chMatches.forEach(ch => {
+      const item = document.createElement('div');
+      item.className = 'qs-item';
+      item.innerHTML = `<span class="qs-sigil">${ch.type === 'private' ? '🔒' : '#'}</span><span>${_esc(ch.name)}</span>`;
+      item.addEventListener('click', () => { _openChannel(ch); _closeQuickSwitcher(); });
+      list.appendChild(item);
+    });
+
+    // DMs
+    _dms.slice(0, 5).forEach(dm => {
+      const otherId = dm.members?.find(id => id !== _me?.uid);
+      if (!otherId) return;
+      // Get name from cached DM list
+      const dmItem = _el('dm-list')?.querySelector(`[data-id="${dm.id}"] .ch-name`);
+      const name   = dmItem?.textContent || otherId;
+      if (q && !name.toLowerCase().includes(q)) return;
+      const item = document.createElement('div');
+      item.className = 'qs-item';
+      item.innerHTML = `<span class="qs-sigil">💬</span><span>${_esc(name)}</span>`;
+      item.addEventListener('click', () => { _openDM(dm, name); _closeQuickSwitcher(); });
+      list.appendChild(item);
+    });
+
+    if (!list.children.length) {
+      list.innerHTML = '<div class="qs-item" style="color:var(--ink-faint);cursor:default">No results</div>';
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // MESSAGE SEARCH
+  // ─────────────────────────────────────────────────────────────────────────
+  function _bindMessageSearch() {
+    const searchBtn   = _el('btn-msg-search');
+    const searchBar   = _el('msg-search-bar');
+    const searchInput = _el('msg-search-input');
+    const searchClose = _el('msg-search-close');
+    if (!searchBtn || !searchBar || !searchInput) return;
+
+    searchBtn.addEventListener('click', () => _toggleMessageSearch());
+    searchClose.addEventListener('click', () => _closeMessageSearch());
+
+    searchInput.addEventListener('input', () => {
+      _searchQuery = searchInput.value;
+      _applySearchFilter();
+    });
+
+    // Ctrl+F shortcut
+    document.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'f' && _activeId) {
+        e.preventDefault();
+        _toggleMessageSearch();
+      }
+      if (e.key === 'Escape' && _searchActive) _closeMessageSearch();
+    });
+  }
+
+  function _toggleMessageSearch() {
+    if (_searchActive) {
+      _closeMessageSearch();
+    } else {
+      _searchActive = true;
+      const bar = _el('msg-search-bar');
+      if (bar) bar.style.display = 'flex';
+      setTimeout(() => { const i = _el('msg-search-input'); if (i) i.focus(); }, 50);
+    }
+  }
+
+  function _closeMessageSearch() {
+    _searchActive = false;
+    _searchQuery  = '';
+    const bar   = _el('msg-search-bar');
+    const input = _el('msg-search-input');
+    const count = _el('msg-search-count');
+    if (bar)   bar.style.display   = 'none';
+    if (input) input.value         = '';
+    if (count) count.textContent   = '';
+    _applySearchFilter();
+  }
+
+  function _applySearchFilter() {
+    const rows = _el('message-list')?.querySelectorAll('.msg-row');
+    if (!rows) return;
+    const q = _searchQuery.toLowerCase();
+    let hits = 0;
+    rows.forEach(row => {
+      const msgId = row.dataset.msgId;
+      const msg   = _msgDocs.find(m => m.id === msgId);
+      const text  = (msg?.text || '').toLowerCase();
+      const auth  = (msg?.authorName || '').toLowerCase();
+      const match = !q || text.includes(q) || auth.includes(q);
+      row.classList.toggle('search-hidden', !match);
+      if (match && q) hits++;
+    });
+    _updateSearchCount(hits);
+  }
+
+  function _updateSearchCount(hits) {
+    const countEl = _el('msg-search-count');
+    if (!countEl) return;
+    if (!_searchActive || !_searchQuery) { countEl.textContent = ''; return; }
+    countEl.textContent = `${hits ?? 0} result${hits === 1 ? '' : 's'}`;
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // PROFILE MODAL
+  // ─────────────────────────────────────────────────────────────────────────
+  function _bindProfileModal() {
+    const cancelBtn = _el('btn-cancel-profile');
+    const saveBtn   = _el('btn-save-profile');
+    if (cancelBtn) cancelBtn.addEventListener('click', () => _closeModal('modal-profile'));
+    if (saveBtn)   saveBtn.addEventListener('click',   _saveProfile);
+    const backdrop = _el('modal-profile');
+    if (backdrop) {
+      backdrop.addEventListener('click', (e) => { if (e.target === backdrop) _closeModal('modal-profile'); });
+    }
+  }
+
+  function _openProfileModal() {
+    if (!_me) return;
+    const nameInput   = _el('profile-name');
+    const emailInput  = _el('profile-email');
+    const roleInput   = _el('profile-role');
+    const statusInput = _el('profile-status-text');
+    if (nameInput)   nameInput.value   = _me.displayName || '';
+    if (emailInput)  emailInput.value  = _me.email || '';
+    if (roleInput)   roleInput.value   = _me.role || 'volunteer';
+    if (statusInput) statusInput.value = _me.statusText || '';
+    _openModal('modal-profile');
+  }
+
+  async function _saveProfile() {
+    const nameInput   = _el('profile-name');
+    const statusInput = _el('profile-status-text');
+    const newName     = nameInput?.value.trim();
+    const newStatus   = statusInput?.value.trim() || '';
+    if (!newName) { _toast('Display name cannot be empty.', 'error'); return; }
+    const saveBtn = _el('btn-save-profile');
+    if (saveBtn) saveBtn.disabled = true;
+    try {
+      // Update Firebase Auth display name
+      await F.updateProfile(auth.currentUser, { displayName: newName });
+      // Update Firestore user doc
+      await F.updateDoc(F.doc(db, _col('users'), _me.uid), {
+        displayName: newName,
+        statusText:  newStatus
+      });
+      _me.displayName  = newName;
+      _me.statusText   = newStatus;
+      // Update topbar name
+      const nameEl = _el('topbar-uname');
+      if (nameEl) nameEl.textContent = newName.split(' ')[0];
+      const menuName = _el('user-menu-name');
+      if (menuName) menuName.textContent = newName;
+      _toast('Profile saved!', 'success');
+      _closeModal('modal-profile');
+    } catch (err) {
+      _toast('Failed to save profile.', 'error');
+      console.error(err);
+    } finally {
+      if (saveBtn) saveBtn.disabled = false;
+    }
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -1114,6 +1572,13 @@ const TheWord = (() => {
     _el('btn-open-admin').addEventListener('click', () => {
       menu.style.display = 'none';
       _openAdminPanel();
+    });
+
+    // Profile modal
+    const profileBtn = _el('btn-open-profile');
+    if (profileBtn) profileBtn.addEventListener('click', () => {
+      menu.style.display = 'none';
+      _openProfileModal();
     });
 
     // Sign out
@@ -1387,6 +1852,10 @@ const TheWord = (() => {
       _el('btn-details-toggle').classList.toggle('active', _detailsOpen);
     });
 
+    // Message search toggle
+    const searchBtn = _el('btn-msg-search');
+    if (searchBtn) searchBtn.addEventListener('click', _toggleMessageSearch);
+
     _el('btn-details-close').addEventListener('click', () => {
       _detailsOpen = false;
       _el('details-pane').classList.add('collapsed');
@@ -1420,11 +1889,7 @@ const TheWord = (() => {
     });
     _el('btn-nav-me').addEventListener('click', () => {
       _closeSidebar();
-      // Open user menu
-      const pill = _el('topbar-user-pill');
-      const menu = _el('user-menu');
-      _positionMenu(menu, pill.getBoundingClientRect());
-      menu.style.display = 'block';
+      _openProfileModal();
     });
   }
 
@@ -1502,7 +1967,9 @@ const TheWord = (() => {
     const menuName = _el('user-menu-name');
     if (menuName) menuName.textContent = _me.displayName;
 
-    // Role-gate channel creation button and admin menu item
+    // Show message search button whenever a channel/DM is active
+    const msgSearchBtn = _el('btn-msg-search');
+    if (msgSearchBtn) msgSearchBtn.style.display = _activeId ? '' : 'none';
     const btnNewCh = _el('btn-new-channel');
     if (btnNewCh) btnNewCh.style.display = _hasRole('leader') ? '' : 'none';
     const btnAdmin = _el('btn-open-admin');
@@ -1519,7 +1986,20 @@ const TheWord = (() => {
     _el('no-channel').style.display      = 'flex';
     _el('channel-list').innerHTML        = '';
     _el('dm-list').innerHTML             = '';
+    const srchBtnH = _el('btn-msg-search');
+    if (srchBtnH) srchBtnH.style.display = 'none';
+    _closeMessageSearch();
     document.body.classList.add('auth-open');
+
+    // Reset auth form so Sign In button works immediately after logout
+    const btn = _el('auth-submit-btn');
+    if (btn) { btn.disabled = false; btn.textContent = 'Sign In'; }
+    const emailInput = _el('auth-email');
+    const passInput  = _el('auth-pass');
+    if (emailInput) emailInput.value = '';
+    if (passInput)  passInput.value  = '';
+    _authMode = 'signin';
+    _clearAuthError();
   }
 
   // ─────────────────────────────────────────────────────────────────────────

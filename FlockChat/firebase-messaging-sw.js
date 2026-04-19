@@ -1,6 +1,10 @@
 // FlockChat — FCM Background Message Service Worker
 // Must live at the hosting root (/firebase-messaging-sw.js)
 
+// Always activate the newest SW version immediately (no waiting for tab close)
+self.addEventListener('install',  () => self.skipWaiting());
+self.addEventListener('activate', (e) => e.waitUntil(clients.claim()));
+
 importScripts('https://www.gstatic.com/firebasejs/11.6.0/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/11.6.0/firebase-messaging-compat.js');
 
