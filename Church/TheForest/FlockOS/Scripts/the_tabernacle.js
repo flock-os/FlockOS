@@ -4572,8 +4572,8 @@ const Modules = (() => {
                   + 'style="background:none;border:1px solid var(--line);border-radius:5px;padding:3px 8px;font-size:0.74rem;cursor:pointer;margin-right:4px;font-family:inherit;">Edit</button>'
                   + '<button onclick="Modules._outContactConvert(\'' + id + '\')" '
                   + 'style="background:var(--success);color:#fff;border:none;border-radius:5px;padding:3px 8px;font-size:0.74rem;cursor:pointer;margin-right:4px;font-family:inherit;">&#128100; Convert</button>'
-                  + '<button onclick="Modules._outContactArchive(\'' + id + '\')" '
-                  + 'style="background:none;border:1px solid var(--danger);border-radius:5px;padding:3px 8px;font-size:0.74rem;cursor:pointer;color:var(--danger);font-family:inherit;">Archive</button>',
+                  + '<button onclick="Modules._outContactDelete(\'' + id + '\')" '
+                  + 'style="background:none;border:1px solid var(--danger);border-radius:5px;padding:3px 8px;font-size:0.74rem;cursor:pointer;color:var(--danger);font-family:inherit;">Delete</button>',
               ];
             })
           );
@@ -14450,12 +14450,15 @@ const Modules = (() => {
     } catch (e) { _toast(e.message, 'error'); }
   }
 
-  async function _outContactArchive(id) {
-    if (!confirm('Archive this outreach contact?')) return;
+  async function _outContactDelete(id) {
+    const rows   = _dataCache['outreach.contacts'] || [];
+    const cached = rows.find(r => String(r.id) === String(id)) || {};
+    const name   = [cached.firstName, cached.lastName].filter(Boolean).join(' ') || cached.name || 'this contact';
+    if (!confirm('Permanently delete "' + name + '"? This cannot be undone.')) return;
     try {
-      await (_isFirebaseComms() ? UpperRoom.updateOutreachContact({ id, status: 'archived' }) : TheVine.flock.outreach.contacts.update({ id, status: 'archived' }));
+      await (_isFirebaseComms() ? UpperRoom.deleteOutreachContact(id) : TheVine.flock.outreach.contacts.delete({ id }));
       _invalidateCache('outreach.contacts');
-      _toast('Contact archived.');
+      _toast('Contact deleted.', 'success');
       outreachView('contacts');
     } catch (e) { _toast(e.message, 'error'); }
   }
@@ -21376,7 +21379,7 @@ const Modules = (() => {
     _discFilterPaths, _discFilterEnrollments, _discFilterMentoring,
     _discFilterGoals, _discFilterAssessments, _discFilterCerts,
     newOutreachContact, outreachView, outreachCampaigns,
-    _outCampaignNew, _outCampaignEdit, _outContactConvert, _outContactArchive,
+    _outCampaignNew, _outCampaignEdit, _outContactConvert, _outContactDelete,
     _outCampaignArchive, _outFollowUpDone, _outFollowUpNew,
     memberCardsView, _mcBulkProvision, _mcArchive,
     _mcLinkNew, _mcLinkDelete, _mcLookup, _vcardOpen,

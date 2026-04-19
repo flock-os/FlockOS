@@ -355,6 +355,7 @@ const Temple = (() => {
     'outreach.contacts.create':     { api: APIS.FLOCK, minRole: RBAC.volunteer },
     'outreach.contacts.update':     { api: APIS.FLOCK, minRole: RBAC.volunteer },
     'outreach.contacts.convert':    { api: APIS.FLOCK, minRole: RBAC.leader },
+    'outreach.contacts.delete':     { api: APIS.FLOCK, minRole: RBAC.leader },
     'outreach.campaigns.list':      { api: APIS.FLOCK, minRole: RBAC.volunteer },
     'outreach.campaigns.get':       { api: APIS.FLOCK, minRole: RBAC.volunteer },
     'outreach.campaigns.create':    { api: APIS.FLOCK, minRole: RBAC.leader },

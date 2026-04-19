@@ -1881,6 +1881,11 @@
     });
   }
 
+  function deleteOutreachContact(id) {
+    if (!id) return Promise.reject('contact id required');
+    return _outreachContactsRef().doc(id).delete();
+  }
+
   function submitOutreachContact(data) {
     data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
     data.status = data.status || 'New';
@@ -4555,6 +4560,7 @@
     createOutreachContact:     createOutreachContact,
     updateOutreachContact:     updateOutreachContact,
     convertOutreachContact:    convertOutreachContact,
+    deleteOutreachContact:     deleteOutreachContact,
     submitOutreachContact:     submitOutreachContact,
 
     // Outreach Campaigns

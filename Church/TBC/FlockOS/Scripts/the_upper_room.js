@@ -1883,6 +1883,11 @@ window.FLOCK_CHURCH_ID = "tbc";
     });
   }
 
+  function deleteOutreachContact(id) {
+    if (!id) return Promise.reject('contact id required');
+    return _outreachContactsRef().doc(id).delete();
+  }
+
   function submitOutreachContact(data) {
     data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
     data.status = data.status || 'New';
@@ -4557,6 +4562,7 @@ window.FLOCK_CHURCH_ID = "tbc";
     createOutreachContact:     createOutreachContact,
     updateOutreachContact:     updateOutreachContact,
     convertOutreachContact:    convertOutreachContact,
+    deleteOutreachContact:     deleteOutreachContact,
     submitOutreachContact:     submitOutreachContact,
 
     // Outreach Campaigns
