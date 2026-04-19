@@ -59,6 +59,18 @@ const TheLife = (() => {
   }
   // ── Seed-admin / Lead Pastor visibility gate ───────────────────────────
   var _TERMINAL_STATUSES = ['resolved','closed','archived','cancelled','denied','completed','answered','inactive','deleted'];
+  var _PRAYER_STATUS_AUDIT_EVENTS = ['closed', 'answered', 'new'];
+  function _getStatusLowerCase(r, statusKey) {
+    return String(statusKey ? r[statusKey] : (r.status || r['Status'] || r.stage || '')).toLowerCase();
+  }
+  function _mapPrayerDataForGAS(data) {
+    var payload = Object.assign({}, data);
+    // Keep GAS compatibility where sheet-column keys can be referenced directly.
+    if (payload.status != null) payload['Status'] = payload.status;
+    if (payload.assignedTo != null) payload['Assigned To'] = payload.assignedTo;
+    if (payload.adminNotes != null) payload['Admin Notes'] = payload.adminNotes;
+    return payload;
+  }
   function _isSeedAdmin() {
     try {
       var s = TheVine.session();
@@ -80,7 +92,7 @@ const TheLife = (() => {
       // Full history is still accessible via each member's file (Spiritual Care History section).
       var sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
       return rows.filter(function(r) {
-        var s = String(statusKey ? r[statusKey] : (r.status || r['Status'] || r.stage || '')).toLowerCase();
+        var s = _getStatusLowerCase(r, statusKey);
         if (_TERMINAL_STATUSES.indexOf(s) === -1) return true; // open/active: always show
         var ts = r.updatedAt || r.resolvedAt || r.closedAt || r.createdAt || '';
         if (!ts) return false;
@@ -88,9 +100,24 @@ const TheLife = (() => {
       });
     }
     return rows.filter(function(r) {
-      var s = String(statusKey ? r[statusKey] : (r.status || r['Status'] || r.stage || '')).toLowerCase();
-      return _TERMINAL_STATUSES.indexOf(s) === -1;
+      return _TERMINAL_STATUSES.indexOf(_getStatusLowerCase(r, statusKey)) === -1;
     });
+  }
+  function _filterClosedPrayer(rows, statusKey) {
+    // Prayer requests should fall out of pastor queues once terminal.
+    // Seed admins retain the same recent-history visibility model.
+    if (_isSeedAdmin()) return _filterClosed(rows, statusKey);
+    return rows.filter(function(r) {
+      return _TERMINAL_STATUSES.indexOf(_getStatusLowerCase(r, statusKey)) === -1;
+    });
+  }
+  function _removePrayerFromCaches(prayerId) {
+    if (_cache.allPrayer && _cache.allPrayer.length) {
+      _cache.allPrayer = _cache.allPrayer.filter(function(r) { return (r.id || r.ID) !== prayerId; });
+    }
+    if (_flockData && _flockData.allPrayer && _flockData.allPrayer.length) {
+      _flockData.allPrayer = _flockData.allPrayer.filter(function(r) { return (r.id || r.ID) !== prayerId; });
+    }
   }
   function _phoneActions(phone) {
     if (!phone) return '';
@@ -1812,6 +1839,10 @@ const TheLife = (() => {
       });
     }
     data.id = _fpPrayerId;
+    var _prevPrayerRecord = (_cache.allPrayer || []).find(function(r) { return (r.id || r.ID) === _fpPrayerId; })
+      || ((_flockData && _flockData.allPrayer) ? _flockData.allPrayer.find(function(r) { return (r.id || r.ID) === _fpPrayerId; }) : null)
+      || {};
+    var _prevStatus = (_prevPrayerRecord.status || _prevPrayerRecord['Status'] || '').toLowerCase();
 
     // Fill in prayer text from the cached record if not present in the form
     // (savePrayer only collects the response section fields, not the original text)
@@ -1822,11 +1853,36 @@ const TheLife = (() => {
 
     try {
       _stat('Updating prayer\u2026');
-      await TheVine.flock.prayer.update(data);
+      if (_isFB()) { await UpperRoom.updatePrayer(_fpPrayerId, data); }
+      else {
+        var payload = _mapPrayerDataForGAS(data);
+        await TheVine.flock.prayer.update(payload);
+      }
       _audit('prayer.update', 'PrayerRequests', _fpPrayerId, data.status || '');
+      var _newStatus = (data.status || '').toLowerCase();
+      if (_prevStatus !== _newStatus) {
+        _audit('prayer.status', 'PrayerRequests', _fpPrayerId, (_prevStatus || 'unknown') + ' \u2192 ' + (_newStatus || 'unknown'));
+        if (_PRAYER_STATUS_AUDIT_EVENTS.indexOf(_newStatus) !== -1) {
+          _audit('prayer.status.' + _newStatus, 'PrayerRequests', _fpPrayerId, data.status || '');
+        }
+      }
+      if (_cache.allPrayer && _cache.allPrayer.length) {
+        _cache.allPrayer = _cache.allPrayer.map(function(r) {
+          return (r.id || r.ID) === _fpPrayerId ? Object.assign({}, r, data) : r;
+        });
+      }
+      if (_flockData && _flockData.allPrayer && _flockData.allPrayer.length) {
+        _flockData.allPrayer = _flockData.allPrayer.map(function(r) {
+          return (r.id || r.ID) === _fpPrayerId ? Object.assign({}, r, data) : r;
+        });
+      }
       if (btn) { btn.disabled = false; btn.textContent = '\uD83D\uDCBE Save Changes'; }
       _toast('Prayer request updated!', 'success');
       _stat('Saved \u2713');
+      if (_TERMINAL_STATUSES.indexOf(_newStatus) !== -1 && !_isSeedAdmin()) {
+        _removePrayerFromCaches(_fpPrayerId);
+        backToHub();
+      }
     } catch (err) {
       if (btn) { btn.disabled = false; btn.textContent = '\uD83D\uDCBE Save Changes'; }
       _stat('');
@@ -3815,7 +3871,7 @@ const TheLife = (() => {
 
       // ── Async prayer KPI backfill ──
       _prayerPromise.then(function(res) {
-        var prayerRows = _filterClosed(_rows(res), 'Status');
+        var prayerRows = _filterClosedPrayer(_rows(res), 'Status');
         _cache.allPrayer = prayerRows;
         _flockData.allPrayer = prayerRows;
 
