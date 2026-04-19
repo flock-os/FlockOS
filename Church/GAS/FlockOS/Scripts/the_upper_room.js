@@ -813,22 +813,44 @@
 
   function createPrayer(data) {
     var id = _uid();
-    return _prayersRef().doc(id).set({
-      submitterName:     data.submitterName || 'Anonymous',
-      submitterEmail:    data.submitterEmail || _userEmail,
-      submitterPhone:    data.submitterPhone || '',
-      prayerText:        data.prayerText || '',
-      category:          data.category || '',
-      status:            'New',
-      isConfidential:    data.isConfidential || 'FALSE',
-      followUpRequested: data.followUpRequested || 'FALSE',
-      assignedTo:        '',
-      adminNotes:        '',
-      createdBy:         _userEmail,
-      submittedAt:       _now(),
-      lastUpdated:       _now(),
-      updatedBy:         _userEmail
-    }).then(function() { return id; });
+    // Auto-assign to lead pastor from AppConfig if not explicitly assigned
+    return getAppConfig({ key: 'LEAD_PASTOR_MEMBER_ID' }).then(function(cfg) {
+      var defaultAssignee = (cfg && cfg.value) ? String(cfg.value).trim() : '';
+      return _prayersRef().doc(id).set({
+        submitterName:     data.submitterName || 'Anonymous',
+        submitterEmail:    data.submitterEmail || _userEmail,
+        submitterPhone:    data.submitterPhone || '',
+        prayerText:        data.prayerText || '',
+        category:          data.category || '',
+        status:            'New',
+        isConfidential:    data.isConfidential || 'FALSE',
+        followUpRequested: data.followUpRequested || 'FALSE',
+        assignedTo:        data.assignedTo || defaultAssignee || '',
+        adminNotes:        '',
+        createdBy:         _userEmail,
+        submittedAt:       _now(),
+        lastUpdated:       _now(),
+        updatedBy:         _userEmail
+      }).then(function() { return id; });
+    }).catch(function() {
+      // If AppConfig lookup fails, still create the prayer (unassigned)
+      return _prayersRef().doc(id).set({
+        submitterName:     data.submitterName || 'Anonymous',
+        submitterEmail:    data.submitterEmail || _userEmail,
+        submitterPhone:    data.submitterPhone || '',
+        prayerText:        data.prayerText || '',
+        category:          data.category || '',
+        status:            'New',
+        isConfidential:    data.isConfidential || 'FALSE',
+        followUpRequested: data.followUpRequested || 'FALSE',
+        assignedTo:        data.assignedTo || '',
+        adminNotes:        '',
+        createdBy:         _userEmail,
+        submittedAt:       _now(),
+        lastUpdated:       _now(),
+        updatedBy:         _userEmail
+      }).then(function() { return id; });
+    });
   }
 
   function updatePrayer(id, data) {

@@ -1733,6 +1733,7 @@ const Modules = (() => {
       if (m.email) map[m.email.toLowerCase()] = name;
       if (m.id) map[m.id] = name;
       if (m.memberNumber) map[m.memberNumber] = name;
+      if (m.memberPin) map[m.memberPin] = name;
     });
     return map;
   }
