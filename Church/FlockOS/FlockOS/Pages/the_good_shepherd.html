@@ -463,6 +463,7 @@
 
   // Persist errors in sessionStorage so they survive SW-triggered reloads
   function _storeError(msg) {
+    if (msg.indexOf('Not authenticated') !== -1 || msg.indexOf('not authenticated') !== -1) return;
     try {
       var stored = JSON.parse(sessionStorage.getItem('_flockErrors') || '[]');
       stored.push({ msg: msg, ts: Date.now() });
@@ -499,7 +500,7 @@
       sessionStorage.removeItem('_flockErrors');
       // Only re-show errors from the last 10 seconds (i.e. from just before the reload)
       var cutoff = Date.now() - 10000;
-      stored.forEach(function(e) { if (e.ts > cutoff) _showErrToast(e.msg, true); });
+      stored.forEach(function(e) { if (e.ts > cutoff && e.msg.indexOf('Not authenticated') === -1 && e.msg.indexOf('not authenticated') === -1) _showErrToast(e.msg, true); });
     }
   } catch (_) {}
 
@@ -509,6 +510,7 @@
     var label = (err && err.message) || String(msg);
     // Suppress notification permission errors (Safari throws outside user gesture)
     if (label.indexOf('Notification') !== -1 || label.indexOf('user gesture') !== -1) return;
+    if (label.indexOf('Not authenticated') !== -1 || label.indexOf('not authenticated') !== -1) return;
     if (label.length > 120) label = label.substring(0, 117) + '\u2026';
     _showErrToast(label);
   };
