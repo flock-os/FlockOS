@@ -170,20 +170,20 @@ const Temple = (() => {
     'auth.logout':             { api: APIS.FLOCK, minRole: RBAC.readonly },
     'auth.changePasscode':     { api: APIS.FLOCK, minRole: RBAC.readonly },
     'auth.profileUpdate':      { api: APIS.FLOCK, minRole: RBAC.readonly },
-    'users.list':              { api: APIS.FLOCK, minRole: RBAC.admin },
-    'users.create':            { api: APIS.FLOCK, minRole: RBAC.admin },
-    'users.update':            { api: APIS.FLOCK, minRole: RBAC.admin },
-    'users.deactivate':        { api: APIS.FLOCK, minRole: RBAC.admin },
-    'users.delete':            { api: APIS.FLOCK, minRole: RBAC.admin },
-    'users.resetPasscode':     { api: APIS.FLOCK, minRole: RBAC.admin },
+    'users.list':              { api: APIS.FLOCK, minRole: RBAC.pastor },
+    'users.create':            { api: APIS.FLOCK, minRole: RBAC.pastor },
+    'users.update':            { api: APIS.FLOCK, minRole: RBAC.pastor },
+    'users.deactivate':        { api: APIS.FLOCK, minRole: RBAC.pastor },
+    'users.delete':            { api: APIS.FLOCK, minRole: RBAC.pastor },
+    'users.resetPasscode':     { api: APIS.FLOCK, minRole: RBAC.pastor },
 
     /* ── ACCESS & CONFIG ─── */
-    'access.list':             { api: APIS.FLOCK, minRole: RBAC.admin },
-    'access.set':              { api: APIS.FLOCK, minRole: RBAC.admin },
-    'access.remove':           { api: APIS.FLOCK, minRole: RBAC.admin },
+    'access.list':             { api: APIS.FLOCK, minRole: RBAC.pastor },
+    'access.set':              { api: APIS.FLOCK, minRole: RBAC.pastor },
+    'access.remove':           { api: APIS.FLOCK, minRole: RBAC.pastor },
     'config.list':             { api: APIS.FLOCK, minRole: RBAC.leader },
     'config.get':              { api: APIS.FLOCK, minRole: RBAC.leader },
-    'config.set':              { api: APIS.FLOCK, minRole: RBAC.admin },
+    'config.set':              { api: APIS.FLOCK, minRole: RBAC.pastor },
 
     /* ── ATTENDANCE ─── */
     'attendance.list':         { api: APIS.FLOCK, minRole: RBAC.leader },
@@ -213,13 +213,13 @@ const Temple = (() => {
     'groups.members':          { api: APIS.FLOCK, minRole: RBAC.leader },
 
     /* ── GIVING ─── */
-    'giving.list':             { api: APIS.FLOCK, minRole: RBAC.admin },
-    'giving.create':           { api: APIS.FLOCK, minRole: RBAC.admin },
-    'giving.update':           { api: APIS.FLOCK, minRole: RBAC.admin },
-    'giving.summary':          { api: APIS.FLOCK, minRole: RBAC.admin },
-    'giving.memberStatement':  { api: APIS.FLOCK, minRole: RBAC.admin },
-    'giving.pledges.list':     { api: APIS.FLOCK, minRole: RBAC.admin },
-    'giving.pledges.create':   { api: APIS.FLOCK, minRole: RBAC.admin },
+    'giving.list':             { api: APIS.FLOCK, minRole: RBAC.pastor },
+    'giving.create':           { api: APIS.FLOCK, minRole: RBAC.pastor },
+    'giving.update':           { api: APIS.FLOCK, minRole: RBAC.pastor },
+    'giving.summary':          { api: APIS.FLOCK, minRole: RBAC.pastor },
+    'giving.memberStatement':  { api: APIS.FLOCK, minRole: RBAC.pastor },
+    'giving.pledges.list':     { api: APIS.FLOCK, minRole: RBAC.pastor },
+    'giving.pledges.create':   { api: APIS.FLOCK, minRole: RBAC.pastor },
 
     /* ── VOLUNTEERS ─── */
     'volunteers.list':         { api: APIS.FLOCK, minRole: RBAC.leader },
@@ -525,13 +525,13 @@ const Temple = (() => {
     'theology.categories.get':      { api: APIS.FLOCK, minRole: RBAC.readonly },
     'theology.categories.create':   { api: APIS.FLOCK, minRole: RBAC.leader },
     'theology.categories.update':   { api: APIS.FLOCK, minRole: RBAC.leader },
-    'theology.categories.delete':   { api: APIS.FLOCK, minRole: RBAC.admin },
+    'theology.categories.delete':   { api: APIS.FLOCK, minRole: RBAC.pastor },
     'theology.categories.reorder':  { api: APIS.FLOCK, minRole: RBAC.leader },
     'theology.sections.list':       { api: APIS.FLOCK, minRole: RBAC.readonly },
     'theology.sections.get':        { api: APIS.FLOCK, minRole: RBAC.readonly },
     'theology.sections.create':     { api: APIS.FLOCK, minRole: RBAC.leader },
     'theology.sections.update':     { api: APIS.FLOCK, minRole: RBAC.leader },
-    'theology.sections.delete':     { api: APIS.FLOCK, minRole: RBAC.admin },
+    'theology.sections.delete':     { api: APIS.FLOCK, minRole: RBAC.pastor },
     'theology.sections.approve':    { api: APIS.FLOCK, minRole: RBAC.pastor },
     'theology.sections.reorder':    { api: APIS.FLOCK, minRole: RBAC.leader },
     'theology.sections.forCategory':{ api: APIS.FLOCK, minRole: RBAC.readonly },
@@ -570,20 +570,20 @@ const Temple = (() => {
 
     /* ── REPORTS ─── */
     'reports.attendanceTrend':  { api: APIS.FLOCK, minRole: RBAC.leader },
-    'reports.givingSummary':    { api: APIS.FLOCK, minRole: RBAC.admin },
+    'reports.givingSummary':    { api: APIS.FLOCK, minRole: RBAC.pastor },
     'reports.memberGrowth':     { api: APIS.FLOCK, minRole: RBAC.leader },
     'reports.prayerOverview':   { api: APIS.FLOCK, minRole: RBAC.leader },
     'reports.dashboard':        { api: APIS.FLOCK, minRole: RBAC.leader },
 
     /* ── MULTI-CHURCH & BATCH ─── */
-    'church.create':            { api: APIS.FLOCK, minRole: RBAC.admin },
-    'church.update':            { api: APIS.FLOCK, minRole: RBAC.admin },
-    'church.setup':             { api: APIS.FLOCK, minRole: RBAC.admin },
-    'church.configs':           { api: APIS.FLOCK, minRole: RBAC.admin },
-    'church.list':              { api: APIS.FLOCK, minRole: RBAC.admin },
-    'church.delete':            { api: APIS.FLOCK, minRole: RBAC.admin },
-    'bulk.membersImport':       { api: APIS.FLOCK, minRole: RBAC.admin },
-    'bulk.dataExport':          { api: APIS.FLOCK, minRole: RBAC.admin },
+    'church.create':            { api: APIS.FLOCK, minRole: RBAC.pastor },
+    'church.update':            { api: APIS.FLOCK, minRole: RBAC.pastor },
+    'church.setup':             { api: APIS.FLOCK, minRole: RBAC.pastor },
+    'church.configs':           { api: APIS.FLOCK, minRole: RBAC.pastor },
+    'church.list':              { api: APIS.FLOCK, minRole: RBAC.pastor },
+    'church.delete':            { api: APIS.FLOCK, minRole: RBAC.pastor },
+    'bulk.membersImport':       { api: APIS.FLOCK, minRole: RBAC.pastor },
+    'bulk.dataExport':          { api: APIS.FLOCK, minRole: RBAC.pastor },
 
     /* ── HEALTH (unified API) ─── */
     'health':                   { api: null, minRole: RBAC.none },
@@ -591,27 +591,27 @@ const Temple = (() => {
     /* ── MISSIONS DOMAIN ─── */
     'missions.registry.list':         { api: APIS.MISSIONS, minRole: RBAC.none },
     'missions.registry.get':          { api: APIS.MISSIONS, minRole: RBAC.none },
-    'missions.registry.create':       { api: APIS.MISSIONS, minRole: RBAC.admin },
-    'missions.registry.update':       { api: APIS.MISSIONS, minRole: RBAC.admin },
-    'missions.registry.delete':       { api: APIS.MISSIONS, minRole: RBAC.admin },
+    'missions.registry.create':       { api: APIS.MISSIONS, minRole: RBAC.pastor },
+    'missions.registry.update':       { api: APIS.MISSIONS, minRole: RBAC.pastor },
+    'missions.registry.delete':       { api: APIS.MISSIONS, minRole: RBAC.pastor },
     'missions.registry.1040':         { api: APIS.MISSIONS, minRole: RBAC.none },
     'missions.regions.list':          { api: APIS.MISSIONS, minRole: RBAC.none },
     'missions.regions.get':           { api: APIS.MISSIONS, minRole: RBAC.none },
-    'missions.regions.create':        { api: APIS.MISSIONS, minRole: RBAC.admin },
-    'missions.regions.update':        { api: APIS.MISSIONS, minRole: RBAC.admin },
-    'missions.regions.delete':        { api: APIS.MISSIONS, minRole: RBAC.admin },
+    'missions.regions.create':        { api: APIS.MISSIONS, minRole: RBAC.pastor },
+    'missions.regions.update':        { api: APIS.MISSIONS, minRole: RBAC.pastor },
+    'missions.regions.delete':        { api: APIS.MISSIONS, minRole: RBAC.pastor },
     'missions.regions.forCountry':    { api: APIS.MISSIONS, minRole: RBAC.none },
     'missions.cities.list':           { api: APIS.MISSIONS, minRole: RBAC.none },
     'missions.cities.get':            { api: APIS.MISSIONS, minRole: RBAC.none },
-    'missions.cities.create':         { api: APIS.MISSIONS, minRole: RBAC.admin },
-    'missions.cities.update':         { api: APIS.MISSIONS, minRole: RBAC.admin },
-    'missions.cities.delete':         { api: APIS.MISSIONS, minRole: RBAC.admin },
+    'missions.cities.create':         { api: APIS.MISSIONS, minRole: RBAC.pastor },
+    'missions.cities.update':         { api: APIS.MISSIONS, minRole: RBAC.pastor },
+    'missions.cities.delete':         { api: APIS.MISSIONS, minRole: RBAC.pastor },
     'missions.cities.forCountry':     { api: APIS.MISSIONS, minRole: RBAC.none },
     'missions.partners.list':         { api: APIS.MISSIONS, minRole: RBAC.volunteer },
     'missions.partners.get':          { api: APIS.MISSIONS, minRole: RBAC.volunteer },
     'missions.partners.create':       { api: APIS.MISSIONS, minRole: RBAC.leader },
     'missions.partners.update':       { api: APIS.MISSIONS, minRole: RBAC.leader },
-    'missions.partners.delete':       { api: APIS.MISSIONS, minRole: RBAC.admin },
+    'missions.partners.delete':       { api: APIS.MISSIONS, minRole: RBAC.pastor },
     'missions.prayerFocus.list':      { api: APIS.MISSIONS, minRole: RBAC.none },
     'missions.prayerFocus.create':    { api: APIS.MISSIONS, minRole: RBAC.leader },
     'missions.prayerFocus.update':    { api: APIS.MISSIONS, minRole: RBAC.leader },
@@ -625,21 +625,21 @@ const Temple = (() => {
     'missions.teams.create':          { api: APIS.MISSIONS, minRole: RBAC.leader },
     'missions.teams.update':          { api: APIS.MISSIONS, minRole: RBAC.leader },
     'missions.metrics.list':          { api: APIS.MISSIONS, minRole: RBAC.none },
-    'missions.metrics.create':        { api: APIS.MISSIONS, minRole: RBAC.admin },
-    'missions.metrics.update':        { api: APIS.MISSIONS, minRole: RBAC.admin },
+    'missions.metrics.create':        { api: APIS.MISSIONS, minRole: RBAC.pastor },
+    'missions.metrics.update':        { api: APIS.MISSIONS, minRole: RBAC.pastor },
     'missions.metrics.compare':       { api: APIS.MISSIONS, minRole: RBAC.none },
     'missions.dashboard':             { api: APIS.MISSIONS, minRole: RBAC.readonly },
 
     /* ── EXTRA / STATISTICS API ─── */
     'statistics.config.list':     { api: APIS.EXTRA, minRole: RBAC.leader },
     'statistics.config.get':      { api: APIS.EXTRA, minRole: RBAC.leader },
-    'statistics.config.create':   { api: APIS.EXTRA, minRole: RBAC.admin },
-    'statistics.config.update':   { api: APIS.EXTRA, minRole: RBAC.admin },
-    'statistics.config.delete':   { api: APIS.EXTRA, minRole: RBAC.admin },
+    'statistics.config.create':   { api: APIS.EXTRA, minRole: RBAC.pastor },
+    'statistics.config.update':   { api: APIS.EXTRA, minRole: RBAC.pastor },
+    'statistics.config.delete':   { api: APIS.EXTRA, minRole: RBAC.pastor },
     'statistics.snapshots.list':  { api: APIS.EXTRA, minRole: RBAC.leader },
     'statistics.snapshots.get':   { api: APIS.EXTRA, minRole: RBAC.leader },
     'statistics.snapshots.create':{ api: APIS.EXTRA, minRole: RBAC.leader },
-    'statistics.snapshots.delete':{ api: APIS.EXTRA, minRole: RBAC.admin },
+    'statistics.snapshots.delete':{ api: APIS.EXTRA, minRole: RBAC.pastor },
     'statistics.snapshots.latest':{ api: APIS.EXTRA, minRole: RBAC.leader },
     'statistics.compute':         { api: APIS.EXTRA, minRole: RBAC.leader },
     'statistics.views.list':      { api: APIS.EXTRA, minRole: RBAC.leader },
@@ -649,7 +649,7 @@ const Temple = (() => {
     'statistics.views.delete':    { api: APIS.EXTRA, minRole: RBAC.leader },
     'statistics.dashboard':       { api: APIS.EXTRA, minRole: RBAC.leader },
     'statistics.trends':          { api: APIS.EXTRA, minRole: RBAC.leader },
-    'statistics.export':          { api: APIS.EXTRA, minRole: RBAC.admin }
+    'statistics.export':          { api: APIS.EXTRA, minRole: RBAC.pastor }
   };
 
   /* ─── PAGE ROUTES ─────────────────────────────────────────────────────────── */
@@ -684,7 +684,7 @@ const Temple = (() => {
     '/prayer/manage':    { api: APIS.FLOCK,     actions: ['prayer.list', 'prayer.update'],auth: true },
     '/tasks':            { api: APIS.FLOCK,     actions: ['todo.list'],                   auth: true },
     '/settings':         { api: APIS.FLOCK,     actions: ['user.preferences.get'],        auth: true },
-    '/admin':            { api: APIS.FLOCK,     actions: ['users.list', 'access.list'],   auth: RBAC.admin }
+    '/admin':            { api: APIS.FLOCK,     actions: ['users.list', 'access.list'],   auth: RBAC.pastor }
   };
 
   /* ─── FEATURE INVENTORY ───────────────────────────────────────────────────── */
@@ -719,7 +719,7 @@ const Temple = (() => {
       { id: 'A3', name: 'Pastoral Dashboard', route: '/pastoral',     minRole: RBAC.pastor },
       { id: 'A4', name: 'Prayer Management',  route: '/prayer/manage',minRole: RBAC.readonly },
       { id: 'A5', name: 'Todo / Task Manager',route: '/tasks',        minRole: RBAC.readonly },
-      { id: 'A7', name: 'Admin Provisioning', route: '/admin',        minRole: RBAC.admin }
+      { id: 'A7', name: 'Admin Provisioning', route: '/admin',        minRole: RBAC.pastor }
     ],
     future: [
       { id: 'F1',  name: 'Attendance Tracking', api: APIS.FLOCK, namespace: 'attendance' },
