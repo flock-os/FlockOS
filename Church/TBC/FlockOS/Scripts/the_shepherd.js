@@ -244,7 +244,8 @@ const TheShepherd = (() => {
     var mc = '';  // mobile cards
     list.forEach(function(p) {
       var u = p.user || {}, m = p.member || {}, c = p.card || {};
-      var name = ((u.firstName || m.firstName || c.firstName || '') + ' ' + (u.lastName || m.lastName || c.lastName || '')).trim() || u.displayName || 'Unknown';
+      var name = ((u.firstName || m.firstName || c.firstName || '') + ' ' + (u.lastName || m.lastName || c.lastName || '')).trim()
+        || u.displayName || m.name || c.name || 'Unknown';
       var types = [];
       if (p.user) types.push('User');
       if (p.member) types.push('Member');
@@ -768,7 +769,9 @@ const TheShepherd = (() => {
     _hasMember = !!memberRec;
     _hasCard   = !!cardRec;
 
-    var name = ((u.firstName || (memberRec && memberRec.firstName) || '') + ' ' + (u.lastName || (memberRec && memberRec.lastName) || '')).trim() || u.displayName || (isMidKey ? 'Unknown' : email);
+    var name = ((u.firstName || (memberRec && memberRec.firstName) || '') + ' ' + (u.lastName || (memberRec && memberRec.lastName) || '')).trim()
+      || u.displayName || (memberRec && memberRec.name) || (cardRec && cardRec.name)
+      || (isMidKey ? 'Member (no email)' : email);
     var html = '';
 
     // ── Navigation bar ──────────────────────────────────────────────────
@@ -815,7 +818,7 @@ const TheShepherd = (() => {
       _ppF('Preferred Name', 'id_preferredName', (memberRec && memberRec.preferredName) || (cardRec && cardRec.preferredName), 'text'),
       _ppF('Suffix',         'id_suffix',        (memberRec && memberRec.suffix) || (cardRec && cardRec.suffix), 'text'));
     idSec += _pp2(
-      _ppF('Email', 'id_email', email, 'email'),
+      _ppF('Email', 'id_email', isMidKey ? '' : email, 'email'),
       _ppF('Phone', 'id_phone', u.phone || (memberRec && memberRec.cellPhone) || (cardRec && cardRec.phone), 'tel'));
     idSec += _ppF('Photo URL', 'id_photoUrl', u.photoUrl || (memberRec && memberRec.photoUrl) || (cardRec && cardRec.photoUrl), 'text');
     html += _ppSec('Identity', 'identity', idSec, true);
