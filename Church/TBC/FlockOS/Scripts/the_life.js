@@ -3076,9 +3076,16 @@ const TheLife = (() => {
 
   function _buildCarePanel(rows) {
     if (!rows.length) return _flockEmpty('\u2764', 'No care cases.');
+    var unassigned = rows.filter(function(c) {
+      var st = (c.status || '').toLowerCase();
+      return st !== 'resolved' && st !== 'closed' && !c.primaryCaregiverId && !c.assignedTo;
+    }).length;
     var h = '<div class="flock-actions">'
       + '<button class="primary" onclick="TheLife.openCareCase()">+ New Case</button>'
-      + '<button onclick="TheLife.showFollowUps()">Follow-ups Due</button></div>';
+      + '<button onclick="TheLife.showFollowUps()">Follow-ups Due</button>'
+      + (unassigned ? '<button onclick="TheLife.showUnassignedCases()" style="position:relative;">Unassigned'
+        + '<span style="position:absolute;top:-6px;right:-8px;background:#c94c4c;color:#fff;border-radius:999px;font-size:0.65rem;font-weight:700;padding:1px 5px;line-height:1.4;">' + unassigned + '</span></button>' : '')
+      + '</div>';
 
     // Calculate days since last activity for open cases and sort overdue to top
     var now = Date.now();
@@ -3368,6 +3375,113 @@ const TheLife = (() => {
   // ══════════════════════════════════════════════════════════════════════════
   // FOLLOW-UPS DUE (sub-view within hub)
   // ══════════════════════════════════════════════════════════════════════════
+
+  async function showUnassignedCases() {
+    var el = _hubEl();
+    if (!el) return;
+    el.innerHTML = '<div class="fp-editor">'
+      + '<div class="fp-topbar">'
+      + '<button class="fp-back" onclick="TheLife.backToHub()">← Back to My Flock</button>'
+      + '<h2 class="fp-title">Unassigned Care Cases</h2>'
+      + '</div>'
+      + '<div id="fp-body">' + _spinner() + '</div></div>';
+    var _m = document.getElementById('main'); if (_m) _m.scrollTop = 0;
+
+    try {
+      var dir = await _ensureDir();
+      var allCases = _cache.care || [];
+      if (!allCases.length) {
+        var listRes = await (_isFB() ? UpperRoom.listCareCases({}) : TheVine.flock.care.list({}));
+        allCases = _rows(listRes);
+        _cache.care = allCases;
+      }
+
+      var unassigned = allCases.filter(function(c) {
+        var st = (c.status || '').toLowerCase();
+        return st !== 'resolved' && st !== 'closed' && !c.primaryCaregiverId && !c.assignedTo;
+      });
+
+      // Find lead pastor
+      var staffDir = _staffOpts(dir).filter(function(o) { return o.value; });
+      var _lpMember = (dir || []).find(function(m) {
+        if (!m.groups) return false;
+        return String(m.groups).toLowerCase().split(',').map(function(g) { return g.trim(); }).indexOf('lead pastor') !== -1;
+      });
+      var _lpId   = _lpMember ? (_lpMember.memberPin || _lpMember.id || _lpMember.email) : '';
+      var _lpName = _lpMember ? (_lpMember.preferredName || ((_lpMember.firstName || '') + ' ' + (_lpMember.lastName || '')).trim()) : '';
+
+      if (!unassigned.length) {
+        document.getElementById('fp-body').innerHTML = '<div style="padding:40px;text-align:center;">'
+          + '<div style="font-size:2rem;margin-bottom:12px;">🎉</div>'
+          + '<p style="color:var(--ink-muted);font-size:0.9rem;">All care cases are assigned!</p></div>';
+        return;
+      }
+
+      var html = '<div style="max-width:860px;">';
+
+      // Auto-assign banner
+      if (_lpId) {
+        html += '<div style="background:rgba(var(--accent-rgb,99,102,241),0.1);border:1px solid var(--accent);border-radius:10px;padding:14px 18px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">'
+          + '<div style="font-size:0.88rem;color:var(--ink);">'
+          + '<strong>' + unassigned.length + ' case' + (unassigned.length !== 1 ? 's' : '') + '</strong> have no assigned caregiver.'
+          + (_lpName ? ' Auto-assign all to <strong>' + _e(_lpName) + '</strong> (Lead Pastor)?' : '')
+          + '</div>'
+          + '<button type="button" onclick="TheLife._autoAssignToLP()" class="fp-action-btn" style="background:var(--accent);color:var(--ink-inverse);border-color:var(--accent);font-weight:600;white-space:nowrap;">'
+          + '👤 Auto-Assign All to ' + _e(_lpName || 'Lead Pastor') + '</button>'
+          + '</div>';
+      }
+
+      html += '<div class="flock-card-grid">';
+      unassigned.forEach(function(c) {
+        html += _flockCard({
+          name: _e(_memberName(c.memberId) || c.memberName || c.memberId || '(Unknown)'),
+          pills: _statusBadge(c.priority || 'Normal') + _statusBadge(c.status),
+          body: _e((c.careType || '') + (c.summary ? ' — ' + c.summary.substring(0, 120) : '')),
+          date: c.createdAt || '',
+          priority: c.priority,
+          onclick: "TheLife.openCareCase('" + _e(c.id) + "')"
+        });
+      });
+      html += '</div></div>';
+
+      document.getElementById('fp-body').innerHTML = html;
+    } catch (e) {
+      document.getElementById('fp-body').innerHTML = _errHtml(e.message);
+    }
+  }
+
+  async function _autoAssignToLP() {
+    var btn = document.querySelector('[onclick="TheLife._autoAssignToLP()"]');
+    if (btn) { btn.disabled = true; btn.textContent = 'Assigning…'; }
+
+    var dir = _cache.memberDir || [];
+    var _lpMember = dir.find(function(m) {
+      if (!m.groups) return false;
+      return String(m.groups).toLowerCase().split(',').map(function(g) { return g.trim(); }).indexOf('lead pastor') !== -1;
+    });
+    if (!_lpMember) { _showToast('Lead Pastor not found in member directory.', 'error'); if (btn) { btn.disabled = false; btn.textContent = 'Auto-Assign All to Lead Pastor'; } return; }
+    var _lpId = _lpMember.memberPin || _lpMember.id || _lpMember.email;
+
+    var allCases = _cache.care || [];
+    var unassigned = allCases.filter(function(c) {
+      var st = (c.status || '').toLowerCase();
+      return st !== 'resolved' && st !== 'closed' && !c.primaryCaregiverId && !c.assignedTo;
+    });
+
+    try {
+      await Promise.all(unassigned.map(function(c) {
+        var upd = { primaryCaregiverId: _lpId, assignedTo: _lpId, status: c.status || 'Open' };
+        return _isFB() ? UpperRoom.updateCareCase(Object.assign({ id: c.id }, upd)) : TheVine.flock.care.update(Object.assign({ id: c.id }, upd));
+      }));
+      // Refresh cache
+      unassigned.forEach(function(c) { c.primaryCaregiverId = _lpId; c.assignedTo = _lpId; });
+      _showToast(unassigned.length + ' case' + (unassigned.length !== 1 ? 's' : '') + ' assigned to Lead Pastor.');
+      showUnassignedCases();
+    } catch (err) {
+      _showToast('Error: ' + (err.message || err), 'error');
+      if (btn) { btn.disabled = false; btn.textContent = 'Auto-Assign All to Lead Pastor'; }
+    }
+  }
 
   async function showFollowUps() {
     var el = _hubEl();
@@ -4640,6 +4754,8 @@ const TheLife = (() => {
     createLinkedCase:     createLinkedCase,
     viewMemberFromCase:   viewMemberFromCase,
     showFollowUps:        showFollowUps,
+    showUnassignedCases:  showUnassignedCases,
+    _autoAssignToLP:      _autoAssignToLP,
     loadMemberCareHistory: loadMemberCareHistory,
     _careSummaryPrint:     _careSummaryPrint,
 
