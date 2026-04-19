@@ -166,7 +166,7 @@ const TheShepherd = (() => {
         });
         members.forEach(function(m) {
           var k = (m.primaryEmail || m.email || '').toLowerCase();
-          if (!k) k = '_mid_' + (m.id || m.memberId || ('idx' + Math.random().toString(36).slice(2,8)));
+          if (!k) k = '_mid_' + (m.id || m.memberId || ('idx' + Math.random().toString(36).slice(2,8))).toLowerCase();
           map[k] = map[k] || { email: k }; map[k].member = m;
         });
         cards.forEach(function(c) {
@@ -810,42 +810,14 @@ const TheShepherd = (() => {
 
     // ═══ SECTION: Identity ═══
     var idSec = '';
-    idSec += '<p style="font-size:0.72rem;color:var(--ink-muted);margin:0 0 12px;">Synced across Account, Member Record, and Contact Card.</p>';
     idSec += _pp2(
       _ppF('First Name', 'id_firstName', u.firstName || (memberRec && memberRec.firstName) || (cardRec && cardRec.firstName), 'text'),
       _ppF('Last Name',  'id_lastName',  u.lastName  || (memberRec && memberRec.lastName)  || (cardRec && cardRec.lastName),  'text'));
     idSec += _pp2(
-      _ppF('Preferred Name', 'id_preferredName', (memberRec && memberRec.preferredName) || (cardRec && cardRec.preferredName), 'text'),
-      _ppF('Suffix',         'id_suffix',        (memberRec && memberRec.suffix) || (cardRec && cardRec.suffix), 'text'));
-    idSec += _pp2(
-      _ppF('Email', 'id_email', isMidKey ? '' : email, 'email'),
+      _ppF('Preferred Name', 'id_preferredName', (memberRec && memberRec.preferredName) || '', 'text'),
       _ppF('Phone', 'id_phone', u.phone || (memberRec && memberRec.cellPhone) || (cardRec && cardRec.phone), 'tel'));
-    idSec += _ppF('Photo URL', 'id_photoUrl', u.photoUrl || (memberRec && memberRec.photoUrl) || (cardRec && cardRec.photoUrl), 'text');
+    idSec += _ppF('Email', 'id_email', isMidKey ? '' : email, 'email');
     html += _ppSec('Identity', 'identity', idSec, true);
-
-    // ═══ SECTION: Account ═══
-    if (p.user && !isMidKey) {
-      var s1 = '';
-      s1 += _pp2(
-        _ppF('Role', 'acct_role', u.role, 'select',
-          ['readonly','volunteer','leader','deacon','treasurer','pastor','admin']),
-        _ppF('Status', 'acct_status', u.status, 'select',
-          ['active','suspended','disabled','pending']));
-      s1 += '<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:8px;">';
-      s1 += '<button type="button" onclick="TheShepherd._resetPasscode(\'' + eid + '\')"'
-         + ' style="background:var(--warning,#c98b2e);color:#fff;border:none;border-radius:6px;padding:6px 14px;font-weight:600;cursor:pointer;font-size:0.78rem;">'
-         + '\uD83D\uDD11 Reset Passcode</button>';
-      s1 += '<button type="button" onclick="TheShepherd._deleteUser(\'' + eid + '\')"'
-         + ' style="background:var(--destructive,#c0392b);color:#fff;border:none;border-radius:6px;padding:6px 14px;font-weight:600;cursor:pointer;font-size:0.78rem;">'
-         + '\uD83D\uDDD1\uFE0F Delete User</button>';
-      s1 += '</div>';
-      html += _ppSec('Account', 'account', s1, false);
-    } else if (!isMidKey) {
-      html += _ppSec('Account', 'account',
-        '<p style="color:var(--ink-muted);font-size:0.84rem;">This person does not have a login account.</p>'
-        + '<button type="button" onclick="TheShepherd._createUserAccount(\'' + eid + '\')"'
-        + ' style="background:var(--accent);color:var(--ink-inverse);border:none;border-radius:6px;padding:8px 16px;font-weight:600;cursor:pointer;font-size:0.84rem;">+ Create User Account</button>', false);
-    }
 
     // ═══ MEMBER SECTIONS ═══
     if (memberRec) {
@@ -865,154 +837,51 @@ const TheShepherd = (() => {
       }
       html += '</div>';
 
-      var dem = '';
-      dem += _pp2(
-        _ppF('Date of Birth', 'mem_dateOfBirth', (memberRec.dateOfBirth || '').substring(0,10), 'date'),
-        _ppF('Gender', 'mem_gender', memberRec.gender, 'select', ['','Male','Female','Other']));
-      dem += _pp2(
-        _ppF('Marital Status', 'mem_maritalStatus', memberRec.maritalStatus, 'select',
-          ['','Single','Married','Divorced','Widowed','Separated']),
-        _ppF('Spouse Name', 'mem_spouseName', memberRec.spouseName, 'text'));
-      dem += mid;
-      html += _ppSec('Demographics', 'demographics', dem, false);
-
-      var con = '';
-      con += _pp2(
-        _ppF('Secondary Email', 'mem_secondaryEmail', memberRec.secondaryEmail, 'email'),
-        _ppF('Home Phone', 'mem_homePhone', memberRec.homePhone, 'tel'));
-      con += _pp2(
-        _ppF('Work Phone', 'mem_workPhone', memberRec.workPhone, 'tel'),
-        _ppF('Preferred Contact', 'mem_preferredContact', memberRec.preferredContact, 'select',
-          ['Email','Cell','Home','Work','Text']));
-      html += _ppSec('Contact', 'contact', con, false);
-
+      // ── Address ──
       var adr = '';
-      adr += _ppF('Street 1', 'mem_address1', memberRec.address1, 'text');
-      adr += _ppF('Street 2', 'mem_address2', memberRec.address2, 'text');
+      adr += _ppF('Street', 'mem_address1', memberRec.address1, 'text');
       adr += _pp2(
-        _ppF('City', 'mem_city', memberRec.city, 'text'),
+        _ppF('City',  'mem_city',  memberRec.city,  'text'),
         _ppF('State', 'mem_state', memberRec.state, 'text'));
       adr += _pp2(
         _ppF('ZIP', 'mem_zip', memberRec.zip, 'text'),
         _ppF('Country', 'mem_country', memberRec.country, 'text'));
       html += _ppSec('Address', 'address', adr, false);
 
+      // ── Membership ──
       var mbr = '';
       mbr += _pp2(
         _ppF('Status', 'mem_membershipStatus', memberRec.membershipStatus, 'select',
           ['Active','Inactive','Visitor','Prospect','Former','Transferred','Deceased']),
         _ppF('Member Since', 'mem_memberSince', (memberRec.memberSince || '').substring(0,10), 'date'));
       mbr += _pp2(
-        _ppF('How Found Us', 'mem_howTheyFoundUs', memberRec.howTheyFoundUs, 'select',
-          ['','Website','Friend','Event','Social Media','Walk-In','Mailer','Other']),
-        _ppF('Household ID', 'mem_householdId', memberRec.householdId, 'text'));
+        _ppF('Date of Birth', 'mem_dateOfBirth', (memberRec.dateOfBirth || '').substring(0,10), 'date'),
+        _ppF('Gender', 'mem_gender', memberRec.gender, 'select', ['','Male','Female','Other']));
       mbr += _pp2(
-        _ppF('Family Role', 'mem_familyRole', memberRec.familyRole, 'select',
-          ['','Head','Spouse','Child','Dependent','Other']),
-        _ppF('Death Date', 'mem_dateOfDeath', (memberRec.dateOfDeath || memberRec.deathDate || '').substring(0,10), 'date'));
+        _ppF('Marital Status', 'mem_maritalStatus', memberRec.maritalStatus, 'select',
+          ['','Single','Married','Divorced','Widowed','Separated']),
+        _ppF('How Found Us', 'mem_howTheyFoundUs', memberRec.howTheyFoundUs, 'select',
+          ['','Website','Friend','Event','Social Media','Walk-In','Mailer','Other']));
+      mbr += _pp2(
+        _ppF('Emergency Contact', 'mem_emergencyContact', memberRec.emergencyContact, 'text'),
+        _ppF('Emergency Phone',   'mem_emergencyPhone',   memberRec.emergencyPhone, 'tel'));
+      mbr += mid;
       html += _ppSec('Membership', 'membership', mbr, false);
 
+      // ── Spiritual ──
       var spr = '';
       spr += _pp2(
-        _ppF('Baptism Date', 'mem_baptismDate', (memberRec.baptismDate || '').substring(0,10), 'date'),
+        _ppF('Baptism Date',   'mem_baptismDate',   (memberRec.baptismDate   || '').substring(0,10), 'date'),
         _ppF('Salvation Date', 'mem_salvationDate', (memberRec.salvationDate || '').substring(0,10), 'date'));
-      spr += _pp2(
-        _ppF('Spiritual Gifts', 'mem_spiritualGifts', memberRec.spiritualGifts, 'text'),
-        _ppF('Small Group', 'mem_smallGroup', memberRec.smallGroup, 'text'));
+      spr += _ppF('Pastoral Notes', 'mem_pastoralNotes', memberRec.pastoralNotes, 'textarea');
       html += _ppSec('Spiritual', 'spiritual', spr, false);
 
-      var emg = '';
-      emg += _pp2(
-        _ppF('Contact Name', 'mem_emergencyContact', memberRec.emergencyContact, 'text'),
-        _ppF('Contact Phone', 'mem_emergencyPhone', memberRec.emergencyPhone, 'tel'));
-      html += _ppSec('Emergency', 'emergency', emg, false);
-
-      var min = '';
-      min += _pp2(
-        _ppF('Ministry Teams', 'mem_ministryTeams', memberRec.ministryTeams, 'text'),
-        _ppF('Volunteer Roles', 'mem_volunteerRoles', memberRec.volunteerRoles, 'text'));
-      min += _pp2(
-        _ppF('Assigned To', 'mem_assignedTo', memberRec.assignedTo, 'text'),
-        _ppF('Follow-Up Priority', 'mem_followUpPriority', memberRec.followUpPriority, 'select',
-          ['','Low','Medium','High','Urgent']));
-      min += _pp2(
-        _ppF('Last Contact', 'mem_lastContactDate', (memberRec.lastContactDate || '').substring(0,10), 'date'),
-        _ppF('Next Follow-Up', 'mem_nextFollowUp', (memberRec.nextFollowUp || '').substring(0,10), 'date'));
-      min += _ppF('Pastoral Notes', 'mem_pastoralNotes', memberRec.pastoralNotes, 'textarea');
-      min += _pp2(
-        _ppF('Tags', 'mem_tags', memberRec.tags, 'text'),
-        _ppF('Website', 'mem_website', memberRec.website, 'text'));
-      html += _ppSec('Ministry & Follow-Up', 'ministry', min, false);
-
-      // ─ Delete member record (admins only) ─
-      var memDelId = _e(memberRec.id || '');
-      html += '<div style="margin-top:8px;padding:12px 16px;border:1px solid var(--line);border-radius:8px;">';
-      html += '<button type="button" onclick="TheShepherd._deleteMember(\'' + memDelId + '\', \'' + eid + '\')"'
-           + ' style="background:var(--destructive,#c0392b);color:#fff;border:none;border-radius:6px;padding:6px 14px;font-weight:600;cursor:pointer;font-size:0.78rem;">'
-           + '\uD83D\uDDD1\uFE0F Delete Member Record</button>';
-      html += '</div>';
     } else {
       html += _ppSec('Member Record', 'member-none',
         '<p style="color:var(--ink-muted);font-size:0.84rem;">No member record linked to this account.</p>'
         + '<button type="button" onclick="TheShepherd._createMember(\'' + eid + '\')"'
         + ' style="background:var(--accent);color:var(--ink-inverse);border:none;border-radius:6px;padding:8px 16px;font-weight:600;cursor:pointer;font-size:0.84rem;">+ Create Member Record</button>', false);
     }
-
-    // ═══ SECTION: Contact Card ═══
-    if (cardRec) {
-      var cd = '';
-      cd += '<p style="font-size:0.72rem;color:var(--ink-muted);margin:0 0 8px;">Card #' + _e(cardRec.memberNumber || '') + '</p>';
-      cd += _pp2(
-        _ppF('Card Title', 'card_cardTitle', cardRec.cardTitle, 'text'),
-        _ppF('Ministry', 'card_ministry', cardRec.ministry, 'text'));
-      cd += _pp2(
-        _ppF('Small Group', 'card_smallGroup', cardRec.smallGroup, 'text'),
-        _ppF('Status', 'card_status', cardRec.status, 'select', ['Active','Inactive','Archived']));
-      cd += _ppF('Bio', 'card_cardBio', cardRec.cardBio || cardRec.bio, 'textarea');
-      cd += _pp2(
-        _ppF('Website URL', 'card_websiteUrl', cardRec.websiteUrl, 'text'),
-        _ppF('Schedule URL', 'card_scheduleUrl', cardRec.scheduleUrl, 'text'));
-      cd += _pp2(
-        _ppF('Color Scheme', 'card_colorScheme', cardRec.colorScheme, 'select',
-          [{value:'',label:'Default'},'gold','cyan','magenta','emerald','coral','violet']),
-        _ppF('Background', 'card_bgScheme', cardRec.bgScheme, 'select',
-          [{value:'',label:'None'},'gradient','pattern','photo']));
-      cd += _pp2(
-        _ppF('Card Icon', 'card_cardIcon', cardRec.cardIcon, 'text'),
-        _ppF('Visibility', 'card_visibility', cardRec.visibility, 'select',
-          ['public','authenticated','private']));
-      cd += _pp2(
-        _ppF('Phone Visible', 'card_phoneVisible', cardRec.phoneVisible, 'select',
-          [{value:'TRUE',label:'Yes'},{value:'FALSE',label:'No'}]),
-        _ppF('Email Visible', 'card_emailVisible', cardRec.emailVisible, 'select',
-          [{value:'TRUE',label:'Yes'},{value:'FALSE',label:'No'}]));
-      cd += _pp2(
-        _ppF('Show Daily Bread', 'card_showDailyBread', cardRec.showDailyBread, 'select',
-          [{value:'TRUE',label:'Yes'},{value:'FALSE',label:'No'}]),
-        _ppF('Show Prayer Ticker', 'card_showPrayerTicker', cardRec.showPrayerTicker, 'select',
-          [{value:'TRUE',label:'Yes'},{value:'FALSE',label:'No'}]));
-      cd += _ppF('Card Footer', 'card_cardFooter', cardRec.cardFooter, 'textarea');
-      cd += '<input type="hidden" id="pp-card_id" value="' + _e(cardRec.id || '') + '">';
-      html += _ppSec('Contact Card', 'card', cd, false);
-    } else {
-      html += _ppSec('Contact Card', 'card-none',
-        '<p style="color:var(--ink-muted);font-size:0.84rem;">No contact card linked to this account.</p>'
-        + '<button type="button" onclick="TheShepherd._createCard(\'' + eid + '\')"'
-        + ' style="background:var(--accent);color:var(--ink-inverse);border:none;border-radius:6px;padding:8px 16px;font-weight:600;cursor:pointer;font-size:0.84rem;">+ Create Contact Card</button>', false);
-    }
-
-    // ═══ SECTION: Permissions (lazy — fetched when opened) ═══
-    if (!isMidKey && p.user) {
-      html += _ppSecLazy('Permissions', 'permissions', "TheShepherd._loadPerms('" + eid + "')");
-    }
-
-    // ═══ SECTION: Volunteer Assignments (lazy — fetched when opened) ═══
-    html += _ppSecLazy('Volunteer Assignments', 'volunteers', "TheShepherd._loadVolunteers('" + eid + "')");
-
-    // ═══ SECTION: Interaction History (lazy — rendered when opened) ═══
-    html += _ppSecLazy('Interaction History', 'scrolls', "TheShepherd._loadHistory('" + eid + "')");
-
-
 
     // ── Bottom Save ─────────────────────────────────────────────────────
     html += '<div style="margin-top:20px;padding:16px 0;border-top:1px solid var(--line);display:flex;gap:10px;align-items:center;">';
@@ -1022,6 +891,7 @@ const TheShepherd = (() => {
          + '\uD83D\uDCBE Save All Changes</button>';
     html += '<span id="pp-save-status2" style="font-size:0.82rem;color:var(--ink-muted);"></span>';
     html += '</div>';
+
 
     _container.innerHTML = html;
     var _m = document.getElementById('main'); if (_m) _m.scrollTop = 0;
