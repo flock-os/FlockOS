@@ -280,8 +280,21 @@ const TheLife = (() => {
     );
   }
 
+  var _STAFF_ROLES = { care: 1, deacon: 1, pastor: 1, admin: 1, staff: 1, elder: 1 };
+
+  function _staffOpts(dir) {
+    return [{ value: '', label: '(none)' }].concat(
+      (dir || _cache.memberDir || []).filter(function(m) {
+        return m.role && _STAFF_ROLES[m.role.toLowerCase()];
+      }).map(function(m) {
+        var name = m.preferredName || ((m.firstName || '') + ' ' + (m.lastName || '')).trim();
+        return { value: m.memberPin || m.id || m.email, label: name || m.memberNumber || m.email || m.id };
+      })
+    );
+  }
+
   function _caregiverOpts(dir) {
-    var opts = _memberOpts(dir);
+    var opts = _staffOpts(dir);
     var cases = _cache.care || [];
     var counts = {};
     cases.forEach(function(c) {
@@ -1721,7 +1734,7 @@ const TheLife = (() => {
       }
     }
     var dir = await _dirP;
-    var mOpts = _memberOpts(dir);
+    var mOpts = _staffOpts(dir);
     if (_prayerP) {
       var pRes = await _prayerP;
       if (pRes && !pRes.error) rec = pRes;
@@ -2055,7 +2068,7 @@ const TheLife = (() => {
     }
     var _r = await Promise.all(_p);
     var dir = _r[0];
-    var mOpts = _memberOpts(dir);
+    var mOpts = _staffOpts(dir);
 
     var rec = {};
     if (id) {
@@ -2270,7 +2283,7 @@ const TheLife = (() => {
     }
     var _r = await Promise.all(_p);
     var dir = _r[0];
-    var mOpts = _memberOpts(dir);
+    var mOpts = _staffOpts(dir);
 
     var rec = {};
     if (id) {
