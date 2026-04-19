@@ -15148,19 +15148,35 @@ const Modules = (() => {
   }
 
   async function _outContactConvert(id) {
-    // API requires { id, memberId } — memberId of the member record already created
     const rows   = _dataCache['outreach.contacts'] || [];
     const cached = rows.find(r => String(r.id) === String(id)) || {};
     const name   = [cached.firstName, cached.lastName].filter(Boolean).join(' ') || cached.name || 'this contact';
-    _modal('Convert Contact to Member', [
-      { name: 'memberId', label: 'Member ID', required: true,
-        placeholder: 'Paste the member ID after creating them in the Members module' },
+    _modal('Convert ' + name + ' to Member', [
+      { name: 'membershipStatus', label: 'Membership Status', type: 'select',
+        options: ['Prospect', 'Active', 'Inactive'], value: 'Prospect' },
+      { name: 'notes', label: 'Notes (optional)', type: 'textarea', value: cached.notes || '' },
     ], async data => {
-      if (!confirm('Convert ' + name + ' to a full member? This cannot be undone.')) return;
-      await (_isFirebaseComms() ? UpperRoom.convertOutreachContact({ id, memberId: data.memberId }) : TheVine.flock.outreach.contacts.convert({ id, memberId: data.memberId }));
-      _invalidateCache('outreach.contacts');
-      _toast('Contact converted to member.', 'success');
-      outreachView('contacts');
+      if (!confirm('Create a member record for ' + name + ' and mark this contact as converted?')) return;
+      try {
+        // Build member payload from contact data
+        var memberPayload = {
+          firstName:        cached.firstName || '',
+          lastName:         cached.lastName  || '',
+          primaryEmail:     cached.email     || '',
+          cellPhone:        cached.phone     || '',
+          membershipStatus: data.membershipStatus || 'Prospect',
+          pastoralNotes:    data.notes || '',
+        };
+        var res = await _createMember(memberPayload);
+        var memberId = (res && res.id) || '';
+        // Mark the outreach contact as converted
+        await (_isFirebaseComms()
+          ? UpperRoom.convertOutreachContact({ id, memberId })
+          : TheVine.flock.outreach.contacts.convert({ id, memberId }));
+        _invalidateCache('outreach.contacts');
+        _toast(name + ' converted to member!', 'success');
+        outreachView('contacts');
+      } catch (e) { _toast('Error: ' + (e.message || e), 'danger'); }
     });
   }
 
@@ -16401,194 +16417,62 @@ const Modules = (() => {
     var old = document.getElementById(obId);
     if (old) old.remove();
 
-    var statusOpts = ['Visitor','Prospect','Active','Inactive'].map(function(s) {
-      return '<option value="' + s + '"' + (s === 'Visitor' ? ' selected' : '') + '>' + s + '</option>';
-    }).join('');
-    var foundVia = ['','Friend / Word of Mouth','Website','Social Media','Community Event','Drive By','Mailer','Other'].map(function(s) {
-      return '<option value="' + s + '">' + (s || '— Select —') + '</option>';
-    }).join('');
-    var maritalOpts = ['','Single','Married','Widowed','Divorced'].map(function(s) {
-      return '<option value="' + s + '">' + (s || '—') + '</option>';
-    }).join('');
-
     var overlay = document.createElement('div');
     overlay.id = obId;
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:1000;display:flex;align-items:center;justify-content:center;padding:40px 20px;';
     overlay.innerHTML =
-      '<div style="background:var(--bg-raised);border:1px solid var(--line);border-radius:12px;padding:28px;width:100%;max-width:560px;max-height:85vh;overflow-y:auto;">'
+      '<div style="background:var(--bg-raised);border:1px solid var(--line);border-radius:12px;padding:28px;width:100%;max-width:420px;">'
       + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">'
-      + '<h2 style="font-size:1rem;color:var(--accent);">&#128075; Welcome a New Person</h2>'
+      + '<h2 style="font-size:1rem;color:var(--accent);">&#128075; Welcome a Visitor</h2>'
       + '<button id="ob-close" style="background:none;border:none;color:var(--ink-muted);font-size:1.4rem;cursor:pointer;line-height:1;">&#x2715;</button>'
       + '</div>'
-      + '<p style="font-size:0.78rem;color:var(--ink-muted);margin-bottom:14px;">'
+      + '<p style="font-size:0.78rem;color:var(--ink-muted);margin-bottom:18px;">'
       + '&ldquo;Welcome one another as Christ has welcomed you.&rdquo; &mdash; Romans 15:7</p>'
-
-      // Step indicator
-      + '<div id="ob-steps" style="display:flex;gap:8px;margin-bottom:18px;">'
-      + '<div class="ob-step" data-step="1" style="flex:1;height:4px;border-radius:2px;background:var(--accent);"></div>'
-      + '<div class="ob-step" data-step="2" style="flex:1;height:4px;border-radius:2px;background:var(--line);"></div>'
-      + '<div class="ob-step" data-step="3" style="flex:1;height:4px;border-radius:2px;background:var(--line);"></div>'
-      + '</div>'
-
-      // ── Step 1: Who are they? ──
-      + '<div id="ob-p1">'
-      + '<h3 style="font-size:0.88rem;color:var(--ink);margin-bottom:12px;">Step 1: Who&rsquo;s visiting?</h3>'
       + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">'
       + _wizField('ob-firstName', 'First Name *', 'text')
       + _wizField('ob-lastName', 'Last Name *', 'text')
       + '</div>'
-      + _wizField('ob-email', 'Email', 'email')
-      + _wizField('ob-phone', 'Phone', 'tel')
-      + '<div style="margin-bottom:14px;"><label style="display:block;font-size:0.79rem;color:var(--ink-muted);margin-bottom:4px;">How did they find us?</label>'
-      + '<select id="wiz-ob-foundVia" style="width:100%;background:rgba(255,255,255,0.07);border:1px solid var(--line);border-radius:6px;padding:8px 12px;color:var(--ink);font-size:max(1rem,16px);font-family:inherit;">' + foundVia + '</select></div>'
-      + '<div style="display:flex;gap:10px;margin-top:4px;">'
-      + '<button type="button" id="ob-n1" style="flex:1;background:var(--accent);color:var(--ink-inverse);border:none;border-radius:6px;padding:9px 20px;font-weight:600;cursor:pointer;font-size:0.88rem;">Next &rarr;</button>'
-      + '</div></div>'
-
-      // ── Step 2: A little more ──
-      + '<div id="ob-p2" style="display:none;">'
-      + '<h3 style="font-size:0.88rem;color:var(--ink);margin-bottom:12px;">Step 2: A little more</h3>'
-      + _wizField('ob-preferredName', 'Preferred / Nickname', 'text')
-      + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">'
-      + _wizField('ob-dateOfBirth', 'Date of Birth', 'date')
-      + '<div style="margin-bottom:14px;"><label style="display:block;font-size:0.79rem;color:var(--ink-muted);margin-bottom:4px;">Gender</label>'
-      + '<select id="wiz-ob-gender" style="width:100%;background:rgba(255,255,255,0.07);border:1px solid var(--line);border-radius:6px;padding:8px 12px;color:var(--ink);font-size:max(1rem,16px);font-family:inherit;">'
-      + '<option value="">—</option><option>Male</option><option>Female</option></select></div>'
-      + '</div>'
-      + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">'
-      + '<div style="margin-bottom:14px;"><label style="display:block;font-size:0.79rem;color:var(--ink-muted);margin-bottom:4px;">Status</label>'
-      + '<select id="wiz-ob-status" style="width:100%;background:rgba(255,255,255,0.07);border:1px solid var(--line);border-radius:6px;padding:8px 12px;color:var(--ink);font-size:max(1rem,16px);font-family:inherit;">' + statusOpts + '</select></div>'
-      + '<div style="margin-bottom:14px;"><label style="display:block;font-size:0.79rem;color:var(--ink-muted);margin-bottom:4px;">Marital Status</label>'
-      + '<select id="wiz-ob-marital" style="width:100%;background:rgba(255,255,255,0.07);border:1px solid var(--line);border-radius:6px;padding:8px 12px;color:var(--ink);font-size:max(1rem,16px);font-family:inherit;">' + maritalOpts + '</select></div>'
-      + '</div>'
-      + _wizField('ob-address1', 'Address', 'text')
-      + '<div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px;">'
-      + _wizField('ob-city', 'City', 'text')
-      + _wizField('ob-state', 'State', 'text')
-      + _wizField('ob-zip', 'Zip', 'text')
-      + '</div>'
-      + '<div style="display:flex;gap:10px;margin-top:4px;">'
-      + '<button type="button" id="ob-b2" style="flex:1;background:none;border:1px solid var(--line);color:var(--ink);border-radius:6px;padding:9px 20px;cursor:pointer;font-size:0.88rem;">&larr; Back</button>'
-      + '<button type="button" id="ob-n2" style="flex:1;background:var(--accent);color:var(--ink-inverse);border:none;border-radius:6px;padding:9px 20px;font-weight:600;cursor:pointer;font-size:0.88rem;">Next &rarr;</button>'
-      + '</div></div>'
-
-      // ── Step 3: Connect ──
-      + '<div id="ob-p3" style="display:none;">'
-      + '<h3 style="font-size:0.88rem;color:var(--ink);margin-bottom:12px;">Step 3: Connect them</h3>'
-      + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">'
-      + _wizField('ob-spouseName', 'Spouse Name', 'text')
-      + _wizField('ob-familyRole', 'Family Role (e.g. Husband, Wife, Child)', 'text')
-      + '</div>'
-      + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">'
-      + _wizField('ob-emergencyContact', 'Emergency Contact', 'text')
-      + _wizField('ob-emergencyPhone', 'Emergency Phone', 'tel')
-      + '</div>'
-      + _wizField('ob-pastoralNotes', 'Notes (prayer requests, first impressions, etc.)', 'text')
-      + '<label style="display:flex;align-items:center;gap:8px;margin-bottom:14px;color:var(--ink);font-size:0.88rem;cursor:pointer;">'
-      + '<input type="checkbox" id="ob-assignMe" checked style="accent-color:var(--accent);"> Assign to my care list</label>'
-      + '<div style="display:flex;gap:10px;margin-top:4px;">'
-      + '<button type="button" id="ob-b3" style="flex:1;background:none;border:1px solid var(--line);color:var(--ink);border-radius:6px;padding:9px 20px;cursor:pointer;font-size:0.88rem;">&larr; Back</button>'
-      + '<button type="button" id="ob-submit" style="flex:1;background:var(--accent);color:var(--ink-inverse);border:none;border-radius:6px;padding:9px 20px;font-weight:600;cursor:pointer;font-size:0.88rem;">&#10003; Welcome Them!</button>'
-      + '</div></div>'
-
+      + _wizField('ob-phone', 'Phone Number', 'tel')
+      + _wizField('ob-email', 'Email Address', 'email')
+      + '<button type="button" id="ob-submit" style="width:100%;background:var(--accent);color:var(--ink-inverse);border:none;border-radius:6px;padding:11px 20px;font-weight:600;cursor:pointer;font-size:0.9rem;margin-top:4px;">&#10003; Save &amp; Add to Outreach</button>'
       + '</div>';
 
     document.body.appendChild(overlay);
 
-    // Helper to get onboard field value
     function _ov(id) { var el = document.getElementById('wiz-ob-' + id); return el ? el.value.trim() : ''; }
 
-    // Step navigation
-    function _obGo(step) {
-      for (var s = 1; s <= 3; s++) {
-        document.getElementById('ob-p' + s).style.display = s === step ? '' : 'none';
-        var bar = overlay.querySelector('.ob-step[data-step="' + s + '"]');
-        if (bar) bar.style.background = s <= step ? 'var(--accent)' : 'var(--line)';
-      }
-    }
-
-    // Close
     document.getElementById('ob-close').onclick = function() { overlay.remove(); };
     overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
 
-    // Step buttons
-    document.getElementById('ob-n1').onclick = function() {
-      if (!_ov('firstName') || !_ov('lastName')) {
-        _toast('Please enter at least a first and last name.', 'warn'); return;
-      }
-      _obGo(2);
-    };
-    document.getElementById('ob-b2').onclick = function() { _obGo(1); };
-    document.getElementById('ob-n2').onclick = function() { _obGo(3); };
-    document.getElementById('ob-b3').onclick = function() { _obGo(2); };
-
-    // Submit
     document.getElementById('ob-submit').onclick = async function() {
       var btn = this;
+      var firstName = _ov('firstName');
+      var lastName  = _ov('lastName');
+      if (!firstName || !lastName) { _toast('First and last name are required.', 'warn'); return; }
       btn.disabled = true;
       btn.textContent = 'Saving\u2026';
       try {
-        var firstName = _ov('firstName');
-        var lastName = _ov('lastName');
-        var email = _ov('email');
-
-        // 1. Create the member record
-        var _obMem = {
-          firstName:        firstName,
-          lastName:         lastName,
-          primaryEmail:     email,
-          cellPhone:        _ov('phone'),
-          preferredName:    _ov('preferredName'),
-          dateOfBirth:      _ov('dateOfBirth'),
-          gender:           _ov('gender'),
-          membershipStatus: _ov('status') || 'Visitor',
-          maritalStatus:    _ov('marital'),
-          howTheyFoundUs:   _ov('foundVia'),
-          address1:         _ov('address1'),
-          city:             _ov('city'),
-          state:            _ov('state'),
-          zip:              _ov('zip'),
-          spouseName:       _ov('spouseName'),
-          familyRole:       _ov('familyRole'),
-          emergencyContact: _ov('emergencyContact'),
-          emergencyPhone:   _ov('emergencyPhone'),
-          pastoralNotes:    _ov('pastoralNotes'),
+        var contact = {
+          firstName: firstName,
+          lastName:  lastName,
+          phone:     _ov('phone'),
+          email:     _ov('email'),
+          source:    'Walk-In',
+          status:    'New',
         };
-        var res = await _createMember(_obMem);
-
-        // 2. Auto-assign to current user's care list
-        var newId = (res && res.id) || '';
-        var session = (typeof TheVine !== 'undefined' ? TheVine.session() : null);
-        if (document.getElementById('ob-assignMe').checked && session) {
-          try {
-            await (_isFirebaseComms() ? UpperRoom.createCareAssignment({
-              caregiverId: session.email,
-              memberId:    newId || email || '',
-              role:        'Shepherd',
-              status:      'Active',
-              startDate:   new Date().toISOString().split('T')[0],
-            }) : TheVine.flock.care.assignments.create({
-              caregiverId: session.email,
-              memberId:    newId || email || '',
-              role:        'Shepherd',
-              status:      'Active',
-              startDate:   new Date().toISOString().split('T')[0],
-            }));
-          } catch (_) { /* non-critical */ }
-        }
-
+        await (_isFirebaseComms()
+          ? UpperRoom.createOutreachContact(contact)
+          : TheVine.flock.outreach.contacts.create(contact));
+        _invalidateCache('outreach.contacts');
         overlay.remove();
-        _toast(firstName + ' ' + lastName + ' welcomed!', 'success');
-
-        // Refresh people/directory views if loaded
-        var dirEl = document.getElementById('view-directory');
-        if (dirEl && dirEl.dataset.loaded) { dirEl.dataset.loaded = ''; if (_reg['directory']) _reg['directory'](dirEl); }
-        var flockEl = document.getElementById('view-my-flock');
-        if (flockEl && flockEl.dataset.loaded) { flockEl.dataset.loaded = ''; if (_reg['my-flock']) _reg['my-flock'](flockEl); }
+        _toast(firstName + ' ' + lastName + ' added to Outreach Contacts!', 'success');
+        // Offer quick navigation to Outreach
+        var outEl = document.getElementById('view-outreach');
+        if (outEl) { outEl.dataset.loaded = ''; if (_reg['outreach']) _reg['outreach'](outEl); navigate('outreach'); }
       } catch (e) {
         _toast('Error: ' + (e.message || e), 'danger');
         btn.disabled = false;
-        btn.textContent = '\u2713 Welcome Them!';
+        btn.textContent = '\u2713 Save & Add to Outreach';
       }
     };
   }
