@@ -3182,6 +3182,112 @@ const TheLife = (() => {
     if (panel) panel.innerHTML = _buildPrayerPanel(_cache.allPrayer || []);
   }
 
+  async function showUnassignedPrayers() {
+    var el = _hubEl();
+    if (!el) return;
+    el.innerHTML = '<div class="fp-editor">'
+      + '<div class="fp-topbar">'
+      + '<button class="fp-back" onclick="TheLife.backToHub()">← Back to My Flock</button>'
+      + '<h2 class="fp-title">Unassigned Prayer Requests</h2>'
+      + '</div>'
+      + '<div id="fp-body">' + _spinner() + '</div></div>';
+    var _m = document.getElementById('main'); if (_m) _m.scrollTop = 0;
+
+    try {
+      var dir = await _ensureDir();
+      var allPrayers = _cache.allPrayer || [];
+
+      var unassigned = allPrayers.filter(function(r) {
+        var st = (r.status || r['Status'] || '').toLowerCase();
+        return st !== 'answered' && st !== 'closed' && !(r.assignedTo || r['Assigned To']);
+      });
+
+      var _lpMember = (dir || []).find(function(m) {
+        if (!m.groups) return false;
+        return String(m.groups).toLowerCase().split(',').map(function(g) { return g.trim(); }).indexOf('lead pastor') !== -1;
+      });
+      var _lpId   = _lpMember ? (_lpMember.memberPin || _lpMember.id || _lpMember.email) : '';
+      var _lpName = _lpMember ? (_lpMember.preferredName || ((_lpMember.firstName || '') + ' ' + (_lpMember.lastName || '')).trim()) : '';
+
+      if (!unassigned.length) {
+        document.getElementById('fp-body').innerHTML = '<div style="padding:40px;text-align:center;">'
+          + '<div style="font-size:2rem;margin-bottom:12px;">🎉</div>'
+          + '<p style="color:var(--ink-muted);font-size:0.9rem;">All prayer requests are assigned!</p></div>';
+        return;
+      }
+
+      var html = '<div style="max-width:860px;">';
+
+      if (_lpId) {
+        html += '<div style="background:rgba(var(--accent-rgb,99,102,241),0.1);border:1px solid var(--accent);border-radius:10px;padding:14px 18px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">'
+          + '<div style="font-size:0.88rem;color:var(--ink);">'
+          + '<strong>' + unassigned.length + ' request' + (unassigned.length !== 1 ? 's' : '') + '</strong> have no assigned pastor.'
+          + (_lpName ? ' Auto-assign all to <strong>' + _e(_lpName) + '</strong> (Lead Pastor)?' : '')
+          + '</div>'
+          + '<button type="button" onclick="TheLife._autoAssignPrayersToLP()" class="fp-action-btn" style="background:var(--accent);color:var(--ink-inverse);border-color:var(--accent);font-weight:600;white-space:nowrap;">'
+          + '👤 Auto-Assign All to ' + _e(_lpName || 'Lead Pastor') + '</button>'
+          + '</div>';
+      }
+
+      html += '<div class="flock-card-grid">';
+      unassigned.forEach(function(r) {
+        var rid  = _e(String(r.id || r.ID || ''));
+        var name = _e(r.submitterName || r['Submitter Name'] || 'Anonymous');
+        var prayer = r.prayerText || r['Prayer Text'] || '';
+        var status = r.status || r['Status'] || 'New';
+        var isConf = String(r.isConfidential || r['Is Confidential'] || '').toUpperCase() === 'TRUE';
+        var isFU   = String(r.followUpRequested || r['Follow-Up Requested'] || '').toUpperCase() === 'TRUE';
+        var pills  = _statusBadge(status);
+        if (isConf) pills += ' <span class="badge badge-warn">🔒 Confidential</span>';
+        if (isFU)   pills += ' <span class="badge badge-danger">Follow-up</span>';
+        html += _flockCard({
+          name: name,
+          pills: pills,
+          body: _e(prayer.length > 200 ? prayer.substring(0, 200) + '…' : prayer),
+          date: r.submittedAt || r['Submitted At'] || '',
+          onclick: "TheLife.openPrayer('" + rid + "')"
+        });
+      });
+      html += '</div></div>';
+
+      document.getElementById('fp-body').innerHTML = html;
+    } catch (e) {
+      document.getElementById('fp-body').innerHTML = _errHtml(e.message);
+    }
+  }
+
+  async function _autoAssignPrayersToLP() {
+    var btn = document.querySelector('[onclick="TheLife._autoAssignPrayersToLP()"]');
+    if (btn) { btn.disabled = true; btn.textContent = 'Assigning…'; }
+
+    var dir = _cache.memberDir || [];
+    var _lpMember = dir.find(function(m) {
+      if (!m.groups) return false;
+      return String(m.groups).toLowerCase().split(',').map(function(g) { return g.trim(); }).indexOf('lead pastor') !== -1;
+    });
+    if (!_lpMember) { _showToast('Lead Pastor not found in member directory.', 'error'); if (btn) { btn.disabled = false; btn.textContent = 'Auto-Assign All to Lead Pastor'; } return; }
+    var _lpId = _lpMember.memberPin || _lpMember.id || _lpMember.email;
+
+    var allPrayers = _cache.allPrayer || [];
+    var unassigned = allPrayers.filter(function(r) {
+      var st = (r.status || r['Status'] || '').toLowerCase();
+      return st !== 'answered' && st !== 'closed' && !(r.assignedTo || r['Assigned To']);
+    });
+
+    try {
+      await Promise.all(unassigned.map(function(r) {
+        var id = r.id || r.ID;
+        return _isFB() ? UpperRoom.updatePrayer(id, { assignedTo: _lpId }) : TheVine.flock.prayer.update({ id: id, assignedTo: _lpId });
+      }));
+      unassigned.forEach(function(r) { r.assignedTo = _lpId; });
+      _showToast(unassigned.length + ' request' + (unassigned.length !== 1 ? 's' : '') + ' assigned to Lead Pastor.');
+      showUnassignedPrayers();
+    } catch (err) {
+      _showToast('Error: ' + (err.message || err), 'error');
+      if (btn) { btn.disabled = false; btn.textContent = 'Auto-Assign All to Lead Pastor'; }
+    }
+  }
+
   function _buildCompassionPanel(rows) {
     if (!rows.length) return _flockEmpty('\u2665', 'No compassion requests.');
     var h = '<div class="flock-actions">'
@@ -4756,6 +4862,8 @@ const TheLife = (() => {
     showFollowUps:        showFollowUps,
     showUnassignedCases:  showUnassignedCases,
     _autoAssignToLP:      _autoAssignToLP,
+    showUnassignedPrayers: showUnassignedPrayers,
+    _autoAssignPrayersToLP: _autoAssignPrayersToLP,
     loadMemberCareHistory: loadMemberCareHistory,
     _careSummaryPrint:     _careSummaryPrint,
 
