@@ -578,6 +578,7 @@
           <table>
             <thead><tr>
               <th style="min-width:130px;width:130px;">Date</th>
+              <th style="min-width:100px;width:100px;">Time</th>
               <th style="min-width:110px;">Psalm</th>
               <th style="min-width:130px;">Worship</th>
               <th style="min-width:130px;">Announce</th>
@@ -665,7 +666,7 @@
 
     /* ── State ───────────────────────────────────────────────────────── */
     var S = { rows: [], importedIds: {}, dirty: false, saveTimer: null };
-    var FIELDS = ['psalm','worship','announce','prayer','preacher','scripture','proverb','notes'];
+    var FIELDS = ['serviceTime','psalm','worship','announce','prayer','preacher','scripture','proverb','notes'];
 
     function mkRow(date) {
       var r = { id: uid(), date: date || '' };
@@ -700,10 +701,11 @@
 
     /* ── Render ──────────────────────────────────────────────────────── */
     var PLACEHOLDERS = {
-      psalm:'Psalm 95…', worship:'Volunteer name', announce:'Volunteer name',
+      serviceTime:'', psalm:'Psalm 95…', worship:'Volunteer name', announce:'Volunteer name',
       prayer:'Volunteer name', preacher:'Volunteer name', scripture:'John 3:16',
       proverb:'Proverbs 3…', notes:'Theme / notes'
     };
+    var FIELD_TYPES = { serviceTime: 'time' };
 
     /* ── Day-of-week filter ────────────────────────────────────────── */
     var _dowFilter = -1; // -1 = All
@@ -751,7 +753,7 @@
           var td = document.createElement('td');
           var w  = document.createElement('div'); w.className = 'cw';
           var inp = document.createElement('input');
-          inp.type = 'text'; inp.className = 'ci'; inp.placeholder = PLACEHOLDERS[key] || '';
+          inp.type = FIELD_TYPES[key] || 'text'; inp.className = 'ci'; inp.placeholder = PLACEHOLDERS[key] || '';
           inp.value = row[key] || '';
           inp.addEventListener('input', function (e) {
             var r = rowById(e.target.closest('tr').dataset.id);
@@ -1033,6 +1035,7 @@
          actual content so we don't overwrite dashboard-entered values
          with blanks. When creating, include everything. */
       var map = {
+        serviceTime: 'serviceTime',
         notes:     'theme',
         psalm:     'psalmReader',
         scripture: 'scriptureFocus',
