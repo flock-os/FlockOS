@@ -132,7 +132,7 @@
       border-radius: 8px;
       padding: 10px 14px;
       color: var(--ink);
-      font-size: 0.9rem;
+      font-size: 0.95rem;
       outline: none;
       transition: border-color 0.2s;
     }
@@ -312,7 +312,7 @@
       border: 1px solid var(--line);
       border-radius: 7px;
       padding: 7px 11px;
-      font-size: 0.8rem;
+      font-size: 0.86rem;
       color: var(--ink);
       outline: none;
       transition: border-color 0.2s;
@@ -368,7 +368,7 @@
       flex-shrink: 0;
     }
     .sidebar-item .ch-name {
-      font-size: 0.85rem;
+      font-size: 0.9rem;
       color: var(--ink-muted);
       flex: 1;
       white-space: nowrap;
@@ -467,7 +467,7 @@
       margin-bottom: 2px;
     }
     .msg-author {
-      font-size: 0.88rem;
+      font-size: 0.94rem;
       font-weight: 600;
       color: var(--ink);
     }
@@ -476,7 +476,7 @@
       color: var(--ink-faint);
     }
     .msg-text {
-      font-size: 0.88rem;
+      font-size: 0.94rem;
       color: var(--ink);
       word-break: break-word;
       white-space: pre-wrap;
@@ -1101,6 +1101,9 @@
       .user-pill .uname { display: none; }
       .user-pill #topbar-status-dot { display: none; }
     }
+
+    /* ── Embedded mode: hide brand bar when loaded inside an iframe ── */
+    body.embedded .topbar-brand { display: none !important; }
   </style>
 </head>
 <body class="auth-open">
@@ -1425,6 +1428,13 @@
     measurementId:     'G-M9YMRNHDLY',
     databaseURL:       'https://flockos-comms-default-rtdb.firebaseio.com'
   };
+
+  // ── Embedded detection: hide brand bar when loaded inside FlockOS iframe ──
+  (function() {
+    var p = new URLSearchParams(window.location.search);
+    var isEmbedded = p.get('embedded') === '1' || window.self !== window.top;
+    if (isEmbedded) document.body.classList.add('embedded');
+  })();
 
   // ── Bootstrap ──────────────────────────────────────────────────────────
   const fbApp    = initializeApp(FIREBASE_CONFIG);

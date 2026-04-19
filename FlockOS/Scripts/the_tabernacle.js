@@ -9435,7 +9435,16 @@ const Modules = (() => {
       // ══════════════════════════════════════════════════════════════════
       } else if (_missionsTab === 'updates') {
         const raw  = await (_isFirebaseComms() ? UpperRoom.listMissionsUpdates({ limit: 60 }) : TheVine.missions.updates.list({ limit: 60 }));
-        const rows = _rows(raw);
+        const allRows = _rows(raw);
+        // Filter "Eyes Only" updates — visible to Lead Pastor / Seed Admin only
+        var _mIsLeadPastor = false;
+        try { _mIsLeadPastor = Nehemiah.hasGroup('Lead Pastor') || Nehemiah.hasGroup('Master') || Nehemiah.hasGroup('Seed Admin'); } catch(_) {}
+        var _mIsSeedAdmin = false;
+        try { var _mSess = TheVine.session(); _mIsSeedAdmin = !!(_mSess && _mSess.isSeed); } catch(_) {}
+        const rows = allRows.filter(function(r) {
+          var sec = String(r.securityLevel || '').toLowerCase();
+          return sec !== 'eyes only' || _mIsLeadPastor || _mIsSeedAdmin;
+        });
         _dataCache['missions-updates'] = rows;
 
         html += _mHeading('Field Updates', 'Situation reports, prayer alerts, victories and breaking news from the field');
