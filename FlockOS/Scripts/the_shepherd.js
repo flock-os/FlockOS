@@ -139,6 +139,7 @@ const TheShepherd = (() => {
     // buttons must call _reload('directory'), not _reload('users'), otherwise Next/Prev silently
     // re-renders a hidden element and nothing changes on screen.
     var _pgId = (container.id || 'users').replace(/^view-/, '') || 'users';
+    console.log('[SHEPHERD-DEBUG] renderApp() start — containerId=' + (container.id||'?') + ', _allPeople=' + (_allPeople ? _allPeople.length : 'null'));
     container.innerHTML = _spinner();
 
     try {
@@ -175,6 +176,7 @@ const TheShepherd = (() => {
         });
         _ppData = map;
         _allPeople = Object.values(map);
+        console.log('[SHEPHERD-DEBUG] renderApp() — fetched & merged: users=' + users.length + ', members=' + members.length + ', cards=' + cards.length + ', total=' + _allPeople.length);
       }
 
       var people = _allPeople;
@@ -235,7 +237,9 @@ const TheShepherd = (() => {
         h += Modules._pagerBar(_pgId);
       }
       container.innerHTML = h;
-    } catch (e) { container.innerHTML = _errHtml(e.message); }
+      console.log('[SHEPHERD-DEBUG] renderApp() — container set to list, containerId=' + (container.id||'?'));
+      var _m = document.getElementById('main'); if (_m) _m.scrollTop = 0;
+    } catch (e) { console.error('[SHEPHERD-DEBUG] renderApp() ERROR:', e); container.innerHTML = _errHtml(e.message); }
   }
 
   function _buildTable(list) {
