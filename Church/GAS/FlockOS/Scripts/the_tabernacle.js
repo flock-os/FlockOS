@@ -9149,8 +9149,8 @@ const Modules = (() => {
           + '</div>';
 
         // Scripture banner
-        html += '<div style="background:linear-gradient(135deg,rgba(232,168,56,0.12),rgba(99,102,241,0.08));border:1px solid rgba(232,168,56,0.3);border-radius:10px;padding:14px 18px;margin-bottom:18px;text-align:center;">'
-          + '<div style="font-size:0.78rem;font-style:italic;color:var(--gold);line-height:1.55;">"The harvest is plentiful, but the workers are few. Ask the Lord of the harvest, therefore, to send out workers into his harvest field." — Luke 10:2</div>'
+        html += '<div style="background:var(--bg-raised);border:1px solid rgba(232,168,56,0.3);border-left:3px solid var(--gold,#d4a843);border-radius:10px;padding:14px 18px;margin-bottom:18px;text-align:center;">'
+          + '<div style="font-size:0.78rem;font-style:italic;color:var(--ink);line-height:1.55;">"The harvest is plentiful, but the workers are few. Ask the Lord of the harvest, therefore, to send out workers into his harvest field." — Luke 10:2</div>'
           + '</div>';
 
         // Filter bar
@@ -9220,8 +9220,8 @@ const Modules = (() => {
         html += _mHeading('Local Missions', 'Community outreach, neighborhood engagement & regional partners');
 
         // Impact scripture
-        html += '<div style="background:linear-gradient(135deg,rgba(34,197,94,0.1),rgba(16,185,129,0.06));border:1px solid rgba(34,197,94,0.25);border-radius:10px;padding:14px 18px;margin-bottom:18px;">'
-          + '<div style="font-size:0.78rem;font-style:italic;color:#86efac;line-height:1.55;text-align:center;">"Let your light shine before others, that they may see your good deeds and glorify your Father in heaven." — Matthew 5:16</div>'
+        html += '<div style="background:var(--bg-raised);border:1px solid rgba(34,197,94,0.3);border-left:3px solid var(--success);border-radius:10px;padding:14px 18px;margin-bottom:18px;">'
+          + '<div style="font-size:0.78rem;font-style:italic;color:var(--ink);line-height:1.55;text-align:center;">"Let your light shine before others, that they may see your good deeds and glorify your Father in heaven." — Matthew 5:16</div>'
           + '</div>';
 
         // Stats row
@@ -9335,8 +9335,8 @@ const Modules = (() => {
         }
 
         // ── Daily prayer guide ──
-        html += '<div style="margin-top:28px;background:linear-gradient(135deg,rgba(129,140,248,0.1),rgba(99,102,241,0.06));border:1px solid rgba(129,140,248,0.2);border-radius:12px;padding:18px 20px;">'
-          + '<div style="font-size:0.75rem;font-weight:700;text-transform:uppercase;color:#818cf8;letter-spacing:0.06em;margin-bottom:4px;">Daily Prayer Guide</div>'
+        html += '<div style="margin-top:28px;background:var(--bg-raised);border:1px solid var(--line);border-left:3px solid #818cf8;border-radius:12px;padding:18px 20px;">'
+          + '<div style="font-size:0.75rem;font-weight:700;text-transform:uppercase;color:var(--ink);letter-spacing:0.06em;margin-bottom:4px;">Daily Prayer Guide</div>'
           + '<div style="font-size:0.82rem;color:var(--ink-muted);margin-bottom:12px;">Tap any topic to begin a new prayer focus' + (canEdit ? '' : ' (leaders add official needs)') + '</div>'
           + '<div style="display:flex;flex-wrap:wrap;gap:8px;">'
           + ['Christians in Iran', 'Underground church in China', 'Believers in North Korea',
@@ -9345,8 +9345,8 @@ const Modules = (() => {
               (canEdit
                 ? '<span onclick="Modules.newPrayerFocus(\'' + _e(topic) + '\')"'
                 : '<span')
-              + ' style="font-size:0.8rem;padding:6px 12px;background:rgba(129,140,248,0.12);border:1px solid rgba(129,140,248,0.28);border-radius:14px;' + (canEdit ? 'cursor:pointer;' : '') + 'color:#a5b4fc;transition:background 0.15s;"'
-              + (canEdit ? ' onmouseover="this.style.background=\'rgba(129,140,248,0.28)\'" onmouseout="this.style.background=\'rgba(129,140,248,0.12)\'"' : '')
+              + ' style="font-size:0.8rem;padding:6px 12px;background:var(--bg-raised);border:1px solid var(--line);border-radius:14px;' + (canEdit ? 'cursor:pointer;' : '') + 'color:var(--ink);transition:background 0.15s;"'
+              + (canEdit ? ' onmouseover="this.style.background=\'var(--bg-sunken)\'" onmouseout="this.style.background=\'var(--bg-raised)\'"' : '')
               + '>' + topic + '</span>'
            ).join('')
           + '</div>'

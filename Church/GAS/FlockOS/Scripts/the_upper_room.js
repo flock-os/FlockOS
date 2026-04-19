@@ -3947,12 +3947,12 @@
     return _missionsRef(col).doc(id).get().then(function(d) { var o = d.data() || {}; o.id = d.id; return o; });
   }
   function _mCreate(col, data) {
-    data.createdAt = _ts(); data.createdBy = _userEmail();
+    data.createdAt = _now(); data.createdBy = _userEmail;
     return _missionsRef(col).add(data).then(function(ref) { data.id = ref.id; return data; });
   }
   function _mUpdate(col, data) {
     var id = data.id; delete data.id;
-    data.updatedAt = _ts(); data.updatedBy = _userEmail();
+    data.updatedAt = _now(); data.updatedBy = _userEmail;
     return _missionsRef(col).doc(id).update(data);
   }
 
@@ -3974,9 +3974,9 @@
   function updateMissionsPrayerFocus(d)  { return _mUpdate('missionsPrayerFocus', d); }
   function respondMissionsPrayerFocus(p) {
     return _missionsRef('missionsPrayerFocus').doc(p.id).update({
-      lastPrayedAt: _ts(),
+      lastPrayedAt: _now(),
       prayerCount: firebase.firestore.FieldValue.increment(1),
-      updatedBy: _userEmail()
+      updatedBy: _userEmail
     });
   }
 
