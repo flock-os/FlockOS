@@ -35,12 +35,6 @@
                 <span class="brand-sub">atouchofthegospel.com</span>
             </div>
         </div>
-        <div style="display:flex; align-items:center; gap:6px;" id="lang-switcher">
-            <button class="lang-btn active" data-lang="en" onclick="ATOG.setLang('en')">EN</button>
-            <button class="lang-btn" data-lang="es" onclick="ATOG.setLang('es')">ES</button>
-            <button class="lang-btn" data-lang="km" onclick="ATOG.setLang('km')">KM</button>
-            <button class="lang-btn" data-lang="ps" onclick="ATOG.setLang('ps')">PS</button>
-        </div>
     </header>
 
     <!-- ═══ Sidebar ════════════════════════════════════════ -->
@@ -49,6 +43,12 @@
             <div class="nav-zone">
                 <a class="nav-item active" data-view="home" onclick="ATOG.navigate('home')">
                     <span class="nav-icon">&#127968;</span> Home
+                </a>
+            </div>
+
+            <div class="nav-zone">
+                <a class="nav-item" data-view="upperroom" onclick="ATOG.navigate('upperroom')">
+                    <span class="nav-icon">&#128214;</span> The Upper Room
                 </a>
             </div>
 
@@ -147,6 +147,39 @@
             </div>
 
             <div class="grid grid-cols-1 gap-5" id="home-cards"></div>
+
+            <!-- ── Section 1: The Great Invitations ── -->
+            <section id="atog-invitations" style="margin-top:4rem;padding-top:2rem;">
+                <div style="margin-bottom:2rem;">
+                    <h2 style="font-family:'Merriweather',serif;font-size:1.9rem;font-weight:700;color:#fff;margin-bottom:0.75rem;">1. The Great Invitations</h2>
+                    <p style="color:var(--ink-muted);max-width:640px;line-height:1.7;">Jesus issued personal calls characterized by grace rather than performance. Click each card to uncover the profound hope offered to the exhausted, the thirsty, and those seeking intimacy.</p>
+                </div>
+                <div id="invitation-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1.5rem;"></div>
+            </section>
+
+            <!-- ── Section 2: The I AM Declarations ── -->
+            <section id="atog-iam" style="margin-top:5rem;padding-top:2rem;">
+                <div style="margin-bottom:2rem;">
+                    <h2 style="font-family:'Merriweather',serif;font-size:1.9rem;font-weight:700;color:#fff;margin-bottom:0.75rem;">2. The &ldquo;I AM&rdquo; Declarations</h2>
+                    <p style="color:var(--ink-muted);max-width:640px;line-height:1.7;">In the Gospel of John, Jesus uses seven metaphors to declare how He perfectly meets the deepest needs of the human soul. Select a declaration to explore His identity.</p>
+                </div>
+                <div style="display:flex;flex-wrap:wrap;border:1px solid var(--line);border-radius:20px;overflow:hidden;background:var(--surface);min-height:460px;">
+                    <div style="width:220px;min-width:180px;flex-shrink:0;border-right:1px solid var(--line);background:rgba(0,0,0,0.25);padding:16px 0;display:flex;flex-direction:column;justify-content:center;" id="iam-nav-list"></div>
+                    <div style="flex:1;min-width:240px;padding:40px 48px;display:flex;align-items:center;" id="iam-content-area"></div>
+                </div>
+            </section>
+
+            <!-- ── Section 3: The Finished Work ── -->
+            <section id="atog-work" style="margin-top:5rem;padding-top:2rem;margin-bottom:3rem;">
+                <div style="margin-bottom:2rem;">
+                    <h2 style="font-family:'Merriweather',serif;font-size:1.9rem;font-weight:700;color:#fff;margin-bottom:0.75rem;">3. The Finished Work</h2>
+                    <p style="color:var(--ink-muted);max-width:640px;line-height:1.7;">Hope is not just found in what Jesus said, but in what He accomplished. Select an event from the timeline to understand the historical progression of His redemptive mission.</p>
+                </div>
+                <div style="display:flex;flex-wrap:wrap;gap:24px;border:1px solid var(--line);border-radius:16px;background:var(--surface);padding:28px;">
+                    <div style="width:220px;flex-shrink:0;border-left:2px solid var(--line);" id="timeline-nav"></div>
+                    <div style="flex:1;min-width:240px;" id="timeline-content"></div>
+                </div>
+            </section>
         </div>
 
         <!-- ── Learning Hub (TheWay renders here) ────────── -->
@@ -155,6 +188,7 @@
         <!-- ── Standalone modules (Modules.render via public API) ── -->
         <div class="module-view" id="view-mirror"></div>
         <div class="module-view" id="view-prayer"></div>
+        <div class="module-view" id="view-upperroom"></div>
 
     </main>
 
@@ -187,6 +221,8 @@
     };
     /* Modules rendered via Modules.render() (public API, not TheWay) */
     var STANDALONE = { mirror: 'mirror', prayer: 'prayer' };
+    var UPPERROOM_VIEWS = { upperroom: true };
+    var _upperRoomInited = false;
     var _standaloneRendered = {};
     var _hubReady = false;
     var _pendingTab = null;
@@ -213,6 +249,12 @@
                 TheWay.switchTab(tabId);
             } else {
                 _pendingTab = tabId; /* hub still loading — switch when ready */
+            }
+        } else if (UPPERROOM_VIEWS[viewName]) {
+            var urEl = document.getElementById('view-upperroom');
+            if (urEl) {
+                urEl.classList.add('active');
+                if (!_upperRoomInited) { _upperRoomInited = true; _initUpperRoom(urEl); }
             }
         } else if (isStand) {
             /* Mirror / Prayer — render via Modules (uses _publicFetch → GAS) */
@@ -281,7 +323,292 @@
         /* Navigate to hash or stay on home */
         var hash = location.hash.replace('#', '');
         if (hash) ATOG.navigate(hash);
+
+        /* ── Gospel Invitation Sections ── */
+        initATOGInvitations();
+        initATOGIAM();
+        initATOGTimeline();
+        /* Upper Room pre-warm: seed the view so first click is instant */
+        /* (lazy-loaded on navigate, no action needed here) */
     });
+
+    /* ─────────────────────────────────────────────────────
+     *  GOSPEL INVITATION DATA + RENDERERS
+     * ───────────────────────────────────────────────────── */
+    var _invitationData = [
+        { title: 'The Call to the Exhausted', quote: 'Come to me, all who labor and are heavy laden, and I will give you rest.', ref: 'Matthew 11:28', icon: '🕊️', insight: 'Jesus does not demand more religious striving. He identifies the exhaustion of trying to earn worth and offers Himself as the antidote.' },
+        { title: 'The Call to the Thirsty',   quote: 'If anyone thirsts, let him come to me and drink.',                               ref: 'John 7:37–38',  icon: '💧', insight: 'Addressed to human dissatisfaction. Jesus promises a qualitative kind of life that provides an internal, eternal satisfaction.' },
+        { title: 'The Call to Intimacy',       quote: 'Behold, I stand at the door and knock.',                                         ref: 'Revelation 3:20', icon: '🚪', insight: 'A picture of divine pursuit. God does not force His way in; He knocks and offers friendship and reconciliation.' }
+    ];
+
+    var _iamData = [
+        { label: 'Bread of Life',       need: 'Spiritual Hunger',     verse: 'John 6:35',  color: '#f472b6', icon: '🍞', description: 'Just as physical bread sustains the body, Jesus is the essential nutrient for the soul. Without Him, the spirit starves; with Him, there is enduring life.' },
+        { label: 'Light of the World',  need: 'Guidance in Darkness', verse: 'John 8:12',  color: '#fca5cb', icon: '🕯️', description: 'In a world of confusion, Jesus provides absolute clarity. Following Him guarantees you will walk in the light of life.' },
+        { label: 'Door of the Sheep',   need: 'Security & Access',    verse: 'John 10:9',  color: '#2dd4bf', icon: '🚪', description: 'Jesus is the singular entry point to safety. Through Him, one finds protection from spiritual predators and the freedom of abundant life.' },
+        { label: 'Good Shepherd',       need: 'Care & Protection',    verse: 'John 10:11', color: '#38bdf8', icon: '🐑', description: 'Unlike a hired hand, the Good Shepherd loves so profoundly that He willingly lays down His life for the vulnerable.' },
+        { label: 'Resurrection & Life', need: 'Victory over Death',   verse: 'John 11:25', color: '#c084fc', icon: '🌱', description: 'Faced with the terror of death, Jesus claims total authority. He is the resurrection; in Him, death is merely a doorway.' },
+        { label: 'Way, Truth, Life',    need: 'Direction & Reality',  verse: 'John 14:6',  color: '#60a5fa', icon: '🧭', description: 'The embodiment of ultimate reality and the source of all existence. All human searching ends in Him.' },
+        { label: 'True Vine',           need: 'Purpose & Fruitfulness',verse: 'John 15:1',  color: '#34d399', icon: '🍇', description: 'By abiding in Jesus, believers draw on His endless grace and strength to produce love, joy, peace, patience, kindness, goodness, faithfulness, gentleness, and self-control that lasts eternally.' }
+    ];
+
+    var _workData = [
+        { title: 'The Incarnation', subtitle: 'God With Us',           summary: 'The Creator took on human flesh, experiencing our pains and limitations without sin.',                                    hope: 'God knows exactly what it feels like to be human. You are deeply understood.' },
+        { title: 'The Crucifixion', subtitle: 'The Atonement',         summary: 'On the cross, Jesus absorbed the debt of sin and guilt, declaring "It is finished."',                                 hope: 'Your failures are paid for. There is no condemnation left for those who trust Him.' },
+        { title: 'The Resurrection',subtitle: 'Victory Over Death',    summary: 'Three days later, Jesus rose, defeating the finality of death and inaugurating a new creation.',                      hope: 'Death is not the end. The worst things are never the last things.' },
+        { title: 'The Ascension',   subtitle: 'The Eternal Advocate',  summary: 'Jesus ascended to the Father, where He currently reigns and intercedes for His people.',                              hope: 'You have a perfect representative in the highest court of reality.' }
+    ];
+
+    function initATOGInvitations() {
+        var grid = document.getElementById('invitation-grid');
+        if (!grid) return;
+        _invitationData.forEach(function(item) {
+            var card = document.createElement('div');
+            card.className = 'glass-card';
+            card.style.cssText = 'padding:28px;cursor:pointer;transition:background 0.2s;border-radius:16px;';
+            card.innerHTML =
+                '<div style="font-size:2.2rem;margin-bottom:16px;">' + item.icon + '</div>' +
+                '<h3 style="font-family:Merriweather,serif;font-size:1.05rem;font-weight:700;color:#fff;margin-bottom:10px;">' + item.title + '</h3>' +
+                '<p style="color:#cbd5e1;font-style:italic;font-size:0.88rem;margin-bottom:8px;line-height:1.6;">&ldquo;' + item.quote + '&rdquo;</p>' +
+                '<p style="font-size:0.7rem;font-weight:700;color:#94a3b8;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:16px;">' + item.ref + '</p>' +
+                '<div class="inv-insight" style="display:none;padding-top:14px;border-top:1px solid var(--line);font-size:0.87rem;line-height:1.7;color:var(--ink-muted);">' +
+                    '<strong style="display:block;font-size:0.68rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--neon-blue);margin-bottom:6px;">The Hope</strong>' +
+                    item.insight +
+                '</div>' +
+                '<div class="inv-toggle" style="text-align:center;margin-top:16px;color:#94a3b8;font-size:1.4rem;line-height:1;">+</div>';
+            card.onclick = function() {
+                var insight = card.querySelector('.inv-insight');
+                var tog = card.querySelector('.inv-toggle');
+                var open = insight.style.display !== 'none';
+                document.querySelectorAll('.inv-insight').forEach(function(el) { el.style.display = 'none'; });
+                document.querySelectorAll('.inv-toggle').forEach(function(el) { el.textContent = '+'; });
+                if (!open) { insight.style.display = 'block'; tog.textContent = '−'; }
+            };
+            grid.appendChild(card);
+        });
+    }
+
+    function initATOGIAM() {
+        var nav = document.getElementById('iam-nav-list');
+        if (!nav) return;
+        _iamData.forEach(function(item, i) {
+            var btn = document.createElement('div');
+            btn.style.cssText = 'padding:10px 20px;cursor:pointer;font-size:0.82rem;font-weight:500;border-left:3px solid transparent;transition:all 0.25s;color:' + (i===0?'#fff':'#64748b') + ';';
+            btn.innerHTML = '<span style="margin-right:8px;">' + item.icon + '</span>' + item.label;
+            btn.id = 'iam-nav-' + i;
+            btn.onclick = function() { showATOGIAM(i); };
+            nav.appendChild(btn);
+        });
+        showATOGIAM(0);
+    }
+
+    function showATOGIAM(idx) {
+        var data = _iamData[idx];
+        var nav = document.getElementById('iam-nav-list');
+        if (!nav) return;
+        nav.querySelectorAll('div').forEach(function(el, i) {
+            el.style.color = i===idx ? '#fff' : '#64748b';
+            el.style.borderLeftColor = i===idx ? data.color : 'transparent';
+            el.style.background = i===idx ? 'rgba(255,255,255,0.06)' : '';
+        });
+        var area = document.getElementById('iam-content-area');
+        area.innerHTML =
+            '<div>' +
+            '<div style="display:inline-block;padding:3px 14px;border-radius:99px;border:1px solid var(--line);background:rgba(255,255,255,0.04);font-size:0.65rem;font-weight:700;letter-spacing:0.25em;color:var(--neon-blue);text-transform:uppercase;margin-bottom:16px;">The Declaration</div>' +
+            '<h3 style="font-family:Merriweather,serif;font-size:clamp(1.6rem,4vw,2.8rem);font-weight:700;color:#fff;line-height:1.2;margin-bottom:24px;">I AM the<br><span style="color:' + data.color + ';text-shadow:0 0 24px ' + data.color + '40;">' + data.label + '</span></h3>' +
+            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;border-top:1px solid var(--line);padding-top:20px;margin-bottom:20px;">' +
+                '<div><p style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:#64748b;margin-bottom:4px;">The Need Met</p><p style="font-family:Merriweather,serif;font-style:italic;color:#fff;font-size:1rem;">' + data.need + '</p></div>' +
+                '<div><p style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:#64748b;margin-bottom:4px;">The Reference</p><p style="color:var(--neon-teal);font-family:monospace;font-size:0.85rem;">' + data.verse + '</p></div>' +
+            '</div>' +
+            '<p style="color:var(--ink-muted);line-height:1.8;font-size:0.92rem;max-width:500px;">' + data.description + '</p>' +
+            '</div>';
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+     *  THE UPPER ROOM  — Daily Devotional + Reading Plan
+     * ═══════════════════════════════════════════════════════════ */
+    function _initUpperRoom(container) {
+        /* Skeleton */
+        container.innerHTML =
+            '<div style="max-width:860px;margin:0 auto;padding:0 4px;">' +
+            '<div style="margin-bottom:2.5rem;">' +
+              '<span style="font-size:0.62rem;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:var(--neon-teal);">Daily Devotion</span>' +
+              '<h2 style="font-family:Merriweather,serif;font-size:2rem;font-weight:700;color:#fff;margin-top:0.4rem;">The Upper Room</h2>' +
+              '<p style="color:var(--ink-muted);max-width:580px;line-height:1.7;margin-top:0.5rem;">Today&rsquo;s reflection from the ongoing journey through Scripture, plus your daily reading plan.</p>' +
+            '</div>' +
+            '<div id="ur-today" style="margin-bottom:3rem;"><p style="color:#475569;">Loading today&rsquo;s devotional&hellip;</p></div>' +
+            '<div id="ur-reading" style="margin-bottom:3rem;"><p style="color:#475569;">Loading reading plan&hellip;</p></div>' +
+            '<div style="margin-bottom:1rem;">' +
+              '<span style="font-size:0.62rem;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:#64748b;">Recent Devotionals</span>' +
+            '</div>' +
+            '<div id="ur-list"></div>' +
+            '</div>';
+
+        /* Fetch devotionals */
+        if (typeof TheVine === 'undefined' || typeof TheVine.app === 'undefined') {
+            container.querySelector('#ur-today').innerHTML = '<p style="color:#ef4444;">TheVine is not available. Please refresh.</p>';
+            return;
+        }
+
+        TheVine.app.devotionals().then(function(data) {
+            var rows = (data && data.rows) ? data.rows : [];
+            if (!rows.length) {
+                document.getElementById('ur-today').innerHTML = '<p style="color:#64748b;">No devotionals found.</p>';
+                return;
+            }
+            /* Sort by date descending */
+            rows.sort(function(a,b){ return new Date(b.Date) - new Date(a.Date); });
+
+            /* Today: find the entry whose date is closest to today (not future) */
+            var now = new Date();
+            var todayDevo = null;
+            for (var i = 0; i < rows.length; i++) {
+                var d = new Date(rows[i].Date);
+                if (d <= now) { todayDevo = rows[i]; break; }
+            }
+            if (!todayDevo) todayDevo = rows[rows.length - 1];
+
+            _renderURToday(document.getElementById('ur-today'), todayDevo);
+
+            /* List: next 14 recent (skip today) */
+            var listEl = document.getElementById('ur-list');
+            var recent = rows.filter(function(r){ return r !== todayDevo; }).slice(0, 14);
+            recent.forEach(function(r) { _renderURListItem(listEl, r); });
+        }).catch(function(e) {
+            document.getElementById('ur-today').innerHTML = '<p style="color:#ef4444;">Could not load devotionals.</p>';
+            console.error('Upper Room devotionals error', e);
+        });
+
+        /* Fetch reading plan */
+        TheVine.app.reading().then(function(data) {
+            var rows = (data && data.rows) ? data.rows : [];
+            if (!rows.length) { document.getElementById('ur-reading').innerHTML = ''; return; }
+            /* Day of year (1-based) */
+            var now2 = new Date();
+            var start = new Date(now2.getFullYear(), 0, 0);
+            var diff = now2 - start;
+            var dayOfYear = Math.floor(diff / 86400000); /* 1-365 */
+            var idx = Math.min(Math.max(dayOfYear - 1, 0), rows.length - 1);
+            var plan = rows[idx];
+            _renderURReading(document.getElementById('ur-reading'), plan, dayOfYear);
+        }).catch(function(e) {
+            document.getElementById('ur-reading').innerHTML = '';
+            console.error('Upper Room reading error', e);
+        });
+    }
+
+    function _renderURToday(el, devo) {
+        var dateStr = '';
+        try { dateStr = new Date(devo.Date).toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'}); } catch(e){}
+        el.innerHTML =
+            '<div class="glass-heavy" style="border-radius:20px;padding:36px;position:relative;overflow:hidden;">' +
+            '<div class="hero-glow" style="width:280px;height:280px;background:var(--neon-blue);top:-100px;right:-80px;opacity:0.35;"></div>' +
+            '<div style="position:relative;z-index:1;">' +
+            '<div style="display:flex;align-items:baseline;gap:1rem;flex-wrap:wrap;margin-bottom:1.5rem;">' +
+              '<span style="font-size:0.6rem;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:var(--neon-teal);">' + (devo.Theme || '') + '</span>' +
+              '<span style="font-size:0.6rem;color:#475569;">' + dateStr + '</span>' +
+            '</div>' +
+            '<h3 style="font-family:Merriweather,serif;font-size:1.7rem;font-weight:700;color:#fff;margin-bottom:1.2rem;line-height:1.3;">' + (devo.Title || '') + '</h3>' +
+            '<div style="background:rgba(56,189,248,0.07);border:1px solid rgba(56,189,248,0.2);border-radius:12px;padding:18px 22px;margin-bottom:1.5rem;">' +
+              '<p style="font-size:0.62rem;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:var(--neon-blue);margin-bottom:8px;">Scripture</p>' +
+              '<p style="color:#e2e8f0;font-style:italic;line-height:1.75;">' + (devo.Scripture || '') + '</p>' +
+            '</div>' +
+            '<p style="font-size:0.62rem;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:#64748b;margin-bottom:8px;">Reflection</p>' +
+            '<p style="color:var(--ink-muted);line-height:1.8;margin-bottom:1.5rem;">' + (devo.Reflection || '') + '</p>' +
+            (devo.Question ? '<div style="background:rgba(168,85,247,0.07);border:1px solid rgba(168,85,247,0.2);border-radius:12px;padding:16px 20px;margin-bottom:1.5rem;">' +
+              '<p style="font-size:0.62rem;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:var(--neon-purple);margin-bottom:8px;">Reflect</p>' +
+              '<p style="color:#e2e8f0;line-height:1.7;">' + devo.Question + '</p>' +
+            '</div>' : '') +
+            (devo.Prayer ? '<div style="background:rgba(52,211,153,0.06);border:1px solid rgba(52,211,153,0.2);border-radius:12px;padding:16px 20px;">' +
+              '<p style="font-size:0.62rem;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:#34d399;margin-bottom:8px;">Prayer</p>' +
+              '<p style="color:#a7f3d0;font-style:italic;line-height:1.7;">' + devo.Prayer + '</p>' +
+            '</div>' : '') +
+            '</div></div>';
+    }
+
+    function _renderURReading(el, plan, day) {
+        var refs = [];
+        ['Old Testament','New Testament','Psalms','Proverbs'].forEach(function(k) {
+            if (plan[k]) refs.push({ label: k, ref: plan[k] });
+        });
+        if (!refs.length) { el.innerHTML = ''; return; }
+        var items = refs.map(function(r) {
+            return '<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--line);">' +
+              '<span style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#64748b;">' + r.label + '</span>' +
+              '<span style="font-size:0.9rem;color:#e2e8f0;font-style:italic;">' + r.ref + '</span>' +
+            '</div>';
+        }).join('');
+        el.innerHTML =
+            '<div class="glass-card" style="border-radius:16px;padding:28px;">' +
+            '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.2rem;flex-wrap:wrap;gap:0.5rem;">' +
+              '<div>' +
+                '<p style="font-size:0.62rem;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:var(--neon-teal);">Daily Reading</p>' +
+                '<h4 style="font-family:Merriweather,serif;font-size:1.1rem;font-weight:700;color:#fff;margin-top:4px;">Day ' + day + ' of 365</h4>' +
+              '</div>' +
+              '<span style="font-size:0.65rem;color:#475569;">Through the Bible in a Year</span>' +
+            '</div>' +
+            items +
+            '</div>';
+    }
+
+    function _renderURListItem(container, devo) {
+        var dateStr = '';
+        try { dateStr = new Date(devo.Date).toLocaleDateString('en-US',{month:'short',day:'numeric'}); } catch(e){}
+        var el = document.createElement('details');
+        el.style.cssText = 'background:rgba(255,255,255,0.03);border:1px solid var(--line);border-radius:12px;margin-bottom:10px;overflow:hidden;';
+        el.innerHTML =
+            '<summary style="padding:16px 20px;cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;gap:1rem;">' +
+              '<div style="flex:1;min-width:0;">' +
+                '<span style="font-size:0.6rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--neon-teal);margin-right:0.75rem;">' + (devo.Theme || '') + '</span>' +
+                '<span style="font-size:0.62rem;color:#475569;">' + dateStr + '</span>' +
+                '<h5 style="font-family:Merriweather,serif;font-size:0.92rem;font-weight:700;color:#e2e8f0;margin-top:4px;">' + (devo.Title || '') + '</h5>' +
+              '</div>' +
+              '<span style="color:#475569;font-size:1.1rem;flex-shrink:0;">&#9662;</span>' +
+            '</summary>' +
+            '<div style="padding:0 20px 20px;">' +
+              '<p style="font-style:italic;font-size:0.85rem;color:#94a3b8;line-height:1.7;margin-bottom:12px;">' + (devo.Scripture || '') + '</p>' +
+              '<p style="color:var(--ink-muted);line-height:1.8;font-size:0.9rem;">' + (devo.Reflection || '') + '</p>' +
+              (devo.Question ? '<p style="font-size:0.85rem;color:#c084fc;margin-top:12px;font-style:italic;">' + devo.Question + '</p>' : '') +
+            '</div>';
+        container.appendChild(el);
+    }
+
+    function initATOGTimeline() {
+        var nav = document.getElementById('timeline-nav');
+        if (!nav) return;
+        _workData.forEach(function(item, i) {
+            var el = document.createElement('div');
+            el.style.cssText = 'padding:16px 0 16px 20px;border-left:4px solid ' + (i===0?'var(--neon-purple)':'transparent') + ';margin-left:-3px;cursor:pointer;transition:border-color 0.2s;';
+            el.innerHTML = '<h4 style="font-family:Merriweather,serif;font-weight:700;font-size:0.95rem;color:' + (i===0?'#fff':'#94a3b8') + ';">' + item.title + '</h4>' +
+                '<p style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.12em;color:#64748b;margin-top:3px;">' + item.subtitle + '</p>';
+            el.onclick = function() {
+                nav.querySelectorAll('div').forEach(function(n) {
+                    n.style.borderLeftColor = 'transparent';
+                    n.querySelector('h4').style.color = '#94a3b8';
+                });
+                el.style.borderLeftColor = 'var(--neon-purple)';
+                el.querySelector('h4').style.color = '#fff';
+                renderATOGWork(item);
+            };
+            nav.appendChild(el);
+        });
+        renderATOGWork(_workData[0]);
+    }
+
+    function renderATOGWork(item) {
+        var el = document.getElementById('timeline-content');
+        if (!el) return;
+        el.innerHTML =
+            '<div style="background:rgba(255,255,255,0.04);border:1px solid var(--line);border-radius:14px;padding:28px;">' +
+            '<h3 style="font-family:Merriweather,serif;font-size:1.6rem;font-weight:700;color:#fff;margin-bottom:4px;">' + item.title + '</h3>' +
+            '<p style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.18em;color:var(--neon-purple);margin-bottom:20px;">' + item.subtitle + '</p>' +
+            '<p style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#64748b;border-bottom:1px solid var(--line);padding-bottom:8px;margin-bottom:12px;">The Mission</p>' +
+            '<p style="color:var(--ink-muted);line-height:1.8;margin-bottom:20px;">' + item.summary + '</p>' +
+            '<div style="background:rgba(56,189,248,0.06);border:1px solid rgba(56,189,248,0.2);border-radius:10px;padding:18px 20px;position:relative;overflow:hidden;">' +
+            '<div style="position:absolute;top:0;left:0;width:4px;height:100%;background:var(--neon-blue);"></div>' +
+            '<p style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--neon-blue);margin-bottom:6px;">The Hope</p>' +
+            '<p style="color:#fff;font-style:italic;line-height:1.7;">&ldquo;' + item.hope + '&rdquo;</p>' +
+            '</div></div>';
+    }
 
     /* ── Animated Star Field ──────────────────────────── */
     (function () {

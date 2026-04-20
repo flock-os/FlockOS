@@ -147,6 +147,32 @@
     line-height: 1.6 !important;
     font-style: normal !important;
   }
+
+  /* I AM declarations panel: stack nav full-width on mobile */
+  #iam-nav-list {
+    width: 100% !important;
+    min-width: 0 !important;
+    border-right: none !important;
+    border-bottom: 1px solid var(--line) !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    justify-content: stretch !important;
+    padding: 0 !important;
+    max-height: none !important;
+  }
+  #iam-nav-list > div {
+    flex: 1 1 auto !important;
+    min-width: 44% !important;
+    border-left: none !important;
+    border-bottom: 1px solid var(--line) !important;
+    text-align: center !important;
+    padding: 10px 8px !important;
+    font-size: 0.75rem !important;
+    justify-content: center !important;
+  }
+  #iam-content-area {
+    padding: 20px 16px !important;
+  }
 }
 
 /* ── Old .coun-explorer still used by older cached versions — keep for safety ── */
