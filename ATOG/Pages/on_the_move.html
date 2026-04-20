@@ -1,0 +1,250 @@
+<!--
+  on_the_move.html — "The Flock is on the Move!"
+  Paste this entire block into a Google Sites Embed > Embed code section.
+  Theme: Exact ATOG midnight cosmic from the_garment.css.
+-->
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,400;0,700;0,900;1,400&family=Inter:wght@300;400;500;600;700&family=Cinzel:wght@400;600;700&display=swap');
+
+  .otm-root {
+    /* ── Exact ATOG :root tokens from the_garment.css ── */
+    --neon-blue:      #38bdf8;
+    --neon-purple:    #c084fc;
+    --neon-teal:      #2dd4bf;
+    --neon-gold:      #f6d87a;
+
+    --slate-300:      #cbd5e1;
+    --slate-400:      #94a3b8;
+    --slate-500:      #64748b;
+    --slate-600:      #475569;
+
+    --glass-bg:       rgba(255,255,255,0.04);
+    --glass-border:   rgba(255,255,255,0.08);
+    --glass-heavy:    rgba(15,23,42,0.75);
+
+    --font-serif:     'Merriweather', Georgia, serif;
+    --font-sans:      'Inter', system-ui, -apple-system, sans-serif;
+    --font-display:   'Cinzel', serif;
+
+    --radius-xl:      1rem;
+    --radius-full:    9999px;
+
+    --surface:        rgba(255,255,255,0.04);
+
+    font-family: var(--font-sans);
+    background: radial-gradient(ellipse at top center, #1e1b4b 0%, #020617 45%, #0f172a 100%);
+    color: #e2e8f0;
+    min-height: 100vh;
+    padding: 0;
+    margin: 0;
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.6;
+    font-size: 16px;
+    color-scheme: dark;
+  }
+  .otm-root *, .otm-root *::before, .otm-root *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  .otm-root a { color: inherit; text-decoration: none; }
+
+  /* ── Hero ── */
+  .otm-hero {
+    position: relative;
+    overflow: hidden;
+    background: var(--glass-heavy);
+    backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 1.5rem;
+    padding: 3rem 2.5rem;
+    margin: 2.5rem 2rem 3rem;
+    text-align: center;
+  }
+  .otm-glow {
+    position: absolute; border-radius: 50%;
+    filter: blur(80px); opacity: 0.25; pointer-events: none;
+  }
+  .otm-hero-inner { position: relative; z-index: 1; max-width: 48rem; margin: 0 auto; }
+  .otm-pill {
+    display: inline-block;
+    font-size: 0.65rem; padding: 0.25rem 1rem;
+    border-radius: var(--radius-full);
+    background: rgba(45,212,191,0.06);
+    border: 1px solid rgba(45,212,191,0.3);
+    color: var(--neon-teal);
+    letter-spacing: 0.15em; font-weight: 700;
+    margin-bottom: 1.5rem;
+  }
+  .otm-hero h1 {
+    font-family: var(--font-serif);
+    font-size: 2.25rem; font-weight: 700; color: #fff;
+    margin-bottom: 1rem; line-height: 1.25;
+    text-shadow: 0 0 40px rgba(56,189,248,0.15);
+  }
+  .otm-gradient-text {
+    background: linear-gradient(135deg, var(--neon-blue), var(--neon-purple), var(--neon-teal));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .otm-hero p {
+    font-size: 1.05rem; color: var(--slate-300);
+    line-height: 1.7; max-width: 600px; margin: 0 auto 2rem;
+  }
+  .otm-hero p strong { color: #fff; }
+  .otm-cta {
+    display: inline-flex; align-items: center; justify-content: center;
+    padding: 0.75rem 2rem; border-radius: var(--radius-xl);
+    font-weight: 600; font-size: 0.95rem; color: #fff;
+    background: linear-gradient(135deg, var(--neon-blue), var(--neon-purple));
+    box-shadow: 0 4px 20px rgba(56,189,248,0.2);
+    border: none; cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  .otm-cta:hover { transform: translateY(-1px); box-shadow: 0 6px 28px rgba(56,189,248,0.3); }
+
+  /* ── Product Grid ── */
+  .otm-section {
+    max-width: 64rem; margin: 0 auto; padding: 0 2rem 3rem;
+  }
+  .otm-section-header {
+    text-align: center; margin-bottom: 2.5rem;
+  }
+  .otm-section-header h2 {
+    font-family: var(--font-serif);
+    font-size: 1.9rem; font-weight: 700; color: #fff; margin-bottom: 0.5rem;
+  }
+  .otm-accent-line {
+    width: 60px; height: 3px; margin: 1rem auto;
+    border-radius: 2px;
+    background: linear-gradient(90deg, var(--neon-blue), var(--neon-purple));
+  }
+  .otm-section-header p {
+    font-size: 1.05rem; color: var(--slate-400);
+    max-width: 600px; margin: 0 auto; line-height: 1.7;
+  }
+
+  .otm-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 1.25rem;
+  }
+  .otm-card {
+    background: rgba(255,255,255,0.03);
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: var(--radius-xl);
+    padding: 1.5rem;
+    display: block;
+    transition: all 0.3s ease;
+  }
+  .otm-card:hover {
+    background: rgba(255,255,255,0.06);
+    border-color: rgba(255,255,255,0.12);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+  }
+  .otm-card-icon { font-size: 1.6rem; margin-bottom: 0.75rem; }
+  .otm-card h3 {
+    font-size: 0.95rem; font-weight: 600;
+    margin-bottom: 0.75rem;
+  }
+  .otm-card p {
+    font-size: 0.92rem; color: var(--slate-400);
+    line-height: 1.8; margin: 0;
+  }
+  /* Per-card neon accents */
+  .otm-card--blue h3    { color: var(--neon-blue); }
+  .otm-card--teal h3    { color: var(--neon-teal); }
+  .otm-card--purple h3  { color: var(--neon-purple); }
+  .otm-card--gold h3    { color: var(--neon-gold); }
+  .otm-card--crimson h3 { color: #ff4040; }
+
+  /* ── Footer ── */
+  .otm-footer {
+    border-top: 1px solid rgba(255,255,255,0.05);
+    padding: 2rem 2.5rem;
+    text-align: center;
+  }
+  .otm-footer .otm-verse {
+    font-family: var(--font-serif);
+    font-size: 0.9rem; font-style: italic;
+    color: var(--slate-400); line-height: 1.9;
+    max-width: 520px; margin: 0 auto 0.75rem;
+  }
+  .otm-footer .otm-sig {
+    font-size: 0.8rem; color: var(--slate-600);
+  }
+  .otm-footer .otm-sig span { color: var(--slate-500); }
+</style>
+
+<div class="otm-root">
+
+  <!-- ═══ Hero ═══ -->
+  <div class="otm-hero">
+    <div class="otm-glow" style="width:400px;height:400px;background:#38bdf8;top:-100px;right:-80px;"></div>
+    <div class="otm-glow" style="width:300px;height:300px;background:#c084fc;bottom:-80px;left:-60px;"></div>
+    <div class="otm-hero-inner">
+      <span class="otm-pill">Powered by FlockOS</span>
+      <h1>The Flock is <span class="otm-gradient-text">on the Move</span></h1>
+      <p>
+        A suite of purpose-built tools designed to <strong>equip</strong>,
+        <strong>connect</strong>, and <strong>sustain</strong> the body of Christ —
+        serving churches across <strong>210 countries</strong>.
+      </p>
+      <a class="otm-cta" href="https://github.com/flock-os/FlockOS" target="_blank">Explore the Suite</a>
+    </div>
+  </div>
+
+  <!-- ═══ Product Grid ═══ -->
+  <div class="otm-section">
+    <div class="otm-section-header">
+      <h2>The Suite</h2>
+      <div class="otm-accent-line"></div>
+      <p>Every product is built on the conviction that technology should serve the Great Commission — not replace the shepherd, but sharpen the staff.</p>
+    </div>
+
+    <div class="otm-grid">
+
+      <a class="otm-card otm-card--blue" href="https://github.com/flock-os/FlockOS/tree/main/FlockOS" target="_blank">
+        <div class="otm-card-icon">⛪</div>
+        <h3>FlockOS</h3>
+        <p>The church operating system — membership, pastoral care, spiritual care, groups, giving, attendance, service planning, volunteers, and analytics.</p>
+      </a>
+
+      <a class="otm-card otm-card--teal" href="https://github.com/flock-os/FlockOS/tree/main/FlockChat" target="_blank">
+        <div class="otm-card-icon">💬</div>
+        <h3>FlockChat</h3>
+        <p>Real-time church messaging — rooms, announcements, prayer walls, and secure conversations that keep the flock connected between Sundays.</p>
+      </a>
+
+      <a class="otm-card otm-card--purple" href="https://github.com/flock-os/FlockOS/tree/main/ATOG" target="_blank">
+        <div class="otm-card-icon">📖</div>
+        <h3>A Touch of the Gospel</h3>
+        <p>Interactive theology, biblical lexicon, character studies, apologetics, devotionals, counseling protocols, and spiritual health diagnostics.</p>
+      </a>
+
+      <a class="otm-card otm-card--gold" href="https://github.com/flock-os/FlockOS/tree/main/FlockOS/Scripts" target="_blank">
+        <div class="otm-card-icon">🌍</div>
+        <h3>Missions Command</h3>
+        <p>Country registries, persecution tracking, prayer focus, field teams, partner networks, and 10/40 Window intelligence updates.</p>
+      </a>
+
+      <a class="otm-card otm-card--crimson" href="https://github.com/flock-os/FlockOS/tree/main/FlockOS/Scripts" target="_blank">
+        <div class="otm-card-icon">🤝</div>
+        <h3>Compassion &amp; Outreach</h3>
+        <p>Benevolence requests, compassion team coordination, outreach campaigns, contact follow-ups, and resource tracking.</p>
+      </a>
+
+      <a class="otm-card otm-card--blue" href="https://github.com/flock-os/FlockOS/tree/main/FlockChat-Functions" target="_blank">
+        <div class="otm-card-icon">☁️</div>
+        <h3>Cloud Functions</h3>
+        <p>Firebase backend — push notifications, Firestore-to-Sheets sync, and secure API endpoints powering it all.</p>
+      </a>
+
+    </div>
+  </div>
+
+  <!-- ═══ Footer ═══ -->
+  <div class="otm-footer">
+    <p class="otm-verse">&ldquo;Go therefore and make disciples of all nations&hellip;&rdquo; &mdash; Matthew 28:19</p>
+    <p class="otm-sig">A Touch of the Gospel &mdash; <span>Powered by FlockOS</span></p>
+  </div>
+
+</div>
