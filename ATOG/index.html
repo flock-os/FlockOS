@@ -570,9 +570,9 @@
 
             _renderURToday(document.getElementById('ur-today'), todayDevo);
 
-            /* List: next 14 recent (skip today) */
+            /* List: 14 most recent past entries (skip today, skip future) */
             var listEl = document.getElementById('ur-list');
-            var recent = rows.filter(function(r){ return r !== todayDevo; }).slice(0, 14);
+            var recent = rows.filter(function(r){ return r !== todayDevo && new Date(r.Date) <= now; }).slice(0, 14);
             recent.forEach(function(r) { _renderURListItem(listEl, r); });
         }).catch(function(e) {
             document.getElementById('ur-today').innerHTML = '<p style="color:#ef4444;">Could not load devotionals.</p>';
