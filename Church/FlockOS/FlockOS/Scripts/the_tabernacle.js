@@ -1709,11 +1709,13 @@ const Modules = (() => {
   // ── Shared member directory helpers ────────────────────────────────────
   // Loads directory once, caches in _dataCache['memberDir'].
   // Returns {value, label} options for select dropdowns + a lookup map.
+  // NOTE: For Firebase, uses listMembers (not listMemberCards) so that memberPin
+  // is available for resolving assignedTo values stored by _staffOpts/the_life.js.
   async function _ensureMemberDir() {
     if (_dataCache['memberDir'] && _dataCache['memberDir'].length) return _dataCache['memberDir'];
     if (!TheVine.session()) return [];
     var fbAll = { limit: 9999 };
-    const raw = await _fetch('memberDir', () => _isFirebaseComms() ? UpperRoom.listMemberCards(fbAll) : TheVine.flock.memberCards.directory());
+    const raw = await _fetch('memberDir', () => _isFirebaseComms() ? UpperRoom.listMembers(fbAll) : TheVine.flock.memberCards.directory());
     const d = _rows(raw);
     if (d.length) _dataCache['memberDir'] = d;
     return d;
