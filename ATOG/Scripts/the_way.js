@@ -2703,40 +2703,39 @@ const TheWay = (() => {
 
       // ── Explorer layout: sidebar list + detail pane ──
       var html = '';
-      html += '<div class="coun-explorer">';
+      html += '<div style="display:flex;gap:0;height:calc(100vh - 160px);min-height:420px;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--surface);">';
 
       // Left: topic list
-      html += '<div class="coun-sidebar">';
-      html += '<div class="coun-sidebar-header">';
-      html += '<span style="font-size:1.1rem;">&#9874;</span>';
-      html += '<span>Biblical Counseling</span>';
-      html += '</div>';
-      html += '<div class="coun-sidebar-search">';
-      html += '<input type="text" placeholder="&#128269; Search topics\u2026" '
+      html += '<div style="width:250px;min-width:200px;flex-shrink:0;display:flex;flex-direction:column;border-right:1px solid var(--line);background:var(--surface);">';
+      html += '<div style="display:flex;align-items:center;gap:8px;padding:14px 16px 10px;font-size:0.78rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--ink-muted);border-bottom:1px solid var(--line);">&#9874; Biblical Counseling</div>';
+      html += '<div style="padding:10px 12px;border-bottom:1px solid var(--line);">';
+      html += '<input type="text" placeholder="&#128269; Search topics\u2026" id="coun-search-input" autocomplete="off" '
             + 'oninput="TheWay._filterCounselList(this.value)" '
-            + 'id="coun-search-input" autocomplete="off">';
+            + 'style="width:100%;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg,#0f172a);color:var(--ink);font-size:0.85rem;outline:none;font-family:inherit;">';
       html += '</div>';
-      html += '<div class="coun-topic-list" id="coun-topic-list">';
-      stubs.forEach(function(stub, idx) {
+      html += '<div id="coun-topic-list" style="flex:1;overflow-y:auto;padding:6px 0;">';
+      stubs.forEach(function(stub) {
         var id    = stub.id || '';
         var title = stub.title || stub['Title'] || 'Topic';
         var icon  = stub.icon  || stub['Icon']  || '\u2695';
         var color = stub.color || stub['Color'] || 'var(--mint)';
         html += '<div class="coun-topic-item" data-search="' + _e(title.toLowerCase()) + '" data-cid="' + _e(id) + '" '
-              + 'onclick="TheWay._openCounselCard(this,\'' + _e(id) + '\')">';
-        html += '<span class="coun-topic-icon" style="color:' + _e(color) + ';">' + icon + '</span>';
-        html += '<span class="coun-topic-label">' + _e(title) + '</span>';
-        html += '<span class="coun-topic-arrow">&#8250;</span>';
+              + 'onclick="TheWay._openCounselCard(this,\'' + _e(id) + '\')" '
+              + 'style="display:flex;align-items:center;gap:10px;padding:10px 16px;cursor:pointer;border-left:3px solid transparent;font-size:0.88rem;transition:background 0.15s;"'
+              + ' onmouseover="this.style.background=\'var(--accent-soft,rgba(99,102,241,0.08))\'" onmouseout="if(!this.classList.contains(\'active\'))this.style.background=\'\';">';
+        html += '<span style="font-size:1rem;flex-shrink:0;color:' + _e(color) + ';">' + icon + '</span>';
+        html += '<span style="flex:1;line-height:1.3;">' + _e(title) + '</span>';
+        html += '<span style="font-size:1rem;color:var(--ink-faint);">&#8250;</span>';
         html += '</div>';
       });
       html += '</div></div>'; // end sidebar
 
       // Right: detail pane
-      html += '<div class="coun-detail" id="coun-detail">';
-      html += '<div class="coun-detail-empty">';
+      html += '<div id="coun-detail" style="flex:1;overflow-y:auto;padding:28px 32px;min-width:0;">';
+      html += '<div style="height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:var(--ink-muted);padding:40px 20px;">';
       html += '<div style="font-size:2.5rem;margin-bottom:12px;">&#9874;</div>';
       html += '<div style="font-size:1rem;font-weight:600;margin-bottom:6px;">Select a topic</div>';
-      html += '<div style="font-size:0.85rem;color:var(--ink-muted);">Choose a counseling topic from the list to explore Scripture-centered guidance.</div>';
+      html += '<div style="font-size:0.85rem;">Choose a counseling topic from the list to explore Scripture-centered guidance.</div>';
       html += '</div></div>';
 
       html += '</div>'; // end explorer
@@ -2766,9 +2765,15 @@ const TheWay = (() => {
     if (list) {
       list.querySelectorAll('.coun-topic-item').forEach(function(el) {
         el.classList.remove('active');
+        el.style.background = '';
+        el.style.borderLeftColor = 'transparent';
       });
     }
-    if (rowEl) rowEl.classList.add('active');
+    if (rowEl) {
+      rowEl.classList.add('active');
+      rowEl.style.background = 'var(--accent-soft,rgba(99,102,241,0.12))';
+      rowEl.style.borderLeftColor = 'var(--accent)';
+    }
 
     // Show loading state in detail pane
     detailEl.innerHTML = '<div class="coun-detail-loading">&#9711; Loading\u2026</div>';
@@ -2823,11 +2828,11 @@ const TheWay = (() => {
     var steps      = parseSteps(item['Steps'] || item.steps || '');
 
     var b = '';
-    b += '<div class="coun-detail-inner">';
+    b += '<div style="max-width:640px;">';
     // Topic header
-    b += '<div class="coun-detail-header" style="border-left:4px solid ' + _e(color) + ';">';
-    b += '<span class="coun-detail-icon" style="color:' + _e(color) + ';">' + icon + '</span>';
-    b += '<h2 class="coun-detail-title">' + _e(title) + '</h2>';
+    b += '<div style="display:flex;align-items:center;gap:12px;padding:0 0 0 16px;margin-bottom:20px;border-left:4px solid ' + _e(color) + ';">';
+    b += '<span style="font-size:1.6rem;flex-shrink:0;color:' + _e(color) + ';">' + icon + '</span>';
+    b += '<h2 style="font-size:1.3rem;font-weight:700;margin:0;">' + _e(title) + '</h2>';
     b += '</div>';
 
     if (definition) {
