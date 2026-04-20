@@ -129,6 +129,70 @@
   .coun-detail { padding: 16px; }
 }
 
+/* ── Lexicon & Bible Characters split-panel overrides ────────────── */
+
+/* Desktop: consistent height + border radius like counseling */
+.gene-split {
+  height: calc(100vh - 260px) !important;
+  min-height: 400px !important;
+  border-radius: 12px !important;
+  border-color: var(--line) !important;
+  background: var(--surface) !important;
+}
+
+/* Mobile: stack vertically, give the detail pane visible space */
+@media (max-width: 900px) {
+  .gene-split {
+    grid-template-columns: 1fr !important;
+    height: auto !important;
+  }
+  .gene-list {
+    max-height: 42vh !important;
+    border-right: none !important;
+    border-bottom: 1px solid var(--line) !important;
+  }
+  .gene-detail {
+    min-height: 55vh !important;
+    padding: 16px !important;
+  }
+  .gene-detail-empty {
+    min-height: 200px !important;
+    padding: 24px !important;
+  }
+  /* Stat cards: wrap and shrink on small screens */
+  .gene-stat-row {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+  .gene-stat-card {
+    flex: 1 1 calc(50% - 8px) !important;
+    min-width: 80px !important;
+  }
+  /* Letter index: allow wrapping */
+  .letter-index {
+    flex-wrap: wrap !important;
+    gap: 3px !important;
+  }
+  /* Browse search bar: full width */
+  .browse-search {
+    flex-wrap: wrap !important;
+  }
+  .browse-search-input {
+    min-width: 0 !important;
+    font-size: max(0.85rem, 16px) !important;
+  }
+  /* Lexicon testament tabs */
+  .lex-testament-tabs {
+    flex-wrap: wrap !important;
+    gap: 4px !important;
+  }
+}
+
+/* Ensure detail panel on desktop has proper padding */
+.gene-detail {
+  padding: 24px 28px !important;
+}
+
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
 img, svg, video, canvas { display: block; max-width: 100%; }
