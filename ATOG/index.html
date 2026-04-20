@@ -149,16 +149,11 @@
             <div class="grid grid-cols-1 gap-5" id="home-cards"></div>
         </div>
 
-        <!-- ── Dynamic Section Containers ─────────────────── -->
-        <div class="module-view" id="view-theology"></div>
-        <div class="module-view" id="view-books"></div>
-        <div class="module-view" id="view-lexicon"></div>
-        <div class="module-view" id="view-characters"></div>
-        <div class="module-view" id="view-counseling"></div>
-        <div class="module-view" id="view-heart"></div>
+        <!-- ── Learning Hub (TheWay renders here) ────────── -->
+        <div class="module-view" id="view-hub"></div>
+
+        <!-- ── Standalone modules (Modules.render via public API) ── -->
         <div class="module-view" id="view-mirror"></div>
-        <div class="module-view" id="view-quiz"></div>
-        <div class="module-view" id="view-apologetics"></div>
         <div class="module-view" id="view-prayer"></div>
 
     </main>
@@ -179,14 +174,21 @@
     <script>
     window.ATOG = window.ATOG || {};
 
-    /* ── ATOG view name → FlockOS module name mapping ── */
-    var MODULE_MAP = {
-        books:      'library',
-        lexicon:    'words',
-        characters: 'genealogy'
+    /* ── ATOG sidebar name → TheWay tab ID ── */
+    var HUB_TABS = {
+        theology:    'theology',
+        books:       'library',
+        lexicon:     'lexicon',
+        characters:  'genealogy',
+        counseling:  'counseling',
+        heart:       'heart',
+        quiz:        'quizzes',
+        apologetics: 'apologetics'
     };
-    /* Track which views have been rendered already */
-    var _rendered = {};
+    /* Modules rendered via Modules.render() (public API, not TheWay) */
+    var STANDALONE = { mirror: 'mirror', prayer: 'prayer' };
+    var _standaloneRendered = {};
+    var _hubReady = false;
 
     ATOG.toggleSidebar = function () {
         document.getElementById('sidebar').classList.toggle('open');
@@ -194,10 +196,31 @@
     };
 
     ATOG.navigate = function (viewName) {
-        /* Switch visible view panel */
+        var isHub   = !!HUB_TABS[viewName];
+        var isStand = !!STANDALONE[viewName];
+
+        /* Hide all views */
         document.querySelectorAll('.module-view').forEach(function (v) { v.classList.remove('active'); });
-        var target = document.getElementById('view-' + viewName);
-        if (target) target.classList.add('active');
+
+        if (viewName === 'home') {
+            document.getElementById('view-home').classList.add('active');
+        } else if (isHub) {
+            /* Show the hub container and switch TheWay to the right tab */
+            document.getElementById('view-hub').classList.add('active');
+            if (_hubReady && window.TheWay) {
+                TheWay.switchTab(HUB_TABS[viewName]);
+            }
+        } else if (isStand) {
+            /* Mirror / Prayer — render via Modules (uses _publicFetch → GAS) */
+            var el = document.getElementById('view-' + viewName);
+            if (el) {
+                el.classList.add('active');
+                if (!_standaloneRendered[viewName] && window.Modules) {
+                    _standaloneRendered[viewName] = true;
+                    Modules.render(STANDALONE[viewName], el, null);
+                }
+            }
+        }
 
         /* Highlight sidebar */
         document.querySelectorAll('.nav-item[data-view]').forEach(function (n) {
@@ -209,20 +232,13 @@
         document.getElementById('hamburger').classList.remove('open');
         window.scrollTo({ top: 0, behavior: 'smooth' });
         history.replaceState(null, '', '#' + viewName);
-
-        /* Render via FlockOS Modules (skip 'home' — that's our custom hero) */
-        if (viewName !== 'home' && window.Modules && target) {
-            var moduleName = MODULE_MAP[viewName] || viewName;
-            if (!_rendered[viewName]) {
-                _rendered[viewName] = true;
-                Modules.render(moduleName, target, null);
-            }
-        }
     };
 
     /* Global navigate() — FlockOS renderers call this for back-links */
     window.navigate = function (viewName) {
-        ATOG.navigate(viewName);
+        /* Map FlockOS module names back to ATOG sidebar names */
+        var reverseMap = { library:'books', quizzes:'quiz', genealogy:'characters' };
+        ATOG.navigate(reverseMap[viewName] || viewName);
     };
 
     ATOG.lang = 'en';
@@ -248,9 +264,20 @@
             localStorage.setItem('flock_module_visibility', JSON.stringify(vis));
         } catch(e) {}
 
+        /* Boot TheWay Learning Hub into the hub container */
+        if (window.TheWay) {
+            var hubEl = document.getElementById('view-hub');
+            TheWay.renderHub(hubEl, null).then(function() {
+                _hubReady = true;
+                /* If we loaded with a hub hash, switch to that tab now */
+                var hash = location.hash.replace('#', '');
+                if (HUB_TABS[hash]) TheWay.switchTab(HUB_TABS[hash]);
+            }).catch(function(e) { console.error('TheWay init error:', e); });
+        }
+
         /* Navigate to hash or stay on home */
         var hash = location.hash.replace('#', '');
-        if (hash && document.getElementById('view-' + hash)) ATOG.navigate(hash);
+        if (hash) ATOG.navigate(hash);
     });
 
     /* ── Animated Star Field ──────────────────────────── */
