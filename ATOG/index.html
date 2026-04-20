@@ -189,6 +189,7 @@
     var STANDALONE = { mirror: 'mirror', prayer: 'prayer' };
     var _standaloneRendered = {};
     var _hubReady = false;
+    var _pendingTab = null;
 
     ATOG.toggleSidebar = function () {
         document.getElementById('sidebar').classList.toggle('open');
@@ -207,15 +208,18 @@
         } else if (isHub) {
             /* Show the hub container and switch TheWay to the right tab */
             document.getElementById('view-learning').classList.add('active');
-            if (_hubReady && window.TheWay) {
-                TheWay.switchTab(HUB_TABS[viewName]);
+            var tabId = HUB_TABS[viewName];
+            if (_hubReady && typeof TheWay !== 'undefined') {
+                TheWay.switchTab(tabId);
+            } else {
+                _pendingTab = tabId; /* hub still loading — switch when ready */
             }
         } else if (isStand) {
             /* Mirror / Prayer — render via Modules (uses _publicFetch → GAS) */
             var el = document.getElementById('view-' + viewName);
             if (el) {
                 el.classList.add('active');
-                if (!_standaloneRendered[viewName] && window.Modules) {
+                if (!_standaloneRendered[viewName] && typeof Modules !== 'undefined') {
                     _standaloneRendered[viewName] = true;
                     Modules.render(STANDALONE[viewName], el, null);
                 }
@@ -251,8 +255,7 @@
     };
 
     window.addEventListener('DOMContentLoaded', function () {
-        /* Inject Adornment CSS (component classes for FlockOS renderers) + set vesper dark theme */
-        if (window.Adornment) {
+        if (typeof Adornment !== 'undefined') {
             Adornment.init();
             Adornment.setTheme('vesper');
         }
@@ -264,14 +267,14 @@
             localStorage.setItem('flock_module_visibility', JSON.stringify(vis));
         } catch(e) {}
 
-        /* Boot TheWay Learning Hub into the hub container */
-        if (window.TheWay) {
+        /* Boot TheWay — then immediately switch to the pending tab (or default to theology) */
+        if (typeof TheWay !== 'undefined') {
             var hubEl = document.getElementById('view-learning');
             TheWay.renderHub(hubEl, null).then(function() {
                 _hubReady = true;
-                /* If we loaded with a hub hash, switch to that tab now */
                 var hash = location.hash.replace('#', '');
-                if (HUB_TABS[hash]) TheWay.switchTab(HUB_TABS[hash]);
+                var tab = _pendingTab || HUB_TABS[hash] || null;
+                if (tab) TheWay.switchTab(tab);
             }).catch(function(e) { console.error('TheWay init error:', e); });
         }
 
