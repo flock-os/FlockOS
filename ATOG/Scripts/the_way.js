@@ -2978,33 +2978,43 @@ const TheWay = (() => {
       _heartRows = rows;
       _heartAnswers = {};
 
+      // Inject responsive styles once
+      if (!document.getElementById('tw-heart-style')) {
+        var s = document.createElement('style'); s.id = 'tw-heart-style';
+        s.textContent = '.tw-heart-grid{display:grid;grid-template-columns:1fr 260px;gap:16px;}'
+          + '@media(max-width:680px){.tw-heart-grid{grid-template-columns:1fr !important;}}'
+          + '.tw-heart-qcol{padding-right:4px;}'
+          + '@media(max-width:680px){.tw-heart-qcol{padding-right:0;}}';
+        document.head.appendChild(s);
+      }
+
       var html = '';
       html += '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:16px;">';
       html += '<div><h3 style="margin:0;font-size:1rem;font-weight:700;">Heart Condition Diagnostic</h3>';
       html += '<p style="margin:4px 0 0;font-size:0.82rem;color:var(--ink-muted);">A biblical counseling tool to assess your spiritual vitality.</p></div>';
       html += '</div>';
 
-      // 2-column layout: questionnaire + vitality panel
-      html += '<div style="display:grid;grid-template-columns:1fr 280px;gap:16px;">';
+      // 2-column layout: questionnaire + vitality panel (stacks on mobile)
+      html += '<div class="tw-heart-grid">';
 
       // Column 1: Questionnaire
-      html += '<div style="max-height:600px;overflow-y:auto;padding-right:4px;">';
+      html += '<div class="tw-heart-qcol">';
       rows.forEach(function(item, idx) {
         var qid = item['Question ID'] || ('hq_' + idx);
         item['Question ID'] = qid;
         html += '<div id="tw-hcard-' + _e(qid) + '" style="background:var(--bg-raised);border:1px solid var(--line);'
               + 'border-radius:8px;padding:12px;margin-bottom:8px;transition:border-color 0.3s;">';
-        html += '<div style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;'
+        html += '<div style="font-size:0.7rem;font-weight:700;letter-spacing:0.1em;'
               + 'color:var(--accent);margin-bottom:4px;">' + _e(item['Category'] || '') + '</div>';
         html += '<p style="margin:0 0 8px;font-size:0.88rem;color:var(--ink);line-height:1.52;">'
               + (idx + 1) + '. ' + _e(item['Question'] || '') + '</p>';
         html += '<div style="display:flex;gap:6px;">';
-        html += '<button onclick="TheWay._heartAnswer(\'' + _e(qid) + '\',\'yes\')" '
+        html += '<button id="tw-hbtn-y-' + _e(qid) + '" onclick="TheWay._heartAnswer(\'' + _e(qid) + '\',\'yes\')" '
               + 'style="flex:1;padding:6px;border-radius:6px;border:1px solid var(--line);background:transparent;'
-              + 'color:var(--ink-muted);cursor:pointer;font-size:0.78rem;font-weight:700;font-family:inherit;">Yes</button>';
-        html += '<button onclick="TheWay._heartAnswer(\'' + _e(qid) + '\',\'no\')" '
+              + 'color:var(--ink-muted);cursor:pointer;font-size:0.78rem;font-weight:700;font-family:inherit;transition:all 0.2s;">Yes</button>';
+        html += '<button id="tw-hbtn-n-' + _e(qid) + '" onclick="TheWay._heartAnswer(\'' + _e(qid) + '\',\'no\')" '
               + 'style="flex:1;padding:6px;border-radius:6px;border:1px solid var(--line);background:transparent;'
-              + 'color:var(--ink-muted);cursor:pointer;font-size:0.78rem;font-weight:700;font-family:inherit;">No</button>';
+              + 'color:var(--ink-muted);cursor:pointer;font-size:0.78rem;font-weight:700;font-family:inherit;transition:all 0.2s;">No</button>';
         html += '</div></div>';
       });
       html += '</div>';
@@ -3012,9 +3022,9 @@ const TheWay = (() => {
       // Column 2: Vitality Scan
       html += '<div style="background:var(--bg-raised);border:1px solid var(--line);border-radius:10px;padding:16px;">';
       html += '<h3 style="text-align:center;margin:0 0 12px;font-size:0.88rem;font-weight:700;color:var(--success);">Spiritual Vitality Scan</h3>';
-      html += '<div id="tw-heart-score" style="text-align:center;font-size:2rem;font-weight:800;color:var(--success);margin:16px 0;">100%</div>';
-      html += '<p id="tw-heart-status" style="text-align:center;font-size:0.78rem;font-weight:700;color:var(--success);text-transform:uppercase;letter-spacing:1px;margin:0 0 14px;">Heart Condition: Clear</p>';
-      html += '<div id="tw-heart-cats"></div>';
+      html += '<div id="tw-heart-score" style="text-align:center;font-size:2rem;font-weight:800;color:var(--success);margin:16px 0;">—</div>';
+      html += '<p id="tw-heart-status" style="text-align:center;font-size:0.78rem;font-weight:700;color:var(--ink-muted);letter-spacing:1px;margin:0 0 14px;">Answer questions to begin</p>';
+      html += '<div id="tw-heart-cats"><p style="font-size:0.78rem;color:var(--ink-faint);text-align:center;font-style:italic;">Category breakdown appears as you answer</p></div>';
       html += '</div>';
 
       html += '</div>';
@@ -3026,42 +3036,71 @@ const TheWay = (() => {
 
   function _heartAnswer(qid, answer) {
     _heartAnswers[qid] = answer;
-    // Compute score
-    var total = _heartRows.length;
+
+    // ── Button visual feedback ──
+    var yBtn = document.getElementById('tw-hbtn-y-' + qid);
+    var nBtn = document.getElementById('tw-hbtn-n-' + qid);
+    var card = document.getElementById('tw-hcard-' + qid);
+    if (yBtn) {
+      yBtn.style.background  = answer === 'yes' ? 'var(--danger)' : 'transparent';
+      yBtn.style.color       = answer === 'yes' ? '#fff' : 'var(--ink-muted)';
+      yBtn.style.borderColor = answer === 'yes' ? 'var(--danger)' : 'var(--line)';
+    }
+    if (nBtn) {
+      nBtn.style.background  = answer === 'no' ? 'var(--success)' : 'transparent';
+      nBtn.style.color       = answer === 'no' ? '#fff' : 'var(--ink-muted)';
+      nBtn.style.borderColor = answer === 'no' ? 'var(--success)' : 'var(--line)';
+    }
+    if (card) {
+      card.style.borderColor = answer === 'yes' ? 'var(--danger)' : (answer === 'no' ? 'var(--success)' : 'var(--line)');
+    }
+
+    // ── Overall score: % of answered questions that are "No" (healthy) ──
     var answered = Object.keys(_heartAnswers).length;
     var noCount = 0;
     for (var k in _heartAnswers) { if (_heartAnswers[k] === 'no') noCount++; }
-    var pct = answered ? Math.round((noCount / answered) * 100) : 100;
-    var color = pct >= 75 ? 'var(--success)' : pct >= 50 ? 'var(--warning)' : 'var(--danger)';
-    var label = pct >= 75 ? 'Healthy' : pct >= 50 ? 'Needs Attention' : 'Critical';
-    var scoreEl = document.getElementById('tw-heart-score');
+    var pct = answered ? Math.round((noCount / answered) * 100) : null;
+    var color = pct === null ? 'var(--ink-muted)' : (pct >= 75 ? 'var(--success)' : pct >= 50 ? 'var(--warning)' : 'var(--danger)');
+    var label = pct === null ? 'Answer questions to begin'
+              : (pct >= 75 ? 'Heart Condition: Healthy' : pct >= 50 ? 'Heart Condition: Needs Attention' : 'Heart Condition: Concerning');
+    var scoreEl  = document.getElementById('tw-heart-score');
     var statusEl = document.getElementById('tw-heart-status');
-    if (scoreEl) { scoreEl.textContent = pct + '%'; scoreEl.style.color = color; }
-    if (statusEl) { statusEl.textContent = 'Heart Condition: ' + label; statusEl.style.color = color; }
+    if (scoreEl)  { scoreEl.textContent  = pct === null ? '—' : pct + '%'; scoreEl.style.color = color; }
+    if (statusEl) { statusEl.textContent = label; statusEl.style.color = color; }
 
-    // Category breakdown
+    // ── Category breakdown: only show categories with ≥1 answered question ──
+    // Percentage = (no-answers / answered-in-category) so "Yes" keeps % low/zero
     var cats = {};
     _heartRows.forEach(function(r) {
       var cat = r['Category'] || 'General';
-      if (!cats[cat]) cats[cat] = { total: 0, healthy: 0 };
-      cats[cat].total++;
-      if (_heartAnswers[r['Question ID']] === 'no') cats[cat].healthy++;
+      if (!cats[cat]) cats[cat] = { answered: 0, healthy: 0 };
+      if (_heartAnswers[r['Question ID']] !== undefined) {
+        cats[cat].answered++;
+        if (_heartAnswers[r['Question ID']] === 'no') cats[cat].healthy++;
+      }
     });
     var catEl = document.getElementById('tw-heart-cats');
     if (catEl) {
       var ch = '';
+      var hasCats = false;
       for (var c in cats) {
-        var cp = cats[c].total ? Math.round((cats[c].healthy / cats[c].total) * 100) : 0;
-        ch += '<div style="margin-bottom:8px;">';
-        ch += '<div style="display:flex;justify-content:space-between;font-size:0.75rem;margin-bottom:3px;">';
-        ch += '<span>' + _e(c) + '</span><span style="font-weight:700;">' + cp + '%</span></div>';
-        ch += _progressBar(cp, cp >= 75 ? 'var(--success)' : cp >= 50 ? 'var(--warning)' : 'var(--danger)');
+        if (cats[c].answered === 0) continue; // hide unanswered categories
+        hasCats = true;
+        var cp = Math.round((cats[c].healthy / cats[c].answered) * 100);
+        var catColor = cp >= 75 ? 'var(--success)' : cp >= 50 ? 'var(--warning)' : 'var(--danger)';
+        ch += '<div style="margin-bottom:10px;">';
+        ch += '<div style="display:flex;justify-content:space-between;font-size:0.75rem;margin-bottom:4px;">';
+        ch += '<span style="color:var(--ink);">' + _e(c) + '</span>';
+        ch += '<span style="font-weight:700;color:' + catColor + ';">' + cp + '%</span></div>';
+        ch += _progressBar(cp, catColor);
         ch += '</div>';
       }
-      catEl.innerHTML = ch;
+      catEl.innerHTML = hasCats ? ch
+        : '<p style="font-size:0.78rem;color:var(--ink-faint);text-align:center;font-style:italic;">Category breakdown appears as you answer</p>';
     }
 
-    // Silently log heart check snapshot
+    // ── Log diagnostic snapshot ──
+    var total = _heartRows.length;
     var flagged = [];
     for (var fk in _heartAnswers) { if (_heartAnswers[fk] === 'yes') {
       var row = _heartRows.find(function(r) { return r['Question ID'] === fk; });
@@ -3502,7 +3541,7 @@ const TheWay = (() => {
         html += '<div style="background:var(--bg-raised);border:2px solid var(--gold);border-radius:12px;'
               + 'padding:20px;text-align:center;position:relative;">';
         html += '<div style="font-size:2rem;margin-bottom:8px;">\uD83C\uDF93</div>';
-        html += '<div style="font-size:0.7rem;color:var(--gold);text-transform:uppercase;letter-spacing:2px;margin-bottom:4px;">Certificate of Completion</div>';
+        html += '<div style="font-size:0.7rem;color:var(--gold);letter-spacing:2px;margin-bottom:4px;">Certificate of Completion</div>';
         html += '<div style="font-weight:700;font-size:1rem;margin-bottom:4px;">' + _e(c.memberName || '') + '</div>';
         html += '<div style="font-size:0.82rem;color:var(--ink-muted);margin-bottom:8px;">' + _e(c.playlistTitle || c.quizTitle || c.certificateType || '') + '</div>';
         html += '<div style="font-size:0.72rem;color:var(--ink-faint);margin-bottom:8px;">'
@@ -3544,7 +3583,7 @@ const TheWay = (() => {
       + 'body{margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;'
       + 'background:#faf9f6;font-family:Georgia,"Times New Roman",serif;}'
       + '.cert{width:700px;padding:60px;border:3px double #8B7028;border-radius:4px;background:#fff;text-align:center;}'
-      + '.cert h1{font-size:2rem;color:#8B7028;margin-bottom:4px;letter-spacing:2px;text-transform:uppercase;}'
+      + '.cert h1{font-size:2rem;color:#8B7028;margin-bottom:4px;letter-spacing:2px;}'
       + '.cert .subtitle{font-size:0.9rem;color:#8B7028;margin-bottom:24px;}'
       + '.cert .name{font-size:1.6rem;font-weight:700;margin:12px 0;border-bottom:2px solid #8B7028;display:inline-block;padding:4px 40px;}'
       + '.cert .course{font-size:1.1rem;color:#444;margin:12px 0;}'
