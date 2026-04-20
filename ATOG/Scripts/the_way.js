@@ -2701,78 +2701,86 @@ const TheWay = (() => {
         return;
       }
 
-      // ── Hero header ──
+      // ── Explorer layout: sidebar list + detail pane ──
       var html = '';
-      html += '<div class="coun-hero">';
-      html += '<div class="coun-hero-inner">';
-      html += '<div style="font-size:2rem;margin-bottom:6px;">\u2695</div>';
-      html += '<h2 class="coun-hero-title">Biblical Counseling</h2>';
-      html += '<p class="coun-hero-sub">Compassionate, Scripture-centered guidance for every season of life.<br>Rooted in God\u2019s Word. Anchored in His promises.</p>';
-      html += '</div></div>';
+      html += '<div class="coun-explorer">';
 
-      // ── Search ──
-      html += '<div style="margin:18px 0 14px;">';
-      html += '<input type="text" placeholder="\uD83D\uDD0D Search topics\u2026" '
-            + 'oninput="TheWay._filterPanel(\'counsel\',this.value)" '
-            + 'style="width:100%;max-width:480px;padding:11px 14px 11px 14px;border:1px solid var(--line);border-radius:10px;'
-            + 'background:var(--bg-raised);color:var(--ink);font-size:max(0.9rem,16px);font-family:inherit;"></div>';
-
-      // ── Topic count ──
-      html += '<div style="font-size:0.78rem;color:var(--ink-muted);margin-bottom:16px;">' + stubs.length + ' topics available</div>';
-
-      // ── Card grid — stub cards only ──
-      html += '<div id="counsel-grid" class="coun-grid">';
-
-      stubs.forEach(function(stub) {
+      // Left: topic list
+      html += '<div class="coun-sidebar">';
+      html += '<div class="coun-sidebar-header">';
+      html += '<span style="font-size:1.1rem;">&#9874;</span>';
+      html += '<span>Biblical Counseling</span>';
+      html += '</div>';
+      html += '<div class="coun-sidebar-search">';
+      html += '<input type="text" placeholder="&#128269; Search topics\u2026" '
+            + 'oninput="TheWay._filterCounselList(this.value)" '
+            + 'id="coun-search-input" autocomplete="off">';
+      html += '</div>';
+      html += '<div class="coun-topic-list" id="coun-topic-list">';
+      stubs.forEach(function(stub, idx) {
         var id    = stub.id || '';
         var title = stub.title || stub['Title'] || 'Topic';
         var icon  = stub.icon  || stub['Icon']  || '\u2695';
         var color = stub.color || stub['Color'] || 'var(--mint)';
-
-        html += '<div class="browse-item coun-card" data-search="' + _e(title.toLowerCase()) + '" data-cid="' + _e(id) + '">';
-        html += '<div class="coun-card-head" style="border-top:3px solid ' + _e(color) + ';" '
-              + 'onclick="TheWay._openCounselCard(this,\'' + _e(id) + '\')" style="cursor:pointer;">';
-        html += '<div class="coun-card-icon" style="background:' + _e(color) + '22;color:' + _e(color) + ';">' + icon + '</div>';
-        html += '<h3 class="coun-card-title">' + _e(title) + '</h3>';
-        html += '<div class="coun-card-chevron" style="margin-left:auto;font-size:0.75rem;color:var(--ink-muted);">&#9660;</div>';
-        html += '</div>';
-        // Detail area — populated on first open
-        html += '<div class="coun-card-body" id="coun-body-' + _e(id) + '" style="display:none;"></div>';
+        html += '<div class="coun-topic-item" data-search="' + _e(title.toLowerCase()) + '" data-cid="' + _e(id) + '" '
+              + 'onclick="TheWay._openCounselCard(this,\'' + _e(id) + '\')">';
+        html += '<span class="coun-topic-icon" style="color:' + _e(color) + ';">' + icon + '</span>';
+        html += '<span class="coun-topic-label">' + _e(title) + '</span>';
+        html += '<span class="coun-topic-arrow">&#8250;</span>';
         html += '</div>';
       });
+      html += '</div></div>'; // end sidebar
 
-      html += '</div>';
+      // Right: detail pane
+      html += '<div class="coun-detail" id="coun-detail">';
+      html += '<div class="coun-detail-empty">';
+      html += '<div style="font-size:2.5rem;margin-bottom:12px;">&#9874;</div>';
+      html += '<div style="font-size:1rem;font-weight:600;margin-bottom:6px;">Select a topic</div>';
+      html += '<div style="font-size:0.85rem;color:var(--ink-muted);">Choose a counseling topic from the list to explore Scripture-centered guidance.</div>';
+      html += '</div></div>';
+
+      html += '</div>'; // end explorer
       _panel(html);
     } catch (e) {
       _panel(_errHtml(e.message));
     }
   }
 
-  // Called when a card header is clicked; lazily fetches and renders full content
-  async function _openCounselCard(headEl, id) {
-    var bodyEl = document.getElementById('coun-body-' + id);
-    if (!bodyEl) return;
+  // ── Filter counseling topic list by search input ──
+  function _filterCounselList(query) {
+    var q = (query || '').toLowerCase().trim();
+    var items = document.querySelectorAll('#coun-topic-list .coun-topic-item');
+    items.forEach(function(el) {
+      var match = !q || (el.dataset.search || '').indexOf(q) !== -1;
+      el.style.display = match ? '' : 'none';
+    });
+  }
 
-    // Toggle if already populated
-    if (bodyEl.style.display !== 'none') {
-      bodyEl.style.display = 'none';
-      var chev = headEl.querySelector('.coun-card-chevron');
-      if (chev) chev.innerHTML = '&#9660;';
-      return;
+  // Called when a topic row is clicked; loads content into the detail pane
+  async function _openCounselCard(rowEl, id) {
+    var detailEl = document.getElementById('coun-detail');
+    if (!detailEl) return;
+
+    // Mark active row
+    var list = document.getElementById('coun-topic-list');
+    if (list) {
+      list.querySelectorAll('.coun-topic-item').forEach(function(el) {
+        el.classList.remove('active');
+      });
     }
+    if (rowEl) rowEl.classList.add('active');
 
-    // Show chevron-up
-    var chev = headEl.querySelector('.coun-card-chevron');
-    if (chev) chev.innerHTML = '&#9650;';
+    // Show loading state in detail pane
+    detailEl.innerHTML = '<div class="coun-detail-loading">&#9711; Loading\u2026</div>';
 
-    // If not yet cached, fetch the full doc (1 Firestore read)
+    // Fetch if not cached
     if (!_counselCache[id]) {
-      bodyEl.style.display = 'block';
-      bodyEl.innerHTML = '<div style="padding:12px;color:var(--ink-muted);font-size:0.85rem;">\u29D7 Loading\u2026</div>';
       try {
         var doc = null;
         if (_isFB() && typeof UpperRoom !== 'undefined') {
           doc = await _withTimeout(UpperRoom.getAppContent('counseling', id));
+        } else if (typeof TheVine !== 'undefined' && TheVine.app && TheVine.app.counseling) {
+          // already cached during list load — nothing more to fetch via GAS
         }
         if (doc) { _counselCache[id] = doc; }
       } catch (_) {}
@@ -2780,12 +2788,11 @@ const TheWay = (() => {
 
     var item = _counselCache[id];
     if (!item) {
-      bodyEl.innerHTML = '<div style="padding:12px;color:var(--err,#c0392b);font-size:0.85rem;">Could not load content.</div>';
-      bodyEl.style.display = 'block';
+      detailEl.innerHTML = '<div class="coun-detail-empty"><div style="color:var(--danger,#c0392b);">Could not load content.</div></div>';
       return;
     }
 
-    // ── Parse helpers (scoped here so they don't pollute the outer closure) ──
+    // ── Parse helpers ──
     function parseScriptures(raw) {
       if (!raw) return [];
       var parts = raw.split(/(?=(?:[123]?\s?[A-Z][a-z]+\s+\d+:\d+))/g);
@@ -2809,11 +2816,20 @@ const TheWay = (() => {
     }
 
     var color      = item['Color'] || item.color || 'var(--mint)';
+    var icon       = item['Icon']  || item.icon  || '\u2695';
+    var title      = item['Title'] || item.title || id;
     var definition = item['Definition'] || item.definition || '';
     var scriptures = parseScriptures(item['Scriptures'] || item.scriptures || '');
     var steps      = parseSteps(item['Steps'] || item.steps || '');
 
     var b = '';
+    b += '<div class="coun-detail-inner">';
+    // Topic header
+    b += '<div class="coun-detail-header" style="border-left:4px solid ' + _e(color) + ';">';
+    b += '<span class="coun-detail-icon" style="color:' + _e(color) + ';">' + icon + '</span>';
+    b += '<h2 class="coun-detail-title">' + _e(title) + '</h2>';
+    b += '</div>';
+
     if (definition) {
       b += '<div class="coun-definition">' + _e(definition) + '</div>';
     }
@@ -2840,9 +2856,12 @@ const TheWay = (() => {
       });
       b += '</ol></div>';
     }
+    if (!definition && !scriptures.length && !steps.length) {
+      b += '<div style="color:var(--ink-muted);font-size:0.9rem;">No details available for this topic.</div>';
+    }
+    b += '</div>'; // coun-detail-inner
 
-    bodyEl.innerHTML = b || '<div style="padding:12px;color:var(--ink-muted);font-size:0.85rem;">No details available.</div>';
-    bodyEl.style.display = 'block';
+    detailEl.innerHTML = b;
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -3527,6 +3546,7 @@ const TheWay = (() => {
 
     // Filters & browsing
     _filterPanel:       _filterPanel,
+    _filterCounselList: _filterCounselList,
     _openCounselCard:   _openCounselCard,
     _lexTestament:      _twLexFilter,   // backward compat alias
     _twLexFilter:       _twLexFilter,
