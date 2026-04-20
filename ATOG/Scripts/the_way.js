@@ -2449,64 +2449,180 @@ const TheWay = (() => {
     { name: 'Revelation', ch: 22, t: 'nt' },
   ];
 
-  function _renderLibrary() {
-    var html = '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;">';
-    html += '<input type="text" placeholder="Search books\u2026" '
-          + 'oninput="TheWay._filterPanel(\'lib\',this.value)" '
-          + 'style="flex:1;min-width:200px;padding:8px 12px;border:1px solid var(--line);border-radius:6px;'
-          + 'background:var(--bg-raised);color:var(--ink);font-size:max(0.88rem,16px);font-family:inherit;">';
-    html += '<button onclick="TheWay._libTestament(\'all\',this)" class="lib-tab active" '
-          + 'style="padding:6px 12px;border:1px solid var(--line);border-radius:6px;cursor:pointer;font-size:0.8rem;'
-          + 'background:var(--accent);color:var(--ink-inverse);font-family:inherit;">All 66</button>';
-    html += '<button onclick="TheWay._libTestament(\'ot\',this)" class="lib-tab" '
-          + 'style="padding:6px 12px;border:1px solid var(--line);border-radius:6px;cursor:pointer;font-size:0.8rem;'
-          + 'background:transparent;color:var(--ink);font-family:inherit;">Old Testament</button>';
-    html += '<button onclick="TheWay._libTestament(\'nt\',this)" class="lib-tab" '
-          + 'style="padding:6px 12px;border:1px solid var(--line);border-radius:6px;cursor:pointer;font-size:0.8rem;'
-          + 'background:transparent;color:var(--ink);font-family:inherit;">New Testament</button>';
-    html += '</div>';
+  // Book content cache: id → full row
+  var _bookCache = {};
 
-    html += '<div id="lib-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;">';
-    _BIBLE_BOOKS.forEach(function(book) {
-      var searchText = book.name.toLowerCase();
-      html += '<details class="browse-item" data-search="' + _e(searchText) + '" data-testament="' + book.t + '" '
-            + 'style="border:1px solid var(--line);border-radius:8px;overflow:hidden;">';
-      html += '<summary style="padding:8px 12px;background:var(--bg-raised);cursor:pointer;font-size:0.85rem;font-weight:600;">'
-            + _e(book.name) + ' <span style="font-size:0.7rem;color:var(--ink-muted);">(' + book.ch + ' ch)</span></summary>';
-      html += '<div style="padding:8px 12px;display:flex;gap:4px;flex-wrap:wrap;">';
-      for (var c = 1; c <= book.ch; c++) {
-        html += '<a href="https://www.bible.com/bible/59/' + _e(book.name.replace(/ /g, '').substring(0, 3).toUpperCase())
-              + '.' + c + '.ESV" target="_blank" rel="noopener" '
-              + 'style="display:inline-block;width:30px;height:30px;line-height:30px;text-align:center;'
-              + 'border-radius:4px;font-size:0.72rem;border:1px solid var(--line);color:var(--accent);text-decoration:none;"'
-              + ' onmouseover="this.style.background=\'var(--accent-soft)\'" onmouseout="this.style.background=\'transparent\'">'
-              + c + '</a>';
+  async function _renderLibrary() {
+    _panel(_spinner());
+    try {
+      var rows = [];
+      try {
+        if (typeof TheVine !== 'undefined' && TheVine.app && TheVine.app.books) {
+          var res = await _withTimeout(TheVine.app.books());
+          rows = Array.isArray(res) ? res : _rows(res);
+        }
+      } catch (_) {}
+
+      if (!rows.length) {
+        _panel(_empty('\u271D', 'Books coming soon', 'The 66 books of the Bible will appear here.'));
+        return;
       }
-      html += '</div></details>';
-    });
-    html += '</div>';
 
-    _panel(html);
-  }
+      // Sort by booknum
+      rows.sort(function(a, b) { return (a.booknum || 0) - (b.booknum || 0); });
 
-  function _libTestament(testament, btn) {
-    var parent = btn && btn.parentElement;
-    if (parent) {
-      parent.querySelectorAll('.lib-tab').forEach(function(t) {
-        t.style.background = 'transparent';
-        t.style.color = 'var(--ink)';
+      // Cache all rows by id
+      rows.forEach(function(r) { if (r.id) _bookCache[r.id] = r; });
+
+      var html = '';
+      html += '<div style="display:flex;gap:0;height:calc(100vh - 160px);min-height:420px;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--surface);">';
+
+      // ── Left sidebar ──
+      html += '<div style="width:220px;min-width:180px;flex-shrink:0;display:flex;flex-direction:column;border-right:1px solid var(--line);">';
+      // Filter buttons
+      html += '<div style="display:flex;gap:0;border-bottom:1px solid var(--line);">';
+      html += '<button id="lib-btn-all" onclick="TheWay._libFilter(\'all\',this)" '
+            + 'style="flex:1;padding:10px 4px;border:none;border-right:1px solid var(--line);cursor:pointer;font-size:0.75rem;font-weight:700;background:var(--accent);color:var(--ink-inverse);font-family:inherit;">All 66</button>';
+      html += '<button id="lib-btn-ot" onclick="TheWay._libFilter(\'Old\',this)" '
+            + 'style="flex:1;padding:10px 4px;border:none;border-right:1px solid var(--line);cursor:pointer;font-size:0.75rem;background:transparent;color:var(--ink);font-family:inherit;">OT</button>';
+      html += '<button id="lib-btn-nt" onclick="TheWay._libFilter(\'New\',this)" '
+            + 'style="flex:1;padding:10px 4px;border:none;cursor:pointer;font-size:0.75rem;background:transparent;color:var(--ink);font-family:inherit;">NT</button>';
+      html += '</div>';
+      // Search
+      html += '<div style="padding:8px 10px;border-bottom:1px solid var(--line);">';
+      html += '<input type="text" placeholder="&#128269; Search\u2026" id="lib-search" autocomplete="off" '
+            + 'oninput="TheWay._libSearch(this.value)" '
+            + 'style="width:100%;padding:6px 9px;border:1px solid var(--line);border-radius:7px;background:var(--bg,#0f172a);color:var(--ink);font-size:0.83rem;font-family:inherit;outline:none;">';
+      html += '</div>';
+      // Book list
+      html += '<div id="lib-list" style="flex:1;overflow-y:auto;padding:4px 0;">';
+      rows.forEach(function(book) {
+        var id   = book.id || '';
+        var name = book['Book Name'] || book.title || id;
+        var test = book['Testament'] || '';
+        var genre = book['Genre'] || '';
+        html += '<div class="lib-book-item" data-id="' + _e(id) + '" data-testament="' + _e(test) + '" '
+              + 'data-search="' + _e(name.toLowerCase()) + '" '
+              + 'onclick="TheWay._openBook(this,\'' + _e(id) + '\')" '
+              + 'style="display:flex;align-items:center;gap:8px;padding:8px 14px;cursor:pointer;border-left:3px solid transparent;font-size:0.85rem;" '
+              + 'onmouseover="if(!this.classList.contains(\'active\'))this.style.background=\'var(--accent-soft,rgba(99,102,241,0.07))\'" '
+              + 'onmouseout="if(!this.classList.contains(\'active\'))this.style.background=\'\';">';
+        html += '<span style="flex:1;">' + _e(name) + '</span>';
+        if (genre) html += '<span style="font-size:0.68rem;color:var(--ink-faint);white-space:nowrap;">' + _e(genre) + '</span>';
+        html += '</div>';
       });
+      html += '</div></div>'; // end sidebar
+
+      // ── Right detail pane ──
+      html += '<div id="lib-detail" style="flex:1;overflow-y:auto;padding:28px 32px;min-width:0;">';
+      html += '<div style="height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:var(--ink-muted);padding:40px 20px;">';
+      html += '<div style="font-size:2.5rem;margin-bottom:12px;">&#10013;</div>';
+      html += '<div style="font-size:1rem;font-weight:600;margin-bottom:6px;">Select a book</div>';
+      html += '<div style="font-size:0.85rem;">Choose a book from the list to explore its summary, theology, and practical application.</div>';
+      html += '</div></div>';
+
+      html += '</div>'; // end explorer
+      _panel(html);
+    } catch (e) {
+      _panel(_errHtml(e.message));
     }
-    if (btn) {
-      btn.style.background = 'var(--accent)';
-      btn.style.color = 'var(--ink-inverse)';
-    }
-    var items = document.querySelectorAll('#lib-grid .browse-item');
-    items.forEach(function(item) {
-      if (testament === 'all') { item.style.display = ''; return; }
-      item.style.display = (item.dataset.testament === testament) ? '' : 'none';
+  }
+
+  function _libFilter(testament, btn) {
+    // Update button styles
+    ['all','ot','nt'].forEach(function(k) {
+      var b = document.getElementById('lib-btn-' + k);
+      if (b) { b.style.background = 'transparent'; b.style.color = 'var(--ink)'; }
+    });
+    if (btn) { btn.style.background = 'var(--accent)'; btn.style.color = 'var(--ink-inverse)'; }
+    // Filter rows
+    document.querySelectorAll('#lib-list .lib-book-item').forEach(function(el) {
+      var match = testament === 'all' || el.dataset.testament === testament;
+      el.style.display = match ? '' : 'none';
     });
   }
+
+  function _libSearch(q) {
+    q = (q || '').toLowerCase().trim();
+    document.querySelectorAll('#lib-list .lib-book-item').forEach(function(el) {
+      el.style.display = (!q || (el.dataset.search || '').indexOf(q) !== -1) ? '' : 'none';
+    });
+  }
+
+  function _openBook(rowEl, id) {
+    var detailEl = document.getElementById('lib-detail');
+    if (!detailEl) return;
+
+    // Mark active
+    document.querySelectorAll('#lib-list .lib-book-item').forEach(function(el) {
+      el.classList.remove('active');
+      el.style.background = '';
+      el.style.borderLeftColor = 'transparent';
+    });
+    if (rowEl) {
+      rowEl.classList.add('active');
+      rowEl.style.background = 'var(--accent-soft,rgba(99,102,241,0.12))';
+      rowEl.style.borderLeftColor = 'var(--accent)';
+    }
+
+    var book = _bookCache[id];
+    if (!book) {
+      detailEl.innerHTML = '<div style="padding:20px;color:var(--danger,#c0392b);">Book not found.</div>';
+      return;
+    }
+
+    var name    = book['Book Name'] || id;
+    var test    = book['Testament'] || '';
+    var genre   = book['Genre'] || '';
+    var summary = book['Summary'] || '';
+    var theology = book['Core Theology'] || '';
+    var practical = book['Practical Application'] || '';
+
+    var b = '<div style="max-width:700px;">';
+
+    // Header
+    b += '<div style="margin-bottom:20px;">';
+    b += '<h2 style="font-size:1.5rem;font-weight:800;margin:0 0 4px;">' + _e(name) + '</h2>';
+    b += '<div style="font-size:0.8rem;color:var(--ink-muted);display:flex;gap:12px;">';
+    if (test) b += '<span>' + _e(test) + ' Testament</span>';
+    if (genre) b += '<span style="color:var(--accent);">' + _e(genre) + '</span>';
+    b += '</div></div>';
+
+    // Tab bar
+    var tabStyle = 'padding:7px 16px;border:none;border-bottom:2px solid transparent;cursor:pointer;font-size:0.85rem;font-weight:600;background:transparent;color:var(--ink-muted);font-family:inherit;';
+    var tabActiveStyle = 'padding:7px 16px;border:none;border-bottom:2px solid var(--accent);cursor:pointer;font-size:0.85rem;font-weight:600;background:transparent;color:var(--ink);font-family:inherit;';
+    b += '<div style="display:flex;border-bottom:1px solid var(--line);margin-bottom:20px;">';
+    if (summary)  b += '<button style="' + tabActiveStyle + '" id="lib-tab-summary" onclick="TheWay._libTab(\'' + _e(id) + '\',\'summary\')">Summary</button>';
+    if (theology) b += '<button style="' + tabStyle + '" id="lib-tab-theology" onclick="TheWay._libTab(\'' + _e(id) + '\',\'theology\')">Core Theology</button>';
+    if (practical)b += '<button style="' + tabStyle + '" id="lib-tab-practical" onclick="TheWay._libTab(\'' + _e(id) + '\',\'practical\')">Application</button>';
+    b += '</div>';
+
+    // Content panels
+    var prose = 'font-size:0.9rem;line-height:1.75;color:var(--ink);white-space:pre-wrap;';
+    if (summary)  b += '<div id="lib-panel-summary" style="' + prose + '">' + _e(summary) + '</div>';
+    if (theology) b += '<div id="lib-panel-theology" style="' + prose + 'display:none;">' + _e(theology) + '</div>';
+    if (practical)b += '<div id="lib-panel-practical" style="' + prose + 'display:none;">' + _e(practical) + '</div>';
+
+    b += '</div>';
+    detailEl.innerHTML = b;
+  }
+
+  function _libTab(id, tab) {
+    ['summary','theology','practical'].forEach(function(t) {
+      var panel = document.getElementById('lib-panel-' + t);
+      var btn   = document.getElementById('lib-tab-' + t);
+      if (panel) panel.style.display = t === tab ? '' : 'none';
+      if (btn) {
+        btn.style.borderBottomColor = t === tab ? 'var(--accent)' : 'transparent';
+        btn.style.color = t === tab ? 'var(--ink)' : 'var(--ink-muted)';
+      }
+    });
+  }
+
+  // Keep _libTestament as alias so existing references don't break
+  function _libTestament(t, btn) { _libFilter(t === 'ot' ? 'Old' : t === 'nt' ? 'New' : 'all', btn); }
+
+
 
   // ══════════════════════════════════════════════════════════════════════════
   // 9. DEVOTIONALS — Daily devotionals
@@ -3553,6 +3669,10 @@ const TheWay = (() => {
     _filterPanel:       _filterPanel,
     _filterCounselList: _filterCounselList,
     _openCounselCard:   _openCounselCard,
+    _libFilter:         _libFilter,
+    _libSearch:         _libSearch,
+    _openBook:          _openBook,
+    _libTab:            _libTab,
     _lexTestament:      _twLexFilter,   // backward compat alias
     _twLexFilter:       _twLexFilter,
     _twLexSelect:       _twLexSelect,
