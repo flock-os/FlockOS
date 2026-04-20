@@ -2475,47 +2475,39 @@ const TheWay = (() => {
       rows.forEach(function(r) { if (r.id) _bookCache[r.id] = r; });
 
       var html = '';
-      html += '<div style="display:flex;gap:0;height:calc(100vh - 160px);min-height:420px;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--surface);">';
+      html += '<div class="atog-explorer">';
 
       // ── Left sidebar ──
-      html += '<div style="width:220px;min-width:180px;flex-shrink:0;display:flex;flex-direction:column;border-right:1px solid var(--line);">';
+      html += '<div class="atog-explorer-sidebar">';
       // Filter buttons
-      html += '<div style="display:flex;gap:0;border-bottom:1px solid var(--line);">';
-      html += '<button id="lib-btn-all" onclick="TheWay._libFilter(\'all\',this)" '
-            + 'style="flex:1;padding:10px 4px;border:none;border-right:1px solid var(--line);cursor:pointer;font-size:0.75rem;font-weight:700;background:var(--accent);color:var(--ink-inverse);font-family:inherit;">All 66</button>';
-      html += '<button id="lib-btn-ot" onclick="TheWay._libFilter(\'Old\',this)" '
-            + 'style="flex:1;padding:10px 4px;border:none;border-right:1px solid var(--line);cursor:pointer;font-size:0.75rem;background:transparent;color:var(--ink);font-family:inherit;">OT</button>';
-      html += '<button id="lib-btn-nt" onclick="TheWay._libFilter(\'New\',this)" '
-            + 'style="flex:1;padding:10px 4px;border:none;cursor:pointer;font-size:0.75rem;background:transparent;color:var(--ink);font-family:inherit;">NT</button>';
+      html += '<div style="display:flex;">';
+      html += '<button id="lib-btn-all" onclick="TheWay._libFilter(\'all\',this)" class="atog-lib-filter active">All 66</button>';
+      html += '<button id="lib-btn-ot" onclick="TheWay._libFilter(\'Old\',this)" class="atog-lib-filter">OT</button>';
+      html += '<button id="lib-btn-nt" onclick="TheWay._libFilter(\'New\',this)" class="atog-lib-filter">NT</button>';
       html += '</div>';
       // Search
-      html += '<div style="padding:8px 10px;border-bottom:1px solid var(--line);">';
-      html += '<input type="text" placeholder="&#128269; Search\u2026" id="lib-search" autocomplete="off" '
-            + 'oninput="TheWay._libSearch(this.value)" '
-            + 'style="width:100%;padding:6px 9px;border:1px solid var(--line);border-radius:7px;background:var(--bg,#0f172a);color:var(--ink);font-size:0.83rem;font-family:inherit;outline:none;">';
+      html += '<div class="atog-explorer-search">';
+      html += '<input type="text" placeholder="&#128269; Search\u2026" id="lib-search" autocomplete="off" oninput="TheWay._libSearch(this.value)">';
       html += '</div>';
       // Book list
-      html += '<div id="lib-list" style="flex:1;overflow-y:auto;padding:4px 0;">';
+      html += '<div id="lib-list" class="atog-explorer-list">';
       rows.forEach(function(book) {
         var id   = book.id || '';
         var name = book['Book Name'] || book.title || id;
         var test = book['Testament'] || '';
         var genre = book['Genre'] || '';
-        html += '<div class="lib-book-item" data-id="' + _e(id) + '" data-testament="' + _e(test) + '" '
+        html += '<div class="atog-explorer-item lib-book-item" data-id="' + _e(id) + '" data-testament="' + _e(test) + '" '
               + 'data-search="' + _e(name.toLowerCase()) + '" '
-              + 'onclick="TheWay._openBook(this,\'' + _e(id) + '\')" '
-              + 'style="display:flex;align-items:center;gap:8px;padding:8px 14px;cursor:pointer;border-left:3px solid transparent;font-size:0.85rem;" '
-              + 'onmouseover="if(!this.classList.contains(\'active\'))this.style.background=\'var(--accent-soft,rgba(99,102,241,0.07))\'" '
-              + 'onmouseout="if(!this.classList.contains(\'active\'))this.style.background=\'\';">';
-        html += '<span style="flex:1;">' + _e(name) + '</span>';
-        if (genre) html += '<span style="font-size:0.68rem;color:var(--ink-faint);white-space:nowrap;">' + _e(genre) + '</span>';
+              + 'onclick="TheWay._openBook(this,\'' + _e(id) + '\')">';
+        html += '<span class="atog-explorer-item-label">' + _e(name) + '</span>';
+        if (genre) html += '<span class="atog-explorer-item-tag">' + _e(genre) + '</span>';
         html += '</div>';
       });
       html += '</div></div>'; // end sidebar
 
       // ── Right detail pane ──
-      html += '<div id="lib-detail" style="flex:1;overflow-y:auto;padding:28px 32px;min-width:0;">';
-      html += '<div style="height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:var(--ink-muted);padding:40px 20px;">';
+      html += '<div id="lib-detail" class="atog-explorer-detail">';
+      html += '<div class="atog-explorer-empty">';
       html += '<div style="font-size:2.5rem;margin-bottom:12px;">&#10013;</div>';
       html += '<div style="font-size:1rem;font-weight:600;margin-bottom:6px;">Select a book</div>';
       html += '<div style="font-size:0.85rem;">Choose a book from the list to explore its summary, theology, and practical application.</div>';
@@ -2530,11 +2522,8 @@ const TheWay = (() => {
 
   function _libFilter(testament, btn) {
     // Update button styles
-    ['all','ot','nt'].forEach(function(k) {
-      var b = document.getElementById('lib-btn-' + k);
-      if (b) { b.style.background = 'transparent'; b.style.color = 'var(--ink)'; }
-    });
-    if (btn) { btn.style.background = 'var(--accent)'; btn.style.color = 'var(--ink-inverse)'; }
+    document.querySelectorAll('.atog-lib-filter').forEach(function(b) { b.classList.remove('active'); });
+    if (btn) btn.classList.add('active');
     // Filter rows
     document.querySelectorAll('#lib-list .lib-book-item').forEach(function(el) {
       var match = testament === 'all' || el.dataset.testament === testament;
@@ -2556,14 +2545,8 @@ const TheWay = (() => {
     // Mark active
     document.querySelectorAll('#lib-list .lib-book-item').forEach(function(el) {
       el.classList.remove('active');
-      el.style.background = '';
-      el.style.borderLeftColor = 'transparent';
     });
-    if (rowEl) {
-      rowEl.classList.add('active');
-      rowEl.style.background = 'var(--accent-soft,rgba(99,102,241,0.12))';
-      rowEl.style.borderLeftColor = 'var(--accent)';
-    }
+    if (rowEl) rowEl.classList.add('active');
 
     var book = _bookCache[id];
     if (!book) {
@@ -2819,36 +2802,33 @@ const TheWay = (() => {
 
       // ── Explorer layout: sidebar list + detail pane ──
       var html = '';
-      html += '<div style="display:flex;gap:0;height:calc(100vh - 160px);min-height:420px;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--surface);">';
+      html += '<div class="atog-explorer">';
 
       // Left: topic list
-      html += '<div style="width:250px;min-width:200px;flex-shrink:0;display:flex;flex-direction:column;border-right:1px solid var(--line);background:var(--surface);">';
-      html += '<div style="display:flex;align-items:center;gap:8px;padding:14px 16px 10px;font-size:0.78rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--ink-muted);border-bottom:1px solid var(--line);">&#9874; Biblical Counseling</div>';
-      html += '<div style="padding:10px 12px;border-bottom:1px solid var(--line);">';
+      html += '<div class="atog-explorer-sidebar">';
+      html += '<div class="atog-explorer-sidebar-header">&#9874; Biblical Counseling</div>';
+      html += '<div class="atog-explorer-search">';
       html += '<input type="text" placeholder="&#128269; Search topics\u2026" id="coun-search-input" autocomplete="off" '
-            + 'oninput="TheWay._filterCounselList(this.value)" '
-            + 'style="width:100%;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg,#0f172a);color:var(--ink);font-size:0.85rem;outline:none;font-family:inherit;">';
+            + 'oninput="TheWay._filterCounselList(this.value)">';
       html += '</div>';
-      html += '<div id="coun-topic-list" style="flex:1;overflow-y:auto;padding:6px 0;">';
+      html += '<div id="coun-topic-list" class="atog-explorer-list">';
       stubs.forEach(function(stub) {
         var id    = stub.id || '';
         var title = stub.title || stub['Title'] || 'Topic';
         var icon  = stub.icon  || stub['Icon']  || '\u2695';
         var color = stub.color || stub['Color'] || 'var(--mint)';
-        html += '<div class="coun-topic-item" data-search="' + _e(title.toLowerCase()) + '" data-cid="' + _e(id) + '" '
-              + 'onclick="TheWay._openCounselCard(this,\'' + _e(id) + '\')" '
-              + 'style="display:flex;align-items:center;gap:10px;padding:10px 16px;cursor:pointer;border-left:3px solid transparent;font-size:0.88rem;transition:background 0.15s;"'
-              + ' onmouseover="this.style.background=\'var(--accent-soft,rgba(99,102,241,0.08))\'" onmouseout="if(!this.classList.contains(\'active\'))this.style.background=\'\';">';
-        html += '<span style="font-size:1rem;flex-shrink:0;color:' + _e(color) + ';">' + icon + '</span>';
-        html += '<span style="flex:1;line-height:1.3;">' + _e(title) + '</span>';
-        html += '<span style="font-size:1rem;color:var(--ink-faint);">&#8250;</span>';
+        html += '<div class="atog-explorer-item coun-topic-item" data-search="' + _e(title.toLowerCase()) + '" data-cid="' + _e(id) + '" '
+              + 'onclick="TheWay._openCounselCard(this,\'' + _e(id) + '\')">';
+        html += '<span class="atog-explorer-item-icon" style="color:' + _e(color) + ';">' + icon + '</span>';
+        html += '<span class="atog-explorer-item-label">' + _e(title) + '</span>';
+        html += '<span class="atog-explorer-item-arrow">&#8250;</span>';
         html += '</div>';
       });
       html += '</div></div>'; // end sidebar
 
       // Right: detail pane
-      html += '<div id="coun-detail" style="flex:1;overflow-y:auto;padding:28px 32px;min-width:0;">';
-      html += '<div style="height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:var(--ink-muted);padding:40px 20px;">';
+      html += '<div id="coun-detail" class="atog-explorer-detail">';
+      html += '<div class="atog-explorer-empty">';
       html += '<div style="font-size:2.5rem;margin-bottom:12px;">&#9874;</div>';
       html += '<div style="font-size:1rem;font-weight:600;margin-bottom:6px;">Select a topic</div>';
       html += '<div style="font-size:0.85rem;">Choose a counseling topic from the list to explore Scripture-centered guidance.</div>';
@@ -2881,14 +2861,10 @@ const TheWay = (() => {
     if (list) {
       list.querySelectorAll('.coun-topic-item').forEach(function(el) {
         el.classList.remove('active');
-        el.style.background = '';
-        el.style.borderLeftColor = 'transparent';
       });
     }
     if (rowEl) {
       rowEl.classList.add('active');
-      rowEl.style.background = 'var(--accent-soft,rgba(99,102,241,0.12))';
-      rowEl.style.borderLeftColor = 'var(--accent)';
     }
 
     // Show loading state in detail pane
