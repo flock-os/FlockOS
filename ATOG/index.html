@@ -150,7 +150,7 @@
         </div>
 
         <!-- ── Learning Hub (TheWay renders here) ────────── -->
-        <div class="module-view" id="view-hub"></div>
+        <div class="module-view" id="view-learning"></div>
 
         <!-- ── Standalone modules (Modules.render via public API) ── -->
         <div class="module-view" id="view-mirror"></div>
@@ -206,7 +206,7 @@
             document.getElementById('view-home').classList.add('active');
         } else if (isHub) {
             /* Show the hub container and switch TheWay to the right tab */
-            document.getElementById('view-hub').classList.add('active');
+            document.getElementById('view-learning').classList.add('active');
             if (_hubReady && window.TheWay) {
                 TheWay.switchTab(HUB_TABS[viewName]);
             }
@@ -266,7 +266,7 @@
 
         /* Boot TheWay Learning Hub into the hub container */
         if (window.TheWay) {
-            var hubEl = document.getElementById('view-hub');
+            var hubEl = document.getElementById('view-learning');
             TheWay.renderHub(hubEl, null).then(function() {
                 _hubReady = true;
                 /* If we loaded with a hub hash, switch to that tab now */
