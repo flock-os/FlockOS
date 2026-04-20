@@ -169,13 +169,24 @@
         <p class="mt-1" style="color:#334155;">Scripture quotations are from the ESV&reg; Bible. Powered by <span style="color:var(--slate-500);">FlockOS</span>.</p>
     </footer>
 
-    <!-- ═══ Scripts ═════════════════════════════════════════ -->
-    <script defer src="Scripts/the_gospel.js"></script>
-    <script defer src="Scripts/the_touch.js"></script>
+    <!-- ═══ FlockOS Learning Hub Scripts ═════════════════════ -->
+    <script defer src="Scripts/fine_linen.js"></script>
+    <script defer src="Scripts/the_true_vine.js"></script>
+    <script defer src="Scripts/the_tabernacle.js"></script>
+    <script defer src="Scripts/the_way.js"></script>
 
     <!-- ═══ Inline Bootstrap ══════════════════════════════ -->
     <script>
     window.ATOG = window.ATOG || {};
+
+    /* ── ATOG view name → FlockOS module name mapping ── */
+    var MODULE_MAP = {
+        books:      'library',
+        lexicon:    'words',
+        characters: 'genealogy'
+    };
+    /* Track which views have been rendered already */
+    var _rendered = {};
 
     ATOG.toggleSidebar = function () {
         document.getElementById('sidebar').classList.toggle('open');
@@ -183,17 +194,35 @@
     };
 
     ATOG.navigate = function (viewName) {
+        /* Switch visible view panel */
         document.querySelectorAll('.module-view').forEach(function (v) { v.classList.remove('active'); });
         var target = document.getElementById('view-' + viewName);
         if (target) target.classList.add('active');
+
+        /* Highlight sidebar */
         document.querySelectorAll('.nav-item[data-view]').forEach(function (n) {
             n.classList.toggle('active', n.dataset.view === viewName);
         });
+
+        /* Close mobile sidebar */
         document.getElementById('sidebar').classList.remove('open');
         document.getElementById('hamburger').classList.remove('open');
         window.scrollTo({ top: 0, behavior: 'smooth' });
         history.replaceState(null, '', '#' + viewName);
-        if (window.Touch && Touch.render) Touch.render(viewName);
+
+        /* Render via FlockOS Modules (skip 'home' — that's our custom hero) */
+        if (viewName !== 'home' && window.Modules && target) {
+            var moduleName = MODULE_MAP[viewName] || viewName;
+            if (!_rendered[viewName]) {
+                _rendered[viewName] = true;
+                Modules.render(moduleName, target, null);
+            }
+        }
+    };
+
+    /* Global navigate() — FlockOS renderers call this for back-links */
+    window.navigate = function (viewName) {
+        ATOG.navigate(viewName);
     };
 
     ATOG.lang = 'en';
@@ -203,10 +232,23 @@
             b.classList.toggle('active', b.dataset.lang === code);
         });
         document.documentElement.lang = code;
-        if (window.Touch && Touch.onLangChange) Touch.onLangChange(code);
     };
 
     window.addEventListener('DOMContentLoaded', function () {
+        /* Inject Adornment CSS (component classes for FlockOS renderers) + set vesper dark theme */
+        if (window.Adornment) {
+            Adornment.init();
+            Adornment.setTheme('vesper');
+        }
+
+        /* Enable 'mirror' which is default-disabled in FlockOS */
+        try {
+            var vis = JSON.parse(localStorage.getItem('flock_module_visibility') || '{}');
+            vis.mirror = true;
+            localStorage.setItem('flock_module_visibility', JSON.stringify(vis));
+        } catch(e) {}
+
+        /* Navigate to hash or stay on home */
         var hash = location.hash.replace('#', '');
         if (hash && document.getElementById('view-' + hash)) ATOG.navigate(hash);
     });
