@@ -6,7 +6,7 @@
 # ======================================================================
 set -euo pipefail
 
-REPO_ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
+REPO_ROOT="$(cd "$(dirname "$0")/../../../.." && pwd)"
 SRC="$REPO_ROOT/FlockOS/Pages/the_great_commission.html"
 SCRIPTS_DIR="$REPO_ROOT/FlockOS/Scripts"
 OUT_DIR="$REPO_ROOT/FlockOS/Tools/Master Deployment"

@@ -19,7 +19,7 @@
 # ======================================================================
 set -euo pipefail
 
-REPO_ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
+REPO_ROOT="$(cd "$(dirname "$0")/../../../.." && pwd)"
 SRC="$REPO_ROOT/FlockOS/Pages/index.html"
 SCRIPTS_DIR="$REPO_ROOT/FlockOS/Scripts"
 IMAGES_DIR="$REPO_ROOT/FlockOS/Images"
