@@ -51,7 +51,8 @@ const Nehemiah = (() => {
 
   const LOGIN_PAGE  = _base + 'the_wall.html';
   const APP_PAGE    = _base + 'the_good_shepherd.html';
-  const LAUNCHER_PAGE = _paths.root.replace(/[^/]+\/?$/, '') + 'index.html';
+  // _paths.root points to the FlockOS directory; go up one level to deployment root.
+  const LAUNCHER_PAGE = (_paths.root ? (_paths.root + '../index.html') : '../../index.html');
   const ROLE_LEVELS = { readonly: 0, volunteer: 1, care: 2, leader: 3, pastor: 4, admin: 5 };
 
   // ── Local Security Bypass ────────────────────────────────────────────────
