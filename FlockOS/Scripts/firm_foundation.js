@@ -36,20 +36,22 @@ const Nehemiah = (() => {
   // ── Constants ────────────────────────────────────────────────────────────
 
   // Resolve paths relative to the site root so redirects work from any page depth.
-  const _base = (function() {
+  const _paths = (function() {
     const s = document.querySelector('script[src*="firm_foundation"]');
-    if (!s) return '';
+    if (!s) return { root: '', pages: '' };
     const src = s.getAttribute('src');
     // Strip path to "Scripts/firm_foundation.js" to get base, then point to Pages/
     const idx = src.indexOf('Scripts/');
-    if (idx < 0) return '';
+    if (idx < 0) return { root: '', pages: '' };
+    const root = src.substring(0, idx);
     // e.g. "FlockOS/Scripts/" → "FlockOS/Pages/" (HTML files live in Pages/)
-    return src.substring(0, idx) + 'Pages/';
+    return { root, pages: root + 'Pages/' };
   })();
+  const _base = _paths.pages;
 
   const LOGIN_PAGE  = _base + 'the_wall.html';
   const APP_PAGE    = _base + 'the_good_shepherd.html';
-  const LAUNCHER_PAGE = _base.replace(/FlockOS\/Pages\/$/, '') + 'index.html';
+  const LAUNCHER_PAGE = _paths.root.replace(/[^/]+\/?$/, '') + 'index.html';
   const ROLE_LEVELS = { readonly: 0, volunteer: 1, care: 2, leader: 3, pastor: 4, admin: 5 };
 
   // ── Local Security Bypass ────────────────────────────────────────────────
