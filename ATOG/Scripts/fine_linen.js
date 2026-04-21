@@ -1,16 +1,13 @@
 /* ══════════════════════════════════════════════════════════════════════════════
    FINE LINEN — FlockOS Design System
-   Theme engine with pastel palettes, pill components, and auto dark mode.
+   Theme engine using a single, consistent AMERICAN light theme.
 
-   THEMES (14 total):
-     Light:  Dayspring · Meadow · Lavender · Rosewood
-     Dark:   Vesper · Evergreen · Twilight · Obsidian
-     Flags:  America · Guatemala · Mexico (light) · Germany · Afghanistan (dark)
-     Auto:   Follows device prefers-color-scheme
+   THEMES (1 total):
+     America (light)
 
    USAGE:
      Adornment.init();                     — auto-applies saved theme on load
-     Adornment.setTheme('dayspring');      — apply named theme
+     Adornment.setTheme('america');        — apply AMERICAN theme
      Adornment.getTheme();                 — returns current theme name
      Adornment.themes                      — array of all valid theme names
 
@@ -27,13 +24,7 @@ const Adornment = (() => {
 
   /* ─── THEME REGISTRY ──────────────────────────────────────────────────────── */
 
-  const THEMES = [
-    'dayspring', 'meadow', 'lavender', 'rosewood',   // light
-    'vesper', 'evergreen', 'twilight', 'obsidian',    // dark
-    'america', 'guatemala', 'mexico',                  // flag — light
-    'germany', 'afghanistan',                          // flag — dark
-    'auto'
-  ];
+  const THEMES = ['america'];
 
   const DEFAULT_THEME = 'america';
   const STORAGE_KEY   = 'flock_theme';
@@ -360,246 +351,6 @@ input, select, textarea { font-size: max(1rem, 16px); }
 }
 
 
-/* ── 5. Vesper ─── Deep navy, soft pastels on dark — the dark default ──── */
-
-[data-theme="vesper"] {
-  --bg:            #0f1118;
-  --bg-raised:     #181b24;
-  --bg-sunken:     #0a0c12;
-  --bg-hover:      #1e2130;
-
-  --ink:           #e8e6f0;
-  --ink-muted:     #9a98ab;
-  --ink-faint:     #5e5c6e;
-  --ink-inverse:   #0f1118;
-
-  --accent:        #8ab4d6;
-  --accent-hover:  #a0c6e4;
-  --accent-soft:   rgba(138,180,214,0.14);
-
-  --mint:          #7cc4a0;
-  --mint-soft:     rgba(124,196,160,0.12);
-
-  --peach:         #e8a888;
-  --peach-soft:    rgba(232,168,136,0.12);
-
-  --lilac:         #b8a0d8;
-  --lilac-soft:    rgba(184,160,216,0.12);
-
-  --rose:          #e09ab8;
-  --rose-soft:     rgba(224,154,184,0.12);
-
-  --gold:          #d4b870;
-  --gold-soft:     rgba(212,184,112,0.12);
-
-  --sky:           #7ec0e0;
-  --sky-soft:      rgba(126,192,224,0.12);
-
-  --danger:        #f07070;
-  --danger-soft:   rgba(240,112,112,0.12);
-  --success:       #60c48a;
-  --success-soft:  rgba(96,196,138,0.12);
-  --warning:       #e0b048;
-  --warning-soft:  rgba(224,176,72,0.12);
-
-  --link:          #8ab4d6;
-  --link-hover:    #a8cce8;
-
-  --line:          rgba(255,255,255,0.08);
-  --line-strong:   rgba(255,255,255,0.14);
-
-  --shadow-sm:     0 1px 3px rgba(0,0,0,0.30);
-  --shadow-md:     0 4px 12px rgba(0,0,0,0.30);
-  --shadow-lg:     0 8px 24px rgba(0,0,0,0.40);
-
-  --paper:         #181b24;
-  --paper-line:    rgba(255,255,255,0.06);
-  --paper-margin:  rgba(180,80,80,0.30);
-
-  color-scheme: dark;
-}
-
-
-/* ── 6. Evergreen ─── Forest dark, sage pastels ─────────────────────────── */
-
-[data-theme="evergreen"] {
-  --bg:            #0e1510;
-  --bg-raised:     #151e18;
-  --bg-sunken:     #0a0f0b;
-  --bg-hover:      #1a261e;
-
-  --ink:           #e0eae2;
-  --ink-muted:     #8ea898;
-  --ink-faint:     #586e60;
-  --ink-inverse:   #0e1510;
-
-  --accent:        #6ec496;
-  --accent-hover:  #88d4ac;
-  --accent-soft:   rgba(110,196,150,0.14);
-
-  --mint:          #7ad0a4;
-  --mint-soft:     rgba(122,208,164,0.12);
-
-  --peach:         #d4a880;
-  --peach-soft:    rgba(212,168,128,0.12);
-
-  --lilac:         #a898c4;
-  --lilac-soft:    rgba(168,152,196,0.12);
-
-  --rose:          #c88ea0;
-  --rose-soft:     rgba(200,142,160,0.12);
-
-  --gold:          #c8b060;
-  --gold-soft:     rgba(200,176,96,0.12);
-
-  --sky:           #78b8d0;
-  --sky-soft:      rgba(120,184,208,0.12);
-
-  --danger:        #e06856;
-  --danger-soft:   rgba(224,104,86,0.12);
-  --success:       #58c080;
-  --success-soft:  rgba(88,192,128,0.12);
-  --warning:       #d0a840;
-  --warning-soft:  rgba(208,168,64,0.12);
-
-  --link:          #6ec496;
-  --link-hover:    #90d8b0;
-
-  --line:          rgba(255,255,255,0.07);
-  --line-strong:   rgba(255,255,255,0.13);
-
-  --shadow-sm:     0 1px 3px rgba(0,0,0,0.30);
-  --shadow-md:     0 4px 12px rgba(0,0,0,0.30);
-  --shadow-lg:     0 8px 24px rgba(0,0,0,0.40);
-
-  --paper:         #141a18;
-  --paper-line:    rgba(255,255,255,0.06);
-  --paper-margin:  rgba(160,90,80,0.30);
-
-  color-scheme: dark;
-}
-
-
-/* ── 7. Twilight ─── Deep purple, violet pastels ────────────────────────── */
-
-[data-theme="twilight"] {
-  --bg:            #12101a;
-  --bg-raised:     #1c1828;
-  --bg-sunken:     #0c0a14;
-  --bg-hover:      #241e34;
-
-  --ink:           #e6e0f0;
-  --ink-muted:     #9c94b0;
-  --ink-faint:     #605878;
-  --ink-inverse:   #12101a;
-
-  --accent:        #a088d0;
-  --accent-hover:  #b8a0e4;
-  --accent-soft:   rgba(160,136,208,0.14);
-
-  --mint:          #72c4a0;
-  --mint-soft:     rgba(114,196,160,0.12);
-
-  --peach:         #e0a490;
-  --peach-soft:    rgba(224,164,144,0.12);
-
-  --lilac:         #b898e0;
-  --lilac-soft:    rgba(184,152,224,0.14);
-
-  --rose:          #d88eac;
-  --rose-soft:     rgba(216,142,172,0.12);
-
-  --gold:          #d0b460;
-  --gold-soft:     rgba(208,180,96,0.12);
-
-  --sky:           #80b8d8;
-  --sky-soft:      rgba(128,184,216,0.12);
-
-  --danger:        #e86868;
-  --danger-soft:   rgba(232,104,104,0.12);
-  --success:       #58c488;
-  --success-soft:  rgba(88,196,136,0.12);
-  --warning:       #d8b040;
-  --warning-soft:  rgba(216,176,64,0.12);
-
-  --link:          #a088d0;
-  --link-hover:    #bca0e8;
-
-  --line:          rgba(255,255,255,0.08);
-  --line-strong:   rgba(255,255,255,0.14);
-
-  --shadow-sm:     0 1px 3px rgba(0,0,0,0.30);
-  --shadow-md:     0 4px 12px rgba(0,0,0,0.30);
-  --shadow-lg:     0 8px 24px rgba(0,0,0,0.40);
-
-  --paper:         #18141e;
-  --paper-line:    rgba(255,255,255,0.06);
-  --paper-margin:  rgba(180,80,120,0.30);
-
-  color-scheme: dark;
-}
-
-
-/* ── 8. Obsidian ─── True black, high-contrast pastels — OLED saver ─────  */
-
-[data-theme="obsidian"] {
-  --bg:            #000000;
-  --bg-raised:     #111111;
-  --bg-sunken:     #000000;
-  --bg-hover:      #1a1a1a;
-
-  --ink:           #f0f0f0;
-  --ink-muted:     #a0a0a0;
-  --ink-faint:     #606060;
-  --ink-inverse:   #000000;
-
-  --accent:        #88b8e0;
-  --accent-hover:  #a0cce8;
-  --accent-soft:   rgba(136,184,224,0.14);
-
-  --mint:          #70c89c;
-  --mint-soft:     rgba(112,200,156,0.12);
-
-  --peach:         #f0a888;
-  --peach-soft:    rgba(240,168,136,0.12);
-
-  --lilac:         #b8a0e0;
-  --lilac-soft:    rgba(184,160,224,0.12);
-
-  --rose:          #e090b0;
-  --rose-soft:     rgba(224,144,176,0.12);
-
-  --gold:          #d8bc68;
-  --gold-soft:     rgba(216,188,104,0.12);
-
-  --sky:           #80c0e0;
-  --sky-soft:      rgba(128,192,224,0.12);
-
-  --danger:        #f07070;
-  --danger-soft:   rgba(240,112,112,0.12);
-  --success:       #60cc8c;
-  --success-soft:  rgba(96,204,140,0.12);
-  --warning:       #e0b848;
-  --warning-soft:  rgba(224,184,72,0.12);
-
-  --link:          #88b8e0;
-  --link-hover:    #a8d0f0;
-
-  --line:          rgba(255,255,255,0.10);
-  --line-strong:   rgba(255,255,255,0.16);
-
-  --shadow-sm:     0 1px 3px rgba(0,0,0,0.50);
-  --shadow-md:     0 4px 12px rgba(0,0,0,0.50);
-  --shadow-lg:     0 8px 24px rgba(0,0,0,0.60);
-
-  --paper:         #0e0e0e;
-  --paper-line:    rgba(255,255,255,0.05);
-  --paper-margin:  rgba(180,70,70,0.28);
-
-  color-scheme: dark;
-}
-
-
 /* ═══════════════════════════════════════════════════════════════════════════
    COUNTRY FLAG THEMES — Patriotic palettes drawn from national colors
    ═══════════════════════════════════════════════════════════════════════════ */
@@ -796,229 +547,6 @@ input, select, textarea { font-size: max(1rem, 16px); }
   --paper-margin:  #d8a0a0;
 
   color-scheme: light;
-}
-
-
-/* ── 12. Germany ─── Schwarz, Rot, Gold — Bundesfarben ──────────────────── */
-
-[data-theme="germany"] {
-  --bg:            #14120e;
-  --bg-raised:     #1e1b16;
-  --bg-sunken:     #0c0a08;
-  --bg-hover:      #252118;
-
-  --ink:           #f0e8d8;
-  --ink-muted:     #b0a890;
-  --ink-faint:     #706858;
-  --ink-inverse:   #14120e;
-
-  --accent:        #dd0000;
-  --accent-hover:  #ff2222;
-  --accent-soft:   rgba(221,0,0,0.16);
-
-  --mint:          #80b090;
-  --mint-soft:     rgba(128,176,144,0.12);
-
-  --peach:         #e08040;
-  --peach-soft:    rgba(224,128,64,0.12);
-
-  --lilac:         #b090b8;
-  --lilac-soft:    rgba(176,144,184,0.12);
-
-  --rose:          #e06070;
-  --rose-soft:     rgba(224,96,112,0.12);
-
-  --gold:          #ffcc00;
-  --gold-soft:     rgba(255,204,0,0.16);
-
-  --sky:           #80b0d0;
-  --sky-soft:      rgba(128,176,208,0.12);
-
-  --danger:        #ff4040;
-  --danger-soft:   rgba(255,64,64,0.14);
-  --success:       #60c080;
-  --success-soft:  rgba(96,192,128,0.12);
-  --warning:       #ffcc00;
-  --warning-soft:  rgba(255,204,0,0.14);
-
-  --link:          #ffcc00;
-  --link-hover:    #ffe060;
-
-  --line:          rgba(255,204,0,0.14);
-  --line-strong:   rgba(255,204,0,0.22);
-
-  --shadow-sm:     0 1px 3px rgba(0,0,0,0.40);
-  --shadow-md:     0 4px 12px rgba(0,0,0,0.40);
-  --shadow-lg:     0 8px 24px rgba(0,0,0,0.50);
-
-  --radius-sm:     6px;
-  --radius-md:     12px;
-  --radius-lg:     20px;
-  --radius-pill:   9999px;
-
-  --paper:         #1a1710;
-  --paper-line:    rgba(255,204,0,0.08);
-  --paper-margin:  rgba(221,0,0,0.22);
-
-  color-scheme: dark;
-}
-
-
-/* ── 13. Afghanistan ─── سه رنگ — Black, Red & Green ────────────────────── */
-
-[data-theme="afghanistan"] {
-  --bg:            #0e100c;
-  --bg-raised:     #181a14;
-  --bg-sunken:     #080a06;
-  --bg-hover:      #20231a;
-
-  --ink:           #e4e8dc;
-  --ink-muted:     #a0a890;
-  --ink-faint:     #606850;
-  --ink-inverse:   #0e100c;
-
-  --accent:        #007a3d;
-  --accent-hover:  #009a50;
-  --accent-soft:   rgba(0,122,61,0.18);
-
-  --mint:          #4db87a;
-  --mint-soft:     rgba(77,184,122,0.14);
-
-  --peach:         #d32011;
-  --peach-soft:    rgba(211,32,17,0.14);
-
-  --lilac:         #90a8a0;
-  --lilac-soft:    rgba(144,168,160,0.12);
-
-  --rose:          #e05050;
-  --rose-soft:     rgba(224,80,80,0.14);
-
-  --gold:          #c8b068;
-  --gold-soft:     rgba(200,176,104,0.14);
-
-  --sky:           #70a8c0;
-  --sky-soft:      rgba(112,168,192,0.12);
-
-  --danger:        #d32011;
-  --danger-soft:   rgba(211,32,17,0.14);
-  --success:       #007a3d;
-  --success-soft:  rgba(0,122,61,0.14);
-  --warning:       #d0a830;
-  --warning-soft:  rgba(208,168,48,0.14);
-
-  --link:          #4db87a;
-  --link-hover:    #6ad09a;
-
-  --line:          rgba(0,122,61,0.16);
-  --line-strong:   rgba(0,122,61,0.25);
-
-  --shadow-sm:     0 1px 3px rgba(0,0,0,0.44);
-  --shadow-md:     0 4px 12px rgba(0,0,0,0.44);
-  --shadow-lg:     0 8px 24px rgba(0,0,0,0.54);
-
-  --radius-sm:     6px;
-  --radius-md:     12px;
-  --radius-lg:     20px;
-  --radius-pill:   9999px;
-
-  --paper:         #12140e;
-  --paper-line:    rgba(0,122,61,0.10);
-  --paper-margin:  rgba(211,32,17,0.22);
-
-  color-scheme: dark;
-}
-
-
-/* ── AUTO THEME ── follows device prefers-color-scheme ──────────────────── */
-
-@media (prefers-color-scheme: light) {
-  [data-theme="auto"] {
-    --bg:            #faf9f6;
-    --bg-raised:     #ffffff;
-    --bg-sunken:     #f0eeea;
-    --bg-hover:      #f5f3ef;
-    --ink:           #2c2c2c;
-    --ink-muted:     #6b6b6b;
-    --ink-faint:     #a0a0a0;
-    --ink-inverse:   #faf9f6;
-    --accent:        #7eaacc;
-    --accent-hover:  #6394ba;
-    --accent-soft:   rgba(126,170,204,0.12);
-    --mint:          #8cc5a2;
-    --mint-soft:     rgba(140,197,162,0.12);
-    --peach:         #f0a889;
-    --peach-soft:    rgba(240,168,137,0.12);
-    --lilac:         #b49bdb;
-    --lilac-soft:    rgba(180,155,219,0.12);
-    --rose:          #e69aba;
-    --rose-soft:     rgba(230,154,186,0.12);
-    --gold:          #8B7028;
-    --gold-soft:     rgba(139,112,40,0.15);
-    --sky:           #8abde0;
-    --sky-soft:      rgba(138,189,224,0.12);
-    --danger:        #d4574e;
-    --danger-soft:   rgba(212,87,78,0.10);
-    --success:       #4a9e6e;
-    --success-soft:  rgba(74,158,110,0.10);
-    --warning:       #c98b2e;
-    --warning-soft:  rgba(201,139,46,0.10);
-    --link:          #5a8fb5;
-    --link-hover:    #3d7199;
-    --line:          #e4e1dc;
-    --line-strong:   #d0ccc5;
-    --shadow-sm:     0 1px 3px rgba(0,0,0,0.06);
-    --shadow-md:     0 4px 12px rgba(0,0,0,0.06);
-    --shadow-lg:     0 8px 24px rgba(0,0,0,0.08);
-    --paper:         #fffef8;
-    --paper-line:    #d4c5a9;
-    --paper-margin:  #e8a0a0;
-    color-scheme: light;
-  }
-}
-
-@media (prefers-color-scheme: dark) {
-  [data-theme="auto"] {
-    --bg:            #0f1118;
-    --bg-raised:     #181b24;
-    --bg-sunken:     #0a0c12;
-    --bg-hover:      #1e2130;
-    --ink:           #e8e6f0;
-    --ink-muted:     #9a98ab;
-    --ink-faint:     #5e5c6e;
-    --ink-inverse:   #0f1118;
-    --accent:        #8ab4d6;
-    --accent-hover:  #a0c6e4;
-    --accent-soft:   rgba(138,180,214,0.14);
-    --mint:          #7cc4a0;
-    --mint-soft:     rgba(124,196,160,0.12);
-    --peach:         #e8a888;
-    --peach-soft:    rgba(232,168,136,0.12);
-    --lilac:         #b8a0d8;
-    --lilac-soft:    rgba(184,160,216,0.12);
-    --rose:          #e09ab8;
-    --rose-soft:     rgba(224,154,184,0.12);
-    --gold:          #d4b870;
-    --gold-soft:     rgba(212,184,112,0.12);
-    --sky:           #7ec0e0;
-    --sky-soft:      rgba(126,192,224,0.12);
-    --danger:        #f07070;
-    --danger-soft:   rgba(240,112,112,0.12);
-    --success:       #60c48a;
-    --success-soft:  rgba(96,196,138,0.12);
-    --warning:       #e0b048;
-    --warning-soft:  rgba(224,176,72,0.12);
-    --link:          #8ab4d6;
-    --link-hover:    #a8cce8;
-    --line:          rgba(255,255,255,0.08);
-    --line-strong:   rgba(255,255,255,0.14);
-    --shadow-sm:     0 1px 3px rgba(0,0,0,0.30);
-    --shadow-md:     0 4px 12px rgba(0,0,0,0.30);
-    --shadow-lg:     0 8px 24px rgba(0,0,0,0.40);
-    --paper:         #181b24;
-    --paper-line:    rgba(255,255,255,0.06);
-    --paper-margin:  rgba(180,80,80,0.30);
-    color-scheme: dark;
-  }
 }
 
 
@@ -6000,25 +5528,17 @@ details.settings-section.settings-accordion > .settings-accordion-trigger {
     document.head.appendChild(style);
   }
 
+  function _normalizeTheme(name) {
+    return THEMES.includes(name) ? name : DEFAULT_THEME;
+  }
+
   function _apply(name) {
-    document.documentElement.setAttribute('data-theme', name);
+    document.documentElement.setAttribute('data-theme', _normalizeTheme(name));
   }
 
   /* ── Theme metadata for swatch rendering ─────────────────────────────────── */
   const THEME_META = {
-    dayspring:   { label: 'Dayspring',    bg: '#faf9f6', accent: '#7eaacc', mode: 'light' },
-    meadow:      { label: 'Meadow',       bg: '#f6f7f4', accent: '#6ba88a', mode: 'light' },
-    lavender:    { label: 'Lavender',     bg: '#f8f6fb', accent: '#9b7ec8', mode: 'light' },
-    rosewood:    { label: 'Rosewood',     bg: '#fbf6f7', accent: '#c27d8f', mode: 'light' },
-    vesper:      { label: 'Vesper',       bg: '#0f1118', accent: '#8ab4d6', mode: 'dark'  },
-    evergreen:   { label: 'Evergreen',    bg: '#0e1510', accent: '#6ec496', mode: 'dark'  },
-    twilight:    { label: 'Twilight',     bg: '#12101a', accent: '#a088d0', mode: 'dark'  },
-    obsidian:    { label: 'Obsidian',     bg: '#000000', accent: '#88b8e0', mode: 'dark'  },
-    america:     { label: 'America',      bg: '#f7f8fb', accent: '#3c3b6e', mode: 'light' },
-    guatemala:   { label: 'Guatemala',    bg: '#f4f9fc', accent: '#4997d0', mode: 'light' },
-    mexico:      { label: 'Mexico',       bg: '#f5f8f4', accent: '#006847', mode: 'light' },
-    germany:     { label: 'Germany',      bg: '#14120e', accent: '#dd0000', mode: 'dark'  },
-    afghanistan: { label: 'Afghanistan',  bg: '#0e100c', accent: '#007a3d', mode: 'dark'  },
+    america: { label: 'America', bg: '#f7f8fb', accent: '#3c3b6e', mode: 'light' },
   };
 
   /* ─── PUBLIC API ──────────────────────────────────────────────────────────── */
@@ -6028,84 +5548,15 @@ details.settings-section.settings-accordion > .settings-accordion-trigger {
 
   /**
    * init()
-   * Injects CSS and applies the saved theme.
-   * Priority: user preference → admin global theme → localStorage → DEFAULT_THEME.
-   * The admin global theme acts as the church-wide default (base theme).
-   * Users can still override with their own preference.
+   * Injects CSS and enforces the single AMERICAN theme.
    * Call once on page load, before anything renders.
    */
   function init() {
     _inject();
     loadOverrides(); // Apply Interface Studio overrides immediately
-
-    // Optimistically apply localStorage theme immediately to avoid FOUC
-    const allowCustomStored = localStorage.getItem('flock_allow_custom_themes');
-    const customAllowed = allowCustomStored === 'TRUE';
-    const stored = localStorage.getItem(STORAGE_KEY);
-    const globalStored = localStorage.getItem(GLOBAL_THEME_KEY);
-    if (customAllowed && THEMES.includes(stored)) {
-      _apply(stored);  // user preference cached locally (only when custom themes allowed)
-    } else if (globalStored && globalStored !== 'default' && THEMES.includes(globalStored)) {
-      _apply(globalStored);  // admin base theme cached locally
-    } else {
-      _apply(DEFAULT_THEME);
-    }
-
-    // Fetch admin global theme + ALLOW_CUSTOM_THEMES + user preference asynchronously
-    var _fbMode = typeof UpperRoom !== 'undefined' && typeof Modules !== 'undefined' && Modules._isFirebaseComms && Modules._isFirebaseComms();
-    if (_fbMode) {
-      UpperRoom.getAppConfig({ key: 'GLOBAL_THEME' }).then(res => {
-        const val = (res && res.value) || 'default';
-        localStorage.setItem(GLOBAL_THEME_KEY, val);
-        if (val && val !== 'default' && THEMES.includes(val)) {
-          _apply(val);
-        }
-        return UpperRoom.getAppConfig({ key: 'ALLOW_CUSTOM_THEMES' }).then(acRes => {
-          const acVal = (acRes && acRes.value) || 'FALSE';
-          localStorage.setItem('flock_allow_custom_themes', acVal.toUpperCase());
-          if (acVal.toUpperCase() === 'TRUE') {
-            _syncUserPref();
-          }
-        }).catch(() => {});
-      }).catch(() => {});
-    } else if (typeof TheVine !== 'undefined' && TheVine.flock) {
-      if (TheVine.flock.config) {
-        TheVine.flock.config.get({ key: 'GLOBAL_THEME' }).then(res => {
-          const val = (res && (res.value || (res.data && res.data.value))) || 'default';
-          localStorage.setItem(GLOBAL_THEME_KEY, val);
-          if (val && val !== 'default' && THEMES.includes(val)) {
-            _apply(val);
-          }
-          return TheVine.flock.config.get({ key: 'ALLOW_CUSTOM_THEMES' }).then(acRes => {
-            const acVal = (acRes && (acRes.value || (acRes.data && acRes.data.value))) || 'FALSE';
-            localStorage.setItem('flock_allow_custom_themes', acVal.toUpperCase());
-            if (acVal.toUpperCase() === 'TRUE') {
-              _syncUserPref();
-            }
-          }).catch(() => {});
-        }).catch(() => {});
-      }
-    }
-  }
-
-  /** Sync theme from user's saved preferences (only called when custom themes are allowed). */
-  function _syncUserPref() {
-    var _fbMode = typeof UpperRoom !== 'undefined' && typeof Modules !== 'undefined' && Modules._isFirebaseComms && Modules._isFirebaseComms();
-    if (_fbMode) {
-      UpperRoom.getUserPreferences().then(prefs => {
-        if (prefs && THEMES.includes(prefs.theme)) {
-          _apply(prefs.theme);
-          localStorage.setItem(STORAGE_KEY, prefs.theme);
-        }
-      }).catch(() => {});
-    } else if (typeof TheVine !== 'undefined' && TheVine.flock && TheVine.flock.preferences) {
-      TheVine.flock.preferences.get().then(prefs => {
-        if (prefs && THEMES.includes(prefs.theme)) {
-          _apply(prefs.theme);
-          localStorage.setItem(STORAGE_KEY, prefs.theme);
-        }
-      }).catch(() => {});
-    }
+    _apply(DEFAULT_THEME);
+    localStorage.setItem(STORAGE_KEY, DEFAULT_THEME);
+    localStorage.setItem(GLOBAL_THEME_KEY, DEFAULT_THEME);
   }
 
   /**
@@ -6114,18 +5565,18 @@ details.settings-section.settings-accordion > .settings-accordion-trigger {
    * Saves to localStorage always; syncs to TheVine if authenticated.
    */
   function setTheme(name) {
-    if (!THEMES.includes(name)) {
-      console.warn(`Adornment.setTheme: unknown theme "${name}"`);
-      return;
+    const theme = _normalizeTheme(name);
+    if (name !== theme) {
+      console.warn(`Adornment.setTheme: unsupported theme "${name}" requested; using "${DEFAULT_THEME}"`);
     }
-    _apply(name);
-    localStorage.setItem(STORAGE_KEY, name);
+    _apply(theme);
+    localStorage.setItem(STORAGE_KEY, theme);
 
     var _fbMode = typeof UpperRoom !== 'undefined' && typeof Modules !== 'undefined' && Modules._isFirebaseComms && Modules._isFirebaseComms();
     if (_fbMode) {
-      UpperRoom.updateUserPreferences({ theme: name }).catch(() => {});
+      UpperRoom.updateUserPreferences({ theme }).catch(() => {});
     } else if (typeof TheVine !== 'undefined' && TheVine.flock && TheVine.flock.preferences) {
-      TheVine.flock.preferences.update({ theme: name }).catch(() => {});
+      TheVine.flock.preferences.update({ theme }).catch(() => {});
     }
   }
 
@@ -6134,7 +5585,7 @@ details.settings-section.settings-accordion > .settings-accordion-trigger {
    * Returns the currently active theme name from the <html> attribute.
    */
   function getTheme() {
-    return document.documentElement.getAttribute('data-theme') || DEFAULT_THEME;
+    return _normalizeTheme(document.documentElement.getAttribute('data-theme'));
   }
 
   /**
