@@ -2992,6 +2992,167 @@ body.embedded .topbar-brand { display: none !important; }
 .checklist li::before { content: '☐ '; color: var(--ink-muted); font-size: 1.2rem; }
 
 /* ══════════════════════════════════════════════════════════════════════════════
+   CARDS — Base card system
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+.card {
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: 1.25rem;
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.card:hover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--line-strong);
+}
+.card-flush  { padding: 0; }
+.card-header {
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--line);
+}
+.card-body { padding: 1.25rem; }
+.card-footer {
+  padding: 0.75rem 1.25rem;
+  border-top: 1px solid var(--line);
+  background: var(--bg-sunken);
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+}
+.card .card-icon  { font-size: 1.6rem; }
+.card .card-title { font-size: 0.92rem; }
+.card .card-desc  { font-size: 0.78rem; }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   NAVIGATION — Group labels and Tabernacle zone system
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+.nav-group { margin-bottom: 2px; }
+.nav-group-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--ink-faint);
+  padding: 10px 20px 4px;
+  user-select: none;
+}
+.nav-group-items { overflow: visible; }
+
+/* ── Tabernacle Zone accent bars on group labels ────────── */
+.nav-group[data-zone] .nav-group-label {
+  position: relative;
+  padding-left: 28px;
+}
+.nav-group[data-zone] .nav-group-label::before {
+  content: '';
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 60%;
+  border-radius: 2px;
+  transition: background 0.3s;
+}
+
+/* Gates — warm gold (entry, welcome) */
+.nav-group[data-zone="gates"] .nav-group-label::before { background: var(--gold, #d4b870); }
+.nav-group[data-zone="gates"] .nav-group-label         { color: var(--gold, #d4b870); }
+
+/* Courts — sage mint (service, community) */
+.nav-group[data-zone="courts"] .nav-group-label::before { background: var(--mint, #8cc5a2); }
+.nav-group[data-zone="courts"] .nav-group-label         { color: var(--mint, #8cc5a2); }
+
+/* Holy Place — soft lilac (growth, formation) */
+.nav-group[data-zone="holy-place"] .nav-group-label::before { background: var(--lilac, #b49bdb); }
+.nav-group[data-zone="holy-place"] .nav-group-label         { color: var(--lilac, #b49bdb); }
+
+/* Holy of Holies — luminous gold gradient (encounter, presence) */
+.nav-group[data-zone="holies"] .nav-group-label::before {
+  background: linear-gradient(180deg, var(--gold, #d4b870), var(--lilac, #b49bdb));
+  width: 5px;
+}
+.nav-group[data-zone="holies"] .nav-group-label {
+  color: var(--gold, #d4b870);
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+}
+.nav-group[data-zone="holies"] .nav-item { font-weight: 600; color: var(--gold, #d4b870); }
+.nav-group[data-zone="holies"] .nav-item:hover {
+  background: var(--gold-soft, rgba(212,184,112,0.08));
+  border-left-color: var(--gold, #d4b870);
+}
+
+/* Admin / personal zones — muted, recessive */
+.nav-group[data-zone="personal"] .nav-group-label,
+.nav-group[data-zone="admin"]    .nav-group-label {
+  color: var(--ink-faint);
+  font-size: 0.65rem;
+}
+.nav-group[data-zone="personal"] .nav-item,
+.nav-group[data-zone="admin"]    .nav-item {
+  font-size: 0.82rem;
+  color: var(--ink-muted);
+}
+
+/* ── Threshold dividers between spiritual zones ─────────── */
+.nav-threshold {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 20px 4px;
+  margin: 2px 0;
+  user-select: none;
+}
+.nav-threshold::before,
+.nav-threshold::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+  opacity: 0.5;
+}
+.nav-threshold-glyph {
+  font-size: 0.6rem;
+  color: var(--ink-faint);
+  opacity: 0.6;
+  letter-spacing: 0.3em;
+}
+
+/* ── Dashboard zone labels (mirror sidebar Tabernacle pattern) ── */
+.dash-zone-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--gold, #d4b870);
+  padding: 0 0 6px;
+  margin-top: 4px;
+}
+.dash-threshold {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 24px 0 8px;
+  user-select: none;
+}
+.dash-threshold::before,
+.dash-threshold::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+  opacity: 0.5;
+}
+.dash-threshold-glyph {
+  font-size: 0.6rem;
+  color: var(--ink-faint);
+  opacity: 0.6;
+  letter-spacing: 0.3em;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
    BUTTONS — Full system restored from fine_linen.js
    ══════════════════════════════════════════════════════════════════════════════ */
 
