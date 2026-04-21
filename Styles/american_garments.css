@@ -2991,6 +2991,210 @@ body.embedded .topbar-brand { display: none !important; }
 .checklist li { padding: 6px 0; font-size: 1.15rem; }
 .checklist li::before { content: '☐ '; color: var(--ink-muted); font-size: 1.2rem; }
 
-/* === End Unified Garments === */
+/* ══════════════════════════════════════════════════════════════════════════════
+   BUTTONS — Full system restored from fine_linen.js
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+  white-space: nowrap;
+  line-height: 1.4;
+  font-family: inherit;
+  text-decoration: none;
+}
+.btn:active { transform: scale(0.97); }
+
+.btn-primary {
+  background: var(--accent);
+  color: var(--ink-inverse);
+  border-color: var(--accent);
+}
+.btn-primary:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+.btn-secondary {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: transparent;
+}
+.btn-secondary:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--ink-muted);
+  border-color: var(--line);
+}
+.btn-ghost:hover {
+  background: var(--bg-hover);
+  color: var(--ink);
+  border-color: var(--line-strong);
+}
+
+.btn-gold {
+  background: var(--gold);
+  color: var(--ink-inverse);
+  border-color: var(--gold);
+}
+.btn-gold:hover {
+  filter: brightness(1.1);
+}
+
+.btn-danger {
+  background: var(--danger);
+  color: var(--ink-inverse);
+  border-color: var(--danger);
+}
+.btn-danger:hover {
+  background: var(--danger-soft);
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+.btn-success {
+  background: var(--success);
+  color: var(--ink-inverse);
+  border-color: var(--success);
+}
+.btn-success:hover { filter: brightness(1.1); }
+
+.btn-sm   { padding: 0.3rem 0.85rem; font-size: 0.75rem; }
+.btn-lg   { padding: 0.65rem 1.75rem; font-size: 1rem; }
+.btn-icon { padding: 0.5rem; border-radius: var(--radius-md); }
+.btn-full { width: 100%; }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   NAVIGATION — active state, gold favorites, contrast borders
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 20px;
+  font-size: 0.86rem;
+  color: var(--ink);
+  cursor: pointer;
+  transition: all 0.15s;
+  text-decoration: none;
+  border-left: 3px solid transparent;
+}
+.nav-item:hover { background: var(--bg-hover); color: var(--accent); }
+.nav-item.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-left-color: var(--accent);
+  font-weight: 600;
+}
+.nav-item .icon { font-size: 1rem; width: 20px; text-align: center; }
+
+/* Favorites section — gold accent */
+.nav-favorites {
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 6px;
+  margin-bottom: 4px;
+}
+.nav-favorites .nav-group-label { color: var(--gold); cursor: default; }
+.nav-favorites .nav-group-label::after { display: none; }
+.nav-favorites .nav-item .icon { color: var(--gold); }
+.nav-fav-empty {
+  padding: 6px 20px;
+  font-size: 0.75rem;
+  color: var(--ink-faint);
+  font-style: italic;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   PILLS — full color set
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+.pill-accent  { color: var(--accent);  background: var(--accent-soft);  border-color: var(--accent-soft); }
+.pill-mint    { color: var(--mint);    background: var(--mint-soft);    border-color: var(--mint-soft); }
+.pill-peach   { color: var(--peach);   background: var(--peach-soft);   border-color: var(--peach-soft); }
+.pill-lilac   { color: var(--lilac);   background: var(--lilac-soft);   border-color: var(--lilac-soft); }
+.pill-rose    { color: var(--rose);    background: var(--rose-soft);    border-color: var(--rose-soft); }
+.pill-gold    { color: var(--gold);    background: var(--gold-soft);    border-color: var(--gold-soft); }
+.pill-sky     { color: var(--sky);     background: var(--sky-soft);     border-color: var(--sky-soft); }
+.pill-danger  { color: var(--danger);  background: var(--danger-soft);  border-color: var(--danger-soft); }
+.pill-success { color: var(--success); background: var(--success-soft); border-color: var(--success-soft); }
+.pill-warning { color: var(--warning); background: var(--warning-soft); border-color: var(--warning-soft); }
+
+.pill-outline               { background: transparent; }
+.pill-outline.pill-accent   { border-color: var(--accent); }
+.pill-outline.pill-mint     { border-color: var(--mint); }
+.pill-outline.pill-peach    { border-color: var(--peach); }
+.pill-outline.pill-lilac    { border-color: var(--lilac); }
+.pill-outline.pill-rose     { border-color: var(--rose); }
+.pill-outline.pill-gold     { border-color: var(--gold); }
+.pill-outline.pill-sky      { border-color: var(--sky); }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   AVATARS — color variants including gold
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--ink-inverse);
+  background: var(--accent);
+  flex-shrink: 0;
+}
+.avatar-sm    { width: 28px; height: 28px; font-size: 0.65rem; }
+.avatar-md    { width: 36px; height: 36px; font-size: 0.8rem; }
+.avatar-lg    { width: 48px; height: 48px; font-size: 1rem; }
+.avatar-xl    { width: 64px; height: 64px; font-size: 1.25rem; }
+.avatar-mint  { background: var(--mint); }
+.avatar-peach { background: var(--peach); }
+.avatar-lilac { background: var(--lilac); }
+.avatar-rose  { background: var(--rose); }
+.avatar-gold  { background: var(--gold); }
+.avatar-sky   { background: var(--sky); }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   SKELETON LOADER — shimmer animation
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--bg-sunken);
+  border-radius: var(--radius-sm);
+}
+.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--bg-hover) 50%,
+    transparent 100%
+  );
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+}
+@keyframes skeleton-shimmer {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+.skeleton-line   { height: 0.875rem; margin-bottom: 0.5rem; }
+.skeleton-circle { border-radius: 50%; }
 
 /* === End Unified Garments === */
