@@ -12717,15 +12717,15 @@ const Modules = (() => {
       { name: 'churchName',  label: 'Church Full Name',                type: 'text',   required: true },
       { name: 'shortName',   label: 'Short Name \u2014 URL slug (e.g. TBC)', type: 'text',   required: true },
       { name: 'brandName',   label: 'Brand Name (shown in app)',        type: 'text',   value: 'FlockOS' },
-      { name: 'tagline',     label: 'Tagline',                          type: 'text',   value: 'Church Management & Ministry Platform' },
+      { name: 'tagline',     label: 'Tagline',                          type: 'text',   value: 'Ministry Operating System — Free. Offline-capable. Built for every church.' },
       { name: 'themeColor',  label: 'Theme Color',                      type: 'color',  value: '#e8a838' },
       { name: 'bgColor',     label: 'Background Color',                 type: 'color',  value: '#1a1a2e' },
       { name: 'databaseUrl', label: 'Database URL (GAS Web App)',       type: 'url',    value: '' },
       { name: 'photosUrl',   label: 'Photos Album URL',                 type: 'url',    value: '' },
       { name: 'adminEmail',  label: 'Admin / Notification Email',       type: 'email',  value: '' },
       { name: 'analyticsId', label: 'Google Analytics ID (G-\u2026)',   type: 'text',   value: '' },
-      { name: 'favicon',     label: 'Favicon filename',                 type: 'text',   value: 'FlockOS_ODCamo.png' },
-      { name: 'portrait',    label: 'Portrait / Logo filename',         type: 'text',   value: 'FlockOS_ODCamo.png' },
+      { name: 'favicon',     label: 'Favicon filename',                 type: 'text',   value: 'FlockOS_Orange.png' },
+      { name: 'portrait',    label: 'Portrait / Logo filename',         type: 'text',   value: 'FlockOS_Orange.png' },
       { name: 'version',     label: 'Version',                          type: 'text',   value: '1.0' },
     ], async data => {
       await TheVine.flock.church.create(data);
@@ -12794,7 +12794,7 @@ const Modules = (() => {
         churchName:      c.churchName      || churchId,
         churchShortId:   c.shortName       || churchId,
         brandName:       c.brandName       || c.churchName || '',
-        tagline:         c.tagline         || 'Church Management & Ministry Platform',
+        tagline:         c.tagline         || 'Ministry Operating System — Free. Offline-capable. Built for every church.',
         timezone:        data.timezone,
         adminEmail:      data.adminEmail   || c.adminEmail || '',
         themeColor:      c.themeColor      || '#e8a838',
@@ -12849,8 +12849,8 @@ const Modules = (() => {
       { name: 'photosUrl',   label: 'Photos Album URL',                 type: 'url',    value: c.photosUrl   || '' },
       { name: 'adminEmail',  label: 'Admin / Notification Email',       type: 'email',  value: c.adminEmail  || '' },
       { name: 'analyticsId', label: 'Google Analytics ID',              type: 'text',   value: c.analyticsId || '' },
-      { name: 'favicon',     label: 'Favicon filename',                 type: 'text',   value: c.favicon     || 'FlockOS_ODCamo.png' },
-      { name: 'portrait',    label: 'Portrait / Logo filename',         type: 'text',   value: c.portrait    || 'FlockOS_ODCamo.png' },
+      { name: 'favicon',     label: 'Favicon filename',                 type: 'text',   value: c.favicon     || 'FlockOS_Orange.png' },
+      { name: 'portrait',    label: 'Portrait / Logo filename',         type: 'text',   value: c.portrait    || 'FlockOS_Orange.png' },
       { name: 'version',     label: 'Version',                          type: 'text',   value: c.version     || '1.0' },
       { name: 'status',      label: 'Status',                           type: 'select', options: ['Active', 'Inactive', 'Locked', 'Suspended'], value: c.status || 'Active' },
       { name: '_controls', type: 'html', html:
@@ -21252,7 +21252,7 @@ const Modules = (() => {
   // Registry of all known FlockOS deployments — embedded at build time.
   var _networkChurches = [
     { id: 'flockos',   name: 'FlockOS',               shortName: 'FlockOS',    version: '3.0', firebaseProject: null,
-      databaseUrl: 'https://script.google.com/macros/s/AKfycbzR1z1qf0PEJK5Znm1IM-vE6ls4xjfVDjtqOVm7zBVeINS5PRByeOAfa6G3flwPQZTZiQ/exec' },
+      databaseUrl: 'https://script.google.com/macros/s/AKfycbx2pemG039LB609OlVY-OcqLWK75qRV2ZgZNyf4Oc7dGogCR2HC4C__iWUqlG9JfYLt/exec' },
     { id: 'trinity',   name: 'Trinity Baptist Church', shortName: 'TBC',        version: '3.0', firebaseProject: 'flockos-trinity',
       databaseUrl: 'https://script.google.com/macros/s/AKfycbwAFp0BQvt0DiDJBjzBrycMripfUHOkP0PwiB_DSXgGVezP_y8jCOVxZWweTp58gai7/exec' },
     { id: 'theforest', name: 'The Forest',             shortName: 'TheForest',  version: '3.0', firebaseProject: 'flockos-theforest',

@@ -139,7 +139,7 @@ const Trumpet = (() => {
     }
     if (Notification.permission !== 'granted') return null;
     return new Notification(title, {
-      icon: 'FlockOS/Images/FlockOS_OD.png',
+      icon: 'FlockOS/Images/FlockOS_Green.png',
       ...opts
     });
   }

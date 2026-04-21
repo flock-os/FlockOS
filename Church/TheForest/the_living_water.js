@@ -43,7 +43,7 @@ const APP_SHELL = [
   './FlockOS/Pages/bezalel.html',
 
   // ── Icons / images ──────────────────────────────────────────────────────
-  './FlockOS/Images/FlockOS_OD.png',
+  './FlockOS/Images/FlockOS_Green.png',
 
   // ── JS modules ───────────────────────────────────────────────
   './FlockOS/Scripts/firm_foundation.js',
