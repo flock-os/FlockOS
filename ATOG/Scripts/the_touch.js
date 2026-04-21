@@ -186,7 +186,7 @@
         _charts['book-genres'] = new Chart(ctx, {
             type: 'doughnut',
             data: { labels: labels, datasets: [{ data: data, backgroundColor: colors.slice(0, labels.length), borderWidth: 0 }] },
-            options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { color: '#94a3b8', padding: 16, font: { size: 11 } } } } }
+            options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { color: '#4a5578', padding: 16, font: { size: 11 } } } } }
         });
     }
 
@@ -386,8 +386,8 @@
             },
             options: {
                 responsive: true,
-                scales: { r: { min: 0, max: 5, ticks: { stepSize: 1, color: '#64748b', backdropColor: 'transparent' }, grid: { color: 'rgba(255,255,255,0.06)' }, angleLines: { color: 'rgba(255,255,255,0.06)' }, pointLabels: { color: '#94a3b8', font: { size: 11 } } } },
-                plugins: { legend: { labels: { color: '#94a3b8' } } }
+                scales: { r: { min: 0, max: 5, ticks: { stepSize: 1, color: '#4a5578', backdropColor: 'transparent' }, grid: { color: 'rgba(60,59,110,0.1)' }, angleLines: { color: 'rgba(60,59,110,0.1)' }, pointLabels: { color: '#1b264f', font: { size: 12, weight: '600' } } } },
+                plugins: { legend: { labels: { color: '#1b264f' } } }
             }
         });
         ctx.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -472,14 +472,13 @@
             },
             options: {
                 responsive: true,
-                scales: { r: { min: 0, max: 5, ticks: { stepSize: 1, color: '#64748b', backdropColor: 'transparent' }, grid: { color: 'rgba(255,255,255,0.06)' }, angleLines: { color: 'rgba(255,255,255,0.06)' }, pointLabels: { color: '#94a3b8', font: { size: 11 } } } },
-                plugins: { legend: { labels: { color: '#94a3b8' } } }
+                scales: { r: { min: 0, max: 5, ticks: { stepSize: 1, color: '#4a5578', backdropColor: 'transparent' }, grid: { color: 'rgba(60,59,110,0.1)' }, angleLines: { color: 'rgba(60,59,110,0.1)' }, pointLabels: { color: '#1b264f', font: { size: 12, weight: '600' } } } },
+                plugins: { legend: { labels: { color: '#1b264f' } } }
             }
         });
         ctx.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
 
-    /* ── 8. BIBLE QUIZ ───────────────────────────────── */
     renderers.quiz = function (el) {
         Gospel.quiz().then(function (rows) {
             var html = sectionHead('Bible Quiz', 'Test your knowledge of Scripture across categories and difficulty levels.');
@@ -707,3 +706,23 @@
     };
 
 })();
+console.log('[the_touch.js] Loaded');
+
+// Wrap main renderers with logging
+const _oldInitInvitations = typeof initATOGInvitations === 'function' ? initATOGInvitations : null;
+window.initATOGInvitations = function() {
+  console.log('[the_touch.js] initATOGInvitations called');
+  if (_oldInitInvitations) return _oldInitInvitations();
+};
+
+const _oldInitIAM = typeof initATOGIAM === 'function' ? initATOGIAM : null;
+window.initATOGIAM = function() {
+  console.log('[the_touch.js] initATOGIAM called');
+  if (_oldInitIAM) return _oldInitIAM();
+};
+
+const _oldInitTimeline = typeof initATOGTimeline === 'function' ? initATOGTimeline : null;
+window.initATOGTimeline = function() {
+  console.log('[the_touch.js] initATOGTimeline called');
+  if (_oldInitTimeline) return _oldInitTimeline();
+};

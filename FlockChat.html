@@ -14,11 +14,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-  <!-- Theme CSS (external stylesheet) -->
+  <!-- FlockChat Styles -->
   <link rel="stylesheet" href="./FlockChat/Styles/the_word.css">
-
-  <!-- Theme Engine (provides CSS variables based on data-theme attribute) -->
-  <script src="./FlockOS/Scripts/fine_linen.js"></script>
 </head>
 <body class="auth-open">
 
@@ -36,6 +33,7 @@
       <img src="./FlockChat/Images/FlockChat_AppIcon.png" alt="FlockChat" style="width:100%;max-width:280px;height:auto;display:block;margin:0 auto 6px;">
       <p id="auth-subtitle">Sign in to your workspace</p>
     </div>
+    <a href="https://flock-os.github.io/FlockOS/" class="auth-suite-link">← Back to Flock Suite</a>
     <div class="auth-error" id="auth-error"></div>
     <div class="auth-field">
       <label>Email</label>
@@ -65,8 +63,8 @@
 
   <!-- Top Bar -->
   <div class="topbar">
-    <button class="topbar-icon-btn" id="btn-sidebar-toggle" title="Menu" style="font-size:1.4rem;padding:6px 12px;line-height:1">☰</button>
     <div class="topbar-brand">
+      <button class="topbar-icon-btn" id="btn-sidebar-toggle" title="Menu" style="font-size:1.4rem;padding:6px 8px;line-height:1;margin-right:6px">☰</button>
       <span class="wordmark">FlockChat</span>
       <span class="build-tag">Comms</span>
     </div>
@@ -77,6 +75,7 @@
     </div>
 
     <div class="topbar-actions">
+      <a href="https://flock-os.github.io/FlockOS/" class="topbar-icon-btn suite-link" title="Back to Flock Suite">← Flock Suite</a>
       <button class="topbar-icon-btn" id="btn-msg-search" title="Search messages (Ctrl+F)" style="display:none">🔍</button>
       <button class="topbar-icon-btn" id="btn-details-toggle" title="Channel Details">
         ☰ Details

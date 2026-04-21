@@ -1,7 +1,7 @@
 /* ═══════════════════════════════════════════════════════════════════════
  *  the_word.css  —  FlockChat Styles (America theme)
  *  "The Word" = messaging that connects the Flock.
- *  Chat-specific layout & components. Uses CSS variables from fine_linen.js
+ *  Self-contained — all variables, layout & components defined here.
  * ═══════════════════════════════════════════════════════════════════════ */
 
 /* ── Reset ────────────────────────────────────────────────────────────── */
@@ -21,10 +21,32 @@ body.auth-open {
   height: auto;
 }
 :root {
-  --bg-active: var(--accent-soft, #edf0f6);
+  /* America theme fallbacks — ensures correct rendering before fine_linen.js applies data-theme */
+  --bg:            #f7f8fb;
+  --bg-raised:     #ffffff;
+  --bg-sunken:     #edf0f6;
+  --bg-hover:      #f0f3f9;
+  --ink:           #1b264f;
+  --ink-muted:     #4a5578;
+  --ink-faint:     #8890a5;
+  --accent:        #3c3b6e;
+  --accent-soft:   rgba(60,59,110,0.12);
+  --gold:          #c5a44e;
+  --gold-soft:     rgba(197,164,78,0.12);
+  --danger:        #b22234;
+  --danger-soft:   rgba(178,34,52,0.10);
+  --success:       #3d7a4f;
+  --line:          #d4d9e6;
+  --line-strong:   #bec5d6;
+  --shadow-sm:     0 1px 3px rgba(27,38,79,0.06);
+  --shadow-md:     0 4px 12px rgba(27,38,79,0.06);
+  --shadow-lg:     0 8px 24px rgba(27,38,79,0.08);
+  --bg-active:     rgba(60,59,110,0.12);
+  --sidebar-w:     240px;
+  --topbar-h:      52px;
   --online: #2ea043;
-  --away: #d29922;
-  --dnd: #cf222e;
+  --away:   #d29922;
+  --dnd:    #cf222e;
 }
 button { font-family: inherit; cursor: pointer; }
 input, textarea { font-family: inherit; }
@@ -84,9 +106,9 @@ a:hover { text-decoration: underline; }
 }
 .auth-field input {
   width: 100%;
-  background: #f0f3f9;
-  border: 1.5px solid #bec5d6;
-    box-shadow: 0 1px 2px rgba(27,38,79,0.03);
+  background: var(--bg-sunken);
+  border: 1.5px solid var(--line-strong);
+  box-shadow: 0 1px 2px rgba(27,38,79,0.03);
   border-radius: 8px;
   padding: 10px 14px;
   color: var(--ink);
@@ -96,7 +118,7 @@ a:hover { text-decoration: underline; }
 }
 .auth-field input:focus { border-color: var(--accent); }
 .auth-field input::placeholder {
-  color: #4a5578;
+  color: var(--ink-muted);
   opacity: 1;
 }
 .auth-btn {
@@ -120,9 +142,19 @@ a:hover { text-decoration: underline; }
   color: var(--ink-muted);
 }
 .auth-toggle a { color: var(--accent); cursor: pointer; }
+.auth-suite-link {
+  display: block;
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--ink-muted);
+  margin-bottom: 20px;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+.auth-suite-link:hover { color: var(--accent); text-decoration: none; }
 .auth-error {
-  background: rgba(239,68,68,0.1);
-  border: 1px solid rgba(239,68,68,0.3);
+  background: var(--danger-soft);
+  border: 1px solid var(--danger);
   border-radius: 8px;
   padding: 10px 14px;
   font-size: 0.82rem;
@@ -146,24 +178,22 @@ a:hover { text-decoration: underline; }
   border-bottom: 1px solid var(--line);
   display: flex;
   align-items: center;
-  padding: 0 16px 0 0;
+  padding: 0 20px;
   flex-shrink: 0;
   z-index: 50;
 }
 .topbar-brand {
-  width: var(--sidebar-w);
   display: flex;
   align-items: center;
-  padding: 0 16px;
-  border-right: 1px solid var(--line);
-  height: 100%;
-  flex-shrink: 0;
+  margin-right: auto;
+  gap: 0;
 }
 .topbar-brand .wordmark {
   font-size: 1.1rem;
   font-weight: 700;
   color: var(--accent);
   letter-spacing: 0.04em;
+  cursor: pointer;
 }
 .topbar-brand .build-tag {
   font-size: 0.8rem;
@@ -171,8 +201,10 @@ a:hover { text-decoration: underline; }
   font-weight: 400;
   margin-left: 8px;
 }
+#btn-sidebar-toggle {
+  display: none;
+}
 .topbar-context {
-  flex: 1;
   padding: 0 16px;
   display: flex;
   align-items: center;
@@ -221,6 +253,20 @@ a:hover { text-decoration: underline; }
   border-color: var(--line);
 }
 .topbar-icon-btn.active { color: var(--accent); }
+.suite-link {
+  color: var(--ink-muted);
+  font-size: 0.8rem;
+  text-decoration: none;
+  padding: 5px 14px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+.suite-link:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  text-decoration: none;
+}
 .user-pill {
   display: flex;
   align-items: center;
@@ -766,9 +812,9 @@ textarea#composer-input::placeholder { color: var(--ink-faint); }
 .user-mgmt-email { font-size: 0.78rem; color: var(--ink-muted); }
 .user-mgmt-role { font-size: 0.8rem; padding: 4px 8px; border-radius: 6px;
   border: 1px solid var(--line); background: var(--bg); color: var(--ink); cursor: pointer; }
-.user-mgmt-remove { background: none; border: none; color: #e57373; font-size: 1rem;
+.user-mgmt-remove { background: none; border: none; color: var(--danger); font-size: 1rem;
   cursor: pointer; padding: 4px 6px; border-radius: 6px; }
-.user-mgmt-remove:hover { background: rgba(229,115,115,.15); }
+.user-mgmt-remove:hover { background: var(--danger-soft); }
 .btn-secondary {
   background: none;
   border: 1px solid var(--line);
@@ -969,14 +1015,9 @@ textarea#composer-input::placeholder { color: var(--ink-faint); }
   }
 
   /* ── Topbar ── */
-  .topbar-brand {
-    width: auto;
-    border-right: none;
-    padding: 0 12px;
-    gap: 6px;
-  }
-  .topbar-brand img { height: 24px; }
+  #btn-sidebar-toggle { display: flex; }
   .topbar-brand .build-tag { display: none; }
+  .topbar { padding: 0 12px; }
   .topbar-context { padding: 0 8px; min-width: 0; }
   .topbar-channel-desc { display: none; }
   .topbar-icon-btn { padding: 6px 8px; font-size: 0.8rem; }
