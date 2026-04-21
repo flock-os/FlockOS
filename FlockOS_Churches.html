@@ -11,11 +11,11 @@
   </script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>FlockOS — Select Your Church</title>
+  <title>FlockOS — Deployments</title>
   <link rel="icon" type="image/png" href="FlockOS/Images/FlockOS_AppIcon.png">
   <link rel="apple-touch-icon" href="FlockOS/Images/FlockOS_AppIcon.png">
   <meta name="theme-color" content="#f7f8fb">
-  <meta name="description" content="FlockOS — Select your church deployment.">
+  <meta name="description" content="FlockOS — All church deployments.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,400;0,700;1,400&family=Inter:wght@400;500;600;700&family=Cinzel:wght@400;600&display=swap" rel="stylesheet">
@@ -25,7 +25,6 @@
     :root {
       --bg:           #f7f8fb;
       --bg-raised:    #ffffff;
-      --bg-hover:     #f0f3f9;
       --ink:          #1b264f;
       --ink-muted:    #4a5578;
       --ink-faint:    #8890a5;
@@ -33,19 +32,19 @@
       --accent-soft:  rgba(60,59,110,0.10);
       --gold:         #c5a44e;
       --gold-soft:    rgba(197,164,78,0.12);
-      --line:         rgba(60,59,110,0.10);
-      --line-strong:  rgba(60,59,110,0.18);
+      --line:         rgba(60,59,110,0.15);
+      --line-strong:  rgba(60,59,110,0.22);
       --shadow-sm:    0 1px 4px rgba(27,38,79,0.07);
       --shadow-md:    0 4px 20px rgba(27,38,79,0.10);
       --shadow-lg:    0 8px 40px rgba(27,38,79,0.13);
-      --radius:       1.25rem;
+      --radius:       1.1rem;
+      --connector:    rgba(60,59,110,0.22);
       --font-sans:    'Inter', system-ui, -apple-system, sans-serif;
       --font-serif:   'Merriweather', Georgia, serif;
       --font-display: 'Cinzel', serif;
     }
 
     html, body {
-      height: 100%;
       background: var(--bg);
       color: var(--ink);
       font-family: var(--font-sans);
@@ -53,14 +52,13 @@
       color-scheme: light;
     }
 
-    /* ── Layout ── */
-    .launcher {
+    /* ── Page wrapper ── */
+    .page {
       min-height: 100vh;
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
-      padding: 3rem 1.5rem;
+      padding: 2.5rem 1.5rem 4rem;
     }
 
     /* ── Back link ── */
@@ -74,13 +72,13 @@
       color: var(--ink-muted);
       text-decoration: none;
       letter-spacing: 0.02em;
-      margin-bottom: 2rem;
+      margin-bottom: 2.5rem;
       transition: color 0.15s;
     }
     .back-link:hover { color: var(--accent); }
-    .back-link svg { width: 14px; height: 14px; }
+    .back-link svg { width: 14px; height: 14px; flex-shrink: 0; }
 
-    /* ── Header ── */
+    /* ── Page header ── */
     .header {
       text-align: center;
       margin-bottom: 3rem;
@@ -98,117 +96,208 @@
       border: 1px solid rgba(197,164,78,0.22);
       border-radius: 999px;
       padding: 0.3rem 1rem;
-      margin-bottom: 1.25rem;
+      margin-bottom: 1.1rem;
     }
     .header h1 {
       font-family: var(--font-display);
-      font-size: clamp(1.6rem, 4vw, 2.4rem);
+      font-size: clamp(1.5rem, 3.5vw, 2.2rem);
       font-weight: 600;
       color: var(--accent);
       letter-spacing: 0.02em;
-      margin-bottom: 0.6rem;
+      margin-bottom: 0.5rem;
     }
     .header p {
-      font-size: 1rem;
+      font-size: 0.95rem;
       color: var(--ink-muted);
-      max-width: 440px;
+      max-width: 420px;
       margin: 0 auto;
       line-height: 1.7;
     }
     .accent-bar {
-      width: 48px;
-      height: 3px;
+      width: 44px; height: 3px;
       background: linear-gradient(90deg, var(--gold), #6ea9d7);
       border-radius: 2px;
-      margin: 1rem auto 0;
+      margin: 0.9rem auto 0;
     }
 
-    /* ── Church Grid ── */
-    .church-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    /* ════════════════════════════════════════
+       ORG CHART
+    ════════════════════════════════════════ */
+    .org-chart {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+      max-width: 1000px;
+    }
+
+    /* ── Root node row ── */
+    .org-root {
+      display: flex;
+      justify-content: center;
+      width: 100%;
+    }
+
+    /* Vertical stem down from root card */
+    .org-stem {
+      width: 2px;
+      height: 44px;
+      background: var(--connector);
+      margin: 0 auto;
+      flex-shrink: 0;
+    }
+
+    /* Horizontal bar connecting children */
+    .org-branch-row {
+      position: relative;
+      display: flex;
+      justify-content: center;
       gap: 1.25rem;
       width: 100%;
-      max-width: 900px;
     }
 
-    /* ── Church Card ── */
-    .church-card {
+    /* The horizontal line spanning all children */
+    .org-branch-row::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: calc(50% - (var(--branch-span) / 2));
+      width: var(--branch-span);
+      height: 2px;
+      background: var(--connector);
+    }
+
+    /* Each child column: vertical drop + card */
+    .org-child {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      flex: 1;
+      min-width: 160px;
+      max-width: 210px;
+    }
+
+    .org-child-stem {
+      width: 2px;
+      height: 36px;
+      background: var(--connector);
+      flex-shrink: 0;
+    }
+
+    /* ── Cards ── */
+    .node-card {
       display: flex;
       flex-direction: column;
       align-items: center;
       text-align: center;
-      padding: 2.25rem 1.75rem 2rem;
+      padding: 1.75rem 1.25rem 1.5rem;
       background: var(--bg-raised);
       border: 1px solid var(--line);
       border-radius: var(--radius);
       box-shadow: var(--shadow-sm);
       text-decoration: none;
       color: inherit;
+      width: 100%;
       transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
       cursor: pointer;
     }
-    .church-card:hover {
+    .node-card:hover {
       transform: translateY(-4px);
       box-shadow: var(--shadow-lg);
       border-color: var(--line-strong);
     }
-    .church-card:active {
+    .node-card:active {
       transform: translateY(-1px);
       box-shadow: var(--shadow-md);
     }
 
-    /* Icon wrapper — colored circle gives white icon contrast */
-    .church-icon-wrap {
-      width: 88px;
-      height: 88px;
-      border-radius: 22px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin-bottom: 1.25rem;
-      box-shadow: var(--shadow-sm);
-      overflow: hidden;
+    /* Root card is slightly larger */
+    .node-card--root {
+      padding: 2rem 2rem 1.75rem;
+      max-width: 260px;
+      border-color: var(--line-strong);
+      box-shadow: var(--shadow-md);
     }
-    .church-icon-wrap img {
-      width: 88px;
-      height: 88px;
-      object-fit: cover;
-      border-radius: 22px;
+    .node-card--root .node-icon-wrap {
+      width: 96px;
+      height: 96px;
+    }
+    .node-card--root .node-icon-wrap img {
+      width: 96px;
+      height: 96px;
+    }
+    .node-card--root .node-name {
+      font-size: 1.15rem;
     }
 
-    .church-name {
-      font-size: 1.05rem;
+    .node-icon-wrap {
+      width: 72px;
+      height: 72px;
+      border-radius: 18px;
+      overflow: hidden;
+      margin-bottom: 1rem;
+      box-shadow: var(--shadow-sm);
+      flex-shrink: 0;
+    }
+    .node-icon-wrap img {
+      width: 72px;
+      height: 72px;
+      object-fit: cover;
+      border-radius: 18px;
+      display: block;
+    }
+
+    .node-name {
+      font-size: 0.95rem;
       font-weight: 700;
       color: var(--ink);
-      margin-bottom: 0.4rem;
+      margin-bottom: 0.3rem;
       letter-spacing: 0.01em;
     }
-    .church-short {
-      font-size: 0.75rem;
+    .node-short {
+      font-size: 0.68rem;
       font-weight: 600;
       letter-spacing: 0.1em;
       text-transform: uppercase;
       color: var(--ink-faint);
-      margin-bottom: 0.75rem;
+      margin-bottom: 0.6rem;
     }
-    .church-desc {
-      font-size: 0.85rem;
+    .node-desc {
+      font-size: 0.78rem;
       color: var(--ink-muted);
-      line-height: 1.65;
+      line-height: 1.6;
     }
-    .church-badge {
-      margin-top: 1.1rem;
-      font-size: 0.7rem;
+    .node-badge {
+      margin-top: 0.9rem;
+      font-size: 0.65rem;
       font-weight: 600;
       letter-spacing: 0.08em;
       text-transform: uppercase;
-      padding: 0.25rem 0.85rem;
+      padding: 0.22rem 0.75rem;
       border-radius: 999px;
-      border: 1px solid;
+      border: 1px solid rgba(60,59,110,0.18);
       color: var(--accent);
       background: var(--accent-soft);
-      border-color: rgba(60,59,110,0.18);
+    }
+    .node-badge--root {
+      color: var(--gold);
+      background: var(--gold-soft);
+      border-color: rgba(197,164,78,0.28);
+    }
+
+    /* ── Responsive: stack on small screens ── */
+    @media (max-width: 640px) {
+      .org-branch-row {
+        flex-direction: column;
+        align-items: center;
+        gap: 0;
+      }
+      .org-branch-row::before { display: none; }
+      .org-child {
+        max-width: 280px;
+        width: 100%;
+      }
+      .org-child-stem { height: 24px; }
     }
 
     /* ── Footer ── */
@@ -226,8 +315,6 @@
     .footer small {
       display: block;
       margin-top: 0.5rem;
-      font-family: var(--font-sans);
-      font-style: normal;
       font-size: 0.75rem;
       color: var(--ink-faint);
     }
@@ -235,7 +322,7 @@
 </head>
 <body>
 
-  <main class="launcher">
+  <main class="page">
 
     <a class="back-link" href="index.html">
       <svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -246,58 +333,95 @@
 
     <header class="header">
       <div class="header-eyebrow">&#9670;&nbsp; FlockOS</div>
-      <h1>Select Your Church</h1>
-      <p>Choose a church deployment below to open FlockOS for that community.</p>
+      <h1>Deployments</h1>
+      <p>The master build at the top, with each church deployment branching below.</p>
       <div class="accent-bar"></div>
     </header>
 
-    <div class="church-grid">
+    <!-- ══════════════ ORG CHART ══════════════ -->
+    <div class="org-chart">
 
-      <!-- FlockOS (Demo / Generic) -->
-      <a class="church-card" href="Church/FlockOS/index.html">
-        <div class="church-icon-wrap">
-          <img src="FlockOS/Images/FlockOS_Pink.png" alt="FlockOS Demo">
-        </div>
-        <div class="church-name">FlockOS Demo</div>
-        <div class="church-short">Demo</div>
-        <p class="church-desc">The base FlockOS deployment — ministry operating system for any church.</p>
-        <span class="church-badge">Open App</span>
-      </a>
+      <!-- ROOT NODE -->
+      <div class="org-root">
+        <a class="node-card node-card--root" href="FlockOS.html">
+          <div class="node-icon-wrap">
+            <img src="FlockOS/Images/FlockOS_AppIcon.png" alt="FlockOS">
+          </div>
+          <div class="node-name">FlockOS</div>
+          <div class="node-short">Master Build</div>
+          <p class="node-desc">The root source deployment — the canonical FlockOS build.</p>
+          <span class="node-badge node-badge--root">Open App</span>
+        </a>
+      </div>
 
-      <!-- The Wellspring -->
-      <a class="church-card" href="Church/GAS/index.html">
-        <div class="church-icon-wrap">
-          <img src="FlockOS/Images/FlockOS_Orange.png" alt="The Wellspring">
-        </div>
-        <div class="church-name">The Wellspring</div>
-        <div class="church-short">GAS</div>
-        <p class="church-desc">FlockOS deployment for The Wellspring church community.</p>
-        <span class="church-badge">Open App</span>
-      </a>
+      <!-- Stem from root down to branch bar -->
+      <div class="org-stem"></div>
 
-      <!-- Trinity Baptist Church -->
-      <a class="church-card" href="Church/TBC/index.html">
-        <div class="church-icon-wrap" style="background: #1a1a2e;">
-          <img src="FlockOS/Images/FlockOS_White.png" alt="Trinity Baptist Church">
-        </div>
-        <div class="church-name">Trinity Baptist Church</div>
-        <div class="church-short">TBC</div>
-        <p class="church-desc">FlockOS deployment for Trinity Baptist Church.</p>
-        <span class="church-badge">Open App</span>
-      </a>
+      <!-- CHILDREN ROW -->
+      <!-- --branch-span controls the horizontal connector width; kept in CSS calc below via JS -->
+      <div class="org-branch-row" id="branchRow">
 
-      <!-- The Forest -->
-      <a class="church-card" href="Church/TheForest/index.html">
-        <div class="church-icon-wrap">
-          <img src="FlockOS/Images/FlockOS_Green.png" alt="The Forest">
+        <!-- FlockOS Demo -->
+        <div class="org-child">
+          <div class="org-child-stem"></div>
+          <a class="node-card" href="Church/FlockOS/index.html">
+            <div class="node-icon-wrap">
+              <img src="FlockOS/Images/FlockOS_Pink.png" alt="FlockOS Demo">
+            </div>
+            <div class="node-name">FlockOS Demo</div>
+            <div class="node-short">Demo</div>
+            <p class="node-desc">Base deployment — ministry OS for any church.</p>
+            <span class="node-badge">Open App</span>
+          </a>
         </div>
-        <div class="church-name">The Forest</div>
-        <div class="church-short">TheForest</div>
-        <p class="church-desc">FlockOS deployment for The Forest community.</p>
-        <span class="church-badge">Open App</span>
-      </a>
+
+        <!-- The Wellspring -->
+        <div class="org-child">
+          <div class="org-child-stem"></div>
+          <a class="node-card" href="Church/GAS/index.html">
+            <div class="node-icon-wrap">
+              <img src="FlockOS/Images/FlockOS_Orange.png" alt="The Wellspring">
+            </div>
+            <div class="node-name">The Wellspring</div>
+            <div class="node-short">GAS</div>
+            <p class="node-desc">FlockOS for The Wellspring community.</p>
+            <span class="node-badge">Open App</span>
+          </a>
+        </div>
+
+        <!-- Trinity Baptist Church -->
+        <div class="org-child">
+          <div class="org-child-stem"></div>
+          <a class="node-card" href="Church/TBC/index.html">
+            <div class="node-icon-wrap" style="background:#1a1a2e;">
+              <img src="FlockOS/Images/FlockOS_White.png" alt="Trinity Baptist Church">
+            </div>
+            <div class="node-name">Trinity Baptist Church</div>
+            <div class="node-short">TBC</div>
+            <p class="node-desc">FlockOS for Trinity Baptist Church.</p>
+            <span class="node-badge">Open App</span>
+          </a>
+        </div>
+
+        <!-- The Forest -->
+        <div class="org-child">
+          <div class="org-child-stem"></div>
+          <a class="node-card" href="Church/TheForest/index.html">
+            <div class="node-icon-wrap">
+              <img src="FlockOS/Images/FlockOS_Green.png" alt="The Forest">
+            </div>
+            <div class="node-name">The Forest</div>
+            <div class="node-short">TheForest</div>
+            <p class="node-desc">FlockOS for The Forest community.</p>
+            <span class="node-badge">Open App</span>
+          </a>
+        </div>
+
+      </div>
+      <!-- /CHILDREN ROW -->
 
     </div>
+    <!-- /ORG CHART -->
 
     <footer class="footer">
       <p>&ldquo;Go therefore and make disciples of all nations&hellip;&rdquo; &mdash;&nbsp;Matthew 28:19</p>
@@ -305,6 +429,22 @@
     </footer>
 
   </main>
+
+  <script>
+    // Dynamically set the horizontal connector span to match the actual branch row width
+    function updateBranchSpan() {
+      const row = document.getElementById('branchRow');
+      if (!row) return;
+      const children = Array.from(row.querySelectorAll('.org-child'));
+      if (children.length < 2) return;
+      const first = children[0].getBoundingClientRect();
+      const last  = children[children.length - 1].getBoundingClientRect();
+      const span  = (last.left + last.width / 2) - (first.left + first.width / 2);
+      row.style.setProperty('--branch-span', Math.max(0, span) + 'px');
+    }
+    window.addEventListener('load', updateBranchSpan);
+    window.addEventListener('resize', updateBranchSpan);
+  </script>
 
 </body>
 </html>

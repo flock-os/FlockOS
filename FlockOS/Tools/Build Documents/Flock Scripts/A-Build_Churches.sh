@@ -26,7 +26,7 @@ REPO_ROOT="$(cd "$(dirname "$0")/../../../.." && pwd)"
 CONFIGS_DIR="$REPO_ROOT/FlockOS/Tools/Flock Deployments"
 CHURCH_DIR="$REPO_ROOT/Church"
 SOURCE_DIR="$REPO_ROOT/FlockOS"
-ROOT_INDEX="$REPO_ROOT/index.html"
+ROOT_INDEX="$REPO_ROOT/FlockOS.html"
 ROOT_MANIFEST="$REPO_ROOT/manifest.json"
 ROOT_SW="$REPO_ROOT/the_living_water.js"
 
@@ -59,7 +59,7 @@ CRITICAL_FILES=(
   "$SOURCE_DIR/Scripts/the_living_water.js"
   "$SOURCE_DIR/Scripts/the_upper_room.js"
   "$SOURCE_DIR/Scripts/the_life.js"
-  "$ROOT_INDEX"
+  "$REPO_ROOT/FlockOS.html"
   "$ROOT_MANIFEST"
   "$ROOT_SW"
 )
