@@ -1,40 +1,46 @@
 /*
- * FlockOS Learning Hub palette — overrides America theme defaults below.
- * These variables give ATOG the same high-contrast dark look as FlockOS.
+ * America theme fallback variables — mirror what fine_linen.js injects for [data-theme="america"].
+ * These are the defaults used before fine_linen.js runs (prevents flash of wrong theme).
+ * fine_linen.js will override these at runtime via [data-theme] on <html>.
  */
 :root {
     --sidebar-w:     240px;
     --topbar-h:      56px;
 
-    /* FlockOS Learning Hub palette (dark, high-contrast) */
-    --bg:            #1a1a2e;
-    --bg-raised:     #16213e;
-    --bg-sunken:     #181c2f;
-    --bg-hover:      #23244a;
-    --surface:       #23244a;
+    /* America — Old Glory Red, White & Blue (light theme) */
+    --bg:            #f7f8fb;
+    --bg-raised:     #ffffff;
+    --bg-sunken:     #edf0f6;
+    --bg-hover:      #f0f3f9;
+    --surface:       #edf0f6;
 
-    --ink:           #e0e0e0;
-    --ink-muted:     #b0b8cc;
+    --ink:           #1b264f;
+    --ink-muted:     #4a5578;
     --ink-faint:     #8890a5;
-    --ink-inverse:   #1a1a2e;
+    --ink-inverse:   #f7f8fb;
 
-    --accent:        #e8a838;
-    --accent-hover:  #c47a0a;
-    --accent-soft:   rgba(232,168,56,0.12);
+    --accent:        #3c3b6e;
+    --accent-hover:  #2d2c55;
+    --accent-soft:   rgba(60,59,110,0.12);
 
-    --gold:          #d4b870;
-    --gold-soft:     rgba(212,184,112,0.12);
-    --mint-soft:     rgba(126,170,204,0.12);
-    --danger-soft:   rgba(239,68,68,0.10);
+    --gold:          #c5a44e;
+    --gold-soft:     rgba(197,164,78,0.12);
+    --mint:          #6ea9d7;
+    --mint-soft:     rgba(110,169,215,0.12);
+    --danger:        #b22234;
+    --danger-soft:   rgba(178,34,52,0.10);
+    --success:       #3d7a4f;
+    --warning:       #b58d2a;
 
-    --line:          rgba(224,224,224,0.10);
-    --line-strong:   rgba(224,224,224,0.18);
+    --line:          rgba(232,168,56,0.15);
+    --line-strong:   rgba(232,168,56,0.25);
 
-    --shadow-sm:     0 1px 3px rgba(26,26,46,0.08);
-    --shadow-md:     0 8px 30px rgba(0,0,0,0.35);
+    --shadow-sm:     0 1px 3px rgba(27,38,79,0.08);
+    --shadow-md:     0 4px 12px rgba(27,38,79,0.10);
+    --shadow-lg:     0 8px 24px rgba(27,38,79,0.12);
 
-    --radius-sm:     0.375rem;
-    --radius:        0.5rem;
+    --radius-sm:     6px;
+    --radius-md:     12px;
     --radius-lg:     0.75rem;
     --radius-xl:     1rem;
     --radius-2xl:    1.25rem;
@@ -65,9 +71,9 @@
 }
 
 /* ── Badge overrides ─────────────────────────────────────────────── */
-.badge-success { background: rgba(74,222,128,0.12); color: #4ade80; }
-.badge-warn    { background: rgba(251,191,36,0.12);  color: #fbbf24; }
-.badge-danger  { background: rgba(248,113,113,0.12); color: #ef4444; }
+.badge-success { background: rgba(61,122,79,0.12);   color: var(--success, #3d7a4f); }
+.badge-warn    { background: rgba(181,141,42,0.12);  color: var(--warning, #b58d2a); }
+.badge-danger  { background: var(--danger-soft);     color: var(--danger, #b22234); }
 .badge-info    { background: var(--accent-soft);     color: var(--accent); }
 
 /* ═══════════════════════════════════════════════════════════════════════
