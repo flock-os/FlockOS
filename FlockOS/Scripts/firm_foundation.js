@@ -52,10 +52,14 @@ const Nehemiah = (() => {
   const LOGIN_PAGE  = _base + 'the_wall.html';
   const APP_PAGE    = _base + 'the_good_shepherd.html';
   // _paths.root points to the FlockOS directory; go up one level to deployment root.
-  const LAUNCHER_PAGE = new URL(
-    _paths.root ? (_paths.root + '../index.html') : '../../index.html',
-    window.location.href
-  ).toString();
+  const LAUNCHER_PAGE = (() => {
+    if (_paths.root) {
+      const rootBase = new URL(_paths.root.endsWith('/') ? _paths.root : (_paths.root + '/'), window.location.href);
+      return new URL('../index.html', rootBase).toString();
+    }
+    const pagesBase = new URL('../', window.location.href);
+    return new URL('../index.html', pagesBase).toString();
+  })();
   const ROLE_LEVELS = { readonly: 0, volunteer: 1, care: 2, leader: 3, pastor: 4, admin: 5 };
 
   // ── Local Security Bypass ────────────────────────────────────────────────
