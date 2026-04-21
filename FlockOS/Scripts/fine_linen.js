@@ -37,127 +37,7 @@ const Adornment = (() => {
 
   const DEFAULT_THEME = 'america';
   const STORAGE_KEY   = 'flock_theme';
-  const STYLE_ID      = 'adornment-css';
-
-  /* ─── CSS ─────────────────────────────────────────────────────────────────── */
-
-  const CSS = `
-/* ─── STUDIO FONTS — loaded on demand via Adornment.loadStudioFonts() ────── */
-/* Core fonts (Noto Sans, Noto Sans Hebrew, Noto Serif) are loaded via <link>
-   in the HTML head. Studio/theme fonts below are injected only when needed. */
-
-/* ─── RESET & BASE ─────────────────────────────────────────────────────────── */
-
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
-html {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  font-size: 100%;
-  line-height: 1.6;
-  -webkit-text-size-adjust: 100%;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  scroll-behavior: smooth;
-}
-
-body {
-  background: var(--bg);
-  color: var(--ink);
-  min-height: 100dvh;
-  transition: background 0.35s ease, color 0.25s ease;
-}
-
-img, svg { display: block; max-width: 100%; }
-a { color: var(--link); text-decoration: none; }
-
-/* ── Global scrollbar ─────────────────────────────────────────────────────── */
-::-webkit-scrollbar          { width: 6px; height: 6px; }
-::-webkit-scrollbar-track    { background: transparent; }
-::-webkit-scrollbar-thumb    { background: var(--line-strong); border-radius: 99px; }
-::-webkit-scrollbar-thumb:hover { background: var(--accent); }
-*                            { scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent; }
-
-/* ── Keyboard focus ring ──────────────────────────────────────────────────── */
-:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-button:focus:not(:focus-visible),
-input:focus:not(:focus-visible),
-select:focus:not(:focus-visible),
-textarea:focus:not(:focus-visible) {
-  outline: none;
-}
-a:hover { color: var(--link-hover); }
-
-/* Prevent iOS auto-zoom on form focus (requires >= 16px);
-   max() lets inputs scale up with the font-scale slider while keeping
-   the 16px floor iOS needs to prevent auto-zoom.
-   The !important on mobile overrides inline font-size styles that would
-   otherwise drop below 16px and trigger the iOS zoom. */
-input, select, textarea { font-size: max(1rem, 16px); }
-@media (max-width: 768px) {
-  input, select, textarea { font-size: 16px !important; }
-}
-
-
-/* ══════════════════════════════════════════════════════════════════════════════
-   THEME TOKENS
-   ══════════════════════════════════════════════════════════════════════════════ */
-
-
-/* ── 1. Dayspring ─── Warm ivory, soft sky, golden hour ─────────────────────
-   The default. Clean, warm, uplifting.                                        */
-
-[data-theme="dayspring"],
-:root {
-  --bg:            #faf9f6;
-  --bg-raised:     #ffffff;
-  --bg-sunken:     #f0eeea;
-  --bg-hover:      #f5f3ef;
-
-  --ink:           #2c2c2c;
-  --ink-muted:     #6b6b6b;
-  --ink-faint:     #a0a0a0;
-  --ink-inverse:   #faf9f6;
-
-  --accent:        #7eaacc;
-  --accent-hover:  #6394ba;
-  --accent-soft:   rgba(126,170,204,0.12);
-
-  --mint:          #8cc5a2;
-  --mint-soft:     rgba(140,197,162,0.12);
-
-  --peach:         #f0a889;
-  --peach-soft:    rgba(240,168,137,0.12);
-
-  --lilac:         #b49bdb;
-  --lilac-soft:    rgba(180,155,219,0.12);
-
-  --rose:          #e69aba;
-  --rose-soft:     rgba(230,154,186,0.12);
-
-  --gold:          #8B7028;
-  --gold-soft:     rgba(139,112,40,0.15);
-
-  --sky:           #8abde0;
-  --sky-soft:      rgba(138,189,224,0.12);
-
-  --danger:        #c0392b;
-  --danger-soft:   rgba(192,57,43,0.10);
-  --success:       #3d8b4f;
-  --success-soft:  rgba(61,139,79,0.10);
-  --warning:       #946B1C;
-  --warning-soft:  rgba(148,107,28,0.12);
-
-  --link:          #5a8fb5;
-  --link-hover:    #3d7199;
+  // CSS is now loaded via american_garments.css; embedded CSS and STYLE_ID removed.
 
   --line:          #e4e1dc;
   --line-strong:   #d0ccc5;
@@ -5992,13 +5872,7 @@ details.settings-section.settings-accordion > .settings-accordion-trigger {
 
   /* ─── INTERNAL HELPERS ────────────────────────────────────────────────────── */
 
-  function _inject() {
-    if (document.getElementById(STYLE_ID)) return;
-    const style = document.createElement('style');
-    style.id = STYLE_ID;
-    style.textContent = CSS;
-    document.head.appendChild(style);
-  }
+  // _inject() removed; CSS is loaded via <link> to american_garments.css
 
   function _apply(name) {
     document.documentElement.setAttribute('data-theme', name);
@@ -6035,7 +5909,7 @@ details.settings-section.settings-accordion > .settings-accordion-trigger {
    * Call once on page load, before anything renders.
    */
   function init() {
-    _inject();
+    // _inject() removed; CSS is loaded via <link> to american_garments.css
     loadOverrides(); // Apply Interface Studio overrides immediately
 
     // Optimistically apply localStorage theme immediately to avoid FOUC
