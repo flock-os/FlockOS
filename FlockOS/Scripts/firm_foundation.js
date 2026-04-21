@@ -49,6 +49,7 @@ const Nehemiah = (() => {
 
   const LOGIN_PAGE  = _base + 'the_wall.html';
   const APP_PAGE    = _base + 'the_good_shepherd.html';
+  const LAUNCHER_PAGE = _base.replace(/FlockOS\/Pages\/$/, '') + 'index.html';
   const ROLE_LEVELS = { readonly: 0, volunteer: 1, care: 2, leader: 3, pastor: 4, admin: 5 };
 
   // ── Local Security Bypass ────────────────────────────────────────────────
@@ -398,7 +399,7 @@ const Nehemiah = (() => {
 
   /**
    * Clears local session and tells the server to invalidate the token.
-   * Always redirects to the login wall, even if the server call fails.
+   * Always redirects to the app launcher, even if the server call fails.
    */
   async function logout() {
     try {
@@ -416,7 +417,7 @@ const Nehemiah = (() => {
       }
     } catch (_) {}
     // TheVine.john.auth.logout already clears the session internally.
-    window.location.replace(LOGIN_PAGE);
+    window.location.replace(LAUNCHER_PAGE);
   }
 
 
