@@ -4,7 +4,7 @@
     "public": "flockchat-public",
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
     "predeploy": [
-      "mkdir -p flockchat-public/FlockChat/Images && cp FlockChat.html flockchat-public/ && cp FlockChat/the_word.js flockchat-public/FlockChat/ && cp FlockChat/manifest.json flockchat-public/FlockChat/ && cp FlockChat/Images/FlockChat_1.png flockchat-public/FlockChat/Images/ && cp FlockChat/firebase-messaging-sw.js flockchat-public/"
+      "mkdir -p flockchat-public/FlockChat/Images && cp FlockChat.html flockchat-public/ && cp FlockChat/the_word.js flockchat-public/FlockChat/ && cp FlockChat/manifest.json flockchat-public/FlockChat/ && cp FlockChat/Images/FlockChat_AppIcon.png flockchat-public/FlockChat/Images/ && cp FlockChat/firebase-messaging-sw.js flockchat-public/"
     ],
     "rewrites": [
       { "source": "**", "destination": "/FlockChat.html" }

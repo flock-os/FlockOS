@@ -10,7 +10,7 @@
   "orientation": "any",
   "icons": [
     {
-      "src": "./Images/FlockChat_1.png",
+      "src": "./Images/FlockChat_AppIcon.png",
       "sizes": "192x192 512x512 1024x1024",
       "type": "image/png",
       "purpose": "any maskable"

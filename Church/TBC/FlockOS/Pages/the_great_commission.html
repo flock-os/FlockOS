@@ -1673,8 +1673,8 @@ function _gcRegisterChurch() {
     { name: 'bgColor',     label: 'Background Color',                      type: 'color',  value: '#1a1a2e' },
     { name: 'databaseUrl', label: 'Database URL (GAS Web App)',            type: 'url',    value: '' },
     { name: 'adminEmail',  label: 'Admin / Notification Email',            type: 'email',  value: '' },
-    { name: 'favicon',     label: 'Favicon filename',                      type: 'text',   value: 'FlockOS_Angels.png' },
-    { name: 'portrait',    label: 'Portrait / Logo filename',              type: 'text',   value: 'FlockOS_Angels.png' },
+    { name: 'favicon',     label: 'Favicon filename',                      type: 'text',   value: 'FlockOS_AppIcon.png' },
+    { name: 'portrait',    label: 'Portrait / Logo filename',              type: 'text',   value: 'FlockOS_AppIcon.png' },
     { name: 'analyticsId',   label: 'Google Analytics ID (G-…)',         type: 'text',     value: '' },
     { name: 'version',       label: 'Version',                           type: 'text',     value: '1.0' },
     { name: 'firebaseConfig', label: 'Firebase Config (JSON — paste from Firebase Console → Project Settings)',
@@ -1707,8 +1707,8 @@ function _gcEditChurch(churchId) {
     { name: 'photosUrl',   label: 'Photos Album URL',               type: 'url',    value: c.photosUrl   || '' },
     { name: 'adminEmail',  label: 'Admin / Notification Email',     type: 'email',  value: c.adminEmail  || '' },
     { name: 'analyticsId',   label: 'Google Analytics ID',          type: 'text',     value: c.analyticsId    || '' },
-    { name: 'favicon',       label: 'Favicon filename',             type: 'text',     value: c.favicon        || 'FlockOS_Angels.png' },
-    { name: 'portrait',      label: 'Portrait / Logo filename',    type: 'text',     value: c.portrait       || 'FlockOS_Angels.png' },
+    { name: 'favicon',       label: 'Favicon filename',             type: 'text',     value: c.favicon        || 'FlockOS_AppIcon.png' },
+    { name: 'portrait',      label: 'Portrait / Logo filename',    type: 'text',     value: c.portrait       || 'FlockOS_AppIcon.png' },
     { name: 'version',       label: 'Version',                     type: 'text',     value: c.version        || '1.0' },
     { name: 'firebaseConfig', label: 'Firebase Config (JSON — paste from Firebase Console → Project Settings)',
                                                                     type: 'textarea', value: c.firebaseConfig  ? JSON.stringify(c.firebaseConfig) : '' },
@@ -2110,7 +2110,7 @@ function _gcRenderOnboard() {
   var panel = document.querySelector('.gc-tab-panel[data-tab="onboard"]');
   if (!panel) return;
   _obStep = 1;
-  _obData = { connectionType: 'D', timezone: 'America/Los_Angeles', themeColor: '#e8a838', bgColor: '#1a1a2e', favicon: 'FlockOS_Angels.png', portrait: 'FlockOS_Angels.png', brandName: 'FlockOS' };
+  _obData = { connectionType: 'D', timezone: 'America/Los_Angeles', themeColor: '#e8a838', bgColor: '#1a1a2e', favicon: 'FlockOS_AppIcon.png', portrait: 'FlockOS_AppIcon.png', brandName: 'FlockOS' };
   panel.innerHTML = '<div id="ob-wizard"></div>';
   _obRender();
 }
@@ -2207,8 +2207,8 @@ function _obStep2() {
     + '<p style="font-size:0.82rem;color:var(--ink-muted);margin-bottom:16px;">Customize the look and feel. You can change these later from the registry.</p>'
     + _obField('Theme / Accent Color', 'themeColor', 'color')
     + _obField('Background Color', 'bgColor', 'color')
-    + _obField('Favicon Filename', 'favicon', 'text', 'FlockOS_Angels.png')
-    + _obField('Portrait / Logo Filename', 'portrait', 'text', 'FlockOS_Angels.png')
+    + _obField('Favicon Filename', 'favicon', 'text', 'FlockOS_AppIcon.png')
+    + _obField('Portrait / Logo Filename', 'portrait', 'text', 'FlockOS_AppIcon.png')
     + '<div style="font-size:0.75rem;color:var(--ink-muted);margin-top:8px;">Place image files in the <code>FlockOS/Images/</code> folder before building.</div>';
 }
 
@@ -2353,8 +2353,8 @@ async function _obDeploy() {
       bgColor:       d.bgColor   || '#1a1a2e',
       databaseUrl:   d.databaseUrl,
       adminEmail:    d.adminEmail || '',
-      favicon:       d.favicon    || 'FlockOS_Angels.png',
-      portrait:      d.portrait   || 'FlockOS_Angels.png',
+      favicon:       d.favicon    || 'FlockOS_AppIcon.png',
+      portrait:      d.portrait   || 'FlockOS_AppIcon.png',
       firebaseConfig: '',
       version:       '1.0',
     });
@@ -2389,8 +2389,8 @@ async function _obDeploy() {
       adminEmail:      d.adminEmail || '',
       themeColor:      d.themeColor || '#e8a838',
       backgroundColor: d.bgColor   || '#1a1a2e',
-      favicon:         d.favicon   || 'FlockOS_Angels.png',
-      portrait:        d.portrait  || 'FlockOS_Angels.png',
+      favicon:         d.favicon   || 'FlockOS_AppIcon.png',
+      portrait:        d.portrait  || 'FlockOS_AppIcon.png',
       connectionType:  d.connectionType || 'D',
       version:         '1.0',
     });
