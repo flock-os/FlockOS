@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>The Anatomy of Worship — A Touch of the Gospel</title>
-    <link rel="stylesheet" href="../Styles/the_american_garment.css">
+    <link rel="stylesheet" href="../Styles/the_garment.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -33,9 +33,6 @@
     </style>
 </head>
 <body>
-    <!-- Stars Background -->
-    <canvas id="stars-canvas"></canvas>
-
     <!-- Back Link & Page Container -->
     <div class="page-wrap relative z-1">
         <a href="../index.html" class="back-link">&larr; Back to A Touch of the Gospel</a>
@@ -252,33 +249,6 @@
     </footer>
 
     <script>
-        /* ── Stars Canvas ─────────────────────────────────── */
-        (function(){
-            const c = document.getElementById('stars-canvas');
-            const ctx = c.getContext('2d');
-            let stars = [];
-            function resize(){ c.width = window.innerWidth; c.height = document.documentElement.scrollHeight; seed(); }
-            function seed(){
-                stars = [];
-                const count = Math.floor((c.width * c.height) / 4000);
-                for(let i = 0; i < count; i++){
-                    stars.push({ x: Math.random()*c.width, y: Math.random()*c.height, r: Math.random()*1.2+0.3, a: Math.random(), s: Math.random()*0.005+0.002 });
-                }
-            }
-            function draw(){
-                ctx.clearRect(0,0,c.width,c.height);
-                stars.forEach(s => {
-                    s.a += s.s; if(s.a > 1) s.s *= -1; if(s.a < 0.2) s.s *= -1;
-                    ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI*2);
-                    ctx.fillStyle = `rgba(255,255,255,${s.a * 0.6})`;
-                    ctx.fill();
-                });
-                requestAnimationFrame(draw);
-            }
-            window.addEventListener('resize', resize);
-            resize(); draw();
-        })();
-
         /* ── Vocab Card Interaction ──────────────────────── */
         const vocabData = {
             shachah: {
@@ -350,18 +320,18 @@
         });
 
         /* ── Charts ──────────────────────────────────────── */
-        // Neon palette
+        // American palette
         const NEON = {
-            gold:   '#f6d87a',
-            teal:   '#2dd4bf',
-            blue:   '#38bdf8',
-            purple: '#c084fc',
-            slate:  '#64748b'
+            gold:   '#c5a44e',
+            teal:   '#6ea9d7',
+            blue:   '#3c3b6e',
+            purple: '#b22234',
+            slate:  '#8890a5'
         };
 
         const chartFont = { family: "'Inter', system-ui, sans-serif" };
-        const chartTextColor = '#94a3b8';
-        const chartGridColor = 'rgba(255,255,255,0.06)';
+        const chartTextColor = '#4a5578';
+        const chartGridColor = 'rgba(60,59,110,0.08)';
 
         const chartTooltip = {
             backgroundColor: 'rgba(15,23,42,0.95)',

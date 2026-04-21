@@ -179,7 +179,7 @@
         var gc = {};
         rows.forEach(function (r) { var g = r.genre || 'Other'; gc[g] = (gc[g] || 0) + 1; });
         var labels = Object.keys(gc), data = labels.map(function (l) { return gc[l]; });
-        var colors = ['#38bdf8','#c084fc','#2dd4bf','#f6d87a','#ff4040','#818cf8','#fb923c','#a3e635','#f472b6'];
+        var colors = ['#3c3b6e','#6ea9d7','#b22234','#c5a44e','#5b8fbf','#3d7a4f','#b58d2a','#91756b','#8890a5'];
         var ctx = document.getElementById('chart-book-genres');
         if (!ctx) return;
         if (_charts['book-genres']) _charts['book-genres'].destroy();
@@ -270,7 +270,7 @@
 
             html += '<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(340px, 1fr)); gap:1.25rem;">';
             rows.forEach(function (r) {
-                var color = r.color || '#38bdf8';
+                var color = r.color || '#c5a44e';
                 var steps = (r.steps || '').split(';').filter(Boolean);
                 var scriptures = (r.scriptures || '').split(';').filter(Boolean);
 
@@ -382,7 +382,7 @@
             type: 'radar',
             data: {
                 labels: labels,
-                datasets: [{ label: 'Your Heart', data: data, borderColor: '#38bdf8', backgroundColor: 'rgba(56,189,248,0.12)', pointBackgroundColor: '#38bdf8', borderWidth: 2 }]
+                datasets: [{ label: 'Your Heart', data: data, borderColor: '#c5a44e', backgroundColor: 'rgba(197,164,78,0.12)', pointBackgroundColor: '#c5a44e', borderWidth: 2 }]
             },
             options: {
                 responsive: true,
@@ -401,7 +401,7 @@
             var cats = {};
             rows.forEach(function (r) {
                 var cid = r.categoryId || r.category_id || 'general';
-                if (!cats[cid]) cats[cid] = { title: r.categoryTitle || r.category_title || cid, color: r.color || '#c084fc', chartLabel: r.chartLabel || r.chart_label || cid, items: [] };
+                if (!cats[cid]) cats[cid] = { title: r.categoryTitle || r.category_title || cid, color: r.color || '#c47a0a', chartLabel: r.chartLabel || r.chart_label || cid, items: [] };
                 cats[cid].items.push(r);
             });
 
@@ -432,7 +432,7 @@
                 });
                 html += '</div></details>';
             });
-            html += '<div class="text-center"><button type="button" onclick="Touch._scoreMirror()" class="btn" style="background:linear-gradient(135deg,#c084fc,#38bdf8);">Reflect</button></div>';
+            html += '<div class="text-center"><button type="button" onclick="Touch._scoreMirror()" class="btn" style="background:linear-gradient(135deg,#b22234,#c5a44e);">Reflect</button></div>';
             html += '</form>';
 
             el.innerHTML = html;
@@ -468,7 +468,7 @@
             type: 'radar',
             data: {
                 labels: labels,
-                datasets: [{ label: 'Your Reflection', data: data, borderColor: '#c084fc', backgroundColor: 'rgba(192,132,252,0.12)', pointBackgroundColor: '#c084fc', borderWidth: 2 }]
+                datasets: [{ label: 'Your Reflection', data: data, borderColor: '#c47a0a', backgroundColor: 'rgba(196,122,10,0.12)', pointBackgroundColor: '#c47a0a', borderWidth: 2 }]
             },
             options: {
                 responsive: true,
@@ -563,7 +563,7 @@
         var correct = btn.dataset.correct, chosen = btn.dataset.key;
         document.querySelectorAll('.quiz-opt').forEach(function (b) {
             b.disabled = true; b.style.pointerEvents = 'none';
-            if (b.dataset.key === correct) { b.style.borderColor = '#2dd4bf'; b.style.background = 'rgba(45,212,191,0.12)'; b.style.color = '#fff'; }
+            if (b.dataset.key === correct) { b.style.borderColor = '#e8a838'; b.style.background = 'rgba(232,168,56,0.12)'; b.style.color = '#f5e8d8'; }
             if (b.dataset.key === chosen && chosen !== correct) { b.style.borderColor = '#ff4040'; b.style.background = 'rgba(255,64,64,0.12)'; b.style.color = '#ff4040'; }
         });
         if (chosen === correct) el._quizScore++;

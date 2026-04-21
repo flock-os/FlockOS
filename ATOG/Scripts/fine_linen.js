@@ -649,12 +649,12 @@ input, select, textarea { font-size: max(1rem, 16px); }
   --link:          #3c3b6e;
   --link-hover:    #2d2c55;
 
-  --line:          #d4d9e6;
-  --line-strong:   #bec5d6;
+  --line:          rgba(232,168,56,0.15);
+  --line-strong:   rgba(232,168,56,0.25);
 
-  --shadow-sm:     0 1px 3px rgba(27,38,79,0.06);
-  --shadow-md:     0 4px 12px rgba(27,38,79,0.06);
-  --shadow-lg:     0 8px 24px rgba(27,38,79,0.08);
+  --shadow-sm:     0 1px 3px rgba(27,38,79,0.08);
+  --shadow-md:     0 4px 12px rgba(27,38,79,0.10);
+  --shadow-lg:     0 8px 24px rgba(27,38,79,0.12);
 
   --radius-sm:     6px;
   --radius-md:     12px;
@@ -662,8 +662,8 @@ input, select, textarea { font-size: max(1rem, 16px); }
   --radius-pill:   9999px;
 
   --paper:         #fdfeff;
-  --paper-line:    #c8d0e0;
-  --paper-margin:  #d8a0a0;
+  --paper-line:    rgba(232,168,56,0.15);
+  --paper-margin:  rgba(196,122,10,0.20);
 
   color-scheme: light;
 }

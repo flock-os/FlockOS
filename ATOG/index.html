@@ -16,15 +16,12 @@
     <link href="https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,400;0,700;0,900;1,400&family=Inter:wght@300;400;500;600;700&family=Cinzel:wght@400;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
 
     <!-- Theme -->
-    <link rel="stylesheet" href="Styles/the_american_garment.css">
+    <link rel="stylesheet" href="Styles/the_garment.css">
 
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 </head>
 <body>
-
-    <!-- ═══ Stars Canvas ═══════════════════════════════════ -->
-    <canvas id="stars-canvas"></canvas>
 
     <!-- ═══ Topbar ═════════════════════════════════════════ -->
     <header id="topbar">
@@ -144,10 +141,10 @@
                 <div class="hero-glow" style="width:400px;height:400px;background:var(--neon-blue);top:-100px;right:-80px;"></div>
                 <div class="hero-glow" style="width:300px;height:300px;background:var(--neon-purple);bottom:-80px;left:-60px;"></div>
                 <div class="relative z-10 text-center max-w-3xl mx-auto">
-                    <span class="pill uppercase tracking-widest font-bold mb-6" style="color:var(--neon-teal); border-color:rgba(45,212,191,0.3); background:rgba(45,212,191,0.06); padding:0.25rem 1rem; font-size:0.65rem;">
+                    <span class="pill uppercase tracking-widest font-bold mb-6" style="color:var(--neon-gold); border-color:rgba(232,168,56,0.3); background:rgba(232,168,56,0.06); padding:0.25rem 1rem; font-size:0.65rem;">
                         Powered by FlockOS
                     </span>
-                    <h1 class="font-display text-4xl font-bold text-white mb-6 leading-tight" style="text-shadow:0 0 40px rgba(56,189,248,0.15);">
+                    <h1 class="font-display text-4xl font-bold text-white mb-6 leading-tight" style="text-shadow:0 0 40px rgba(232,168,56,0.15);">
                         A Touch of <span class="gradient-text">the Gospel</span>
                     </h1>
                     <p class="text-lg text-slate-300 leading-relaxed mb-10">
@@ -278,7 +275,7 @@
                 </div>
 
                 <!-- Scripture -->
-                <div style="border-left:3px solid var(--neon-teal);padding:18px 24px;background:rgba(45,212,191,0.05);border-radius:0 12px 12px 0;">
+                <div style="border-left:3px solid var(--neon-gold);padding:18px 24px;background:rgba(232,168,56,0.05);border-radius:0 12px 12px 0;">
                     <p style="color:var(--ink-muted);font-size:0.9rem;font-style:italic;line-height:1.9;margin:0 0 10px;">
                         &ldquo;The Spirit of the Lord is on me, because he has anointed me to proclaim good news to the poor.
                         He has sent me to proclaim freedom for the prisoners and recovery of sight for the blind,
@@ -448,9 +445,9 @@
     var _iamData = [
         { label: 'Bread of Life',       need: 'Spiritual Hunger',     verse: 'John 6:35',  color: '#f472b6', icon: '🍞', description: 'Just as physical bread sustains the body, Jesus is the essential nutrient for the soul. Without Him, the spirit starves; with Him, there is enduring life.' },
         { label: 'Light of the World',  need: 'Guidance in Darkness', verse: 'John 8:12',  color: '#fca5cb', icon: '🕯️', description: 'In a world of confusion, Jesus provides absolute clarity. Following Him guarantees you will walk in the light of life.' },
-        { label: 'Door of the Sheep',   need: 'Security & Access',    verse: 'John 10:9',  color: '#2dd4bf', icon: '🚪', description: 'Jesus is the singular entry point to safety. Through Him, one finds protection from spiritual predators and the freedom of abundant life.' },
-        { label: 'Good Shepherd',       need: 'Care & Protection',    verse: 'John 10:11', color: '#38bdf8', icon: '🐑', description: 'Unlike a hired hand, the Good Shepherd loves so profoundly that He willingly lays down His life for the vulnerable.' },
-        { label: 'Resurrection & Life', need: 'Victory over Death',   verse: 'John 11:25', color: '#c084fc', icon: '🌱', description: 'Faced with the terror of death, Jesus claims total authority. He is the resurrection; in Him, death is merely a doorway.' },
+        { label: 'Door of the Sheep',   need: 'Security & Access',    verse: 'John 10:9',  color: '#c5a44e', icon: '🚪', description: 'Jesus is the singular entry point to safety. Through Him, one finds protection from spiritual predators and the freedom of abundant life.' },
+        { label: 'Good Shepherd',       need: 'Care & Protection',    verse: 'John 10:11', color: '#b22234', icon: '🐑', description: 'Unlike a hired hand, the Good Shepherd loves so profoundly that He willingly lays down His life for the vulnerable.' },
+        { label: 'Resurrection & Life', need: 'Victory over Death',   verse: 'John 11:25', color: '#3c3b6e', icon: '🌱', description: 'Faced with the terror of death, Jesus claims total authority. He is the resurrection; in Him, death is merely a doorway.' },
         { label: 'Way, Truth, Life',    need: 'Direction & Reality',  verse: 'John 14:6',  color: '#60a5fa', icon: '🧭', description: 'The embodiment of ultimate reality and the source of all existence. All human searching ends in Him.' },
         { label: 'True Vine',           need: 'Purpose & Fruitfulness',verse: 'John 15:1',  color: '#34d399', icon: '🍇', description: 'By abiding in Jesus, believers draw on His endless grace and strength to produce love, joy, peace, patience, kindness, goodness, faithfulness, gentleness, and self-control that lasts eternally.' }
     ];
@@ -612,7 +609,7 @@
               '<span style="font-size:0.6rem;color:#475569;">' + dateStr + '</span>' +
             '</div>' +
             '<h3 style="font-family:Merriweather,serif;font-size:1.7rem;font-weight:700;color:#fff;margin-bottom:1.2rem;line-height:1.3;">' + (devo.Title || '') + '</h3>' +
-            '<div style="background:rgba(56,189,248,0.07);border:1px solid rgba(56,189,248,0.2);border-radius:12px;padding:18px 22px;margin-bottom:1.5rem;">' +
+            '<div style="background:rgba(232,168,56,0.07);border:1px solid rgba(232,168,56,0.2);border-radius:12px;padding:18px 22px;margin-bottom:1.5rem;">' +
               '<p style="font-size:0.62rem;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:var(--neon-blue);margin-bottom:8px;">Scripture</p>' +
               '<p style="color:#e2e8f0;font-style:italic;line-height:1.75;">' + (devo.Scripture || '') + '</p>' +
             '</div>' +
@@ -671,7 +668,7 @@
             '<div style="padding:0 20px 20px;">' +
               '<p style="font-style:italic;font-size:0.85rem;color:#94a3b8;line-height:1.7;margin-bottom:12px;">' + (devo.Scripture || '') + '</p>' +
               '<p style="color:var(--ink-muted);line-height:1.8;font-size:0.9rem;">' + (devo.Reflection || '') + '</p>' +
-              (devo.Question ? '<p style="font-size:0.85rem;color:#c084fc;margin-top:12px;font-style:italic;">' + devo.Question + '</p>' : '') +
+              (devo.Question ? '<p style="font-size:0.85rem;color:#c5a44e;margin-top:12px;font-style:italic;">' + devo.Question + '</p>' : '') +
             '</div>';
         container.appendChild(el);
     }
@@ -707,7 +704,7 @@
             '<p style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.18em;color:var(--neon-purple);margin-bottom:20px;">' + item.subtitle + '</p>' +
             '<p style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#64748b;border-bottom:1px solid var(--line);padding-bottom:8px;margin-bottom:12px;">The Mission</p>' +
             '<p style="color:var(--ink-muted);line-height:1.8;margin-bottom:20px;">' + item.summary + '</p>' +
-            '<div style="background:rgba(56,189,248,0.06);border:1px solid rgba(56,189,248,0.2);border-radius:10px;padding:18px 20px;position:relative;overflow:hidden;">' +
+            '<div style="background:rgba(232,168,56,0.06);border:1px solid rgba(232,168,56,0.2);border-radius:10px;padding:18px 20px;position:relative;overflow:hidden;">' +
             '<div style="position:absolute;top:0;left:0;width:4px;height:100%;background:var(--neon-blue);"></div>' +
             '<p style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--neon-blue);margin-bottom:6px;">The Hope</p>' +
             '<p style="color:#fff;font-style:italic;line-height:1.7;">&ldquo;' + item.hope + '&rdquo;</p>' +

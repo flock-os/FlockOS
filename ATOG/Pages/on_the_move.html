@@ -7,20 +7,20 @@
   @import url('https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,400;0,700;0,900;1,400&family=Inter:wght@300;400;500;600;700&family=Cinzel:wght@400;600;700&display=swap');
 
   .otm-root {
-    /* ── American ATOG :root tokens from the_american_garment.css ── */
-    --neon-blue:      #2b5a8e;
-    --neon-purple:    #8b4513;
-    --neon-teal:      #c47a0a;
-    --neon-gold:      #e8a838;
+    /* ── America ATOG theme from FlockOS ── */
+    --neon-blue:      #3c3b6e;
+    --neon-purple:    #b22234;
+    --neon-teal:      #6ea9d7;
+    --neon-gold:      #c5a44e;
 
-    --slate-300:      #d4b896;
-    --slate-400:      #b8956a;
-    --slate-500:      #8b7355;
-    --slate-600:      #6b5344;
+    --slate-300:      #f7f8fb;
+    --slate-400:      #cbd5e1;
+    --slate-500:      #8890a5;
+    --slate-600:      #4a5578;
 
-    --glass-bg:       rgba(232,168,56,0.03);
-    --glass-border:   rgba(232,168,56,0.08);
-    --glass-heavy:    rgba(43,90,142,0.65);
+    --glass-bg:       rgba(60,59,110,0.03);
+    --glass-border:   rgba(60,59,110,0.08);
+    --glass-heavy:    rgba(110,169,215,0.65);
 
     --font-serif:     'Merriweather', Georgia, serif;
     --font-sans:      'Inter', system-ui, -apple-system, sans-serif;
@@ -51,7 +51,7 @@
     overflow: hidden;
     background: var(--glass-heavy);
     backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
-    border: 1px solid rgba(255,255,255,0.1);
+    border: 1px solid rgba(232,168,56,0.1);
     border-radius: 1.5rem;
     padding: 3rem 2.5rem;
     margin: 2.5rem 2rem 3rem;
@@ -66,20 +66,20 @@
     display: inline-block;
     font-size: 0.65rem; padding: 0.25rem 1rem;
     border-radius: var(--radius-full);
-    background: rgba(45,212,191,0.06);
-    border: 1px solid rgba(45,212,191,0.3);
-    color: var(--neon-teal);
+    background: rgba(232,168,56,0.06);
+    border: 1px solid rgba(232,168,56,0.3);
+    color: var(--neon-gold);
     letter-spacing: 0.15em; font-weight: 700;
     margin-bottom: 1.5rem;
   }
   .otm-hero h1 {
     font-family: var(--font-serif);
-    font-size: 2.25rem; font-weight: 700; color: #fff;
+    font-size: 2.25rem; font-weight: 700; color: #f5e8d8;
     margin-bottom: 1rem; line-height: 1.25;
-    text-shadow: 0 0 40px rgba(56,189,248,0.15);
+    text-shadow: 0 0 40px rgba(232,168,56,0.15);
   }
   .otm-gradient-text {
-    background: linear-gradient(135deg, var(--neon-blue), var(--neon-purple), var(--neon-teal));
+    background: linear-gradient(135deg, var(--neon-gold), var(--neon-teal), var(--neon-blue));
     -webkit-background-clip: text; -webkit-text-fill-color: transparent;
     background-clip: text;
   }
@@ -87,17 +87,17 @@
     font-size: 1.05rem; color: var(--slate-300);
     line-height: 1.7; max-width: 600px; margin: 0 auto 2rem;
   }
-  .otm-hero p strong { color: #fff; }
+  .otm-hero p strong { color: #f5e8d8; }
   .otm-cta {
     display: inline-flex; align-items: center; justify-content: center;
     padding: 0.75rem 2rem; border-radius: var(--radius-xl);
     font-weight: 600; font-size: 0.95rem; color: #fff;
-    background: linear-gradient(135deg, var(--neon-blue), var(--neon-purple));
-    box-shadow: 0 4px 20px rgba(56,189,248,0.2);
+    background: linear-gradient(135deg, var(--neon-gold), var(--neon-teal));
+    box-shadow: 0 4px 20px rgba(232,168,56,0.2);
     border: none; cursor: pointer;
     transition: all 0.3s ease;
   }
-  .otm-cta:hover { transform: translateY(-1px); box-shadow: 0 6px 28px rgba(56,189,248,0.3); }
+  .otm-cta:hover { transform: translateY(-1px); box-shadow: 0 6px 28px rgba(232,168,56,0.3); }
 
   /* ── Product Grid ── */
   .otm-section {
@@ -108,12 +108,12 @@
   }
   .otm-section-header h2 {
     font-family: var(--font-serif);
-    font-size: 1.9rem; font-weight: 700; color: #fff; margin-bottom: 0.5rem;
+    font-size: 1.9rem; font-weight: 700; color: #f5e8d8; margin-bottom: 0.5rem;
   }
   .otm-accent-line {
     width: 60px; height: 3px; margin: 1rem auto;
     border-radius: 2px;
-    background: linear-gradient(90deg, var(--neon-blue), var(--neon-purple));
+    background: linear-gradient(90deg, var(--neon-gold), var(--neon-teal));
   }
   .otm-section-header p {
     font-size: 1.05rem; color: var(--slate-400);
@@ -126,17 +126,17 @@
     gap: 1.25rem;
   }
   .otm-card {
-    background: rgba(255,255,255,0.03);
+    background: rgba(232,168,56,0.02);
     backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255,255,255,0.06);
+    border: 1px solid rgba(232,168,56,0.08);
     border-radius: var(--radius-xl);
     padding: 1.5rem;
     display: block;
     transition: all 0.3s ease;
   }
   .otm-card:hover {
-    background: rgba(255,255,255,0.06);
-    border-color: rgba(255,255,255,0.12);
+    background: rgba(232,168,56,0.08);
+    border-color: rgba(232,168,56,0.16);
     transform: translateY(-2px);
     box-shadow: 0 8px 32px rgba(0,0,0,0.3);
   }
@@ -158,7 +158,7 @@
 
   /* ── Footer ── */
   .otm-footer {
-    border-top: 1px solid rgba(255,255,255,0.05);
+    border-top: 1px solid rgba(232,168,56,0.08);
     padding: 2rem 2.5rem;
     text-align: center;
   }
@@ -178,8 +178,8 @@
 
   <!-- ═══ Hero ═══ -->
   <div class="otm-hero">
-    <div class="otm-glow" style="width:400px;height:400px;background:#38bdf8;top:-100px;right:-80px;"></div>
-    <div class="otm-glow" style="width:300px;height:300px;background:#c084fc;bottom:-80px;left:-60px;"></div>
+    <div class="otm-glow" style="width:400px;height:400px;background:#e8a838;top:-100px;right:-80px;"></div>
+    <div class="otm-glow" style="width:300px;height:300px;background:#c47a0a;bottom:-80px;left:-60px;"></div>
     <div class="otm-hero-inner">
       <span class="otm-pill">Powered by FlockOS</span>
       <h1>The Flock is <span class="otm-gradient-text">on the Move</span></h1>
