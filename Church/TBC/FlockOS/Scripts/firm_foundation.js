@@ -36,19 +36,30 @@ const Nehemiah = (() => {
   // ── Constants ────────────────────────────────────────────────────────────
 
   // Resolve paths relative to the site root so redirects work from any page depth.
-  const _base = (function() {
+  const _paths = (function() {
     const s = document.querySelector('script[src*="firm_foundation"]');
-    if (!s) return '';
+    if (!s) return { root: '', pages: '' };
     const src = s.getAttribute('src');
     // Strip path to "Scripts/firm_foundation.js" to get base, then point to Pages/
     const idx = src.indexOf('Scripts/');
-    if (idx < 0) return '';
+    if (idx < 0) return { root: '', pages: '' };
+    const root = src.substring(0, idx);
     // e.g. "FlockOS/Scripts/" → "FlockOS/Pages/" (HTML files live in Pages/)
-    return src.substring(0, idx) + 'Pages/';
+    return { root, pages: root + 'Pages/' };
   })();
+  const _base = _paths.pages;
 
   const LOGIN_PAGE  = _base + 'the_wall.html';
   const APP_PAGE    = _base + 'the_good_shepherd.html';
+  // _paths.root points to the FlockOS directory; go up one level to deployment root.
+  const LAUNCHER_PAGE = (() => {
+    if (_paths.root) {
+      const rootBase = new URL(_paths.root.endsWith('/') ? _paths.root : (_paths.root + '/'), window.location.href);
+      return new URL('../index.html', rootBase).toString();
+    }
+    const pagesBase = new URL('../', window.location.href);
+    return new URL('../index.html', pagesBase).toString();
+  })();
   const ROLE_LEVELS = { readonly: 0, volunteer: 1, care: 2, leader: 3, pastor: 4, admin: 5 };
 
   // ── Local Security Bypass ────────────────────────────────────────────────
@@ -398,7 +409,7 @@ const Nehemiah = (() => {
 
   /**
    * Clears local session and tells the server to invalidate the token.
-   * Always redirects to the login wall, even if the server call fails.
+   * Always redirects to the app launcher, even if the server call fails.
    */
   async function logout() {
     try {
@@ -416,7 +427,7 @@ const Nehemiah = (() => {
       }
     } catch (_) {}
     // TheVine.john.auth.logout already clears the session internally.
-    window.location.replace(LOGIN_PAGE);
+    window.location.replace(LAUNCHER_PAGE);
   }
 
 
