@@ -339,20 +339,21 @@ details > summary::-webkit-details-marker { display: none; }
     --sidebar-w:     260px;
     --topbar-h:      60px;
 
-    --neon-blue:     #38bdf8;
-    --neon-purple:   #c084fc;
-    --neon-teal:     #2dd4bf;
-    --neon-gold:     #f6d87a;
-    --neon-crimson:  #ff4040;
+    /* America palette — neon slots repurposed for light theme */
+    --neon-blue:     #3c3b6e;
+    --neon-purple:   #b22234;
+    --neon-teal:     #6ea9d7;
+    --neon-gold:     #c5a44e;
+    --neon-crimson:  #a83434;
 
-    --slate-300:     #cbd5e1;
-    --slate-400:     #94a3b8;
-    --slate-500:     #64748b;
-    --slate-600:     #475569;
+    --slate-300:     #f0f3f9;
+    --slate-400:     #8890a5;
+    --slate-500:     #4a5578;
+    --slate-600:     #1b264f;
 
-    --glass-bg:      rgba(255,255,255,0.04);
-    --glass-border:  rgba(255,255,255,0.08);
-    --glass-heavy:   rgba(15,23,42,0.75);
+    --glass-bg:      rgba(60,59,110,0.04);
+    --glass-border:  rgba(60,59,110,0.10);
+    --glass-heavy:   rgba(247,248,251,0.92);
 
     --font-serif:    'Merriweather', Georgia, serif;
     --font-sans:     'Inter', system-ui, -apple-system, sans-serif;
@@ -486,11 +487,11 @@ h1, h2, h3, h4, h5, h6 { font-family: var(--font-serif); line-height: 1.3; }
 }
 
 /* ── Colors ──────────────────────────────────────────── */
-.text-white     { color: #ffffff; }
-.text-slate-300 { color: var(--slate-300); }
-.text-slate-400 { color: var(--slate-400); }
-.text-slate-500 { color: var(--slate-500); }
-.text-slate-600 { color: var(--slate-600); }
+.text-white     { color: var(--ink); }           /* theme-aware: dark navy on America */
+.text-slate-300 { color: var(--ink); }           /* was hardcoded light-grey (dark theme) */
+.text-slate-400 { color: var(--ink-muted); }
+.text-slate-500 { color: var(--ink-muted); }
+.text-slate-600 { color: var(--ink); }
 .text-neon-blue    { color: var(--neon-blue); }
 .text-neon-purple  { color: var(--neon-purple); }
 .text-neon-teal    { color: var(--neon-teal); }
@@ -912,7 +913,7 @@ textarea.input { resize: vertical; }
 
 /* ── Gradient Text ───────────────────────────────────── */
 .gradient-text {
-    background: linear-gradient(135deg, var(--neon-blue), var(--neon-purple), var(--neon-teal));
+    background: linear-gradient(135deg, var(--accent), var(--neon-purple), var(--neon-teal));
     -webkit-background-clip: text; -webkit-text-fill-color: transparent;
     background-clip: text;
 }
