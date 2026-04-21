@@ -64,6 +64,7 @@ America Theme Variables (from fine_linen.js)
 
   color-scheme: light;
 }
+
 /*
 ============================================================
 FlockOS Unified Garments — America Theme
@@ -78,30 +79,16 @@ How to change the theme or create a new theme:
 4. For a new theme, duplicate this file, change the variables, and update the import in your HTML or build config.
 5. Refer to the audit/migration checklist at the end for full class coverage.
 
-America theme variables are used throughout. No Tailwind or legacy color names remain.
-============================================================
-*/
-/* Duplicate class definitions removed; see unified definitions below */
-
-designing new themes, or verifying class coverage.
 /*
-============================================================
-FlockOS Garments: Audit Trail & Migration Checklist
-------------------------------------------------------------
+America theme variables are used throughout. No Tailwind or legacy color names remain.
+Duplicate class definitions removed; see unified definitions below.
+
 The full audit trail and migration checklist has been moved to the end of this file.
 Reference the bottom of this document for all class audit details.
-============================================================
-*/
 
-/* ...existing code... */
-/*
-============================================================
-FlockOS Garments: Audit Trail & Migration Checklist (Full)
-------------------------------------------------------------
 The following comment blocks list every class found in the audit,
 grouped by batch and source file. Use as a reference for migration,
 designing new themes, or verifying class coverage.
-============================================================
 */
 
 /* ...move all other audit/migration comment blocks here, preserving order... */
