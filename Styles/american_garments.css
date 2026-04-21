@@ -1139,7 +1139,21 @@ h4 { font-size: 1.1rem; }
   background: currentColor;
 }
 
-.badge { font-size: 0.72rem; }
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+.badge-success { background: var(--success-soft); color: var(--success); }
+.badge-warn    { background: var(--warning-soft); color: var(--warning); }
+.badge-warning { background: var(--warning-soft); color: var(--warning); }
+.badge-danger  { background: var(--danger-soft);  color: var(--danger); }
+.badge-info    { background: var(--accent-soft);  color: var(--accent); }
 
 /* ── Health Status Pills ─────────────────────────────────────────────────── */
 .health-pill {
@@ -5672,7 +5686,7 @@ details.settings-section.settings-accordion > .settings-accordion-trigger {
 .flock-card:hover { border-color: var(--accent); box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
 .flock-card.priority-high,
 .flock-card.priority-critical { border-left: 3px solid var(--danger); }
-.flock-card.priority-urgent   { border-left: 3px solid var(--warn); }
+.flock-card.priority-urgent   { border-left: 3px solid var(--warning); }
 .flock-card-head {
   display: flex;
   justify-content: space-between;
