@@ -288,73 +288,13 @@ details > summary::-webkit-details-marker { display: none; }
     --radius-2xl:    1.25rem;
     --radius-3xl:    1.5rem;
     --radius-full:   9999px;
-
-    /* ── American Theme (inspired by FlockOS gold) ── */
-    --bg:            #1a1410;
-    --bg-raised:     #2a2218;
-    --bg-sunken:     #0f0c09;
-    --bg-hover:      #3a2f26;
-
-    --ink:           #f5e8d8;
-    --ink-muted:     #a89878;
-    --ink-faint:     #7a6f64;
-    --ink-inverse:   #1a1410;
-
-    --accent:        #e8a838;
-    --accent-hover:  #f5c26b;
-    --accent-soft:   rgba(232,168,56,0.14);
-    --accent-muted:  rgba(232,168,56,0.35);
-
-    --mint:          #c47a0a;
-    --mint-soft:     rgba(196,122,10,0.12);
-
-    --peach:         #d4956a;
-    --peach-soft:    rgba(212,149,106,0.12);
-
-    --lilac:         #8b4513;
-    --lilac-soft:    rgba(139,69,19,0.12);
-
-    --rose:          #a83434;
-    --rose-soft:     rgba(168,52,52,0.12);
-
-    --gold:          #e8a838;
-    --gold-soft:     rgba(232,168,56,0.12);
-
-    --sky:           #2b5a8e;
-    --sky-soft:      rgba(43,90,142,0.12);
-
-    --danger:        #c2185b;
-    --danger-soft:   rgba(194,24,91,0.12);
-    --success:       #c47a0a;
-    --success-soft:  rgba(196,122,10,0.12);
-    --warning:       #e8a838;
-    --warning-soft:  rgba(232,168,56,0.12);
-
-    --link:          #e8a838;
-    --link-hover:    #f5c26b;
-
-    --line:          rgba(232,168,56,0.10);
-    --line-strong:   rgba(232,168,56,0.16);
-
-    --shadow-sm:     0 1px 3px rgba(0,0,0,0.40);
-    --shadow-md:     0 4px 12px rgba(0,0,0,0.40);
-    --shadow-lg:     0 8px 24px rgba(0,0,0,0.50);
-
-    --paper:         #2a2218;
-    --paper-line:    rgba(232,168,56,0.08);
-    --paper-margin:  rgba(196,122,10,0.30);
-
-    --surface:       rgba(232,168,56,0.03);
-    --surface-raised:rgba(232,168,56,0.06);
-
-    color-scheme: dark;
 }
 
 /* ── Body ────────────────────────────────────────────── */
 body {
     font-family: var(--font-sans);
-    background: radial-gradient(ellipse at top center, #4a3a28 0%, #1a1410 45%, #2b2018 100%) !important;
-    color: #f5e8d8;
+    background: var(--bg);
+    color: var(--ink);
     min-height: 100vh;
     overflow-x: hidden;
     font-size: 16px;
