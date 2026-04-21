@@ -82,54 +82,14 @@ const Adornment = (() => {
     // _inject() removed; CSS is loaded via <link> to american_garments.css
     loadOverrides(); // Apply Interface Studio overrides immediately
 
-    // Optimistically apply localStorage theme immediately to avoid FOUC
-    const allowCustomStored = localStorage.getItem('flock_allow_custom_themes');
-    const customAllowed = allowCustomStored === 'TRUE';
-    const stored = localStorage.getItem(STORAGE_KEY);
-    const globalStored = localStorage.getItem(GLOBAL_THEME_KEY);
-    if (customAllowed && THEMES.includes(stored)) {
-      _apply(stored);  // user preference cached locally (only when custom themes allowed)
-    } else if (globalStored && globalStored !== 'default' && THEMES.includes(globalStored)) {
-      _apply(globalStored);  // admin base theme cached locally
-    } else {
-      _apply(DEFAULT_THEME);
-    }
+    // Custom themes disabled — always apply the default America theme.
+    // Clear any stored theme overrides so stale dark/custom themes never persist.
+    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(GLOBAL_THEME_KEY);
+    localStorage.removeItem('flock_allow_custom_themes');
+    _apply(DEFAULT_THEME);
 
-    // Fetch admin global theme + ALLOW_CUSTOM_THEMES + user preference asynchronously
-    var _fbMode = typeof UpperRoom !== 'undefined' && typeof Modules !== 'undefined' && Modules._isFirebaseComms && Modules._isFirebaseComms();
-    if (_fbMode) {
-      UpperRoom.getAppConfig({ key: 'GLOBAL_THEME' }).then(res => {
-        const val = (res && res.value) || 'default';
-        localStorage.setItem(GLOBAL_THEME_KEY, val);
-        if (val && val !== 'default' && THEMES.includes(val)) {
-          _apply(val);
-        }
-        return UpperRoom.getAppConfig({ key: 'ALLOW_CUSTOM_THEMES' }).then(acRes => {
-          const acVal = (acRes && acRes.value) || 'FALSE';
-          localStorage.setItem('flock_allow_custom_themes', acVal.toUpperCase());
-          if (acVal.toUpperCase() === 'TRUE') {
-            _syncUserPref();
-          }
-        }).catch(() => {});
-      }).catch(() => {});
-    } else if (typeof TheVine !== 'undefined' && TheVine.flock) {
-      if (TheVine.flock.config) {
-        TheVine.flock.config.get({ key: 'GLOBAL_THEME' }).then(res => {
-          const val = (res && (res.value || (res.data && res.data.value))) || 'default';
-          localStorage.setItem(GLOBAL_THEME_KEY, val);
-          if (val && val !== 'default' && THEMES.includes(val)) {
-            _apply(val);
-          }
-          return TheVine.flock.config.get({ key: 'ALLOW_CUSTOM_THEMES' }).then(acRes => {
-            const acVal = (acRes && (acRes.value || (acRes.data && acRes.data.value))) || 'FALSE';
-            localStorage.setItem('flock_allow_custom_themes', acVal.toUpperCase());
-            if (acVal.toUpperCase() === 'TRUE') {
-              _syncUserPref();
-            }
-          }).catch(() => {});
-        }).catch(() => {});
-      }
-    }
+    // Custom themes disabled — no async theme fetching.
   }
 
   /** Sync theme from user's saved preferences (only called when custom themes are allowed). */
