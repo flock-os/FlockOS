@@ -21,7 +21,7 @@ body.auth-open {
   height: auto;
 }
 :root {
-  --bg-active: var(--bg-hover);
+  --bg-active: var(--bg-hover, #edf0f6);
   --online: #2ea043;
   --away: #d29922;
   --dnd: #cf222e;
