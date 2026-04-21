@@ -368,65 +368,65 @@ details > summary::-webkit-details-marker { display: none; }
     --radius-3xl:    1.5rem;
     --radius-full:   9999px;
 
-    /* ── FlockOS CSS Variables (for Learning Hub renderers) ── */
-    --bg:            #0f1118;
-    --bg-raised:     #181b24;
-    --bg-sunken:     #0a0c12;
-    --bg-hover:      #1e2130;
+    /* ── America theme semantic variables (matches fine_linen.js [data-theme="america"]) ── */
+    --bg:            #f7f8fb;
+    --bg-raised:     #ffffff;
+    --bg-sunken:     #edf0f6;
+    --bg-hover:      #f0f3f9;
 
-    --ink:           #e8e6f0;
-    --ink-muted:     #9a98ab;
-    --ink-faint:     #5e5c6e;
-    --ink-inverse:   #0f1118;
+    --ink:           #1b264f;
+    --ink-muted:     #4a5578;
+    --ink-faint:     #8890a5;
+    --ink-inverse:   #f7f8fb;
 
-    --accent:        #38bdf8;
-    --accent-hover:  #7dd3fc;
-    --accent-soft:   rgba(56,189,248,0.14);
-    --accent-muted:  rgba(56,189,248,0.35);
+    --accent:        #3c3b6e;
+    --accent-hover:  #2d2c55;
+    --accent-soft:   rgba(60,59,110,0.12);
+    --accent-muted:  rgba(60,59,110,0.25);
 
-    --mint:          #2dd4bf;
-    --mint-soft:     rgba(45,212,191,0.12);
+    --mint:          #6ea9d7;
+    --mint-soft:     rgba(110,169,215,0.12);
 
-    --peach:         #e8a888;
-    --peach-soft:    rgba(232,168,136,0.12);
+    --peach:         #b22234;
+    --peach-soft:    rgba(178,34,52,0.10);
 
-    --lilac:         #c084fc;
-    --lilac-soft:    rgba(192,132,252,0.12);
+    --lilac:         #8b9cc7;
+    --lilac-soft:    rgba(139,156,199,0.12);
 
-    --rose:          #e09ab8;
-    --rose-soft:     rgba(224,154,184,0.12);
+    --rose:          #c94254;
+    --rose-soft:     rgba(201,66,84,0.10);
 
-    --gold:          #f6d87a;
-    --gold-soft:     rgba(246,216,122,0.12);
+    --gold:          #c5a44e;
+    --gold-soft:     rgba(197,164,78,0.12);
 
-    --sky:           #38bdf8;
-    --sky-soft:      rgba(56,189,248,0.12);
+    --sky:           #5b8fbf;
+    --sky-soft:      rgba(91,143,191,0.12);
 
-    --danger:        #ff4040;
-    --danger-soft:   rgba(255,64,64,0.12);
-    --success:       #2dd4bf;
-    --success-soft:  rgba(45,212,191,0.12);
-    --warning:       #f6d87a;
-    --warning-soft:  rgba(246,216,122,0.12);
+    --danger:        #b22234;
+    --danger-soft:   rgba(178,34,52,0.10);
+    --success:       #3d7a4f;
+    --success-soft:  rgba(61,122,79,0.10);
+    --warning:       #b58d2a;
+    --warning-soft:  rgba(181,141,42,0.12);
 
-    --link:          #38bdf8;
-    --link-hover:    #7dd3fc;
+    --link:          #3c3b6e;
+    --link-hover:    #2d2c55;
 
-    --line:          rgba(255,255,255,0.08);
-    --line-strong:   rgba(255,255,255,0.14);
+    --line:          rgba(232,168,56,0.15);
+    --line-strong:   rgba(232,168,56,0.25);
 
-    --shadow-sm:     0 1px 3px rgba(0,0,0,0.30);
-    --shadow-md:     0 4px 12px rgba(0,0,0,0.30);
-    --shadow-lg:     0 8px 24px rgba(0,0,0,0.40);
+    --shadow-sm:     0 1px 3px rgba(27,38,79,0.08);
+    --shadow-md:     0 4px 12px rgba(27,38,79,0.10);
+    --shadow-lg:     0 8px 24px rgba(27,38,79,0.12);
 
-    --paper:         #181b24;
-    --paper-line:    rgba(255,255,255,0.06);
-    --paper-margin:  rgba(180,80,80,0.30);
+    --paper:         #ffffff;
+    --paper-line:    rgba(60,59,110,0.08);
+    --paper-margin:  rgba(178,34,52,0.20);
 
-    --surface:       rgba(255,255,255,0.04);
-    --surface-raised:rgba(255,255,255,0.06);
+    --surface:       #edf0f6;
+    --surface-raised:#ffffff;
 
-    color-scheme: dark;
+    color-scheme: light;
 }
 
 /* ── Body ────────────────────────────────────────────── */
