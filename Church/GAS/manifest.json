@@ -1,7 +1,7 @@
 {
   "name": "FlockOS-GAS",
   "short_name": "GAS",
-  "description": "Ministry Operating System — Free. Offline-capable. Built for every church.",
+  "description": "Church Management & Ministry Platform",
   "start_url": "FlockOS/Pages/the_good_shepherd.html",
   "scope": "/",
   "display": "standalone",

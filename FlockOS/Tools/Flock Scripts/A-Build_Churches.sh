@@ -112,7 +112,7 @@ echo ""
 MASTER_API_FILE="$CONFIGS_DIR/Master-API.json"
 BUILD_CONFIGS_DIR="$CONFIGS_DIR"  # default: use local JSON files
 
-if false && [ -f "$MASTER_API_FILE" ]; then  # API fetch temporarily disabled — update master records first
+if [ -f "$MASTER_API_FILE" ]; then
   _API_URL=$(jq -r '.apiUrl // empty' "$MASTER_API_FILE")
   if [ -n "$_API_URL" ]; then
     echo "Fetching church configs from master API…"

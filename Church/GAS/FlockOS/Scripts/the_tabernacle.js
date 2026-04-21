@@ -12717,7 +12717,7 @@ const Modules = (() => {
       { name: 'churchName',  label: 'Church Full Name',                type: 'text',   required: true },
       { name: 'shortName',   label: 'Short Name \u2014 URL slug (e.g. TBC)', type: 'text',   required: true },
       { name: 'brandName',   label: 'Brand Name (shown in app)',        type: 'text',   value: 'FlockOS' },
-      { name: 'tagline',     label: 'Tagline',                          type: 'text',   value: 'Ministry Operating System — Free. Offline-capable. Built for every church.' },
+      { name: 'tagline',     label: 'Tagline',                          type: 'text',   value: 'Church Management & Ministry Platform' },
       { name: 'themeColor',  label: 'Theme Color',                      type: 'color',  value: '#e8a838' },
       { name: 'bgColor',     label: 'Background Color',                 type: 'color',  value: '#1a1a2e' },
       { name: 'databaseUrl', label: 'Database URL (GAS Web App)',       type: 'url',    value: '' },
@@ -12794,7 +12794,7 @@ const Modules = (() => {
         churchName:      c.churchName      || churchId,
         churchShortId:   c.shortName       || churchId,
         brandName:       c.brandName       || c.churchName || '',
-        tagline:         c.tagline         || 'Ministry Operating System — Free. Offline-capable. Built for every church.',
+        tagline:         c.tagline         || 'Church Management & Ministry Platform',
         timezone:        data.timezone,
         adminEmail:      data.adminEmail   || c.adminEmail || '',
         themeColor:      c.themeColor      || '#e8a838',
@@ -21252,7 +21252,7 @@ const Modules = (() => {
   // Registry of all known FlockOS deployments — embedded at build time.
   var _networkChurches = [
     { id: 'flockos',   name: 'FlockOS',               shortName: 'FlockOS',    version: '3.0', firebaseProject: null,
-      databaseUrl: 'https://script.google.com/macros/s/AKfycbx2pemG039LB609OlVY-OcqLWK75qRV2ZgZNyf4Oc7dGogCR2HC4C__iWUqlG9JfYLt/exec' },
+      databaseUrl: 'https://script.google.com/macros/s/AKfycbzR1z1qf0PEJK5Znm1IM-vE6ls4xjfVDjtqOVm7zBVeINS5PRByeOAfa6G3flwPQZTZiQ/exec' },
     { id: 'trinity',   name: 'Trinity Baptist Church', shortName: 'TBC',        version: '3.0', firebaseProject: 'flockos-trinity',
       databaseUrl: 'https://script.google.com/macros/s/AKfycbwAFp0BQvt0DiDJBjzBrycMripfUHOkP0PwiB_DSXgGVezP_y8jCOVxZWweTp58gai7/exec' },
     { id: 'theforest', name: 'The Forest',             shortName: 'TheForest',  version: '3.0', firebaseProject: 'flockos-theforest',
