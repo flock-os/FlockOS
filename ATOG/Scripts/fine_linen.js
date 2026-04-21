@@ -5566,7 +5566,7 @@ details.settings-section.settings-accordion > .settings-accordion-trigger {
    */
   function setTheme(name) {
     const theme = _normalizeTheme(name);
-    if (name && !THEMES.includes(name)) {
+    if (!THEMES.includes(name)) {
       console.warn(`Adornment.setTheme: unsupported theme "${name}" requested; using "${DEFAULT_THEME}"`);
     }
     _apply(theme);
