@@ -20,6 +20,12 @@ body.auth-open {
   overflow: auto;
   height: auto;
 }
+:root {
+  --bg-active: var(--accent-soft, #edf0f6);
+  --online: #2ea043;
+  --away: #d29922;
+  --dnd: #cf222e;
+}
 button { font-family: inherit; cursor: pointer; }
 input, textarea { font-family: inherit; }
 a { color: var(--accent); text-decoration: none; }
@@ -570,7 +576,7 @@ textarea#composer-input {
   padding: 2px 4px;
 }
 textarea#composer-input::placeholder { color: var(--ink-faint); }
-.auth-btn {
+.send-btn {
   width: 100%;
   background: var(--accent, #3c3b6e);
   color: #fff;
