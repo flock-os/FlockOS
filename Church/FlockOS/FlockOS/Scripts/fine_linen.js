@@ -39,25 +39,6 @@ const Adornment = (() => {
   const STORAGE_KEY   = 'flock_theme';
   // CSS is now loaded via american_garments.css; embedded CSS and STYLE_ID removed.
 
-  --line:          #e4e1dc;
-  --line-strong:   #d0ccc5;
-
-  --shadow-sm:     0 1px 3px rgba(0,0,0,0.06);
-  --shadow-md:     0 4px 12px rgba(0,0,0,0.06);
-  --shadow-lg:     0 8px 24px rgba(0,0,0,0.08);
-
-  --radius-sm:     6px;
-  --radius-md:     12px;
-  --radius-lg:     20px;
-  --radius-pill:   9999px;
-
-  --paper:         #fffef8;
-  --paper-line:    #d4c5a9;
-  --paper-margin:  #e8a0a0;
-
-  color-scheme: light;
-}
-
 
 /* ── 2. Meadow ─── Sage green, cream, botanical ────────────────────────────
    Inspired by tbc_care.html — earthy, gentle, grounded.                      */
