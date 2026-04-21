@@ -570,18 +570,18 @@ textarea#composer-input {
   padding: 2px 4px;
 }
 textarea#composer-input::placeholder { color: var(--ink-faint); }
-.send-btn {
-  background: var(--accent);
-  border: none;
-  border-radius: 7px;
+.auth-btn {
+  width: 100%;
+  background: var(--accent, #3c3b6e);
   color: #fff;
-  font-size: 0.88rem;
+  border: none;
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 0.9rem;
   font-weight: 600;
-  padding: 7px 14px;
-  transition: opacity 0.15s;
-  flex-shrink: 0;
+  margin-top: 6px;
+  transition: opacity 0.2s;
 }
-.send-btn:hover { opacity: 0.85; }
 .send-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 
 /* ── Details Pane ──────────────────────────────────────────────────────── */
