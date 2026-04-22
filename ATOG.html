@@ -16,12 +16,12 @@
     <link href="https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,400;0,700;0,900;1,400&family=Inter:wght@300;400;500;600;700&family=Cinzel:wght@400;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
 
     <!-- Theme -->
-    <link rel="stylesheet" href="ATOG/Styles/new_garments.css">
+    <link rel="stylesheet" href="Styles/american_garments.css">
 
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 </head>
-<body>
+<body class="atog-app">
 
     <!-- ═══ Topbar ═════════════════════════════════════════ -->
     <header id="topbar">
@@ -110,7 +110,7 @@
 
         <!-- Sidebar Footer -->
         <div style="padding:16px 12px 24px;border-top:1px solid var(--line);margin-top:auto;">
-            <div style="font-size:0.58rem;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;color:#334155;margin-bottom:10px;padding:0 8px;">About</div>
+            <div style="font-size:0.58rem;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;color:var(--ink-muted);margin-bottom:10px;padding:0 8px;">About</div>
             <a class="nav-item" href="FlockChat.html" style="font-size:0.82rem;">
                 <span class="nav-icon">&#128172;</span> FlockChat
             </a>
@@ -275,7 +275,7 @@
                         He has sent me to proclaim freedom for the prisoners and recovery of sight for the blind,
                         to set the oppressed free.&rdquo;
                     </p>
-                    <cite style="color:#64748b;font-size:0.75rem;font-style:normal;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;">Luke 4:18</cite>
+                    <cite style="color:var(--ink-muted);font-size:0.75rem;font-style:normal;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;">Luke 4:18</cite>
                 </div>
 
             </div>
@@ -287,7 +287,7 @@
     <!-- ═══ Footer ═════════════════════════════════════════ -->
     <footer id="app-footer">
         <p>A Touch of the Gospel &mdash; atouchofthegospel.com</p>
-        <p class="mt-1" style="color:#334155;">Scripture quotations are from the ESV&reg; Bible. Powered by <span style="color:var(--slate-500);">FlockOS</span>.</p>
+        <p class="mt-1" style="color:var(--ink-muted);">Scripture quotations are from the ESV&reg; Bible. Powered by <span style="color:var(--ink-muted);">FlockOS</span>.</p>
     </footer>
 
     <!-- ═══ FlockOS Learning Hub Scripts ═════════════════════ -->
@@ -295,6 +295,9 @@
     <script defer src="ATOG/Scripts/the_true_vine.js"></script>
     <script defer src="ATOG/Scripts/the_tabernacle.js"></script>
     <script defer src="ATOG/Scripts/the_way.js"></script>
+    <!-- ═══ Main Content Renderers (REQUIRED) ═══════════════ -->
+    <script defer src="ATOG/Scripts/the_gospel.js"></script>
+    <script defer src="ATOG/Scripts/the_touch.js"></script>
 
     <!-- ═══ Inline Bootstrap ══════════════════════════════ -->
     <script>
@@ -461,14 +464,14 @@
             card.style.cssText = 'padding:28px;cursor:pointer;transition:background 0.2s;border-radius:16px;';
             card.innerHTML =
                 '<div style="font-size:2.2rem;margin-bottom:16px;">' + item.icon + '</div>' +
-                '<h3 style="font-family:Merriweather,serif;font-size:1.05rem;font-weight:700;color:var(--ink);margin-bottom:10px;">' + item.title + '</h3>' +
-                '<p style="color:#cbd5e1;font-style:italic;font-size:0.88rem;margin-bottom:8px;line-height:1.6;">&ldquo;' + item.quote + '&rdquo;</p>' +
-                '<p style="font-size:0.7rem;font-weight:700;color:#94a3b8;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:16px;">' + item.ref + '</p>' +
-                '<div class="inv-insight" style="display:none;padding-top:14px;border-top:1px solid var(--line);font-size:0.87rem;line-height:1.7;color:var(--ink-muted);">' +
-                    '<strong style="display:block;font-size:0.68rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--neon-blue);margin-bottom:6px;">The Hope</strong>' +
+                '<h3 style="font-family:Merriweather,serif;font-size:1.15rem;font-weight:700;color:var(--ink);margin-bottom:10px;">' + item.title + '</h3>' +
+                '<p style="color:var(--ink-muted);font-style:italic;font-size:0.97rem;margin-bottom:8px;line-height:1.7;">&ldquo;' + item.quote + '&rdquo;</p>' +
+                '<p style="font-size:0.75rem;font-weight:700;color:var(--ink-faint);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:16px;">' + item.ref + '</p>' +
+                '<div class="inv-insight" style="display:none;padding-top:14px;border-top:1px solid var(--line);font-size:0.92rem;line-height:1.75;color:var(--ink-muted);">' +
+                    '<strong style="display:block;font-size:0.68rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--neon-teal);margin-bottom:6px;">The Hope</strong>' +
                     item.insight +
                 '</div>' +
-                '<div class="inv-toggle" style="text-align:center;margin-top:16px;color:#94a3b8;font-size:1.4rem;line-height:1;">+</div>';
+                '<div class="inv-toggle" style="text-align:center;margin-top:16px;color:var(--ink-faint);font-size:1.4rem;line-height:1;">+</div>';
             card.onclick = function() {
                 var insight = card.querySelector('.inv-insight');
                 var tog = card.querySelector('.inv-toggle');
@@ -510,8 +513,8 @@
             '<div style="display:inline-block;padding:3px 14px;border-radius:99px;border:1px solid var(--line);background:var(--accent-soft);font-size:0.65rem;font-weight:700;letter-spacing:0.25em;color:var(--neon-blue);text-transform:uppercase;margin-bottom:16px;">The Declaration</div>' +
             '<h3 style="font-family:Merriweather,serif;font-size:clamp(1.6rem,4vw,2.8rem);font-weight:700;color:var(--ink);line-height:1.2;margin-bottom:24px;">I AM the<br><span style="color:' + data.color + ';text-shadow:0 0 24px ' + data.color + '40;">' + data.label + '</span></h3>' +
             '<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;border-top:1px solid var(--line);padding-top:20px;margin-bottom:20px;">' +
-                '<div><p style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:#64748b;margin-bottom:4px;">The Need Met</p><p style="font-family:Merriweather,serif;font-style:italic;color:var(--ink);font-size:1rem;">' + data.need + '</p></div>' +
-                '<div><p style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:#64748b;margin-bottom:4px;">The Reference</p><p style="color:var(--neon-teal);font-family:monospace;font-size:0.85rem;">' + data.verse + '</p></div>' +
+                '<div><p style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:var(--ink-muted);margin-bottom:4px;">The Need Met</p><p style="font-family:Merriweather,serif;font-style:italic;color:var(--ink);font-size:1rem;">' + data.need + '</p></div>' +
+                '<div><p style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:var(--ink-muted);margin-bottom:4px;">The Reference</p><p style="color:var(--neon-teal);font-family:monospace;font-size:0.85rem;">' + data.verse + '</p></div>' +
             '</div>' +
             '<p style="color:var(--ink-muted);line-height:1.8;font-size:0.92rem;max-width:500px;">' + data.description + '</p>' +
             '</div>';
@@ -529,24 +532,24 @@
               '<h2 style="font-family:Merriweather,serif;font-size:2rem;font-weight:700;color:var(--ink);margin-top:0.4rem;">The Upper Room</h2>' +
               '<p style="color:var(--ink-muted);max-width:580px;line-height:1.7;margin-top:0.5rem;">Today&rsquo;s reflection from the ongoing journey through Scripture, plus your daily reading plan.</p>' +
             '</div>' +
-            '<div id="ur-today" style="margin-bottom:3rem;"><p style="color:#475569;">Loading today&rsquo;s devotional&hellip;</p></div>' +
-            '<div id="ur-reading" style="margin-bottom:3rem;"><p style="color:#475569;">Loading reading plan&hellip;</p></div>' +
+            '<div id="ur-today" style="margin-bottom:3rem;"><p style="color:var(--ink-muted);">Loading today&rsquo;s devotional&hellip;</p></div>' +
+            '<div id="ur-reading" style="margin-bottom:3rem;"><p style="color:var(--ink-muted);">Loading reading plan&hellip;</p></div>' +
             '<div style="margin-bottom:1rem;">' +
-              '<span style="font-size:0.62rem;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:#64748b;">Recent Devotionals</span>' +
+              '<span style="font-size:0.62rem;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:var(--ink-muted);">Recent Devotionals</span>' +
             '</div>' +
             '<div id="ur-list"></div>' +
             '</div>';
 
         /* Fetch devotionals */
         if (typeof TheVine === 'undefined' || typeof TheVine.app === 'undefined') {
-            container.querySelector('#ur-today').innerHTML = '<p style="color:#ef4444;">TheVine is not available. Please refresh.</p>';
+            container.querySelector('#ur-today').innerHTML = '<p style="color:var(--danger);">TheVine is not available. Please refresh.</p>';
             return;
         }
 
         TheVine.app.devotionals().then(function(data) {
             var rows = Array.isArray(data) ? data : (data && Array.isArray(data.rows) ? data.rows : (data && Array.isArray(data.data) ? data.data : []));
             if (!rows.length) {
-                document.getElementById('ur-today').innerHTML = '<p style="color:#64748b;">No devotionals found.</p>';
+                document.getElementById('ur-today').innerHTML = '<p style="color:var(--ink-muted);">No devotionals found.</p>';
                 return;
             }
             /* Sort by date descending */
@@ -568,7 +571,7 @@
             var recent = rows.filter(function(r){ return r !== todayDevo && new Date(r.Date) <= now; }).slice(0, 14);
             recent.forEach(function(r) { _renderURListItem(listEl, r); });
         }).catch(function(e) {
-            document.getElementById('ur-today').innerHTML = '<p style="color:#ef4444;">Could not load devotionals.</p>';
+            document.getElementById('ur-today').innerHTML = '<p style="color:var(--danger);">Could not load devotionals.</p>';
             console.error('Upper Room devotionals error', e);
         });
 
@@ -599,22 +602,22 @@
             '<div style="position:relative;z-index:1;">' +
             '<div style="display:flex;align-items:baseline;gap:1rem;flex-wrap:wrap;margin-bottom:1.5rem;">' +
               '<span style="font-size:0.6rem;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:var(--neon-teal);">' + (devo.Theme || '') + '</span>' +
-              '<span style="font-size:0.6rem;color:#475569;">' + dateStr + '</span>' +
+              '<span style="font-size:0.6rem;color:var(--ink-muted);">' + dateStr + '</span>' +
             '</div>' +
             '<h3 style="font-family:Merriweather,serif;font-size:1.7rem;font-weight:700;color:var(--ink);margin-bottom:1.2rem;line-height:1.3;">' + (devo.Title || '') + '</h3>' +
             '<div style="background:rgba(232,168,56,0.07);border:1px solid rgba(232,168,56,0.2);border-radius:12px;padding:18px 22px;margin-bottom:1.5rem;">' +
               '<p style="font-size:0.62rem;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:var(--neon-blue);margin-bottom:8px;">Scripture</p>' +
               '<p style="color:var(--ink);font-style:italic;line-height:1.75;">' + (devo.Scripture || '') + '</p>' +
             '</div>' +
-            '<p style="font-size:0.62rem;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:#64748b;margin-bottom:8px;">Reflection</p>' +
+            '<p style="font-size:0.62rem;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:var(--ink-muted);margin-bottom:8px;">Reflection</p>' +
             '<p style="color:var(--ink-muted);line-height:1.8;margin-bottom:1.5rem;">' + (devo.Reflection || '') + '</p>' +
             (devo.Question ? '<div style="background:rgba(168,85,247,0.07);border:1px solid rgba(168,85,247,0.2);border-radius:12px;padding:16px 20px;margin-bottom:1.5rem;">' +
               '<p style="font-size:0.62rem;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:var(--neon-purple);margin-bottom:8px;">Reflect</p>' +
               '<p style="color:var(--ink);line-height:1.7;">' + devo.Question + '</p>' +
             '</div>' : '') +
             (devo.Prayer ? '<div style="background:rgba(52,211,153,0.06);border:1px solid rgba(52,211,153,0.2);border-radius:12px;padding:16px 20px;">' +
-              '<p style="font-size:0.62rem;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:#34d399;margin-bottom:8px;">Prayer</p>' +
-              '<p style="color:#a7f3d0;font-style:italic;line-height:1.7;">' + devo.Prayer + '</p>' +
+              '<p style="font-size:0.62rem;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:var(--success);margin-bottom:8px;">Prayer</p>' +
+              '<p style="color:var(--ink-muted);font-style:italic;line-height:1.7;">' + devo.Prayer + '</p>' +
             '</div>' : '') +
             '</div></div>';
     }
@@ -627,7 +630,7 @@
         if (!refs.length) { el.innerHTML = ''; return; }
         var items = refs.map(function(r) {
             return '<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--line);">' +
-              '<span style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#64748b;">' + r.label + '</span>' +
+              '<span style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--ink-muted);">' + r.label + '</span>' +
               '<span style="font-size:0.9rem;color:var(--ink);font-style:italic;">' + r.ref + '</span>' +
             '</div>';
         }).join('');
@@ -638,7 +641,7 @@
                 '<p style="font-size:0.62rem;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:var(--neon-teal);">Daily Reading</p>' +
                 '<h4 style="font-family:Merriweather,serif;font-size:1.1rem;font-weight:700;color:var(--ink);margin-top:4px;">Day ' + day + ' of 365</h4>' +
               '</div>' +
-              '<span style="font-size:0.65rem;color:#475569;">Through the Bible in a Year</span>' +
+              '<span style="font-size:0.65rem;color:var(--ink-muted);">Through the Bible in a Year</span>' +
             '</div>' +
             items +
             '</div>';
@@ -653,15 +656,15 @@
             '<summary style="padding:16px 20px;cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;gap:1rem;">' +
               '<div style="flex:1;min-width:0;">' +
                 '<span style="font-size:0.6rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--neon-teal);margin-right:0.75rem;">' + (devo.Theme || '') + '</span>' +
-                '<span style="font-size:0.62rem;color:#475569;">' + dateStr + '</span>' +
+                '<span style="font-size:0.62rem;color:var(--ink-muted);">' + dateStr + '</span>' +
                 '<h5 style="font-family:Merriweather,serif;font-size:0.92rem;font-weight:700;color:var(--ink);margin-top:4px;">' + (devo.Title || '') + '</h5>' +
               '</div>' +
-              '<span style="color:#475569;font-size:1.1rem;flex-shrink:0;">&#9662;</span>' +
+              '<span style="color:var(--ink-muted);font-size:1.1rem;flex-shrink:0;">&#9662;</span>' +
             '</summary>' +
             '<div style="padding:0 20px 20px;">' +
-              '<p style="font-style:italic;font-size:0.85rem;color:#94a3b8;line-height:1.7;margin-bottom:12px;">' + (devo.Scripture || '') + '</p>' +
+              '<p style="font-style:italic;font-size:0.9rem;color:var(--ink-muted);line-height:1.7;margin-bottom:12px;">' + (devo.Scripture || '') + '</p>' +
               '<p style="color:var(--ink-muted);line-height:1.8;font-size:0.9rem;">' + (devo.Reflection || '') + '</p>' +
-              (devo.Question ? '<p style="font-size:0.85rem;color:#c5a44e;margin-top:12px;font-style:italic;">' + devo.Question + '</p>' : '') +
+              (devo.Question ? '<p style="font-size:0.9rem;color:var(--gold);margin-top:12px;font-style:italic;">' + devo.Question + '</p>' : '') +
             '</div>';
         container.appendChild(el);
     }
@@ -673,7 +676,7 @@
             var el = document.createElement('div');
             el.style.cssText = 'padding:16px 0 16px 20px;border-left:4px solid ' + (i===0?'var(--neon-purple)':'transparent') + ';margin-left:-3px;cursor:pointer;transition:border-color 0.2s;';
             el.innerHTML = '<h4 style="font-family:Merriweather,serif;font-weight:700;font-size:0.95rem;color:' + (i===0?'var(--ink)':'var(--ink-faint)') + ';">' + item.title + '</h4>' +
-                '<p style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.12em;color:#64748b;margin-top:3px;">' + item.subtitle + '</p>';
+                '<p style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--ink-muted);margin-top:3px;">' + item.subtitle + '</p>';
             el.onclick = function() {
                 nav.querySelectorAll('div').forEach(function(n) {
                     n.style.borderLeftColor = 'transparent';
@@ -695,7 +698,7 @@
             '<div style="background:var(--accent-soft);border:1px solid var(--line);border-radius:14px;padding:28px;">' +
             '<h3 style="font-family:Merriweather,serif;font-size:1.6rem;font-weight:700;color:var(--ink);margin-bottom:4px;">' + item.title + '</h3>' +
             '<p style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.18em;color:var(--neon-purple);margin-bottom:20px;">' + item.subtitle + '</p>' +
-            '<p style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#64748b;border-bottom:1px solid var(--line);padding-bottom:8px;margin-bottom:12px;">The Mission</p>' +
+            '<p style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--ink-muted);border-bottom:1px solid var(--line);padding-bottom:8px;margin-bottom:12px;">The Mission</p>' +
             '<p style="color:var(--ink-muted);line-height:1.8;margin-bottom:20px;">' + item.summary + '</p>' +
             '<div style="background:rgba(232,168,56,0.06);border:1px solid rgba(232,168,56,0.2);border-radius:10px;padding:18px 20px;position:relative;overflow:hidden;">' +
             '<div style="position:absolute;top:0;left:0;width:4px;height:100%;background:var(--neon-blue);"></div>' +
