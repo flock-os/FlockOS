@@ -655,16 +655,21 @@
       throw lastError || new Error('Unable to load builds document.');
     }
 
-    async function loadBuildsChart() {
+    function loadBuildsChart() {
       const chart = document.getElementById('orgChart');
       if (!chart) return;
 
-      try {
-        const markdown = await fetchBuildsMarkdown();
-        renderBuildsChart(parseBuildsMarkdown(markdown));
-      } catch (error) {
-        chart.innerHTML = '<div class="org-root"><div class="node-card node-card--root"><div class="node-name">Builds Unavailable</div><div class="node-short">Load Error</div><p class="node-desc">The deployment chart could not load from Builds.md. Check the file path and document format.</p><span class="node-badge node-badge--root">Review Builds.md</span></div></div>';
+      if (window.FLOCK_BUILDS_DATA) {
+        renderBuildsChart(window.FLOCK_BUILDS_DATA);
+        return;
       }
+
+      // Fallback: try fetching Builds.md (works when served over HTTP)
+      fetchBuildsMarkdown()
+        .then(function(markdown) { renderBuildsChart(parseBuildsMarkdown(markdown)); })
+        .catch(function() {
+          chart.innerHTML = '<div class="org-root"><div class="node-card node-card--root"><div class="node-name">Builds Unavailable</div><div class="node-short">Load Error</div><p class="node-desc">The deployment chart could not load from Builds.md. Check the file path and document format.</p><span class="node-badge node-badge--root">Review Builds.md</span></div></div>';
+        });
     }
 
     // Dynamically set the horizontal connector span to match the actual branch row width
@@ -681,6 +686,8 @@
     window.addEventListener('load', loadBuildsChart);
     window.addEventListener('resize', updateBranchSpan);
   </script>
+
+  <script src="FlockOS/Scripts/builds_codex.js"></script>
 
 </body>
 </html>
