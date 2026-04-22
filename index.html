@@ -211,7 +211,6 @@
       position: relative;
       border-radius: 2rem;
       padding: 1.5rem;
-      width: min(1120px, 100%);
       background:
         linear-gradient(180deg, rgba(60,59,110,0.98), rgba(36,48,90,0.96)),
         linear-gradient(135deg, rgba(197,164,78,0.18), transparent 55%);
@@ -473,6 +472,12 @@
       color: var(--ink-faint);
     }
 
+    @media (min-width: 921px) {
+      .spotlight-metrics {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
     @media (max-width: 920px) {
       .hero-shell {
         grid-template-columns: 1fr;
@@ -521,7 +526,7 @@
       <header class="header">
         <div class="header-inner">
           <div class="header-eyebrow">&#9670;&nbsp; The FlockOS Suite</div>
-          <h1 style="text-align:center;">Helping Pastors DO the work of Ministry</h1>
+          <h1>Helping Pastors DO the work of Ministry</h1>
           <p>FlockOS brings church operations, church communication, and discipleship tools into one place with an interface that feels more deliberate than a generic app launcher.</p>
           <div class="accent-bar"></div>
           <div class="header-actions">
@@ -531,6 +536,26 @@
           </div>
         </div>
       </header>
+
+      <aside class="hero-spotlight" aria-label="FlockOS suite summary">
+        <div class="spotlight-label">Commission Ready</div>
+        <h2 class="spotlight-title">Built for the pastor who needs help now, not another software pitch.</h2>
+        <p class="spotlight-copy">First-time visitors should feel what FlockOS is for within seconds: real ministry work, real congregational care, and a suite designed to serve churches without adding more noise, friction, or cost.</p>
+        <div class="spotlight-metrics">
+          <div class="spotlight-metric">
+            <strong>3</strong>
+            <span>distinct ministry applications presented with clearer identity</span>
+          </div>
+          <div class="spotlight-metric">
+            <strong>Free</strong>
+            <span>accessible to churches without a subscription wall</span>
+          </div>
+          <div class="spotlight-metric">
+            <strong>Built</strong>
+            <span>for discipleship, administration, and congregational care</span>
+          </div>
+        </div>
+      </aside>
     </section>
 
     <div class="app-grid">
@@ -596,26 +621,6 @@
       </a>
 
     </div>
-
-    <aside class="hero-spotlight" aria-label="FlockOS suite summary">
-      <div class="spotlight-label">Commission Ready</div>
-      <h2 class="spotlight-title">Built for the pastor who needs help now, not another software pitch.</h2>
-      <p class="spotlight-copy">First-time visitors should feel what FlockOS is for within seconds: real ministry work, real congregational care, and a suite designed to serve churches without adding more noise, friction, or cost.</p>
-      <div class="spotlight-metrics">
-        <div class="spotlight-metric">
-          <strong>3</strong>
-          <span>distinct ministry applications presented with clearer identity</span>
-        </div>
-        <div class="spotlight-metric">
-          <strong>Free</strong>
-          <span>accessible to churches without a subscription wall</span>
-        </div>
-        <div class="spotlight-metric">
-          <strong>Built</strong>
-          <span>for discipleship, administration, and congregational care</span>
-        </div>
-      </div>
-    </aside>
 
     <div class="suite-footnote" aria-label="Suite qualities">
       <span>&#10070; <a href="FlockOS/Pages/software_deployment_referral.html">FlockOS is Built to Be Shared! Refer a Pastor Here.</a></span>
