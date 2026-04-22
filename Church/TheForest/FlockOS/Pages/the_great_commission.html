@@ -13,6 +13,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;600;700&family=Noto+Serif:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../Styles/american_garments.css">
   <style>
     :root {
       --topbar-h: 56px;
@@ -397,37 +398,92 @@
     /* ── Org Chart ────────────────────────────────────────────────────── */
     .org-chart-wrap {
       overflow-x: auto;
-      padding: 8px 0 32px;
+      padding: 20px 14px 32px;
+      border-radius: 22px;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02)),
+        radial-gradient(circle at top left, rgba(126,170,204,0.10), transparent 26%),
+        radial-gradient(circle at top right, rgba(212,184,112,0.08), transparent 24%);
+      border: 1px solid var(--line, rgba(255,255,255,0.08));
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), 0 18px 44px rgba(0,0,0,0.18);
     }
     .org-chart {
       display: flex;
       flex-direction: column;
       align-items: center;
       min-width: fit-content;
-      padding: 0 24px;
+      padding: 6px 24px 0;
+    }
+    .org-chart-topline {
+      width: 100%;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 18px;
+      padding: 0 4px;
+    }
+    .org-chart-copy strong {
+      display: block;
+      font-size: 0.74rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--gold, #d4b870);
+      margin-bottom: 4px;
+    }
+    .org-chart-copy span {
+      font-size: 0.86rem;
+      color: var(--ink-muted, #888);
+      line-height: 1.55;
+    }
+    .org-chart-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      padding: 0.5rem 0.88rem;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(126,170,204,0.18);
+      color: var(--ink, #e0e0e0);
+      font-size: 0.76rem;
+      font-weight: 600;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.14);
     }
     /* Root node */
     .org-root-node {
-      background: linear-gradient(135deg, rgba(126,170,204,0.14) 0%, var(--bg-raised, #16213e) 100%);
-      border: 2px solid var(--accent, #7eaacc);
-      border-radius: 14px;
-      padding: 18px 32px;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03)),
+        linear-gradient(135deg, rgba(126,170,204,0.16) 0%, var(--bg-raised, #16213e) 100%);
+      border: 2px solid rgba(126,170,204,0.48);
+      border-radius: 18px;
+      padding: 20px 34px;
       text-align: center;
-      min-width: 240px;
+      min-width: 260px;
       position: relative;
-      box-shadow: 0 0 0 4px rgba(126,170,204,0.07);
+      box-shadow: 0 0 0 6px rgba(126,170,204,0.07), 0 22px 44px rgba(0,0,0,0.20);
+      overflow: hidden;
+    }
+    .org-root-node::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(circle at top center, rgba(212,184,112,0.18), transparent 26%),
+        linear-gradient(120deg, transparent 0%, rgba(255,255,255,0.05) 40%, transparent 76%);
+      pointer-events: none;
     }
     .org-root-node::after {
       content: '';
       position: absolute;
       bottom: -32px; left: 50%; transform: translateX(-50%);
       width: 2px; height: 32px;
-      background: var(--accent, #7eaacc);
+      background: linear-gradient(180deg, rgba(126,170,204,0.5), rgba(126,170,204,0.16));
       opacity: 0.4;
     }
-    .org-root-icon  { font-size: 1.6rem; margin-bottom: 6px; }
-    .org-root-title { font-size: 1rem; font-weight: 700; color: var(--accent, #7eaacc); }
-    .org-root-sub   { font-size: 0.72rem; color: var(--ink-muted, #888); margin-top: 3px; text-transform: uppercase; letter-spacing: 0.06em; }
+    .org-root-icon  { font-size: 1.7rem; margin-bottom: 8px; position: relative; z-index: 1; }
+    .org-root-title { font-size: 1rem; font-weight: 700; color: var(--accent, #7eaacc); position: relative; z-index: 1; }
+    .org-root-sub   { font-size: 0.72rem; color: var(--ink-muted, #888); margin-top: 5px; text-transform: uppercase; letter-spacing: 0.08em; position: relative; z-index: 1; }
     /* Horizontal bar between root and children */
     .org-h-bar-wrap {
       display: flex;
@@ -464,7 +520,7 @@
       position: absolute;
       top: 0; left: 10%; right: 10%;
       height: 2px;
-      background: rgba(126,170,204,0.25);
+      background: linear-gradient(90deg, rgba(126,170,204,0.10), rgba(126,170,204,0.28), rgba(126,170,204,0.10));
       pointer-events: none;
     }
     /* Each child column (stem + card) */
@@ -476,32 +532,107 @@
     .org-branch-stem {
       width: 2px;
       height: 32px;
-      background: rgba(126,170,204,0.25);
+      background: linear-gradient(180deg, rgba(126,170,204,0.34), rgba(126,170,204,0.08));
       flex-shrink: 0;
     }
     /* Child card */
     .org-child-card {
-      background: var(--bg-raised, #16213e);
-      border: 1px solid var(--line, rgba(255,255,255,0.1));
-      border-radius: 10px;
-      padding: 14px 16px;
-      min-width: 190px;
-      max-width: 230px;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.025)),
+        var(--bg-raised, #16213e);
+      border: 1px solid rgba(126,170,204,0.14);
+      border-radius: 16px;
+      padding: 16px 16px 14px;
+      min-width: 208px;
+      max-width: 248px;
       text-align: center;
-      transition: border-color 0.2s, box-shadow 0.2s;
+      transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 12px 28px rgba(0,0,0,0.16);
+    }
+    .org-child-card::before {
+      content: '';
+      position: absolute;
+      inset: 0 0 auto;
+      height: 4px;
+      background: linear-gradient(90deg, var(--gold, #d4b870), var(--accent, #7eaacc));
+      opacity: 0.92;
     }
     .org-child-card:hover {
-      border-color: var(--accent, #7eaacc);
-      box-shadow: 0 0 0 3px rgba(126,170,204,0.08);
+      border-color: rgba(126,170,204,0.36);
+      box-shadow: 0 0 0 4px rgba(126,170,204,0.08), 0 18px 38px rgba(0,0,0,0.20);
+      transform: translateY(-4px);
     }
-    .org-child-name { font-weight: 700; font-size: 0.9rem; color: var(--ink, #e0e0e0); margin-bottom: 2px; }
-    .org-child-id   { font-size: 0.69rem; color: var(--ink-muted, #888); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+    .org-child-name { font-weight: 700; font-size: 0.92rem; color: var(--ink, #e0e0e0); margin-bottom: 3px; }
+    .org-child-id   { font-size: 0.69rem; color: var(--ink-muted, #888); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 10px; }
     .org-child-pill { margin-bottom: 10px; }
+    .org-child-meta {
+      font-size: 0.72rem;
+      color: var(--ink-muted, #888);
+      margin-bottom: 10px;
+      line-height: 1.5;
+      min-height: 2.2rem;
+    }
     .org-child-actions { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; }
     /* Empty-branch placeholder */
     .org-empty {
-      text-align: center; padding: 40px 20px;
+      text-align: center; padding: 42px 22px;
       color: var(--ink-muted, #888); font-size: 0.88rem;
+      border: 1px dashed rgba(126,170,204,0.20);
+      border-radius: 18px;
+      background: rgba(255,255,255,0.03);
+      width: 100%;
+      max-width: 520px;
+    }
+
+    @media (max-width: 980px) {
+      .org-chart-wrap {
+        padding: 18px 10px 28px;
+      }
+      .org-chart {
+        min-width: 0;
+        width: 100%;
+        padding: 6px 8px 0;
+      }
+      .org-chart-topline {
+        padding: 0;
+      }
+      .org-children-row {
+        gap: 14px 12px;
+        max-width: 620px;
+      }
+      .org-children-row::before {
+        display: none;
+      }
+      .org-branch {
+        flex: 0 1 calc(50% - 12px);
+        min-width: 0;
+      }
+      .org-child-card {
+        min-width: 0;
+        width: min(100%, 260px);
+      }
+      .org-branch-stem {
+        height: 24px;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .org-root-node {
+        min-width: min(100%, 280px);
+        padding-inline: 22px;
+      }
+      .org-children-row {
+        max-width: 280px;
+        gap: 0;
+      }
+      .org-branch {
+        flex-basis: 100%;
+      }
+      .org-child-card {
+        width: min(100%, 280px);
+      }
     }
   </style>
 </head>
@@ -788,6 +919,10 @@ function _gcRenderOverview() {
   // ── Org Chart ─────────────────────────────────────────────────────────
   html += '<div class="section-label">Deployment Tree</div>';
   html += '<div class="org-chart-wrap"><div class="org-chart">';
+  html += '<div class="org-chart-topline">'
+    + '<div class="org-chart-copy"><strong>Deployment Map</strong><span>The master deployment sits at the head of the tree, with each church instance branching from it.</span></div>'
+    + '<div class="org-chart-badge">&#10022; Seed admin overview</div>'
+    + '</div>';
 
   // Root node
   html += '<div class="org-root-node">'
@@ -809,7 +944,7 @@ function _gcRenderOverview() {
         + '<div class="org-child-name">' + _e(c.churchName || c.shortName || cid) + '</div>'
         + '<div class="org-child-id">' + _e(c.shortName || cid) + '</div>'
         + '<div class="org-child-pill"><span class="gc-pill gc-pill-checking" id="ov-pill-' + cid + '">\u25CF Checking\u2026</span></div>'
-        + '<div style="font-size:0.72rem;color:var(--ink-muted,#888);margin-bottom:8px;">'
+        + '<div class="org-child-meta">'
         + '<span id="ov-lat-' + cid + '">\u2014</span>'
         + (c.databaseUrl
             ? '&ensp;&bull;&ensp;<span style="color:#4ade80;">&#10003; Endpoint</span>'

@@ -17,6 +17,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;600;700&family=Noto+Sans+Hebrew:wght@400;600;700&family=Noto+Serif:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../Styles/american_garments.css">
   <style>
     :root {
       --sidebar-w: 240px;
@@ -28,9 +29,10 @@
       background: #ffffff;
       display: flex; flex-direction: column;
       align-items: center; justify-content: center;
-      transition: opacity 0.6s ease;
+      transition: opacity 0.3s ease;
     }
-    #splash.fade-out { opacity: 0; pointer-events: none; }
+    #splash.fade-out { opacity: 0; pointer-events: none; animation: none; }
+    #splash.fade-out * { animation: none !important; }
     #splash .splash-bg {
       max-width: 96%;
       max-height: 80vh;
@@ -50,7 +52,7 @@
       background: linear-gradient(90deg, #c47a0a, #e8a838 30%, #f5c26b 50%, #e8a838 70%, #c47a0a);
       background-size: 300% 100%;
       border-radius: 4px;
-      animation: splash-progress 9s ease-in-out forwards, splash-wash 2s ease-in-out infinite;
+      animation: splash-progress 2.5s ease-in-out forwards, splash-wash 2s ease-in-out infinite;
     }
     @keyframes splash-progress {
       0%   { width: 0; }
@@ -192,6 +194,10 @@
     .card .card-icon { margin-bottom: 10px; }
     .card .card-title { font-weight: 600; color: var(--ink); }
     .card .card-desc { color: var(--ink-muted); margin-top: 4px; }
+    .card-gold {
+      border: 1px solid var(--gold, #d4b870);
+      background: linear-gradient(135deg, var(--accent-soft, rgba(126,170,204,0.08)), var(--gold-soft, rgba(212,184,112,0.06)));
+    }
 
     /* ── Module Content Placeholder ────────────────────────────────────── */
     .module-view { display: none; }
@@ -298,6 +304,21 @@
     .toggle-row-label { display: flex; align-items: center; gap: 10px; font-size: 0.85rem; color: var(--ink); }
     .toggle-row-label .icon { font-size: 1.1rem; opacity: 0.7; }
     .toggle-row-label .name { font-weight: 600; }
+
+    /* ── Offline / Connectivity Banner ── */
+    #offlineBanner {
+      display: none; position: fixed; top: 0; left: 0; right: 0; z-index: 99999;
+      background: #e65100; color: #fff; text-align: center; padding: 8px 16px;
+      font-size: 0.85rem; font-weight: 600; box-shadow: 0 2px 8px rgba(0,0,0,.25);
+      transition: transform .3s ease;
+    }
+    #offlineBanner.show { display: block; }
+    #offlineBanner .retry-btn {
+      background: rgba(255,255,255,.2); border: 1px solid rgba(255,255,255,.5);
+      color: #fff; padding: 3px 12px; border-radius: 4px; margin-left: 12px;
+      cursor: pointer; font-size: 0.8rem;
+    }
+    #offlineBanner .retry-btn:hover { background: rgba(255,255,255,.35); }
   </style>
 </head>
 <body>

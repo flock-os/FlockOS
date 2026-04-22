@@ -537,7 +537,12 @@
   </main>
 
   <script>
-    const BUILDS_DOC_PATH = 'FlockOS/Tools/Build%20Documents/Flock%20Deployments/Builds.md';
+    const BUILDS_DOC_PATHS = [
+      'FlockOS/Tools/Build Documents/Flock Deployments/Builds.md',
+      'FlockOS/Tools/Build%20Documents/Flock%20Deployments/Builds.md',
+      './FlockOS/Tools/Build Documents/Flock Deployments/Builds.md',
+      '/FlockOS/Tools/Build Documents/Flock Deployments/Builds.md'
+    ];
 
     function escapeHtml(value) {
       return String(value || '')
@@ -631,14 +636,31 @@
       updateBranchSpan();
     }
 
+    async function fetchBuildsMarkdown() {
+      let lastError = null;
+
+      for (const path of BUILDS_DOC_PATHS) {
+        try {
+          const response = await fetch(path, { cache: 'no-store' });
+          if (!response.ok) {
+            lastError = new Error('HTTP ' + response.status + ' for ' + path);
+            continue;
+          }
+          return await response.text();
+        } catch (error) {
+          lastError = error;
+        }
+      }
+
+      throw lastError || new Error('Unable to load builds document.');
+    }
+
     async function loadBuildsChart() {
       const chart = document.getElementById('orgChart');
       if (!chart) return;
 
       try {
-        const response = await fetch(BUILDS_DOC_PATH, { cache: 'no-store' });
-        if (!response.ok) throw new Error('Unable to load builds document.');
-        const markdown = await response.text();
+        const markdown = await fetchBuildsMarkdown();
         renderBuildsChart(parseBuildsMarkdown(markdown));
       } catch (error) {
         chart.innerHTML = '<div class="org-root"><div class="node-card node-card--root"><div class="node-name">Builds Unavailable</div><div class="node-short">Load Error</div><p class="node-desc">The deployment chart could not load from Builds.md. Check the file path and document format.</p><span class="node-badge node-badge--root">Review Builds.md</span></div></div>';

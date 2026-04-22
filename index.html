@@ -146,6 +146,8 @@
       position: relative;
       z-index: 1;
       max-width: 720px;
+      display: flex;
+      flex-direction: column;
     }
     .header-eyebrow {
       display: inline-flex;
@@ -155,11 +157,12 @@
       letter-spacing: 0.14em;
       font-weight: 700;
       color: var(--gold);
-      text-transform: uppercase;
+      text-transform: none;
       background: var(--gold-soft);
       border: 1px solid rgba(197,164,78,0.22);
       border-radius: 999px;
       padding: 0.38rem 1rem;
+      align-self: flex-end;
       margin-bottom: 1.25rem;
     }
     .header h1 {
@@ -263,12 +266,14 @@
       border-radius: 1rem;
       background: rgba(255,255,255,0.08);
       border: 1px solid rgba(255,255,255,0.10);
+      text-align: left;
     }
     .spotlight-metric strong {
       display: block;
       font-size: 1.1rem;
       color: #ffffff;
-      margin-bottom: 0.2rem;
+      margin-bottom: 1.05rem;
+      text-align: center;
     }
     .spotlight-metric span {
       display: block;
@@ -408,7 +413,7 @@
       font-size: 0.7rem;
       font-weight: 600;
       letter-spacing: 0.08em;
-      text-transform: uppercase;
+      text-transform: none;
       padding: 0.42rem 0.9rem;
       border-radius: 999px;
       border: 1px solid;
@@ -516,13 +521,13 @@
       <header class="header">
         <div class="header-inner">
           <div class="header-eyebrow">&#9670;&nbsp; The FlockOS Suite</div>
-          <h1>Ministry software with a more sacred front door.</h1>
+          <h1 style="text-align:center;">Helping Pastors DO the work of Ministry</h1>
           <p>FlockOS brings church operations, church communication, and discipleship tools into one place with an interface that feels more deliberate than a generic app launcher.</p>
           <div class="accent-bar"></div>
           <div class="header-actions">
-            <span class="hero-pill">&#10022; Offline-capable experiences</span>
-            <span class="hero-pill">&#10022; Designed for churches, not startups</span>
-            <span class="hero-pill">&#10022; One suite, three ministry lanes</span>
+            <span class="hero-pill">&#10022; Offline Capable</span>
+            <span class="hero-pill">&#10022; Designed for Mobile</span>
+            <span class="hero-pill">&#10022; Multiplication Ready</span>
           </div>
         </div>
       </header>
@@ -595,7 +600,7 @@
     <aside class="hero-spotlight" aria-label="FlockOS suite summary">
       <div class="spotlight-label">Commission Ready</div>
       <h2 class="spotlight-title">Built for the pastor who needs help now, not another software pitch.</h2>
-      <p class="spotlight-copy">First-time visitors should feel what FlockOS is for within seconds: real ministry work, real congregational care, and a suite designed to serve churches without adding more noise or friction.</p>
+      <p class="spotlight-copy">First-time visitors should feel what FlockOS is for within seconds: real ministry work, real congregational care, and a suite designed to serve churches without adding more noise, friction, or cost.</p>
       <div class="spotlight-metrics">
         <div class="spotlight-metric">
           <strong>3</strong>

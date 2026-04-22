@@ -22,14 +22,15 @@
   <link rel="preconnect" href="https://firestore.googleapis.com">
   <link rel="dns-prefetch" href="https://firestore.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;600;700&family=Noto+Sans+Hebrew:wght@400;600;700&family=Noto+Serif:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../Styles/american_garments.css">
   <style>
     :root {
       --sidebar-w: 240px;
       --topbar-h: 56px;
-      /* Fallback values — overridden by Fine Linen theme system (prevents background flash on load) */
-      --bg: #1a1a2e;
-      --bg-raised: #16213e;
-      --ink: #e0e0e0;
+      /* America theme fallbacks — prevents flash before fine_linen.js applies data-theme */
+      --bg: #f7f8fb;
+      --bg-raised: #ffffff;
+      --ink: #1b264f;
     }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html { font-size: 100%; -webkit-text-size-adjust: 100%; overflow: hidden; }
@@ -225,15 +226,103 @@
     /* ── Page Header ───────────────────────────────────────────────────── */
     .page-header {
       margin-bottom: 24px;
-      padding-bottom: 16px;
-      border-bottom: 1px solid var(--line);
+      display: grid;
+      grid-template-columns: minmax(0, 1.5fr) minmax(240px, 0.9fr);
+      gap: 16px;
+      padding: 22px;
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      background:
+        linear-gradient(145deg, rgba(255,255,255,0.96), rgba(255,255,255,0.84)),
+        linear-gradient(135deg, var(--accent-soft), rgba(212,184,112,0.08));
+      box-shadow: 0 16px 42px rgba(27,38,79,0.10);
+      overflow: hidden;
+      position: relative;
+    }
+    .page-header::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(circle at top right, rgba(212,184,112,0.16), transparent 26%),
+        linear-gradient(120deg, transparent 0%, rgba(126,170,204,0.07) 38%, transparent 74%);
+      pointer-events: none;
+    }
+    .page-header-copy,
+    .page-header-side {
+      position: relative;
+      z-index: 1;
+    }
+    .page-header-copy {
+      min-width: 0;
+    }
+    .page-header-kicker {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      padding: 0.35rem 0.8rem;
+      border-radius: 999px;
+      background: rgba(212,184,112,0.12);
+      border: 1px solid rgba(212,184,112,0.20);
+      color: var(--gold);
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      margin-bottom: 0.95rem;
     }
     /* Font sizes → fine_linen.js */
     .page-header h1 {
       color: var(--accent); font-weight: 700;
+      line-height: 1.05;
     }
     .page-header p {
-      color: var(--ink-muted); margin-top: 4px;
+      color: var(--ink-muted); margin-top: 8px;
+      max-width: 38rem;
+    }
+    .page-header-note {
+      margin-top: 12px;
+      color: var(--ink-faint);
+      font-size: 0.84rem;
+      line-height: 1.7;
+    }
+    .page-header-side {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      align-content: start;
+    }
+    .page-stat {
+      padding: 12px 14px;
+      border-radius: 14px;
+      background: rgba(255,255,255,0.68);
+      border: 1px solid rgba(60,59,110,0.10);
+      min-width: 0;
+    }
+    .page-stat-label {
+      display: block;
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.10em;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+      margin-bottom: 6px;
+    }
+    .page-stat-value {
+      display: block;
+      color: var(--ink);
+      font-size: 0.88rem;
+      line-height: 1.45;
+      font-weight: 600;
+    }
+    .dashboard-section-title {
+      color: var(--gold);
+      font-size: 0.95rem;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+      letter-spacing: 0.02em;
     }
 
     /* ── Dashboard Cards ───────────────────────────────────────────────── */
@@ -326,7 +415,20 @@
       .topbar-toggle { display: block; }
       .sidebar { transform: translateX(-260px); width: 260px; }
       .sidebar.open { transform: translateX(0); }
-      .main { margin-left: 0; padding: 16px 10px 24px; }
+      .main {
+        margin-left: 0;
+        /* Generous bottom padding so the last card / form field
+           clears the mobile browser chrome and iOS home-indicator
+           safe area. */
+        padding: 16px 10px max(96px, env(safe-area-inset-bottom) + 64px);
+      }
+      .page-header {
+        grid-template-columns: 1fr;
+        padding: 18px;
+      }
+      .page-header-side {
+        grid-template-columns: 1fr 1fr;
+      }
       .card-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
       /* Data-table, topbar-user, notif-bell mobile sizes → fine_linen.js */
 
@@ -782,8 +884,30 @@
     <!-- Dashboard -->
     <div class="module-view active" id="view-dashboard">
       <div class="page-header">
-        <h1>Dashboard</h1>
-        <p id="dashGreeting"></p>
+        <div class="page-header-copy">
+          <div class="page-header-kicker">Flock Admin</div>
+          <h1>Dashboard</h1>
+          <p id="dashGreeting"></p>
+          <div class="page-header-note">Your core ministry actions, system status, and role-based tools are gathered here first so the opening screen feels directional instead of blank.</div>
+        </div>
+        <div class="page-header-side" aria-label="Dashboard highlights">
+          <div class="page-stat">
+            <span class="page-stat-label">Command Center</span>
+            <span class="page-stat-value">Quick cards adapt to the user role currently signed in.</span>
+          </div>
+          <div class="page-stat">
+            <span class="page-stat-label">Wellspring</span>
+            <span class="page-stat-value">Database health and system readiness stay visible on first load.</span>
+          </div>
+          <div class="page-stat">
+            <span class="page-stat-label">Pastoral Use</span>
+            <span class="page-stat-value">The opening experience reads more like ministry software than a raw admin shell.</span>
+          </div>
+          <div class="page-stat">
+            <span class="page-stat-label">Design Pass</span>
+            <span class="page-stat-value">More hierarchy, depth, and warmth without changing dashboard logic.</span>
+          </div>
+        </div>
       </div>
 
       <div class="card-grid" id="quickCards">
@@ -791,7 +915,7 @@
       </div>
 
       <div style="margin-top: 28px;">
-        <h3 style="color: var(--gold); font-size: 0.95rem; margin-bottom: 12px;">Wellspring Status</h3>
+        <h3 class="dashboard-section-title">&#10022; Wellspring Status</h3>
         <div class="card-grid" id="healthCards">
           <div class="card" id="health-wellspring">
             <div class="card-title">FlockOS API <span class="badge badge-info">DATABASE_URL</span></div>
