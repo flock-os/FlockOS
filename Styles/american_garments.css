@@ -7122,10 +7122,15 @@ FlockChat CSS Themes
  *  Self-contained — all variables, layout & components defined here.
  * ═══════════════════════════════════════════════════════════════════════ */
 
-/* ── Reset ────────────────────────────────────────────────────────────── */
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { font-size: 100%; overflow-x: hidden; }
-body {
+/* ── Reset (FlockChat-scoped) ─────────────────────────────────────────────
+   These global element rules used to be unscoped, which broke scrolling and
+   overrode themes on FlockOS / ATOG / About pages. They are now confined to
+   <body class="flockchat-app">. All FlockChat HTML must include that class. */
+body.flockchat-app,
+body.flockchat-app *,
+body.flockchat-app *::before,
+body.flockchat-app *::after { box-sizing: border-box; }
+body.flockchat-app {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   background: var(--bg);
   color: var(--ink);
@@ -7134,31 +7139,13 @@ body {
   height: 100dvh;
   overflow: hidden;
 }
-body.auth-open {
+body.flockchat-app.auth-open {
   overflow: auto;
   height: auto;
 }
-:root {
-  /* America theme fallbacks — ensures correct rendering before fine_linen.js applies data-theme */
-  --bg:            #f7f8fb;
-  --bg-raised:     #ffffff;
-  --bg-sunken:     #edf0f6;
-  --bg-hover:      #f0f3f9;
-  --ink:           #1b264f;
-  --ink-muted:     #4a5578;
-  --ink-faint:     #8890a5;
-  --accent:        #3c3b6e;
-  --accent-soft:   rgba(60,59,110,0.12);
-  --gold:          #c5a44e;
-  --gold-soft:     rgba(197,164,78,0.12);
-  --danger:        #b22234;
-  --danger-soft:   rgba(178,34,52,0.10);
-  --success:       #3d7a4f;
-  --line:          #d4d9e6;
-  --line-strong:   #bec5d6;
-  --shadow-sm:     0 1px 3px rgba(27,38,79,0.06);
-  --shadow-md:     0 4px 12px rgba(27,38,79,0.06);
-  --shadow-lg:     0 8px 24px rgba(27,38,79,0.08);
+/* FlockChat-only token defaults (America fallbacks for FlockChat-specific vars).
+   Scoped so they don't override theme tokens on FlockOS/ATOG pages. */
+body.flockchat-app {
   --bg-active:     rgba(60,59,110,0.12);
   --sidebar-w:     240px;
   --topbar-h:      52px;
@@ -7166,13 +7153,14 @@ body.auth-open {
   --away:   #d29922;
   --dnd:    #cf222e;
 }
-button { font-family: inherit; cursor: pointer; }
-input, textarea { font-family: inherit; }
-a { color: var(--accent); text-decoration: none; }
-a:hover { text-decoration: underline; }
-::-webkit-scrollbar { width: 5px; height: 5px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--line); border-radius: 3px; }
+body.flockchat-app button { font-family: inherit; cursor: pointer; }
+body.flockchat-app input,
+body.flockchat-app textarea { font-family: inherit; }
+body.flockchat-app a { color: var(--accent); text-decoration: none; }
+body.flockchat-app a:hover { text-decoration: underline; }
+body.flockchat-app ::-webkit-scrollbar { width: 5px; height: 5px; }
+body.flockchat-app ::-webkit-scrollbar-track { background: transparent; }
+body.flockchat-app ::-webkit-scrollbar-thumb { background: var(--line); border-radius: 3px; }
 
 /* ── Auth Screen ──────────────────────────────────────────────────────── */
 #auth-screen {
@@ -8112,20 +8100,20 @@ textarea#composer-input::placeholder { color: var(--ink-faint); }
 
 /* Tablet: hide details, narrow sidebar */
 @media (max-width: 900px) {
-  :root { --details-w: 0px; }
+  body.flockchat-app { --details-w: 0px; }
   .details-pane { display: none !important; }
   .topbar-channel-desc { display: none; }
 }
 
 /* Mobile: drawer sidebar, bottom nav, full-width thread */
 @media (max-width: 640px) {
-  :root {
+  body.flockchat-app {
     --sidebar-w:   280px;
     --topbar-h:    52px;
   }
 
   /* Body fills viewport exactly, no scrolling on app */
-  body:not(.auth-open) {
+  body.flockchat-app:not(.auth-open) {
     overflow: hidden;
     position: fixed;
     width: 100%;
