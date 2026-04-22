@@ -1585,6 +1585,7 @@ const TheWord = (() => {
     _el('btn-user-menu-signout').addEventListener('click', async () => {
       menu.style.display = 'none';
       await F.signOut(auth);
+      window.location.href = '/index.html';
     });
   }
 
@@ -1839,7 +1840,10 @@ const TheWord = (() => {
   function _bindTopbar() {
     // Legacy sign-out button
     const oldSignout = _el('btn-signout');
-    if (oldSignout) oldSignout.addEventListener('click', async () => { await F.signOut(auth); });
+    if (oldSignout) oldSignout.addEventListener('click', async () => {
+      await F.signOut(auth);
+      window.location.href = '/index.html';
+    });
 
     const btnManageUsers = _el('btn-manage-users');
     if (btnManageUsers) btnManageUsers.addEventListener('click', _openAdminPanel);

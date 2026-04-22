@@ -327,7 +327,13 @@
       .topbar-toggle { display: block; }
       .sidebar { transform: translateX(-260px); width: 260px; }
       .sidebar.open { transform: translateX(0); }
-      .main { margin-left: 0; padding: 16px 10px 24px; }
+      .main {
+        margin-left: 0;
+        /* Generous bottom padding so the last card / form field
+           clears the mobile browser chrome and iOS home-indicator
+           safe area. */
+        padding: 16px 10px max(96px, env(safe-area-inset-bottom) + 64px);
+      }
       .card-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
       /* Data-table, topbar-user, notif-bell mobile sizes → fine_linen.js */
 
