@@ -25,6 +25,7 @@
     :root {
       --bg:           #f7f8fb;
       --bg-raised:    #ffffff;
+      --bg-deep:      #e7edf8;
       --ink:          #1b264f;
       --ink-muted:    #4a5578;
       --ink-faint:    #8890a5;
@@ -45,11 +46,44 @@
     }
 
     html, body {
-      background: var(--bg);
+      background:
+        radial-gradient(circle at top left, rgba(197,164,78,0.16), transparent 24%),
+        radial-gradient(circle at top right, rgba(110,169,215,0.16), transparent 28%),
+        linear-gradient(180deg, #fbfcfe 0%, var(--bg) 46%, var(--bg-deep) 100%);
       color: var(--ink);
       font-family: var(--font-sans);
       -webkit-font-smoothing: antialiased;
       color-scheme: light;
+    }
+
+    body {
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    body::before,
+    body::after {
+      content: '';
+      position: fixed;
+      border-radius: 50%;
+      pointer-events: none;
+      filter: blur(8px);
+      opacity: 0.6;
+      z-index: 0;
+    }
+    body::before {
+      width: 24rem;
+      height: 24rem;
+      top: -9rem;
+      right: -8rem;
+      background: radial-gradient(circle, rgba(110,169,215,0.22), transparent 68%);
+    }
+    body::after {
+      width: 20rem;
+      height: 20rem;
+      left: -7rem;
+      bottom: -7rem;
+      background: radial-gradient(circle, rgba(197,164,78,0.18), transparent 70%);
     }
 
     /* ── Page wrapper ── */
@@ -59,6 +93,8 @@
       flex-direction: column;
       align-items: center;
       padding: 2.5rem 1.5rem 4rem;
+      position: relative;
+      z-index: 1;
     }
 
     /* ── Back link ── */
@@ -81,7 +117,30 @@
     /* ── Page header ── */
     .header {
       text-align: center;
-      margin-bottom: 3rem;
+      margin-bottom: 2.2rem;
+      padding: 2rem 2.25rem;
+      width: min(1040px, 100%);
+      border-radius: 2rem;
+      border: 1px solid rgba(255,255,255,0.65);
+      background:
+        linear-gradient(145deg, rgba(255,255,255,0.92), rgba(255,255,255,0.78)),
+        linear-gradient(135deg, rgba(197,164,78,0.07), rgba(110,169,215,0.08));
+      box-shadow: 0 20px 54px rgba(27,38,79,0.12);
+      position: relative;
+      overflow: hidden;
+    }
+    .header::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(circle at 15% 10%, rgba(197,164,78,0.14), transparent 24%),
+        linear-gradient(120deg, transparent 0%, rgba(60,59,110,0.05) 44%, transparent 76%);
+      pointer-events: none;
+    }
+    .header > * {
+      position: relative;
+      z-index: 1;
     }
     .header-eyebrow {
       display: inline-flex;
@@ -120,6 +179,52 @@
       margin: 0.9rem auto 0;
     }
 
+    .chart-shell {
+      width: min(1040px, 100%);
+      padding: 1.5rem 1.25rem 2rem;
+      border-radius: 2rem;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.84), rgba(255,255,255,0.72)),
+        linear-gradient(135deg, rgba(60,59,110,0.05), rgba(197,164,78,0.06));
+      border: 1px solid rgba(60,59,110,0.10);
+      box-shadow: 0 18px 48px rgba(27,38,79,0.10);
+    }
+    .chart-kicker {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      margin-bottom: 1.35rem;
+      padding-inline: 0.4rem;
+    }
+    .chart-kicker-copy strong {
+      display: block;
+      font-size: 0.76rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 0.35rem;
+    }
+    .chart-kicker-copy span {
+      color: var(--ink-muted);
+      font-size: 0.92rem;
+      line-height: 1.6;
+    }
+    .chart-kicker-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      padding: 0.55rem 0.9rem;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.72);
+      border: 1px solid rgba(60,59,110,0.12);
+      color: var(--ink);
+      font-size: 0.78rem;
+      font-weight: 600;
+      box-shadow: var(--shadow-sm);
+    }
+
     /* ════════════════════════════════════════
        ORG CHART
     ════════════════════════════════════════ */
@@ -129,6 +234,7 @@
       align-items: center;
       width: 100%;
       max-width: 1000px;
+      margin: 0 auto;
     }
 
     /* ── Root node row ── */
@@ -142,7 +248,7 @@
     .org-stem {
       width: 2px;
       height: 44px;
-      background: var(--connector);
+      background: linear-gradient(180deg, rgba(60,59,110,0.42), rgba(60,59,110,0.10));
       margin: 0 auto;
       flex-shrink: 0;
     }
@@ -164,7 +270,7 @@
       left: calc(50% - (var(--branch-span) / 2));
       width: var(--branch-span);
       height: 2px;
-      background: var(--connector);
+      background: linear-gradient(90deg, rgba(60,59,110,0.10), rgba(60,59,110,0.30), rgba(60,59,110,0.10));
     }
 
     /* Each child column: vertical drop + card */
@@ -180,7 +286,7 @@
     .org-child-stem {
       width: 2px;
       height: 36px;
-      background: var(--connector);
+      background: linear-gradient(180deg, rgba(60,59,110,0.30), rgba(60,59,110,0.08));
       flex-shrink: 0;
     }
 
@@ -190,20 +296,30 @@
       flex-direction: column;
       align-items: center;
       text-align: center;
-      padding: 1.75rem 1.25rem 1.5rem;
-      background: var(--bg-raised);
+      padding: 1.55rem 1.2rem 1.35rem;
+      background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(255,255,255,0.90));
       border: 1px solid var(--line);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow-sm);
+      border-radius: 1.4rem;
+      box-shadow: var(--shadow-md);
       text-decoration: none;
       color: inherit;
       width: 100%;
       transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
       cursor: pointer;
+      position: relative;
+      overflow: hidden;
+    }
+    .node-card::before {
+      content: '';
+      position: absolute;
+      inset: 0 0 auto;
+      height: 4px;
+      background: linear-gradient(90deg, var(--gold), #6ea9d7);
+      opacity: 0.9;
     }
     .node-card:hover {
-      transform: translateY(-4px);
-      box-shadow: var(--shadow-lg);
+      transform: translateY(-6px);
+      box-shadow: 0 22px 52px rgba(27,38,79,0.14);
       border-color: var(--line-strong);
     }
     .node-card:active {
@@ -214,9 +330,12 @@
     /* Root card is slightly larger */
     .node-card--root {
       padding: 2rem 2rem 1.75rem;
-      max-width: 260px;
-      border-color: var(--line-strong);
-      box-shadow: var(--shadow-md);
+      max-width: 280px;
+      border-color: rgba(197,164,78,0.28);
+      box-shadow: 0 26px 60px rgba(27,38,79,0.16);
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.98), rgba(255,250,240,0.92)),
+        linear-gradient(135deg, rgba(197,164,78,0.10), rgba(60,59,110,0.06));
     }
     .node-card--root .node-icon-wrap {
       width: 96px;
@@ -233,11 +352,13 @@
     .node-icon-wrap {
       width: 72px;
       height: 72px;
-      border-radius: 18px;
+      border-radius: 20px;
       overflow: hidden;
       margin-bottom: 1rem;
-      box-shadow: var(--shadow-sm);
+      box-shadow: 0 12px 26px rgba(27,38,79,0.14);
       flex-shrink: 0;
+      background: rgba(255,255,255,0.96);
+      padding: 0.2rem;
     }
     .node-icon-wrap img {
       width: 72px;
@@ -266,6 +387,12 @@
       font-size: 0.78rem;
       color: var(--ink-muted);
       line-height: 1.6;
+      min-height: 3.8em;
+      display: -webkit-box;
+      line-clamp: 3;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 3;
+      overflow: hidden;
     }
     .node-badge {
       margin-top: 0.9rem;
@@ -273,7 +400,7 @@
       font-weight: 600;
       letter-spacing: 0.08em;
       text-transform: uppercase;
-      padding: 0.22rem 0.75rem;
+      padding: 0.34rem 0.82rem;
       border-radius: 999px;
       border: 1px solid rgba(60,59,110,0.18);
       color: var(--accent);
@@ -285,8 +412,44 @@
       border-color: rgba(197,164,78,0.28);
     }
 
-    /* ── Responsive: stack on small screens ── */
+    /* ── Responsive: break earlier on tablet widths ── */
+    @media (max-width: 980px) {
+      .chart-shell {
+        padding: 1.25rem 1rem 1.5rem;
+      }
+      .org-chart {
+        max-width: 700px;
+      }
+      .org-branch-row {
+        flex-wrap: wrap;
+        gap: 0.25rem 0.9rem;
+        max-width: 620px;
+      }
+      .org-branch-row::before {
+        display: none;
+      }
+      .org-child {
+        flex: 0 1 calc(50% - 0.9rem);
+        min-width: 0;
+        max-width: 270px;
+      }
+      .org-child-stem {
+        height: 24px;
+      }
+    }
+
     @media (max-width: 640px) {
+      .header {
+        padding: 1.5rem 1.15rem;
+        border-radius: 1.5rem;
+      }
+      .chart-shell {
+        padding: 1.1rem 0.85rem 1.4rem;
+        border-radius: 1.5rem;
+      }
+      .chart-kicker {
+        padding-inline: 0;
+      }
       .org-branch-row {
         flex-direction: column;
         align-items: center;
@@ -294,6 +457,7 @@
       }
       .org-branch-row::before { display: none; }
       .org-child {
+        flex-basis: auto;
         max-width: 280px;
         width: 100%;
       }
@@ -339,88 +503,28 @@
     </header>
 
     <!-- ══════════════ ORG CHART ══════════════ -->
-    <div class="org-chart">
+    <section class="chart-shell">
+      <div class="chart-kicker">
+        <div class="chart-kicker-copy">
+          <strong>Deployment Tree</strong>
+          <span>The root build anchors the release line, with deployment details loaded from the editable builds document.</span>
+        </div>
+        <div class="chart-kicker-pill">&#10022; Canonical root to church instances</div>
+      </div>
 
-      <!-- ROOT NODE -->
-      <div class="org-root">
-        <a class="node-card node-card--root" href="FlockOS.html">
-          <div class="node-icon-wrap">
-            <img src="FlockOS/Images/FlockOS_AppIcon.png" alt="FlockOS">
+      <div class="org-chart" id="orgChart" aria-live="polite">
+        <div class="org-root">
+          <div class="node-card node-card--root">
+            <div class="node-name">Loading Builds</div>
+            <div class="node-short">Please Wait</div>
+            <p class="node-desc">The deployment tree is loading from the builds document.</p>
+            <span class="node-badge node-badge--root">Loading</span>
           </div>
-          <div class="node-name">FlockOS</div>
-          <div class="node-short">Master Build</div>
-          <p class="node-desc">The root source deployment — the canonical FlockOS build.</p>
-          <span class="node-badge node-badge--root">Open App</span>
-        </a>
+        </div>
       </div>
 
-      <!-- Stem from root down to branch bar -->
-      <div class="org-stem"></div>
-
-      <!-- CHILDREN ROW -->
-      <!-- --branch-span controls the horizontal connector width; kept in CSS calc below via JS -->
-      <div class="org-branch-row" id="branchRow">
-
-        <!-- FlockOS Demo -->
-        <div class="org-child">
-          <div class="org-child-stem"></div>
-          <a class="node-card" href="Church/FlockOS/index.html">
-            <div class="node-icon-wrap">
-              <img src="FlockOS/Images/FlockOS_Pink.png" alt="FlockOS Demo">
-            </div>
-            <div class="node-name">FlockOS Demo</div>
-            <div class="node-short">Demo</div>
-            <p class="node-desc">Base deployment — ministry OS for any church.</p>
-            <span class="node-badge">Open App</span>
-          </a>
-        </div>
-
-        <!-- The Wellspring -->
-        <div class="org-child">
-          <div class="org-child-stem"></div>
-          <a class="node-card" href="Church/GAS/index.html">
-            <div class="node-icon-wrap">
-              <img src="FlockOS/Images/FlockOS_Orange.png" alt="The Wellspring">
-            </div>
-            <div class="node-name">The Wellspring</div>
-            <div class="node-short">GAS</div>
-            <p class="node-desc">FlockOS for The Wellspring community.</p>
-            <span class="node-badge">Open App</span>
-          </a>
-        </div>
-
-        <!-- Trinity Baptist Church -->
-        <div class="org-child">
-          <div class="org-child-stem"></div>
-          <a class="node-card" href="Church/TBC/index.html">
-            <div class="node-icon-wrap" style="background:#1a1a2e;">
-              <img src="FlockOS/Images/FlockOS_White.png" alt="Trinity Baptist Church">
-            </div>
-            <div class="node-name">Trinity Baptist Church</div>
-            <div class="node-short">TBC</div>
-            <p class="node-desc">FlockOS for Trinity Baptist Church.</p>
-            <span class="node-badge">Open App</span>
-          </a>
-        </div>
-
-        <!-- The Forest -->
-        <div class="org-child">
-          <div class="org-child-stem"></div>
-          <a class="node-card" href="Church/TheForest/index.html">
-            <div class="node-icon-wrap">
-              <img src="FlockOS/Images/FlockOS_Green.png" alt="The Forest">
-            </div>
-            <div class="node-name">The Forest</div>
-            <div class="node-short">TheForest</div>
-            <p class="node-desc">FlockOS for The Forest community.</p>
-            <span class="node-badge">Open App</span>
-          </a>
-        </div>
-
       </div>
-      <!-- /CHILDREN ROW -->
-
-    </div>
+    </section>
     <!-- /ORG CHART -->
 
     <footer class="footer">
@@ -431,6 +535,114 @@
   </main>
 
   <script>
+    const BUILDS_DOC_PATH = 'FlockOS/Tools/Build%20Documents/Flock%20Deployments/Builds.md';
+
+    function escapeHtml(value) {
+      return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function parseBuildsMarkdown(source) {
+      const lines = String(source || '').split(/\r?\n/);
+      const result = { root: null, deployments: [] };
+      let current = null;
+
+      for (const rawLine of lines) {
+        const line = rawLine.trim();
+        if (!line || line.startsWith('<!--')) continue;
+
+        const heading = line.match(/^##\s+(Root|Deployment)\s*$/i);
+        if (heading) {
+          current = { type: heading[1].toLowerCase() };
+          if (current.type === 'root') {
+            result.root = current;
+          } else {
+            result.deployments.push(current);
+          }
+          continue;
+        }
+
+        if (!current) continue;
+
+        const field = line.match(/^-\s*([a-zA-Z0-9_-]+):\s*(.+)$/);
+        if (field) {
+          current[field[1].toLowerCase()] = field[2].trim();
+        }
+      }
+
+      return result;
+    }
+
+    function buildRootMarkup(root) {
+      return '<div class="org-root">'
+        + '<a class="node-card node-card--root" href="' + escapeHtml(root.href || 'FlockOS.html') + '">'
+        + '<div class="node-icon-wrap">'
+        + '<img src="' + escapeHtml(root.image || 'FlockOS/Images/FlockOS_AppIcon.png') + '" alt="' + escapeHtml(root.alt || root.name || 'FlockOS') + '">'
+        + '</div>'
+        + '<div class="node-name">' + escapeHtml(root.name || 'FlockOS') + '</div>'
+        + '<div class="node-short">' + escapeHtml(root.short || 'Master Build') + '</div>'
+        + '<p class="node-desc">' + escapeHtml(root.description || '') + '</p>'
+        + '<span class="node-badge node-badge--root">' + escapeHtml(root.badge || 'Open Master Build') + '</span>'
+        + '</a>'
+        + '</div>';
+    }
+
+    function buildDeploymentMarkup(item) {
+      return '<div class="org-child">'
+        + '<div class="org-child-stem"></div>'
+        + '<a class="node-card" href="' + escapeHtml(item.href || '#') + '">'
+        + '<div class="node-icon-wrap">'
+        + '<img src="' + escapeHtml(item.image || 'FlockOS/Images/FlockOS_AppIcon.png') + '" alt="' + escapeHtml(item.alt || item.name || 'Deployment') + '">'
+        + '</div>'
+        + '<div class="node-name">' + escapeHtml(item.name || 'Unnamed Build') + '</div>'
+        + '<div class="node-short">' + escapeHtml(item.short || '') + '</div>'
+        + '<p class="node-desc">' + escapeHtml(item.description || '') + '</p>'
+        + '<span class="node-badge">' + escapeHtml(item.badge || 'Open Deployment') + '</span>'
+        + '</a>'
+        + '</div>';
+    }
+
+    function renderBuildsChart(data) {
+      const chart = document.getElementById('orgChart');
+      if (!chart) return;
+
+      if (!data.root) {
+        chart.innerHTML = '<div class="org-root"><div class="node-card node-card--root"><div class="node-name">Builds.md Missing Root</div><div class="node-short">Needs Setup</div><p class="node-desc">Add a Root section in the builds document so the chart can render correctly.</p><span class="node-badge node-badge--root">Edit Builds.md</span></div></div>';
+        return;
+      }
+
+      let html = buildRootMarkup(data.root);
+
+      if (data.deployments.length) {
+        html += '<div class="org-stem"></div>';
+        html += '<div class="org-branch-row" id="branchRow">';
+        data.deployments.forEach(function(item) {
+          html += buildDeploymentMarkup(item);
+        });
+        html += '</div>';
+      }
+
+      chart.innerHTML = html;
+      updateBranchSpan();
+    }
+
+    async function loadBuildsChart() {
+      const chart = document.getElementById('orgChart');
+      if (!chart) return;
+
+      try {
+        const response = await fetch(BUILDS_DOC_PATH, { cache: 'no-store' });
+        if (!response.ok) throw new Error('Unable to load builds document.');
+        const markdown = await response.text();
+        renderBuildsChart(parseBuildsMarkdown(markdown));
+      } catch (error) {
+        chart.innerHTML = '<div class="org-root"><div class="node-card node-card--root"><div class="node-name">Builds Unavailable</div><div class="node-short">Load Error</div><p class="node-desc">The deployment chart could not load from Builds.md. Check the file path and document format.</p><span class="node-badge node-badge--root">Review Builds.md</span></div></div>';
+      }
+    }
+
     // Dynamically set the horizontal connector span to match the actual branch row width
     function updateBranchSpan() {
       const row = document.getElementById('branchRow');
@@ -442,7 +654,7 @@
       const span  = (last.left + last.width / 2) - (first.left + first.width / 2);
       row.style.setProperty('--branch-span', Math.max(0, span) + 'px');
     }
-    window.addEventListener('load', updateBranchSpan);
+    window.addEventListener('load', loadBuildsChart);
     window.addEventListener('resize', updateBranchSpan);
   </script>
 
