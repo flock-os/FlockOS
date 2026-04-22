@@ -281,6 +281,11 @@ for config in "$BUILD_CONFIGS_DIR"/*.json; do
   cp "$ROOT_MANIFEST" "$OUT/manifest.json"
   cp "$ROOT_SW"       "$OUT/the_living_water.js"
 
+  # 2a. Fix CSS path — Church deployments are 2 levels deep; point to root Styles/
+  sed -i '' \
+    's|href="Styles/american_garments\.css"|href="../../Styles/american_garments.css"|g' \
+    "$OUT/index.html"
+
   # 3. Brand with church-specific values
 
   # Escape values for sed
