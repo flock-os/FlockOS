@@ -7130,6 +7130,11 @@ body.flockchat-app,
 body.flockchat-app *,
 body.flockchat-app *::before,
 body.flockchat-app *::after { box-sizing: border-box; }
+/* Margin/padding reset (matches original FlockChat the_word.css * { margin:0; padding:0 }
+   reset). Scoped so it doesn't strip native spacing from FlockOS/ATOG pages. */
+body.flockchat-app *,
+body.flockchat-app *::before,
+body.flockchat-app *::after { margin: 0; padding: 0; }
 body.flockchat-app {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   background: var(--bg);
@@ -7138,15 +7143,36 @@ body.flockchat-app {
   height: 100vh;
   height: 100dvh;
   overflow: hidden;
+  overflow-x: hidden;
 }
 body.flockchat-app.auth-open {
   overflow: auto;
   height: auto;
 }
-/* FlockChat-only token defaults (America fallbacks for FlockChat-specific vars).
+/* FlockChat-only tokens + America-theme fallbacks.
+   Ensures correct first-paint colors before fine_linen.js applies data-theme.
    Scoped so they don't override theme tokens on FlockOS/ATOG pages. */
 body.flockchat-app {
+  --bg:            #f7f8fb;
+  --bg-raised:     #ffffff;
+  --bg-sunken:     #edf0f6;
+  --bg-hover:      #f0f3f9;
   --bg-active:     rgba(60,59,110,0.12);
+  --ink:           #1b264f;
+  --ink-muted:     #4a5578;
+  --ink-faint:     #8890a5;
+  --accent:        #3c3b6e;
+  --accent-soft:   rgba(60,59,110,0.12);
+  --gold:          #c5a44e;
+  --gold-soft:     rgba(197,164,78,0.12);
+  --danger:        #b22234;
+  --danger-soft:   rgba(178,34,52,0.10);
+  --success:       #3d7a4f;
+  --line:          #d4d9e6;
+  --line-strong:   #bec5d6;
+  --shadow-sm:     0 1px 3px rgba(27,38,79,0.06);
+  --shadow-md:     0 4px 12px rgba(27,38,79,0.06);
+  --shadow-lg:     0 8px 24px rgba(27,38,79,0.08);
   --sidebar-w:     240px;
   --topbar-h:      52px;
   --online: #2ea043;
