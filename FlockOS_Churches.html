@@ -484,6 +484,17 @@
       font-size: 0.75rem;
       color: var(--ink-faint);
     }
+
+    /* ── Pull-to-Refresh ──────────────────────────────────────────── */
+    @media (max-width: 768px) {
+      .ptr-indicator {
+        display: none; position: fixed; top: 50px; left: 50%; transform: translateX(-50%);
+        z-index: 9998; background: var(--bg-raised); border: 1px solid var(--line);
+        border-radius: 20px; padding: 6px 14px; font-size: 0.75rem; color: var(--ink-muted);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      }
+      .ptr-indicator.visible { display: block; }
+    }
   </style>
 </head>
 <body>
@@ -688,6 +699,45 @@
   </script>
 
   <script src="FlockOS/Scripts/builds_codex.js"></script>
+
+  <!-- Pull-to-Refresh indicator -->
+  <div class="ptr-indicator" id="ptrIndicator">&#8635; Release to refresh</div>
+
+  <script>
+  // ── Pull-to-Refresh ────────────────────────────────────────────────────────
+  (function() {
+    if (window.innerWidth > 768) return;
+    var ptr = document.getElementById('ptrIndicator');
+    var startY = 0, pulling = false, triggered = false;
+    document.addEventListener('touchstart', function(e) {
+      if (window.scrollY > 5) return;
+      startY = e.touches[0].clientY;
+      pulling = true;
+      triggered = false;
+    }, { passive: true });
+    document.addEventListener('touchmove', function(e) {
+      if (!pulling) return;
+      var dy = e.touches[0].clientY - startY;
+      if (dy > 60 && !triggered) {
+        triggered = true;
+        if (ptr) ptr.classList.add('visible');
+      } else if (dy < 30) {
+        triggered = false;
+        if (ptr) ptr.classList.remove('visible');
+      }
+    }, { passive: true });
+    document.addEventListener('touchend', function() {
+      if (triggered) {
+        if (ptr) ptr.textContent = 'Refreshing\u2026';
+        setTimeout(function() { location.reload(); }, 300);
+      } else {
+        if (ptr) ptr.classList.remove('visible');
+      }
+      pulling = false;
+      triggered = false;
+    }, { passive: true });
+  })();
+  </script>
 
 </body>
 </html>
