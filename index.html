@@ -699,7 +699,7 @@
     </section>
 
     <div class="app-grid">
-      <a class="app-card" href="#deployments">
+      <a class="app-card" href="Covenant/Nations/FlockOS/index.html">
         <div class="app-card-head">
           <img class="app-logo" src="Covenant/Courts/TheTabernacle/Images/FlockOS_AppIcon.png" alt="FlockOS">
           <div>
@@ -707,10 +707,10 @@
             <p class="app-tagline">Deployment launcher</p>
           </div>
         </div>
-        <p class="app-desc">Jump directly to the deployment tree and select the master build or any church branch.</p>
+        <p class="app-desc">Open the root FlockOS app build directly from the launcher.</p>
         <div class="app-card-footer">
-          <span class="app-link-copy">Scroll to deployments</span>
-          <span class="app-badge">View Tree</span>
+          <span class="app-link-copy">Open root application</span>
+          <span class="app-badge">Enter FlockOS</span>
         </div>
       </a>
 
@@ -831,10 +831,10 @@
       const root = Object.assign({}, data.root || {});
       const deployments = Array.isArray(data.deployments) ? data.deployments.slice() : [];
 
-      // Keep this launcher truly single-page by mapping old root links to in-page top.
+      // Map legacy launcher references to the real master app entry.
       if (/Covenant\/Gate\/SuiteGate\/index\.html/i.test(root.href || '') || /FlockOS_Churches\.html/i.test(root.href || '')) {
-        root.href = '#top';
-        root.badge = 'You Are Here';
+        root.href = 'Covenant/Nations/FlockOS/index.html';
+        root.badge = 'Open Master Build';
       }
 
       return { root: root, deployments: deployments };
