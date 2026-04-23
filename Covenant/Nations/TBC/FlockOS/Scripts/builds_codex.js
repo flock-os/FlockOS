@@ -7,7 +7,7 @@ window.FLOCK_BUILDS_DATA = {
     type: 'root',
     name: 'FlockOS',
     short: 'Master Build',
-    href: 'Covenant/Gate/SuiteGate/index.html',
+    href: 'Covenant/Nations/Root/FlockOS.html',
     image: 'Covenant/Courts/TheTabernacle/Images/FlockOS_AppIcon.png',
     alt: 'FlockOS',
     description: 'The root source deployment and single source of truth for every church release.',

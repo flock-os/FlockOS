@@ -119,6 +119,55 @@
       color: var(--ink-faint);
     }
 
+    /* ── Mission panel ── */
+    .mission {
+      padding: 1rem 1rem 1.05rem;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.95), rgba(250,252,255,0.95));
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      box-shadow: var(--shadow-sm);
+    }
+    .mission h2 {
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 0.5rem;
+    }
+    .mission p {
+      font-size: 0.9rem;
+      color: var(--ink-muted);
+      max-width: 76ch;
+    }
+    .mission-grid {
+      margin-top: 0.8rem;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 0.65rem;
+    }
+    .mission-point {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--bg-raised);
+      padding: 0.65rem 0.75rem;
+    }
+    .mission-point strong {
+      display: block;
+      font-size: 0.76rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--accent);
+      margin-bottom: 0.25rem;
+    }
+    .mission-point span {
+      display: block;
+      font-size: 0.82rem;
+      color: var(--ink-muted);
+      line-height: 1.45;
+    }
+
     /* ── App grid (3 cards) ── */
     .app-grid {
       display: grid;
@@ -349,6 +398,28 @@
         <p>Apps and deployments — one launcher.</p>
       </div>
     </header>
+
+    <section class="mission" aria-label="Mission and architecture overview">
+      <h2>Mission &amp; Architecture</h2>
+      <p>
+        FlockOS is built to help churches move from intention to action with clarity. Its architecture keeps a single master source,
+        then distributes consistent builds to church environments, reducing deployment friction while preserving local reliability.
+      </p>
+      <div class="mission-grid">
+        <article class="mission-point">
+          <strong>Security Posture</strong>
+          <span>Least-privilege access rules, explicit deployment targets, and auditable configuration boundaries support responsible stewardship of church data.</span>
+        </article>
+        <article class="mission-point">
+          <strong>Rapid Deployment</strong>
+          <span>One coordinated build pipeline propagates updates across branches, enabling faster rollout with fewer manual steps and less drift.</span>
+        </article>
+        <article class="mission-point">
+          <strong>Operational Confidence</strong>
+          <span>Offline-capable experiences and shared core patterns help teams deliver dependable service across diverse church contexts.</span>
+        </article>
+      </div>
+    </section>
 
     <!-- ── Apps ── -->
     <section>
