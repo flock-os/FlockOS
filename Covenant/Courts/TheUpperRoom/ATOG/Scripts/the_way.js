@@ -287,16 +287,32 @@ const TheWay = (() => {
     { id: 'certificates',label: 'Certificates',  icon: '\uD83C\uDF93' },
   ];
 
+  function _isAtogHost() {
+    return !!(window.ATOG && typeof window.ATOG.navigate === 'function');
+  }
+
+  function _backToParentHome() {
+    if (_isAtogHost()) {
+      window.ATOG.navigate('home');
+      return;
+    }
+    switchTab('dashboard');
+  }
+
+  function _backButtonLabel() {
+    return _isAtogHost() ? '\u2190 ATOG Home' : '\u2190 Learning Hub';
+  }
+
   function _renderTabs() {
     // Simple back button for in-hub sub-pages (courses, analytics, certificates)
     var html = '<div style="padding:0 0 12px;border-bottom:1px solid var(--line);margin-bottom:16px;position:sticky;top:48px;z-index:90;background:var(--bg);">';
-    html += '<button onclick="TheWay.switchTab(\'dashboard\')" '
+    html += '<button onclick="TheWay.backToParentHome()" '
           + 'style="padding:8px 16px;border:1px solid var(--line);border-radius:8px;cursor:pointer;'
           + 'font-size:0.85rem;font-family:inherit;background:var(--bg-raised);'
           + 'color:var(--accent);font-weight:600;transition:all 0.15s;" '
           + 'onmouseover="this.style.background=\'var(--accent)\';this.style.color=\'var(--ink-inverse)\'" '
           + 'onmouseout="this.style.background=\'var(--bg-raised)\';this.style.color=\'var(--accent)\'"'
-          + '>\u2190 Learning Hub</button>';
+          + '>' + _backButtonLabel() + '</button>';
     html += '</div>';
     return html;
   }
@@ -386,6 +402,14 @@ const TheWay = (() => {
     if (!el) return;
     var p = el.querySelector('#tw-panels');
     if (p) p.innerHTML = html;
+  }
+
+  function _resolveAtogPagesBase() {
+    var path = window.location.pathname || '';
+    if (path.indexOf('/Covenant/Courts/TheUpperRoom/ATOG/Pages/') !== -1) return '';
+    if (path.indexOf('/Covenant/Courts/TheUpperRoom/ATOG/') !== -1) return 'Pages/';
+    if (path.indexOf('/Covenant/Nations/Root/') !== -1) return '../../Courts/TheUpperRoom/ATOG/Pages/';
+    return 'Pages/';
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -496,7 +520,7 @@ const TheWay = (() => {
         zoneCards.forEach(function(c) {
           var action;
           if (c.href) {
-            var base = window.location.pathname.indexOf('/Pages/') !== -1 ? '' : 'FlockOS/Pages/';
+            var base = _resolveAtogPagesBase();
             var fromPage = window.location.pathname.indexOf('index.html') !== -1 || window.location.pathname.match(/\/FlockOS\/?$/) ? 'public' : 'admin';
             action = 'window.location.href=\'' + base + c.href + '?from=' + fromPage + '\'';
           } else {
@@ -3648,6 +3672,7 @@ const TheWay = (() => {
     renderHub:       renderHub,
     refresh:         refresh,
     switchTab:       switchTab,
+    backToParentHome: _backToParentHome,
     resetHome:       function() { _activeTab = 'dashboard'; },
 
     // Course player

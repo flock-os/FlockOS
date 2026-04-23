@@ -32,6 +32,69 @@
       }
       .ptr-indicator.visible { display: block; }
     }
+
+    /* ── IAM + Timeline: mobile stack ───────────────────────────── */
+    @media (max-width: 640px) {
+      #atog-iam-split {
+        flex-direction: column !important;
+        min-height: unset !important;
+      }
+      #iam-nav-list {
+        width: 100% !important;
+        min-width: unset !important;
+        border-right: none !important;
+        border-bottom: 1.5px solid var(--line-strong) !important;
+        flex-direction: row !important;
+        flex-wrap: wrap !important;
+        justify-content: flex-start !important;
+        padding: 0 !important;
+        gap: 0;
+      }
+      #iam-nav-list > div {
+        border-left: none !important;
+        border-bottom: 3px solid transparent;
+        flex: 1 1 auto;
+        text-align: center;
+        justify-content: center;
+        padding: 12px 8px !important;
+        min-width: 80px;
+        font-size: 0.78rem !important;
+      }
+      #iam-content-area {
+        padding: 28px 20px !important;
+        align-items: flex-start !important;
+        min-width: unset !important;
+      }
+      #atog-tl-split {
+        flex-direction: column !important;
+        gap: 0 !important;
+        padding: 0 !important;
+      }
+      #timeline-nav {
+        width: 100% !important;
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        overflow-x: auto !important;
+        border-bottom: 1.5px solid var(--line-strong) !important;
+        padding: 0 4px !important;
+        gap: 0;
+        scrollbar-width: none;
+      }
+      #timeline-nav::-webkit-scrollbar { display: none; }
+      #timeline-nav > div {
+        border-left: none !important;
+        border-bottom: 3px solid transparent;
+        flex-shrink: 0 !important;
+        min-width: 90px !important;
+        text-align: center;
+        padding: 14px 10px !important;
+      }
+      #timeline-content {
+        padding: 20px 16px !important;
+        min-width: unset !important;
+      }
+    }
     </style>
 </head>
 <body class="atog-app">
@@ -44,7 +107,7 @@
         <div style="flex:1; display:flex; align-items:center; gap:12px;">
             <div>
                 <span class="brand">A Touch of the Gospel</span>
-                <span class="brand-sub">atouchofthegospel.com</span>
+                <span class="brand-sub">Powered by FlockOS</span>
             </div>
         </div>
     </header>
@@ -144,14 +207,14 @@
 
         <!-- ── Home / Hero ────────────────────────────────── -->
         <div class="module-view active" id="view-home">
-            <div class="rounded-3xl p-10 relative overflow-hidden mb-12" style="background:linear-gradient(135deg,var(--accent-soft),var(--gold-soft));border:1px solid var(--line);">
+            <div class="rounded-3xl p-10 relative overflow-hidden mb-12" style="background:linear-gradient(135deg,var(--accent-soft),var(--gold-soft));border:1.5px solid color-mix(in srgb, var(--gold) 50%, var(--line));">
                 <div class="hero-glow" style="width:400px;height:400px;background:var(--gold);top:-100px;right:-80px;"></div>
                 <div class="hero-glow" style="width:300px;height:300px;background:var(--accent);bottom:-80px;left:-60px;"></div>
                 <div class="relative z-10 text-center max-w-3xl mx-auto">
-                    <span class="pill uppercase tracking-widest font-bold mb-6" style="color:var(--gold); border-color:var(--gold-soft); background:var(--gold-soft); padding:0.25rem 1rem; font-size:0.65rem;">
+                    <span class="pill tracking-widest font-bold mb-6" style="color:var(--gold); border-color:var(--gold-soft); background:var(--gold-soft); padding:0.25rem 1rem; font-size:0.65rem; text-transform:none;">
                         Powered by FlockOS
                     </span>
-                    <h1 class="font-display text-4xl font-bold mb-6 leading-tight" style="color:var(--accent);">
+                    <h1 class="font-serif text-4xl font-bold mb-6 leading-tight" style="color:var(--accent); text-transform:none; font-variant-caps:normal;">
                         A Touch of <span class="gradient-text">the Gospel</span>
                     </h1>
                     <p class="text-lg leading-relaxed mb-10" style="color:var(--ink-muted);">
@@ -169,35 +232,41 @@
             <div class="grid grid-cols-1 gap-5" id="home-cards"></div>
 
             <!-- ── Section 1: The Great Invitations ── -->
-            <section id="atog-invitations" style="margin-top:4rem;padding-top:2rem;">
-                <div style="margin-bottom:2rem;">
-                    <h2 style="font-family:'Merriweather',serif;font-size:1.9rem;font-weight:700;color:var(--ink);margin-bottom:0.75rem;">1. The Great Invitations</h2>
-                    <p style="color:var(--ink-muted);max-width:640px;line-height:1.7;">Jesus issued personal calls characterized by grace rather than performance. Click each card to uncover the profound hope offered to the exhausted, the thirsty, and those seeking intimacy.</p>
+            <section id="atog-invitations" style="margin-top:4.5rem;padding-top:2.5rem;border-top:1px solid var(--line);">
+                <div style="margin-bottom:2.25rem;">
+                    <span style="display:inline-block;font-size:0.62rem;font-weight:800;letter-spacing:0.22em;text-transform:uppercase;color:var(--gold);margin-bottom:0.6rem;">&#10022; Section One</span>
+                    <h2 style="font-family:'Merriweather',serif;font-size:2.3rem;font-weight:900;color:var(--ink);margin-bottom:0.6rem;line-height:1.15;">The Great Invitations</h2>
+                    <div style="width:52px;height:3px;background:linear-gradient(90deg,var(--gold),transparent);border-radius:2px;margin-bottom:1.1rem;"></div>
+                    <p style="color:var(--ink-muted);max-width:600px;line-height:1.8;font-size:1rem;">Jesus issued personal calls characterized by grace rather than performance. Click each card to uncover the profound hope offered to the exhausted, the thirsty, and those seeking intimacy.</p>
                 </div>
-                <div id="invitation-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1.5rem;"></div>
+                <div id="invitation-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(285px,1fr));gap:1.75rem;"></div>
             </section>
 
             <!-- ── Section 2: The I AM Declarations ── -->
-            <section id="atog-iam" style="margin-top:5rem;padding-top:2rem;">
-                <div style="margin-bottom:2rem;">
-                    <h2 style="font-family:'Merriweather',serif;font-size:1.9rem;font-weight:700;color:var(--ink);margin-bottom:0.75rem;">2. The &ldquo;I AM&rdquo; Declarations</h2>
-                    <p style="color:var(--ink-muted);max-width:640px;line-height:1.7;">In the Gospel of John, Jesus uses seven metaphors to declare how He perfectly meets the deepest needs of the human soul. Select a declaration to explore His identity.</p>
+            <section id="atog-iam" style="margin-top:4.5rem;padding-top:2.5rem;border-top:1px solid var(--line);">
+                <div style="margin-bottom:2.25rem;">
+                    <span style="display:inline-block;font-size:0.62rem;font-weight:800;letter-spacing:0.22em;text-transform:uppercase;color:var(--neon-blue);margin-bottom:0.6rem;">&#10022; Section Two</span>
+                    <h2 style="font-family:'Merriweather',serif;font-size:2.3rem;font-weight:900;color:var(--ink);margin-bottom:0.6rem;line-height:1.15;">The &ldquo;I AM&rdquo; Declarations</h2>
+                    <div style="width:52px;height:3px;background:linear-gradient(90deg,var(--neon-blue),transparent);border-radius:2px;margin-bottom:1.1rem;"></div>
+                    <p style="color:var(--ink-muted);max-width:600px;line-height:1.8;font-size:1rem;">In the Gospel of John, Jesus uses seven metaphors to declare how He perfectly meets the deepest needs of the human soul. Select a declaration to explore His identity.</p>
                 </div>
-                <div style="display:flex;flex-wrap:wrap;border:1px solid var(--line);border-radius:20px;overflow:hidden;background:var(--surface);min-height:460px;">
-                    <div style="width:220px;min-width:180px;flex-shrink:0;border-right:1px solid var(--line);background:var(--bg-sunken);padding:16px 0;display:flex;flex-direction:column;justify-content:center;" id="iam-nav-list"></div>
-                    <div style="flex:1;min-width:240px;padding:40px 48px;display:flex;align-items:center;" id="iam-content-area"></div>
+                <div id="atog-iam-split" style="display:flex;flex-wrap:nowrap;border:1.5px solid var(--line-strong);border-radius:20px;overflow:hidden;background:linear-gradient(135deg,var(--bg-raised),var(--bg-sunken));min-height:480px;box-shadow:0 8px 32px rgba(22,32,62,0.10);">
+                    <div style="width:230px;min-width:180px;flex-shrink:0;border-right:1.5px solid var(--line-strong);background:var(--bg-sunken);padding:20px 0;display:flex;flex-direction:column;justify-content:center;" id="iam-nav-list"></div>
+                    <div style="flex:1;padding:44px 52px;display:flex;align-items:center;" id="iam-content-area"></div>
                 </div>
             </section>
 
             <!-- ── Section 3: The Finished Work ── -->
-            <section id="atog-work" style="margin-top:5rem;padding-top:2rem;margin-bottom:3rem;">
-                <div style="margin-bottom:2rem;">
-                    <h2 style="font-family:'Merriweather',serif;font-size:1.9rem;font-weight:700;color:var(--ink);margin-bottom:0.75rem;">3. The Finished Work</h2>
-                    <p style="color:var(--ink-muted);max-width:640px;line-height:1.7;">Hope is not just found in what Jesus said, but in what He accomplished. Select an event from the timeline to understand the historical progression of His redemptive mission.</p>
+            <section id="atog-work" style="margin-top:4.5rem;padding-top:2.5rem;border-top:1px solid var(--line);margin-bottom:4rem;">
+                <div style="margin-bottom:2.25rem;">
+                    <span style="display:inline-block;font-size:0.62rem;font-weight:800;letter-spacing:0.22em;text-transform:uppercase;color:var(--neon-teal);margin-bottom:0.6rem;">&#10022; Section Three</span>
+                    <h2 style="font-family:'Merriweather',serif;font-size:2.3rem;font-weight:900;color:var(--ink);margin-bottom:0.6rem;line-height:1.15;">The Finished Work</h2>
+                    <div style="width:52px;height:3px;background:linear-gradient(90deg,var(--neon-teal),transparent);border-radius:2px;margin-bottom:1.1rem;"></div>
+                    <p style="color:var(--ink-muted);max-width:600px;line-height:1.8;font-size:1rem;">Hope is not just found in what Jesus said, but in what He accomplished. Select an event from the timeline to understand the historical progression of His redemptive mission.</p>
                 </div>
-                <div style="display:flex;flex-wrap:wrap;gap:24px;border:1px solid var(--line);border-radius:16px;background:var(--surface);padding:28px;">
-                    <div style="width:220px;flex-shrink:0;border-left:2px solid var(--line);" id="timeline-nav"></div>
-                    <div style="flex:1;min-width:240px;" id="timeline-content"></div>
+                <div id="atog-tl-split" style="display:flex;flex-wrap:nowrap;gap:28px;border:1.5px solid var(--line-strong);border-radius:20px;background:linear-gradient(135deg,var(--bg-raised),var(--bg));padding:32px;box-shadow:0 8px 32px rgba(22,32,62,0.08);">
+                    <div style="width:230px;flex-shrink:0;border-right:1.5px solid var(--line-strong);padding-right:20px;" id="timeline-nav"></div>
+                    <div style="flex:1;" id="timeline-content"></div>
                 </div>
             </section>
         </div>
@@ -217,7 +286,7 @@
                 <!-- Hero -->
                 <div style="text-align:center;padding:40px 0 36px;">
                     <div style="font-size:2.8rem;margin-bottom:14px;">&#127838;</div>
-                    <span style="font-size:0.62rem;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:var(--neon-teal);">A Touch of the Gospel</span>
+                    <span style="font-size:0.62rem;font-weight:700;letter-spacing:0.06em;text-transform:none;color:var(--neon-teal);">A Touch of the Gospel</span>
                     <h1 style="font-family:Merriweather,serif;font-size:1.8rem;font-weight:700;color:var(--ink);margin:0.5rem 0 1rem;line-height:1.3;">Support This Ministry</h1>
                     <p style="color:var(--ink-muted);font-size:0.97rem;line-height:1.8;max-width:520px;margin:0 auto;">
                         It is not about the money. It is not about the software.<br>
@@ -471,27 +540,58 @@
     function initATOGInvitations() {
         var grid = document.getElementById('invitation-grid');
         if (!grid) return;
-        _invitationData.forEach(function(item) {
+        var palette = ['#c5a44e','#3b82f6','#10b981','#8b5cf6','#ef4444','#06b6d4'];
+        _invitationData.forEach(function(item, i) {
+            var col = palette[i % palette.length];
             var card = document.createElement('div');
             card.className = 'glass-card';
-            card.style.cssText = 'padding:28px;cursor:pointer;transition:background 0.2s;border-radius:16px;';
+            card.style.cssText = [
+                'padding:0;cursor:pointer;border-radius:18px;overflow:hidden;',
+                'border-top:4px solid ' + col + ';',
+                'transition:transform 0.2s ease,box-shadow 0.2s ease;'
+            ].join('');
             card.innerHTML =
-                '<div style="font-size:2.2rem;margin-bottom:16px;">' + item.icon + '</div>' +
-                '<h3 style="font-family:Merriweather,serif;font-size:1.15rem;font-weight:700;color:var(--ink);margin-bottom:10px;">' + item.title + '</h3>' +
-                '<p style="color:var(--ink-muted);font-style:italic;font-size:0.97rem;margin-bottom:8px;line-height:1.7;">&ldquo;' + item.quote + '&rdquo;</p>' +
-                '<p style="font-size:0.75rem;font-weight:700;color:var(--ink-faint);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:16px;">' + item.ref + '</p>' +
-                '<div class="inv-insight" style="display:none;padding-top:14px;border-top:1px solid var(--line);font-size:0.92rem;line-height:1.75;color:var(--ink-muted);">' +
-                    '<strong style="display:block;font-size:0.68rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--neon-teal);margin-bottom:6px;">The Hope</strong>' +
-                    item.insight +
-                '</div>' +
-                '<div class="inv-toggle" style="text-align:center;margin-top:16px;color:var(--ink-faint);font-size:1.4rem;line-height:1;">+</div>';
+                '<div style="padding:26px 26px 20px;">' +
+                  '<div style="display:flex;align-items:flex-start;gap:14px;margin-bottom:18px;">' +
+                    '<div style="width:54px;height:54px;flex-shrink:0;border-radius:14px;' +
+                      'background:' + col + '18;border:1.5px solid ' + col + '44;' +
+                      'display:flex;align-items:center;justify-content:center;font-size:1.75rem;">' + item.icon + '</div>' +
+                    '<h3 style="font-family:Merriweather,serif;font-size:1.08rem;font-weight:700;' +
+                      'color:var(--ink);line-height:1.35;padding-top:4px;">' + item.title + '</h3>' +
+                  '</div>' +
+                  '<div style="position:relative;padding:14px 16px;margin-bottom:16px;' +
+                    'border-radius:10px;border-left:3px solid ' + col + ';' +
+                    'background:' + col + '0d;">' +
+                    '<p style="margin:0;color:var(--ink);font-style:italic;font-size:0.95rem;' +
+                      'line-height:1.72;">&ldquo;' + item.quote + '&rdquo;</p>' +
+                  '</div>' +
+                  '<span style="display:inline-block;font-size:0.72rem;font-weight:700;' +
+                    'color:' + col + ';border:1.5px solid ' + col + '55;' +
+                    'border-radius:99px;padding:3px 13px;letter-spacing:0.03em;">' + item.ref + '</span>' +
+                  '<div class="inv-insight" style="display:none;margin-top:18px;padding-top:16px;' +
+                    'border-top:1px solid var(--line);">' +
+                    '<p style="font-size:0.66rem;font-weight:800;text-transform:uppercase;' +
+                      'letter-spacing:0.16em;color:' + col + ';margin-bottom:8px;">&#9670; The Hope</p>' +
+                    '<p style="font-size:0.93rem;line-height:1.8;color:var(--ink-muted);">' + item.insight + '</p>' +
+                  '</div>' +
+                  '<div class="inv-toggle" style="text-align:center;margin-top:18px;' +
+                    'font-size:1.2rem;color:var(--ink-faint);user-select:none;line-height:1;">&#43;</div>' +
+                '</div>';
+            card.addEventListener('mouseenter', function() {
+                card.style.transform = 'translateY(-4px)';
+                card.style.boxShadow = '0 12px 32px ' + col + '28';
+            });
+            card.addEventListener('mouseleave', function() {
+                card.style.transform = '';
+                card.style.boxShadow = '';
+            });
             card.onclick = function() {
                 var insight = card.querySelector('.inv-insight');
                 var tog = card.querySelector('.inv-toggle');
                 var open = insight.style.display !== 'none';
                 document.querySelectorAll('.inv-insight').forEach(function(el) { el.style.display = 'none'; });
-                document.querySelectorAll('.inv-toggle').forEach(function(el) { el.textContent = '+'; });
-                if (!open) { insight.style.display = 'block'; tog.textContent = '−'; }
+                document.querySelectorAll('.inv-toggle').forEach(function(el) { el.innerHTML = '&#43;'; });
+                if (!open) { insight.style.display = 'block'; tog.innerHTML = '&#8722;'; }
             };
             grid.appendChild(card);
         });
@@ -502,8 +602,19 @@
         if (!nav) return;
         _iamData.forEach(function(item, i) {
             var btn = document.createElement('div');
-            btn.style.cssText = 'padding:10px 20px;cursor:pointer;font-size:0.82rem;font-weight:500;border-left:3px solid transparent;transition:all 0.25s;color:' + (i===0?'var(--ink)':'var(--ink-muted)') + ';';
-            btn.innerHTML = '<span style="margin-right:8px;">' + item.icon + '</span>' + item.label;
+            btn.setAttribute('data-iam-color', item.color);
+            btn.style.cssText = [
+                'padding:12px 20px;cursor:pointer;font-size:0.84rem;font-weight:600;',
+                'border-left:4px solid ' + (i===0 ? item.color : 'transparent') + ';',
+                'border-bottom:1px solid var(--line);',
+                'transition:all 0.22s;',
+                'color:' + (i===0 ? 'var(--ink)' : 'var(--ink-muted)') + ';',
+                'background:' + (i===0 ? 'rgba(255,255,255,0.06)' : 'transparent') + ';',
+                'display:flex;align-items:center;gap:10px;'
+            ].join('');
+            btn.innerHTML =
+                '<span style="font-size:1.2rem;line-height:1;">' + item.icon + '</span>' +
+                '<span>' + item.label + '</span>';
             btn.id = 'iam-nav-' + i;
             btn.onclick = function() { showATOGIAM(i); };
             nav.appendChild(btn);
@@ -516,20 +627,45 @@
         var nav = document.getElementById('iam-nav-list');
         if (!nav) return;
         nav.querySelectorAll('div').forEach(function(el, i) {
+            var d = _iamData[i];
+            var isMobile = window.innerWidth <= 640;
             el.style.color = i===idx ? 'var(--ink)' : 'var(--ink-muted)';
-            el.style.borderLeftColor = i===idx ? data.color : 'transparent';
-            el.style.background = i===idx ? 'var(--accent-soft)' : '';
+            el.style.background = i===idx ? 'rgba(255,255,255,0.06)' : 'transparent';
+            el.style.fontWeight = i===idx ? '700' : '500';
+            if (isMobile) {
+                el.style.borderLeftColor = 'transparent';
+                el.style.borderBottomColor = i===idx ? d.color : 'transparent';
+                el.style.borderBottomWidth = '3px';
+            } else {
+                el.style.borderLeftColor = i===idx ? d.color : 'transparent';
+            }
         });
         var area = document.getElementById('iam-content-area');
         area.innerHTML =
-            '<div>' +
-            '<div style="display:inline-block;padding:3px 14px;border-radius:99px;border:1px solid var(--line);background:var(--accent-soft);font-size:0.65rem;font-weight:700;letter-spacing:0.25em;color:var(--neon-blue);text-transform:uppercase;margin-bottom:16px;">The Declaration</div>' +
-            '<h3 style="font-family:Merriweather,serif;font-size:clamp(1.6rem,4vw,2.8rem);font-weight:700;color:var(--ink);line-height:1.2;margin-bottom:24px;">I AM the<br><span style="color:' + data.color + ';text-shadow:0 0 24px ' + data.color + '40;">' + data.label + '</span></h3>' +
-            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;border-top:1px solid var(--line);padding-top:20px;margin-bottom:20px;">' +
-                '<div><p style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:var(--ink-muted);margin-bottom:4px;">The Need Met</p><p style="font-family:Merriweather,serif;font-style:italic;color:var(--ink);font-size:1rem;">' + data.need + '</p></div>' +
-                '<div><p style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:var(--ink-muted);margin-bottom:4px;">The Reference</p><p style="color:var(--neon-teal);font-family:monospace;font-size:0.85rem;">' + data.verse + '</p></div>' +
+            '<div style="width:100%;">' +
+            '<div style="display:inline-flex;align-items:center;gap:8px;padding:4px 14px;border-radius:99px;' +
+              'border:1.5px solid ' + data.color + '55;background:' + data.color + '12;' +
+              'font-size:0.64rem;font-weight:800;letter-spacing:0.2em;color:' + data.color + ';' +
+              'text-transform:uppercase;margin-bottom:20px;">' +
+              '<span style="font-size:1rem;">' + data.icon + '</span> The Declaration' +
             '</div>' +
-            '<p style="color:var(--ink-muted);line-height:1.8;font-size:0.92rem;max-width:500px;">' + data.description + '</p>' +
+            '<h3 style="font-family:Merriweather,serif;font-size:clamp(1.5rem,3.5vw,2.6rem);font-weight:900;' +
+              'color:var(--ink);line-height:1.18;margin-bottom:6px;">I AM the</h3>' +
+            '<h3 style="font-family:Merriweather,serif;font-size:clamp(1.5rem,3.5vw,2.6rem);font-weight:900;' +
+              'color:' + data.color + ';line-height:1.18;margin-bottom:26px;' +
+              'text-shadow:0 0 32px ' + data.color + '38;">' + data.label + '</h3>' +
+            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;' +
+              'border-top:1.5px solid var(--line);padding-top:22px;margin-bottom:22px;">' +
+              '<div><p style="font-size:0.64rem;font-weight:700;text-transform:uppercase;letter-spacing:0.14em;' +
+                'color:var(--ink-faint);margin-bottom:5px;">The Need Met</p>' +
+                '<p style="font-family:Merriweather,serif;font-style:italic;color:var(--ink);font-size:1.02rem;font-weight:700;">' + data.need + '</p></div>' +
+              '<div><p style="font-size:0.64rem;font-weight:700;text-transform:uppercase;letter-spacing:0.14em;' +
+                'color:var(--ink-faint);margin-bottom:5px;">The Reference</p>' +
+                '<p style="color:' + data.color + ';font-family:monospace;font-size:0.9rem;font-weight:700;">' + data.verse + '</p></div>' +
+            '</div>' +
+            '<div style="background:' + data.color + '0a;border-radius:12px;border-left:3px solid ' + data.color + ';padding:16px 20px;">' +
+              '<p style="color:var(--ink-muted);line-height:1.82;font-size:0.93rem;margin:0;">' + data.description + '</p>' +
+            '</div>' +
             '</div>';
     }
 
@@ -540,15 +676,17 @@
         /* Skeleton */
         container.innerHTML =
             '<div style="max-width:860px;margin:0 auto;padding:0 4px;">' +
-            '<div style="margin-bottom:2.5rem;">' +
-              '<span style="font-size:0.62rem;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:var(--neon-teal);">Daily Devotion</span>' +
-              '<h2 style="font-family:Merriweather,serif;font-size:2rem;font-weight:700;color:var(--ink);margin-top:0.4rem;">The Upper Room</h2>' +
-              '<p style="color:var(--ink-muted);max-width:580px;line-height:1.7;margin-top:0.5rem;">Today&rsquo;s reflection from the ongoing journey through Scripture, plus your daily reading plan.</p>' +
+            '<div style="margin-bottom:2.75rem;padding-top:2rem;border-top:1px solid var(--line);">' +
+              '<span style="display:inline-block;font-size:0.62rem;font-weight:800;letter-spacing:0.22em;text-transform:uppercase;color:var(--gold);margin-bottom:0.6rem;">&#10022; Daily Devotion</span>' +
+              '<h2 style="font-family:Merriweather,serif;font-size:2.3rem;font-weight:900;color:var(--ink);margin-bottom:0.6rem;line-height:1.15;">The Upper Room</h2>' +
+              '<div style="width:52px;height:3px;background:linear-gradient(90deg,var(--gold),transparent);border-radius:2px;margin-bottom:1.1rem;"></div>' +
+              '<p style="color:var(--ink-muted);max-width:580px;line-height:1.8;font-size:1rem;">Today&rsquo;s reflection from the ongoing journey through Scripture, plus your daily reading plan.</p>' +
             '</div>' +
             '<div id="ur-today" style="margin-bottom:3rem;"><p style="color:var(--ink-muted);">Loading today&rsquo;s devotional&hellip;</p></div>' +
-            '<div id="ur-reading" style="margin-bottom:3rem;"><p style="color:var(--ink-muted);">Loading reading plan&hellip;</p></div>' +
-            '<div style="margin-bottom:1rem;">' +
-              '<span style="font-size:0.62rem;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:var(--ink-muted);">Recent Devotionals</span>' +
+            '<div id="ur-reading" style="margin-bottom:3.5rem;"><p style="color:var(--ink-muted);">Loading reading plan&hellip;</p></div>' +
+            '<div style="margin-bottom:1.5rem;padding-top:2rem;border-top:1px solid var(--line);">' +
+              '<span style="display:inline-block;font-size:0.62rem;font-weight:800;letter-spacing:0.22em;text-transform:uppercase;color:var(--gold);margin-bottom:0.5rem;">&#10022; Archive</span>' +
+              '<h3 style="font-family:Merriweather,serif;font-size:1.4rem;font-weight:900;color:var(--ink);margin:0;">Recent Devotionals</h3>' +
             '</div>' +
             '<div id="ur-list"></div>' +
             '</div>';
@@ -610,29 +748,62 @@
         var dateStr = '';
         try { dateStr = new Date(devo.Date).toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'}); } catch(e){}
         el.innerHTML =
-            '<div class="glass-heavy" style="border-radius:20px;padding:36px;position:relative;overflow:hidden;">' +
-            '<div class="hero-glow" style="width:280px;height:280px;background:var(--neon-blue);top:-100px;right:-80px;opacity:0.35;"></div>' +
-            '<div style="position:relative;z-index:1;">' +
-            '<div style="display:flex;align-items:baseline;gap:1rem;flex-wrap:wrap;margin-bottom:1.5rem;">' +
-              '<span style="font-size:0.6rem;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:var(--neon-teal);">' + (devo.Theme || '') + '</span>' +
-              '<span style="font-size:0.6rem;color:var(--ink-muted);">' + dateStr + '</span>' +
+            '<div class="glass-heavy" style="border-radius:20px;padding:36px;">' +
+            '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:1.75rem;padding-bottom:1.25rem;border-bottom:1.5px solid color-mix(in srgb,var(--gold) 38%,var(--line));">' +
+              '<span style="font-size:0.6rem;font-weight:800;letter-spacing:0.2em;text-transform:uppercase;' +
+                'color:var(--accent);background:var(--accent-soft);border:1.5px solid color-mix(in srgb,var(--accent) 30%,var(--line));' +
+                'border-radius:99px;padding:3px 12px;">' + (devo.Theme || 'Focus') + '</span>' +
+              '<span style="font-size:0.68rem;color:var(--ink-faint);">' + dateStr + '</span>' +
             '</div>' +
-            '<h3 style="font-family:Merriweather,serif;font-size:1.7rem;font-weight:700;color:var(--ink);margin-bottom:1.2rem;line-height:1.3;">' + (devo.Title || '') + '</h3>' +
-            '<div style="background:rgba(232,168,56,0.07);border:1px solid rgba(232,168,56,0.2);border-radius:12px;padding:18px 22px;margin-bottom:1.5rem;">' +
-              '<p style="font-size:0.62rem;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:var(--neon-blue);margin-bottom:8px;">Scripture</p>' +
-              '<p style="color:var(--ink);font-style:italic;line-height:1.75;">' + (devo.Scripture || '') + '</p>' +
+            '<h3 style="font-family:Merriweather,serif;font-size:clamp(1.6rem,4vw,2.2rem);font-weight:900;' +
+              'line-height:1.2;margin-bottom:1.75rem;">' +
+              '<span style="color:var(--ink);">' + (devo.Title || '').split(' ').slice(0,-1).join(' ') + ' </span>' +
+              '<span style="background:linear-gradient(135deg,var(--accent),var(--gold));' +
+                '-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">' +
+                (devo.Title || '').split(' ').slice(-1)[0] +
+              '</span>' +
+            '</h3>' +
+            '<div style="border:1.5px solid color-mix(in srgb,var(--gold) 50%,var(--line));border-radius:14px;' +
+              'overflow:hidden;margin-bottom:1.5rem;">' +
+              '<div style="background:color-mix(in srgb,var(--gold) 8%,var(--bg-raised));' +
+                'padding:10px 20px;border-bottom:1.5px solid color-mix(in srgb,var(--gold) 40%,var(--line));">' +
+                '<span style="font-size:0.62rem;font-weight:800;text-transform:uppercase;letter-spacing:0.18em;color:var(--gold);">Scripture</span>' +
+              '</div>' +
+              '<div style="padding:20px 22px;">' +
+                '<p style="color:var(--ink);font-style:italic;line-height:1.85;font-family:Merriweather,serif;' +
+                  'font-size:1.05rem;font-weight:400;margin:0;">' + (devo.Scripture || '') + '</p>' +
+              '</div>' +
             '</div>' +
-            '<p style="font-size:0.62rem;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:var(--ink-muted);margin-bottom:8px;">Reflection</p>' +
-            '<p style="color:var(--ink-muted);line-height:1.8;margin-bottom:1.5rem;">' + (devo.Reflection || '') + '</p>' +
-            (devo.Question ? '<div style="background:rgba(168,85,247,0.07);border:1px solid rgba(168,85,247,0.2);border-radius:12px;padding:16px 20px;margin-bottom:1.5rem;">' +
-              '<p style="font-size:0.62rem;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:var(--neon-purple);margin-bottom:8px;">Reflect</p>' +
-              '<p style="color:var(--ink);line-height:1.7;">' + devo.Question + '</p>' +
-            '</div>' : '') +
-            (devo.Prayer ? '<div style="background:rgba(52,211,153,0.06);border:1px solid rgba(52,211,153,0.2);border-radius:12px;padding:16px 20px;">' +
-              '<p style="font-size:0.62rem;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:var(--success);margin-bottom:8px;">Prayer</p>' +
-              '<p style="color:var(--ink-muted);font-style:italic;line-height:1.7;">' + devo.Prayer + '</p>' +
-            '</div>' : '') +
-            '</div></div>';
+            '<div style="margin-bottom:1.5rem;padding-bottom:1.5rem;border-bottom:1px solid var(--line);">' +
+              '<p style="font-size:0.62rem;font-weight:800;text-transform:uppercase;letter-spacing:0.18em;' +
+                'color:var(--ink-faint);margin-bottom:12px;">Reflection</p>' +
+              '<p style="color:var(--ink-muted);line-height:1.9;font-size:1rem;margin:0;">' + (devo.Reflection || '') + '</p>' +
+            '</div>' +
+            (devo.Question ?
+              '<div style="border:1.5px solid color-mix(in srgb,var(--lilac) 55%,var(--line));border-radius:14px;' +
+                'overflow:hidden;margin-bottom:1.5rem;">' +
+                '<div style="background:color-mix(in srgb,var(--lilac) 10%,var(--bg-raised));' +
+                  'padding:10px 20px;border-bottom:1.5px solid color-mix(in srgb,var(--lilac) 40%,var(--line));">' +
+                  '<span style="font-size:0.62rem;font-weight:800;text-transform:uppercase;letter-spacing:0.18em;color:var(--lilac);">Reflect</span>' +
+                '</div>' +
+                '<div style="padding:20px 22px;">' +
+                  '<p style="color:var(--ink);line-height:1.82;font-size:1rem;margin:0;">' + devo.Question + '</p>' +
+                '</div>' +
+              '</div>'
+            : '') +
+            (devo.Prayer ?
+              '<div style="border:1.5px solid color-mix(in srgb,var(--success) 45%,var(--line));border-radius:14px;overflow:hidden;">' +
+                '<div style="background:color-mix(in srgb,var(--success) 8%,var(--bg-raised));' +
+                  'padding:10px 20px;border-bottom:1.5px solid color-mix(in srgb,var(--success) 35%,var(--line));">' +
+                  '<span style="font-size:0.62rem;font-weight:800;text-transform:uppercase;letter-spacing:0.18em;color:var(--success);">Prayer</span>' +
+                '</div>' +
+                '<div style="padding:20px 22px;">' +
+                  '<p style="color:var(--ink-muted);font-style:italic;line-height:1.85;font-family:Merriweather,serif;' +
+                    'font-size:1rem;margin:0;">' + devo.Prayer + '</p>' +
+                '</div>' +
+              '</div>'
+            : '') +
+            '</div>';
     }
 
     function _renderURReading(el, plan, day) {
@@ -649,12 +820,14 @@
         }).join('');
         el.innerHTML =
             '<div class="glass-card" style="border-radius:16px;padding:28px;">' +
-            '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.2rem;flex-wrap:wrap;gap:0.5rem;">' +
+            '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.2rem;' +
+              'padding-bottom:1rem;border-bottom:1.5px solid color-mix(in srgb,var(--gold) 38%,var(--line));' +
+              'flex-wrap:wrap;gap:0.5rem;">' +
               '<div>' +
-                '<p style="font-size:0.62rem;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:var(--neon-teal);">Daily Reading</p>' +
+                '<p style="font-size:0.62rem;font-weight:800;letter-spacing:0.2em;text-transform:uppercase;color:var(--gold);">Daily Reading</p>' +
                 '<h4 style="font-family:Merriweather,serif;font-size:1.1rem;font-weight:700;color:var(--ink);margin-top:4px;">Day ' + day + ' of 365</h4>' +
               '</div>' +
-              '<span style="font-size:0.65rem;color:var(--ink-muted);">Through the Bible in a Year</span>' +
+              '<span style="font-size:0.65rem;color:var(--ink-faint);font-style:italic;">Through the Bible in a Year</span>' +
             '</div>' +
             items +
             '</div>';
@@ -664,20 +837,26 @@
         var dateStr = '';
         try { dateStr = new Date(devo.Date).toLocaleDateString('en-US',{month:'short',day:'numeric'}); } catch(e){}
         var el = document.createElement('details');
-        el.style.cssText = 'background:var(--accent-soft);border:1px solid var(--line);border-radius:12px;margin-bottom:10px;overflow:hidden;';
+        el.style.cssText = 'background:var(--bg-raised);border:1.5px solid color-mix(in srgb,var(--gold) 38%,var(--line));border-radius:14px;margin-bottom:10px;overflow:hidden;box-shadow:var(--shadow-sm);';
         el.innerHTML =
-            '<summary style="padding:16px 20px;cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;gap:1rem;">' +
+            '<summary style="padding:16px 20px;cursor:pointer;list-style:none;display:flex;align-items:center;' +
+              'justify-content:space-between;gap:1rem;border-bottom:1px solid var(--line);">' +
               '<div style="flex:1;min-width:0;">' +
-                '<span style="font-size:0.6rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--neon-teal);margin-right:0.75rem;">' + (devo.Theme || '') + '</span>' +
-                '<span style="font-size:0.62rem;color:var(--ink-muted);">' + dateStr + '</span>' +
-                '<h5 style="font-family:Merriweather,serif;font-size:0.92rem;font-weight:700;color:var(--ink);margin-top:4px;">' + (devo.Title || '') + '</h5>' +
+                '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">' +
+                  '<span style="font-size:0.58rem;font-weight:800;text-transform:uppercase;letter-spacing:0.16em;' +
+                    'color:var(--accent);background:var(--accent-soft);border-radius:99px;padding:2px 9px;">' + (devo.Theme || '') + '</span>' +
+                  '<span style="font-size:0.6rem;color:var(--ink-faint);">' + dateStr + '</span>' +
+                '</div>' +
+                '<h5 style="font-family:Merriweather,serif;font-size:0.92rem;font-weight:700;color:var(--ink);margin:0;">' + (devo.Title || '') + '</h5>' +
               '</div>' +
-              '<span style="color:var(--ink-muted);font-size:1.1rem;flex-shrink:0;">&#9662;</span>' +
+              '<span style="color:var(--ink-faint);font-size:1.1rem;flex-shrink:0;">&#9662;</span>' +
             '</summary>' +
-            '<div style="padding:0 20px 20px;">' +
-              '<p style="font-style:italic;font-size:0.9rem;color:var(--ink-muted);line-height:1.7;margin-bottom:12px;">' + (devo.Scripture || '') + '</p>' +
-              '<p style="color:var(--ink-muted);line-height:1.8;font-size:0.9rem;">' + (devo.Reflection || '') + '</p>' +
-              (devo.Question ? '<p style="font-size:0.9rem;color:var(--gold);margin-top:12px;font-style:italic;">' + devo.Question + '</p>' : '') +
+            '<div style="padding:20px;background:var(--bg-sunken);">' +
+              '<p style="font-family:Merriweather,serif;font-style:italic;font-size:0.92rem;color:var(--ink);' +
+                'line-height:1.75;margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--line);">' + (devo.Scripture || '') + '</p>' +
+              '<p style="color:var(--ink-muted);line-height:1.82;font-size:0.92rem;margin:0;">' + (devo.Reflection || '') + '</p>' +
+              (devo.Question ? '<p style="font-size:0.92rem;color:var(--lilac);margin-top:14px;font-style:italic;' +
+                'border-left:3px solid var(--lilac);padding-left:12px;">' + devo.Question + '</p>' : '') +
             '</div>';
         container.appendChild(el);
     }
@@ -685,39 +864,75 @@
     function initATOGTimeline() {
         var nav = document.getElementById('timeline-nav');
         if (!nav) return;
+        var tlColors = ['#c5a44e','#8b5cf6','#10b981','#3b82f6'];
         _workData.forEach(function(item, i) {
+            var col = tlColors[i % tlColors.length];
             var el = document.createElement('div');
-            el.style.cssText = 'padding:16px 0 16px 20px;border-left:4px solid ' + (i===0?'var(--neon-purple)':'transparent') + ';margin-left:-3px;cursor:pointer;transition:border-color 0.2s;';
-            el.innerHTML = '<h4 style="font-family:Merriweather,serif;font-weight:700;font-size:0.95rem;color:' + (i===0?'var(--ink)':'var(--ink-faint)') + ';">' + item.title + '</h4>' +
-                '<p style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--ink-muted);margin-top:3px;">' + item.subtitle + '</p>';
+            el.setAttribute('data-tl-color', col);
+            el.style.cssText = [
+                'padding:18px 0 18px 22px;',
+                'border-left:4px solid ' + (i===0 ? col : 'var(--line)') + ';',
+                'border-bottom:1px solid var(--line);',
+                'cursor:pointer;transition:border-color 0.25s,background 0.2s;',
+                'border-radius:0 10px 10px 0;',
+                'background:' + (i===0 ? col + '0e' : 'transparent') + ';'
+            ].join('');
+            el.innerHTML =
+                '<p style="font-size:0.64rem;font-weight:800;text-transform:uppercase;letter-spacing:0.15em;' +
+                  'color:' + col + ';margin:0 0 4px;">' + (i+1) + '. ' + item.subtitle + '</p>' +
+                '<h4 style="font-family:Merriweather,serif;font-weight:700;font-size:0.98rem;' +
+                  'color:' + (i===0 ? 'var(--ink)' : 'var(--ink-muted)') + ';margin:0;">' + item.title + '</h4>';
             el.onclick = function() {
+                var isMobile = window.innerWidth <= 640;
                 nav.querySelectorAll('div').forEach(function(n) {
-                    n.style.borderLeftColor = 'transparent';
-                    n.querySelector('h4').style.color = 'var(--ink-faint)';
+                    n.style.borderLeftColor = 'var(--line)';
+                    n.style.borderBottomColor = isMobile ? n.getAttribute('data-tl-color') + '00' : 'var(--line)';
+                    n.style.background = 'transparent';
+                    n.querySelector('h4').style.color = 'var(--ink-muted)';
                 });
-                el.style.borderLeftColor = 'var(--neon-purple)';
+                if (isMobile) {
+                    el.style.borderBottomColor = col;
+                    el.style.borderBottomWidth = '3px';
+                    el.style.borderLeftColor = 'transparent';
+                } else {
+                    el.style.borderLeftColor = col;
+                }
+                el.style.background = col + '0e';
                 el.querySelector('h4').style.color = 'var(--ink)';
-                renderATOGWork(item);
+                renderATOGWork(item, col);
             };
             nav.appendChild(el);
         });
-        renderATOGWork(_workData[0]);
+        renderATOGWork(_workData[0], tlColors[0]);
     }
 
-    function renderATOGWork(item) {
+    function renderATOGWork(item, col) {
+        col = col || '#c5a44e';
         var el = document.getElementById('timeline-content');
         if (!el) return;
         el.innerHTML =
-            '<div style="background:var(--accent-soft);border:1px solid var(--line);border-radius:14px;padding:28px;">' +
-            '<h3 style="font-family:Merriweather,serif;font-size:1.6rem;font-weight:700;color:var(--ink);margin-bottom:4px;">' + item.title + '</h3>' +
-            '<p style="font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.18em;color:var(--neon-purple);margin-bottom:20px;">' + item.subtitle + '</p>' +
-            '<p style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--ink-muted);border-bottom:1px solid var(--line);padding-bottom:8px;margin-bottom:12px;">The Mission</p>' +
-            '<p style="color:var(--ink-muted);line-height:1.8;margin-bottom:20px;">' + item.summary + '</p>' +
-            '<div style="background:rgba(232,168,56,0.06);border:1px solid rgba(232,168,56,0.2);border-radius:10px;padding:18px 20px;position:relative;overflow:hidden;">' +
-            '<div style="position:absolute;top:0;left:0;width:4px;height:100%;background:var(--neon-blue);"></div>' +
-            '<p style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--neon-blue);margin-bottom:6px;">The Hope</p>' +
-            '<p style="color:var(--ink);font-style:italic;line-height:1.7;">&ldquo;' + item.hope + '&rdquo;</p>' +
-            '</div></div>';
+            '<div style="border:1.5px solid ' + col + '44;border-radius:16px;overflow:hidden;">' +
+            '  <div style="padding:4px 20px;background:' + col + '18;border-bottom:1px solid ' + col + '33;">' +
+            '    <p style="font-size:0.64rem;font-weight:800;text-transform:uppercase;' +
+            '      letter-spacing:0.18em;color:' + col + ';margin:0;">The Finished Work &mdash; ' + item.subtitle + '</p>' +
+            '  </div>' +
+            '  <div style="padding:28px 30px;background:var(--bg-raised);">' +
+            '    <h3 style="font-family:Merriweather,serif;font-size:1.75rem;font-weight:900;' +
+            '      color:var(--ink);line-height:1.2;margin-bottom:20px;">' + item.title + '</h3>' +
+            '    <p style="font-size:0.64rem;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;' +
+            '      color:var(--ink-faint);border-bottom:1px solid var(--line);padding-bottom:10px;' +
+            '      margin-bottom:14px;">The Mission</p>' +
+            '    <p style="color:var(--ink-muted);line-height:1.85;font-size:0.96rem;margin-bottom:24px;">' + item.summary + '</p>' +
+            '    <div style="background:' + col + '0d;border:1.5px solid ' + col + '44;border-radius:12px;' +
+            '      padding:18px 22px;position:relative;overflow:hidden;">' +
+            '      <div style="position:absolute;top:0;left:0;width:4px;height:100%;background:' + col + ';"></div>' +
+            '      <p style="font-size:0.64rem;font-weight:800;text-transform:uppercase;letter-spacing:0.14em;' +
+            '        color:' + col + ';margin-bottom:8px;">&#9670; The Hope</p>' +
+            '      <p style="color:var(--ink);font-style:italic;line-height:1.75;font-size:0.97rem;margin:0;">' +
+            '        &ldquo;' + item.hope + '&rdquo;</p>' +
+            '    </div>' +
+            '  </div>' +
+            '</div>';
     }
 
     </script>

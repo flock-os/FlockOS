@@ -27,14 +27,14 @@
       --bg-raised:    #ffffff;
       --bg-deep:      #f0eeea;
       --ink:          #2c2c2c;
-      --ink-muted:    #6b6b6b;
+      --ink-muted:    #525252;
       --ink-faint:    #a0a0a0;
       --accent:       #7eaacc;
       --accent-soft:  rgba(126,170,204,0.12);
       --gold:         #8B7028;
       --gold-soft:    rgba(139,112,40,0.15);
-      --line:         #e4e1dc;
-      --line-strong:  #d0ccc5;
+      --line:         #c9c4bc;
+      --line-strong:  #ada69b;
       --shadow-sm:    0 1px 3px rgba(0,0,0,0.06);
       --shadow-md:    0 4px 12px rgba(0,0,0,0.06);
       --shadow-lg:    0 8px 24px rgba(0,0,0,0.08);
@@ -86,11 +86,11 @@
       padding: 4px;
     }
     .brand-text h1 {
-      font-family: var(--font-display);
+      font-family: var(--font-serif);
       font-size: 1.25rem;
-      font-weight: 600;
-      color: var(--accent);
-      letter-spacing: 0.02em;
+      font-weight: 700;
+      color: var(--ink);
+      letter-spacing: 0;
       line-height: 1.1;
     }
     .brand-text p {
@@ -116,7 +116,7 @@
     }
     .section-title small {
       font-size: 0.9rem;
-      color: var(--ink-faint);
+      color: var(--ink);
     }
 
     /* ── Mission panel ── */
@@ -158,7 +158,7 @@
       font-size: 0.86rem;
       text-transform: uppercase;
       letter-spacing: 0.05em;
-      color: var(--accent);
+      color: var(--ink);
       margin-bottom: 0.25rem;
     }
     .mission-point span {
@@ -337,7 +337,7 @@
       padding: 0.34rem 0.72rem;
       border-radius: 999px;
       border: 1px solid var(--line-strong);
-      color: var(--accent);
+      color: var(--ink);
       background: var(--accent-soft);
     }
     .node-card--root .node-badge {
@@ -355,13 +355,25 @@
       font-family: var(--font-serif);
       font-style: italic;
       font-size: 0.95rem;
-      color: var(--ink-faint);
+      color: var(--ink-muted);
     }
     .footer small {
       display: block;
       margin-top: 0.3rem;
       font-size: 0.86rem;
-      color: var(--ink-faint);
+      color: var(--ink);
+    }
+    .footer .referral-link {
+      display: inline-block;
+      margin-top: 0.65rem;
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--accent);
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+    .footer .referral-link:hover {
+      color: var(--ink);
     }
 
     /* ── Responsive ── */
@@ -425,7 +437,7 @@
     <section>
       <div class="section-title">
         <h2>Apps</h2>
-        <small>Open a tool</small>
+        <small>Open a Tool</small>
       </div>
       <div class="app-grid">
         <a class="app-card" href="Covenant/Nations/Root/FlockOS.html">
@@ -456,7 +468,7 @@
     <section>
       <div class="section-title">
         <h2>Deployments</h2>
-        <small>Master build &middot; church branches</small>
+        <small>Church Builds</small>
       </div>
       <div class="chart-shell">
         <div class="org-chart" id="orgChart" aria-live="polite">
@@ -473,7 +485,8 @@
 
     <footer class="footer">
       <p>&ldquo;Go therefore and make disciples of all nations&hellip;&rdquo; &mdash;&nbsp;Matthew 28:19</p>
-      <small>FlockOS Suite &mdash; Free. Offline-capable. Built for every church.</small>
+      <small>Soli Deo Gloria | FlockOS | Built to be Shared</small>
+      <a class="referral-link" href="Covenant/Courts/TheTabernacle/Pages/software_deployment_referral.html">Refer a Pastor who would benefit from FlockOS</a>
     </footer>
 
   </main>
