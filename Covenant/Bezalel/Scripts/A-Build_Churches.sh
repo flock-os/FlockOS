@@ -375,7 +375,7 @@ REDIRECT_EOF
   CHURCH_ATOG_URL=$(jq -r '.appLinks.atog // empty'           "$config")
   # Fallback to canonical pattern when appLinks not present (API-fetched configs)
   [ -z "$CHURCH_FLOCKCHAT_URL" ] && CHURCH_FLOCKCHAT_URL="../../Courts/TheFellowship/FlockChat.html?church=${CHURCH_SHORT_LOWER}"
-  [ -z "$CHURCH_ATOG_URL" ]      && CHURCH_ATOG_URL="../../Courts/TheUpperRoom/ATOG.html"
+  [ -z "$CHURCH_ATOG_URL" ]      && CHURCH_ATOG_URL="../../Courts/TheUpperRoom/ATOG.html?church=${CHURCH_SHORT_LOWER}"
   # Prepend ../../ unless URL is absolute (compensate for Pages/ depth)
   [[ "$CHURCH_FLOCKCHAT_URL" != http* ]] && CHURCH_FLOCKCHAT_URL="../../${CHURCH_FLOCKCHAT_URL}"
   [[ "$CHURCH_ATOG_URL"      != http* ]] && CHURCH_ATOG_URL="../../${CHURCH_ATOG_URL}"

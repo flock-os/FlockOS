@@ -111,10 +111,10 @@
         <!-- Sidebar Footer -->
         <div style="padding:16px 12px 24px;border-top:1px solid var(--line);margin-top:auto;">
             <div style="font-size:0.58rem;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;color:var(--ink-muted);margin-bottom:10px;padding:0 8px;">About</div>
-            <a class="nav-item" href="../TheFellowship/FlockChat.html" style="font-size:0.82rem;">
+            <a id="atog-link-flockchat" class="nav-item" href="../TheFellowship/FlockChat.html" style="font-size:0.82rem;">
                     <span class="nav-icon">&#128172;</span> FlockChat
             </a>
-            <a class="nav-item" href="https://flock-os.github.io/FlockOS/" style="font-size:0.82rem;">
+            <a id="atog-link-flockos" class="nav-item" href="https://flock-os.github.io/FlockOS/" style="font-size:0.82rem;">
                 <span class="nav-icon">&#127807;</span> FlockOS
             </a>
             <a class="nav-item" data-view="support" onclick="ATOG.navigate('support')" style="font-size:0.82rem;">
@@ -302,6 +302,51 @@
     <!-- ═══ Inline Bootstrap ══════════════════════════════ -->
     <script>
     window.ATOG = window.ATOG || {};
+
+    /* ── Church-scope rewriter ──────────────────────────────────────────
+       When ATOG is launched from a deployed church (e.g. Nations/TBC/...),
+       the church link uses ?church=<short>. Rewrite the sidebar's FlockChat
+       and FlockOS links so the user stays in the church's tree instead of
+       digressing back to the FlockOS root deployment. */
+    (function rewriteChurchLinks () {
+        try {
+            var params = new URLSearchParams(window.location.search);
+            var church = (params.get('church') || '').trim().toLowerCase();
+            if (!church) return;
+
+            /* FlockChat — append ?church=<short> so chat scopes to the right tenant. */
+            var fc = document.getElementById('atog-link-flockchat');
+            if (fc) {
+                try {
+                    var fcUrl = new URL(fc.getAttribute('href'), window.location.href);
+                    fcUrl.searchParams.set('church', church);
+                    fc.setAttribute('href', fcUrl.pathname + fcUrl.search + fcUrl.hash);
+                } catch (_) { /* leave default href */ }
+            }
+
+            /* FlockOS — return the user to the church deployment they came from.
+               Prefer document.referrer when same-origin (it points back to the
+               church's FlockOS shell). Fallback: history.back(). */
+            var fos = document.getElementById('atog-link-flockos');
+            if (fos) {
+                var ref = document.referrer || '';
+                var sameOrigin = false;
+                if (ref) {
+                    try { sameOrigin = (new URL(ref).origin === window.location.origin); }
+                    catch (_) { sameOrigin = false; }
+                }
+                if (sameOrigin) {
+                    fos.setAttribute('href', ref);
+                } else {
+                    fos.setAttribute('href', '#');
+                    fos.addEventListener('click', function (e) {
+                        e.preventDefault();
+                        if (window.history.length > 1) window.history.back();
+                    });
+                }
+            }
+        } catch (_) { /* never block ATOG boot on rewriter errors */ }
+    })();
 
     /* ── ATOG sidebar name → TheWay tab ID ── */
     var HUB_TABS = {

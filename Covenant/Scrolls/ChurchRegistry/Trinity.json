@@ -21,7 +21,7 @@
   "appLinks": {
     "flockos": "FlockOS/Pages/index.html",
     "flockchat": "../../Courts/TheFellowship/FlockChat.html?church=tbc",
-    "atog": "../../Courts/TheUpperRoom/ATOG.html"
+    "atog": "../../Courts/TheUpperRoom/ATOG.html?church=tbc"
   },
   "firebaseConfig": {
     "apiKey": "AIzaSyDIJD_nOWkIWTwtFgNrfwTSr8BjAWDxKtQ",
