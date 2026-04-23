@@ -60,6 +60,15 @@ const Nehemiah = (() => {
     const pagesBase = new URL('../', window.location.href);
     return new URL('../index.html', pagesBase).toString();
   })();
+  // Public portal (FlockOS.html) — where users land after logout.
+  const PUBLIC_PORTAL = (() => {
+    if (_paths.root) {
+      const rootBase = new URL(_paths.root.endsWith('/') ? _paths.root : (_paths.root + '/'), window.location.href);
+      return new URL('../FlockOS.html', rootBase).toString();
+    }
+    const pagesBase = new URL('../', window.location.href);
+    return new URL('../FlockOS.html', pagesBase).toString();
+  })();
   const ROLE_LEVELS = { readonly: 0, volunteer: 1, care: 2, leader: 3, pastor: 4, admin: 5 };
 
   // ── Local Security Bypass ────────────────────────────────────────────────
@@ -407,27 +416,85 @@ const Nehemiah = (() => {
 
   // ── Logout ───────────────────────────────────────────────────────────────
 
+  // ── Logout farewell card ────────────────────────────────────────────────
+  function _showLogoutCard() {
+    var overlay = document.createElement('div');
+    overlay.id = '_logout-overlay';
+    overlay.style.cssText = [
+      'position:fixed;inset:0;z-index:999999;',
+      'display:flex;align-items:center;justify-content:center;',
+      'backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);',
+      'background:rgba(15,20,40,0.72);',
+      'opacity:0;transition:opacity .35s ease;'
+    ].join('');
+
+    var accentColor = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#e8a838';
+    var goldColor   = getComputedStyle(document.documentElement).getPropertyValue('--gold').trim()   || '#d4b870';
+
+    var card = document.createElement('div');
+    card.style.cssText = [
+      'background:linear-gradient(145deg,#1a1a2e 0%,#16213e 55%,#0f3460 100%);',
+      'border:1px solid rgba(232,168,56,0.35);',
+      'border-radius:22px;padding:44px 40px 36px;',
+      'max-width:400px;width:88%;text-align:center;',
+      'box-shadow:0 32px 96px rgba(0,0,0,0.65),0 0 0 1px rgba(232,168,56,0.12),inset 0 1px 0 rgba(255,255,255,0.06);',
+      'transform:translateY(12px);transition:transform .35s ease;'
+    ].join('');
+
+    card.innerHTML =
+      '<div style="font-size:3.2rem;margin-bottom:18px;filter:drop-shadow(0 0 12px rgba(232,168,56,0.5));">\uD83D\uDE4F</div>' +
+      '<h2 style="color:' + accentColor + ';font-size:1.25rem;font-weight:700;margin:0 0 14px;line-height:1.4;font-family:inherit;' +
+        'text-shadow:0 0 20px rgba(232,168,56,0.3);">Thank you for using FlockOS!</h2>' +
+      '<p style="color:rgba(255,255,255,0.82);font-size:0.93rem;line-height:1.75;margin:0 0 30px;font-family:inherit;">' +
+        'We are praying for the success<br>of your ministry!<br>' +
+        '<span style="color:' + goldColor + ';font-style:italic;font-size:0.85rem;">' +
+        '\u201CMay the Lord bless you and keep you.\u201D \u2014 Numbers 6:24</span></p>' +
+      '<div style="background:rgba(255,255,255,0.1);border-radius:8px;height:5px;overflow:hidden;margin-bottom:14px;">' +
+        '<div id="_logout-progress" style="height:100%;width:100%;border-radius:8px;' +
+          'background:linear-gradient(90deg,' + accentColor + ',' + goldColor + ');' +
+          'transition:width 10s linear;"></div>' +
+      '</div>' +
+      '<p style="color:rgba(255,255,255,0.35);font-size:0.72rem;letter-spacing:0.04em;text-transform:uppercase;margin:0;font-family:inherit;">Signing you out\u2026</p>';
+
+    overlay.appendChild(card);
+    document.body.appendChild(overlay);
+
+    // Fade in overlay + slide up card
+    requestAnimationFrame(function() {
+      requestAnimationFrame(function() {
+        overlay.style.opacity = '1';
+        card.style.transform = 'translateY(0)';
+        // Start progress bar drain
+        var bar = document.getElementById('_logout-progress');
+        if (bar) bar.style.width = '0%';
+      });
+    });
+  }
+
   /**
    * Clears local session and tells the server to invalidate the token.
-   * Always redirects to the app launcher, even if the server call fails.
+   * Shows a farewell card for 10 s, then redirects to the public portal.
    */
   async function logout() {
-    try {
-      await TheVine.john.auth.logout({});
-    } catch (_) {
-      // Server call is best-effort — clear local state regardless
-    }
-    // Sign out of Firebase Auth as well
-    try {
-      if (typeof firebase !== 'undefined' && firebase.auth) {
-        await firebase.auth().signOut();
-      }
-      if (typeof UpperRoom !== 'undefined' && UpperRoom.signOut) {
-        UpperRoom.signOut();
-      }
-    } catch (_) {}
-    // Redirect to the login page after clearing the session.
-    window.location.replace(LOGIN_PAGE);
+    // Show goodbye card immediately
+    _showLogoutCard();
+
+    // Run auth cleanup in parallel with the countdown
+    (async function() {
+      try { await TheVine.john.auth.logout({}); } catch (_) {}
+      try {
+        if (typeof firebase !== 'undefined' && firebase.auth) {
+          await firebase.auth().signOut();
+        }
+        if (typeof UpperRoom !== 'undefined' && UpperRoom.signOut) {
+          UpperRoom.signOut();
+        }
+      } catch (_) {}
+    })();
+
+    // Always honour the full 10 s so the card is readable, then go to public portal
+    await new Promise(function(resolve) { setTimeout(resolve, 10000); });
+    window.location.replace(PUBLIC_PORTAL);
   }
 
 
