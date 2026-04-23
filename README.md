@@ -210,6 +210,14 @@ Each church deployment is driven by a JSON config file in `Scrolls/ChurchRegistr
 bash "Covenant/Bezalel/Scripts/A-Build_Churches.sh"
 ```
 
+### Build + FlockChat deploy (BCP)
+
+```bash
+bash "Covenant/Bezalel/Scripts/A-Build_Churches.sh" --deploy-comms
+```
+
+This runs the normal church build and then deploys FlockChat hosting to `https://flockos-comms.web.app` via Firebase predeploy packaging.
+
 ### What it does
 
 1. Reads each `.json` config in `Covenant/Scrolls/ChurchRegistry/` (skips `ChurchTemplate.json`)

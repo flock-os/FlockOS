@@ -15,14 +15,17 @@ set -euo pipefail
 
 # ── Flag parsing ─────────────────────────────────────────────────────
 DRY_RUN=false
+DEPLOY_COMMS=false
 for arg in "$@"; do
   case "$arg" in
     --dry-run) DRY_RUN=true ;;
+    --deploy-comms) DEPLOY_COMMS=true ;;
   esac
 done
 if $DRY_RUN; then echo "🏗  DRY RUN — no files will be written"; echo ""; fi
 
 COVENANT_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+WORKSPACE_ROOT="$(cd "$COVENANT_ROOT/.." && pwd)"
 CONFIGS_DIR="$COVENANT_ROOT/Scrolls/ChurchRegistry"
 CHURCH_DIR="$COVENANT_ROOT/Nations"
 SOURCE_DIR="$COVENANT_ROOT/Courts/TheTabernacle"
@@ -51,6 +54,10 @@ if ! command -v jq &>/dev/null; then
 fi
 if ! command -v python3 &>/dev/null; then
   echo "ERROR: python3 is required for launcher generation."
+  exit 1
+fi
+if $DEPLOY_COMMS && ! command -v firebase &>/dev/null; then
+  echo "ERROR: firebase CLI is required for --deploy-comms. Install with: npm install -g firebase-tools"
   exit 1
 fi
 
@@ -104,6 +111,25 @@ done
 if ! jq empty "$ROOT_MANIFEST" 2>/dev/null; then
   echo "  ✗ INVALID JSON: manifest.json"
   PREFLIGHT_OK=false
+fi
+
+# Validate FlockChat hosting sources before optional comms deploy
+if $DEPLOY_COMMS; then
+  COMMS_REQUIRED_FILES=(
+    "$WORKSPACE_ROOT/firebase.json"
+    "$WORKSPACE_ROOT/Covenant/Courts/TheFellowship/FlockChat.html"
+    "$WORKSPACE_ROOT/Covenant/Courts/TheFellowship/FlockChat/the_word.js"
+    "$WORKSPACE_ROOT/Covenant/Courts/TheFellowship/FlockChat/manifest.json"
+    "$WORKSPACE_ROOT/Covenant/Courts/TheFellowship/FlockChat/Images/FlockChat_AppIcon.png"
+    "$WORKSPACE_ROOT/Covenant/Courts/TheFellowship/FlockChat/firebase-messaging-sw.js"
+    "$WORKSPACE_ROOT/Covenant/Courts/TheTabernacle/Styles/american_garments.css"
+  )
+  for f in "${COMMS_REQUIRED_FILES[@]}"; do
+    if [ ! -f "$f" ]; then
+      echo "  ✗ MISSING (comms deploy): $f"
+      PREFLIGHT_OK=false
+    fi
+  done
 fi
 
 if ! $PREFLIGHT_OK; then
@@ -508,3 +534,17 @@ ls -1 "$CHURCH_DIR" | while read -r d; do
 done
 echo ""
 echo "======================================================================"
+
+if $DEPLOY_COMMS; then
+  echo ""
+  echo "Deploying FlockChat hosting to flockos-comms.web.app…"
+  if $DRY_RUN; then
+    echo "  [dry-run] Would run: firebase deploy --only hosting --project flockos-comms"
+  else
+    (
+      cd "$WORKSPACE_ROOT"
+      firebase deploy --only hosting --project flockos-comms
+    )
+    echo "  ✓ Deployed to flockos-comms.web.app"
+  fi
+fi
