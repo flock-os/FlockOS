@@ -14,7 +14,7 @@
   <title>FlockOS Suite Launcher</title>
   <link rel="icon" type="image/png" href="Covenant/Courts/TheTabernacle/Images/FlockOS_AppIcon.png">
   <link rel="apple-touch-icon" href="Covenant/Courts/TheTabernacle/Images/FlockOS_AppIcon.png">
-  <meta name="theme-color" content="#f7f8fb">
+  <meta name="theme-color" content="#faf9f6">
   <meta name="description" content="FlockOS Suite launcher — apps and deployments.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -23,21 +23,21 @@
     *,*::before,*::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg:           #f7f8fb;
+      --bg:           #faf9f6;
       --bg-raised:    #ffffff;
-      --bg-deep:      #e7edf8;
-      --ink:          #1b264f;
-      --ink-muted:    #4a5578;
-      --ink-faint:    #8890a5;
-      --accent:       #3c3b6e;
-      --accent-soft:  rgba(60,59,110,0.10);
-      --gold:         #c5a44e;
-      --gold-soft:    rgba(197,164,78,0.12);
-      --line:         rgba(60,59,110,0.14);
-      --line-strong:  rgba(60,59,110,0.22);
-      --shadow-sm:    0 1px 4px rgba(27,38,79,0.06);
-      --shadow-md:    0 4px 16px rgba(27,38,79,0.08);
-      --shadow-lg:    0 12px 30px rgba(27,38,79,0.10);
+      --bg-deep:      #f0eeea;
+      --ink:          #2c2c2c;
+      --ink-muted:    #6b6b6b;
+      --ink-faint:    #a0a0a0;
+      --accent:       #7eaacc;
+      --accent-soft:  rgba(126,170,204,0.12);
+      --gold:         #8B7028;
+      --gold-soft:    rgba(139,112,40,0.15);
+      --line:         #e4e1dc;
+      --line-strong:  #d0ccc5;
+      --shadow-sm:    0 1px 3px rgba(0,0,0,0.06);
+      --shadow-md:    0 4px 12px rgba(0,0,0,0.06);
+      --shadow-lg:    0 8px 24px rgba(0,0,0,0.08);
       --font-sans:    'Inter', system-ui, -apple-system, sans-serif;
       --font-serif:   'Merriweather', Georgia, serif;
       --font-display: 'Cinzel', serif;
@@ -47,8 +47,8 @@
       min-height: 100%;
       color: var(--ink);
       font-family: var(--font-sans);
-      font-size: 15px;
-      line-height: 1.5;
+      font-size: 16px;
+      line-height: 1.6;
       -webkit-font-smoothing: antialiased;
       color-scheme: light;
       scroll-behavior: smooth;
@@ -56,9 +56,9 @@
 
     body {
       background:
-        radial-gradient(circle at top left, rgba(197,164,78,0.10), transparent 30%),
-        radial-gradient(circle at top right, rgba(110,169,215,0.10), transparent 30%),
-        linear-gradient(180deg, #fbfcfe 0%, var(--bg) 50%, var(--bg-deep) 100%);
+        radial-gradient(circle at top left, var(--gold-soft), transparent 34%),
+        radial-gradient(circle at top right, var(--accent-soft), transparent 34%),
+        linear-gradient(180deg, #fffefb 0%, var(--bg) 50%, var(--bg-deep) 100%);
       background-attachment: fixed;
     }
 
@@ -94,7 +94,7 @@
       line-height: 1.1;
     }
     .brand-text p {
-      font-size: 0.8rem;
+      font-size: 0.92rem;
       color: var(--ink-muted);
       margin-top: 0.1rem;
     }
@@ -108,14 +108,14 @@
       padding-inline: 0.15rem;
     }
     .section-title h2 {
-      font-size: 0.78rem;
+      font-size: 0.92rem;
       font-weight: 700;
-      letter-spacing: 0.14em;
+      letter-spacing: 0.08em;
       text-transform: uppercase;
       color: var(--gold);
     }
     .section-title small {
-      font-size: 0.78rem;
+      font-size: 0.9rem;
       color: var(--ink-faint);
     }
 
@@ -123,21 +123,21 @@
     .mission {
       padding: 1rem 1rem 1.05rem;
       background:
-        linear-gradient(180deg, rgba(255,255,255,0.95), rgba(250,252,255,0.95));
+        linear-gradient(180deg, #ffffff 0%, #fdfbf7 100%);
       border: 1px solid var(--line);
       border-radius: 16px;
       box-shadow: var(--shadow-sm);
     }
     .mission h2 {
-      font-size: 0.78rem;
+      font-size: 0.92rem;
       font-weight: 700;
-      letter-spacing: 0.14em;
+      letter-spacing: 0.08em;
       text-transform: uppercase;
       color: var(--gold);
       margin-bottom: 0.5rem;
     }
     .mission p {
-      font-size: 0.9rem;
+      font-size: 1rem;
       color: var(--ink-muted);
       max-width: 76ch;
     }
@@ -155,17 +155,17 @@
     }
     .mission-point strong {
       display: block;
-      font-size: 0.76rem;
+      font-size: 0.86rem;
       text-transform: uppercase;
-      letter-spacing: 0.08em;
+      letter-spacing: 0.05em;
       color: var(--accent);
       margin-bottom: 0.25rem;
     }
     .mission-point span {
       display: block;
-      font-size: 0.82rem;
+      font-size: 0.95rem;
       color: var(--ink-muted);
-      line-height: 1.45;
+      line-height: 1.55;
     }
 
     /* ── App grid (3 cards) ── */
@@ -191,7 +191,7 @@
     .app-card:hover {
       transform: translateY(-2px);
       box-shadow: var(--shadow-md);
-      border-color: var(--line-strong);
+      border-color: var(--accent);
     }
     .app-card img {
       width: 44px;
@@ -208,13 +208,13 @@
       flex: 1;
     }
     .app-name {
-      font-size: 0.95rem;
+      font-size: 1.04rem;
       font-weight: 700;
       color: var(--ink);
       line-height: 1.2;
     }
     .app-tag {
-      font-size: 0.78rem;
+      font-size: 0.92rem;
       color: var(--ink-muted);
       margin-top: 0.15rem;
     }
@@ -291,12 +291,12 @@
     .node-card:hover {
       transform: translateY(-2px);
       box-shadow: var(--shadow-md);
-      border-color: var(--line-strong);
+      border-color: var(--accent);
     }
     .node-card--root {
-      border-color: rgba(197,164,78,0.35);
+      border-color: rgba(139,112,40,0.28);
       background:
-        linear-gradient(180deg, #fff, #fffaf0);
+        linear-gradient(180deg, #fff, #fdfbf6);
       max-width: 220px;
     }
     .node-icon {
@@ -314,27 +314,27 @@
       height: 68px;
     }
     .node-name {
-      font-size: 0.88rem;
+      font-size: 0.98rem;
       font-weight: 700;
       color: var(--ink);
       line-height: 1.2;
     }
-    .node-card--root .node-name { font-size: 0.98rem; }
+    .node-card--root .node-name { font-size: 1.08rem; }
     .node-short {
-      font-size: 0.66rem;
+      font-size: 0.82rem;
       font-weight: 600;
-      letter-spacing: 0.1em;
+      letter-spacing: 0.05em;
       text-transform: uppercase;
       color: var(--ink-faint);
       margin-top: 0.25rem;
     }
     .node-badge {
       margin-top: 0.55rem;
-      font-size: 0.62rem;
+      font-size: 0.78rem;
       font-weight: 600;
-      letter-spacing: 0.08em;
+      letter-spacing: 0.04em;
       text-transform: uppercase;
-      padding: 0.28rem 0.65rem;
+      padding: 0.34rem 0.72rem;
       border-radius: 999px;
       border: 1px solid var(--line-strong);
       color: var(--accent);
@@ -354,13 +354,13 @@
     .footer p {
       font-family: var(--font-serif);
       font-style: italic;
-      font-size: 0.82rem;
+      font-size: 0.95rem;
       color: var(--ink-faint);
     }
     .footer small {
       display: block;
       margin-top: 0.3rem;
-      font-size: 0.72rem;
+      font-size: 0.86rem;
       color: var(--ink-faint);
     }
 
