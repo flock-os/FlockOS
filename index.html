@@ -699,12 +699,12 @@
     </section>
 
     <div class="app-grid">
-      <a class="app-card" href="Covenant/Nations/FlockOS/index.html">
+      <a class="app-card" href="Covenant/Nations/Root/FlockOS.html">
         <div class="app-card-head">
           <img class="app-logo" src="Covenant/Courts/TheTabernacle/Images/FlockOS_AppIcon.png" alt="FlockOS">
           <div>
             <div class="app-name">FlockOS</div>
-            <p class="app-tagline">Deployment launcher</p>
+            <p class="app-tagline">Root church operating system</p>
           </div>
         </div>
         <p class="app-desc">Open the root FlockOS app build directly from the launcher.</p>
@@ -714,7 +714,7 @@
         </div>
       </a>
 
-      <a class="app-card" href="Covenant/Courts/TheFellowship/FlockChat.html?church=flockos">
+      <a class="app-card" href="Covenant/Nations/Root/FlockChat.html?church=flockos">
         <div class="app-card-head">
           <img class="app-logo" src="Covenant/Courts/TheFellowship/FlockChat/Images/FlockChat_AppIcon.png" alt="FlockChat">
           <div>
@@ -729,7 +729,7 @@
         </div>
       </a>
 
-      <a class="app-card" href="Covenant/Courts/TheUpperRoom/ATOG.html">
+      <a class="app-card" href="Covenant/Nations/Root/ATOG.html">
         <div class="app-card-head">
           <img class="app-logo" src="Covenant/Courts/TheUpperRoom/ATOG/Images/ATOG_AppIcon.png" alt="A Touch of the Gospel">
           <div>
@@ -833,7 +833,7 @@
 
       // Map legacy launcher references to the real master app entry.
       if (/Covenant\/Gate\/SuiteGate\/index\.html/i.test(root.href || '') || /FlockOS_Churches\.html/i.test(root.href || '')) {
-        root.href = 'Covenant/Nations/FlockOS/index.html';
+        root.href = 'Covenant/Nations/Root/FlockOS.html';
         root.badge = 'Open Master Build';
       }
 
