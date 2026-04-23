@@ -4,7 +4,7 @@
   "description": "Ministry Operating System — Free. Offline-capable. Built for every church.",
   "private": true,
   "scripts": {
-    "build:churches": "bash FlockOS/Tools/Development\\ Scripts/build_churches.sh",
+    "build:churches": "bash Covenant/Bezalel/Scripts/A-Build_Churches.sh",
     "build:www": "rm -rf www && mkdir -p www && cp -R FlockOS www/FlockOS && cp index.html manifest.json the_living_water.js www/ && cp -R FlockOS/Images www/FlockOS/Images",
     "cap:sync": "npm run build:www && npx cap sync",
     "cap:ios": "npm run cap:sync && npx cap open ios",

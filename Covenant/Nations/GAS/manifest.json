@@ -1,0 +1,55 @@
+{
+  "name": "FlockOS-GAS",
+  "short_name": "GAS",
+  "description": "Church Management & Ministry Platform",
+  "start_url": "FlockOS/Pages/the_good_shepherd.html",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#1a1a2e",
+  "theme_color": "#e8a838",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "FlockOS/Images/FlockOS_Pink.png",
+      "sizes": "192x192 512x512 1024x1024",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "categories": [
+    "productivity",
+    "lifestyle"
+  ],
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "url": "FlockOS/Pages/the_good_shepherd.html#dashboard",
+      "icons": [
+        {
+          "src": "FlockOS/Images/FlockOS_Pink.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Messages",
+      "url": "FlockOS/Pages/the_good_shepherd.html#comms",
+      "icons": [
+        {
+          "src": "FlockOS/Images/FlockOS_Pink.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Directory",
+      "url": "FlockOS/Pages/the_good_shepherd.html#directory",
+      "icons": [
+        {
+          "src": "FlockOS/Images/FlockOS_Pink.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ]
+}

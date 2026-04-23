@@ -15,7 +15,6 @@ Thumbs.db
 *.bak
 *.tmp
 *.log
-*.md
 *.md.bak
 
 # ── Google Apps Script backend files ─────────────────────────────────────
@@ -24,7 +23,16 @@ Thumbs.db
 
 # ── Documentation text files ─────────────────────────────────────────────
 # Internal docs with sensitive references; not for public repos.
-*.txt
+
+# ── Sensitive docs / architecture (Covenant-era) ────────────────────────
+# Keep architecture and runbook material local-only by default.
+Covenant/Testimony/
+Covenant/Storehouse/
+Testimony/Architecture/
+Testimony/Runbooks/
+Testimony/Migration/
+Storehouse/
+FlockOS/Tools/Build Documents/Flock Docs/
 
 # ── Internal tools folder — never publish ────────────────────────────────
 # Contains deployment guides, admin credentials, API URLs, build scripts.
@@ -32,6 +40,10 @@ FlockOS/Tools/Flock Secrets/
 FlockOS/Tools/Flock Deployments/
 FlockOS/Tools/Production Notes/
 FlockOS/Planning/
+# Canonical path after Covenant migration
+Covenant/Courts/TheTabernacle/Tools/Flock Secrets/
+# Catch-all for per-church tool secrets folders
+**/Tools/Flock Secrets/
 # ── Internal reference docs ───────────────────────────────────────────────
 # Large citation/reference markdown — useful locally, not for the repo.
 \#\ Code\ Citations.md
@@ -57,6 +69,21 @@ android/
 __pycache__/
 *.pyc
 CurrentFBPW.json
+
+# ── Security hardening (explicit secret patterns) ───────────────────────
+# Catch secret files even if moved outside expected folders.
+**/*firebase-adminsdk-*.json
+**/*service-account*.json
+**/*private-key*.json
+**/CurrentFBPW.json
+
+# Keep secret vaults local-only across any future folder reshuffles.
+**/Secrets/**
+
+# Planning / operational docs are local-only by default.
+**/*-Runbook*.md
+**/*-Plan*.md
+**/*Action Items*.md
 
 # ── Local-only utility scripts ───────────────────────────────────────────
 # One-off scripts (e.g. Firestore checks, data migrations) — local only.

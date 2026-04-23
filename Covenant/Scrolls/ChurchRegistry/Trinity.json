@@ -1,0 +1,36 @@
+{
+  "id": "trinity",
+  "sheetId": "1TeQp67mr4Uzn-vvmw2g3dUq60ypXNZoZTdZ0wWWXTwY",
+  "name": "Trinity Baptist Church",
+  "shortName": "TBC",
+  "brandName": "Trinity Baptist",
+  "tagline": "Church Management & Ministry Platform",
+  "favicon": "FlockOS_White.png",
+  "portrait": "FlockOS_White.png",
+  "themeColor": "#e8a838",
+  "backgroundColor": "#1a1a2e",
+  "databaseUrl": "https://script.google.com/macros/s/AKfycbwAFp0BQvt0DiDJBjzBrycMripfUHOkP0PwiB_DSXgGVezP_y8jCOVxZWweTp58gai7/exec",
+  "photosUrl": "",
+  "adminEmail": "",
+  "analyticsId": "G-E7KXEN8C3E",
+  "apps": [
+    "flockos",
+    "flockchat",
+    "atog"
+  ],
+  "appLinks": {
+    "flockos": "FlockOS/Pages/index.html",
+    "flockchat": "../../FlockChat.html?church=tbc",
+    "atog": "../../ATOG.html"
+  },
+  "firebaseConfig": {
+    "apiKey": "AIzaSyDIJD_nOWkIWTwtFgNrfwTSr8BjAWDxKtQ",
+    "authDomain": "flockos-trinity.firebaseapp.com",
+    "projectId": "flockos-trinity",
+    "storageBucket": "flockos-trinity.firebasestorage.app",
+    "messagingSenderId": "1068495552013",
+    "appId": "1:1068495552013:web:36b868b29367cf65d45f44",
+    "measurementId": "G-E7KXEN8C3E"
+  },
+  "version": "3.0"
+}

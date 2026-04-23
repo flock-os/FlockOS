@@ -52,40 +52,37 @@ FlockOS/
 ├── LICENSE
 └── README.md
 │
-├── Church/                       ← Generated church deployments (build output)
-│   └── <shortName>/              One folder per active church (built by A-Build_Churches.sh)
-│       ├── index.html
-│       ├── manifest.json
-│       ├── the_living_water.js
-│       └── FlockOS/              Branded copy of source
-│
-├── FlockChat/                    FlockChat assets (source)
-│   ├── the_word.js               All FlockChat client logic
-│   ├── manifest.json             PWA manifest for FlockChat
-│   └── Images/                   FlockChat icons
-│
-├── FlockChat-Functions/           Firebase Cloud Functions
-│   └── index.js                  FCM push notification dispatcher
-│
-└── FlockOS/                      ← SOURCE — edit here only
-    ├── Images/                   Logo variants (Blue/Green/Midnight/Orange/Pink/White/Wide)
-    ├── Pages/                    17 HTML pages (app shell + public teaching pages)
-    ├── Scripts/                  21 JavaScript modules (~55,550 lines)
-    └── Tools/
-        ├── Flock Deployments/    Church JSON configs + build templates
-        ├── Flock Scripts/        A-Build_Churches.sh (multi-church build)
-        ├── Flock Docs/           Planning & architecture documents
-        └── Flock Secrets/        (gitignored) API keys, credentials
+├── Covenant/
+│   ├── Nations/                  ← Generated church deployments (build output)
+│   │   └── <shortName>/          One folder per active church (built by A-Build_Churches.sh)
+│   │       ├── index.html
+│   │       ├── manifest.json
+│   │       ├── the_living_water.js
+│   │       └── FlockOS/          Branded copy of the canonical source
+│   ├── Courts/
+│   │   ├── TheFellowship/        FlockChat source
+│   │   ├── TheTabernacle/        Canonical FlockOS source
+│   │   └── TheUpperRoom/         ATOG source
+│   ├── Scrolls/
+│   │   └── ChurchRegistry/        Church deployment JSON configs
+│   ├── Bezalel/
+│   │   └── Scripts/              Build automation
+│   └── Testimony/
+│       ├── Architecture/          Master architecture and code references
+│       ├── Platforms/             Platform docs (ATOG, FlockChat)
+│       ├── Runbooks/              Operational runbooks (includes Builds.md)
+│       ├── Secrets/               Local-only secrets (gitignored)
+│       └── Migration/             Migration notes/checklists
 ```
 
-> Church deployments in `Church/` are generated — never edit them directly.
-> FlockChat source is `FlockChat.html` + `FlockChat/the_word.js`. Deploy with `firebase deploy --only hosting --project flockos-comms`.
+> Church deployments in `Covenant/Nations/` are generated — never edit them directly.
+> FlockChat source is `Covenant/Courts/TheFellowship/FlockChat.html` + `Covenant/Courts/TheFellowship/FlockChat/the_word.js`.
 
 ---
 
 ## Source Files
 
-### Pages (`FlockOS/Pages/`)
+### Pages (`Covenant/Courts/TheTabernacle/Pages/`)
 
 | File | Lines | Description |
 |------|------:|-------------|
@@ -107,7 +104,7 @@ FlockOS/
 | `About_FlockOS.html` | 327 | Vision / The Why page |
 | `Learn More.html` | 175 | Feature overview marketing page |
 
-### Scripts (`FlockOS/Scripts/`)
+### Scripts (`Covenant/Courts/TheTabernacle/Scripts/`)
 
 | File | Lines | JS Object | Role |
 |------|------:|-----------|------|
@@ -139,9 +136,9 @@ FlockOS/
 
 | File | Lines | Role |
 |------|------:|------|
-| `FlockChat.html` | 1,457 | Single-page app shell — Firebase config, CSS, HTML structure |
-| `FlockChat/the_word.js` | 1,567 | All client logic — auth, channels, DMs, roles, admin dashboard |
-| `FlockChat-Functions/index.js` | 166 | Cloud Function — FCM push notification dispatcher |
+| `Covenant/Courts/TheFellowship/FlockChat.html` | 1,457 | Single-page app shell — Firebase config, CSS, HTML structure |
+| `Covenant/Courts/TheFellowship/FlockChat/the_word.js` | 1,567 | All client logic — auth, channels, DMs, roles, admin dashboard |
+| `Covenant/Courts/TheFellowship/FlockChat-Functions/index.js` | 166 | Cloud Function — FCM push notification dispatcher |
 
 **Deployed to:** `https://flockos-comms.web.app` (serves all churches via `?church=` URL param)
 
@@ -174,9 +171,9 @@ The admin dashboard (Pastor+) has two tabs: **Users** (assign roles, remove memb
 
 ## Multi-Church Build System
 
-Each church deployment is driven by a JSON config file in `FlockOS/Tools/Flock Deployments/`.
+Each church deployment is driven by a JSON config file in `Scrolls/ChurchRegistry/`.
 
-### Config schema (`ChurchTemplate.json`)
+### Config schema (`Scrolls/ChurchRegistry/ChurchTemplate.json`)
 
 ```json
 {
@@ -193,45 +190,60 @@ Each church deployment is driven by a JSON config file in `FlockOS/Tools/Flock D
   "photosUrl": "",
   "adminEmail": "",
   "analyticsId": "",
+  "apps": ["flockos", "flockchat", "atog"],
+  "appLinks": {
+    "flockos": "Covenant/Courts/TheTabernacle/Pages/index.html",
+    "flockchat": "Covenant/Courts/TheFellowship/FlockChat.html?church=<shortname-lower>",
+    "atog": "Covenant/Courts/TheUpperRoom/ATOG.html"
+  },
   "version": "3.0"
 }
 ```
 
+`apps` controls which cards appear on each church launcher (`Covenant/Nations/<shortName>/index.html`).
+
+`appLinks` is optional and overrides destination URLs for launcher cards. If omitted, build defaults are used.
+
 ### Build command
 
 ```bash
-bash "FlockOS/Tools/Flock Scripts/A-Build_Churches.sh"
+bash "Covenant/Bezalel/Scripts/A-Build_Churches.sh"
 ```
 
 ### What it does
 
-1. Reads each `.json` config in `Flock Deployments/` (skips `ChurchTemplate.json`)
+1. Reads each `.json` config in `Covenant/Scrolls/ChurchRegistry/` (skips `ChurchTemplate.json`)
 2. Fetches live church configs from the master API and regenerates the Bezalel codex files
-3. Copies the source tree into `Church/<shortName>/`
-4. Replaces database URL, tagline, theme/background colors, title, brand text, and manifest per-church
+3. Copies the source tree into `Covenant/Nations/<shortName>/`
+4. Builds a church-specific launcher from the root suite dashboard and includes only configured apps
+5. Replaces database URL, tagline, theme/background colors, title, brand text, and manifest per-church
 
 ### Active Deployments
 
 | Short Name | Church | URL |
 |------------|--------|-----|
-| `FlockOS` | FlockOS (default) | [Church/FlockOS/](https://flock-os.github.io/FlockOS/Church/FlockOS/) |
-| `GAS` | Grace Apostolic Sanctuary | [Church/GAS/](https://flock-os.github.io/FlockOS/Church/GAS/) |
-| `TBC` | Trinity Baptist Church | [Church/TBC/](https://flock-os.github.io/FlockOS/Church/TBC/) |
-| `TheForest` | The Forest | [Church/TheForest/](https://flock-os.github.io/FlockOS/Church/TheForest/) |
+| `FlockOS` | FlockOS (default) | `Covenant/Nations/FlockOS/` |
+| `GAS` | Google Apps Script | `Covenant/Nations/GAS/` |
+| `TBC` | Trinity Baptist Church | `Covenant/Nations/TBC/` |
+| `TheForest` | The Forest | `Covenant/Nations/TheForest/` |
+
+### Deployment tree source
+
+`FlockOS_Churches.html` reads deployment metadata from `Covenant/Testimony/Runbooks/Builds.md`.
 
 ### Adding a new church
 
-1. Copy `ChurchTemplate.json` → `flockos-yourchurch.json` in `Flock Deployments/`
+1. Copy `ChurchTemplate.json` → `flockos-yourchurch.json` in `Covenant/Scrolls/ChurchRegistry/`
 2. Fill in all fields
-3. Optionally add a logo to `FlockOS/Images/`
+3. Optionally add a logo to `Covenant/Courts/TheTabernacle/Images/`
 4. Run `A-Build_Churches.sh`
-5. Commit and push — church is live at `Church/<shortName>/`
+5. Commit and push — church is live at `Covenant/Nations/<shortName>/`
 
 ---
 
 ## Deploying a New Church Backend
 
-Full step-by-step instructions are in `FlockOS/Pages/the_pentecost.html`. Short version:
+Full step-by-step instructions are in `Covenant/Courts/TheTabernacle/Pages/the_pentecost.html`. Short version:
 
 ### 1. Create the Google Sheet
 
@@ -240,7 +252,7 @@ Create a Google Sheet named **FlockOS — [Church Name]**. Copy the Sheet ID fro
 ### 2. Deploy the GAS backend
 
 1. Open the project from within the Sheet (Extensions → Apps Script)
-2. Paste `Master Code.gs` as `Code.gs`
+2. Paste `Covenant/Testimony/Architecture/L-Master Code.md` as `Code.gs`
 3. Set `churchName` and `timezone` at the top of the file
 4. Run **`setupFlockOS`** — builds all 200 tabs, seeds content, creates the admin account, and installs care email triggers in one run
 5. Deploy → **New Deployment → Web App** (Execute as: Me, Who has access: Anyone)

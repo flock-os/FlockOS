@@ -1,0 +1,36 @@
+{
+  "id": "theforest",
+  "sheetId": "1Okd53GBkqHz99S6HFfCG5uA7iK_Pq48CWZKgvZnTBkg",
+  "name": "The Forest",
+  "shortName": "TheForest",
+  "brandName": "The Forest",
+  "tagline": "Church Management & Ministry Platform",
+  "favicon": "FlockOS_Green.png",
+  "portrait": "FlockOS_Green.png",
+  "themeColor": "#e8a838",
+  "backgroundColor": "#1a1a2e",
+  "databaseUrl": "https://script.google.com/macros/s/AKfycbwH7HY6_HK8NnP2R4IXfhsVQYnyAhWRStV8t5KJwaD7pnga0QKNj1mxwX5OAYwxEKDI/exec",
+  "photosUrl": "",
+  "adminEmail": "",
+  "analyticsId": "G-WMGPRHXP0Q",
+  "apps": [
+    "flockos",
+    "flockchat",
+    "atog"
+  ],
+  "appLinks": {
+    "flockos": "FlockOS/Pages/index.html",
+    "flockchat": "../../FlockChat.html?church=theforest",
+    "atog": "../../ATOG.html"
+  },
+  "firebaseConfig": {
+    "apiKey": "AIzaSyCnIbShg2ra1t4EiP3CffsivwvIK-bNu8M",
+    "authDomain": "flockos-theforest.firebaseapp.com",
+    "projectId": "flockos-theforest",
+    "storageBucket": "flockos-theforest.firebasestorage.app",
+    "messagingSenderId": "476522944133",
+    "appId": "1:476522944133:web:29ad5d19cf5a84c11b7bec",
+    "measurementId": "G-WMGPRHXP0Q"
+  },
+  "version": "3.0"
+}
