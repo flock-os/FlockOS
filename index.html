@@ -11,11 +11,11 @@
   </script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>FlockOS — Deployments</title>
+  <title>FlockOS Suite Launcher</title>
   <link rel="icon" type="image/png" href="Covenant/Courts/TheTabernacle/Images/FlockOS_AppIcon.png">
   <link rel="apple-touch-icon" href="Covenant/Courts/TheTabernacle/Images/FlockOS_AppIcon.png">
   <meta name="theme-color" content="#f7f8fb">
-  <meta name="description" content="FlockOS — All church deployments.">
+  <meta name="description" content="FlockOS Suite launcher with deployment tree and church branches.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,400;0,700;1,400&family=Inter:wght@400;500;600;700&family=Cinzel:wght@400;600&display=swap" rel="stylesheet">
@@ -38,68 +38,313 @@
       --shadow-sm:    0 1px 4px rgba(27,38,79,0.07);
       --shadow-md:    0 4px 20px rgba(27,38,79,0.10);
       --shadow-lg:    0 8px 40px rgba(27,38,79,0.13);
-      --radius:       1.1rem;
-      --connector:    rgba(60,59,110,0.22);
+      --shadow-xl:    0 24px 70px rgba(27,38,79,0.16);
       --font-sans:    'Inter', system-ui, -apple-system, sans-serif;
       --font-serif:   'Merriweather', Georgia, serif;
       --font-display: 'Cinzel', serif;
     }
 
     html, body {
+      min-height: 100%;
       color: var(--ink);
       font-family: var(--font-sans);
       -webkit-font-smoothing: antialiased;
       color-scheme: light;
+      scroll-behavior: smooth;
     }
 
     body {
       position: relative;
       overflow-x: hidden;
       background:
-        radial-gradient(circle at top left, rgba(197,164,78,0.16), transparent 24%),
-        radial-gradient(circle at top right, rgba(110,169,215,0.16), transparent 28%),
-        linear-gradient(180deg, #fbfcfe 0%, var(--bg) 46%, var(--bg-deep) 100%);
+        radial-gradient(circle at top left, rgba(197,164,78,0.18), transparent 26%),
+        radial-gradient(circle at top right, rgba(110,169,215,0.20), transparent 30%),
+        linear-gradient(180deg, #fbfcfe 0%, var(--bg) 42%, var(--bg-deep) 100%);
       background-attachment: fixed;
       background-repeat: no-repeat;
     }
 
     body::before,
     body::after {
-      content: '';
+      content: "";
       position: fixed;
-      border-radius: 50%;
+      border-radius: 999px;
       pointer-events: none;
-      filter: blur(8px);
-      opacity: 0.6;
+      filter: blur(10px);
+      opacity: 0.65;
       z-index: 0;
     }
     body::before {
-      width: 24rem;
-      height: 24rem;
-      top: -9rem;
+      width: 26rem;
+      height: 26rem;
+      top: -8rem;
       right: -8rem;
-      background: radial-gradient(circle, rgba(110,169,215,0.22), transparent 68%);
+      background: radial-gradient(circle, rgba(110,169,215,0.24), transparent 68%);
     }
     body::after {
-      width: 20rem;
-      height: 20rem;
-      left: -7rem;
+      width: 22rem;
+      height: 22rem;
+      left: -8rem;
       bottom: -7rem;
       background: radial-gradient(circle, rgba(197,164,78,0.18), transparent 70%);
     }
 
-    /* ── Page wrapper ── */
-    .page {
+    .launcher {
       min-height: 100vh;
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding: 2.5rem 1.5rem 4rem;
+      gap: 2rem;
+      padding: 2.8rem 1.5rem 2.5rem;
       position: relative;
       z-index: 1;
     }
 
-    /* ── Slim inline eyebrow above the chart ── */
+    .hero-shell {
+      width: min(1120px, 100%);
+      display: grid;
+      grid-template-columns: minmax(0, 1.5fr) minmax(280px, 0.9fr);
+      gap: 1.5rem;
+      align-items: stretch;
+    }
+
+    .header {
+      position: relative;
+      padding: 2.2rem;
+      border: 1px solid rgba(255,255,255,0.55);
+      border-radius: 2rem;
+      background:
+        linear-gradient(145deg, rgba(255,255,255,0.90), rgba(255,255,255,0.74)),
+        linear-gradient(135deg, rgba(197,164,78,0.08), rgba(110,169,215,0.10));
+      box-shadow: var(--shadow-xl);
+      overflow: hidden;
+      backdrop-filter: blur(16px);
+    }
+    .header::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(120deg, transparent 0%, rgba(197,164,78,0.10) 38%, transparent 70%),
+        radial-gradient(circle at 85% 24%, rgba(60,59,110,0.14), transparent 26%);
+      pointer-events: none;
+    }
+    .header-inner {
+      position: relative;
+      z-index: 1;
+      max-width: 720px;
+      display: flex;
+      flex-direction: column;
+    }
+    .header-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.68rem;
+      letter-spacing: 0.14em;
+      font-weight: 700;
+      color: var(--gold);
+      background: var(--gold-soft);
+      border: 1px solid rgba(197,164,78,0.22);
+      border-radius: 999px;
+      padding: 0.38rem 1rem;
+      align-self: flex-start;
+      margin-bottom: 1.1rem;
+      text-transform: uppercase;
+    }
+    .header h1 {
+      font-family: var(--font-display);
+      font-size: clamp(2rem, 5vw, 3.6rem);
+      font-weight: 600;
+      color: var(--accent);
+      letter-spacing: 0.02em;
+      line-height: 1.08;
+      margin-bottom: 0.9rem;
+    }
+    .header p {
+      font-size: 1rem;
+      color: var(--ink-muted);
+      max-width: 620px;
+      line-height: 1.7;
+    }
+    .header-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.85rem;
+      margin-top: 1.4rem;
+    }
+    .hero-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      padding: 0.55rem 0.9rem;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.72);
+      border: 1px solid rgba(60,59,110,0.12);
+      color: var(--ink);
+      font-size: 0.82rem;
+      font-weight: 600;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .hero-spotlight {
+      position: relative;
+      border-radius: 2rem;
+      padding: 1.4rem;
+      background:
+        linear-gradient(180deg, rgba(60,59,110,0.98), rgba(36,48,90,0.96)),
+        linear-gradient(135deg, rgba(197,164,78,0.18), transparent 55%);
+      box-shadow: var(--shadow-xl);
+      color: #eef2ff;
+      overflow: hidden;
+    }
+    .hero-spotlight::before {
+      content: "";
+      position: absolute;
+      inset: auto -3rem -4rem auto;
+      width: 15rem;
+      height: 15rem;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(197,164,78,0.32), transparent 68%);
+    }
+    .hero-spotlight > * {
+      position: relative;
+      z-index: 1;
+    }
+    .spotlight-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.72);
+      margin-bottom: 1rem;
+    }
+    .spotlight-title {
+      font-family: var(--font-serif);
+      font-size: 1.35rem;
+      line-height: 1.3;
+      margin-bottom: 0.75rem;
+      color: #fff9ea;
+    }
+    .spotlight-copy {
+      color: rgba(238,242,255,0.84);
+      line-height: 1.7;
+      font-size: 0.92rem;
+    }
+
+    .app-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 1.35rem;
+      width: 100%;
+      max-width: 1120px;
+    }
+
+    .app-card {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      text-align: left;
+      min-height: 100%;
+      padding: 1.3rem;
+      background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(255,255,255,0.88));
+      border: 1px solid var(--line);
+      border-radius: 1.6rem;
+      box-shadow: var(--shadow-md);
+      text-decoration: none;
+      color: inherit;
+      transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+      cursor: pointer;
+      overflow: hidden;
+      position: relative;
+    }
+    .app-card::before {
+      content: "";
+      position: absolute;
+      inset: 0 0 auto;
+      height: 5px;
+      background: linear-gradient(90deg, var(--gold), #6ea9d7);
+      opacity: 0.85;
+    }
+    .app-card:hover {
+      transform: translateY(-6px);
+      box-shadow: var(--shadow-xl);
+      border-color: var(--line-strong);
+    }
+
+    .app-card-head {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      width: 100%;
+      margin-bottom: 1rem;
+    }
+
+    .app-logo {
+      width: 84px;
+      height: 84px;
+      object-fit: contain;
+      border-radius: 24px;
+      box-shadow: 0 12px 28px rgba(27,38,79,0.14);
+      background: rgba(255,255,255,0.9);
+      padding: 0.4rem;
+      flex-shrink: 0;
+    }
+    .app-name {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--ink);
+      letter-spacing: 0.01em;
+    }
+    .app-tagline {
+      font-size: 0.8rem;
+      line-height: 1.45;
+      color: var(--ink-faint);
+      margin-top: 0.2rem;
+    }
+    .app-desc {
+      font-size: 0.875rem;
+      color: var(--ink-muted);
+      line-height: 1.65;
+      margin-top: 0.3rem;
+    }
+
+    .app-card-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      width: 100%;
+      margin-top: auto;
+      padding-top: 1.1rem;
+    }
+    .app-link-copy {
+      font-size: 0.76rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+      font-weight: 700;
+    }
+    .app-badge {
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      padding: 0.42rem 0.9rem;
+      border-radius: 999px;
+      border: 1px solid;
+      color: #3c3b6e;
+      background: rgba(60,59,110,0.08);
+      border-color: rgba(60,59,110,0.18);
+    }
+
+    .deployment-wrap {
+      width: min(1120px, 100%);
+      margin-top: 0.4rem;
+    }
+
     .launcher-eyebrow {
       display: inline-flex;
       align-items: center;
@@ -113,11 +358,11 @@
       border: 1px solid rgba(197,164,78,0.22);
       border-radius: 999px;
       padding: 0.3rem 1rem;
-      margin: 0 auto 1.25rem;
+      margin: 0 0 1rem;
     }
 
     .chart-shell {
-      width: min(1040px, 100%);
+      width: 100%;
       padding: 1.5rem 1.25rem 2rem;
       border-radius: 2rem;
       background:
@@ -162,9 +407,6 @@
       box-shadow: var(--shadow-sm);
     }
 
-    /* ════════════════════════════════════════
-       ORG CHART
-    ════════════════════════════════════════ */
     .org-chart {
       display: flex;
       flex-direction: column;
@@ -173,15 +415,11 @@
       max-width: 1000px;
       margin: 0 auto;
     }
-
-    /* ── Root node row ── */
     .org-root {
       display: flex;
       justify-content: center;
       width: 100%;
     }
-
-    /* Vertical stem down from root card */
     .org-stem {
       width: 2px;
       height: 44px;
@@ -189,8 +427,6 @@
       margin: 0 auto;
       flex-shrink: 0;
     }
-
-    /* Horizontal bar connecting children */
     .org-branch-row {
       position: relative;
       display: flex;
@@ -198,8 +434,6 @@
       gap: 1.25rem;
       width: 100%;
     }
-
-    /* The horizontal line spanning all children */
     .org-branch-row::before {
       content: '';
       position: absolute;
@@ -209,8 +443,6 @@
       height: 2px;
       background: linear-gradient(90deg, rgba(60,59,110,0.10), rgba(60,59,110,0.30), rgba(60,59,110,0.10));
     }
-
-    /* Each child column: vertical drop + card */
     .org-child {
       display: flex;
       flex-direction: column;
@@ -219,7 +451,6 @@
       min-width: 160px;
       max-width: 210px;
     }
-
     .org-child-stem {
       width: 2px;
       height: 36px;
@@ -227,7 +458,6 @@
       flex-shrink: 0;
     }
 
-    /* ── Cards ── */
     .node-card {
       display: flex;
       flex-direction: column;
@@ -259,12 +489,6 @@
       box-shadow: 0 22px 52px rgba(27,38,79,0.14);
       border-color: var(--line-strong);
     }
-    .node-card:active {
-      transform: translateY(-1px);
-      box-shadow: var(--shadow-md);
-    }
-
-    /* Root card is slightly larger */
     .node-card--root {
       padding: 2rem 2rem 1.75rem;
       max-width: 280px;
@@ -274,18 +498,12 @@
         linear-gradient(180deg, rgba(255,255,255,0.98), rgba(255,250,240,0.92)),
         linear-gradient(135deg, rgba(197,164,78,0.10), rgba(60,59,110,0.06));
     }
-    .node-card--root .node-icon-wrap {
-      width: 96px;
-      height: 96px;
-    }
+    .node-card--root .node-icon-wrap,
     .node-card--root .node-icon-wrap img {
       width: 96px;
       height: 96px;
     }
-    .node-card--root .node-name {
-      font-size: 1.15rem;
-    }
-
+    .node-card--root .node-name { font-size: 1.15rem; }
     .node-icon-wrap {
       width: 72px;
       height: 72px;
@@ -304,7 +522,6 @@
       border-radius: 18px;
       display: block;
     }
-
     .node-name {
       font-size: 0.95rem;
       font-weight: 700;
@@ -349,58 +566,37 @@
       border-color: rgba(197,164,78,0.28);
     }
 
-    /* ── Responsive: break earlier on tablet widths ── */
-    @media (max-width: 980px) {
-      .chart-shell {
-        padding: 1.25rem 1rem 1.5rem;
-      }
-      .org-chart {
-        max-width: 700px;
-      }
-      .org-branch-row {
-        flex-wrap: wrap;
-        gap: 0.25rem 0.9rem;
-        max-width: 620px;
-      }
-      .org-branch-row::before {
-        display: none;
-      }
-      .org-child {
-        flex: 0 1 calc(50% - 0.9rem);
-        min-width: 0;
-        max-width: 270px;
-      }
-      .org-child-stem {
-        height: 24px;
-      }
+    .suite-footnote {
+      width: min(1120px, 100%);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.9rem;
+      align-items: center;
+      justify-content: center;
+      color: var(--ink-faint);
+      font-size: 0.8rem;
+      margin-top: 0.2rem;
     }
-
-    @media (max-width: 640px) {
-      .chart-shell {
-        padding: 1.1rem 0.85rem 1.4rem;
-        border-radius: 1.5rem;
-      }
-      .chart-kicker {
-        padding-inline: 0;
-      }
-      .org-branch-row {
-        flex-direction: column;
-        align-items: center;
-        gap: 0;
-      }
-      .org-branch-row::before { display: none; }
-      .org-child {
-        flex-basis: auto;
-        max-width: 280px;
-        width: 100%;
-      }
-      .org-child-stem { height: 24px; }
+    .suite-footnote span {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      padding: 0.55rem 0.9rem;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.6);
+      border: 1px solid rgba(60,59,110,0.08);
     }
+    .suite-footnote a {
+      color: inherit;
+      font-weight: 700;
+      text-decoration: none;
+    }
+    .suite-footnote a:hover { text-decoration: underline; }
 
-    /* ── Footer ── */
     .footer {
-      margin-top: 3.5rem;
+      margin-top: 0.25rem;
       text-align: center;
+      max-width: 620px;
     }
     .footer p {
       font-family: var(--font-serif);
@@ -416,47 +612,166 @@
       color: var(--ink-faint);
     }
 
-    /* ── Pull-to-Refresh ──────────────────────────────────────────── */
+    @media (max-width: 980px) {
+      .hero-shell { grid-template-columns: 1fr; }
+      .org-chart { max-width: 700px; }
+      .org-branch-row {
+        flex-wrap: wrap;
+        gap: 0.25rem 0.9rem;
+        max-width: 620px;
+      }
+      .org-branch-row::before { display: none; }
+      .org-child {
+        flex: 0 1 calc(50% - 0.9rem);
+        min-width: 0;
+        max-width: 270px;
+      }
+      .org-child-stem { height: 24px; }
+    }
+
+    @media (max-width: 640px) {
+      .launcher { padding-inline: 1rem; }
+      .header { padding: 1.5rem; border-radius: 1.5rem; }
+      .app-logo { width: 72px; height: 72px; }
+      .chart-shell { padding: 1.1rem 0.85rem 1.4rem; border-radius: 1.5rem; }
+      .chart-kicker { padding-inline: 0; }
+      .org-branch-row {
+        flex-direction: column;
+        align-items: center;
+        gap: 0;
+      }
+      .org-branch-row::before { display: none; }
+      .org-child {
+        flex-basis: auto;
+        max-width: 280px;
+        width: 100%;
+      }
+      .org-child-stem { height: 24px; }
+      .app-card-footer {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+    }
+
     @media (max-width: 768px) {
       .ptr-indicator {
-        display: none; position: fixed; top: 50px; left: 50%; transform: translateX(-50%);
-        z-index: 9998; background: var(--bg-raised); border: 1px solid var(--line);
-        border-radius: 20px; padding: 6px 14px; font-size: 0.75rem; color: var(--ink-muted);
+        display: none;
+        position: fixed;
+        top: 50px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 9998;
+        background: var(--bg-raised);
+        border: 1px solid var(--line);
+        border-radius: 20px;
+        padding: 6px 14px;
+        font-size: 0.75rem;
+        color: var(--ink-muted);
         box-shadow: 0 4px 12px rgba(0,0,0,0.2);
       }
       .ptr-indicator.visible { display: block; }
     }
   </style>
 </head>
-<body>
+<body id="top">
 
-  <main class="page">
+  <main class="launcher">
 
-    <div class="launcher-eyebrow">&#9670;&nbsp; FlockOS &middot; Deployments</div>
-
-    <!-- ══════════════ ORG CHART ══════════════ -->
-    <section class="chart-shell">
-      <div class="chart-kicker">
-        <div class="chart-kicker-copy">
-          <strong>Deployment Tree</strong>
-          <span>The root build anchors the release line, with deployment details loaded from the editable builds document.</span>
+    <section class="hero-shell">
+      <header class="header">
+        <div class="header-inner">
+          <div class="header-eyebrow">&#9670;&nbsp; The FlockOS Suite</div>
+          <h1>Helping Pastors Do the Work of Ministry</h1>
+          <p>One launcher, one page: suite access at the top and the full deployment org tree below.</p>
+          <div class="header-actions">
+            <span class="hero-pill">&#10022; Offline Capable</span>
+            <span class="hero-pill">&#10022; Designed for Mobile</span>
+            <span class="hero-pill">&#10022; Multiplication Ready</span>
+          </div>
         </div>
-        <div class="chart-kicker-pill">&#10022; Canonical root to church instances</div>
-      </div>
+      </header>
 
-      <div class="org-chart" id="orgChart" aria-live="polite">
-        <div class="org-root">
-          <div class="node-card node-card--root">
-            <div class="node-name">Loading Builds</div>
-            <div class="node-short">Please Wait</div>
-            <p class="node-desc">The deployment tree is loading from the builds document.</p>
-            <span class="node-badge node-badge--root">Loading</span>
+      <aside class="hero-spotlight" aria-label="FlockOS suite summary">
+        <div class="spotlight-label">Commission Ready</div>
+        <h2 class="spotlight-title">Launch apps quickly, then navigate deployments in the same screen.</h2>
+        <p class="spotlight-copy">This replaces the old bounce path between Suite Gate and church chart pages, so users do not get stuck in redirect loops.</p>
+      </aside>
+    </section>
+
+    <div class="app-grid">
+      <a class="app-card" href="#deployments">
+        <div class="app-card-head">
+          <img class="app-logo" src="Covenant/Courts/TheTabernacle/Images/FlockOS_AppIcon.png" alt="FlockOS">
+          <div>
+            <div class="app-name">FlockOS</div>
+            <p class="app-tagline">Deployment launcher</p>
+          </div>
+        </div>
+        <p class="app-desc">Jump directly to the deployment tree and select the master build or any church branch.</p>
+        <div class="app-card-footer">
+          <span class="app-link-copy">Scroll to deployments</span>
+          <span class="app-badge">View Tree</span>
+        </div>
+      </a>
+
+      <a class="app-card" href="Covenant/Courts/TheFellowship/FlockChat.html?church=flockos">
+        <div class="app-card-head">
+          <img class="app-logo" src="Covenant/Courts/TheFellowship/FlockChat/Images/FlockChat_AppIcon.png" alt="FlockChat">
+          <div>
+            <div class="app-name">FlockChat</div>
+            <p class="app-tagline">Congregational communication</p>
+          </div>
+        </div>
+        <p class="app-desc">Real-time church messaging for prayer, announcements, and fellowship.</p>
+        <div class="app-card-footer">
+          <span class="app-link-copy">Open conversation layer</span>
+          <span class="app-badge">Enter FlockChat</span>
+        </div>
+      </a>
+
+      <a class="app-card" href="Covenant/Courts/TheUpperRoom/ATOG.html">
+        <div class="app-card-head">
+          <img class="app-logo" src="Covenant/Courts/TheUpperRoom/ATOG/Images/ATOG_AppIcon.png" alt="A Touch of the Gospel">
+          <div>
+            <div class="app-name">A Touch of the Gospel</div>
+            <p class="app-tagline">Study and formation tools</p>
+          </div>
+        </div>
+        <p class="app-desc">Interactive theology, devotionals, lexicon, and spiritual health tools.</p>
+        <div class="app-card-footer">
+          <span class="app-link-copy">Open study path</span>
+          <span class="app-badge">Enter ATOG</span>
+        </div>
+      </a>
+    </div>
+
+    <section class="deployment-wrap" id="deployments">
+      <div class="launcher-eyebrow">&#9670;&nbsp; FlockOS &middot; Deployments</div>
+      <div class="chart-shell">
+        <div class="chart-kicker">
+          <div class="chart-kicker-copy">
+            <strong>Deployment Tree</strong>
+            <span>The root build anchors the release line, with deployment details loaded from the editable builds document.</span>
+          </div>
+          <div class="chart-kicker-pill">&#10022; Canonical root to church instances</div>
+        </div>
+
+        <div class="org-chart" id="orgChart" aria-live="polite">
+          <div class="org-root">
+            <div class="node-card node-card--root">
+              <div class="node-name">Loading Builds</div>
+              <div class="node-short">Please Wait</div>
+              <p class="node-desc">The deployment tree is loading from the builds document.</p>
+              <span class="node-badge node-badge--root">Loading</span>
+            </div>
           </div>
         </div>
       </div>
-
     </section>
-    <!-- /ORG CHART -->
+
+    <div class="suite-footnote" aria-label="Suite qualities">
+      <span>&#10070; <a href="Covenant/Courts/TheTabernacle/Pages/software_deployment_referral.html">FlockOS is Built to Be Shared! Refer a Pastor Here.</a></span>
+    </div>
 
     <footer class="footer">
       <p>&ldquo;Go therefore and make disciples of all nations&hellip;&rdquo; &mdash;&nbsp;Matthew 28:19</p>
@@ -511,9 +826,23 @@
       return result;
     }
 
+    function normalizeBuildData(input) {
+      const data = input || {};
+      const root = Object.assign({}, data.root || {});
+      const deployments = Array.isArray(data.deployments) ? data.deployments.slice() : [];
+
+      // Keep this launcher truly single-page by mapping old root links to in-page top.
+      if (/Covenant\/Gate\/SuiteGate\/index\.html/i.test(root.href || '') || /FlockOS_Churches\.html/i.test(root.href || '')) {
+        root.href = '#top';
+        root.badge = 'You Are Here';
+      }
+
+      return { root: root, deployments: deployments };
+    }
+
     function buildRootMarkup(root) {
       return '<div class="org-root">'
-        + '<a class="node-card node-card--root" href="' + escapeHtml(root.href || 'FlockOS.html') + '">'
+        + '<a class="node-card node-card--root" href="' + escapeHtml(root.href || '#top') + '">'
         + '<div class="node-icon-wrap">'
         + '<img src="' + escapeHtml(root.image || 'Covenant/Courts/TheTabernacle/Images/FlockOS_AppIcon.png') + '" alt="' + escapeHtml(root.alt || root.name || 'FlockOS') + '">'
         + '</div>'
@@ -540,11 +869,13 @@
         + '</div>';
     }
 
-    function renderBuildsChart(data) {
+    function renderBuildsChart(rawData) {
       const chart = document.getElementById('orgChart');
       if (!chart) return;
 
-      if (!data.root) {
+      const data = normalizeBuildData(rawData);
+
+      if (!data.root || !Object.keys(data.root).length) {
         chart.innerHTML = '<div class="org-root"><div class="node-card node-card--root"><div class="node-name">Builds.md Missing Root</div><div class="node-short">Needs Setup</div><p class="node-desc">Add a Root section in the builds document so the chart can render correctly.</p><span class="node-badge node-badge--root">Edit Builds.md</span></div></div>';
         return;
       }
@@ -592,7 +923,6 @@
         return;
       }
 
-      // Fallback: try fetching Builds.md (works when served over HTTP)
       fetchBuildsMarkdown()
         .then(function(markdown) { renderBuildsChart(parseBuildsMarkdown(markdown)); })
         .catch(function() {
@@ -600,7 +930,6 @@
         });
     }
 
-    // Dynamically set the horizontal connector span to match the actual branch row width
     function updateBranchSpan() {
       const row = document.getElementById('branchRow');
       if (!row) return;
@@ -611,49 +940,48 @@
       const span  = (last.left + last.width / 2) - (first.left + first.width / 2);
       row.style.setProperty('--branch-span', Math.max(0, span) + 'px');
     }
+
     window.addEventListener('load', loadBuildsChart);
     window.addEventListener('resize', updateBranchSpan);
   </script>
 
   <script src="Covenant/Courts/TheTabernacle/Scripts/builds_codex.js"></script>
 
-  <!-- Pull-to-Refresh indicator -->
   <div class="ptr-indicator" id="ptrIndicator">&#8635; Release to refresh</div>
 
   <script>
-  // ── Pull-to-Refresh ────────────────────────────────────────────────────────
-  (function() {
-    if (window.innerWidth > 768) return;
-    var ptr = document.getElementById('ptrIndicator');
-    var startY = 0, pulling = false, triggered = false;
-    document.addEventListener('touchstart', function(e) {
-      if (window.scrollY > 5) return;
-      startY = e.touches[0].clientY;
-      pulling = true;
-      triggered = false;
-    }, { passive: true });
-    document.addEventListener('touchmove', function(e) {
-      if (!pulling) return;
-      var dy = e.touches[0].clientY - startY;
-      if (dy > 60 && !triggered) {
-        triggered = true;
-        if (ptr) ptr.classList.add('visible');
-      } else if (dy < 30) {
+    (function() {
+      if (window.innerWidth > 768) return;
+      var ptr = document.getElementById('ptrIndicator');
+      var startY = 0, pulling = false, triggered = false;
+      document.addEventListener('touchstart', function(e) {
+        if (window.scrollY > 5) return;
+        startY = e.touches[0].clientY;
+        pulling = true;
         triggered = false;
-        if (ptr) ptr.classList.remove('visible');
-      }
-    }, { passive: true });
-    document.addEventListener('touchend', function() {
-      if (triggered) {
-        if (ptr) ptr.textContent = 'Refreshing\u2026';
-        setTimeout(function() { location.reload(); }, 300);
-      } else {
-        if (ptr) ptr.classList.remove('visible');
-      }
-      pulling = false;
-      triggered = false;
-    }, { passive: true });
-  })();
+      }, { passive: true });
+      document.addEventListener('touchmove', function(e) {
+        if (!pulling) return;
+        var dy = e.touches[0].clientY - startY;
+        if (dy > 60 && !triggered) {
+          triggered = true;
+          if (ptr) ptr.classList.add('visible');
+        } else if (dy < 30) {
+          triggered = false;
+          if (ptr) ptr.classList.remove('visible');
+        }
+      }, { passive: true });
+      document.addEventListener('touchend', function() {
+        if (triggered) {
+          if (ptr) ptr.textContent = 'Refreshing...';
+          setTimeout(function() { location.reload(); }, 300);
+        } else {
+          if (ptr) ptr.classList.remove('visible');
+        }
+        pulling = false;
+        triggered = false;
+      }, { passive: true });
+    })();
   </script>
 
 </body>
