@@ -353,7 +353,7 @@
             <a onclick="showView('register')">Request access</a>
           </div>
           <div class="links" style="margin-top:8px;">
-            <a href="../../index.html">&larr; Return Home</a>
+            <a href="index.html">&larr; Return Home</a>
           </div>
         </div>
 
@@ -532,7 +532,7 @@ document.addEventListener('DOMContentLoaded', function() {
       var _rtParams = new URLSearchParams(window.location.search);
       var _returnTo = _rtParams.get('returnTo');
       var _dest = _returnTo
-        ? '../../index.html?view=' + encodeURIComponent(_returnTo)
+        ? 'the_good_shepherd.html?view=' + encodeURIComponent(_returnTo)
         : 'the_good_shepherd.html';
       setTimeout(function() { window.location.replace(_dest); }, 600);
     } catch (err) {

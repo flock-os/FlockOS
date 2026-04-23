@@ -31,11 +31,6 @@ CHURCH_DIR="$COVENANT_ROOT/Nations"
 SOURCE_DIR="$COVENANT_ROOT/Courts/TheTabernacle"
 ROOT_MANIFEST="$CHURCH_DIR/FlockOS/manifest.json"
 ROOT_SW="$CHURCH_DIR/FlockOS/the_living_water.js"
-# NOTE: This is the CHURCH launcher template — used for each Nations/<Church>/index.html.
-# The ROOT launcher (Gate/SuiteGate/index.html) is NOT built here; it is maintained
-# directly and its FlockOS card links to FlockOS_Churches.html (the deployment tree),
-# NOT to FlockOS/Pages/index.html like church deployments do.
-SUITE_INDEX="$COVENANT_ROOT/Gate/ChurchGateTemplate/index.template.html"
 
 # ── Default values (hardcoded in source for GitHub Pages root) ────────
 DEFAULT_CONFIG="$CONFIGS_DIR/FlockOS-Root.json"
@@ -74,7 +69,6 @@ CRITICAL_FILES=(
   "$SOURCE_DIR/Scripts/the_living_water.js"
   "$SOURCE_DIR/Scripts/the_upper_room.js"
   "$SOURCE_DIR/Scripts/the_life.js"
-  "$SUITE_INDEX"
   "$ROOT_MANIFEST"
   "$ROOT_SW"
 )
@@ -288,8 +282,6 @@ for config in "$BUILD_CONFIGS_DIR"/*.json; do
   CHURCH_VERSION=$(jq -r '.version // "1.0"' "$config")
   CHURCH_ANALYTICS=$(jq -r '.analyticsId // empty' "$config")
   CHURCH_FB_CONFIG=$(jq -r '.firebaseConfig // empty' "$config")
-  CHURCH_APPS_JSON=$(jq -c '.apps // ["flockos","flockchat","atog"]' "$config")
-  CHURCH_APP_LINKS_JSON=$(jq -c '.appLinks // {}' "$config")
   CHURCH_SHORT_LOWER=$(printf '%s' "$CHURCH_SHORT" | tr '[:upper:]' '[:lower:]')
 
   OUT="$CHURCH_DIR/$CHURCH_SHORT"
@@ -299,7 +291,6 @@ for config in "$BUILD_CONFIGS_DIR"/*.json; do
     echo "    [dry-run] Would build → Nations/$CHURCH_SHORT/"
     echo "    [dry-run]   DB URL: $CHURCH_DB_URL"
     echo "    [dry-run]   Theme: $CHURCH_THEME | BG: $CHURCH_BG"
-    echo "    [dry-run]   Apps: $(echo "$CHURCH_APPS_JSON" | jq -r '. | join(", ")')"
     [ -n "$CHURCH_FB_CONFIG" ] && echo "    [dry-run]   Firebase: custom config"
     echo ""
     continue
@@ -314,18 +305,9 @@ for config in "$BUILD_CONFIGS_DIR"/*.json; do
     --exclude='Pages/bezalel_matrix_local.html' \
     "$SOURCE_DIR/" "$OUT/FlockOS/"
 
-  # 2. Copy root-level files
-  cp "$SUITE_INDEX"   "$OUT/index.html"
+  # 2. Copy root-level manifest and service worker
   [ "$ROOT_MANIFEST" != "$OUT/manifest.json" ] && cp "$ROOT_MANIFEST" "$OUT/manifest.json"
   [ "$ROOT_SW" != "$OUT/the_living_water.js" ] && cp "$ROOT_SW"       "$OUT/the_living_water.js"
-
-  # 2a. Fix CSS path — Church deployments are 2 levels deep; point to root Styles/
-  sed -i '' \
-    's|href="Styles/american_garments\.css"|href="../../Styles/american_garments.css"|g' \
-    "$OUT/index.html"
-
-  # 2b. Church launcher generation (suite dashboard filtered by config.apps)
-  python3 "$(dirname "$0")/build_launcher.py" "$OUT/index.html" "$CHURCH_SHORT_LOWER" "$CHURCH_APPS_JSON" "$CHURCH_APP_LINKS_JSON"
 
   # 3. Brand with church-specific values
 
@@ -351,8 +333,8 @@ for config in "$BUILD_CONFIGS_DIR"/*.json; do
   jq --arg n "$CHURCH_NAME" --arg s "$CHURCH_SHORT" --arg t "$CHURCH_TAGLINE" \
      --arg f "$MANIFEST_FAVICON" --arg tc "$CHURCH_THEME" --arg bg "$CHURCH_BG" \
      '.name=$n | .short_name=$s | .description=$t | .background_color=$bg | .theme_color=$tc |
-      (.icons[].src) |= sub("FlockOS_icon\\.png";$f) |
-      (.shortcuts[].icons[].src) |= sub("FlockOS_icon\\.png";$f)' \
+      (.icons[].src) |= sub("FlockOS_[A-Za-z_]+\\.png";$f) |
+      (.shortcuts[].icons[].src) |= sub("FlockOS_[A-Za-z_]+\\.png";$f)' \
      "$OUT/manifest.json" > "$OUT/manifest.json.tmp" && mv "$OUT/manifest.json.tmp" "$OUT/manifest.json"
 
   # 3b. HTML/JS — replace database URL, tagline, theme, background
