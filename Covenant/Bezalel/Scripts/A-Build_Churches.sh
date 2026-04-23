@@ -182,7 +182,7 @@ mkdir -p "$CHURCH_DIR"
 # and bezalel_matrix.html can offer a one-click Copy for Code.gs as well.
 MASTER_CODE="$COVENANT_ROOT/Testimony/Architecture/L-Master Code.md"
 CODEX_OUT="$SOURCE_DIR/Pages/bezalel_codex.js"
-if [ -f "$MASTER_CODE" ] && command -v python3 &>/dev/null; then
+if ! $DRY_RUN && [ -f "$MASTER_CODE" ] && command -v python3 &>/dev/null; then
   python3 -c "
 import json, sys
 with open(sys.argv[1], 'r') as f:
@@ -202,7 +202,7 @@ fi
 # ── Regenerate bezalel_firestoresync_codex.js from FirestoreSync.md ──────────
 FIRESTORESYNC_MD="$COVENANT_ROOT/Testimony/Architecture/M-Master FirestoreSync.md"
 FIRESTORESYNC_OUT="$SOURCE_DIR/Pages/bezalel_firestoresync_codex.js"
-if [ -f "$FIRESTORESYNC_MD" ] && command -v python3 &>/dev/null; then
+if ! $DRY_RUN && [ -f "$FIRESTORESYNC_MD" ] && command -v python3 &>/dev/null; then
   python3 -c "
 import json, sys
 with open(sys.argv[1], 'r') as f:
@@ -222,7 +222,7 @@ fi
 # ── Regenerate bezalel_synchandler_codex.js from SyncHandlerGS.md ────────────
 SYNCHANDLER_MD="$COVENANT_ROOT/Testimony/Architecture/N-Master SyncHandler.md"
 SYNCHANDLER_OUT="$SOURCE_DIR/Pages/bezalel_synchandler_codex.js"
-if [ -f "$SYNCHANDLER_MD" ] && command -v python3 &>/dev/null; then
+if ! $DRY_RUN && [ -f "$SYNCHANDLER_MD" ] && command -v python3 &>/dev/null; then
   python3 -c "
 import json, sys
 with open(sys.argv[1], 'r') as f:
@@ -242,7 +242,7 @@ fi
 # ── Regenerate bezalel_camelcase_codex.js from O-Master CamelCase.md ─────────
 CAMELCASE_MD="$COVENANT_ROOT/Testimony/Architecture/O-Master CamelCase.md"
 CAMELCASE_OUT="$SOURCE_DIR/Pages/bezalel_camelcase_codex.js"
-if [ -f "$CAMELCASE_MD" ] && command -v python3 &>/dev/null; then
+if ! $DRY_RUN && [ -f "$CAMELCASE_MD" ] && command -v python3 &>/dev/null; then
   python3 -c "
 import json, sys
 with open(sys.argv[1], 'r') as f:
