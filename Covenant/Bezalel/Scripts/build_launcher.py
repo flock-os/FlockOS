@@ -31,8 +31,8 @@ if not allowed:
 
 defaults = {
     "flockos": "FlockOS/Pages/index.html",
-    "flockchat": f"../../FlockChat.html?church={short_lower}",
-    "atog": "../../ATOG.html",
+    "flockchat": f"../../Courts/TheFellowship/FlockChat.html?church={short_lower}",
+    "atog": "../../Courts/TheUpperRoom/ATOG.html",
 }
 cards = {
     "flockos": "app-card--floccos",

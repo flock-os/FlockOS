@@ -20,8 +20,8 @@
   ],
   "appLinks": {
     "flockos": "FlockOS/Pages/index.html",
-    "flockchat": "../../FlockChat.html?church=gas",
-    "atog": "../../ATOG.html"
+    "flockchat": "../../Courts/TheFellowship/FlockChat.html?church=gas",
+    "atog": "../../Courts/TheUpperRoom/ATOG.html"
   },
   "firebaseConfig": null,
   "version": "3.0"

@@ -9,7 +9,7 @@
   <meta name="theme-color" content="#f7f8fb">
   <meta name="description" content="FlockOS Suite — Ministry tools built for the Great Commission.">
   <meta property="og:title" content="FlockOS Suite">
-  <meta property="og:description" content="Ministry tools built for the Great Commission.">
+  <meta property="og:description" content="Church Management & Ministry Platform">
   <meta property="og:image" content="../../Courts/TheTabernacle/Images/FlockOS_AppIcon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -79,437 +79,221 @@
       width: 26rem;
       height: 26rem;
       top: -8rem;
-      right: -8rem;
-      background: radial-gradient(circle, rgba(110,169,215,0.24), transparent 68%);
-    }
-
-    body::after {
-      width: 22rem;
-      height: 22rem;
-      left: -8rem;
-      bottom: -7rem;
+      left: -10rem;
       background: radial-gradient(circle, rgba(197,164,78,0.18), transparent 70%);
     }
 
-    /* ── Layout ── */
+    body::after {
+      width: 30rem;
+      height: 30rem;
+      bottom: -10rem;
+      right: -10rem;
+      background: radial-gradient(circle, rgba(110,169,215,0.16), transparent 70%);
+    }
+
+    main, header, section, footer { position: relative; z-index: 1; }
+
     .launcher {
-      min-height: 100vh;
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 1.4rem 1rem 2rem;
       display: flex;
       flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 2rem;
-      padding: 3rem 1.5rem 2.5rem;
-      position: relative;
-      z-index: 1;
+      gap: 1.25rem;
     }
 
-    .hero-shell {
-      width: min(1120px, 100%);
-      display: grid;
-      grid-template-columns: minmax(0, 1.5fr) minmax(280px, 0.9fr);
-      gap: 1.5rem;
-      align-items: stretch;
-    }
-
-    /* ── Header ── */
-    .header {
-      position: relative;
-      padding: 2.5rem;
-      border: 1px solid rgba(255,255,255,0.55);
-      border-radius: 2rem;
-      background:
-        linear-gradient(145deg, rgba(255,255,255,0.90), rgba(255,255,255,0.74)),
-        linear-gradient(135deg, rgba(197,164,78,0.08), rgba(110,169,215,0.10));
-      box-shadow: var(--shadow-xl);
-      overflow: hidden;
-      backdrop-filter: blur(16px);
-    }
-    .header::before {
-      content: "";
-      position: absolute;
-      inset: 0;
-      background:
-        linear-gradient(120deg, transparent 0%, rgba(197,164,78,0.10) 38%, transparent 70%),
-        radial-gradient(circle at 85% 24%, rgba(60,59,110,0.14), transparent 26%);
-      pointer-events: none;
-    }
-    .header-inner {
-      position: relative;
-      z-index: 1;
-      max-width: 720px;
+    /* ── Brand header ── */
+    .brand {
       display: flex;
-      flex-direction: column;
-    }
-    .header-eyebrow {
-      display: inline-flex;
       align-items: center;
-      gap: 0.5rem;
-      font-size: 0.68rem;
-      letter-spacing: 0.14em;
-      font-weight: 700;
-      color: var(--gold);
-      text-transform: none;
-      background: var(--gold-soft);
-      border: 1px solid rgba(197,164,78,0.22);
-      border-radius: 999px;
-      padding: 0.38rem 1rem;
-      align-self: flex-end;
-      margin-bottom: 1.25rem;
-    }
-    .header h1 {
-      font-family: var(--font-display);
-      font-size: clamp(2.2rem, 5vw, 4.4rem);
-      font-weight: 600;
-      color: var(--accent);
-      letter-spacing: 0.02em;
-      line-height: 1.05;
-      margin-bottom: 0.9rem;
-    }
-    .header p {
-      font-size: 1.02rem;
-      color: var(--ink-muted);
-      max-width: 620px;
-      line-height: 1.7;
-    }
-    .header-actions {
-      display: flex;
-      flex-wrap: wrap;
       gap: 0.85rem;
-      margin-top: 1.5rem;
+      padding: 0.5rem 0.25rem;
     }
-    .hero-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.45rem;
-      padding: 0.55rem 0.9rem;
-      border-radius: 999px;
-      background: rgba(255,255,255,0.72);
-      border: 1px solid rgba(60,59,110,0.12);
-      color: var(--ink);
-      font-size: 0.82rem;
-      font-weight: 600;
+    .brand img {
+      width: 50px;
+      height: 50px;
+      border-radius: 12px;
+      object-fit: contain;
+      background: #fff;
+      padding: 4px;
       box-shadow: var(--shadow-sm);
     }
-    .accent-bar {
-      width: 88px;
-      height: 4px;
-      background: linear-gradient(90deg, var(--gold), #6ea9d7);
-      border-radius: 999px;
-      margin: 1.2rem 0 0;
+    .brand-text h1 {
+      font-family: var(--font-display);
+      font-weight: 600;
+      font-size: 1.45rem;
+      color: var(--ink);
+      letter-spacing: 0.02em;
+      line-height: 1.1;
+    }
+    .brand-text p {
+      font-size: 0.9rem;
+      color: var(--ink-muted);
+      margin-top: 0.15rem;
     }
 
-    .hero-spotlight {
-      position: relative;
-      border-radius: 2rem;
-      padding: 1.5rem;
-      background:
-        linear-gradient(180deg, rgba(60,59,110,0.98), rgba(36,48,90,0.96)),
-        linear-gradient(135deg, rgba(197,164,78,0.18), transparent 55%);
-      box-shadow: var(--shadow-xl);
-      color: #eef2ff;
-      overflow: hidden;
+    /* ── Mission / architecture ── */
+    .mission {
+      padding: 1.1rem 1.15rem 1.2rem;
+      background: var(--bg-raised);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      box-shadow: var(--shadow-sm);
     }
-    .hero-spotlight::before {
-      content: "";
-      position: absolute;
-      inset: auto -3rem -4rem auto;
-      width: 15rem;
-      height: 15rem;
-      border-radius: 50%;
-      background: radial-gradient(circle, rgba(197,164,78,0.32), transparent 68%);
-    }
-    .hero-spotlight > * {
-      position: relative;
-      z-index: 1;
-    }
-    .spotlight-label {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.45rem;
-      font-size: 0.72rem;
-      font-weight: 700;
-      letter-spacing: 0.12em;
+    .mission h2 {
+      font-family: var(--font-display);
+      font-weight: 600;
+      font-size: 1.05rem;
+      color: var(--ink);
+      letter-spacing: 0.04em;
       text-transform: uppercase;
-      color: rgba(255,255,255,0.72);
-      margin-bottom: 1rem;
+      margin-bottom: 0.55rem;
     }
-    .spotlight-title {
-      font-family: var(--font-serif);
-      font-size: 1.5rem;
-      line-height: 1.25;
-      margin-bottom: 0.75rem;
-      color: #fff9ea;
-    }
-    .spotlight-copy {
-      color: rgba(238,242,255,0.84);
-      line-height: 1.7;
+    .mission > p {
       font-size: 0.95rem;
+      color: var(--ink-muted);
+      line-height: 1.55;
     }
-    .spotlight-metrics {
+    .mission-grid {
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 0.8rem;
-      margin-top: 1.35rem;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.7rem;
+      margin-top: 0.95rem;
     }
-    .spotlight-metric {
-      padding: 0.95rem 0.85rem;
-      border-radius: 1rem;
-      background: rgba(255,255,255,0.08);
-      border: 1px solid rgba(255,255,255,0.10);
-      text-align: left;
+    .mission-point {
+      padding: 0.7rem 0.75rem;
+      background: var(--bg-hover);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
     }
-    .spotlight-metric strong {
-      display: block;
-      font-size: 1.1rem;
-      color: #ffffff;
-      margin-bottom: 1.05rem;
-      text-align: center;
+    .mission-point strong {
+      font-size: 0.84rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--accent);
     }
-    .spotlight-metric span {
-      display: block;
-      font-size: 0.74rem;
+    .mission-point span {
+      font-size: 0.84rem;
+      color: var(--ink-muted);
       line-height: 1.45;
-      color: rgba(238,242,255,0.76);
     }
 
-    /* ── App Grid ── */
+    /* ── Section title ── */
+    .section-title {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      padding: 0 0.25rem;
+    }
+    .section-title h2 {
+      font-family: var(--font-display);
+      font-weight: 600;
+      font-size: 1.05rem;
+      color: var(--ink);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .section-title small {
+      font-size: 0.78rem;
+      color: var(--ink-faint);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    /* ── Apps grid ── */
     .app-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-      gap: 1.35rem;
-      width: 100%;
-      max-width: 1120px;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.85rem;
+      margin-top: 0.7rem;
     }
-
-    /* ── App Card ── */
     .app-card {
       display: flex;
-      flex-direction: column;
-      align-items: flex-start;
-      text-align: left;
-      min-height: 100%;
-      padding: 1.3rem;
-      background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(255,255,255,0.88));
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.85rem 0.85rem;
+      background: var(--bg-raised);
       border: 1px solid var(--line);
-      border-radius: 1.6rem;
-      box-shadow: var(--shadow-md);
+      border-radius: 14px;
+      box-shadow: var(--shadow-sm);
       text-decoration: none;
       color: inherit;
-      transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
-      cursor: pointer;
-      overflow: hidden;
-      position: relative;
-    }
-    .app-card::before {
-      content: "";
-      position: absolute;
-      inset: 0 0 auto;
-      height: 5px;
-      background: linear-gradient(90deg, var(--gold), var(--sky));
-      opacity: 0.85;
+      transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
     }
     .app-card:hover {
-      transform: translateY(-6px);
-      box-shadow: var(--shadow-xl);
-      border-color: var(--line-strong);
-    }
-    .app-card:active {
-      transform: translateY(-1px);
+      transform: translateY(-2px);
       box-shadow: var(--shadow-md);
+      border-color: var(--accent);
     }
-
-    .app-card-head {
-      display: flex;
-      align-items: flex-start;
-      gap: 1rem;
-      width: 100%;
-      margin-bottom: 1.25rem;
-    }
-
-    .app-logo {
-      width: 88px;
-      height: 88px;
+    .app-card img {
+      width: 48px;
+      height: 48px;
+      border-radius: 10px;
       object-fit: contain;
-      border-radius: 24px;
-      margin-bottom: 0;
-      box-shadow: 0 12px 28px rgba(27,38,79,0.14);
-      background: rgba(255,255,255,0.9);
-      padding: 0.4rem;
+      background: #fff;
+      padding: 3px;
+      box-shadow: var(--shadow-sm);
+      flex-shrink: 0;
     }
     .app-meta {
-      display: flex;
-      flex-direction: column;
-      gap: 0.45rem;
       min-width: 0;
       flex: 1;
     }
     .app-name {
-      font-size: 1.2rem;
+      font-size: 1.04rem;
       font-weight: 700;
       color: var(--ink);
-      letter-spacing: 0.01em;
+      line-height: 1.2;
     }
-    .app-tagline {
-      font-size: 0.8rem;
-      line-height: 1.45;
-      color: var(--ink-faint);
-    }
-    .app-desc {
-      font-size: 0.875rem;
+    .app-tag {
+      font-size: 0.92rem;
       color: var(--ink-muted);
-      line-height: 1.65;
-    }
-    .app-feature-list {
-      list-style: none;
-      display: grid;
-      gap: 0.55rem;
-      margin: 1rem 0 0;
-      width: 100%;
-    }
-    .app-feature-list li {
-      display: flex;
-      align-items: center;
-      gap: 0.55rem;
-      color: var(--ink);
-      font-size: 0.8rem;
-      line-height: 1.4;
-    }
-    .app-feature-list li::before {
-      content: "";
-      width: 0.45rem;
-      height: 0.45rem;
-      border-radius: 50%;
-      background: linear-gradient(135deg, var(--gold), var(--sky));
-      box-shadow: 0 0 0 4px rgba(60,59,110,0.06);
-      flex-shrink: 0;
-    }
-    .app-card-footer {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 0.75rem;
-      width: 100%;
-      margin-top: auto;
-      padding-top: 1.2rem;
-    }
-    .app-link-copy {
-      font-size: 0.76rem;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      color: var(--ink-faint);
-      font-weight: 700;
-    }
-    .app-badge {
-      font-size: 0.7rem;
-      font-weight: 600;
-      letter-spacing: 0.08em;
-      text-transform: none;
-      padding: 0.42rem 0.9rem;
-      border-radius: 999px;
-      border: 1px solid;
-    }
-
-    .app-card--floccos  .app-badge { color: #3c3b6e; background: rgba(60,59,110,0.08); border-color: rgba(60,59,110,0.18); }
-    .app-card--flockchat .app-badge { color: #1a6fb5; background: rgba(26,111,181,0.08); border-color: rgba(26,111,181,0.18); }
-    .app-card--atog     .app-badge { color: #b27a0a; background: rgba(197,164,78,0.12); border-color: rgba(197,164,78,0.25); }
-
-    .suite-footnote {
-      width: min(1120px, 100%);
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.9rem;
-      align-items: center;
-      justify-content: center;
-      color: var(--ink-faint);
-      font-size: 0.8rem;
-    }
-    .suite-footnote span {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.45rem;
-      padding: 0.55rem 0.9rem;
-      border-radius: 999px;
-      background: rgba(255,255,255,0.6);
-      border: 1px solid rgba(60,59,110,0.08);
-    }
-    .suite-footnote a {
-      color: inherit;
-      font-weight: 700;
-      text-decoration: none;
-    }
-    .suite-footnote a:hover {
-      text-decoration: underline;
+      margin-top: 0.15rem;
     }
 
     /* ── Footer ── */
     .footer {
-      margin-top: 0.6rem;
       text-align: center;
-      max-width: 620px;
+      padding-top: 0.5rem;
     }
     .footer p {
       font-family: var(--font-serif);
       font-style: italic;
-      font-size: 0.875rem;
+      font-size: 0.95rem;
       color: var(--ink-muted);
-      line-height: 1.8;
     }
     .footer small {
       display: block;
-      margin-top: 0.5rem;
-      font-family: var(--font-sans);
-      font-style: normal;
-      font-size: 0.75rem;
+      margin-top: 0.3rem;
+      font-size: 0.86rem;
+      color: var(--ink);
+    }
+    .footer .referral-link {
+      display: inline-block;
+      margin-top: 0.65rem;
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--accent);
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+    .footer .referral-link:hover {
       color: var(--ink);
     }
 
-    @media (min-width: 921px) {
-      .spotlight-metrics {
-        grid-template-columns: 1fr 1fr;
-      }
+    /* ── Responsive ── */
+    @media (max-width: 720px) {
+      .mission-grid { grid-template-columns: 1fr; }
+      .app-grid { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 480px) {
+      .app-grid { grid-template-columns: 1fr; }
     }
 
-    @media (max-width: 920px) {
-      .hero-shell {
-        grid-template-columns: 1fr;
-      }
-      .header {
-        padding: 2rem;
-      }
-    }
-
-    @media (max-width: 640px) {
-      .launcher {
-        padding-inline: 1rem;
-      }
-      .header {
-        padding: 1.5rem;
-        border-radius: 1.5rem;
-      }
-      .header h1 {
-        font-size: clamp(1.9rem, 11vw, 3rem);
-      }
-      .app-card-head {
-        align-items: center;
-      }
-      .app-logo {
-        width: 72px;
-        height: 72px;
-      }
-      .spotlight-metrics {
-        grid-template-columns: 1fr;
-      }
-      .app-card-footer {
-        align-items: flex-start;
-        flex-direction: column;
-      }
-      .suite-footnote {
-        justify-content: flex-start;
-      }
-    }
-
-    /* ── Pull-to-Refresh ──────────────────────────────────────────── */
+    /* ── Pull-to-Refresh indicator ── */
     @media (max-width: 768px) {
       .ptr-indicator {
         display: none; position: fixed; top: 50px; left: 50%; transform: translateX(-50%);
@@ -525,113 +309,71 @@
 
   <main class="launcher">
 
-    <section class="hero-shell">
-      <header class="header">
-        <div class="header-inner">
-          <div class="header-eyebrow">&#9670;&nbsp; The FlockOS Suite</div>
-          <h1>Helping Pastors DO the work of Ministry</h1>
-          <p>FlockOS brings church operations, church communication, and discipleship tools into one place with an interface that feels more deliberate than a generic app launcher.</p>
-          <div class="accent-bar"></div>
-          <div class="header-actions">
-            <span class="hero-pill">&#10022; Offline Capable</span>
-            <span class="hero-pill">&#10022; Designed for Mobile</span>
-            <span class="hero-pill">&#10022; Multiplication Ready</span>
-          </div>
-        </div>
-      </header>
+    <header class="brand">
+      <img src="../../Courts/TheTabernacle/Images/FlockOS_AppIcon.png" alt="FlockOS-GAS">
+      <div class="brand-text">
+        <h1>FlockOS Suite</h1>
+        <p>Church Management & Ministry Platform</p>
+      </div>
+    </header>
 
-      <aside class="hero-spotlight" aria-label="FlockOS suite summary">
-        <div class="spotlight-label">Commission Ready</div>
-        <h2 class="spotlight-title">Built for the pastor who needs help now, not another software pitch.</h2>
-        <p class="spotlight-copy">First-time visitors should feel what FlockOS is for within seconds: real ministry work, real congregational care, and a suite designed to serve churches without adding more noise, friction, or cost.</p>
-        <div class="spotlight-metrics">
-          <div class="spotlight-metric">
-            <strong>3</strong>
-            <span>distinct ministry applications presented with clearer identity</span>
-          </div>
-          <div class="spotlight-metric">
-            <strong>Free</strong>
-            <span>accessible to churches without a subscription wall</span>
-          </div>
-          <div class="spotlight-metric">
-            <strong>Built</strong>
-            <span>for discipleship, administration, and congregational care</span>
-          </div>
-        </div>
-      </aside>
+    <section class="mission" aria-label="Mission and architecture overview">
+      <h2>Mission &amp; Architecture</h2>
+      <p>
+        FlockOS is built to help churches move from intention to action with clarity. Its architecture keeps a single master source,
+        then distributes consistent builds to church environments, reducing deployment friction while preserving local reliability.
+      </p>
+      <div class="mission-grid">
+        <article class="mission-point">
+          <strong>Security Posture</strong>
+          <span>Least-privilege access rules, explicit deployment targets, and auditable configuration boundaries support responsible stewardship of church data.</span>
+        </article>
+        <article class="mission-point">
+          <strong>Rapid Deployment</strong>
+          <span>One coordinated build pipeline propagates updates across branches, enabling faster rollout with fewer manual steps and less drift.</span>
+        </article>
+        <article class="mission-point">
+          <strong>Operational Confidence</strong>
+          <span>Offline-capable experiences and shared core patterns help teams deliver dependable service across diverse church contexts.</span>
+        </article>
+      </div>
     </section>
 
-    <div class="app-grid">
-
-      <a class="app-card app-card--floccos" href="FlockOS/Pages/index.html">
-        <div class="app-card-head">
-          <img class="app-logo" src="../../Courts/TheTabernacle/Images/FlockOS_AppIcon.png" alt="FlockOS-GAS">
+    <!-- ── Apps ── -->
+    <section>
+      <div class="section-title">
+        <h2>Apps</h2>
+        <small>Open a Tool</small>
+      </div>
+      <div class="app-grid">
+        <a class="app-card app-card--floccos" href="FlockOS/Pages/index.html">
+          <img src="../../Courts/TheTabernacle/Images/FlockOS_AppIcon.png" alt="FlockOS-GAS">
           <div class="app-meta">
             <div class="app-name">FlockOS</div>
-            <p class="app-tagline">Church operating system</p>
+            <div class="app-tag">Church operating system</div>
           </div>
-        </div>
-        <p class="app-desc">Church operating system — pastoral care, members, groups, giving, and more.</p>
-        <ul class="app-feature-list" aria-label="FlockOS highlights">
-          <li>Pastoral oversight, records, and ministry workflows</li>
-          <li>Built to support both leaders and congregations</li>
-          <li>Structured for real church administration, not generic CRM use</li>
-        </ul>
-        <div class="app-card-footer">
-          <span class="app-link-copy">Open the operating system</span>
-          <span class="app-badge">Enter FlockOS</span>
-        </div>
-      </a>
-
-      <a class="app-card app-card--flockchat" href="../../FlockChat.html?church=gas">
-        <div class="app-card-head">
-          <img class="app-logo" src="../../Courts/TheFellowship/FlockChat/Images/FlockChat_AppIcon.png" alt="FlockChat">
+        </a>
+        <a class="app-card app-card--flockchat" href="../../Courts/TheFellowship/FlockChat.html?church=gas">
+          <img src="../../Courts/TheFellowship/FlockChat/Images/FlockChat_AppIcon.png" alt="FlockChat">
           <div class="app-meta">
             <div class="app-name">FlockChat</div>
-            <p class="app-tagline">Congregational communication</p>
+            <div class="app-tag">Congregational messaging</div>
           </div>
-        </div>
-        <p class="app-desc">Real-time church messaging — rooms, prayer walls, and announcements.</p>
-        <ul class="app-feature-list" aria-label="FlockChat highlights">
-          <li>Prayer walls, room conversations, and church announcements</li>
-          <li>Messaging tuned for ministry rhythms rather than social noise</li>
-          <li>Useful for urgent updates and everyday fellowship</li>
-        </ul>
-        <div class="app-card-footer">
-          <span class="app-link-copy">Open the conversation layer</span>
-          <span class="app-badge">Enter FlockChat</span>
-        </div>
-      </a>
-
-      <a class="app-card app-card--atog" href="../../ATOG.html">
-        <div class="app-card-head">
-          <img class="app-logo" src="../../Courts/TheUpperRoom/ATOG/Images/ATOG_AppIcon.png" alt="A Touch of the Gospel">
+        </a>
+        <a class="app-card app-card--atog" href="../../Courts/TheUpperRoom/ATOG.html">
+          <img src="../../Courts/TheUpperRoom/ATOG/Images/ATOG_AppIcon.png" alt="A Touch of the Gospel">
           <div class="app-meta">
             <div class="app-name">A Touch of the Gospel</div>
-            <p class="app-tagline">Study and formation tools</p>
+            <div class="app-tag">Study and formation</div>
           </div>
-        </div>
-        <p class="app-desc">Interactive theology, devotionals, biblical lexicon, and spiritual health tools.</p>
-        <ul class="app-feature-list" aria-label="A Touch of the Gospel highlights">
-          <li>Theology, devotionals, and guided spiritual reflection</li>
-          <li>Biblical language and learning tools in one place</li>
-          <li>Designed to feel contemplative instead of clinical</li>
-        </ul>
-        <div class="app-card-footer">
-          <span class="app-link-copy">Open the study path</span>
-          <span class="app-badge">Enter ATOG</span>
-        </div>
-      </a>
-
-    </div>
-
-    <div class="suite-footnote" aria-label="Suite qualities">
-      <span>&#10070; <a href="../../Courts/TheTabernacle/Pages/software_deployment_referral.html">FlockOS is Built to Be Shared! Refer a Pastor Here.</a></span>
-    </div>
+        </a>
+      </div>
+    </section>
 
     <footer class="footer">
       <p>&ldquo;Go therefore and make disciples of all nations&hellip;&rdquo; &mdash;&nbsp;Matthew 28:19</p>
       <small>Soli Deo Gloria | FlockOS | Built to be Shared</small>
+      <a class="referral-link" href="../../Courts/TheTabernacle/Pages/software_deployment_referral.html">Refer a Pastor who would benefit from FlockOS</a>
     </footer>
 
   </main>
