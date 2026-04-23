@@ -63,15 +63,11 @@ for app, cls in cards.items():
     html = pat.sub(replace_href, html)
 
 # Fix launcher asset paths for nested Covenant/Nations/<shortName>/ URLs.
-html = html.replace('href="FlockOS/Images/', 'href="../../FlockOS/Images/')
-html = html.replace('src="FlockOS/Images/', 'src="../../FlockOS/Images/')
-html = html.replace('content="FlockOS/Images/', 'content="../../FlockOS/Images/')
+# Note: FlockOS/Images/, FlockOS/Pages/, etc. are siblings of index.html in
+# Covenant/Nations/<shortName>/, so they need NO prefix. Only legacy off-tree
+# references (FlockChat, ATOG) still need ../../ to reach Covenant/Courts/.
 html = html.replace('src="FlockChat/Images/', 'src="../../FlockChat/Images/')
 html = html.replace('src="ATOG/Images/', 'src="../../ATOG/Images/')
-html = html.replace(
-    'href="FlockOS/Pages/software_deployment_referral.html"',
-    'href="../../FlockOS/Pages/software_deployment_referral.html"',
-)
 
 app_count = sum(1 for app in cards if app in allowed)
 html = re.sub(
