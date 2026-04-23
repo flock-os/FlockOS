@@ -426,8 +426,8 @@ const Nehemiah = (() => {
         UpperRoom.signOut();
       }
     } catch (_) {}
-    // TheVine.john.auth.logout already clears the session internally.
-    window.location.replace(LAUNCHER_PAGE);
+    // Redirect to the login page after clearing the session.
+    window.location.replace(LOGIN_PAGE);
   }
 
 
