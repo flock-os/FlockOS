@@ -570,7 +570,7 @@
   <p>Complete system architecture, every module, every API, every database tab &mdash; <br>and the steps to stand it all up from scratch</p>
   <div class="verse">"I am the vine; you are the branches. If you remain in me and I in you, you will bear much fruit." &mdash; John 15:5</div>
   <div class="hero-stats">
-    <div class="hero-stat"><div class="val">95,700+</div><div class="lbl">Lines of Code</div></div>
+    <div class="hero-stat"><div class="val">100,000+</div><div class="lbl">Lines of Code</div></div>
     <div class="hero-stat"><div class="val">350+</div><div class="lbl">API Routes</div></div>
     <div class="hero-stat"><div class="val">200+</div><div class="lbl">Database Tabs</div></div>
     <div class="hero-stat"><div class="val">45</div><div class="lbl">Countries</div></div>
@@ -623,10 +623,10 @@
   <h3>By the Numbers</h3>
   <table>
     <tr><th>Metric</th><th>Count</th></tr>
-    <tr><td>Total Lines of Code</td><td><strong>95,700+</strong></td></tr>
-    <tr><td>Frontend JavaScript</td><td>52,885+ lines across 22 modules</td></tr>
+    <tr><td>Total Lines of Code</td><td><strong>100,000+</strong></td></tr>
+    <tr><td>Frontend JavaScript</td><td>55,550+ lines across 21 modules</td></tr>
     <tr><td>Backend GAS (Single.gs)</td><td>~28,370 lines, ~745 functions</td></tr>
-    <tr><td>HTML Pages</td><td>15,265+ lines across 14 pages</td></tr>
+    <tr><td>HTML Pages</td><td>16,000+ lines across 17 pages</td></tr>
     <tr><td>Integrated Feature Modules</td><td>48+</td></tr>
     <tr><td>API Action Routes</td><td>350+</td></tr>
     <tr><td>Database Tabs</td><td>89 structured + 45 country-specific + dynamic = 200+</td></tr>
@@ -634,7 +634,7 @@
     <tr><td>RBAC Tiers</td><td>6 (Readonly &rarr; Volunteer &rarr; Care &rarr; Leader &rarr; Pastor &rarr; Admin)</td></tr>
     <tr><td>Permission Module Keys</td><td>60+</td></tr>
     <tr><td>Built-In Themes</td><td>14 (4 light, 4 dark, 3 flag, 1 auto)</td></tr>
-    <tr><td>Active Church Deployments</td><td>4 (FlockOS, GAS, TheForest, TBC)</td></tr>
+    <tr><td>Active Church Deployments</td><td>4 (FlockOS, GAS, TheForest, TBC) + Root launcher</td></tr>
     <tr><td>Mission Countries Tracked</td><td>45</td></tr>
     <tr><td>Cloud Functions</td><td>11</td></tr>
     <tr><td>Firebase Projects</td><td>4 (flockos-notify, flockos-truth, flockos-theforest, flockos-trinity)</td></tr>
@@ -762,7 +762,7 @@ var rows = _isFirebaseComms()
 <!-- SECTION 3: FRONTEND MODULES                                       -->
 <!-- ═══════════════════════════════════════════════════════════════════ -->
 <section id="frontend-modules">
-  <h2><span class="num">3</span> Frontend Modules (22 JavaScript Files)</h2>
+  <h2><span class="num">3</span> Frontend Modules (21 JavaScript Files)</h2>
   <div class="gospel">"For where two or three gather in my name, there am I with them." &mdash; Matthew 18:20</div>
 
   <p>Every module uses the IIFE (Immediately Invoked Function Expression) pattern: <code>const ModuleName = (() =&gt; { ... return { publicAPI }; })();</code></p>
@@ -780,14 +780,14 @@ var rows = _isFirebaseComms()
     <tr>
       <td><code>firm_foundation.js</code></td>
       <td><code>Nehemiah</code></td>
-      <td>~557</td>
+      <td>~581</td>
       <td>The gatekeeper who rebuilt the wall</td>
       <td>Authentication guard. Login/logout/register/forgot/reset. Session enforcement. Role hierarchy (6 levels). Permission map evaluation. Group-based overrides (Seed Admin, Lead Pastor, Master). Local security bypass for development.</td>
     </tr>
     <tr>
       <td><code>the_upper_room.js</code></td>
       <td><code>UpperRoom</code></td>
-      <td>~4,797</td>
+      <td>~4,919</td>
       <td>The room where the Holy Spirit descended</td>
       <td>Firebase Firestore data layer. Real-time messaging (DMs, rooms, channels, notifications). Complete CRUD for 30+ collections. Custom token auth from GAS backend. Per-church Firebase config override.</td>
     </tr>
@@ -815,14 +815,14 @@ var rows = _isFirebaseComms()
     <tr>
       <td><code>fine_linen.js</code></td>
       <td><code>Adornment</code></td>
-      <td>~5,837</td>
+      <td>~6,271</td>
       <td>The fine linen of the tabernacle</td>
       <td>Complete design system. 14 theme palettes with CSS injection. Typography, components, colors, shadows, radii. Interface Studio override engine. Token-based styling.</td>
     </tr>
     <tr>
       <td><code>the_living_water.js</code></td>
       <td>(Service Worker)</td>
-      <td>~196</td>
+      <td>~232</td>
       <td>The water that gives eternal life</td>
       <td>Offline support. Pre-caches 46-item APP_SHELL on install. Cache-first for static assets, network-first for API calls. Firebase domain bypass. Custom offline fallback page.</td>
     </tr>
@@ -834,25 +834,25 @@ var rows = _isFirebaseComms()
     <tr>
       <td><code>the_tabernacle.js</code></td>
       <td><code>Tabernacle</code></td>
-      <td>~21,050</td>
+      <td>~21,646</td>
       <td><strong>Main app controller.</strong> 48+ module renderers with full CRUD. Card-based and table-based views. Generic <code>_modal()</code> and <code>_edit()</code> form system. View caching with adaptive TTL. Performance detection. Dual-backend routing. Delegates to 6 external IIFEs.</td>
     </tr>
     <tr>
       <td><code>the_life.js</code></td>
       <td><code>TheLife</code></td>
-      <td>~3,747</td>
+      <td>~4,499</td>
       <td><strong>My Flock Portal.</strong> Pastoral command hub: full-page member editor (51 columns), care case editor, prayer editor, compassion editor, outreach editor, discipleship editor. Role-aware (pastor sees all, care team sees assigned flock).</td>
     </tr>
     <tr>
       <td><code>the_shepherd.js</code></td>
       <td><code>TheShepherd</code></td>
-      <td>~1,249</td>
+      <td>~1,377</td>
       <td><strong>People Engine.</strong> Unified search across users/members/cards. Profile view. 3-source merge by email key. Pending approval workflow. 3-step save (account, member, card).</td>
     </tr>
     <tr>
       <td><code>the_way.js</code></td>
       <td><code>Way</code></td>
-      <td>~3,427</td>
+      <td>~3,551</td>
       <td><strong>Learning Hub.</strong> 15-tab education portal: courses, quizzes, reading plans, theology, lexicon, apologetics, counseling, devotionals, certificates, analytics. SVG chart helpers.</td>
     </tr>
     <tr>
@@ -864,13 +864,13 @@ var rows = _isFirebaseComms()
     <tr>
       <td><code>the_fold.js</code></td>
       <td><code>TheFold</code></td>
-      <td>~292</td>
+      <td>~302</td>
       <td><strong>Groups &amp; Attendance.</strong> Dual-tab UI for small groups, Bible studies, and attendance tracking. Quarterly Worship integration.</td>
     </tr>
     <tr>
       <td><code>the_seasons.js</code></td>
       <td><code>Seasons</code></td>
-      <td>~2,420</td>
+      <td>~2,519</td>
       <td><strong>Calendar, Tasks &amp; Check-In.</strong> Church events, personal calendar, iCal feeds, task management with priorities/recurrence, attendance check-in.</td>
     </tr>
     <tr>
@@ -882,7 +882,7 @@ var rows = _isFirebaseComms()
     <tr>
       <td><code>the_shofar.js</code></td>
       <td><code>Shofar</code></td>
-      <td>~1,797</td>
+      <td>~2,102</td>
       <td><strong>Music Stand.</strong> Song CRUD, arrangement CRUD, setlist management, live chord-chart view, PDF lead-sheet export.</td>
     </tr>
     <tr>
@@ -894,7 +894,7 @@ var rows = _isFirebaseComms()
     <tr>
       <td><code>the_truth.js</code></td>
       <td><code>TheTruth</code></td>
-      <td>~618</td>
+      <td>~756</td>
       <td><strong>Truth Editor.</strong> CRUD for 12 public-content tabs (Books, Genealogy, Counseling, Devotionals, etc.). Dual-database pattern (ROOT &rarr; flockos-truth vs churches &rarr; local Firestore).</td>
     </tr>
     <tr>
@@ -1471,8 +1471,10 @@ Nehemiah.canAccess('missions');  // module access</code></pre>
   </ol>
 
   <h3>Running the Build</h3>
-  <pre><code>cd Covenant/Bezalel/Scripts/
-bash A-Build_Churches.sh</code></pre>
+  <pre><code>cd /path/to/Software
+bash "Covenant/Bezalel/Scripts/A-Build_Churches.sh"
+# With FlockChat comms deploy:
+bash "Covenant/Bezalel/Scripts/A-Build_Churches.sh" --deploy-comms</code></pre>
   <p>Output: <code>Covenant/Nations/FlockOS/</code>, <code>Covenant/Nations/GAS/</code>, <code>Covenant/Nations/TBC/</code>, <code>Covenant/Nations/TheForest/</code></p>
 
   <h3>Other Build Scripts</h3>
@@ -1605,78 +1607,105 @@ Seed replication (during setupFlockOS):
   <h2><span class="num">16</span> Folder Layout &amp; File Inventory</h2>
   <div class="gospel">"Unless the LORD builds the house, those who build it labor in vain." &mdash; Psalm 127:1</div>
 
-  <pre><code>FlockOS-SF/                           &larr; GitHub Pages root
+  <pre><code>Software/                                   &larr; GitHub Pages root / repo root
 &boxv;
-&boxvr;&boxh;&boxh; index.html                       &larr; Main app shell (master copy)
-&boxvr;&boxh;&boxh; manifest.json                    &larr; PWA manifest
-&boxvr;&boxh;&boxh; the_living_water.js              &larr; Service worker (copy from Scripts)
-&boxvr;&boxh;&boxh; firebase.json                    &larr; Firebase hosting config
-&boxvr;&boxh;&boxh; CurrentFBPW.json                 &larr; Firebase password config
+&boxvr;&boxh;&boxh; index.html                           &larr; Root landing / redirect shell
+&boxvr;&boxh;&boxh; manifest.json                        &larr; Root PWA manifest
+&boxvr;&boxh;&boxh; the_living_water.js                  &larr; Root service worker
+&boxvr;&boxh;&boxh; firebase.json                        &larr; Firebase hosting config (FlockChat)
+&boxvr;&boxh;&boxh; flockchat-firebase.json              &larr; FlockChat Firebase project config
+&boxvr;&boxh;&boxh; README.md, LICENSE, package.json
 &boxv;
-&boxvr;&boxh;&boxh; FlockOS/                         &larr; MASTER SOURCE (edit here only)
-&boxv;   &boxvr;&boxh;&boxh; Images/                      &larr; Logo assets (White, Midnight)
-&boxv;   &boxvr;&boxh;&boxh; Pages/           (14 HTML)   &larr; All served via GitHub Pages
-&boxv;   &boxvr;&boxh;&boxh; Scripts/         (22 .js)    &larr; Frontend JavaScript modules
-&boxv;   &boxur;&boxh;&boxh; Tools/                       &larr; Build scripts, configs, deployment refs
-&boxv;       &boxvr;&boxh;&boxh; Active Deployments/      &larr; Per-church JSON configs
-&boxv;       &boxvr;&boxh;&boxh; Current Deployment/      &larr; Action items, docs, workflows
-&boxv;       &boxvr;&boxh;&boxh; Bezalel/Scripts/         &larr; A-Build_Churches.sh, bundle scripts, etc.
-&boxv;       &boxvr;&boxh;&boxh; Testimony/Architecture/  &larr; Master docs including L-Master Code.md
-&boxv;       &boxvr;&boxh;&boxh; Planning/                &larr; Future plans
-&boxv;       &boxvr;&boxh;&boxh; Secrets/                 &larr; Service account keys (git-ignored)
-&boxv;       &boxur;&boxh;&boxh; Truth Editor/            &larr; Truth Editor tools
+&boxvr;&boxh;&boxh; Covenant/                            &larr; All structured source & output
+&boxv;   &boxvr;&boxh;&boxh; Bezalel/Scripts/                 &larr; Build automation
+&boxv;   &boxv;   &boxvr;&boxh;&boxh; A-Build_Churches.sh         &larr; MASTER BUILD SCRIPT (run from repo root)
+&boxv;   &boxv;   &boxur;&boxh;&boxh; build_launcher.py           &larr; Launcher customization helper
+&boxv;   &boxv;
+&boxv;   &boxvr;&boxh;&boxh; Courts/                          &larr; Canonical application source (edit here only)
+&boxv;   &boxv;   &boxvr;&boxh;&boxh; TheTabernacle/              &larr; FlockOS master source
+&boxv;   &boxv;   &boxv;   &boxvr;&boxh;&boxh; Images/             &larr; Logo assets
+&boxv;   &boxv;   &boxv;   &boxvr;&boxh;&boxh; Pages/   (17 HTML)  &larr; All HTML pages
+&boxv;   &boxv;   &boxv;   &boxvr;&boxh;&boxh; Scripts/ (21 .js)   &larr; Frontend JavaScript modules
+&boxv;   &boxv;   &boxv;   &boxur;&boxh;&boxh; Styles/             &larr; american_garments.css (CSS source of truth)
+&boxv;   &boxv;   &boxvr;&boxh;&boxh; TheFellowship/              &larr; FlockChat source
+&boxv;   &boxv;   &boxv;   &boxvr;&boxh;&boxh; FlockChat.html       &larr; FlockChat app shell
+&boxv;   &boxv;   &boxv;   &boxur;&boxh;&boxh; FlockChat/the_word.js &larr; FlockChat client logic
+&boxv;   &boxv;   &boxur;&boxh;&boxh; TheUpperRoom/               &larr; ATOG source
+&boxv;   &boxv;
+&boxv;   &boxvr;&boxh;&boxh; Gate/ChurchGateTemplate/         &larr; Church launcher template (index.template.html)
+&boxv;   &boxv;
+&boxv;   &boxvr;&boxh;&boxh; Nations/                         &larr; GENERATED builds (never edit directly)
+&boxv;   &boxv;   &boxvr;&boxh;&boxh; FlockOS/                    &larr; FlockOS default church build
+&boxv;   &boxv;   &boxvr;&boxh;&boxh; GAS/                        &larr; GAS demo church build
+&boxv;   &boxv;   &boxvr;&boxh;&boxh; TBC/                        &larr; Trinity Baptist Church build
+&boxv;   &boxv;   &boxvr;&boxh;&boxh; TheForest/                  &larr; The Forest church build
+&boxv;   &boxv;   &boxur;&boxh;&boxh; Root/                       &larr; Root landing pages (FlockOS.html, etc.)
+&boxv;   &boxv;
+&boxv;   &boxvr;&boxh;&boxh; Scrolls/ChurchRegistry/          &larr; Per-church JSON configs
+&boxv;   &boxv;   &boxvr;&boxh;&boxh; ChurchTemplate.json
+&boxv;   &boxv;   &boxvr;&boxh;&boxh; FlockOS-Root.json
+&boxv;   &boxv;   &boxvr;&boxh;&boxh; GAS.json
+&boxv;   &boxv;   &boxvr;&boxh;&boxh; TheForest.json
+&boxv;   &boxv;   &boxur;&boxh;&boxh; Trinity.json
+&boxv;   &boxv;
+&boxv;   &boxur;&boxh;&boxh; Testimony/
+&boxv;       &boxvr;&boxh;&boxh; Architecture/                &larr; Master docs (L-Master Code.md, etc.)
+&boxv;       &boxvr;&boxh;&boxh; Runbooks/                   &larr; Build/deploy runbooks
+&boxv;       &boxur;&boxh;&boxh; Secrets/                    &larr; Service account keys (git-ignored)
 &boxv;
-&boxvr;&boxh;&boxh; Covenant/Nations/                &larr; GENERATED (never edit directly)
-&boxv;   &boxvr;&boxh;&boxh; FlockOS/                     &larr; FlockOS default church build
-&boxv;   &boxvr;&boxh;&boxh; GAS/                         &larr; GAS demo church build
-&boxv;   &boxvr;&boxh;&boxh; TBC/                         &larr; Trinity Baptist Church build
-&boxv;   &boxur;&boxh;&boxh; TheForest/                   &larr; The Forest church build
+&boxvr;&boxh;&boxh; functions/                           &larr; Firebase Cloud Functions (flockos-notify)
+&boxv;   &boxvr;&boxh;&boxh; index.js                         &larr; 11 Cloud Functions
+&boxv;   &boxur;&boxh;&boxh; package.json                     &larr; firebase-functions, firebase-admin
 &boxv;
-&boxur;&boxh;&boxh; functions/                       &larr; Firebase Cloud Functions
-    &boxvr;&boxh;&boxh; index.js                     &larr; 11 Cloud Functions (784 lines)
-    &boxur;&boxh;&boxh; package.json                 &larr; firebase-functions, firebase-admin</code></pre>
+&boxur;&boxh;&boxh; flockchat-public/                    &larr; FlockChat Firebase hosting dir
+    &boxvr;&boxh;&boxh; FlockChat.html
+    &boxvr;&boxh;&boxh; firebase-messaging-sw.js
+    &boxur;&boxh;&boxh; Styles/american_garments.css</code></pre>
 
-  <h3>Frontend Scripts Inventory (22 files, 52,885+ lines)</h3>
+  <h3>Frontend Scripts Inventory (21 files, 55,550+ lines)</h3>
   <div class="file-grid">
-    <div class="file">the_tabernacle.js <span>Main controller (~21,050 lines)</span></div>
-    <div class="file">fine_linen.js <span>Design system (5,837 lines)</span></div>
-    <div class="file">the_upper_room.js <span>Firestore layer (4,797 lines)</span></div>
-    <div class="file">the_life.js <span>Pastoral portal (3,747 lines)</span></div>
-    <div class="file">the_way.js <span>Learning hub (3,427 lines)</span></div>
-    <div class="file">the_seasons.js <span>Calendar/tasks (2,420 lines)</span></div>
-    <div class="file">the_shofar.js <span>Music stand (1,797 lines)</span></div>
-    <div class="file">the_true_vine.js <span>API router (1,409 lines)</span></div>
-    <div class="file">the_commission.js <span>Deploy blueprint (1,333 lines)</span></div>
-    <div class="file">the_shepherd.js <span>People engine (1,249 lines)</span></div>
-    <div class="file">the_harvest.js <span>Ministry hub (949 lines)</span></div>
-    <div class="file">the_cornerstone.js <span>Architecture registry (806 lines)</span></div>
+    <div class="file">the_tabernacle.js <span>Main controller (21,646 lines)</span></div>
+    <div class="file">fine_linen.js <span>Design system (6,271 lines)</span></div>
+    <div class="file">the_upper_room.js <span>Firestore layer (4,919 lines)</span></div>
+    <div class="file">the_life.js <span>Pastoral portal (4,499 lines)</span></div>
+    <div class="file">the_way.js <span>Learning hub (3,551 lines)</span></div>
+    <div class="file">the_seasons.js <span>Calendar/tasks (2,519 lines)</span></div>
+    <div class="file">the_shofar.js <span>Music stand (2,102 lines)</span></div>
+    <div class="file">the_true_vine.js <span>API router (1,410 lines)</span></div>
+    <div class="file">the_commission.js <span>Deploy blueprint (1,334 lines)</span></div>
+    <div class="file">the_shepherd.js <span>People engine (1,377 lines)</span></div>
+    <div class="file">the_harvest.js <span>Ministry hub (951 lines)</span></div>
+    <div class="file">the_cornerstone.js <span>Architecture registry (807 lines)</span></div>
+    <div class="file">the_truth.js <span>Truth/content editor (756 lines)</span></div>
     <div class="file">the_wellspring.js <span>Offline layer (752 lines)</span></div>
-    <div class="file">the_truth.js <span>Truth editor (618 lines)</span></div>
     <div class="file">the_well.js <span>Backup/restore (579 lines)</span></div>
-    <div class="file">firm_foundation.js <span>Auth guard (557 lines)</span></div>
+    <div class="file">firm_foundation.js <span>Auth guard (581 lines)</span></div>
     <div class="file">the_trumpet.js <span>Device APIs (486 lines)</span></div>
     <div class="file">the_scrolls.js <span>Interaction ledger (316 lines)</span></div>
-    <div class="file">the_fold.js <span>Groups/attendance (292 lines)</span></div>
-    <div class="file">the_living_water.js <span>Service worker (196 lines)</span></div>
+    <div class="file">the_fold.js <span>Groups/attendance (302 lines)</span></div>
+    <div class="file">the_living_water.js <span>Service worker (232 lines)</span></div>
     <div class="file">the_pagans.js <span>Archived/parked (160 lines)</span></div>
   </div>
 
-  <h3>HTML Pages Inventory (14 files)</h3>
+  <h3>HTML Pages Inventory (17 files)</h3>
   <div class="file-grid">
-    <div class="file">index.html <span>Main app shell</span></div>
-    <div class="file">the_good_shepherd.html <span>Admin dashboard</span></div>
-    <div class="file">the_wall.html <span>Login page</span></div>
-    <div class="file">the_pentecost.html <span>This document</span></div>
-    <div class="file">the_great_commission.html <span>Church Command Center</span></div>
-    <div class="file">bezalel.html <span>Firestore sync matrix tool</span></div>
-    <div class="file">About_FlockOS.html <span>The Why</span></div>
-    <div class="file">fishing-for-men.html <span>Value proposition &amp; cost analysis</span></div>
-    <div class="file">Learn More.html <span>Landing page</span></div>
-    <div class="file">the_invitation.html <span>Invitation page</span></div>
-    <div class="file">the_generations.html <span>Generational dynamics</span></div>
-    <div class="file">the_anatomy_of_worship.html <span>Worship guide</span></div>
-    <div class="file">prayerful_action.html <span>Prayerful action guide</span></div>
-    <div class="file">quarterly_worship.html <span>Quarterly worship scheduler</span></div>
+    <div class="file">index.html <span>App redirect shell (800 lines)</span></div>
+    <div class="file">the_good_shepherd.html <span>Main app shell (2,423 lines)</span></div>
+    <div class="file">the_wall.html <span>Login page (635 lines)</span></div>
+    <div class="file">the_pentecost.html <span>This document (2,057 lines)</span></div>
+    <div class="file">the_great_commission.html <span>Church Command Center (2,410 lines)</span></div>
+    <div class="file">bezalel.html <span>Bezalel Matrix — architecture map (1,786 lines)</span></div>
+    <div class="file">quarterly_worship.html <span>Quarterly worship scheduler (1,716 lines)</span></div>
+    <div class="file">fishing-for-men.html <span>Value proposition &amp; cost analysis (824 lines)</span></div>
+    <div class="file">About_FlockOS.html <span>The Why (327 lines)</span></div>
+    <div class="file">Learn More.html <span>Feature overview / marketing (175 lines)</span></div>
+    <div class="file">the_gift_drift.html <span>Spiritual Gifts — 4-phase curriculum (527 lines)</span></div>
+    <div class="file">the_anatomy_of_worship.html <span>Teaching — Anatomy of Worship (493 lines)</span></div>
+    <div class="file">the_call_to_forgive.html <span>Teaching — The Call to Forgive (480 lines)</span></div>
+    <div class="file">the_generations.html <span>Teaching — Generational Dynamics (460 lines)</span></div>
+    <div class="file">the_weavers_plan.html <span>Teaching — The Weaver's Plan (408 lines)</span></div>
+    <div class="file">prayerful_action.html <span>Teaching — Prayerful Action (387 lines)</span></div>
+    <div class="file">the_invitation.html <span>Teaching — The Invitation (370 lines)</span></div>
   </div>
 
   <p style="margin-top:2rem;text-align:right;"><a href="#toc" style="color:var(--accent);text-decoration:none;font-size:0.9rem;">&uarr; Back to Table of Contents</a></p>
@@ -1885,7 +1914,7 @@ Seed replication (during setupFlockOS):
   <h3>Update Frontend &amp; Rebuild Churches</h3>
   <ol>
     <li>Edit files in <code>Covenant/Courts/TheTabernacle/Scripts/</code> or <code>Covenant/Courts/TheTabernacle/Pages/</code> (master source only)</li>
-    <li>Run <code>bash Covenant/Bezalel/Scripts/A-Build_Churches.sh</code></li>
+    <li>Run <code>bash "Covenant/Bezalel/Scripts/A-Build_Churches.sh"</code> from the repo root</li>
     <li>Commit and push to GitHub</li>
   </ol>
 
