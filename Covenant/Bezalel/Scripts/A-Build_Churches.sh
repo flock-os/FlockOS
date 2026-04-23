@@ -323,6 +323,10 @@ for config in "$BUILD_CONFIGS_DIR"/*.json; do
 </html>
 REDIRECT_EOF
 
+  # 2b. Copy Flock Suite apps to deployment root (branding applied in step 3)
+  cp "$WORKSPACE_ROOT/Covenant/Courts/TheFellowship/FlockChat.html" "$OUT/FlockChat.html"
+  cp "$WORKSPACE_ROOT/Covenant/Courts/TheUpperRoom/ATOG.html"       "$OUT/ATOG.html"
+
   # 3. Brand with church-specific values
 
   # Escape values for sed
