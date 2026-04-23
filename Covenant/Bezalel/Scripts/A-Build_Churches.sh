@@ -309,6 +309,11 @@ for config in "$BUILD_CONFIGS_DIR"/*.json; do
   [ "$ROOT_MANIFEST" != "$OUT/manifest.json" ] && cp "$ROOT_MANIFEST" "$OUT/manifest.json"
   [ "$ROOT_SW" != "$OUT/the_living_water.js" ] && cp "$ROOT_SW"       "$OUT/the_living_water.js"
 
+  # 2b. Copy LICENSE from repo root into each church deployment
+  if [ -f "$WORKSPACE_ROOT/LICENSE" ]; then
+    cp "$WORKSPACE_ROOT/LICENSE" "$OUT/LICENSE"
+  fi
+
   # 2a. Generate thin redirect index.html — legacy bookmark / direct URL support
   cat > "$OUT/index.html" <<'REDIRECT_EOF'
 <!DOCTYPE html>
