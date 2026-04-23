@@ -13,15 +13,15 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>FlockOS</title>
-  <link rel="icon" type="image/png" href="../FlockOS/FlockOS/Images/FlockOS_AppIcon.png">
-  <link rel="apple-touch-icon" href="../FlockOS/FlockOS/Images/FlockOS_AppIcon.png">
+  <link rel="icon" type="image/png" href="../../Courts/TheTabernacle/Images/FlockOS_AppIcon.png">
+  <link rel="apple-touch-icon" href="../../Courts/TheTabernacle/Images/FlockOS_AppIcon.png">
   <link rel="manifest" href="../FlockOS/manifest.json">
   <meta name="theme-color" content="#e8a838">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta property="og:title" content="FlockOS">
   <meta property="og:description" content="Ministry Operating System — Free. Offline-capable. Built for every church.">
-  <meta property="og:image" content="../FlockOS/FlockOS/Images/FlockOS_AppIcon.png">
+  <meta property="og:image" content="../../Courts/TheTabernacle/Images/FlockOS_AppIcon.png">
   <meta name="twitter:card" content="summary_large_image">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -29,7 +29,7 @@
   <link rel="preconnect" href="https://firestore.googleapis.com">
   <link rel="dns-prefetch" href="https://firestore.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;600;700&family=Noto+Sans+Hebrew:wght@400;600;700&family=Noto+Serif:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="../FlockOS/FlockOS/Styles/american_garments.css">
+  <link rel="stylesheet" href="../../Courts/TheTabernacle/Styles/american_garments.css">
   <style>
     /* Flash prevention — America theme base before fine_linen.js applies data-theme */
     :root { --bg: #f7f8fb; --bg-raised: #ffffff; --ink: #1b264f; }
@@ -158,7 +158,7 @@
 
 <!-- ═══ SPLASH SCREEN ═══ -->
 <div id="splash">
-  <img id="church-hero-logo" class="splash-bg" src="../FlockOS/FlockOS/Images/FlockOS_AppIcon.png" alt="FlockOS">
+  <img id="church-hero-logo" class="splash-bg" src="../../Courts/TheTabernacle/Images/FlockOS_AppIcon.png" alt="FlockOS">
   <div class="splash-bar-track"><div class="splash-bar-fill"></div></div>
 </div>
 
@@ -167,7 +167,7 @@
     <button class="topbar-toggle" id="menuToggle" onclick="toggleSidebar()">&#9776;</button>
     <div class="topbar-brand" onclick="navigate('dashboard')" title="Home">FlockOS</div>
     <div class="topbar-actions">
-      <a class="staff-link" href="../FlockOS/FlockOS/Pages/the_good_shepherd.html">Member Login &#8594;</a>
+      <a class="staff-link" href="../../Courts/TheTabernacle/Pages/the_good_shepherd.html">Member Login &#8594;</a>
     </div>
   </div>
 
@@ -181,7 +181,7 @@
         <a class="nav-item active" data-view="dashboard" onclick="navigate('dashboard')">
           <span class="icon">&#9673;</span> Dashboard
         </a>
-        <a class="nav-item" href="../FlockOS/FlockOS/Pages/the_invitation.html">
+        <a class="nav-item" href="../../Courts/TheTabernacle/Pages/the_invitation.html">
           <span class="icon">&#9993;</span> Invitation
         </a>
         <a class="nav-item" data-view="connect" onclick="navigate('connect')">
@@ -467,17 +467,17 @@
 <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-functions-compat.js"></script>
-<script defer src="../FlockOS/FlockOS/Scripts/the_upper_room.js"></script>
-<script defer src="../FlockOS/FlockOS/Scripts/fine_linen.js"></script>
-<script defer src="../FlockOS/FlockOS/Scripts/the_true_vine.js"></script>
-<script defer src="../FlockOS/FlockOS/Scripts/the_wellspring.js"></script>
-<script defer src="../FlockOS/FlockOS/Scripts/the_well.js"></script>
-<script defer src="../FlockOS/FlockOS/Scripts/the_tabernacle.js"></script>
-<script defer src="../FlockOS/FlockOS/Scripts/the_truth.js"></script>
-<script defer src="../FlockOS/FlockOS/Scripts/the_seasons.js"></script>
-<script defer src="../FlockOS/FlockOS/Scripts/the_way.js"></script>
-<script defer src="../FlockOS/FlockOS/Scripts/the_harvest.js"></script>
-<script defer src="../FlockOS/FlockOS/Scripts/the_life.js"></script>
+<script defer src="../../Courts/TheTabernacle/Scripts/the_upper_room.js"></script>
+<script defer src="../../Courts/TheTabernacle/Scripts/fine_linen.js"></script>
+<script defer src="../../Courts/TheTabernacle/Scripts/the_true_vine.js"></script>
+<script defer src="../../Courts/TheTabernacle/Scripts/the_wellspring.js"></script>
+<script defer src="../../Courts/TheTabernacle/Scripts/the_well.js"></script>
+<script defer src="../../Courts/TheTabernacle/Scripts/the_tabernacle.js"></script>
+<script defer src="../../Courts/TheTabernacle/Scripts/the_truth.js"></script>
+<script defer src="../../Courts/TheTabernacle/Scripts/the_seasons.js"></script>
+<script defer src="../../Courts/TheTabernacle/Scripts/the_way.js"></script>
+<script defer src="../../Courts/TheTabernacle/Scripts/the_harvest.js"></script>
+<script defer src="../../Courts/TheTabernacle/Scripts/the_life.js"></script>
 <script>
 /* Scroll-leak guard: scrollIntoView() can push body/html on iOS Safari
    even with overflow:hidden, destroying the fixed-header offset. */
@@ -495,7 +495,7 @@ Adornment.init();
   if (!img) return;
   var logo = localStorage.getItem('flock_church_logo');
   if (logo) {
-    img.src = logo.indexOf('://') !== -1 ? logo : '../FlockOS/FlockOS/Images/' + logo;
+    img.src = logo.indexOf('://') !== -1 ? logo : '../../Courts/TheTabernacle/Images/' + logo;
   } else {
     var iconLink = document.querySelector('link[rel="apple-touch-icon"]')
                 || document.querySelector('link[rel="icon"]');
@@ -545,7 +545,7 @@ function _showMaintenancePage() {
     '<p style="margin-top:24px;font-size:0.85rem;color:var(--ink-muted,#777);font-style:italic;">' +
     '\u201CFor I know the plans I have for you,\u201D declares the Lord.\u2003\u2014\u2003Jeremiah 29:11</p>' +
     '<p style="margin-top:48px;font-style:italic;font-size:0.85rem;">' +
-    '<a href="../FlockOS/FlockOS/Pages/the_good_shepherd.html" style="color:var(--ink-muted,#777);text-decoration:underline;">' +
+    '<a href="../../Courts/TheTabernacle/Pages/the_good_shepherd.html" style="color:var(--ink-muted,#777);text-decoration:underline;">' +
     'Administrators and pastoral staff may access FlockOS here.</a></p>' +
     '</div>';
 }
@@ -590,7 +590,7 @@ function navigate(viewName) {
   // My Profile: redirect to login if not authenticated
   if (viewName === 'my-profile') {
     if (typeof TheVine === 'undefined' || !TheVine.session()) {
-      window.location.href = '../FlockOS/FlockOS/Pages/the_wall.html?returnTo=my-profile';
+      window.location.href = '../../Courts/TheTabernacle/Pages/the_wall.html?returnTo=my-profile';
       return;
     }
   }
@@ -682,7 +682,7 @@ setTimeout(function() {
   var hash = window.location.hash.replace(/^#/, '').trim();
   if (hash) {
     if (hash === 'invitation') {
-      window.location.href = '../FlockOS/FlockOS/Pages/the_invitation.html';
+      window.location.href = '../../Courts/TheTabernacle/Pages/the_invitation.html';
       return;
     }
     var cardHashMatch = hash.match(/^(?:card|m)\/(.+)$/);
