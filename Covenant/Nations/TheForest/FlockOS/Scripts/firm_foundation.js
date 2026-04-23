@@ -61,13 +61,21 @@ const Nehemiah = (() => {
     return new URL('../index.html', pagesBase).toString();
   })();
   // Public portal (FlockOS.html) — where users land after logout.
+  // Portals store their own URL in sessionStorage so we can always return to
+  // the correct church portal regardless of the app's script path depth.
   const PUBLIC_PORTAL = (() => {
-    if (_paths.root) {
-      const rootBase = new URL(_paths.root.endsWith('/') ? _paths.root : (_paths.root + '/'), window.location.href);
-      return new URL('../FlockOS.html', rootBase).toString();
+    // First choice: portal page stored its own URL when it loaded
+    var stored = sessionStorage.getItem('_flockos_portal');
+    if (stored) return stored;
+    // Fallback: derive from the script's absolute URL.
+    // Structure: [deployment-root]/[AppFolder]/Scripts/firm_foundation.js
+    // → go up one level from AppFolder to deployment root, add FlockOS.html
+    var s = document.querySelector('script[src*="firm_foundation"]');
+    if (s && s.src) {
+      var m = s.src.match(/^(.+\/)(?:[^/]+)\/Scripts\/firm_foundation\.js/);
+      if (m) return m[1] + 'FlockOS.html';
     }
-    const pagesBase = new URL('../', window.location.href);
-    return new URL('../FlockOS.html', pagesBase).toString();
+    return window.location.origin + '/';
   })();
   const ROLE_LEVELS = { readonly: 0, volunteer: 1, care: 2, leader: 3, pastor: 4, admin: 5 };
 
@@ -468,9 +476,9 @@ const Nehemiah = (() => {
     ].join('');
 
     card.innerHTML =
-      '<div style="font-size:3rem;margin-bottom:18px;display:block;' +
+      '<div style="font-size:3rem;margin-bottom:18px;display:block;text-align:center;' +
         'animation:_logoutPulse 2.5s ease-in-out infinite;">\uD83D\uDD4A\uFE0F</div>' +
-      '<h2 style="color:' + accentColor + ';font-size:1.35rem;font-weight:700;margin:0 0 16px;' +
+      '<h2 style="color:#e8a838;font-size:1.35rem;font-weight:700;margin:0 0 16px;' +
         'line-height:1.4;font-family:inherit;text-align:center;' +
         'text-shadow:0 0 20px rgba(232,168,56,0.3);">Thank you for trusting FlockOS!</h2>' +
       '<p style="color:rgba(255,255,255,0.82);font-size:0.97rem;line-height:1.5;' +

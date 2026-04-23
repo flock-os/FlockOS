@@ -130,6 +130,10 @@
 <a href="#main" style="position:absolute;left:-9999px;top:0;z-index:100000;background:#6366f1;color:#fff;padding:8px 16px;border-radius:0 0 6px 0;font-size:0.85rem;text-decoration:none;" onfocus="this.style.left='0'" onblur="this.style.left='-9999px'">Skip to content</a>
 <div id="a11y-live" aria-live="polite" aria-atomic="true" style="position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden;"></div>
 <script>
+// Store this portal's URL so firm_foundation.js can redirect here on logout
+sessionStorage.setItem('_flockos_portal', window.location.href);
+</script>
+<script>
 (function() {
   document.addEventListener('keydown', function(e) {
     if (e.key !== 'Enter' && e.key !== ' ') return;
