@@ -418,43 +418,79 @@ const Nehemiah = (() => {
 
   // ── Logout farewell card ────────────────────────────────────────────────
   function _showLogoutCard() {
+    var accentColor = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#e8a838';
+    var goldColor   = getComputedStyle(document.documentElement).getPropertyValue('--gold').trim()   || '#d4b870';
+
+    // Inject keyframe animations
+    var styleEl = document.createElement('style');
+    styleEl.textContent =
+      '@keyframes _logoutGlow{' +
+        '0%,100%{box-shadow:0 32px 96px rgba(0,0,0,0.65),' +
+          '0 0 0 1px rgba(232,168,56,0.35),' +
+          '0 0 30px rgba(232,168,56,0.45),' +
+          '0 0 70px rgba(232,168,56,0.28),' +
+          '0 0 130px rgba(232,168,56,0.16),' +
+          '0 0 220px rgba(232,168,56,0.08),' +
+          'inset 0 1px 0 rgba(255,255,255,0.08);}' +
+        '50%{box-shadow:0 32px 96px rgba(0,0,0,0.65),' +
+          '0 0 0 1px rgba(232,168,56,0.65),' +
+          '0 0 40px rgba(232,168,56,0.70),' +
+          '0 0 90px rgba(232,168,56,0.45),' +
+          '0 0 160px rgba(232,168,56,0.28),' +
+          '0 0 280px rgba(232,168,56,0.14),' +
+          'inset 0 1px 0 rgba(255,255,255,0.08);}' +
+      '}' +
+      '@keyframes _logoutPulse{' +
+        '0%,100%{filter:drop-shadow(0 0 12px rgba(232,168,56,0.5));}' +
+        '50%{filter:drop-shadow(0 0 22px rgba(232,168,56,0.85));}' +
+      '}';
+    document.head.appendChild(styleEl);
+
     var overlay = document.createElement('div');
     overlay.id = '_logout-overlay';
     overlay.style.cssText = [
       'position:fixed;inset:0;z-index:999999;',
-      'display:flex;align-items:center;justify-content:center;',
+      'display:flex;align-items:flex-start;justify-content:center;',
+      'overflow-y:auto;padding:48px 0 120px;',
       'backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);',
       'background:rgba(15,20,40,0.72);',
       'opacity:0;transition:opacity .35s ease;'
     ].join('');
 
-    var accentColor = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#e8a838';
-    var goldColor   = getComputedStyle(document.documentElement).getPropertyValue('--gold').trim()   || '#d4b870';
-
     var card = document.createElement('div');
     card.style.cssText = [
       'background:linear-gradient(145deg,#1a1a2e 0%,#16213e 55%,#0f3460 100%);',
-      'border:1px solid rgba(232,168,56,0.35);',
+      'border:1px solid rgba(232,168,56,0.55);',
       'border-radius:22px;padding:44px 40px 36px;',
-      'max-width:400px;width:88%;text-align:center;',
-      'box-shadow:0 32px 96px rgba(0,0,0,0.65),0 0 0 1px rgba(232,168,56,0.12),inset 0 1px 0 rgba(255,255,255,0.06);',
+      'max-width:420px;width:88%;',
+      'animation:_logoutGlow 3s ease-in-out 0.35s infinite;',
       'transform:translateY(12px);transition:transform .35s ease;'
     ].join('');
 
     card.innerHTML =
-      '<div style="font-size:3.2rem;margin-bottom:18px;filter:drop-shadow(0 0 12px rgba(232,168,56,0.5));">\uD83D\uDE4F</div>' +
-      '<h2 style="color:' + accentColor + ';font-size:1.25rem;font-weight:700;margin:0 0 14px;line-height:1.4;font-family:inherit;' +
-        'text-shadow:0 0 20px rgba(232,168,56,0.3);">Thank you for using FlockOS!</h2>' +
-      '<p style="color:rgba(255,255,255,0.82);font-size:0.93rem;line-height:1.75;margin:0 0 30px;font-family:inherit;">' +
-        'We are praying for the success<br>of your ministry!<br>' +
-        '<span style="color:' + goldColor + ';font-style:italic;font-size:0.85rem;">' +
-        '\u201CMay the Lord bless you and keep you.\u201D \u2014 Numbers 6:24</span></p>' +
+      '<div style="font-size:3rem;margin-bottom:18px;display:block;' +
+        'animation:_logoutPulse 2.5s ease-in-out infinite;">\uD83D\uDD4A\uFE0F</div>' +
+      '<h2 style="color:' + accentColor + ';font-size:1.35rem;font-weight:700;margin:0 0 16px;' +
+        'line-height:1.4;font-family:inherit;text-align:center;' +
+        'text-shadow:0 0 20px rgba(232,168,56,0.3);">Thank you for trusting FlockOS!</h2>' +
+      '<p style="color:rgba(255,255,255,0.82);font-size:0.97rem;line-height:1.5;' +
+        'margin:0 0 20px;font-family:inherit;text-align:left;">' +
+        'We are praying for you, and the success of the ministry that the Lord has entrusted to you. God Bless YOU!</p>' +
+      '<p style="margin:0 0 20px;font-family:inherit;text-align:left;">' +
+        '<span style="color:' + goldColor + ';font-style:italic;font-size:1.05rem;line-height:1.6;display:block;">' +
+        '\u201CMay the Lord bless you and keep you; ' +
+        'May the Lord make his face shine on you and be gracious to you; ' +
+        'May the Lord turn his face toward you and give you peace.\u201D</span>' +
+        '<span style="color:' + goldColor + ';font-style:italic;font-size:0.92rem;opacity:0.75;' +
+          'display:block;text-align:right;margin-top:8px;">\u2014 Numbers 6:24\u201326</span>' +
+      '</p>' +
       '<div style="background:rgba(255,255,255,0.1);border-radius:8px;height:5px;overflow:hidden;margin-bottom:14px;">' +
         '<div id="_logout-progress" style="height:100%;width:100%;border-radius:8px;' +
           'background:linear-gradient(90deg,' + accentColor + ',' + goldColor + ');' +
           'transition:width 10s linear;"></div>' +
       '</div>' +
-      '<p style="color:rgba(255,255,255,0.35);font-size:0.72rem;letter-spacing:0.04em;text-transform:uppercase;margin:0;font-family:inherit;">Signing you out\u2026</p>';
+      '<p style="color:rgba(255,255,255,0.35);font-size:0.75rem;letter-spacing:0.06em;' +
+        'text-transform:uppercase;margin:0;font-family:inherit;">Signing you out\u2026</p>';
 
     overlay.appendChild(card);
     document.body.appendChild(overlay);
