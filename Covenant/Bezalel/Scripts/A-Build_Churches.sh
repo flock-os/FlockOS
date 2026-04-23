@@ -309,6 +309,20 @@ for config in "$BUILD_CONFIGS_DIR"/*.json; do
   [ "$ROOT_MANIFEST" != "$OUT/manifest.json" ] && cp "$ROOT_MANIFEST" "$OUT/manifest.json"
   [ "$ROOT_SW" != "$OUT/the_living_water.js" ] && cp "$ROOT_SW"       "$OUT/the_living_water.js"
 
+  # 2a. Generate thin redirect index.html — legacy bookmark / direct URL support
+  cat > "$OUT/index.html" <<'REDIRECT_EOF'
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="refresh" content="0; url=FlockOS/Pages/index.html">
+  <script>window.location.replace('FlockOS/Pages/index.html');</script>
+  <title>FlockOS</title>
+</head>
+<body></body>
+</html>
+REDIRECT_EOF
+
   # 3. Brand with church-specific values
 
   # Escape values for sed
