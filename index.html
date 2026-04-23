@@ -15,12 +15,12 @@
   <link rel="icon" type="image/png" href="Covenant/Courts/TheTabernacle/Images/FlockOS_AppIcon.png">
   <link rel="apple-touch-icon" href="Covenant/Courts/TheTabernacle/Images/FlockOS_AppIcon.png">
   <meta name="theme-color" content="#f7f8fb">
-  <meta name="description" content="FlockOS Suite launcher with deployment tree and church branches.">
+  <meta name="description" content="FlockOS Suite launcher — apps and deployments.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,400;0,700;1,400&family=Inter:wght@400;500;600;700&family=Cinzel:wght@400;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Cinzel:wght@500;600&family=Merriweather:ital@0;1&display=swap" rel="stylesheet">
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    *,*::before,*::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
       --bg:           #f7f8fb;
@@ -33,12 +33,11 @@
       --accent-soft:  rgba(60,59,110,0.10);
       --gold:         #c5a44e;
       --gold-soft:    rgba(197,164,78,0.12);
-      --line:         rgba(60,59,110,0.15);
+      --line:         rgba(60,59,110,0.14);
       --line-strong:  rgba(60,59,110,0.22);
-      --shadow-sm:    0 1px 4px rgba(27,38,79,0.07);
-      --shadow-md:    0 4px 20px rgba(27,38,79,0.10);
-      --shadow-lg:    0 8px 40px rgba(27,38,79,0.13);
-      --shadow-xl:    0 24px 70px rgba(27,38,79,0.16);
+      --shadow-sm:    0 1px 4px rgba(27,38,79,0.06);
+      --shadow-md:    0 4px 16px rgba(27,38,79,0.08);
+      --shadow-lg:    0 12px 30px rgba(27,38,79,0.10);
       --font-sans:    'Inter', system-ui, -apple-system, sans-serif;
       --font-serif:   'Merriweather', Georgia, serif;
       --font-display: 'Cinzel', serif;
@@ -48,362 +47,135 @@
       min-height: 100%;
       color: var(--ink);
       font-family: var(--font-sans);
+      font-size: 15px;
+      line-height: 1.5;
       -webkit-font-smoothing: antialiased;
       color-scheme: light;
       scroll-behavior: smooth;
     }
 
     body {
-      position: relative;
-      overflow-x: hidden;
       background:
-        radial-gradient(circle at top left, rgba(197,164,78,0.18), transparent 26%),
-        radial-gradient(circle at top right, rgba(110,169,215,0.20), transparent 30%),
-        linear-gradient(180deg, #fbfcfe 0%, var(--bg) 42%, var(--bg-deep) 100%);
+        radial-gradient(circle at top left, rgba(197,164,78,0.10), transparent 30%),
+        radial-gradient(circle at top right, rgba(110,169,215,0.10), transparent 30%),
+        linear-gradient(180deg, #fbfcfe 0%, var(--bg) 50%, var(--bg-deep) 100%);
       background-attachment: fixed;
-      background-repeat: no-repeat;
-    }
-
-    body::before,
-    body::after {
-      content: "";
-      position: fixed;
-      border-radius: 999px;
-      pointer-events: none;
-      filter: blur(10px);
-      opacity: 0.65;
-      z-index: 0;
-    }
-    body::before {
-      width: 26rem;
-      height: 26rem;
-      top: -8rem;
-      right: -8rem;
-      background: radial-gradient(circle, rgba(110,169,215,0.24), transparent 68%);
-    }
-    body::after {
-      width: 22rem;
-      height: 22rem;
-      left: -8rem;
-      bottom: -7rem;
-      background: radial-gradient(circle, rgba(197,164,78,0.18), transparent 70%);
     }
 
     .launcher {
-      min-height: 100vh;
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 1.6rem 1.25rem 2.5rem;
       display: flex;
       flex-direction: column;
-      align-items: center;
-      gap: 2rem;
-      padding: 2.8rem 1.5rem 2.5rem;
-      position: relative;
-      z-index: 1;
-    }
-
-    .hero-shell {
-      width: min(1120px, 100%);
-      display: grid;
-      grid-template-columns: minmax(0, 1.5fr) minmax(280px, 0.9fr);
       gap: 1.5rem;
-      align-items: stretch;
     }
 
-    .header {
-      position: relative;
-      padding: 2.2rem;
-      border: 1px solid rgba(255,255,255,0.55);
-      border-radius: 2rem;
-      background:
-        linear-gradient(145deg, rgba(255,255,255,0.90), rgba(255,255,255,0.74)),
-        linear-gradient(135deg, rgba(197,164,78,0.08), rgba(110,169,215,0.10));
-      box-shadow: var(--shadow-xl);
-      overflow: hidden;
-      backdrop-filter: blur(16px);
-    }
-    .header::before {
-      content: "";
-      position: absolute;
-      inset: 0;
-      background:
-        linear-gradient(120deg, transparent 0%, rgba(197,164,78,0.10) 38%, transparent 70%),
-        radial-gradient(circle at 85% 24%, rgba(60,59,110,0.14), transparent 26%);
-      pointer-events: none;
-    }
-    .header-inner {
-      position: relative;
-      z-index: 1;
-      max-width: 720px;
+    /* ── Slim brand header ── */
+    .brand {
       display: flex;
-      flex-direction: column;
-    }
-    .header-eyebrow {
-      display: inline-flex;
       align-items: center;
-      gap: 0.5rem;
-      font-size: 0.68rem;
-      letter-spacing: 0.14em;
-      font-weight: 700;
-      color: var(--gold);
-      background: var(--gold-soft);
-      border: 1px solid rgba(197,164,78,0.22);
-      border-radius: 999px;
-      padding: 0.38rem 1rem;
-      align-self: flex-start;
-      margin-bottom: 1.1rem;
-      text-transform: uppercase;
+      gap: 0.75rem;
     }
-    .header h1 {
+    .brand img {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      box-shadow: var(--shadow-sm);
+      background: #fff;
+      padding: 4px;
+    }
+    .brand-text h1 {
       font-family: var(--font-display);
-      font-size: clamp(2rem, 5vw, 3.6rem);
+      font-size: 1.25rem;
       font-weight: 600;
       color: var(--accent);
       letter-spacing: 0.02em;
-      line-height: 1.08;
-      margin-bottom: 0.9rem;
+      line-height: 1.1;
     }
-    .header p {
-      font-size: 1rem;
+    .brand-text p {
+      font-size: 0.8rem;
       color: var(--ink-muted);
-      max-width: 620px;
-      line-height: 1.7;
+      margin-top: 0.1rem;
     }
-    .header-actions {
+
+    /* ── Section header ── */
+    .section-title {
       display: flex;
-      flex-wrap: wrap;
-      gap: 0.85rem;
-      margin-top: 1.4rem;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 0.75rem;
+      padding-inline: 0.15rem;
     }
-    .hero-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.45rem;
-      padding: 0.55rem 0.9rem;
-      border-radius: 999px;
-      background: rgba(255,255,255,0.72);
-      border: 1px solid rgba(60,59,110,0.12);
-      color: var(--ink);
-      font-size: 0.82rem;
-      font-weight: 600;
-      box-shadow: var(--shadow-sm);
-    }
-
-    .hero-spotlight {
-      position: relative;
-      border-radius: 2rem;
-      padding: 1.4rem;
-      background:
-        linear-gradient(180deg, rgba(60,59,110,0.98), rgba(36,48,90,0.96)),
-        linear-gradient(135deg, rgba(197,164,78,0.18), transparent 55%);
-      box-shadow: var(--shadow-xl);
-      color: #eef2ff;
-      overflow: hidden;
-    }
-    .hero-spotlight::before {
-      content: "";
-      position: absolute;
-      inset: auto -3rem -4rem auto;
-      width: 15rem;
-      height: 15rem;
-      border-radius: 50%;
-      background: radial-gradient(circle, rgba(197,164,78,0.32), transparent 68%);
-    }
-    .hero-spotlight > * {
-      position: relative;
-      z-index: 1;
-    }
-    .spotlight-label {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.45rem;
-      font-size: 0.72rem;
+    .section-title h2 {
+      font-size: 0.78rem;
       font-weight: 700;
-      letter-spacing: 0.12em;
+      letter-spacing: 0.14em;
       text-transform: uppercase;
-      color: rgba(255,255,255,0.72);
-      margin-bottom: 1rem;
+      color: var(--gold);
     }
-    .spotlight-title {
-      font-family: var(--font-serif);
-      font-size: 1.35rem;
-      line-height: 1.3;
-      margin-bottom: 0.75rem;
-      color: #fff9ea;
-    }
-    .spotlight-copy {
-      color: rgba(238,242,255,0.84);
-      line-height: 1.7;
-      font-size: 0.92rem;
+    .section-title small {
+      font-size: 0.78rem;
+      color: var(--ink-faint);
     }
 
+    /* ── App grid (3 cards) ── */
     .app-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-      gap: 1.35rem;
-      width: 100%;
-      max-width: 1120px;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 0.85rem;
     }
-
     .app-card {
       display: flex;
-      flex-direction: column;
-      align-items: flex-start;
-      text-align: left;
-      min-height: 100%;
-      padding: 1.3rem;
-      background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(255,255,255,0.88));
+      align-items: center;
+      gap: 0.85rem;
+      padding: 0.95rem 1rem;
+      background: var(--bg-raised);
       border: 1px solid var(--line);
-      border-radius: 1.6rem;
-      box-shadow: var(--shadow-md);
+      border-radius: 14px;
+      box-shadow: var(--shadow-sm);
       text-decoration: none;
       color: inherit;
-      transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+      transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
       cursor: pointer;
-      overflow: hidden;
-      position: relative;
-    }
-    .app-card::before {
-      content: "";
-      position: absolute;
-      inset: 0 0 auto;
-      height: 5px;
-      background: linear-gradient(90deg, var(--gold), #6ea9d7);
-      opacity: 0.85;
     }
     .app-card:hover {
-      transform: translateY(-6px);
-      box-shadow: var(--shadow-xl);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
       border-color: var(--line-strong);
     }
-
-    .app-card-head {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-      width: 100%;
-      margin-bottom: 1rem;
-    }
-
-    .app-logo {
-      width: 84px;
-      height: 84px;
+    .app-card img {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
       object-fit: contain;
-      border-radius: 24px;
-      box-shadow: 0 12px 28px rgba(27,38,79,0.14);
-      background: rgba(255,255,255,0.9);
-      padding: 0.4rem;
+      background: #fff;
+      padding: 3px;
+      box-shadow: var(--shadow-sm);
       flex-shrink: 0;
     }
+    .app-meta {
+      min-width: 0;
+      flex: 1;
+    }
     .app-name {
-      font-size: 1.15rem;
+      font-size: 0.95rem;
       font-weight: 700;
       color: var(--ink);
-      letter-spacing: 0.01em;
+      line-height: 1.2;
     }
-    .app-tagline {
-      font-size: 0.8rem;
-      line-height: 1.45;
-      color: var(--ink-faint);
-      margin-top: 0.2rem;
-    }
-    .app-desc {
-      font-size: 0.875rem;
-      color: var(--ink-muted);
-      line-height: 1.65;
-      margin-top: 0.3rem;
-    }
-
-    .app-card-footer {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 0.75rem;
-      width: 100%;
-      margin-top: auto;
-      padding-top: 1.1rem;
-    }
-    .app-link-copy {
-      font-size: 0.76rem;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      color: var(--ink-faint);
-      font-weight: 700;
-    }
-    .app-badge {
-      font-size: 0.7rem;
-      font-weight: 600;
-      letter-spacing: 0.08em;
-      padding: 0.42rem 0.9rem;
-      border-radius: 999px;
-      border: 1px solid;
-      color: #3c3b6e;
-      background: rgba(60,59,110,0.08);
-      border-color: rgba(60,59,110,0.18);
-    }
-
-    .deployment-wrap {
-      width: min(1120px, 100%);
-      margin-top: 0.4rem;
-    }
-
-    .launcher-eyebrow {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      font-size: 0.68rem;
-      letter-spacing: 0.14em;
-      font-weight: 700;
-      color: var(--gold);
-      text-transform: uppercase;
-      background: var(--gold-soft);
-      border: 1px solid rgba(197,164,78,0.22);
-      border-radius: 999px;
-      padding: 0.3rem 1rem;
-      margin: 0 0 1rem;
-    }
-
-    .chart-shell {
-      width: 100%;
-      padding: 1.5rem 1.25rem 2rem;
-      border-radius: 2rem;
-      background:
-        linear-gradient(180deg, rgba(255,255,255,0.84), rgba(255,255,255,0.72)),
-        linear-gradient(135deg, rgba(60,59,110,0.05), rgba(197,164,78,0.06));
-      border: 1px solid rgba(60,59,110,0.10);
-      box-shadow: 0 18px 48px rgba(27,38,79,0.10);
-    }
-    .chart-kicker {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      justify-content: space-between;
-      gap: 0.75rem;
-      margin-bottom: 1.35rem;
-      padding-inline: 0.4rem;
-    }
-    .chart-kicker-copy strong {
-      display: block;
-      font-size: 0.76rem;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-      color: var(--gold);
-      margin-bottom: 0.35rem;
-    }
-    .chart-kicker-copy span {
-      color: var(--ink-muted);
-      font-size: 0.92rem;
-      line-height: 1.6;
-    }
-    .chart-kicker-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.45rem;
-      padding: 0.55rem 0.9rem;
-      border-radius: 999px;
-      background: rgba(255,255,255,0.72);
-      border: 1px solid rgba(60,59,110,0.12);
-      color: var(--ink);
+    .app-tag {
       font-size: 0.78rem;
-      font-weight: 600;
+      color: var(--ink-muted);
+      margin-top: 0.15rem;
+    }
+
+    /* ── Deployment chart ── */
+    .chart-shell {
+      padding: 1.1rem 1rem 1.4rem;
+      background: var(--bg-raised);
+      border: 1px solid var(--line);
+      border-radius: 16px;
       box-shadow: var(--shadow-sm);
     }
 
@@ -412,34 +184,28 @@
       flex-direction: column;
       align-items: center;
       width: 100%;
-      max-width: 1000px;
-      margin: 0 auto;
     }
-    .org-root {
+    .org-root, .org-branch-row {
       display: flex;
       justify-content: center;
       width: 100%;
     }
     .org-stem {
       width: 2px;
-      height: 44px;
-      background: linear-gradient(180deg, rgba(60,59,110,0.42), rgba(60,59,110,0.10));
-      margin: 0 auto;
-      flex-shrink: 0;
+      height: 28px;
+      background: linear-gradient(180deg, rgba(60,59,110,0.35), rgba(60,59,110,0.08));
     }
     .org-branch-row {
       position: relative;
-      display: flex;
-      justify-content: center;
-      gap: 1.25rem;
-      width: 100%;
+      gap: 0.85rem;
+      flex-wrap: wrap;
     }
     .org-branch-row::before {
       content: '';
       position: absolute;
       top: 0;
-      left: calc(50% - (var(--branch-span) / 2));
-      width: var(--branch-span);
+      left: calc(50% - (var(--branch-span, 0px) / 2));
+      width: var(--branch-span, 0px);
       height: 2px;
       background: linear-gradient(90deg, rgba(60,59,110,0.10), rgba(60,59,110,0.30), rgba(60,59,110,0.10));
     }
@@ -447,15 +213,14 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      flex: 1;
-      min-width: 160px;
-      max-width: 210px;
+      flex: 1 1 160px;
+      min-width: 150px;
+      max-width: 200px;
     }
     .org-child-stem {
       width: 2px;
-      height: 36px;
-      background: linear-gradient(180deg, rgba(60,59,110,0.30), rgba(60,59,110,0.08));
-      flex-shrink: 0;
+      height: 22px;
+      background: linear-gradient(180deg, rgba(60,59,110,0.25), rgba(60,59,110,0.06));
     }
 
     .node-card {
@@ -463,315 +228,177 @@
       flex-direction: column;
       align-items: center;
       text-align: center;
-      padding: 1.55rem 1.2rem 1.35rem;
-      background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(255,255,255,0.90));
+      padding: 0.9rem 0.75rem 0.95rem;
+      background: var(--bg-raised);
       border: 1px solid var(--line);
-      border-radius: 1.4rem;
-      box-shadow: var(--shadow-md);
+      border-radius: 12px;
+      box-shadow: var(--shadow-sm);
       text-decoration: none;
       color: inherit;
       width: 100%;
-      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+      transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
       cursor: pointer;
-      position: relative;
-      overflow: hidden;
-    }
-    .node-card::before {
-      content: '';
-      position: absolute;
-      inset: 0 0 auto;
-      height: 4px;
-      background: linear-gradient(90deg, var(--gold), #6ea9d7);
-      opacity: 0.9;
     }
     .node-card:hover {
-      transform: translateY(-6px);
-      box-shadow: 0 22px 52px rgba(27,38,79,0.14);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
       border-color: var(--line-strong);
     }
     .node-card--root {
-      padding: 2rem 2rem 1.75rem;
-      max-width: 280px;
-      border-color: rgba(197,164,78,0.28);
-      box-shadow: 0 26px 60px rgba(27,38,79,0.16);
+      border-color: rgba(197,164,78,0.35);
       background:
-        linear-gradient(180deg, rgba(255,255,255,0.98), rgba(255,250,240,0.92)),
-        linear-gradient(135deg, rgba(197,164,78,0.10), rgba(60,59,110,0.06));
+        linear-gradient(180deg, #fff, #fffaf0);
+      max-width: 220px;
     }
-    .node-card--root .node-icon-wrap,
-    .node-card--root .node-icon-wrap img {
-      width: 96px;
-      height: 96px;
+    .node-icon {
+      width: 56px;
+      height: 56px;
+      border-radius: 14px;
+      object-fit: contain;
+      background: #fff;
+      padding: 4px;
+      box-shadow: var(--shadow-sm);
+      margin-bottom: 0.55rem;
     }
-    .node-card--root .node-name { font-size: 1.15rem; }
-    .node-icon-wrap {
-      width: 72px;
-      height: 72px;
-      border-radius: 20px;
-      overflow: hidden;
-      margin-bottom: 1rem;
-      box-shadow: 0 12px 26px rgba(27,38,79,0.14);
-      flex-shrink: 0;
-      background: rgba(255,255,255,0.96);
-      padding: 0.2rem;
-    }
-    .node-icon-wrap img {
-      width: 72px;
-      height: 72px;
-      object-fit: cover;
-      border-radius: 18px;
-      display: block;
+    .node-card--root .node-icon {
+      width: 68px;
+      height: 68px;
     }
     .node-name {
-      font-size: 0.95rem;
+      font-size: 0.88rem;
       font-weight: 700;
       color: var(--ink);
-      margin-bottom: 0.3rem;
-      letter-spacing: 0.01em;
+      line-height: 1.2;
     }
+    .node-card--root .node-name { font-size: 0.98rem; }
     .node-short {
-      font-size: 0.68rem;
+      font-size: 0.66rem;
       font-weight: 600;
       letter-spacing: 0.1em;
       text-transform: uppercase;
       color: var(--ink-faint);
-      margin-bottom: 0.6rem;
-    }
-    .node-desc {
-      font-size: 0.78rem;
-      color: var(--ink-muted);
-      line-height: 1.6;
-      min-height: 3.8em;
-      display: -webkit-box;
-      line-clamp: 3;
-      -webkit-box-orient: vertical;
-      -webkit-line-clamp: 3;
-      overflow: hidden;
+      margin-top: 0.25rem;
     }
     .node-badge {
-      margin-top: 0.9rem;
-      font-size: 0.65rem;
+      margin-top: 0.55rem;
+      font-size: 0.62rem;
       font-weight: 600;
       letter-spacing: 0.08em;
       text-transform: uppercase;
-      padding: 0.34rem 0.82rem;
+      padding: 0.28rem 0.65rem;
       border-radius: 999px;
-      border: 1px solid rgba(60,59,110,0.18);
+      border: 1px solid var(--line-strong);
       color: var(--accent);
       background: var(--accent-soft);
     }
-    .node-badge--root {
+    .node-card--root .node-badge {
       color: var(--gold);
       background: var(--gold-soft);
-      border-color: rgba(197,164,78,0.28);
+      border-color: rgba(197,164,78,0.35);
     }
 
-    .suite-footnote {
-      width: min(1120px, 100%);
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.9rem;
-      align-items: center;
-      justify-content: center;
-      color: var(--ink-faint);
-      font-size: 0.8rem;
-      margin-top: 0.2rem;
-    }
-    .suite-footnote span {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.45rem;
-      padding: 0.55rem 0.9rem;
-      border-radius: 999px;
-      background: rgba(255,255,255,0.6);
-      border: 1px solid rgba(60,59,110,0.08);
-    }
-    .suite-footnote a {
-      color: inherit;
-      font-weight: 700;
-      text-decoration: none;
-    }
-    .suite-footnote a:hover { text-decoration: underline; }
-
+    /* ── Footer ── */
     .footer {
-      margin-top: 0.25rem;
       text-align: center;
-      max-width: 620px;
+      padding-top: 0.5rem;
     }
     .footer p {
       font-family: var(--font-serif);
       font-style: italic;
-      font-size: 0.875rem;
+      font-size: 0.82rem;
       color: var(--ink-faint);
-      line-height: 1.8;
     }
     .footer small {
       display: block;
-      margin-top: 0.5rem;
-      font-size: 0.75rem;
+      margin-top: 0.3rem;
+      font-size: 0.72rem;
       color: var(--ink-faint);
     }
 
-    @media (max-width: 980px) {
-      .hero-shell { grid-template-columns: 1fr; }
-      .org-chart { max-width: 700px; }
-      .org-branch-row {
-        flex-wrap: wrap;
-        gap: 0.25rem 0.9rem;
-        max-width: 620px;
-      }
+    /* ── Responsive ── */
+    @media (max-width: 720px) {
       .org-branch-row::before { display: none; }
       .org-child {
-        flex: 0 1 calc(50% - 0.9rem);
-        min-width: 0;
-        max-width: 270px;
+        flex: 0 1 calc(50% - 0.45rem);
+        max-width: none;
       }
-      .org-child-stem { height: 24px; }
     }
-
-    @media (max-width: 640px) {
-      .launcher { padding-inline: 1rem; }
-      .header { padding: 1.5rem; border-radius: 1.5rem; }
-      .app-logo { width: 72px; height: 72px; }
-      .chart-shell { padding: 1.1rem 0.85rem 1.4rem; border-radius: 1.5rem; }
-      .chart-kicker { padding-inline: 0; }
+    @media (max-width: 480px) {
       .org-branch-row {
         flex-direction: column;
         align-items: center;
         gap: 0;
       }
-      .org-branch-row::before { display: none; }
       .org-child {
         flex-basis: auto;
-        max-width: 280px;
         width: 100%;
+        max-width: 240px;
       }
-      .org-child-stem { height: 24px; }
-      .app-card-footer {
-        align-items: flex-start;
-        flex-direction: column;
-      }
-    }
-
-    @media (max-width: 768px) {
-      .ptr-indicator {
-        display: none;
-        position: fixed;
-        top: 50px;
-        left: 50%;
-        transform: translateX(-50%);
-        z-index: 9998;
-        background: var(--bg-raised);
-        border: 1px solid var(--line);
-        border-radius: 20px;
-        padding: 6px 14px;
-        font-size: 0.75rem;
-        color: var(--ink-muted);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-      }
-      .ptr-indicator.visible { display: block; }
+      .org-child-stem { height: 16px; }
     }
   </style>
 </head>
-<body id="top">
+<body>
 
   <main class="launcher">
 
-    <section class="hero-shell">
-      <header class="header">
-        <div class="header-inner">
-          <div class="header-eyebrow">&#9670;&nbsp; The FlockOS Suite</div>
-          <h1>Helping Pastors Do the Work of Ministry</h1>
-          <p>One launcher, one page: suite access at the top and the full deployment org tree below.</p>
-          <div class="header-actions">
-            <span class="hero-pill">&#10022; Offline Capable</span>
-            <span class="hero-pill">&#10022; Designed for Mobile</span>
-            <span class="hero-pill">&#10022; Multiplication Ready</span>
-          </div>
-        </div>
-      </header>
+    <header class="brand">
+      <img src="Covenant/Courts/TheTabernacle/Images/FlockOS_AppIcon.png" alt="FlockOS">
+      <div class="brand-text">
+        <h1>FlockOS Suite</h1>
+        <p>Apps and deployments — one launcher.</p>
+      </div>
+    </header>
 
-      <aside class="hero-spotlight" aria-label="FlockOS suite summary">
-        <div class="spotlight-label">Commission Ready</div>
-        <h2 class="spotlight-title">Launch apps quickly, then navigate deployments in the same screen.</h2>
-        <p class="spotlight-copy">This replaces the old bounce path between Suite Gate and church chart pages, so users do not get stuck in redirect loops.</p>
-      </aside>
+    <!-- ── Apps ── -->
+    <section>
+      <div class="section-title">
+        <h2>Apps</h2>
+        <small>Open a tool</small>
+      </div>
+      <div class="app-grid">
+        <a class="app-card" href="Covenant/Nations/Root/FlockOS.html">
+          <img src="Covenant/Courts/TheTabernacle/Images/FlockOS_AppIcon.png" alt="FlockOS">
+          <div class="app-meta">
+            <div class="app-name">FlockOS</div>
+            <div class="app-tag">Church operating system</div>
+          </div>
+        </a>
+        <a class="app-card" href="Covenant/Nations/Root/FlockChat.html">
+          <img src="Covenant/Courts/TheFellowship/FlockChat/Images/FlockChat_AppIcon.png" alt="FlockChat">
+          <div class="app-meta">
+            <div class="app-name">FlockChat</div>
+            <div class="app-tag">Congregational messaging</div>
+          </div>
+        </a>
+        <a class="app-card" href="Covenant/Nations/Root/ATOG.html">
+          <img src="Covenant/Courts/TheUpperRoom/ATOG/Images/ATOG_AppIcon.png" alt="A Touch of the Gospel">
+          <div class="app-meta">
+            <div class="app-name">A Touch of the Gospel</div>
+            <div class="app-tag">Study and formation</div>
+          </div>
+        </a>
+      </div>
     </section>
 
-    <div class="app-grid">
-      <a class="app-card" href="Covenant/Nations/Root/FlockOS.html">
-        <div class="app-card-head">
-          <img class="app-logo" src="Covenant/Courts/TheTabernacle/Images/FlockOS_AppIcon.png" alt="FlockOS">
-          <div>
-            <div class="app-name">FlockOS</div>
-            <p class="app-tagline">Root church operating system</p>
-          </div>
-        </div>
-        <p class="app-desc">Open the root FlockOS app build directly from the launcher.</p>
-        <div class="app-card-footer">
-          <span class="app-link-copy">Open root application</span>
-          <span class="app-badge">Enter FlockOS</span>
-        </div>
-      </a>
-
-      <a class="app-card" href="Covenant/Nations/Root/FlockChat.html?church=flockos">
-        <div class="app-card-head">
-          <img class="app-logo" src="Covenant/Courts/TheFellowship/FlockChat/Images/FlockChat_AppIcon.png" alt="FlockChat">
-          <div>
-            <div class="app-name">FlockChat</div>
-            <p class="app-tagline">Congregational communication</p>
-          </div>
-        </div>
-        <p class="app-desc">Real-time church messaging for prayer, announcements, and fellowship.</p>
-        <div class="app-card-footer">
-          <span class="app-link-copy">Open conversation layer</span>
-          <span class="app-badge">Enter FlockChat</span>
-        </div>
-      </a>
-
-      <a class="app-card" href="Covenant/Nations/Root/ATOG.html">
-        <div class="app-card-head">
-          <img class="app-logo" src="Covenant/Courts/TheUpperRoom/ATOG/Images/ATOG_AppIcon.png" alt="A Touch of the Gospel">
-          <div>
-            <div class="app-name">A Touch of the Gospel</div>
-            <p class="app-tagline">Study and formation tools</p>
-          </div>
-        </div>
-        <p class="app-desc">Interactive theology, devotionals, lexicon, and spiritual health tools.</p>
-        <div class="app-card-footer">
-          <span class="app-link-copy">Open study path</span>
-          <span class="app-badge">Enter ATOG</span>
-        </div>
-      </a>
-    </div>
-
-    <section class="deployment-wrap" id="deployments">
-      <div class="launcher-eyebrow">&#9670;&nbsp; FlockOS &middot; Deployments</div>
+    <!-- ── Deployments ── -->
+    <section>
+      <div class="section-title">
+        <h2>Deployments</h2>
+        <small>Master build &middot; church branches</small>
+      </div>
       <div class="chart-shell">
-        <div class="chart-kicker">
-          <div class="chart-kicker-copy">
-            <strong>Deployment Tree</strong>
-            <span>The root build anchors the release line, with deployment details loaded from the editable builds document.</span>
-          </div>
-          <div class="chart-kicker-pill">&#10022; Canonical root to church instances</div>
-        </div>
-
         <div class="org-chart" id="orgChart" aria-live="polite">
           <div class="org-root">
             <div class="node-card node-card--root">
               <div class="node-name">Loading Builds</div>
               <div class="node-short">Please Wait</div>
-              <p class="node-desc">The deployment tree is loading from the builds document.</p>
-              <span class="node-badge node-badge--root">Loading</span>
+              <span class="node-badge">Loading</span>
             </div>
           </div>
         </div>
       </div>
     </section>
-
-    <div class="suite-footnote" aria-label="Suite qualities">
-      <span>&#10070; <a href="Covenant/Courts/TheTabernacle/Pages/software_deployment_referral.html">FlockOS is Built to Be Shared! Refer a Pastor Here.</a></span>
-    </div>
 
     <footer class="footer">
       <p>&ldquo;Go therefore and make disciples of all nations&hellip;&rdquo; &mdash;&nbsp;Matthew 28:19</p>
@@ -781,12 +408,6 @@
   </main>
 
   <script>
-    const BUILDS_DOC_PATHS = [
-      'Covenant/Testimony/Runbooks/Builds.md',
-      './Covenant/Testimony/Runbooks/Builds.md',
-      '/Covenant/Testimony/Runbooks/Builds.md'
-    ];
-
     function escapeHtml(value) {
       return String(value || '')
         .replace(/&/g, '&amp;')
@@ -795,194 +416,85 @@
         .replace(/"/g, '&quot;');
     }
 
-    function parseBuildsMarkdown(source) {
-      const lines = String(source || '').split(/\r?\n/);
-      const result = { root: null, deployments: [] };
-      let current = null;
-
-      for (const rawLine of lines) {
-        const line = rawLine.trim();
-        if (!line || line.startsWith('<!--')) continue;
-
-        const heading = line.match(/^##\s+(Root|Deployment)\s*$/i);
-        if (heading) {
-          current = { type: heading[1].toLowerCase() };
-          if (current.type === 'root') {
-            result.root = current;
-          } else {
-            result.deployments.push(current);
-          }
-          continue;
-        }
-
-        if (!current) continue;
-
-        const field = line.match(/^-\s*([a-zA-Z0-9_-]+):\s*(.+)$/);
-        if (field) {
-          current[field[1].toLowerCase()] = field[2].trim();
-        }
+    function normalizeRoot(root) {
+      const out = Object.assign({}, root || {});
+      // Map any legacy targets onto the new Nations/Root entry.
+      if (/Covenant\/Gate\/SuiteGate\/index\.html/i.test(out.href || '') ||
+          /FlockOS_Churches\.html/i.test(out.href || '') ||
+          /^Covenant\/Nations\/FlockOS\/index\.html$/i.test(out.href || '')) {
+        out.href = 'Covenant/Nations/Root/FlockOS.html';
       }
-
-      return result;
+      return out;
     }
 
-    function normalizeBuildData(input) {
-      const data = input || {};
-      const root = Object.assign({}, data.root || {});
-      const deployments = Array.isArray(data.deployments) ? data.deployments.slice() : [];
-
-      // Map legacy launcher references to the real master app entry.
-      if (/Covenant\/Gate\/SuiteGate\/index\.html/i.test(root.href || '') || /FlockOS_Churches\.html/i.test(root.href || '')) {
-        root.href = 'Covenant/Nations/Root/FlockOS.html';
-        root.badge = 'Open Master Build';
-      }
-
-      return { root: root, deployments: deployments };
-    }
-
-    function buildRootMarkup(root) {
+    function rootMarkup(root) {
       return '<div class="org-root">'
-        + '<a class="node-card node-card--root" href="' + escapeHtml(root.href || '#top') + '">'
-        + '<div class="node-icon-wrap">'
-        + '<img src="' + escapeHtml(root.image || 'Covenant/Courts/TheTabernacle/Images/FlockOS_AppIcon.png') + '" alt="' + escapeHtml(root.alt || root.name || 'FlockOS') + '">'
-        + '</div>'
+        + '<a class="node-card node-card--root" href="' + escapeHtml(root.href || 'Covenant/Nations/Root/FlockOS.html') + '">'
+        + '<img class="node-icon" src="' + escapeHtml(root.image || 'Covenant/Courts/TheTabernacle/Images/FlockOS_AppIcon.png') + '" alt="' + escapeHtml(root.alt || root.name || 'FlockOS') + '">'
         + '<div class="node-name">' + escapeHtml(root.name || 'FlockOS') + '</div>'
         + '<div class="node-short">' + escapeHtml(root.short || 'Master Build') + '</div>'
-        + '<p class="node-desc">' + escapeHtml(root.description || '') + '</p>'
-        + '<span class="node-badge node-badge--root">' + escapeHtml(root.badge || 'Open Master Build') + '</span>'
+        + '<span class="node-badge">' + escapeHtml(root.badge || 'Open Master Build') + '</span>'
         + '</a>'
         + '</div>';
     }
 
-    function buildDeploymentMarkup(item) {
+    function deploymentMarkup(item) {
       return '<div class="org-child">'
         + '<div class="org-child-stem"></div>'
         + '<a class="node-card" href="' + escapeHtml(item.href || '#') + '">'
-        + '<div class="node-icon-wrap">'
-        + '<img src="' + escapeHtml(item.image || 'Covenant/Courts/TheTabernacle/Images/FlockOS_AppIcon.png') + '" alt="' + escapeHtml(item.alt || item.name || 'Deployment') + '">'
-        + '</div>'
-        + '<div class="node-name">' + escapeHtml(item.name || 'Unnamed Build') + '</div>'
+        + '<img class="node-icon" src="' + escapeHtml(item.image || 'Covenant/Courts/TheTabernacle/Images/FlockOS_AppIcon.png') + '" alt="' + escapeHtml(item.alt || item.name || 'Deployment') + '">'
+        + '<div class="node-name">' + escapeHtml(item.name || 'Deployment') + '</div>'
         + '<div class="node-short">' + escapeHtml(item.short || '') + '</div>'
-        + '<p class="node-desc">' + escapeHtml(item.description || '') + '</p>'
         + '<span class="node-badge">' + escapeHtml(item.badge || 'Open Deployment') + '</span>'
         + '</a>'
         + '</div>';
     }
 
-    function renderBuildsChart(rawData) {
+    function renderChart(rawData) {
       const chart = document.getElementById('orgChart');
       if (!chart) return;
+      const data = rawData || {};
+      const root = normalizeRoot(data.root);
+      const deployments = Array.isArray(data.deployments) ? data.deployments : [];
 
-      const data = normalizeBuildData(rawData);
-
-      if (!data.root || !Object.keys(data.root).length) {
-        chart.innerHTML = '<div class="org-root"><div class="node-card node-card--root"><div class="node-name">Builds.md Missing Root</div><div class="node-short">Needs Setup</div><p class="node-desc">Add a Root section in the builds document so the chart can render correctly.</p><span class="node-badge node-badge--root">Edit Builds.md</span></div></div>';
-        return;
-      }
-
-      let html = buildRootMarkup(data.root);
-
-      if (data.deployments.length) {
+      let html = rootMarkup(root);
+      if (deployments.length) {
         html += '<div class="org-stem"></div>';
         html += '<div class="org-branch-row" id="branchRow">';
-        data.deployments.forEach(function(item) {
-          html += buildDeploymentMarkup(item);
-        });
+        deployments.forEach(function(d) { html += deploymentMarkup(d); });
         html += '</div>';
       }
-
       chart.innerHTML = html;
       updateBranchSpan();
-    }
-
-    async function fetchBuildsMarkdown() {
-      let lastError = null;
-
-      for (const path of BUILDS_DOC_PATHS) {
-        try {
-          const response = await fetch(path, { cache: 'no-store' });
-          if (!response.ok) {
-            lastError = new Error('HTTP ' + response.status + ' for ' + path);
-            continue;
-          }
-          return await response.text();
-        } catch (error) {
-          lastError = error;
-        }
-      }
-
-      throw lastError || new Error('Unable to load builds document.');
-    }
-
-    function loadBuildsChart() {
-      const chart = document.getElementById('orgChart');
-      if (!chart) return;
-
-      if (window.FLOCK_BUILDS_DATA) {
-        renderBuildsChart(window.FLOCK_BUILDS_DATA);
-        return;
-      }
-
-      fetchBuildsMarkdown()
-        .then(function(markdown) { renderBuildsChart(parseBuildsMarkdown(markdown)); })
-        .catch(function() {
-          chart.innerHTML = '<div class="org-root"><div class="node-card node-card--root"><div class="node-name">Builds Unavailable</div><div class="node-short">Load Error</div><p class="node-desc">The deployment chart could not load from Builds.md. Check the file path and document format.</p><span class="node-badge node-badge--root">Review Builds.md</span></div></div>';
-        });
     }
 
     function updateBranchSpan() {
       const row = document.getElementById('branchRow');
       if (!row) return;
-      const children = Array.from(row.querySelectorAll('.org-child'));
-      if (children.length < 2) return;
-      const first = children[0].getBoundingClientRect();
-      const last  = children[children.length - 1].getBoundingClientRect();
+      const kids = Array.from(row.querySelectorAll('.org-child'));
+      if (kids.length < 2) return;
+      const first = kids[0].getBoundingClientRect();
+      const last  = kids[kids.length - 1].getBoundingClientRect();
       const span  = (last.left + last.width / 2) - (first.left + first.width / 2);
       row.style.setProperty('--branch-span', Math.max(0, span) + 'px');
     }
 
-    window.addEventListener('load', loadBuildsChart);
+    function loadChart() {
+      if (window.FLOCK_BUILDS_DATA) {
+        renderChart(window.FLOCK_BUILDS_DATA);
+      } else {
+        const chart = document.getElementById('orgChart');
+        if (chart) {
+          chart.innerHTML = '<div class="org-root"><div class="node-card node-card--root"><div class="node-name">Builds Unavailable</div><div class="node-short">Load Error</div><span class="node-badge">Review builds_codex.js</span></div></div>';
+        }
+      }
+    }
+
+    window.addEventListener('load', loadChart);
     window.addEventListener('resize', updateBranchSpan);
   </script>
 
   <script src="Covenant/Courts/TheTabernacle/Scripts/builds_codex.js"></script>
-
-  <div class="ptr-indicator" id="ptrIndicator">&#8635; Release to refresh</div>
-
-  <script>
-    (function() {
-      if (window.innerWidth > 768) return;
-      var ptr = document.getElementById('ptrIndicator');
-      var startY = 0, pulling = false, triggered = false;
-      document.addEventListener('touchstart', function(e) {
-        if (window.scrollY > 5) return;
-        startY = e.touches[0].clientY;
-        pulling = true;
-        triggered = false;
-      }, { passive: true });
-      document.addEventListener('touchmove', function(e) {
-        if (!pulling) return;
-        var dy = e.touches[0].clientY - startY;
-        if (dy > 60 && !triggered) {
-          triggered = true;
-          if (ptr) ptr.classList.add('visible');
-        } else if (dy < 30) {
-          triggered = false;
-          if (ptr) ptr.classList.remove('visible');
-        }
-      }, { passive: true });
-      document.addEventListener('touchend', function() {
-        if (triggered) {
-          if (ptr) ptr.textContent = 'Refreshing...';
-          setTimeout(function() { location.reload(); }, 300);
-        } else {
-          if (ptr) ptr.classList.remove('visible');
-        }
-        pulling = false;
-        triggered = false;
-      }, { passive: true });
-    })();
-  </script>
 
 </body>
 </html>
