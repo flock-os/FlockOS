@@ -302,8 +302,12 @@ for config in "$BUILD_CONFIGS_DIR"/*.json; do
   rsync -a \
     --exclude='*.md' --exclude='*.gs' --exclude='*.bak' --exclude='*.txt' \
     --exclude='Tools/' \
+    --exclude='FlockOS.html' \
     --exclude='Pages/bezalel_matrix_local.html' \
     "$SOURCE_DIR/" "$OUT/FlockOS/"
+
+  # 1b. Copy public portal template to Nation root
+  cp "$SOURCE_DIR/FlockOS.html" "$OUT/FlockOS.html"
 
   # 2. Copy root-level manifest and service worker
   [ "$ROOT_MANIFEST" != "$OUT/manifest.json" ] && cp "$ROOT_MANIFEST" "$OUT/manifest.json"
@@ -320,8 +324,8 @@ for config in "$BUILD_CONFIGS_DIR"/*.json; do
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta http-equiv="refresh" content="0; url=FlockOS/Pages/index.html">
-  <script>window.location.replace('FlockOS/Pages/index.html');</script>
+  <meta http-equiv="refresh" content="0; url=FlockOS.html">
+  <script>window.location.replace('FlockOS.html');</script>
   <title>FlockOS</title>
 </head>
 <body></body>
@@ -376,6 +380,9 @@ REDIRECT_EOF
   # Fallback to canonical pattern when appLinks not present (API-fetched configs)
   [ -z "$CHURCH_FLOCKCHAT_URL" ] && CHURCH_FLOCKCHAT_URL="../../Courts/TheFellowship/FlockChat.html?church=${CHURCH_SHORT_LOWER}"
   [ -z "$CHURCH_ATOG_URL" ]      && CHURCH_ATOG_URL="../../Courts/TheUpperRoom/ATOG.html?church=${CHURCH_SHORT_LOWER}"
+  # Portal-level URLs (for FlockOS.html at Nations/<church>/ root — no depth compensation)
+  PORTAL_FC_URL="$CHURCH_FLOCKCHAT_URL"
+  PORTAL_AT_URL="$CHURCH_ATOG_URL"
   # Prepend ../../ unless URL is absolute (compensate for Pages/ depth)
   [[ "$CHURCH_FLOCKCHAT_URL" != http* ]] && CHURCH_FLOCKCHAT_URL="../../${CHURCH_FLOCKCHAT_URL}"
   [[ "$CHURCH_ATOG_URL"      != http* ]] && CHURCH_ATOG_URL="../../${CHURCH_ATOG_URL}"
@@ -387,6 +394,16 @@ REDIRECT_EOF
       -e "s|href=\"\.\./\.\./ATOG\.html\"|href=\"${ESC_AT_URL}\"|g" \
       "$file"
   done
+
+  # Substitute portal-level placeholder URLs in FlockOS.html (Nation root)
+  if [ -f "$OUT/FlockOS.html" ]; then
+    ESC_PORTAL_FC=$(printf '%s\n' "$PORTAL_FC_URL" | sed 's/[&/\\]/\\&/g')
+    ESC_PORTAL_AT=$(printf '%s\n' "$PORTAL_AT_URL" | sed 's/[&/\\]/\\&/g')
+    sed -i '' \
+      -e "s|href=\"PORTAL_FLOCKCHAT_HREF\"|href=\"${ESC_PORTAL_FC}\"|g" \
+      -e "s|href=\"PORTAL_ATOG_HREF\"|href=\"${ESC_PORTAL_AT}\"|g" \
+      "$OUT/FlockOS.html"
+  fi
 
   # 3b-iv. Google Analytics — inject church tag or strip root tag
   DEF_ANALYTICS="G-D7V88DPF3T"
@@ -411,11 +428,13 @@ open(sys.argv[1], 'w').write(cleaned)
     fi
   done
 
-  # 3b-i. Portrait / logo — replace splash screen img src in index.html + the_good_shepherd.html + pages index
+  # 3b-i. Portrait / logo — replace splash screen img src in FlockOS.html + index.html + the_good_shepherd.html + pages index
   if [ -n "$CHURCH_PORTRAIT" ]; then
-    sed -i '' \
-      -e "s|id=\"church-hero-logo\" class=\"splash-bg\" src=\"FlockOS/Images/[^\"]*\"|id=\"church-hero-logo\" class=\"splash-bg\" src=\"FlockOS/Images/${ESC_PORTRAIT}\"|g" \
-      "$OUT/index.html"
+    for _portal_f in "$OUT/FlockOS.html" "$OUT/index.html"; do
+      [ -f "$_portal_f" ] && sed -i '' \
+        -e "s|id=\"church-hero-logo\" class=\"splash-bg\" src=\"FlockOS/Images/[^\"]*\"|id=\"church-hero-logo\" class=\"splash-bg\" src=\"FlockOS/Images/${ESC_PORTRAIT}\"|g" \
+        "$_portal_f"
+    done
     GS_FILE="$OUT/FlockOS/Pages/the_good_shepherd.html"
     if [ -f "$GS_FILE" ]; then
       sed -i '' \
