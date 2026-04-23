@@ -409,7 +409,7 @@ const Nehemiah = (() => {
 
   /**
    * Clears local session and tells the server to invalidate the token.
-   * Always redirects to the app launcher, even if the server call fails.
+   * Always redirects to the login page, even if the server call fails.
    */
   async function logout() {
     try {
@@ -426,8 +426,8 @@ const Nehemiah = (() => {
         UpperRoom.signOut();
       }
     } catch (_) {}
-    // TheVine.john.auth.logout already clears the session internally.
-    window.location.replace(LAUNCHER_PAGE);
+    // Redirect to the login page after clearing the session.
+    window.location.replace(LOGIN_PAGE);
   }
 
 
