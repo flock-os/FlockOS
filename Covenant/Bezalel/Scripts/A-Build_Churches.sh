@@ -323,10 +323,6 @@ for config in "$BUILD_CONFIGS_DIR"/*.json; do
 </html>
 REDIRECT_EOF
 
-  # 2b. Copy Flock Suite apps to deployment root (branding applied in step 3)
-  cp "$WORKSPACE_ROOT/Covenant/Courts/TheFellowship/FlockChat.html" "$OUT/FlockChat.html"
-  cp "$WORKSPACE_ROOT/Covenant/Courts/TheUpperRoom/ATOG.html"       "$OUT/ATOG.html"
-
   # 3. Brand with church-specific values
 
   # Escape values for sed
@@ -362,6 +358,28 @@ REDIRECT_EOF
       -e "s|${ESC_DEF_TAGLINE}|${ESC_TAGLINE}|g" \
       -e "s|${ESC_DEF_THEME}|${ESC_THEME}|g" \
       -e "s|${ESC_DEF_BG}|${ESC_BG}|g" \
+      "$file"
+  done
+
+  # 3b-0. Flock Suite navbar links — substitute per-church FlockChat/ATOG URLs
+  # Source templates use placeholder paths "../../FlockChat.html" and "../../ATOG.html".
+  # Real deployed pages live at Nations/<church>/FlockOS/Pages/, so target paths
+  # need to escape 4 levels up to reach Covenant/Courts/.
+  # FlockChat URL gets ?church=<shortname-lower> so it scopes to the right Firestore.
+  CHURCH_FLOCKCHAT_URL=$(jq -r '.appLinks.flockchat // empty' "$config")
+  CHURCH_ATOG_URL=$(jq -r '.appLinks.atog // empty'           "$config")
+  # Fallback to canonical pattern when appLinks not present (API-fetched configs)
+  [ -z "$CHURCH_FLOCKCHAT_URL" ] && CHURCH_FLOCKCHAT_URL="../../Courts/TheFellowship/FlockChat.html?church=${CHURCH_SHORT_LOWER}"
+  [ -z "$CHURCH_ATOG_URL" ]      && CHURCH_ATOG_URL="../../Courts/TheUpperRoom/ATOG.html"
+  # Prepend ../../ unless URL is absolute (compensate for Pages/ depth)
+  [[ "$CHURCH_FLOCKCHAT_URL" != http* ]] && CHURCH_FLOCKCHAT_URL="../../${CHURCH_FLOCKCHAT_URL}"
+  [[ "$CHURCH_ATOG_URL"      != http* ]] && CHURCH_ATOG_URL="../../${CHURCH_ATOG_URL}"
+  ESC_FC_URL=$(printf '%s\n' "$CHURCH_FLOCKCHAT_URL" | sed 's/[&/\\]/\\&/g')
+  ESC_AT_URL=$(printf '%s\n' "$CHURCH_ATOG_URL"      | sed 's/[&/\\]/\\&/g')
+  find "$OUT/FlockOS/Pages" -name '*.html' -type f | while read -r file; do
+    sed -i '' \
+      -e "s|href=\"\.\./\.\./FlockChat\.html\"|href=\"${ESC_FC_URL}\"|g" \
+      -e "s|href=\"\.\./\.\./ATOG\.html\"|href=\"${ESC_AT_URL}\"|g" \
       "$file"
   done
 
