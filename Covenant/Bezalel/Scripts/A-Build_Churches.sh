@@ -116,7 +116,7 @@ if $DEPLOY_COMMS; then
     "$WORKSPACE_ROOT/Covenant/Courts/TheFellowship/FlockChat/manifest.json"
     "$WORKSPACE_ROOT/Covenant/Courts/TheFellowship/FlockChat/Images/FlockChat_AppIcon.png"
     "$WORKSPACE_ROOT/Covenant/Courts/TheFellowship/FlockChat/firebase-messaging-sw.js"
-    "$WORKSPACE_ROOT/Covenant/Courts/TheTabernacle/Styles/american_garments.css"
+    "$WORKSPACE_ROOT/Covenant/Foundations/SharedVessels/styles/american_garments.css"
   )
   for f in "${COMMS_REQUIRED_FILES[@]}"; do
     if [ ! -f "$f" ]; then
@@ -261,6 +261,19 @@ if [ "$CONFIG_COUNT" -eq 0 ]; then
 fi
 echo "Building $CONFIG_COUNT church deployment(s)…"
 echo ""
+
+# ── Sync canonical CSS source-of-truth into Tabernacle before rsync ─────
+# SharedVessels is the single source of truth; mirror it into Tabernacle
+# so the church rsync (and Nations/Root reference) stay in sync.
+SHARED_CSS="$COVENANT_ROOT/Foundations/SharedVessels/styles/american_garments.css"
+TABERNACLE_CSS="$SOURCE_DIR/Styles/american_garments.css"
+if [ -f "$SHARED_CSS" ]; then
+  mkdir -p "$(dirname "$TABERNACLE_CSS")"
+  if ! cmp -s "$SHARED_CSS" "$TABERNACLE_CSS"; then
+    cp "$SHARED_CSS" "$TABERNACLE_CSS"
+    echo "  → american_garments.css synced from SharedVessels → Tabernacle"
+  fi
+fi
 
 # ── Build each church ───────────────────────────────────────────────────
 for config in "$BUILD_CONFIGS_DIR"/*.json; do
