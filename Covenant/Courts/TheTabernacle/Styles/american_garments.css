@@ -8912,14 +8912,15 @@ body.atog-app #topbar {
   border-bottom: 1px solid var(--line);
 }
 body.atog-app .brand {
-  font-family: var(--font-display);
+  font-family: var(--font-serif);
   font-size: 1.1rem; font-weight: 700;
   color: var(--accent);
-  letter-spacing: 0.05em; white-space: nowrap;
+  letter-spacing: 0.01em; white-space: nowrap;
+  text-transform: none; font-variant-caps: normal;
 }
 body.atog-app .brand-sub {
   font-size: 0.65rem; color: var(--ink-muted);
-  letter-spacing: 0.15em; text-transform: uppercase;
+  letter-spacing: 0.04em; text-transform: none;
   display: block; margin-top: -2px;
 }
 
@@ -9015,20 +9016,20 @@ body.atog-app .hero-glow {
 
 /* ── Glass Cards (light-theme adaptation) ───────────────────────────────── */
 body.atog-app .glass-card {
-  background: var(--bg-raised);
-  border: 1px solid var(--line);
+  background: linear-gradient(180deg, #ffffff 0%, #fdfbf7 100%);
+  border: 1.5px solid color-mix(in srgb, var(--gold) 42%, var(--line));
   border-radius: var(--radius-xl);
   transition: all 0.3s ease;
   box-shadow: var(--shadow-sm);
 }
 body.atog-app .glass-card:hover {
-  border-color: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--gold) 70%, var(--line));
   transform: translateY(-2px);
   box-shadow: var(--shadow-md);
 }
 body.atog-app .glass-card-static {
-  background: var(--bg-raised);
-  border: 1px solid var(--line);
+  background: linear-gradient(180deg, #ffffff 0%, #fdfbf7 100%);
+  border: 1.5px solid color-mix(in srgb, var(--gold) 42%, var(--line));
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-sm);
 }
@@ -9036,6 +9037,12 @@ body.atog-app .glass-subtle {
   background: var(--bg-sunken);
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
+}
+body.atog-app .glass-heavy {
+  background: linear-gradient(160deg, #ffffff 0%, #f5f7fd 100%);
+  border: 1.5px solid color-mix(in srgb, var(--gold) 38%, var(--line));
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-lg);
 }
 
 /* ── Gradient Text ──────────────────────────────────────────────────────── */
@@ -9066,13 +9073,23 @@ body.atog-app .btn {
 body.atog-app .btn:hover { transform: translateY(-1px); }
 body.atog-app .btn-primary {
   background: var(--accent); color: #fff;
+  border: 2px solid rgba(255,255,255,0.18);
   box-shadow: 0 2px 10px var(--accent-soft);
 }
 body.atog-app .btn-primary:hover { background: var(--accent-hover); box-shadow: 0 4px 16px var(--accent-soft); }
 body.atog-app .btn-ghost {
-  background: transparent; color: var(--ink); border-color: var(--line);
+  background: var(--bg-raised);
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--gold) 55%, var(--line-strong));
+  border-width: 2px;
+  font-weight: 700;
+  box-shadow: 0 2px 10px rgba(22, 32, 62, 0.12);
 }
-body.atog-app .btn-ghost:hover { background: var(--bg-hover); border-color: var(--accent-soft); }
+body.atog-app .btn-ghost:hover {
+  background: #ffffff;
+  border-color: color-mix(in srgb, var(--gold) 80%, var(--line-strong));
+  box-shadow: 0 5px 16px rgba(22, 32, 62, 0.16);
+}
 
 /* ── Pill (ATOG inline-style consumer) ──────────────────────────────────── */
 body.atog-app .pill {
