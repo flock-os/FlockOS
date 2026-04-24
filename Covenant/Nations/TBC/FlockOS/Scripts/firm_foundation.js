@@ -495,7 +495,7 @@ const Nehemiah = (() => {
       '<div style="background:rgba(255,255,255,0.1);border-radius:8px;height:5px;overflow:hidden;margin-bottom:14px;">' +
         '<div id="_logout-progress" style="height:100%;width:100%;border-radius:8px;' +
           'background:linear-gradient(90deg,' + accentColor + ',' + goldColor + ');' +
-          'transition:width 10s linear;"></div>' +
+          'transition:width 25s linear;"></div>' +
       '</div>' +
       '<p style="color:rgba(255,255,255,0.35);font-size:0.75rem;letter-spacing:0.06em;' +
         'text-transform:uppercase;margin:0;font-family:inherit;">Signing you out\u2026</p>';
@@ -517,7 +517,7 @@ const Nehemiah = (() => {
 
   /**
    * Clears local session and tells the server to invalidate the token.
-   * Shows a farewell card for 10 s, then redirects to the public portal.
+   * Shows a farewell card for 25 s, then redirects to the public portal.
    */
   async function logout() {
     // Show goodbye card immediately
@@ -536,8 +536,8 @@ const Nehemiah = (() => {
       } catch (_) {}
     })();
 
-    // Always honour the full 10 s so the card is readable, then go to public portal
-    await new Promise(function(resolve) { setTimeout(resolve, 10000); });
+    // Always honour the full 25 s so the card is readable, then go to public portal
+    await new Promise(function(resolve) { setTimeout(resolve, 25000); });
     window.location.replace(PUBLIC_PORTAL);
   }
 
