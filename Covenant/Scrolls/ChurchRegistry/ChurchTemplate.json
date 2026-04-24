@@ -19,7 +19,7 @@
   ],
   "appLinks": {
     "flockos": "FlockOS/Pages/index.html",
-    "flockchat": "../../Courts/TheFellowship/FlockChat.html?church={shortName-lower}",
+    "flockchat": "https://flockos-comms.web.app/?church={shortName-lower}",
     "atog": "../../Courts/TheUpperRoom/ATOG.html?church={shortName-lower}"
   },
   "firebaseConfig": null,

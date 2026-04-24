@@ -534,12 +534,26 @@
       98% { opacity:0.8; transform:translate(0,-1px); }
     }
     html[data-matrix="1"] .card {
-      background: rgba(0,8,0,0.85); border-color: var(--line); border-radius: 4px;
-      box-shadow: 0 0 12px rgba(0,255,65,0.06), inset 0 0 30px rgba(0,255,65,0.02);
+      background: rgba(0,20,5,0.82);
+      border: 1px solid rgba(0,255,65,0.55);
+      border-radius: 4px;
+      box-shadow:
+        0 0 0 1px rgba(0,255,65,0.12),
+        0 0 14px rgba(0,255,65,0.18) inset,
+        0 0 18px rgba(0,255,65,0.22);
+      backdrop-filter: blur(2px);
+    }
+    html[data-matrix="1"] .card:hover {
+      border-color: var(--accent);
+      background: rgba(0,30,8,0.88);
+      box-shadow:
+        0 0 0 1px rgba(0,255,65,0.35),
+        0 0 22px rgba(0,255,65,0.3) inset,
+        0 0 26px rgba(0,255,65,0.4);
     }
     html[data-matrix="1"] .card-title {
-      color: var(--ink-muted); letter-spacing: 0.12em;
-      text-shadow: 0 0 6px rgba(0,170,42,0.6);
+      color: var(--accent); letter-spacing: 0.12em;
+      text-shadow: 0 0 8px rgba(0,255,65,0.7);
     }
     html[data-matrix="1"] .church-btn { border-radius: 4px; text-shadow: none; }
     html[data-matrix="1"] .church-btn:hover {

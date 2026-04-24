@@ -2,8 +2,8 @@
   "name": "The Forest",
   "short_name": "TheForest",
   "description": "Church Management & Ministry Platform",
-  "start_url": "FlockOS/Pages/the_good_shepherd.html",
-  "scope": "/",
+  "start_url": "FlockOS.html",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#1a1a2e",
   "theme_color": "#e8a838",
@@ -22,8 +22,8 @@
   ],
   "shortcuts": [
     {
-      "name": "Dashboard",
-      "url": "FlockOS/Pages/the_good_shepherd.html#dashboard",
+      "name": "Member Login",
+      "url": "FlockOS/Pages/the_good_shepherd.html",
       "icons": [
         {
           "src": "FlockOS/Images/FlockOS_Green.png",
@@ -32,8 +32,8 @@
       ]
     },
     {
-      "name": "Messages",
-      "url": "FlockOS/Pages/the_good_shepherd.html#comms",
+      "name": "FlockChat",
+      "url": "FlockOS.html#chat",
       "icons": [
         {
           "src": "FlockOS/Images/FlockOS_Green.png",
@@ -42,8 +42,8 @@
       ]
     },
     {
-      "name": "Directory",
-      "url": "FlockOS/Pages/the_good_shepherd.html#directory",
+      "name": "Connect",
+      "url": "FlockOS/Pages/the_invitation.html",
       "icons": [
         {
           "src": "FlockOS/Images/FlockOS_Green.png",

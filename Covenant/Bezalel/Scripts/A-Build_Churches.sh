@@ -391,7 +391,9 @@ REDIRECT_EOF
   CHURCH_FLOCKCHAT_URL=$(jq -r '.appLinks.flockchat // empty' "$config")
   CHURCH_ATOG_URL=$(jq -r '.appLinks.atog // empty'           "$config")
   # Fallback to canonical pattern when appLinks not present (API-fetched configs)
-  [ -z "$CHURCH_FLOCKCHAT_URL" ] && CHURCH_FLOCKCHAT_URL="../../Courts/TheFellowship/FlockChat.html?church=${CHURCH_SHORT_LOWER}"
+  # FlockChat is hosted on Firebase (flockos-comms) — absolute URL avoids broken
+  # GitHub Pages relative paths and serves the working PWA shell.
+  [ -z "$CHURCH_FLOCKCHAT_URL" ] && CHURCH_FLOCKCHAT_URL="https://flockos-comms.web.app/?church=${CHURCH_SHORT_LOWER}"
   [ -z "$CHURCH_ATOG_URL" ]      && CHURCH_ATOG_URL="../../Courts/TheUpperRoom/ATOG.html?church=${CHURCH_SHORT_LOWER}"
   # Portal-level URLs (for FlockOS.html at Nations/<church>/ root — no depth compensation)
   PORTAL_FC_URL="$CHURCH_FLOCKCHAT_URL"

@@ -20,7 +20,7 @@
   ],
   "appLinks": {
     "flockos": "FlockOS/Pages/index.html",
-    "flockchat": "../../Courts/TheFellowship/FlockChat.html?church=tbc",
+    "flockchat": "https://flockos-comms.web.app/?church=tbc",
     "atog": "../../Courts/TheUpperRoom/ATOG.html?church=tbc"
   },
   "firebaseConfig": {

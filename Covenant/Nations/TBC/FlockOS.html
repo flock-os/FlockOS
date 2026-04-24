@@ -196,7 +196,7 @@ sessionStorage.setItem('_flockos_portal', window.location.href);
     <div class="nav-group" data-zone="holy-place">
       <div class="nav-group-label">The Courts</div>
       <div class="nav-group-items">
-        <a class="nav-item" data-view="learning" onclick="navigate('learning')" style="font-weight:700;">
+        <a class="nav-item" data-view="learning" onclick="navigate('learning')">
           <span class="icon">&#128218;</span> Learning Hub
         </a>
       </div>
@@ -228,20 +228,6 @@ sessionStorage.setItem('_flockos_portal', window.location.href);
 
     <div class="nav-threshold"><span class="nav-threshold-glyph">&#183;</span></div>
 
-    <!-- ── Support ──────────────────────────────────────────────── -->
-    <div class="nav-group" data-zone="support">
-      <div class="nav-group-items">
-        <a class="nav-item" data-view="support" onclick="navigate('support')">
-          <span class="icon">&#127838;</span> Support
-        </a>
-        <a class="nav-item" data-view="changelog" onclick="navigate('changelog')">
-          <span class="icon">&#128220;</span> What's New
-        </a>
-      </div>
-    </div>
-
-    <div class="nav-threshold"><span class="nav-threshold-glyph">&#183;</span></div>
-
     <!-- ── Flock Suite ───────────────────────────────────────────── -->
     <div class="nav-group" data-zone="flock-suite">
       <div class="nav-group-label">Flock Suite</div>
@@ -249,11 +235,17 @@ sessionStorage.setItem('_flockos_portal', window.location.href);
         <a class="nav-item" data-view="dashboard" onclick="navigate('dashboard')">
           <span class="icon">&#9673;</span> FlockOS Home
         </a>
-        <a class="nav-item" href="../../Courts/TheFellowship/FlockChat.html?church=tbc">
+        <a class="nav-item" href="https://flockos-comms.web.app/?church=tbc">
           <span class="icon">&#128172;</span> FlockChat
         </a>
         <a class="nav-item" href="../../Courts/TheUpperRoom/ATOG.html?church=tbc">
           <span class="icon">&#128214;</span> A Touch of the Gospel
+        </a>
+        <a class="nav-item" data-view="support" onclick="navigate('support')">
+          <span class="icon">&#127838;</span> Support
+        </a>
+        <a class="nav-item" data-view="changelog" onclick="navigate('changelog')">
+          <span class="icon">&#128220;</span> What's New
         </a>
       </div>
     </div>
@@ -737,7 +729,7 @@ var _changelogEntries = [
     ]
   },
   {
-    version: '3.18', date: 'June 2025', title: 'Analytics, Undo & Polish',
+    version: '3.18', date: 'April 2026', title: 'Analytics, Undo & Polish',
     items: [
       'Dashboard analytics: attendance trend arrows, giving pledge target bar, open care cases with priority breakdown, active prayer count',
       'Undo/Redo for destructive actions — 5-second toast with progress bar lets you cancel deletes, archives, and status changes',
@@ -748,7 +740,7 @@ var _changelogEntries = [
     ]
   },
   {
-    version: '3.17', date: 'May 2025', title: 'Foundation & Reliability',
+    version: '3.17', date: 'March 2026', title: 'Foundation & Reliability',
     items: [
       'Service worker cache versioning and stale-cache cleanup',
       'Console.log cleanup — removed 60+ stray debug statements',
@@ -760,8 +752,9 @@ var _changelogEntries = [
     ]
   },
   {
-    version: '3.16', date: 'April 2025', title: 'Care & Communications',
+    version: '3.16', date: 'March 20, 2026', title: 'Public Launch',
     items: [
+      'FlockOS goes live — first public release of the Church Management & Ministry Platform',
       'Pastoral care hub with case management, priority levels, and caregiver assignment',
       'Threaded messaging with rich text, attachments, and notification badges',
       'Member cards with custom prefixes and QR code generation',

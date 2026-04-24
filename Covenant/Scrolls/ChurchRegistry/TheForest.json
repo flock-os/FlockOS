@@ -20,7 +20,7 @@
   ],
   "appLinks": {
     "flockos": "FlockOS/Pages/index.html",
-    "flockchat": "../../Courts/TheFellowship/FlockChat.html?church=theforest",
+    "flockchat": "https://flockos-comms.web.app/?church=theforest",
     "atog": "../../Courts/TheUpperRoom/ATOG.html?church=theforest"
   },
   "firebaseConfig": {
