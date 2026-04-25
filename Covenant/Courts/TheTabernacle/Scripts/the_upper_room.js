@@ -2271,7 +2271,7 @@
   function getCalendarShareToken(opts) {
     opts = opts || {};
     var tokensRef = _churchRef().collection('calendarTokens');
-    var regenerate = !!(opts && opts.regenerate);
+    var regenerate = !!opts.regenerate;
 
     function _makeToken() {
       // Generate a cryptographically random 32-char hex token

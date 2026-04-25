@@ -870,11 +870,15 @@ exports.serveCalendarICS = onRequest(
         .get();
       calSnap.forEach(function(doc) {
         const d = Object.assign({ id: doc.id }, doc.data());
-        const startDt  = d.StartDateTime || "";
-        const endDt    = d.EndDateTime   || "";
+        // StartDateTime is stored as "YYYY-MM-DD" or "YYYY-MM-DDTHH:mm"
+        const startDt  = (typeof d.StartDateTime === "string") ? d.StartDateTime : "";
+        const endDt    = (typeof d.EndDateTime   === "string") ? d.EndDateTime   : "";
+        // Require at least a 10-char date prefix before extracting parts
+        if (startDt.length < 10) return;
         const datePart = startDt.substring(0, 10);
-        const timePart = d.IsAllDay ? "" : startDt.substring(11, 16);
-        const endPart  = d.IsAllDay ? "" : endDt.substring(11, 16);
+        // Time part is expected to be "HH:mm" (5 chars at position 11)
+        const timePart = d.IsAllDay ? "" : (startDt.length >= 16 ? startDt.substring(11, 16) : "");
+        const endPart  = d.IsAllDay ? "" : (endDt.length   >= 16 ? endDt.substring(11, 16)   : "");
         pool.push({
           uid:         d.id + "@flockos-personal",
           summary:     d.Title || "Event",
@@ -924,9 +928,11 @@ exports.serveCalendarICS = onRequest(
 function _icsDatetime(datePart, timePart) {
   if (!datePart) return "";
   const d = datePart.replace(/-/g, "");
-  if (!timePart) return d;                  // all-day: VALUE=DATE
+  if (!timePart) return d;                      // all-day: VALUE=DATE
+  // timePart is expected as "HH:mm"; strip colon and pad seconds to "HHmmss"
   const t = timePart.replace(/:/g, "");
-  return d + "T" + t + (t.length === 4 ? "00" : "");
+  const ts = t.length === 4 ? t + "00" : t;    // pad HHmm → HHmmss
+  return d + "T" + ts;
 }
 
 function _icsEsc(s) {

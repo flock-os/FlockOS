@@ -1709,9 +1709,10 @@ const TheSeason = (() => {
   // ═══════════════════════════════════════════════════════════════════════
 
   function _calFeedUrl(shareToken) {
-    // Firebase mode: use Cloud Function iCal endpoint URL embedded in token result
-    if (_isFB() && shareToken && shareToken.indexOf('cloudfunctions.net') >= 0) {
-      return shareToken; // shareToken is already the full feed URL in FB mode
+    // Firebase mode: the token value is already a full Cloud Function feed URL
+    if (_isFB() && shareToken && shareToken.indexOf('cloudfunctions.net/') >= 0
+        && (shareToken.indexOf('https://') === 0 || shareToken.indexOf('http://') === 0)) {
+      return shareToken;
     }
     var base = '';
     if (typeof TheVine !== 'undefined' && TheVine.config) {
