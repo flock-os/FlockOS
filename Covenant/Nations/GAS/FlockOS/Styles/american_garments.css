@@ -8246,40 +8246,49 @@ body.flockchat-app .user-pill {
 body.flockchat-app .user-pill .uname { color: #fff; }
 body.flockchat-app .user-pill:hover { border-color: rgba(255,255,255,0.40); }
 
-/* Sidebar: dark accent — creates depth against the white thread area. */
+/* Sidebar: light — matches FlockOS shell, accent details for identity. */
 body.flockchat-app .sidebar {
-  background: var(--accent-hover, #2d2c55);
-  border-right: none;
+  background: var(--bg-sunken, #edf0f6);
+  border-right: 1px solid var(--line);
 }
-body.flockchat-app .sidebar ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.18); }
+body.flockchat-app .sidebar ::-webkit-scrollbar-thumb { background: var(--line-strong); }
 body.flockchat-app .sidebar-search input {
-  background: rgba(0,0,0,0.18);
-  border-color: rgba(255,255,255,0.10);
-  color: #fff;
+  background: var(--bg-raised);
+  border-color: var(--line);
+  color: var(--ink);
+  box-shadow: var(--shadow-sm);
 }
-body.flockchat-app .sidebar-search input::placeholder { color: rgba(255,255,255,0.38); }
-body.flockchat-app .sidebar-search input:focus { border-color: rgba(255,255,255,0.35); outline: none; }
+body.flockchat-app .sidebar-search input::placeholder { color: var(--ink-faint); }
+body.flockchat-app .sidebar-search input:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 2px var(--accent-soft); }
 body.flockchat-app .sidebar-section-header .label {
-  color: rgba(255,255,255,0.48);
+  color: var(--ink-faint);
   font-weight: 700;
   letter-spacing: 0.10em;
   font-size: 0.68rem;
   text-transform: uppercase;
 }
-body.flockchat-app .sidebar-add-btn { color: rgba(255,255,255,0.48); }
-body.flockchat-app .sidebar-add-btn:hover { color: #fff; background: rgba(255,255,255,0.08); }
-body.flockchat-app .sidebar-item .ch-name { color: rgba(255,255,255,0.75); }
-body.flockchat-app .sidebar-item .unread-badge { background: #fff; color: var(--accent); }
-body.flockchat-app .sidebar-item .sigil { color: rgba(255,255,255,0.48); }
-body.flockchat-app .sidebar-item:hover { background: rgba(255,255,255,0.08); }
+body.flockchat-app .sidebar-add-btn { color: var(--ink-faint); }
+body.flockchat-app .sidebar-add-btn:hover { color: var(--accent); background: var(--accent-soft); }
+body.flockchat-app .sidebar-item .ch-name { color: var(--ink-muted); }
+body.flockchat-app .sidebar-item .unread-badge { background: var(--accent); color: #fff; }
+body.flockchat-app .sidebar-item .sigil { color: var(--ink-faint); }
+body.flockchat-app .sidebar-item:hover {
+  background: rgba(60,59,110,0.06);
+}
 body.flockchat-app .sidebar-item.active {
-  background: rgba(255,255,255,0.16);
-  box-shadow: none;
+  background: var(--accent-soft);
+  box-shadow: inset 3px 0 0 var(--accent);
+  border-radius: 0;
+  margin-left: 0;
+  margin-right: 0;
+  padding-left: 18px;  /* 12px original + 6px margin compensation */
+  padding-right: 18px;
 }
 body.flockchat-app .sidebar-item.active .sigil,
-body.flockchat-app .sidebar-item.active .ch-name { color: #fff; font-weight: 600; }
-body.flockchat-app .sidebar-item.has-unread .ch-name { color: #fff; font-weight: 700; }
-body.flockchat-app .dm-presence { border-color: var(--accent-hover, #2d2c55); }
+body.flockchat-app .sidebar-item.active .ch-name { color: var(--accent); font-weight: 700; }
+body.flockchat-app .sidebar-item.has-unread .ch-name { color: var(--ink); font-weight: 700; }
+body.flockchat-app .sidebar-item.has-unread .sigil { color: var(--accent); }
+body.flockchat-app .dm-presence { border-color: var(--bg-sunken); }
 
 /* Avatars: solid color from a 6-step palette, white initials.
    Color is assigned via :nth-of-type so distinct speakers in the
@@ -8446,16 +8455,16 @@ body.flockchat-app .topbar-channel-name {
 body.flockchat-app .topbar-actions { flex-shrink: 0; flex-wrap: nowrap; }
 body.flockchat-app .topbar-icon-btn { white-space: nowrap; }
 
-/* Mobile bottom nav: match sidebar accent */
+/* Mobile bottom nav: light, matches FlockOS chrome */
 body.flockchat-app #bottom-nav {
-  background: var(--accent-hover, #2d2c55);
-  border-top: none;
-  box-shadow: 0 -2px 8px rgba(0,0,0,0.20);
+  background: var(--bg-raised);
+  border-top: 1px solid var(--line);
+  box-shadow: 0 -1px 8px rgba(27,38,79,0.07);
 }
-body.flockchat-app .bottom-nav-btn { color: rgba(255,255,255,0.55); }
-body.flockchat-app .bottom-nav-btn.active { color: #fff; }
+body.flockchat-app .bottom-nav-btn { color: var(--ink-faint); }
+body.flockchat-app .bottom-nav-btn.active { color: var(--accent); font-weight: 700; }
 body.flockchat-app a.bottom-nav-btn,
-body.flockchat-app a.bottom-nav-btn:hover { color: rgba(255,255,255,0.55); text-decoration: none; }
+body.flockchat-app a.bottom-nav-btn:hover { color: var(--ink-faint); text-decoration: none; }
 
 /* ── Responsive ─────────────────────────────────────────────────────────── */
 
@@ -8614,6 +8623,7 @@ body.embedded .topbar {
   border-bottom: 1px solid var(--line);
   box-shadow: 0 1px 4px rgba(27,38,79,0.05);
 }
+body.embedded { --topbar-h: 38px; }
 body.embedded .topbar-context { padding: 0 8px; }
 body.embedded .topbar-channel-name { font-size: 0.86rem; }
 body.embedded .topbar-channel-desc { max-width: 180px; font-size: 0.73rem; }
