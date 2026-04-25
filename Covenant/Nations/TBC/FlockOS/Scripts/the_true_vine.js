@@ -681,9 +681,9 @@ const TheVine = (() => {
     regions:     _m('missions.regions', ['list', 'get', 'create', 'update', 'delete', 'forCountry']),
     cities:      _m('missions.cities', ['list', 'get', 'create', 'update', 'delete', 'forCountry']),
     partners:    _m('missions.partners', ['list', 'get', 'create', 'update', 'delete']),
-    prayerFocus: _m('missions.prayerFocus', ['list', 'create', 'update', 'respond']),
-    updates:     _m('missions.updates', ['list', 'get', 'create', 'publish']),
-    teams:       _m('missions.teams', ['list', 'get', 'create', 'update']),
+    prayerFocus: _m('missions.prayerFocus', ['list', 'create', 'update', 'respond', 'delete']),
+    updates:     _m('missions.updates', ['list', 'get', 'create', 'update', 'publish', 'delete']),
+    teams:       _m('missions.teams', ['list', 'get', 'create', 'update', 'delete']),
     metrics:     _m('missions.metrics', ['list', 'create', 'update', 'compare']),
   };
 

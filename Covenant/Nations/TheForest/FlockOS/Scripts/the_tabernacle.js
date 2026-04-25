@@ -1505,7 +1505,7 @@ const Modules = (() => {
   }
 
   // ── Generic edit helper ────────────────────────────────────────────────
-  async function _edit(module, title, fields, updateFn, id, getFn) {
+  async function _edit(module, title, fields, updateFn, id, getFn, deleteFn) {
     try {
       let r = {};
       if (getFn) {
@@ -1521,13 +1521,18 @@ const Modules = (() => {
       var editFields = [presenceField].concat(fields.map(f => ({
         ...f, value: r[f.name] != null ? String(r[f.name]) : (f.value || '')
       })));
+      var _onDelete = deleteFn ? async function() {
+        _presenceStop();
+        await deleteFn({ id: id });
+        _reload(module);
+      } : null;
       _modal(title, editFields, async data => {
         delete data._presence;
         data.id = id;
         _presenceStop();
         await updateFn(data);
         _reload(module);
-      });
+      }, _onDelete);
       // Watch for other editors in real-time
       _presenceUnsub = _presenceWatch(module, id, function(editors) {
         var el = document.getElementById('edit-presence-badge');
@@ -9057,11 +9062,14 @@ const Modules = (() => {
 
   // ── Update card ─────────────────────────────────────────────────────────
   function _updateCard(r) {
+    const canEdit = typeof Nehemiah !== 'undefined' && Nehemiah.can('missions.updates.edit');
     const sevColor = { Critical: 'var(--danger)', High: '#f59e0b', Moderate: 'var(--info)', Informational: 'var(--ink-muted)' };
     const c = sevColor[r.severity || r.Severity] || 'var(--line)';
     const typeIcons = { 'Prayer Alert': '🙏', 'Situation Report': '📋', 'Victory Report': '🎉', 'Breaking': '⚡', 'Analysis': '📊' };
     const icon = typeIcons[r.updateType || r.UpdateType || r.type] || '📰';
-    return '<div style="background:var(--bg-raised);border:1px solid var(--line);border-left:4px solid ' + c + ';border-radius:8px;padding:14px 16px;margin-bottom:10px;">'
+    const clickAttr = canEdit ? ' onclick="Modules.editMissionsUpdate(\'' + _e(r.id || '') + '\')" style="cursor:pointer;"' : '';
+    return '<div' + clickAttr + ' style="background:var(--bg-raised);border:1px solid var(--line);border-left:4px solid ' + c + ';border-radius:8px;padding:14px 16px;margin-bottom:10px;' + (canEdit ? 'transition:border-color 0.15s;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--line)\'"' : '"')
+      + '>'
       + '<div style="display:flex;align-items:flex-start;gap:10px;">'
       + '<span style="font-size:1.3rem;flex-shrink:0;margin-top:1px;">' + icon + '</span>'
       + '<div style="flex:1;min-width:0;">'
@@ -9073,6 +9081,7 @@ const Modules = (() => {
       + '<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;font-size:0.70rem;color:var(--ink-muted);">'
       + (r.source ? '<span>📡 ' + _e(r.source) + '</span>' : '')
       + (r.createdAt ? '<span>🕒 ' + _e(_dateStr(r.createdAt)) + '</span>' : '')
+      + (canEdit ? '<span style="margin-left:auto;">✏️ Edit</span>' : '')
       + '</div>'
       + '</div>'
       + '</div>'
@@ -18174,7 +18183,8 @@ const Modules = (() => {
       { name: 'icon',             label: 'Flag Emoji', placeholder: 'e.g. 🇮🇷' },
       { name: 'notes',            label: 'Notes', type: 'textarea' },
     ], p => _isFirebaseComms() ? UpperRoom.updateMissionsRegistry(p) : TheVine.missions.registry.update(p), id,
-       p => _isFirebaseComms() ? UpperRoom.getMissionsRegistry(p) : TheVine.missions.registry.get(p));
+       p => _isFirebaseComms() ? UpperRoom.getMissionsRegistry(p) : TheVine.missions.registry.get(p),
+       p => _isFirebaseComms() ? UpperRoom.deleteMissionsRegistry(p) : TheVine.missions.registry.delete(p));
   }
 
   // ── Edit: prayer focus ─────────────────────────────────────────────────
@@ -18190,7 +18200,8 @@ const Modules = (() => {
       { name: 'status',       label: 'Status', type: 'select',
         options: ['Active','Upcoming','Answered','Archived'] },
     ], p => _isFirebaseComms() ? UpperRoom.updateMissionsPrayerFocus(p) : TheVine.missions.prayerFocus.update(p), id,
-       p => _isFirebaseComms() ? UpperRoom.listMissionsPrayerFocus({ id }).then(r => (r[0] || {})) : TheVine.missions.prayerFocus.list({ id }).then(r => (_rows(r)[0] || {})));
+       p => _isFirebaseComms() ? UpperRoom.listMissionsPrayerFocus({ id }).then(r => (r[0] || {})) : TheVine.missions.prayerFocus.list({ id }).then(r => (_rows(r)[0] || {})),
+       p => _isFirebaseComms() ? UpperRoom.deleteMissionsPrayerFocus(p) : TheVine.missions.prayerFocus.delete(p));
   }
 
   // ── Edit: field update ─────────────────────────────────────────────────
@@ -18207,7 +18218,8 @@ const Modules = (() => {
       { name: 'body',         label: 'Update Body', type: 'textarea' },
       { name: 'source',       label: 'Source / Reporter' },
     ], p => _isFirebaseComms() ? UpperRoom.updateMissionsUpdates(p) : TheVine.missions.updates.update(p), id,
-       p => _isFirebaseComms() ? UpperRoom.getMissionsUpdates(p) : TheVine.missions.updates.get(p));
+       p => _isFirebaseComms() ? UpperRoom.getMissionsUpdates(p) : TheVine.missions.updates.get(p),
+       p => _isFirebaseComms() ? UpperRoom.deleteMissionsUpdates(p) : TheVine.missions.updates.delete(p));
   }
 
   // ── Edit: mission team ─────────────────────────────────────────────────
@@ -18228,7 +18240,8 @@ const Modules = (() => {
       { name: 'objectives',   label: 'Objectives / Goals', type: 'textarea' },
       { name: 'notes',        label: 'Notes', type: 'textarea' },
     ], p => _isFirebaseComms() ? UpperRoom.updateMissionsTeams(p) : TheVine.missions.teams.update(p), id,
-       p => _isFirebaseComms() ? UpperRoom.getMissionsTeams(p) : TheVine.missions.teams.get(p));
+       p => _isFirebaseComms() ? UpperRoom.getMissionsTeams(p) : TheVine.missions.teams.get(p),
+       p => _isFirebaseComms() ? UpperRoom.deleteMissionsTeams(p) : TheVine.missions.teams.delete(p));
   }
 
   // ── Edit: mission partner ──────────────────────────────────────────────
@@ -18252,7 +18265,8 @@ const Modules = (() => {
       { name: 'website',           label: 'Website URL' },
       { name: 'description',       label: 'Description / Notes', type: 'textarea' },
     ], p => _isFirebaseComms() ? UpperRoom.updateMissionsPartners(p) : TheVine.missions.partners.update(p), id,
-       p => _isFirebaseComms() ? UpperRoom.getMissionsPartners(p) : TheVine.missions.partners.get(p));
+       p => _isFirebaseComms() ? UpperRoom.getMissionsPartners(p) : TheVine.missions.partners.get(p),
+       p => _isFirebaseComms() ? UpperRoom.deleteMissionsPartners(p) : TheVine.missions.partners.delete(p));
   }
 
   async function editGift(id) {

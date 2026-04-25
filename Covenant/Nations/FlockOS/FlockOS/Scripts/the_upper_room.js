@@ -4001,23 +4001,30 @@ window.FLOCK_CHURCH_ID = "flockos";
     data.updatedAt = _now(); data.updatedBy = _userEmail;
     return _missionsRef(col).doc(id).update(data);
   }
+  function _mDelete(col, p) {
+    var id = (typeof p === 'string') ? p : p.id;
+    return _missionsRef(col).doc(id).delete().then(function() { return { success: true }; });
+  }
 
   // ── Registry (countries) ────────────────────────────────────────
   function listMissionsRegistry(opts) { return _mList('missionsRegistry', opts); }
   function getMissionsRegistry(p)     { return _mGet('missionsRegistry', p); }
   function createMissionsRegistry(d)  { return _mCreate('missionsRegistry', d); }
   function updateMissionsRegistry(d)  { return _mUpdate('missionsRegistry', d); }
+  function deleteMissionsRegistry(p)  { return _mDelete('missionsRegistry', p); }
 
   // ── Partners ────────────────────────────────────────────────────
   function listMissionsPartners(opts) { return _mList('missionsPartners', opts); }
   function getMissionsPartners(p)     { return _mGet('missionsPartners', p); }
   function createMissionsPartners(d)  { return _mCreate('missionsPartners', d); }
   function updateMissionsPartners(d)  { return _mUpdate('missionsPartners', d); }
+  function deleteMissionsPartners(p)  { return _mDelete('missionsPartners', p); }
 
   // ── Prayer Focus ────────────────────────────────────────────────
   function listMissionsPrayerFocus(opts) { return _mList('missionsPrayerFocus', opts); }
   function createMissionsPrayerFocus(d)  { return _mCreate('missionsPrayerFocus', d); }
   function updateMissionsPrayerFocus(d)  { return _mUpdate('missionsPrayerFocus', d); }
+  function deleteMissionsPrayerFocus(p) { return _mDelete('missionsPrayerFocus', p); }
   function respondMissionsPrayerFocus(p) {
     return _missionsRef('missionsPrayerFocus').doc(p.id).update({
       lastPrayedAt: _now(),
@@ -4031,12 +4038,14 @@ window.FLOCK_CHURCH_ID = "flockos";
   function getMissionsUpdates(p)     { return _mGet('missionsUpdates', p); }
   function createMissionsUpdates(d)  { return _mCreate('missionsUpdates', d); }
   function updateMissionsUpdates(d)  { return _mUpdate('missionsUpdates', d); }
+  function deleteMissionsUpdates(p)   { return _mDelete('missionsUpdates', p); }
 
   // ── Teams ───────────────────────────────────────────────────────
   function listMissionsTeams(opts) { return _mList('missionsTeams', opts); }
   function getMissionsTeams(p)     { return _mGet('missionsTeams', p); }
   function createMissionsTeams(d)  { return _mCreate('missionsTeams', d); }
   function updateMissionsTeams(d)  { return _mUpdate('missionsTeams', d); }
+  function deleteMissionsTeams(p)     { return _mDelete('missionsTeams', p); }
 
   // ── Bulk create (for restore) ───────────────────────────────────
   function missionsBulkCreate(p) {
@@ -4891,22 +4900,27 @@ window.FLOCK_CHURCH_ID = "flockos";
     getMissionsRegistry:      getMissionsRegistry,
     createMissionsRegistry:   createMissionsRegistry,
     updateMissionsRegistry:   updateMissionsRegistry,
+    deleteMissionsRegistry:   deleteMissionsRegistry,
     listMissionsPartners:     listMissionsPartners,
     getMissionsPartners:      getMissionsPartners,
     createMissionsPartners:   createMissionsPartners,
     updateMissionsPartners:   updateMissionsPartners,
+    deleteMissionsPartners:   deleteMissionsPartners,
     listMissionsPrayerFocus:  listMissionsPrayerFocus,
     createMissionsPrayerFocus: createMissionsPrayerFocus,
     updateMissionsPrayerFocus: updateMissionsPrayerFocus,
+    deleteMissionsPrayerFocus: deleteMissionsPrayerFocus,
     respondMissionsPrayerFocus: respondMissionsPrayerFocus,
     listMissionsUpdates:      listMissionsUpdates,
     getMissionsUpdates:       getMissionsUpdates,
     createMissionsUpdates:    createMissionsUpdates,
     updateMissionsUpdates:    updateMissionsUpdates,
+    deleteMissionsUpdates:    deleteMissionsUpdates,
     listMissionsTeams:        listMissionsTeams,
     getMissionsTeams:         getMissionsTeams,
     createMissionsTeams:      createMissionsTeams,
     updateMissionsTeams:      updateMissionsTeams,
+    deleteMissionsTeams:      deleteMissionsTeams,
     missionsBulkCreate:       missionsBulkCreate,
 
     // App Config
