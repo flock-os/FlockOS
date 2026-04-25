@@ -605,14 +605,18 @@ const TheLife = (() => {
         + '</div>';
       if (interactions.length) {
         tlSec += '<div class="fp-timeline">';
-        interactions.sort(function(a, b) { return String(b.date || b.createdAt || '').localeCompare(String(a.date || a.createdAt || '')); });
+        interactions.sort(function(a, b) {
+          function _ts(v) { return v && typeof v === 'object' && v.seconds ? v.seconds : (Date.parse(String(v || '')) / 1000 || 0); }
+          return _ts(b.date || b.createdAt) - _ts(a.date || a.createdAt);
+        });
         interactions.forEach(function(ix) {
           tlSec += '<div class="fp-timeline-item">'
             + '<div class="fp-timeline-dot"></div>'
             + '<div class="fp-timeline-content">'
             + '<div class="fp-timeline-head">'
             + '<span class="fp-timeline-type">' + _e(ix.interactionType || ix.type || 'Note') + '</span>'
-            + '<span class="fp-timeline-date">' + _e(ix.date || ix.createdAt || '') + '</span>'
+            + '<span class="fp-timeline-date">' + _e(_fmtDate(ix.date || ix.createdAt)) + '</span>'
+            + (ix.createdBy ? '<span style="font-size:0.72rem;color:var(--ink-faint);margin-left:6px;">by ' + _e(ix.createdBy) + '</span>' : '')
             + '</div>'
             + '<div class="fp-timeline-body">' + _e(ix.notes || ix.description || '') + '</div>'
             + (ix.followUpDate ? '<div class="fp-timeline-fu">Follow-up: ' + _e(ix.followUpDate) + '</div>' : '')
@@ -1843,8 +1847,8 @@ const TheLife = (() => {
             + '<div class="fp-timeline-content">'
             + '<div class="fp-timeline-head">'
             + '<span class="fp-timeline-type">' + ixIcon + ' ' + _e(ix.interactionType || ix.type || 'Note') + '</span>'
-            + '<span class="fp-timeline-date">' + _e(ix.date || (ix.createdAt ? ix.createdAt.substring(0,10) : '')) + '</span>'
-            + (ix.createdBy ? '<span style="font-size:0.72rem;color:var(--ink-faint);margin-left:6px;">' + _e(ix.createdBy) + '</span>' : '')
+            + '<span class="fp-timeline-date">' + _e(_fmtDate(ix.date || ix.createdAt)) + '</span>'
+            + (ix.createdBy ? '<span style="font-size:0.72rem;color:var(--ink-faint);margin-left:6px;">by ' + _e(ix.createdBy) + '</span>' : '')
             + '</div>'
             + (ix.notes ? '<div class="fp-timeline-body">' + _e(ix.notes) + '</div>' : '')
             + (ix.followUpDate ? '<div class="fp-timeline-fu">\uD83D\uDCC5 Follow-up: ' + _e(ix.followUpDate) + '</div>' : '')
