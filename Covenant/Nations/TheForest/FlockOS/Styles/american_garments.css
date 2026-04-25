@@ -8217,52 +8217,69 @@ textarea#composer-input::placeholder { color: var(--ink-faint); }
    on identity (wordmark, active channel, mentions, focus).
    Inspired by Slack / Linear / Notion — restraint over decoration. */
 
-/* Topbar: clean white-raised surface, single hairline rule, brand
-   wordmark in accent (no rainbow gradient). */
+/* Topbar: accent-colored bar, white text — gives FlockChat its identity. */
 body.flockchat-app .topbar {
-  background: var(--bg-raised);
-  border-bottom: 1px solid var(--line);
-  box-shadow: none;
+  background: var(--accent);
+  border-bottom: none;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.22);
 }
 body.flockchat-app .topbar-brand .wordmark {
-  color: var(--accent);
+  color: #fff;
   font-weight: 700;
   letter-spacing: 0.02em;
 }
 body.flockchat-app .topbar-brand .build-tag {
-  color: var(--ink-faint);
+  color: rgba(255,255,255,0.55);
   font-weight: 500;
   font-size: 0.72rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   margin-left: 8px;
 }
-body.flockchat-app .topbar-channel-name { color: var(--ink); font-weight: 600; }
-body.flockchat-app .topbar-channel-name .sigil { color: var(--ink-faint); }
-
-/* Sidebar: section labels muted but legible; channel sigils muted at
-   rest, accent on active. No gradient row backgrounds.
-   Subtle sunken background gives separation from the message thread. */
-body.flockchat-app .sidebar {
-  background: var(--bg-sunken);
-  border-right: 1px solid var(--line);
+body.flockchat-app .topbar-channel-name { color: #fff; font-weight: 600; }
+body.flockchat-app .topbar-channel-name .sigil { color: rgba(255,255,255,0.60); }
+body.flockchat-app .topbar-channel-desc { color: rgba(255,255,255,0.60); border-left-color: rgba(255,255,255,0.18); }
+body.flockchat-app .user-pill {
+  background: rgba(255,255,255,0.12);
+  border-color: rgba(255,255,255,0.18);
 }
-body.flockchat-app .sidebar-search input { background: var(--bg-raised); }
+body.flockchat-app .user-pill .uname { color: #fff; }
+body.flockchat-app .user-pill:hover { border-color: rgba(255,255,255,0.40); }
+
+/* Sidebar: dark accent — creates depth against the white thread area. */
+body.flockchat-app .sidebar {
+  background: var(--accent-hover, #2d2c55);
+  border-right: none;
+}
+body.flockchat-app .sidebar ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.18); }
+body.flockchat-app .sidebar-search input {
+  background: rgba(0,0,0,0.18);
+  border-color: rgba(255,255,255,0.10);
+  color: #fff;
+}
+body.flockchat-app .sidebar-search input::placeholder { color: rgba(255,255,255,0.38); }
+body.flockchat-app .sidebar-search input:focus { border-color: rgba(255,255,255,0.35); outline: none; }
 body.flockchat-app .sidebar-section-header .label {
-  color: var(--ink-muted);
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  font-size: 0.7rem;
+  color: rgba(255,255,255,0.48);
+  font-weight: 700;
+  letter-spacing: 0.10em;
+  font-size: 0.68rem;
   text-transform: uppercase;
 }
-body.flockchat-app .sidebar-item .sigil { color: var(--ink-faint); }
+body.flockchat-app .sidebar-add-btn { color: rgba(255,255,255,0.48); }
+body.flockchat-app .sidebar-add-btn:hover { color: #fff; background: rgba(255,255,255,0.08); }
+body.flockchat-app .sidebar-item .ch-name { color: rgba(255,255,255,0.75); }
+body.flockchat-app .sidebar-item .unread-badge { background: #fff; color: var(--accent); }
+body.flockchat-app .sidebar-item .sigil { color: rgba(255,255,255,0.48); }
+body.flockchat-app .sidebar-item:hover { background: rgba(255,255,255,0.08); }
 body.flockchat-app .sidebar-item.active {
-  background: var(--accent-soft);
-  box-shadow: inset 2px 0 0 var(--accent);
+  background: rgba(255,255,255,0.16);
+  box-shadow: none;
 }
 body.flockchat-app .sidebar-item.active .sigil,
-body.flockchat-app .sidebar-item.active .ch-name { color: var(--accent); }
-body.flockchat-app .sidebar-item.has-unread .ch-name { color: var(--ink); font-weight: 600; }
+body.flockchat-app .sidebar-item.active .ch-name { color: #fff; font-weight: 600; }
+body.flockchat-app .sidebar-item.has-unread .ch-name { color: #fff; font-weight: 700; }
+body.flockchat-app .dm-presence { border-color: var(--accent-hover, #2d2c55); }
 
 /* Avatars: solid color from a 6-step palette, white initials.
    Color is assigned via :nth-of-type so distinct speakers in the
@@ -8363,14 +8380,16 @@ body.flockchat-app .composer-inner:focus-within {
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
-/* Topbar icon buttons: quiet at rest, subtle hover */
+/* Topbar icon buttons: white on accent background */
 body.flockchat-app .topbar-icon-btn {
-  color: var(--ink-muted);
-  transition: background 0.12s, color 0.12s, border-color 0.12s;
+  color: rgba(255,255,255,0.75);
+  border-color: transparent;
+  transition: background 0.12s, color 0.12s;
 }
 body.flockchat-app .topbar-icon-btn:hover {
-  background: var(--bg-hover);
-  color: var(--ink);
+  background: rgba(255,255,255,0.12);
+  color: #fff;
+  border-color: transparent;
 }
 
 /* Auth card: clean white, single accent rule on top */
@@ -8426,6 +8445,17 @@ body.flockchat-app .topbar-channel-name {
 }
 body.flockchat-app .topbar-actions { flex-shrink: 0; flex-wrap: nowrap; }
 body.flockchat-app .topbar-icon-btn { white-space: nowrap; }
+
+/* Mobile bottom nav: match sidebar accent */
+body.flockchat-app #bottom-nav {
+  background: var(--accent-hover, #2d2c55);
+  border-top: none;
+  box-shadow: 0 -2px 8px rgba(0,0,0,0.20);
+}
+body.flockchat-app .bottom-nav-btn { color: rgba(255,255,255,0.55); }
+body.flockchat-app .bottom-nav-btn.active { color: #fff; }
+body.flockchat-app a.bottom-nav-btn,
+body.flockchat-app a.bottom-nav-btn:hover { color: rgba(255,255,255,0.55); text-decoration: none; }
 
 /* ── Responsive ─────────────────────────────────────────────────────────── */
 
@@ -8501,15 +8531,13 @@ body.flockchat-app .topbar-icon-btn { white-space: nowrap; }
   }
   .sidebar.open { transform: translateX(0); }
 
-  /* Scrim behind open drawer — light, subtle dim (was too dark/saturated) */
+  /* Scrim behind open drawer */
   #sidebar-scrim {
     display: none;
     position: fixed;
     inset: 0;
     top: var(--topbar-h);
-    background: rgba(15,20,40,0.18);
-    backdrop-filter: blur(2px);
-    -webkit-backdrop-filter: blur(2px);
+    background: rgba(0,0,0,0.30);
     z-index: 140;
   }
   #sidebar-scrim.open { display: block; }
