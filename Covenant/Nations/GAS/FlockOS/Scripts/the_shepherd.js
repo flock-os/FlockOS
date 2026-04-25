@@ -793,7 +793,7 @@ const TheShepherd = (() => {
 
     // ═══ SECTION: Permissions (lazy loaded) ═══
     if (canEditPerms && !isMidKey) {
-      html += _ppSecLazy('Permissions', 'permissions', 'TheShepherd._loadPerms(' + JSON.stringify(email) + ')');
+      html += _ppSecLazy('Permissions', 'permissions', "TheShepherd._loadPerms('" + email + "')");
     }
 
     // ═══ SECTION: Admin Actions ═══
