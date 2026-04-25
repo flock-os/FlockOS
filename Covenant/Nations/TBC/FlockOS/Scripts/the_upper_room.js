@@ -1557,6 +1557,8 @@ window.FLOCK_CHURCH_ID = "tbc";
       resolvedAt: firebase.firestore.FieldValue.serverTimestamp(),
       resolvedBy: _userEmail,
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }).then(function() {
+      return { ok: true, row: { status: 'Resolved' } };
     });
   }
 
