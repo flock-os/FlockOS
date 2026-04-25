@@ -9219,7 +9219,13 @@ const Modules = (() => {
           html += '</div>';
         }
 
-        // Resource links bar
+        // Resource links bar — church-aware FlockOS / FlockChat / ATOG URLs
+        const _churchSlug = (new URLSearchParams(window.location.search).get('church') || 'root').trim().toLowerCase();
+        const _churchFolderMap = { root: 'Root', flockos: 'FlockOS', gas: 'GAS', tbc: 'TBC', theforest: 'TheForest' };
+        const _churchFolder = _churchFolderMap[_churchSlug] || 'Root';
+        const _flockosUrl  = 'https://flockos.yhwh.one/Covenant/Nations/' + _churchFolder + '/FlockOS.html?church=' + encodeURIComponent(_churchSlug);
+        const _flockchatUrl = 'https://flockos-comms.web.app/FlockChat.html?church=' + encodeURIComponent(_churchSlug);
+        const _atogUrl     = 'https://flockos.yhwh.one/Covenant/Nations/Root/ATOG.html?church=' + encodeURIComponent(_churchSlug);
         html += '<div style="margin-top:24px;padding:14px 16px;background:var(--bg-raised);border:1px solid var(--line);border-radius:10px;">'
           + '<div style="font-size:0.72rem;font-weight:700;color:var(--ink-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px;">Global Missions Resources</div>'
           + '<div style="display:flex;gap:10px;flex-wrap:wrap;">'
@@ -9230,9 +9236,14 @@ const Modules = (() => {
           + '<a href="https://finishingthetask.com" target="_blank" rel="noopener" style="font-size:0.78rem;color:var(--accent);text-decoration:none;padding:4px 10px;border:1px solid var(--line);border-radius:5px;">🏁 Finishing the Task</a>'
           + '<a href="https://www.frontlinesinternational.org" target="_blank" rel="noopener" style="font-size:0.78rem;color:var(--accent);text-decoration:none;padding:4px 10px;border:1px solid var(--line);border-radius:5px;">🗺 Frontlines Intl</a>'
           + '<a href="https://www.bibleproject.com" target="_blank" rel="noopener" style="font-size:0.78rem;color:var(--accent);text-decoration:none;padding:4px 10px;border:1px solid var(--line);border-radius:5px;">📖 BibleProject</a>'
-          + '<a href="https://flockos.yhwh.one" target="_blank" rel="noopener" style="font-size:0.78rem;color:var(--accent);text-decoration:none;padding:4px 10px;border:1px solid var(--line);border-radius:5px;">🕊 FlockOS</a>'
-          + '<a href="https://flockos-comms.web.app" target="_blank" rel="noopener" style="font-size:0.78rem;color:var(--accent);text-decoration:none;padding:4px 10px;border:1px solid var(--line);border-radius:5px;">💬 FlockChat</a>'
+          + '<a href="' + _flockosUrl  + '" target="_blank" rel="noopener" style="font-size:0.78rem;color:var(--accent);text-decoration:none;padding:4px 10px;border:1px solid var(--line);border-radius:5px;">🕊 FlockOS</a>'
+          + '<a href="' + _flockchatUrl + '" target="_blank" rel="noopener" style="font-size:0.78rem;color:var(--accent);text-decoration:none;padding:4px 10px;border:1px solid var(--line);border-radius:5px;">💬 FlockChat</a>'
+          + '<a href="' + _atogUrl     + '" target="_blank" rel="noopener" style="font-size:0.78rem;color:var(--accent);text-decoration:none;padding:4px 10px;border:1px solid var(--line);border-radius:5px;">✨ A Touch of the Gospel</a>'
           + '<a href="https://www.bibleaccesslist.org" target="_blank" rel="noopener" style="font-size:0.78rem;color:var(--accent);text-decoration:none;padding:4px 10px;border:1px solid var(--line);border-radius:5px;">📋 Bible Access List</a>'
+          + '<a href="https://afghanbibles.org/eng/dari-bible" target="_blank" rel="noopener" style="font-size:0.78rem;color:var(--accent);text-decoration:none;padding:4px 10px;border:1px solid var(--line);border-radius:5px;">📕 Dari Bible</a>'
+          + '<a href="https://afghanbibles.org/eng/pashto-bible" target="_blank" rel="noopener" style="font-size:0.78rem;color:var(--accent);text-decoration:none;padding:4px 10px;border:1px solid var(--line);border-radius:5px;">📕 Pashto Bible</a>'
+          + '<a href="https://afghanbibles.org/eng/pashto-bible" target="_blank" rel="noopener" style="font-size:0.78rem;color:var(--accent);text-decoration:none;padding:4px 10px;border:1px solid var(--line);border-radius:5px;">📕 Yousafzai Pashto Bible</a>'
+          + '<a href="https://afghanbibles.org/eng/turkmen-bible" target="_blank" rel="noopener" style="font-size:0.78rem;color:var(--accent);text-decoration:none;padding:4px 10px;border:1px solid var(--line);border-radius:5px;">📕 Turkmen Bible</a>'
           + '</div>'
           + '</div>';
 

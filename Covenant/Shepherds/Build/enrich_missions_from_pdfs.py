@@ -110,10 +110,11 @@ def parse_profile(pdf_bytes):
     # "CONSIDERABLE ACCESS RESTRICTIONS", "MINIMAL ACCESS RESTRICTIONS"
     m = re.search(r'\b((?:EXTREME|SEVERE|CONSIDERABLE|MODERATE|SOME|MINIMAL|LOW)\s+ACCESS\s+RESTRICTIONS)', text)
     if m:
-        out["persecutionLevel"] = m.group(1).strip().title()
+        out["persecutionLabel"] = m.group(1).strip().title()  # full label
         for key, norm in LEVEL_MAP:
             if key in m.group(1):
-                out["persecutionTier"] = norm
+                out["persecutionTier"]  = norm
+                out["persecutionLevel"] = norm  # tier word for UI filter
                 break
 
     # Bible shortage estimate phrase ("Bible needs estimate is less than ten thousand")
