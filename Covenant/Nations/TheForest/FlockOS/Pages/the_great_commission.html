@@ -15,13 +15,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;600;700&family=Noto+Serif:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../Styles/american_garments.css">
   <style>
-    :root {
-      --topbar-h: 56px;
-      /* Fallback values — overridden by Fine Linen theme system */
-      --bg: #1a1a2e;
-      --bg-raised: #16213e;
-      --ink: #e0e0e0;
-    }
+    /* Flash prevention — America theme base before fine_linen.js applies data-theme */
+    :root { --topbar-h: 56px; --bg: #f7f8fb; --bg-raised: #ffffff; --ink: #1b264f; }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html { font-size: 100%; -webkit-text-size-adjust: 100%; }
     body {
