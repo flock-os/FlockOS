@@ -8246,8 +8246,20 @@ body.flockchat-app .user-pill {
 body.flockchat-app .user-pill .uname { color: #fff; }
 body.flockchat-app .user-pill:hover { border-color: rgba(255,255,255,0.40); }
 
-/* Sidebar: light — matches FlockOS shell, accent details for identity. */
+/* Sidebar: light — matches FlockOS shell, accent details for identity.
+   IMPORTANT: The unscoped .sidebar rule (for FlockOS nav) uses position:fixed.
+   We must explicitly reset to static here so the FlockChat sidebar sits in
+   normal flex flow on desktop and does NOT overlay the thread pane. */
 body.flockchat-app .sidebar {
+  position: static !important;
+  z-index: auto !important;
+  top: auto !important;
+  left: auto !important;
+  bottom: auto !important;
+  transform: none !important;
+  height: auto;
+  overflow-y: hidden;
+  padding: 0;
   background: var(--bg-sunken, #edf0f6);
   border-right: 1px solid var(--line);
 }
@@ -8527,18 +8539,21 @@ body.flockchat-app a.bottom-nav-btn:hover { color: var(--ink-faint); text-decora
   #btn-msg-search { font-size: 1rem; }
 
   /* ── Sidebar drawer ── */
-  .sidebar {
-    position: fixed;
-    top: 0; left: 0; bottom: 0;
+  /* Must be scoped to body.flockchat-app so it outweighs the static reset above */
+  body.flockchat-app .sidebar {
+    position: fixed !important;
+    top: var(--topbar-h) !important;
+    left: 0 !important;
+    bottom: 0 !important;
     width: var(--sidebar-w);
-    z-index: 150;
-    transform: translateX(-100%);
+    z-index: 150 !important;
+    transform: translateX(-100%) !important;
     transition: transform 0.25s ease;
     box-shadow: var(--shadow-lg);
-    /* push down below topbar */
-    top: var(--topbar-h);
+    height: auto;
+    overflow-y: auto;
   }
-  .sidebar.open { transform: translateX(0); }
+  body.flockchat-app .sidebar.open { transform: translateX(0) !important; }
 
   /* Scrim behind open drawer */
   #sidebar-scrim {
