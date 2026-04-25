@@ -1984,9 +1984,27 @@ const TheWay = (() => {
             if (flat.length) {
               var catMap = {};
               flat.forEach(function(r) {
-                var cat = r['Category Title'] || 'General';
-                if (!catMap[cat]) catMap[cat] = { title: cat, intro: r['Category Intro'] || '', icon: '\u2638', colorVar: 'var(--accent-cyan)', sections: [] };
-                catMap[cat].sections.push({ title: r['Section Title'] || '', content: r['Content'] || '', scriptureRefs: '', summary: '', keywords: '', status: 'Approved', scriptures: [] });
+                var cat = r['Category Title'] || r.categoryTitle || r.category_title || 'General';
+                if (!catMap[cat]) catMap[cat] = {
+                  title: cat,
+                  subtitle: r['Category Subtitle'] || r.categorySubtitle || '',
+                  intro: r['Category Intro'] || r.categoryIntro || r.category_intro || '',
+                  icon: r['Category Icon'] || r.categoryIcon || '\u2638',
+                  colorVar: r['Category Color'] || r.categoryColor || 'var(--accent-cyan)',
+                  sections: []
+                };
+                catMap[cat].sections.push({
+                  title: r['Section Title'] || r.sectionTitle || r.section_title || '',
+                  content: r['Content'] || r.content || '',
+                  summary: r['Summary'] || r.summary || '',
+                  scriptureRefs: r['Scripture Refs'] || r['ScriptureRefs'] || r.scriptureRefs || '',
+                  keywords: r['Keywords'] || r.keywords || '',
+                  status: r['Status'] || r.status || 'Approved',
+                  version: r['Version'] || r.version || null,
+                  approvedBy: r['Approved By'] || r.approvedBy || '',
+                  approvedAt: r['Approved At'] || r.approvedAt || '',
+                  scriptures: []
+                });
               });
               tree = Object.keys(catMap).map(function(k) { return catMap[k]; });
             }
