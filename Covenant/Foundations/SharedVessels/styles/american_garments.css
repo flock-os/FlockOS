@@ -8217,11 +8217,12 @@ textarea#composer-input::placeholder { color: var(--ink-faint); }
    on identity (wordmark, active channel, mentions, focus).
    Inspired by Slack / Linear / Notion — restraint over decoration. */
 
-/* Topbar: clean white-raised surface, hairline rule + subtle shadow for lift. */
+/* Topbar: clean white-raised surface, single hairline rule, brand
+   wordmark in accent (no rainbow gradient). */
 body.flockchat-app .topbar {
   background: var(--bg-raised);
   border-bottom: 1px solid var(--line);
-  box-shadow: 0 1px 5px rgba(27,38,79,0.06);
+  box-shadow: none;
 }
 body.flockchat-app .topbar-brand .wordmark {
   color: var(--accent);
@@ -8239,25 +8240,21 @@ body.flockchat-app .topbar-brand .build-tag {
 body.flockchat-app .topbar-channel-name { color: var(--ink); font-weight: 600; }
 body.flockchat-app .topbar-channel-name .sigil { color: var(--ink-faint); }
 
-/* Sidebar: sunken-tint background gives clear depth vs the message area.
-   Section labels uppercase, slightly bolder, wider tracking. */
+/* Sidebar: section labels muted but legible; channel sigils muted at
+   rest, accent on active. No gradient row backgrounds.
+   Subtle sunken background gives separation from the message thread. */
 body.flockchat-app .sidebar {
   background: var(--bg-sunken);
-  box-shadow: 2px 0 8px rgba(27,38,79,0.06);
   border-right: 1px solid var(--line);
 }
-body.flockchat-app .sidebar-search input {
-  background: var(--bg-raised);
-}
+body.flockchat-app .sidebar-search input { background: var(--bg-raised); }
 body.flockchat-app .sidebar-section-header .label {
   color: var(--ink-muted);
-  font-weight: 700;
-  letter-spacing: 0.10em;
-  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  font-size: 0.7rem;
   text-transform: uppercase;
 }
-body.flockchat-app .sidebar-item { border-radius: 6px; margin: 0 6px; }
-body.flockchat-app .sidebar-item:hover { background: var(--bg-hover); }
 body.flockchat-app .sidebar-item .sigil { color: var(--ink-faint); }
 body.flockchat-app .sidebar-item.active {
   background: var(--accent-soft);
@@ -8288,9 +8285,7 @@ body.flockchat-app .msg-row:nth-of-type(6n+5) .msg-avatar { background: var(--go
 body.flockchat-app .msg-row:nth-of-type(6n)   .msg-avatar { background: var(--rose, #b07c95); }
 
 /* Message rows: generous breathing room, hover tint only (no pills,
-   no per-row colored backgrounds). The message area is pure white to
-   contrast the sunken sidebar — this creates the depth hierarchy. */
-body.flockchat-app .thread-pane { background: var(--bg-raised); }
+   no per-row colored backgrounds). */
 body.flockchat-app .message-list { padding: 20px 0 12px; }
 body.flockchat-app .msg-row {
   padding: 6px 24px;
@@ -8314,8 +8309,8 @@ body.flockchat-app .msg-time {
 }
 body.flockchat-app .msg-text {
   color: var(--ink);
-  font-size: 0.95rem;
-  line-height: 1.6;
+  font-size: 0.94rem;
+  line-height: 1.5;
 }
 
 /* Day divider: thin centered hairline with small label */
@@ -8354,17 +8349,13 @@ body.flockchat-app .reaction-chip.reacted {
 }
 body.flockchat-app .reaction-chip.reacted .count { color: var(--accent); }
 
-/* Composer: elevated surface with a soft shadow from above, accent focus ring */
-body.flockchat-app .composer {
-  background: var(--bg-raised);
-  box-shadow: 0 -2px 10px rgba(27,38,79,0.05);
-  border-top: 1px solid var(--line);
-}
+/* Composer: cleaner edge, accent focus ring (one strong signal) */
+body.flockchat-app .composer { background: var(--bg); }
 body.flockchat-app .composer-inner {
-  background: var(--bg);
-  border: 1px solid var(--line-strong);
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
   border-radius: 10px;
-  box-shadow: 0 1px 4px rgba(27,38,79,0.05);
+  box-shadow: none;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 body.flockchat-app .composer-inner:focus-within {
@@ -8510,13 +8501,15 @@ body.flockchat-app .topbar-icon-btn { white-space: nowrap; }
   }
   .sidebar.open { transform: translateX(0); }
 
-  /* Scrim behind open drawer */
+  /* Scrim behind open drawer — light, subtle dim (was too dark/saturated) */
   #sidebar-scrim {
     display: none;
     position: fixed;
     inset: 0;
     top: var(--topbar-h);
-    background: rgba(27,38,79,0.35);
+    background: rgba(15,20,40,0.18);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
     z-index: 140;
   }
   #sidebar-scrim.open { display: block; }
@@ -8574,7 +8567,11 @@ body.flockchat-app .topbar-icon-btn { white-space: nowrap; }
   /* ── Hamburger: only show on mobile ── */
   #btn-sidebar-toggle { display: inline-flex !important; font-size: 1.5rem; padding: 4px 14px; }
 
-  /* ── User pill — hide name on very small screens ── */
+  /* ── User pill on mobile ──
+     Both .uname and the status dot are hidden on mobile, leaving an empty
+     oval. Hide the entire pill on mobile — user actions are reachable via
+     the bottom-nav "You" tab and the sidebar drawer. */
+  .user-pill { display: none; }
   .user-pill .uname { display: none; }
   .user-pill #topbar-status-dot { display: none; }
 }

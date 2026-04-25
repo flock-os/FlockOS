@@ -67,13 +67,20 @@ const Nehemiah = (() => {
     // First choice: portal page stored its own URL when it loaded
     var stored = sessionStorage.getItem('_flockos_portal');
     if (stored) return stored;
-    // Fallback: derive from the script's absolute URL.
-    // Structure: [deployment-root]/[AppFolder]/Scripts/firm_foundation.js
-    // → go up one level from AppFolder to deployment root, add FlockOS.html
+    // Fallback: derive from the script's absolute URL. Two layouts exist:
+    //   • Deployed (Nations/<church>/FlockOS/Scripts/...) — portal at <church>/FlockOS.html
+    //   • Source   (Covenant/Courts/TheTabernacle/Scripts/...) — portal at TheTabernacle/FlockOS.html
+    // Strip the parent dir ONLY when it's the canonical "FlockOS" app folder.
     var s = document.querySelector('script[src*="firm_foundation"]');
     if (s && s.src) {
-      var m = s.src.match(/^(.+\/)(?:[^/]+)\/Scripts\/firm_foundation\.js/);
-      if (m) return m[1] + 'FlockOS.html';
+      var m = s.src.match(/^(.+\/)([^/]+)\/Scripts\/firm_foundation\.js/);
+      if (m) {
+        var parentDir = m[1];
+        var appFolder = m[2];
+        return appFolder === 'FlockOS'
+          ? parentDir + 'FlockOS.html'
+          : parentDir + appFolder + '/FlockOS.html';
+      }
     }
     return window.location.origin + '/';
   })();
