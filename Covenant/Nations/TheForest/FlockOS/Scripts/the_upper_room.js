@@ -4065,6 +4065,11 @@ window.FLOCK_CHURCH_ID = "theforest";
 
   function _missionsRef(sub) { return _churchDoc().collection(sub); }
 
+  // Registry (countries / Bible Access List) lives at the TOP LEVEL of the
+  // Firestore project — it is global world-state, shared across all churches,
+  // not nested under churches/{churchId}/.
+  function _missionsRegistryRef() { return _db.collection('missionsRegistry'); }
+
   // generic CRUD factory for each missions sub-collection
   function _mList(col, opts) {
     opts = opts || {};
@@ -4091,12 +4096,35 @@ window.FLOCK_CHURCH_ID = "theforest";
     return _missionsRef(col).doc(id).delete().then(function() { return { success: true }; });
   }
 
-  // ── Registry (countries) ────────────────────────────────────────
-  function listMissionsRegistry(opts) { return _mList('missionsRegistry', opts); }
-  function getMissionsRegistry(p)     { return _mGet('missionsRegistry', p); }
-  function createMissionsRegistry(d)  { return _mCreate('missionsRegistry', d); }
-  function updateMissionsRegistry(d)  { return _mUpdate('missionsRegistry', d); }
-  function deleteMissionsRegistry(p)  { return _mDelete('missionsRegistry', p); }
+  // ── Registry (countries) — TOP-LEVEL collection, not church-scoped ──
+  function listMissionsRegistry(opts) {
+    opts = opts || {};
+    var q = _missionsRegistryRef();
+    if (opts.id) return q.doc(opts.id).get().then(function(d) { var o = d.data() || {}; o.id = d.id; return [o]; });
+    return q.orderBy('countryName').limit(opts.limit || 300).get().then(_snapToArr);
+  }
+  function getMissionsRegistry(p) {
+    var id = (typeof p === 'string') ? p : p.id;
+    return _missionsRegistryRef().doc(id).get().then(function(d) { var o = d.data() || {}; o.id = d.id; return o; });
+  }
+  function createMissionsRegistry(data) {
+    data.createdAt = _now(); data.createdBy = _userEmail;
+    // Use the country slug as the document ID when possible so we never get duplicates
+    var slug = (data.countryName || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    if (slug) {
+      return _missionsRegistryRef().doc(slug).set(data, { merge: true }).then(function() { data.id = slug; return data; });
+    }
+    return _missionsRegistryRef().add(data).then(function(ref) { data.id = ref.id; return data; });
+  }
+  function updateMissionsRegistry(data) {
+    var id = data.id; delete data.id;
+    data.updatedAt = _now(); data.updatedBy = _userEmail;
+    return _missionsRegistryRef().doc(id).update(data);
+  }
+  function deleteMissionsRegistry(p) {
+    var id = (typeof p === 'string') ? p : p.id;
+    return _missionsRegistryRef().doc(id).delete().then(function() { return { success: true }; });
+  }
 
   // ── Partners ────────────────────────────────────────────────────
   function listMissionsPartners(opts) { return _mList('missionsPartners', opts); }
@@ -4140,7 +4168,8 @@ window.FLOCK_CHURCH_ID = "theforest";
     else if (p.tab === 'MissionsUpdates') col = 'missionsUpdates';
     else if (p.tab === 'MissionsTeams') col = 'missionsTeams';
     var batch = _db.batch();
-    var ref = _missionsRef(col);
+    // Registry is global (top-level), all other missions tabs are church-scoped
+    var ref = (col === 'missionsRegistry') ? _missionsRegistryRef() : _missionsRef(col);
     (p.rows || []).forEach(function(r) { batch.set(ref.doc(), r); });
     return batch.commit();
   }
