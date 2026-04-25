@@ -4278,6 +4278,20 @@ window.FLOCK_CHURCH_ID = "theforest";
     return q.get().then(_snapToArr);
   }
 
+  function writeAuditEntry(entry) {
+    // Write a single audit entry directly to the auditLog collection.
+    // Called for client-side events (e.g. view) that don't go through the backend API.
+    return _auditRef().add({
+      ts:         entry.ts || new Date().toISOString(),
+      actorEmail: entry.user || '',
+      role:       entry.role || '',
+      action:     entry.action || '',
+      entityType: entry.target || '',
+      entityId:   entry.targetId || '',
+      details:    entry.detail || '',
+    }).catch(function() { /* non-fatal */ });
+  }
+
   /* ══════════════════════════════════════════════════════════════════
      ACCESS CONTROL
      ══════════════════════════════════════════════════════════════════ */
@@ -5033,6 +5047,7 @@ window.FLOCK_CHURCH_ID = "theforest";
 
     // Audit
     listAudit:             listAudit,
+    writeAuditEntry:       writeAuditEntry,
 
     // Access Control
     listAccess:            listAccess,

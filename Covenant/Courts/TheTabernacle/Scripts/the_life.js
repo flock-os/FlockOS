@@ -181,7 +181,9 @@ const TheLife = (() => {
 
   // ── Audit logger ────────────────────────────────────────────────────────
   // Backend writeAudit fires on every API call automatically.
-  // This frontend helper provides console-level tracing + Luke statistics.
+  // This frontend helper provides console-level tracing + Luke statistics,
+  // and writes view events directly to auditLog (debounced: once per case per day per session).
+  var _auditViewLog = {}; // key: 'action:targetId:YYYY-MM-DD' → true
   function _audit(action, target, targetId, detail) {
     var session = (typeof Nehemiah !== 'undefined' && Nehemiah.getSession) ? Nehemiah.getSession() : {};
     var entry = {
@@ -193,7 +195,18 @@ const TheLife = (() => {
       targetId: targetId || '',
       detail: detail || '',
     };
-    // Fire-and-forget: record a statistics snapshot for trending
+    // For view-only events: write to auditLog once per case per calendar day per session.
+    // This keeps the access trail meaningful without burning writes on every click.
+    var isViewEvent = (action === 'care.view' || action === 'prayer.view');
+    if (isViewEvent && _isFB() && typeof UpperRoom !== 'undefined') {
+      var _dayKey = action + ':' + (targetId || '') + ':' + entry.ts.substring(0, 10);
+      if (!_auditViewLog[_dayKey]) {
+        _auditViewLog[_dayKey] = true;
+        UpperRoom.writeAuditEntry(entry);
+      }
+      return; // view events don't need a stats snapshot
+    }
+    // All other events: fire-and-forget statistics snapshot for trending
     try {
       if (_isFB() && typeof UpperRoom !== 'undefined') {
         UpperRoom.createStatsSnapshot({
@@ -461,6 +474,8 @@ const TheLife = (() => {
       var _permCheck = (_cache.care || []).find(function(c) { return c.id === id; });
       if (!_permCheck) { _toast('Access denied. You are not assigned to this case.', 'error'); return; }
     }
+    // Audit: record who viewed this case and when
+    if (id) { _audit('care.view', 'SpiritualCareCases', id, 'viewed'); }
     var el = _hubEl();
     if (!el) return;
     _fpCareId = id || '';
@@ -1747,6 +1762,8 @@ const TheLife = (() => {
     var el = _hubEl();
     if (!el) return;
     _fpPrayerId = id || '';
+    // Audit: record who viewed this prayer request and when
+    if (id) { _audit('prayer.view', 'PrayerRequests', id, 'viewed'); }
 
     el.innerHTML = '<div class="fp-editor">'
       + '<div class="fp-topbar">'
