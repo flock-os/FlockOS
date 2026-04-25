@@ -8905,11 +8905,17 @@ const Modules = (() => {
   function _persLevel(level) {
     const l = String(level || '').toLowerCase();
     const map = {
-      extreme:   { bg: '#7f1d1d', fg: '#fca5a5', label: 'Extreme' },
-      'very high':{ bg: '#7c2d12', fg: '#fdba74', label: 'Very High' },
-      high:      { bg: '#713f12', fg: '#fde68a', label: 'High' },
-      moderate:  { bg: '#365314', fg: '#bbf7d0', label: 'Moderate' },
-      low:       { bg: '#1e3a2f', fg: '#6ee7b7', label: 'Low' },
+      // Open Doors WWL vocabulary
+      extreme:      { bg: '#7f1d1d', fg: '#fca5a5', label: 'Extreme' },
+      'very high':  { bg: '#7c2d12', fg: '#fdba74', label: 'Very High' },
+      high:         { bg: '#713f12', fg: '#fde68a', label: 'High' },
+      moderate:     { bg: '#365314', fg: '#bbf7d0', label: 'Moderate' },
+      low:          { bg: '#1e3a2f', fg: '#6ee7b7', label: 'Low' },
+      // Bible Access List vocabulary
+      severe:       { bg: '#7c2d12', fg: '#fdba74', label: 'Severe' },
+      considerable: { bg: '#713f12', fg: '#fde68a', label: 'Considerable' },
+      some:         { bg: '#365314', fg: '#bbf7d0', label: 'Some' },
+      minimal:      { bg: '#1e3a2f', fg: '#6ee7b7', label: 'Minimal' },
     };
     const s = map[l] || { bg: 'var(--bg-raised)', fg: 'var(--ink-muted)', label: level || '—' };
     return '<span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:0.72rem;font-weight:700;letter-spacing:0.03em;background:' + s.bg + ';color:' + s.fg + ';">' + _e(s.label) + '</span>';
@@ -9185,9 +9191,10 @@ const Modules = (() => {
           + '<select id="missions-pers-filter" onchange="Modules._missionsFilter()" style="padding:7px 10px;border:1px solid var(--line);border-radius:7px;background:var(--bg-raised);color:var(--ink);font-size:0.78rem;font-family:inherit;">'
           + '<option value="">All Persecution Levels</option>'
           + '<option value="extreme">Extreme</option>'
-          + '<option value="very high">Very High</option>'
-          + '<option value="high">High</option>'
-          + '<option value="moderate">Moderate</option>'
+          + '<option value="severe">Severe</option>'
+          + '<option value="considerable">Considerable</option>'
+          + '<option value="some">Some</option>'
+          + '<option value="minimal">Minimal</option>'
           + '</select>'
           + '<select id="missions-access-filter" onchange="Modules._missionsFilter()" style="padding:7px 10px;border:1px solid var(--line);border-radius:7px;background:var(--bg-raised);color:var(--ink);font-size:0.78rem;font-family:inherit;">'
           + '<option value="">All Gospel Access</option>'
@@ -15626,7 +15633,7 @@ const Modules = (() => {
       { name: 'continent',        label: 'Continent', type: 'select',
         options: ['Africa','Asia','Europe','Latin America','Middle East','North America','Oceania','South Asia'] },
       { name: 'persecutionLevel', label: 'Persecution Level', type: 'select',
-        options: ['Extreme','Very High','High','Moderate','Low','Not Ranked'] },
+        options: ['Extreme','Severe','Considerable','Some','Minimal','Not Ranked'] },
       { name: 'persecutionRank',  label: 'Persecution Rank (1 = worst)', type: 'number' },
       { name: 'gospelAccess',     label: 'Gospel Access', type: 'select',
         options: ['Unreached','Limited','Restricted','Partial','Open'] },
@@ -18160,7 +18167,7 @@ const Modules = (() => {
       { name: 'continent',        label: 'Continent', type: 'select',
         options: ['Africa','Asia','Europe','Latin America','Middle East','North America','Oceania','South Asia'] },
       { name: 'persecutionLevel', label: 'Persecution Level', type: 'select',
-        options: ['Extreme','Very High','High','Moderate','Low','Not Ranked'] },
+        options: ['Extreme','Severe','Considerable','Some','Minimal','Not Ranked'] },
       { name: 'persecutionRank',  label: 'Persecution Rank (1 = worst)', type: 'number' },
       { name: 'gospelAccess',     label: 'Gospel Access', type: 'select',
         options: ['Unreached','Limited','Restricted','Partial','Open'] },
