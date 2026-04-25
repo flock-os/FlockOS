@@ -8910,11 +8910,17 @@ const Modules = (() => {
   function _persLevel(level) {
     const l = String(level || '').toLowerCase();
     const map = {
-      extreme:   { bg: '#7f1d1d', fg: '#fca5a5', label: 'Extreme' },
-      'very high':{ bg: '#7c2d12', fg: '#fdba74', label: 'Very High' },
-      high:      { bg: '#713f12', fg: '#fde68a', label: 'High' },
-      moderate:  { bg: '#365314', fg: '#bbf7d0', label: 'Moderate' },
-      low:       { bg: '#1e3a2f', fg: '#6ee7b7', label: 'Low' },
+      // Open Doors WWL vocabulary
+      extreme:      { bg: '#7f1d1d', fg: '#fca5a5', label: 'Extreme' },
+      'very high':  { bg: '#7c2d12', fg: '#fdba74', label: 'Very High' },
+      high:         { bg: '#713f12', fg: '#fde68a', label: 'High' },
+      moderate:     { bg: '#365314', fg: '#bbf7d0', label: 'Moderate' },
+      low:          { bg: '#1e3a2f', fg: '#6ee7b7', label: 'Low' },
+      // Bible Access List vocabulary
+      severe:       { bg: '#7c2d12', fg: '#fdba74', label: 'Severe' },
+      considerable: { bg: '#713f12', fg: '#fde68a', label: 'Considerable' },
+      some:         { bg: '#365314', fg: '#bbf7d0', label: 'Some' },
+      minimal:      { bg: '#1e3a2f', fg: '#6ee7b7', label: 'Minimal' },
     };
     const s = map[l] || { bg: 'var(--bg-raised)', fg: 'var(--ink-muted)', label: level || '—' };
     return '<span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:0.72rem;font-weight:700;letter-spacing:0.03em;background:' + s.bg + ';color:' + s.fg + ';">' + _e(s.label) + '</span>';
@@ -9194,9 +9200,10 @@ const Modules = (() => {
           + '<select id="missions-pers-filter" onchange="Modules._missionsFilter()" style="padding:7px 10px;border:1px solid var(--line);border-radius:7px;background:var(--bg-raised);color:var(--ink);font-size:0.78rem;font-family:inherit;">'
           + '<option value="">All Persecution Levels</option>'
           + '<option value="extreme">Extreme</option>'
-          + '<option value="very high">Very High</option>'
-          + '<option value="high">High</option>'
-          + '<option value="moderate">Moderate</option>'
+          + '<option value="severe">Severe</option>'
+          + '<option value="considerable">Considerable</option>'
+          + '<option value="some">Some</option>'
+          + '<option value="minimal">Minimal</option>'
           + '</select>'
           + '<select id="missions-access-filter" onchange="Modules._missionsFilter()" style="padding:7px 10px;border:1px solid var(--line);border-radius:7px;background:var(--bg-raised);color:var(--ink);font-size:0.78rem;font-family:inherit;">'
           + '<option value="">All Gospel Access</option>'
@@ -9221,7 +9228,13 @@ const Modules = (() => {
           html += '</div>';
         }
 
-        // Resource links bar
+        // Resource links bar — church-aware FlockOS / FlockChat / ATOG URLs
+        const _churchSlug = (new URLSearchParams(window.location.search).get('church') || 'root').trim().toLowerCase();
+        const _churchFolderMap = { root: 'Root', flockos: 'FlockOS', gas: 'GAS', tbc: 'TBC', theforest: 'TheForest' };
+        const _churchFolder = _churchFolderMap[_churchSlug] || 'Root';
+        const _flockosUrl  = 'https://flockos.yhwh.one/Covenant/Nations/' + _churchFolder + '/FlockOS.html?church=' + encodeURIComponent(_churchSlug);
+        const _flockchatUrl = 'https://flockos-comms.web.app/FlockChat.html?church=' + encodeURIComponent(_churchSlug);
+        const _atogUrl     = 'https://flockos.yhwh.one/Covenant/Nations/Root/ATOG.html?church=' + encodeURIComponent(_churchSlug);
         html += '<div style="margin-top:24px;padding:14px 16px;background:var(--bg-raised);border:1px solid var(--line);border-radius:10px;">'
           + '<div style="font-size:0.72rem;font-weight:700;color:var(--ink-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px;">Global Missions Resources</div>'
           + '<div style="display:flex;gap:10px;flex-wrap:wrap;">'
@@ -9232,9 +9245,14 @@ const Modules = (() => {
           + '<a href="https://finishingthetask.com" target="_blank" rel="noopener" style="font-size:0.78rem;color:var(--accent);text-decoration:none;padding:4px 10px;border:1px solid var(--line);border-radius:5px;">🏁 Finishing the Task</a>'
           + '<a href="https://www.frontlinesinternational.org" target="_blank" rel="noopener" style="font-size:0.78rem;color:var(--accent);text-decoration:none;padding:4px 10px;border:1px solid var(--line);border-radius:5px;">🗺 Frontlines Intl</a>'
           + '<a href="https://www.bibleproject.com" target="_blank" rel="noopener" style="font-size:0.78rem;color:var(--accent);text-decoration:none;padding:4px 10px;border:1px solid var(--line);border-radius:5px;">📖 BibleProject</a>'
-          + '<a href="https://flockos.yhwh.one" target="_blank" rel="noopener" style="font-size:0.78rem;color:var(--accent);text-decoration:none;padding:4px 10px;border:1px solid var(--line);border-radius:5px;">🕊 FlockOS</a>'
-          + '<a href="https://flockos-comms.web.app" target="_blank" rel="noopener" style="font-size:0.78rem;color:var(--accent);text-decoration:none;padding:4px 10px;border:1px solid var(--line);border-radius:5px;">💬 FlockChat</a>'
+          + '<a href="' + _flockosUrl  + '" target="_blank" rel="noopener" style="font-size:0.78rem;color:var(--accent);text-decoration:none;padding:4px 10px;border:1px solid var(--line);border-radius:5px;">🕊 FlockOS</a>'
+          + '<a href="' + _flockchatUrl + '" target="_blank" rel="noopener" style="font-size:0.78rem;color:var(--accent);text-decoration:none;padding:4px 10px;border:1px solid var(--line);border-radius:5px;">💬 FlockChat</a>'
+          + '<a href="' + _atogUrl     + '" target="_blank" rel="noopener" style="font-size:0.78rem;color:var(--accent);text-decoration:none;padding:4px 10px;border:1px solid var(--line);border-radius:5px;">✨ A Touch of the Gospel</a>'
           + '<a href="https://www.bibleaccesslist.org" target="_blank" rel="noopener" style="font-size:0.78rem;color:var(--accent);text-decoration:none;padding:4px 10px;border:1px solid var(--line);border-radius:5px;">📋 Bible Access List</a>'
+          + '<a href="https://afghanbibles.org/eng/dari-bible" target="_blank" rel="noopener" style="font-size:0.78rem;color:var(--accent);text-decoration:none;padding:4px 10px;border:1px solid var(--line);border-radius:5px;">📕 Dari Bible</a>'
+          + '<a href="https://afghanbibles.org/eng/pashto-bible" target="_blank" rel="noopener" style="font-size:0.78rem;color:var(--accent);text-decoration:none;padding:4px 10px;border:1px solid var(--line);border-radius:5px;">📕 Pashto Bible</a>'
+          + '<a href="https://afghanbibles.org/eng/pashto-bible" target="_blank" rel="noopener" style="font-size:0.78rem;color:var(--accent);text-decoration:none;padding:4px 10px;border:1px solid var(--line);border-radius:5px;">📕 Yousafzai Pashto Bible</a>'
+          + '<a href="https://afghanbibles.org/eng/turkmen-bible" target="_blank" rel="noopener" style="font-size:0.78rem;color:var(--accent);text-decoration:none;padding:4px 10px;border:1px solid var(--line);border-radius:5px;">📕 Turkmen Bible</a>'
           + '</div>'
           + '</div>';
 
@@ -15635,7 +15653,7 @@ const Modules = (() => {
       { name: 'continent',        label: 'Continent', type: 'select',
         options: ['Africa','Asia','Europe','Latin America','Middle East','North America','Oceania','South Asia'] },
       { name: 'persecutionLevel', label: 'Persecution Level', type: 'select',
-        options: ['Extreme','Very High','High','Moderate','Low','Not Ranked'] },
+        options: ['Extreme','Severe','Considerable','Some','Minimal','Not Ranked'] },
       { name: 'persecutionRank',  label: 'Persecution Rank (1 = worst)', type: 'number' },
       { name: 'gospelAccess',     label: 'Gospel Access', type: 'select',
         options: ['Unreached','Limited','Restricted','Partial','Open'] },
@@ -18169,7 +18187,7 @@ const Modules = (() => {
       { name: 'continent',        label: 'Continent', type: 'select',
         options: ['Africa','Asia','Europe','Latin America','Middle East','North America','Oceania','South Asia'] },
       { name: 'persecutionLevel', label: 'Persecution Level', type: 'select',
-        options: ['Extreme','Very High','High','Moderate','Low','Not Ranked'] },
+        options: ['Extreme','Severe','Considerable','Some','Minimal','Not Ranked'] },
       { name: 'persecutionRank',  label: 'Persecution Rank (1 = worst)', type: 'number' },
       { name: 'gospelAccess',     label: 'Gospel Access', type: 'select',
         options: ['Unreached','Limited','Restricted','Partial','Open'] },
