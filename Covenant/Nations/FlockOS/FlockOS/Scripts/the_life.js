@@ -2763,8 +2763,7 @@ const TheLife = (() => {
     }
 
     // ── Section: Permissions (only shown to users with user-management capability) ──
-    var canManagePerms = _canManageMemberPerms();
-    if (canManagePerms) {
+    if (Nehemiah.can('users')) {
       var _permTargetEmail = rec.primaryEmail || rec.email || (typeof emailOrId === 'string' && emailOrId.indexOf('@') !== -1 ? emailOrId : '');
       html += _fpSec('Permissions', 'mem-perms',
         '<div id="fp-perms-placeholder" style="color:var(--ink-muted);font-size:0.84rem;padding:8px 0;">'
@@ -2781,7 +2780,7 @@ const TheLife = (() => {
     document.getElementById('fp-body').innerHTML = html;
 
     // ── Lazy-load permissions when section is first expanded ──
-    if (canManagePerms) {
+    if (Nehemiah.can('users')) {
       var _permTargetEmail = rec.primaryEmail || rec.email || (typeof emailOrId === 'string' && emailOrId.indexOf('@') !== -1 ? emailOrId : '');
       var _permSec = document.getElementById('fp-sec-mem-perms');
       var _permDetails = _permSec && _permSec.closest('details');
@@ -4807,25 +4806,7 @@ const TheLife = (() => {
     }
   }
 
-  function _canManageMemberPerms() {
-    if (typeof Nehemiah === 'undefined') return false;
-    return !!(
-      Nehemiah.can('users.permissions') ||
-      Nehemiah.can('users.edit') ||
-      Nehemiah.can('users') ||
-      Nehemiah.hasRole('pastor') ||
-      Nehemiah.hasGroup('Lead Pastor') ||
-      Nehemiah.hasGroup('Admin') ||
-      Nehemiah.hasGroup('Master') ||
-      Nehemiah.hasGroup('Seed Admin')
-    );
-  }
-
   async function savePermissions() {
-    if (!_canManageMemberPerms()) {
-      _toast('You do not have permission to edit permissions.', 'error');
-      return;
-    }
     var hasCritChecked = Array.from(document.querySelectorAll('.fp-perm-chk'))
       .some(function(c) { return c.checked && c.getAttribute('data-risk') === 'critical'; });
     if (hasCritChecked) {

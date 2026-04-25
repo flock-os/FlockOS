@@ -10784,19 +10784,6 @@ const Modules = (() => {
       + '</div></details>';
   }
 
-  function _canManageUserPerms() {
-    if (typeof Nehemiah === 'undefined') return false;
-    return !!(
-      Nehemiah.can('users.permissions') ||
-      Nehemiah.can('users.edit') ||
-      Nehemiah.hasRole('pastor') ||
-      Nehemiah.hasGroup('Lead Pastor') ||
-      Nehemiah.hasGroup('Admin') ||
-      Nehemiah.hasGroup('Master') ||
-      Nehemiah.hasGroup('Seed Admin')
-    );
-  }
-
   /* ── Open person detail (full page, NOT a modal) ────────────────────── */
   async function _ppOpen(email) {
     var el = _ppEl || document.getElementById('view-users');
@@ -10809,7 +10796,7 @@ const Modules = (() => {
     var eid = _e(email);
 
     // Permission check for the viewer — gates API calls and section renders
-    var canEditPerms = _canManageUserPerms();
+    var canEditPerms = typeof Nehemiah !== 'undefined' && (Nehemiah.can('users.permissions') || Nehemiah.can('users.edit'));
 
     // parallel-load detailed records
     var permData = { overrides: [], permissions: {} }, moduleMap = {};
@@ -18471,7 +18458,7 @@ const Modules = (() => {
   }
 
   async function _savePerms(targetEmail) {
-    if (!_canManageUserPerms()) {
+    if (typeof Nehemiah === 'undefined' || !Nehemiah.can('users.permissions')) {
       _toast('You do not have permission to edit permissions.', 'danger');
       return;
     }
@@ -18584,7 +18571,7 @@ const Modules = (() => {
   }
 
   async function _grpSave(targetEmail) {
-    if (!_canManageUserPerms()) {
+    if (typeof Nehemiah === 'undefined' || !Nehemiah.can('users.permissions')) {
       _toast('You do not have permission to edit groups.', 'danger');
       return;
     }

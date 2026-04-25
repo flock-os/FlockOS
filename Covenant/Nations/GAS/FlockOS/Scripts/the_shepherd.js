@@ -367,6 +367,23 @@ const TheShepherd = (() => {
   async function _loadPerms(email) {
     var el = document.getElementById('pp-sec-permissions');
     if (!el) return;
+    var canEditPerms = false;
+    try {
+      if (typeof Nehemiah !== 'undefined' && (Nehemiah.can('users.permissions') || Nehemiah.can('users.edit'))) {
+        canEditPerms = true;
+      }
+    } catch (_) {}
+    if (!canEditPerms) {
+      try {
+        var s = TheVine.session ? TheVine.session() : null;
+        var role = String((s && s.role) || '').toLowerCase();
+        canEditPerms = !!(s && ((s.roleLevel || 0) >= 4 || role === 'pastor' || role === 'admin'));
+      } catch (_) {}
+    }
+    if (!canEditPerms) {
+      el.innerHTML = '<p style="color:var(--ink-muted);font-size:0.84rem;">You do not have permission to edit user permissions.</p>';
+      return;
+    }
     var isMidKey = (email || '').indexOf('_mid_') === 0;
     var p = _ppData[(email || '').toLowerCase()] || {};
     var u = p.user || {};
@@ -596,6 +613,20 @@ const TheShepherd = (() => {
     var p = _ppData[(email || '').toLowerCase()] || {};
     var u = p.user || {};
     var eid = _e(email);
+    var viewer = null;
+    var viewerRole = '';
+    try {
+      viewer = TheVine.session ? TheVine.session() : null;
+      viewerRole = String((viewer && viewer.role) || '').toLowerCase();
+    } catch (_) {}
+    var canManageUsers = !!(viewer && ((viewer.roleLevel || 0) >= 4 || viewerRole === 'pastor' || viewerRole === 'admin'));
+    var canEditPerms = canManageUsers;
+    if (typeof Nehemiah !== 'undefined') {
+      try {
+        if (Nehemiah.can('users.edit') || Nehemiah.can('users.permissions')) canManageUsers = true;
+        if (Nehemiah.can('users.permissions') || Nehemiah.can('users.edit')) canEditPerms = true;
+      } catch (_) {}
+    }
 
     // Use already-cached member and card records from the directory load.
     // Permissions and volunteer data are lazy-loaded when those sections are opened.
@@ -655,7 +686,25 @@ const TheShepherd = (() => {
       _ppF('Preferred Name', 'id_preferredName', (memberRec && memberRec.preferredName) || '', 'text'),
       _ppF('Phone', 'id_phone', u.phone || (memberRec && memberRec.cellPhone) || (cardRec && cardRec.phone), 'tel'));
     idSec += _ppF('Email', 'id_email', isMidKey ? '' : email, 'email');
+    idSec += _ppF('Photo URL', 'id_photoUrl', u.photoUrl || (memberRec && memberRec.photoUrl) || (cardRec && cardRec.photoUrl), 'text');
     html += _ppSec('Identity', 'identity', idSec, true);
+
+    // ═══ SECTION: Account (AuthUsers) ═══
+    if (u && Object.keys(u).length) {
+      var acc = '';
+      acc += _pp2(
+        _ppF('Role', 'acct_role', u.role || 'readonly', 'select', ['readonly','volunteer','leader','deacon','treasurer','pastor','admin']),
+        _ppF('Status', 'acct_status', u.status || 'active', 'select', ['active','pending','suspended','disabled'])
+      );
+      html += _ppSec('Account', 'account', acc, false);
+    } else if (!isMidKey) {
+      html += _ppSec('Account', 'account-none',
+        '<p style="color:var(--ink-muted);font-size:0.84rem;">No login account exists for this person.</p>'
+        + (canManageUsers
+          ? ('<button type="button" onclick="TheShepherd._createUserAccount(\'' + eid + '\')"'
+            + ' style="background:var(--accent);color:var(--ink-inverse);border:none;border-radius:6px;padding:8px 16px;font-weight:600;cursor:pointer;font-size:0.84rem;">+ Create User Account</button>')
+          : ''), false);
+    }
 
     // ═══ MEMBER SECTIONS ═══
     if (memberRec) {
@@ -719,6 +768,49 @@ const TheShepherd = (() => {
         '<p style="color:var(--ink-muted);font-size:0.84rem;">No member record linked to this account.</p>'
         + '<button type="button" onclick="TheShepherd._createMember(\'' + eid + '\')"'
         + ' style="background:var(--accent);color:var(--ink-inverse);border:none;border-radius:6px;padding:8px 16px;font-weight:600;cursor:pointer;font-size:0.84rem;">+ Create Member Record</button>', false);
+    }
+
+    // ═══ SECTION: Contact Card ═══
+    if (cardRec) {
+      var cd = '';
+      cd += _pp2(
+        _ppF('Card Title', 'card_cardTitle', cardRec.cardTitle || '', 'text'),
+        _ppF('Ministry', 'card_ministry', cardRec.ministry || '', 'text')
+      );
+      cd += _pp2(
+        _ppF('Status', 'card_status', cardRec.status || 'Active', 'select', ['Active','Inactive','Archived']),
+        _ppF('Visibility', 'card_visibility', cardRec.visibility || 'public', 'select', ['public','authenticated','private'])
+      );
+      cd += _ppF('Bio', 'card_cardBio', cardRec.cardBio || cardRec.bio || '', 'textarea');
+      cd += '<input type="hidden" id="pp-card_id" value="' + _e(cardRec.id || '') + '">';
+      html += _ppSec('Contact Card', 'card', cd, false);
+    } else if (!isMidKey) {
+      html += _ppSec('Contact Card', 'card-none',
+        '<p style="color:var(--ink-muted);font-size:0.84rem;">No contact card linked to this person.</p>'
+        + '<button type="button" onclick="TheShepherd._createCard(\'' + eid + '\')"'
+        + ' style="background:var(--accent);color:var(--ink-inverse);border:none;border-radius:6px;padding:8px 16px;font-weight:600;cursor:pointer;font-size:0.84rem;">+ Create Contact Card</button>', false);
+    }
+
+    // ═══ SECTION: Permissions (lazy loaded) ═══
+    if (canEditPerms && !isMidKey) {
+      html += _ppSecLazy('Permissions', 'permissions', 'TheShepherd._loadPerms(' + JSON.stringify(email) + ')');
+    }
+
+    // ═══ SECTION: Admin Actions ═══
+    if (canManageUsers && !isMidKey) {
+      var as = '';
+      as += '<div style="display:flex;gap:10px;flex-wrap:wrap;">';
+      as += '<button type="button" onclick="TheShepherd._resetPasscode(\'' + eid + '\')"'
+         + ' style="background:none;border:1px solid var(--line);color:var(--ink);border-radius:6px;padding:8px 14px;cursor:pointer;font-weight:600;font-size:0.83rem;">Reset Passcode</button>';
+      if (memberRec) {
+        as += '<button type="button" onclick="TheShepherd._deleteMember(\'' + _e(memberRec.id || '') + '\',\'' + eid + '\')"'
+           + ' style="background:none;border:1px solid var(--line);color:var(--danger);border-radius:6px;padding:8px 14px;cursor:pointer;font-weight:600;font-size:0.83rem;">Delete Member Record</button>';
+      }
+      as += '<button type="button" onclick="TheShepherd._deleteUser(\'' + eid + '\')"'
+         + ' style="background:var(--danger);border:1px solid var(--danger);color:#fff;border-radius:6px;padding:8px 14px;cursor:pointer;font-weight:700;font-size:0.83rem;">Delete User</button>';
+      as += '</div>';
+      as += '<p style="margin-top:10px;font-size:0.76rem;color:var(--ink-muted);">Delete User performs a full account wipe (Auth, access, permissions, and related records).</p>';
+      html += _ppSec('Admin Actions', 'admin-actions', as, false);
     }
 
     // ── Bottom Save ─────────────────────────────────────────────────────
@@ -929,6 +1021,23 @@ const TheShepherd = (() => {
   }
 
   async function _savePerms(targetEmail) {
+    var canEditPerms = false;
+    try {
+      if (typeof Nehemiah !== 'undefined' && (Nehemiah.can('users.permissions') || Nehemiah.can('users.edit'))) {
+        canEditPerms = true;
+      }
+    } catch (_) {}
+    if (!canEditPerms) {
+      try {
+        var s = TheVine.session ? TheVine.session() : null;
+        var role = String((s && s.role) || '').toLowerCase();
+        canEditPerms = !!(s && ((s.roleLevel || 0) >= 4 || role === 'pastor' || role === 'admin'));
+      } catch (_) {}
+    }
+    if (!canEditPerms) {
+      _toast('You do not have permission to edit permissions.', 'danger');
+      return;
+    }
     var hasCritChecked = Array.from(document.querySelectorAll('.shep-adv-chk'))
       .some(function(c) { return c.checked && c.getAttribute('data-risk') === 'critical'; });
     if (hasCritChecked) {
@@ -970,6 +1079,23 @@ const TheShepherd = (() => {
 
   // ── Delete / Wipe User (admin) ────────────────────────────────────────
   async function _deleteUser(email) {
+    var canDeleteUsers = false;
+    try {
+      if (typeof Nehemiah !== 'undefined' && (Nehemiah.can('users.delete') || Nehemiah.can('users.deactivate') || Nehemiah.can('users.edit'))) {
+        canDeleteUsers = true;
+      }
+    } catch (_) {}
+    if (!canDeleteUsers) {
+      try {
+        var s = TheVine.session ? TheVine.session() : null;
+        var role = String((s && s.role) || '').toLowerCase();
+        canDeleteUsers = !!(s && ((s.roleLevel || 0) >= 5 || role === 'admin'));
+      } catch (_) {}
+    }
+    if (!canDeleteUsers) {
+      _toast('Only admins can delete users.', 'danger');
+      return;
+    }
     if (!email) return;
     var confirmed = confirm(
       'PERMANENTLY DELETE & WIPE this user?\n\n' + email +

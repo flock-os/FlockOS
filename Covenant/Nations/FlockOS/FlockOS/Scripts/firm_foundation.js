@@ -212,20 +212,8 @@ const Nehemiah = (() => {
   function getProfile() {
     try {
       const raw = sessionStorage.getItem('flock_auth_profile');
-      if (!raw) return null;
-      const parsed = JSON.parse(raw);
-      // Accept either the bare profile object or an API envelope { profile: { ... } }.
-      return (parsed && parsed.profile && typeof parsed.profile === 'object') ? parsed.profile : parsed;
+      return raw ? JSON.parse(raw) : null;
     } catch (_) { return null; }
-  }
-
-  /** Normalizes group labels (e.g. Lead_Pastor / lead-pastor -> lead pastor). */
-  function _normalizeGroupName(group) {
-    return String(group || '')
-      .toLowerCase()
-      .replace(/[_-]+/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
   }
 
 
@@ -307,8 +295,7 @@ const Nehemiah = (() => {
     const profile = getProfile();
     const raw = (session && session.groups) || (profile && profile.groups) || '';
     if (!raw) return [];
-    const tokens = Array.isArray(raw) ? raw : String(raw).split(',');
-    return tokens.map(_normalizeGroupName).filter(Boolean);
+    return String(raw).split(',').map(g => g.trim().toLowerCase()).filter(Boolean);
   }
 
   function canAccess(moduleKey) {
@@ -320,8 +307,8 @@ const Nehemiah = (() => {
     if ((session.roleLevel || 0) >= 5) return true;
     // Group-based master overrides — checked against both session and profile
     const groups = _getGroups();
-    if (groups.indexOf('seed admin') !== -1 || groups.indexOf('seedadmin') !== -1) return true;
-    if (groups.indexOf('lead pastor') !== -1 || groups.indexOf('leadpastor') !== -1) return true;
+    if (groups.indexOf('seed admin') !== -1) return true;
+    if (groups.indexOf('lead pastor') !== -1) return true;
     if (groups.indexOf('master') !== -1) return true;
     if (groups.indexOf('admin') !== -1) return true;
     if (groups.indexOf('timothy') !== -1) return true;
@@ -350,8 +337,8 @@ const Nehemiah = (() => {
     if ((session.roleLevel || 0) >= 5) return true;
     // Group-based master overrides
     const groups = _getGroups();
-    if (groups.indexOf('seed admin') !== -1 || groups.indexOf('seedadmin') !== -1) return true;
-    if (groups.indexOf('lead pastor') !== -1 || groups.indexOf('leadpastor') !== -1) return true;
+    if (groups.indexOf('seed admin') !== -1) return true;
+    if (groups.indexOf('lead pastor') !== -1) return true;
     if (groups.indexOf('master') !== -1) return true;
     if (groups.indexOf('admin') !== -1) return true;
     if (groups.indexOf('timothy') !== -1) return true;
@@ -375,7 +362,7 @@ const Nehemiah = (() => {
    * @param {string} groupName — e.g. 'Lead Pastor'
    */
   function hasGroup(groupName) {
-    return _getGroups().indexOf(_normalizeGroupName(groupName)) !== -1;
+    return _getGroups().indexOf(String(groupName).toLowerCase()) !== -1;
   }
 
   /**
@@ -423,9 +410,8 @@ const Nehemiah = (() => {
     if (!result.profile || !result.profile.groups) {
       try {
         const prof = await TheVine.john.auth.profile({});
-        const normalizedProfile = (prof && prof.profile && typeof prof.profile === 'object') ? prof.profile : prof;
-        if (normalizedProfile && (normalizedProfile.groups || normalizedProfile.permissions)) {
-          try { sessionStorage.setItem('flock_auth_profile', JSON.stringify(normalizedProfile)); } catch (_) {}
+        if (prof && (prof.groups || prof.permissions)) {
+          try { sessionStorage.setItem('flock_auth_profile', JSON.stringify(prof)); } catch (_) {}
         }
       } catch (_) { /* best-effort — app will re-try on load */ }
     }
