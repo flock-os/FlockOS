@@ -36,7 +36,7 @@ const { initializeApp }     = require("firebase-admin/app");
 const { getFirestore }      = require("firebase-admin/firestore");
 const { getMessaging }      = require("firebase-admin/messaging");
 const { defineSecret }      = require("firebase-functions/params");
-const { onCall }            = require("firebase-functions/v2/https");
+const { onCall, onRequest } = require("firebase-functions/v2/https");
 
 const GITHUB_TOKEN = defineSecret("GITHUB_TOKEN");
 
@@ -813,3 +813,126 @@ exports.syncGitHubInbound = onSchedule(
     console.log(`[syncGitHubInbound] ✓ ${ghIssues.length} open issues synced, ${Object.keys(byIssueNum).length} existing tracked`);
   }
 );
+
+/**
+ * serveCalendarICS — HTTP endpoint that returns an iCal (.ics) feed.
+ *
+ * Query parameters:
+ *   token  — optional share token (from calendarTokens/{token}).
+ *             If provided, the feed includes the token owner's personal
+ *             events plus all public church events.
+ *             If omitted, only public events are returned.
+ *
+ * Usage in iOS / Google Calendar:
+ *   Subscribe to: https://us-central1-<projectId>.cloudfunctions.net/serveCalendarICS?token=<token>
+ */
+exports.serveCalendarICS = onRequest(
+  { region: "us-central1", cors: true },
+  async (req, res) => {
+    const token = req.query.token || "";
+
+    // ── 1. Resolve user email from share token (if provided) ──────────
+    let userEmail = null;
+    if (token) {
+      const tokDoc = await db.collection("calendarTokens").doc(token).get();
+      if (tokDoc.exists) {
+        userEmail = tokDoc.data().email || null;
+      }
+    }
+
+    // ── 2. Fetch public church events ─────────────────────────────────
+    let pool = [];
+
+    const evSnap = await db.collection("events")
+      .where("visibility", "==", "public")
+      .limit(300)
+      .get();
+    evSnap.forEach(function(doc) {
+      const d = Object.assign({ id: doc.id }, doc.data());
+      if ((d.status || "").toLowerCase() === "archived") return;
+      if ((d.status || "").toLowerCase() === "cancelled") return;
+      pool.push({
+        uid:         d.id + "@flockos-event",
+        summary:     d.title || d.name || "Event",
+        dtstart:     _icsDatetime(d.date || d.startDate, d.time || d.startTime),
+        dtend:       _icsDatetime(d.date || d.startDate, d.endTime),
+        location:    d.location || "",
+        description: d.description || "",
+        allDay:      !(d.time || d.startTime),
+      });
+    });
+
+    // ── 3. Fetch personal events for the token owner ──────────────────
+    if (userEmail) {
+      const calSnap = await db.collection("calendarEvents")
+        .where("email", "==", userEmail)
+        .limit(300)
+        .get();
+      calSnap.forEach(function(doc) {
+        const d = Object.assign({ id: doc.id }, doc.data());
+        const startDt  = d.StartDateTime || "";
+        const endDt    = d.EndDateTime   || "";
+        const datePart = startDt.substring(0, 10);
+        const timePart = d.IsAllDay ? "" : startDt.substring(11, 16);
+        const endPart  = d.IsAllDay ? "" : endDt.substring(11, 16);
+        pool.push({
+          uid:         d.id + "@flockos-personal",
+          summary:     d.Title || "Event",
+          dtstart:     _icsDatetime(datePart, timePart),
+          dtend:       _icsDatetime(datePart, endPart),
+          location:    d.Location || "",
+          description: d.Description || "",
+          allDay:      !!(d.IsAllDay),
+        });
+      });
+    }
+
+    // ── 4. Generate iCal output ───────────────────────────────────────
+    const dtstamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d+/, "").substring(0, 15) + "Z";
+    let ical = "BEGIN:VCALENDAR\r\n";
+    ical += "VERSION:2.0\r\n";
+    ical += "PRODID:-//FlockOS//Church CRM Calendar//EN\r\n";
+    ical += "CALSCALE:GREGORIAN\r\n";
+    ical += "METHOD:PUBLISH\r\n";
+    ical += "X-WR-CALNAME:FlockOS Calendar\r\n";
+
+    pool.forEach(function(ev) {
+      if (!ev.dtstart) return;
+      ical += "BEGIN:VEVENT\r\n";
+      ical += "UID:" + ev.uid + "\r\n";
+      ical += "DTSTAMP:" + dtstamp + "\r\n";
+      ical += "DTSTART" + (ev.allDay ? ";VALUE=DATE" : "") + ":" + ev.dtstart + "\r\n";
+      ical += "DTEND"   + (ev.allDay ? ";VALUE=DATE" : "") + ":" + (ev.dtend || ev.dtstart) + "\r\n";
+      ical += "SUMMARY:" + _icsEsc(ev.summary) + "\r\n";
+      if (ev.location)    ical += "LOCATION:"    + _icsEsc(ev.location)    + "\r\n";
+      if (ev.description) ical += "DESCRIPTION:" + _icsEsc(ev.description) + "\r\n";
+      ical += "STATUS:CONFIRMED\r\n";
+      ical += "END:VEVENT\r\n";
+    });
+
+    ical += "END:VCALENDAR\r\n";
+
+    res.set("Content-Type", "text/calendar;charset=utf-8");
+    res.set("Content-Disposition", "attachment; filename=\"flockos-calendar.ics\"");
+    res.set("Cache-Control", "no-cache, no-store");
+    res.status(200).send(ical);
+  }
+);
+
+// ── iCal helpers ──────────────────────────────────────────────────────────
+
+function _icsDatetime(datePart, timePart) {
+  if (!datePart) return "";
+  const d = datePart.replace(/-/g, "");
+  if (!timePart) return d;                  // all-day: VALUE=DATE
+  const t = timePart.replace(/:/g, "");
+  return d + "T" + t + (t.length === 4 ? "00" : "");
+}
+
+function _icsEsc(s) {
+  return String(s || "")
+    .replace(/\\/g, "\\\\")
+    .replace(/;/g, "\\;")
+    .replace(/,/g, "\\,")
+    .replace(/\n/g, "\\n");
+}

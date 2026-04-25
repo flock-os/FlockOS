@@ -2170,7 +2170,6 @@ window.FLOCK_CHURCH_ID = "tbc";
     opts = opts || {};
     return _calendarEventsRef()
       .where('email', '==', opts.email || _userEmail)
-      .orderBy('startDateTime', 'desc')
       .limit(opts.limit || 200)
       .get().then(function(snap) {
         var results = [];
@@ -2179,6 +2178,13 @@ window.FLOCK_CHURCH_ID = "tbc";
           d.EventID = doc.id;
           d.id = doc.id;
           results.push(d);
+        });
+        // Sort descending by StartDateTime in JS to avoid needing a composite
+        // index and to handle the TitleCase field name correctly.
+        results.sort(function(a, b) {
+          var sa = a.StartDateTime || '';
+          var sb = b.StartDateTime || '';
+          return sb < sa ? -1 : sb > sa ? 1 : 0;
         });
         return results;
       });
@@ -2234,7 +2240,6 @@ window.FLOCK_CHURCH_ID = "tbc";
   function listDelegatedCalendars() {
     return _calendarEventsRef()
       .where('DelegatedTo', 'array-contains', _userEmail)
-      .orderBy('startDateTime', 'desc')
       .limit(200)
       .get().then(function(snap) {
         var results = [];
@@ -2243,6 +2248,12 @@ window.FLOCK_CHURCH_ID = "tbc";
           d.EventID = doc.id;
           results.push(d);
         });
+        // Sort descending by StartDateTime in JS (avoids composite index requirement)
+        results.sort(function(a, b) {
+          var sa = a.StartDateTime || '';
+          var sb = b.StartDateTime || '';
+          return sb < sa ? -1 : sb > sa ? 1 : 0;
+        });
         var owners = {};
         results.forEach(function(r) {
           if (!owners[r.email]) owners[r.email] = [];
@@ -2250,6 +2261,78 @@ window.FLOCK_CHURCH_ID = "tbc";
         });
         return Object.keys(owners).map(function(email) {
           return { ownerEmail: email, events: owners[email] };
+        });
+      });
+  }
+
+  /**
+   * Get (or create) a share token for the current user's personal calendar
+   * iCal feed.  Pass { regenerate: true } to force a new token.
+   * Returns { shareToken, feedUrl } where feedUrl is the Cloud Function URL.
+   */
+  function getCalendarShareToken(opts) {
+    opts = opts || {};
+    var tokensRef = _churchRef().collection('calendarTokens');
+    var regenerate = !!(opts && opts.regenerate);
+
+    function _makeToken() {
+      // Generate a cryptographically random 32-char hex token
+      var arr = new Uint8Array(16);
+      if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+        crypto.getRandomValues(arr);
+      } else {
+        for (var i = 0; i < arr.length; i++) arr[i] = Math.floor(Math.random() * 256);
+      }
+      return Array.from(arr).map(function(b) { return ('0' + b.toString(16)).slice(-2); }).join('');
+    }
+
+    function _feedUrl(token) {
+      // Derive the Cloud Function base URL from the Firebase project config
+      var projectId = FIREBASE_CONFIG && FIREBASE_CONFIG.projectId ? FIREBASE_CONFIG.projectId : '';
+      if (!projectId) return '';
+      return 'https://us-central1-' + projectId + '.cloudfunctions.net/serveCalendarICS?token=' + encodeURIComponent(token);
+    }
+
+    if (!regenerate) {
+      // Try to find an existing token for this user
+      return tokensRef
+        .where('email', '==', _userEmail)
+        .limit(1)
+        .get()
+        .then(function(snap) {
+          if (!snap.empty) {
+            var token = snap.docs[0].id;
+            return { shareToken: token, feedUrl: _feedUrl(token) };
+          }
+          // No existing token — create one
+          var newToken = _makeToken();
+          return tokensRef.doc(newToken).set({
+            email:     _userEmail,
+            createdAt: _now(),
+            updatedAt: _now()
+          }).then(function() {
+            return { shareToken: newToken, feedUrl: _feedUrl(newToken) };
+          });
+        });
+    }
+
+    // Regenerate: delete old tokens for this user, then create new one
+    return tokensRef
+      .where('email', '==', _userEmail)
+      .get()
+      .then(function(snap) {
+        var deletes = [];
+        snap.forEach(function(doc) { deletes.push(doc.ref.delete()); });
+        return Promise.all(deletes);
+      })
+      .then(function() {
+        var newToken = _makeToken();
+        return tokensRef.doc(newToken).set({
+          email:     _userEmail,
+          createdAt: _now(),
+          updatedAt: _now()
+        }).then(function() {
+          return { shareToken: newToken, feedUrl: _feedUrl(newToken) };
         });
       });
   }
@@ -4643,6 +4726,7 @@ window.FLOCK_CHURCH_ID = "tbc";
     updateCalendarEvent:      updateCalendarEvent,
     deleteCalendarEvent:      deleteCalendarEvent,
     listDelegatedCalendars:   listDelegatedCalendars,
+    getCalendarShareToken:    getCalendarShareToken,
 
     // Groups
     listGroups:         listGroups,

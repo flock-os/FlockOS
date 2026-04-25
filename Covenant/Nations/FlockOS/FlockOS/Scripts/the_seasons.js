@@ -807,7 +807,10 @@ const TheSeason = (() => {
     rangeEnd.setFullYear(rangeEnd.getFullYear() + 1);
 
     // ── Fire all API calls in parallel ───────────────────────────────────
-    var isSignedIn = !!(typeof TheVine !== 'undefined' && TheVine.session && TheVine.session());
+    var isSignedIn = !!(
+      (typeof Nehemiah !== 'undefined' && Nehemiah.getSession && Nehemiah.getSession()) ||
+      (typeof TheVine  !== 'undefined' && TheVine.session    && TheVine.session())
+    );
     var promises = [
       isSignedIn
         ? (_isFB() ? UpperRoom.listDelegatedCalendars() : TheVine.flock.call('delegation.calendars', {})).catch(function() { return null; })
@@ -1706,6 +1709,10 @@ const TheSeason = (() => {
   // ═══════════════════════════════════════════════════════════════════════
 
   function _calFeedUrl(shareToken) {
+    // Firebase mode: use Cloud Function iCal endpoint URL embedded in token result
+    if (_isFB() && shareToken && shareToken.indexOf('cloudfunctions.net') >= 0) {
+      return shareToken; // shareToken is already the full feed URL in FB mode
+    }
     var base = '';
     if (typeof TheVine !== 'undefined' && TheVine.config) {
       var eps = TheVine.config.FLOCK_ENDPOINTS || [];
@@ -1802,10 +1809,26 @@ const TheSeason = (() => {
     var shareToken = '';
 
     try {
-      var res = await TheVine.flock.call('calendar.shareToken', {});
-      if (res && res.ok && res.shareToken) {
-        shareToken = res.shareToken;
-        personalUrl = _calFeedUrl(shareToken);
+      if (_isFB()) {
+        // Firebase mode: use UpperRoom to get/create a share token linked to a
+        // Cloud Function iCal endpoint
+        var fbRes = await UpperRoom.getCalendarShareToken({});
+        if (fbRes && fbRes.feedUrl) {
+          personalUrl = fbRes.feedUrl;
+          shareToken  = fbRes.shareToken;
+          // In Firebase mode the public URL is the same Cloud Function endpoint
+          // without a token (returns only public events)
+          if (!publicUrl && fbRes.feedUrl) {
+            // Derive the public URL by stripping the token query param
+            publicUrl = fbRes.feedUrl.split('?')[0];
+          }
+        }
+      } else {
+        var res = await TheVine.flock.call('calendar.shareToken', {});
+        if (res && res.ok && res.shareToken) {
+          shareToken  = res.shareToken;
+          personalUrl = _calFeedUrl(shareToken);
+        }
       }
     } catch (_) {}
 
@@ -1831,16 +1854,19 @@ const TheSeason = (() => {
     }
 
     if (personalUrl) {
-      var sess = (typeof session !== 'undefined') ? session : {};
+      var sess = _session && _session.role ? _session : (typeof session !== 'undefined' ? session : {});
       var myRole = (sess.role || 'readonly').toLowerCase();
+      // In Firebase mode the personalUrl is already the full Cloud Function URL;
+      // appending role is only meaningful for GAS-based feeds.
+      var displayUrl = _isFB() ? personalUrl : (personalUrl + '&role=' + encodeURIComponent(myRole));
 
       h += '<div style="margin-bottom:16px;">';
       h += '<label style="font-size:0.78rem;font-weight:700;color:var(--ink);display:block;margin-bottom:4px;">'
-        + '\uD83D\uDD12 Role-Based Calendar Feed</label>';
+        + '\uD83D\uDD12 Personal Calendar Feed</label>';
       h += '<p style="font-size:0.72rem;color:var(--ink-muted);margin:0 0 6px;">'
-        + 'Your feed includes events up to your role level (' + _e(myRole) + '). Keep this URL private.</p>';
+        + 'Your personal feed includes your private events and all events up to your role level. Keep this URL private.</p>';
       h += '<div style="display:flex;gap:6px;">';
-      h += '<input id="cal-sub-personal-url" type="text" value="' + _e(personalUrl + '&role=' + encodeURIComponent(myRole)) + '" readonly '
+      h += '<input id="cal-sub-personal-url" type="text" value="' + _e(displayUrl) + '" readonly '
         + 'style="flex:1;padding:8px 10px;border:1px solid var(--line);border-radius:6px;font-size:0.78rem;'
         + 'background:var(--bg-sunken);color:var(--ink);font-family:monospace;">';
       h += '<button id="cal-sub-personal" onclick="Modules._calCopyUrl(\'cal-sub-personal\')" '
@@ -1908,15 +1934,27 @@ const TheSeason = (() => {
   async function calRegenToken() {
     if (!confirm('Regenerate share token? This will invalidate all existing personal feed URLs.')) return;
     try {
-      var res = await TheVine.flock.call('calendar.shareToken', { regenerate: 'true' });
-      if (res && res.ok && res.shareToken) {
-        var newUrl = _calFeedUrl(res.shareToken);
-        var inp = document.getElementById('cal-sub-personal-url');
-        if (inp) inp.value = newUrl;
-        alert('Share token regenerated. Update your calendar subscriptions with the new URL.');
+      var newUrl = '';
+      if (_isFB()) {
+        var fbRes = await UpperRoom.getCalendarShareToken({ regenerate: true });
+        if (fbRes && fbRes.feedUrl) {
+          newUrl = fbRes.feedUrl;
+        } else {
+          alert('Failed to regenerate token.');
+          return;
+        }
       } else {
-        alert('Failed to regenerate token.');
+        var res = await TheVine.flock.call('calendar.shareToken', { regenerate: 'true' });
+        if (res && res.ok && res.shareToken) {
+          newUrl = _calFeedUrl(res.shareToken);
+        } else {
+          alert('Failed to regenerate token.');
+          return;
+        }
       }
+      var inp = document.getElementById('cal-sub-personal-url');
+      if (inp) inp.value = newUrl;
+      alert('Share token regenerated. Update your calendar subscriptions with the new URL.');
     } catch (e) { alert('Error: ' + e.message); }
   }
 
