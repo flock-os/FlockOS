@@ -406,10 +406,10 @@
         <a class="nav-item" data-view="dashboard" onclick="navigate('dashboard')">
           <span class="icon">&#9673;</span> FlockOS Home
         </a>
-        <a class="nav-item" href="https://flockos-comms.web.app/?church=theforest">
+        <a id="admin-nav-flockchat" class="nav-item" href="https://flockos-comms.web.app/">
           <span class="icon">&#128172;</span> FlockChat
         </a>
-        <a class="nav-item" href="../../../../Courts/TheUpperRoom/ATOG.html?church=theforest">
+        <a id="admin-nav-atog" class="nav-item" href="#">
           <span class="icon">&#128214;</span> A Touch of the Gospel
         </a>
       </div>
@@ -830,6 +830,20 @@ function _renderChangelog(el) {
 })();
 
 }); /* DOMContentLoaded */
+</script>
+<script>
+/* Rewrite admin nav ATOG/FlockChat links to per-church URLs based on current path. */
+(function() {
+  var m = window.location.pathname.match(/^(.*?)\/Covenant\//);
+  var base = window.location.origin + (m ? m[1] : '') + '/';
+  var parts = window.location.pathname.split('/');
+  var ni = parts.indexOf('Nations');
+  var church = (ni >= 0 && parts[ni + 1]) ? parts[ni + 1].toLowerCase() : 'root';
+  var atog = document.getElementById('admin-nav-atog');
+  if (atog) atog.href = base + 'Covenant/Courts/TheUpperRoom/ATOG.html?church=' + encodeURIComponent(church);
+  var fc = document.getElementById('admin-nav-flockchat');
+  if (fc) fc.href = 'https://flockos-comms.web.app/?church=' + encodeURIComponent(church);
+})();
 </script>
 </body>
 </html>
