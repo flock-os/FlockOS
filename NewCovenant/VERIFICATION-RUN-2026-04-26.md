@@ -63,6 +63,13 @@ Status: Smoke checks are confirmed passing by operator report.
 
 Status: F2.8 manual QA is complete.
 
+## F2.9 Commit Snapshot
+
+- Commit created: `2af8809`
+- Message: `feat(newcovenant): add bridge integration rehearsal and release-gate package`
+- Scope: `NewCovenant/*`
+- Duplicate-file scan: clean before and after commit.
+
 ## Operator Sign-Off Record
 
 - Continuation approval received in-session as: "y".
