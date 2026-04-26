@@ -14,14 +14,16 @@ export const BRAND = {
   foundation: "FlockOS",
   tagline: "Church Management & Ministry Platform",
   poweredBy: "Powered by FlockOS",
-  eyebrow: "FlockOS Foundation",
+  eyebrow: "Foundational FlockOS",
 
   // ── Product labels ─────────────────────────────────────────────────
   products: {
     newcovenant: {
-      name: "NewCovenant",
-      label: "NewCovenant (Powered by FlockOS)",
-      description: "Modular forward surface — individual editable modules on FlockOS infrastructure"
+      // NOTE: Keep the object key `newcovenant` for code compatibility.
+      // Distributed/public product identity is FlockOS.
+      name: "FlockOS",
+      label: "FlockOS",
+      description: "Final presentation shell around the church data build"
     },
     flockchat: {
       name: "FlockChat",
@@ -64,6 +66,6 @@ export const BRAND = {
     { id: "tbc",         label: "Nations / TBC",         path: "Nations/TBC/" },
     { id: "theforest",   label: "Nations / TheForest",   path: "Nations/TheForest/" },
     { id: "flockchat",   label: "FlockChat PWA",         path: "Firebase: flockos-comms" },
-    { id: "newcovenant", label: "NewCovenant",           path: "Firebase: TBD" }
+    { id: "newcovenant", label: "Foundational FlockOS",  path: "Firebase: TBD" }
   ]
 };

@@ -1,7 +1,9 @@
 # FlockOS Master Brand Document
 
-> This is the single source of truth for all branding across FlockOS, NewCovenant, and
-> every powered product. All site builds, module templates, and UI copy MUST reference
+> This is the single source of truth for all branding across FlockOS and
+> every powered product. The `NewCovenant/` folder is an internal codename/workspace path,
+> but the distributed product identity is FlockOS. All site builds, module templates,
+> and UI copy MUST reference
 > this file first. If a value is not listed here, ask the confirmation questions in the
 > Branding Gate section before inventing it.
 
@@ -11,12 +13,12 @@
 
 | Level | Brand | Label pattern |
 |-------|-------|---------------|
-| Foundation | **FlockOS** | FlockOS (standalone, no qualifier needed) |
-| Forward surface | **NewCovenant** | NewCovenant (Powered by FlockOS) |
+| Distributed foundation | **FlockOS** | FlockOS (standalone, no qualifier needed) |
+| Internal codename/workspace | **NewCovenant** | Internal only (not public-facing) |
 | Communication layer | **FlockChat** | FlockChat (Powered by FlockOS) |
 | Discipleship layer | **ATOG** | ATOG (Powered by FlockOS) |
 
-Rule: FlockOS is always the parent brand. No sub-brand stands alone above it.
+Rule: The distributed shell is FlockOS. `NewCovenant` is an internal code/workspace name only.
 
 ---
 
@@ -27,12 +29,12 @@ Use these exact strings in UI, copy, and code. Do not invent variations.
 | Token | Canonical string |
 |-------|-----------------|
 | `BRAND_FOUNDATION` | FlockOS |
-| `BRAND_FORWARD_APP` | NewCovenant |
+| `BRAND_FORWARD_APP` | FlockOS |
 | `BRAND_COMMS` | FlockChat |
 | `BRAND_DISCIPLESHIP` | ATOG |
 | `BRAND_TAGLINE` | Church Management & Ministry Platform |
 | `BRAND_POWERED_BY` | Powered by FlockOS |
-| `BRAND_EYEBROW` | FlockOS Foundation |
+| `BRAND_EYEBROW` | Foundational FlockOS |
 
 ---
 
@@ -84,7 +86,7 @@ Loaded via Google Fonts in every HTML surface.
 
 | Context | Approved copy |
 |---------|--------------|
-| Page eyebrow | FlockOS Foundation |
+| Page eyebrow | Foundational FlockOS |
 | Public hero subtext | Powered by FlockOS |
 | Stream kicker | Three Streams, One River |
 | FlockOS description | The operational backbone for missions, teams, and stewardship |
@@ -106,7 +108,7 @@ Every build must maintain branding parity across all of the following:
 | Nations / TBC | `Nations/TBC/` |
 | Nations / TheForest | `Nations/TheForest/` |
 | FlockChat PWA | Firebase Hosting — `flockos-comms` project |
-| NewCovenant | Firebase Hosting (TBD) — same infrastructure |
+| Foundational FlockOS shell (`NewCovenant/`) | Firebase Hosting (TBD) — same infrastructure |
 
 The build script reads `brandName` from each `Covenant/Scrolls/ChurchRegistry/<church>.json`.
 That field must always be present and must follow the canonical name table in section 2.

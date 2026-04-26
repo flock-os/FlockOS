@@ -7,8 +7,8 @@
     if (/Xbox/i.test(navigator.userAgent)) document.documentElement.dataset.platform = 'xbox';
   </script>
   <title>The Forest</title>
-  <link rel="icon" type="image/png" href="FlockOS/Images/FlockOS_Green.png">
-  <link rel="apple-touch-icon" href="FlockOS/Images/FlockOS_Green.png">
+  <link rel="icon" type="image/png" href="Images/FlockOS_Pink.png">
+  <link rel="apple-touch-icon" href="Images/FlockOS_Pink.png">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#e8a838">
   <meta name="mobile-web-app-capable" content="yes">
@@ -17,7 +17,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta property="og:title" content="The Forest">
   <meta property="og:description" content="Ministry Operating System — Free. Offline-capable. Built for every church.">
-  <meta property="og:image" content="FlockOS/Images/FlockOS_Green.png">
+  <meta property="og:image" content="Images/FlockOS_Pink.png">
   <meta name="twitter:card" content="summary_large_image">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -25,7 +25,7 @@
   <link rel="preconnect" href="https://firestore.googleapis.com">
   <link rel="dns-prefetch" href="https://firestore.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;600;700&family=Noto+Sans+Hebrew:wght@400;600;700&family=Noto+Serif:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="FlockOS/Styles/american_garments.css">
+  <link rel="stylesheet" href="Styles/american_garments.css">
   <style>
     /* Flash prevention — America theme base before fine_linen.js applies data-theme */
     :root { --bg: #f7f8fb; --bg-raised: #ffffff; --ink: #1b264f; }
@@ -158,7 +158,7 @@ sessionStorage.setItem('_flockos_portal', window.location.href);
 
 <!-- ═══ SPLASH SCREEN ═══ -->
 <div id="splash">
-  <img id="church-hero-logo" class="splash-bg" src="FlockOS/Images/FlockOS_Green.png" alt="The Forest">
+  <img id="church-hero-logo" class="splash-bg" src="Images/FlockOS_Pink.png" alt="The Forest">
   <div class="splash-bar-track"><div class="splash-bar-fill"></div></div>
 </div>
 
@@ -167,7 +167,7 @@ sessionStorage.setItem('_flockos_portal', window.location.href);
     <button class="topbar-toggle" id="menuToggle" onclick="toggleSidebar()">&#9776;</button>
     <div class="topbar-brand" onclick="navigate('dashboard')" title="Home">FlockOS</div>
     <div class="topbar-actions">
-      <a class="staff-link" href="FlockOS/Pages/the_good_shepherd.html">Member Login &#8594;</a>
+      <a class="staff-link" href="Pages/the_good_shepherd.html">Member Login &#8594;</a>
     </div>
   </div>
 
@@ -181,7 +181,7 @@ sessionStorage.setItem('_flockos_portal', window.location.href);
         <a class="nav-item active" data-view="dashboard" onclick="navigate('dashboard')">
           <span class="icon">&#9673;</span> Dashboard
         </a>
-        <a class="nav-item" href="FlockOS/Pages/the_invitation.html">
+        <a class="nav-item" href="Pages/the_invitation.html">
           <span class="icon">&#9993;</span> Invitation
         </a>
         <a class="nav-item" data-view="connect" onclick="navigate('connect')">
@@ -477,17 +477,17 @@ sessionStorage.setItem('_flockos_portal', window.location.href);
 <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-functions-compat.js"></script>
-<script defer src="FlockOS/Scripts/the_upper_room.js"></script>
-<script defer src="FlockOS/Scripts/fine_linen.js"></script>
-<script defer src="FlockOS/Scripts/the_true_vine.js"></script>
-<script defer src="FlockOS/Scripts/the_wellspring.js"></script>
-<script defer src="FlockOS/Scripts/the_well.js"></script>
-<script defer src="FlockOS/Scripts/the_tabernacle.js"></script>
-<script defer src="FlockOS/Scripts/the_truth.js"></script>
-<script defer src="FlockOS/Scripts/the_seasons.js"></script>
-<script defer src="FlockOS/Scripts/the_way.js"></script>
-<script defer src="FlockOS/Scripts/the_harvest.js"></script>
-<script defer src="FlockOS/Scripts/the_life.js"></script>
+<script defer src="Scripts/the_upper_room.js"></script>
+<script defer src="Scripts/fine_linen.js"></script>
+<script defer src="Scripts/the_true_vine.js"></script>
+<script defer src="Scripts/the_wellspring.js"></script>
+<script defer src="Scripts/the_well.js"></script>
+<script defer src="Scripts/the_tabernacle.js"></script>
+<script defer src="Scripts/the_truth.js"></script>
+<script defer src="Scripts/the_seasons.js"></script>
+<script defer src="Scripts/the_way.js"></script>
+<script defer src="Scripts/the_harvest.js"></script>
+<script defer src="Scripts/the_life.js"></script>
 <script>
 /* Scroll-leak guard: scrollIntoView() can push body/html on iOS Safari
    even with overflow:hidden, destroying the fixed-header offset. */
@@ -505,7 +505,7 @@ Adornment.init();
   if (!img) return;
   var logo = localStorage.getItem('flock_church_logo');
   if (logo) {
-    img.src = logo.indexOf('://') !== -1 ? logo : 'FlockOS/Images/' + logo;
+    img.src = logo.indexOf('://') !== -1 ? logo : 'Images/' + logo;
   } else {
     var iconLink = document.querySelector('link[rel="apple-touch-icon"]')
                 || document.querySelector('link[rel="icon"]');
@@ -555,7 +555,7 @@ function _showMaintenancePage() {
     '<p style="margin-top:24px;font-size:0.85rem;color:var(--ink-muted,#777);font-style:italic;">' +
     '\u201CFor I know the plans I have for you,\u201D declares the Lord.\u2003\u2014\u2003Jeremiah 29:11</p>' +
     '<p style="margin-top:48px;font-style:italic;font-size:0.85rem;">' +
-    '<a href="FlockOS/Pages/the_good_shepherd.html" style="color:var(--ink-muted,#777);text-decoration:underline;">' +
+    '<a href="Pages/the_good_shepherd.html" style="color:var(--ink-muted,#777);text-decoration:underline;">' +
     'Administrators and pastoral staff may access The Forest here.</a></p>' +
     '</div>';
 }
@@ -600,7 +600,7 @@ function navigate(viewName) {
   // My Profile: redirect to login if not authenticated
   if (viewName === 'my-profile') {
     if (typeof TheVine === 'undefined' || !TheVine.session()) {
-      window.location.href = 'FlockOS/Pages/the_wall.html?returnTo=my-profile';
+      window.location.href = 'Pages/the_wall.html?returnTo=my-profile';
       return;
     }
   }
@@ -692,7 +692,7 @@ setTimeout(function() {
   var hash = window.location.hash.replace(/^#/, '').trim();
   if (hash) {
     if (hash === 'invitation') {
-      window.location.href = 'FlockOS/Pages/the_invitation.html';
+      window.location.href = 'Pages/the_invitation.html';
       return;
     }
     var cardHashMatch = hash.match(/^(?:card|m)\/(.+)$/);

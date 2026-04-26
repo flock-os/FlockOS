@@ -1,0 +1,1 @@
+export { createStandaloneFlockOSModule } from "../../flockos/modules/_moduleRuntime.js";

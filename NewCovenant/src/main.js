@@ -9,12 +9,12 @@ import { assertBridgeContract } from "./bridge/bridge.contract.js";
 import { createBridgeRuntime } from "./bridge/createBridgeRuntime.js";
 import { createPublicAdapter } from "./bridge/publicAdapter.js";
 import { createAdminAdapter } from "./bridge/adminAdapter.js";
-import { evaluatePortMap } from "./bridge/portMap.js";
+import { evaluatePortMap, auditManifestBridgeCoverage } from "./bridge/portMap.js";
 import { createRootShellAdapter } from "./bridge/rootShellAdapter.js";
 import { createAuthBoundaryAdapter } from "./bridge/authBoundaryAdapter.js";
 import { runIntegrationRehearsal } from "./bridge/integrationRehearsal.js";
 import { WEAVE_MANIFEST, summarizeWeaveManifest } from "./weave/weaveManifest.js";
-import { SITE_WEAVE_CONTENT, getWeaveOrder } from "./weave/siteWeaveContent.js";
+import { SITE_WEAVE_CONTENT, getWeaveOrder } from "./apps/index.js";
 import { FLOCKOS_SHELL_DATA } from "./weave/flockosShellSurfaceData.js";
 import { BRAND } from "./brand.js";
 
@@ -59,6 +59,9 @@ const projectMapPhaseBuckets = document.getElementById("project-map-phase-bucket
 const projectMapPlatforms = document.getElementById("project-map-platforms");
 const projectMapTracks = document.getElementById("project-map-tracks");
 const refreshProjectMapButton = document.getElementById("refresh-project-map");
+const bridgeAuditList = document.getElementById("bridge-audit-list");
+const bridgeAuditSummary = document.getElementById("bridge-audit-summary");
+const refreshBridgeAuditButton = document.getElementById("refresh-bridge-audit");
 const shellMissionSummary = document.getElementById("shell-mission-summary");
 const shellStatusFilter = document.getElementById("shell-status-filter");
 const shellMissions = document.getElementById("shell-missions");
@@ -818,7 +821,7 @@ function renderWeaveStreams() {
 function renderWeekTimeline() {
   const items = [
     "Sunday: Worship + prayer commissioning",
-    "Monday: ATOG devotion launch and follow-up prompts",
+    "Monday: FlockOS devotion launch and follow-up prompts",
     "Tuesday: Team mission planning in FlockOS",
     "Wednesday: Midweek care room check-ins in FlockChat",
     "Thursday: Outreach coordination and task sync",
@@ -1280,6 +1283,57 @@ function renderWeaveRoadmap() {
   });
 }
 
+function renderBridgeAudit() {
+  const audit = auditManifestBridgeCoverage(WEAVE_MANIFEST);
+  bridgeAuditList.innerHTML = "";
+
+  // ── Summary line ──────────────────────────────────────────────────
+  bridgeAuditSummary.textContent =
+    `${audit.fullyCoveredModules}/${audit.totalModules} modules fully covered. ` +
+    `Registered ports: ${audit.covered.join(", ")}. ` +
+    (audit.gaps.length > 0
+      ? `Gap ports (not in portMap): ${audit.gaps.join(", ")}.`
+      : "No gap ports — all manifest bridge ports are registered.");
+
+  // ── Gap ports headline ────────────────────────────────────────────
+  if (audit.gaps.length > 0) {
+    const gapItem = document.createElement("li");
+    gapItem.className = "warn";
+    gapItem.textContent = `Unregistered ports needed by manifest: ${audit.gaps.join(", ")}`;
+    bridgeAuditList.appendChild(gapItem);
+  } else {
+    const okItem = document.createElement("li");
+    okItem.className = "ok";
+    okItem.textContent = "All bridge ports used in manifest are registered in portMap.";
+    bridgeAuditList.appendChild(okItem);
+  }
+
+  // ── Per-module report (only show modules with gaps) ───────────────
+  const gapModules = audit.moduleReports.filter((r) => !r.allCovered);
+  if (gapModules.length > 0) {
+    const gapHeader = document.createElement("li");
+    gapHeader.className = "warn";
+    gapHeader.textContent = `── ${gapModules.length} module(s) with uncovered ports:`;
+    bridgeAuditList.appendChild(gapHeader);
+
+    gapModules.forEach((report) => {
+      const item = document.createElement("li");
+      item.className = "warn";
+      item.textContent =
+        `${report.moduleId} (${report.app} / ${report.zone} / ${report.phase}): ` +
+        `missing ${report.missingPorts.join(", ")}`;
+      bridgeAuditList.appendChild(item);
+    });
+  }
+
+  // ── Fully covered summary ─────────────────────────────────────────
+  const coveredItem = document.createElement("li");
+  coveredItem.className = "ok";
+  coveredItem.textContent =
+    `── ${audit.fullyCoveredModules} module(s) fully covered by current portMap.`;
+  bridgeAuditList.appendChild(coveredItem);
+}
+
 modules.config.set("app.name", BRAND.products.newcovenant.name);
 modules.config.set("app.label", BRAND.products.newcovenant.label);
 modules.config.set("runtime.phase", "F4.6");
@@ -1434,6 +1488,11 @@ refreshWeaveButton.addEventListener("click", () => {
   bridge.notify("Weave roadmap refreshed", "info");
 });
 
+refreshBridgeAuditButton?.addEventListener("click", () => {
+  renderBridgeAudit();
+  bridge.notify("Bridge port audit refreshed", "info");
+});
+
 refreshProjectMapButton?.addEventListener("click", () => {
   renderProjectDirectionMap();
   bridge.notify("Project map refreshed", "info");
@@ -1482,6 +1541,7 @@ shellCopyEscalationBriefButton.addEventListener("click", async () => {
 renderBuildSummary();
 renderSummaryHistory();
 renderWeaveRoadmap();
+renderBridgeAudit();
 renderWeaveStreams();
 renderWeekTimeline();
 renderChatPulse();

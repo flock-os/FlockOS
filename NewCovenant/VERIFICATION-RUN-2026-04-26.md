@@ -94,3 +94,13 @@ Scope: Standalone NewCovenant only
 
 - Pending — awaiting operator review of F4.6 changes before commit.
 
+---
+
+## F4.6 BCP Record (2026-04-26)
+
+- Build: 4 churches built (FlockOS, GAS, TBC, TheForest) — ✓
+- FlockChat deploy: `flockos-comms.web.app` — ✓ release complete
+- Duplicate scan: clean — ✓
+- Commit: `79ba11c` — `feat(newcovenant): F4.6 brand system, manifest expansion, zone-grouped project map`
+- Push: `15f1b8b..79ba11c  main -> main` — ✓
+
