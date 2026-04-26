@@ -10,16 +10,22 @@
   "theme_color": "#020b02",
   "icons": [
     {
-      "src": "Covenant/Courts/TheTabernacle/Images/FlockOS_AppIcon.png",
+      "src": "dev-launcher-icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
-      "src": "Covenant/Courts/TheTabernacle/Images/FlockOS_AppIcon.png",
+      "src": "dev-launcher-icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "dev-launcher-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ],
   "categories": ["developer", "utilities"]

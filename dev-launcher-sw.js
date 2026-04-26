@@ -2,11 +2,14 @@
 // Cache-first for the launcher shell and local assets.
 // External URLs (Firebase, GitHub, GAS) are always network-fetched.
 
-const CACHE = 'dev-matrix-v1';
+const CACHE = 'dev-matrix-v2';
 
 const PRECACHE = [
   '/dev-launcher.html',
   '/dev-launcher.manifest.json',
+  '/dev-launcher-icon-192.png',
+  '/dev-launcher-icon-512.png',
+  '/dev-launcher-icon-180.png',
   '/Covenant/Courts/TheTabernacle/Images/FlockOS_AppIcon.png',
   '/Covenant/Courts/TheTabernacle/Images/FlockOS_Pink.png',
   '/Covenant/Courts/TheTabernacle/Images/FlockOS_Orange.png',
