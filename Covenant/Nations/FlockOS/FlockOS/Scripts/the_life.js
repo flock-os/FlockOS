@@ -707,7 +707,7 @@ const TheLife = (() => {
       + '<span id="fp-save-status2" class="fp-save-status"></span>'
       + '</div>';
 
-    document.getElementById('fp-body').innerHTML = html;
+    (document.getElementById('fp-body') || {}).innerHTML = html;
 
     // ── Care Type: workflow guide, priority default, and notes template wiring ──
     (function() {
@@ -1918,7 +1918,7 @@ const TheLife = (() => {
       + '<button type="button" onclick="TheLife.convertPrayerToCare()" class="fp-action-btn" style="margin-left:auto;background:rgba(var(--accent-rgb,99,102,241),0.12);border-color:var(--accent);color:var(--accent);">\uD83E\uDEA6 Convert to Care Case</button>'
       + '</div>';
 
-    document.getElementById('fp-body').innerHTML = html;
+    (document.getElementById('fp-body') || {}).innerHTML = html;
   }
 
   async function addPrayerInteraction(prayerId, presetType) {
@@ -2226,7 +2226,7 @@ const TheLife = (() => {
       + '<span id="fp-save-status2" class="fp-save-status"></span>'
       + '</div>';
 
-    document.getElementById('fp-body').innerHTML = html;
+    (document.getElementById('fp-body') || {}).innerHTML = html;
   }
 
   async function saveCompassion() {
@@ -2442,7 +2442,7 @@ const TheLife = (() => {
       + (id ? '<button type="button" onclick="TheLife.archiveOutreach()" class="fp-action-btn" style="margin-left:auto;color:var(--danger);border-color:var(--danger);">\uD83D\uDDC4 Archive</button>' : '')
       + '</div>';
 
-    document.getElementById('fp-body').innerHTML = html;
+    (document.getElementById('fp-body') || {}).innerHTML = html;
   }
 
   async function saveOutreach() {
@@ -2798,7 +2798,7 @@ const TheLife = (() => {
       + '<span id="fp-save-status2" class="fp-save-status"></span>'
       + '</div>';
 
-    document.getElementById('fp-body').innerHTML = html;
+    (document.getElementById('fp-body') || {}).innerHTML = html;
 
     // ── Lazy-load permissions when section is first expanded ──
     if (Nehemiah.can('users')) {
@@ -3279,7 +3279,7 @@ const TheLife = (() => {
       var _lpName = _lpMember ? (_lpMember.preferredName || ((_lpMember.firstName || '') + ' ' + (_lpMember.lastName || '')).trim()) : '';
 
       if (!unassigned.length) {
-        document.getElementById('fp-body').innerHTML = '<div style="padding:40px;text-align:center;">'
+        (document.getElementById('fp-body') || {}).innerHTML = '<div style="padding:40px;text-align:center;">'
           + '<div style="font-size:2rem;margin-bottom:12px;">🎉</div>'
           + '<p style="color:var(--ink-muted);font-size:0.9rem;">All prayer requests are assigned!</p></div>';
         return;
@@ -3319,9 +3319,9 @@ const TheLife = (() => {
       });
       html += '</div></div>';
 
-      document.getElementById('fp-body').innerHTML = html;
+      (document.getElementById('fp-body') || {}).innerHTML = html;
     } catch (e) {
-      document.getElementById('fp-body').innerHTML = _errHtml(e.message);
+      (document.getElementById('fp-body') || {}).innerHTML = _errHtml(e.message);
     }
   }
 
@@ -3580,7 +3580,7 @@ const TheLife = (() => {
       var _lpName = _lpMember ? (_lpMember.preferredName || ((_lpMember.firstName || '') + ' ' + (_lpMember.lastName || '')).trim()) : '';
 
       if (!unassigned.length) {
-        document.getElementById('fp-body').innerHTML = '<div style="padding:40px;text-align:center;">'
+        (document.getElementById('fp-body') || {}).innerHTML = '<div style="padding:40px;text-align:center;">'
           + '<div style="font-size:2rem;margin-bottom:12px;">🎉</div>'
           + '<p style="color:var(--ink-muted);font-size:0.9rem;">All care cases are assigned!</p></div>';
         return;
@@ -3613,9 +3613,9 @@ const TheLife = (() => {
       });
       html += '</div></div>';
 
-      document.getElementById('fp-body').innerHTML = html;
+      (document.getElementById('fp-body') || {}).innerHTML = html;
     } catch (e) {
-      document.getElementById('fp-body').innerHTML = _errHtml(e.message);
+      (document.getElementById('fp-body') || {}).innerHTML = _errHtml(e.message);
     }
   }
 
@@ -3694,7 +3694,7 @@ const TheLife = (() => {
       var rows = _rows(res);
 
       if (!rows.length) {
-        document.getElementById('fp-body').innerHTML = '<div style="padding:40px;text-align:center;">'
+        (document.getElementById('fp-body') || {}).innerHTML = '<div style="padding:40px;text-align:center;">'
           + '<div style="font-size:2rem;margin-bottom:12px;">\uD83C\uDF89</div>'
           + '<p style="color:var(--ink-muted);font-size:0.9rem;">No follow-ups due. Great work!</p></div>';
         return;
@@ -3717,9 +3717,9 @@ const TheLife = (() => {
           + '</tr>';
       });
       html += '</tbody></table></div>';
-      document.getElementById('fp-body').innerHTML = html;
+      (document.getElementById('fp-body') || {}).innerHTML = html;
     } catch (e) {
-      document.getElementById('fp-body').innerHTML = _errHtml(e.message);
+      (document.getElementById('fp-body') || {}).innerHTML = _errHtml(e.message);
     }
   }
 
