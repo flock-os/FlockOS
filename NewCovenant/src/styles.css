@@ -317,11 +317,26 @@ body {
   background: #842f2f;
 }
 
+#refresh-weave {
+  border: 1px solid #205068;
+  background: #2a6785;
+  color: #ffffff;
+  border-radius: 8px;
+  padding: 0.54rem 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+#refresh-weave:hover {
+  background: #245a74;
+}
+
 #status-list,
 #smoke-list,
 #rehearsal-list,
 #build-summary-list,
-#summary-history-list {
+#summary-history-list,
+#weave-roadmap-list {
   margin: 0.8rem 0 0;
   padding-left: 1rem;
   display: grid;

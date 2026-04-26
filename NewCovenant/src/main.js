@@ -13,6 +13,7 @@ import { evaluatePortMap } from "./bridge/portMap.js";
 import { createRootShellAdapter } from "./bridge/rootShellAdapter.js";
 import { createAuthBoundaryAdapter } from "./bridge/authBoundaryAdapter.js";
 import { runIntegrationRehearsal } from "./bridge/integrationRehearsal.js";
+import { WEAVE_MANIFEST, summarizeWeaveManifest } from "./weave/weaveManifest.js";
 
 const modules = {
   config: createConfigModule(),
@@ -34,6 +35,8 @@ const exportSummaryButton = document.getElementById("export-summary");
 const summaryHistoryList = document.getElementById("summary-history-list");
 const captureSummaryButton = document.getElementById("capture-summary");
 const clearHistoryButton = document.getElementById("clear-history");
+const weaveRoadmapList = document.getElementById("weave-roadmap-list");
+const refreshWeaveButton = document.getElementById("refresh-weave");
 const modePublicButton = document.getElementById("mode-public");
 const modeAdminButton = document.getElementById("mode-admin");
 const publicView = document.getElementById("public-view");
@@ -253,6 +256,32 @@ function exportBuildSummary() {
   URL.revokeObjectURL(url);
 }
 
+function renderWeaveRoadmap() {
+  const summary = summarizeWeaveManifest(WEAVE_MANIFEST);
+  weaveRoadmapList.innerHTML = "";
+
+  const headline = document.createElement("li");
+  headline.textContent = `Manifest v${summary.version}: ${summary.totalApps} apps, ${summary.totalModules} modules`;
+  headline.className = "ok";
+  weaveRoadmapList.appendChild(headline);
+
+  summary.appSummaries.forEach((appSummary) => {
+    const item = document.createElement("li");
+    item.textContent = `${appSummary.app}: ${appSummary.modules} modules, track status ${appSummary.status}`;
+    item.className = appSummary.status === "in-progress" ? "ok" : "warn";
+    weaveRoadmapList.appendChild(item);
+  });
+
+  WEAVE_MANIFEST.tracks.forEach((track) => {
+    track.modules.forEach((module) => {
+      const item = document.createElement("li");
+      item.textContent = `${module.title} (${module.route}) | phase ${module.phase}`;
+      item.className = track.status === "in-progress" ? "ok" : "warn";
+      weaveRoadmapList.appendChild(item);
+    });
+  });
+}
+
 modules.config.set("app.name", "NewCovenant");
 modules.config.set("runtime.phase", "F1.2");
 
@@ -399,7 +428,13 @@ clearHistoryButton.addEventListener("click", () => {
   bridge.notify("Summary history cleared", "info");
 });
 
+refreshWeaveButton.addEventListener("click", () => {
+  renderWeaveRoadmap();
+  bridge.notify("Weave roadmap refreshed", "info");
+});
+
 renderBuildSummary();
 renderSummaryHistory();
+renderWeaveRoadmap();
 
 setMode("public");

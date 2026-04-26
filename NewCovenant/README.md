@@ -73,3 +73,15 @@ In Admin Workspace, `Summary History` tracks in-session readiness snapshots.
 - `Capture Snapshot`: add manual history entry
 - `Clear History`: reset session entries
 - Auto-captures on summary refresh, smoke, and rehearsal runs
+
+## Weave Roadmap
+
+The feature-level weave plan lives in:
+
+- `src/weave/weaveManifest.js`
+
+Admin Workspace includes a `Weave Roadmap` card that summarizes:
+
+- ATOG, FlockOS, and FlockChat tracks
+- module routes
+- phase targets and status
