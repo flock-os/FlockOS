@@ -1,0 +1,26 @@
+{
+  "name": "FlockOS Dev Matrix",
+  "short_name": "DevMatrix",
+  "description": "Personal FlockOS dev launcher — all deployments and tools.",
+  "start_url": "/dev-launcher.html",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#020b02",
+  "theme_color": "#020b02",
+  "icons": [
+    {
+      "src": "Covenant/Courts/TheTabernacle/Images/FlockOS_AppIcon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "Covenant/Courts/TheTabernacle/Images/FlockOS_AppIcon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["developer", "utilities"]
+}

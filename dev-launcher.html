@@ -4,7 +4,15 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>FlockOS // DEV MATRIX</title>
+  <link rel="manifest" href="dev-launcher.manifest.json">
   <link rel="icon" type="image/png" href="Covenant/Courts/TheTabernacle/Images/FlockOS_AppIcon.png">
+  <link rel="apple-touch-icon" href="Covenant/Courts/TheTabernacle/Images/FlockOS_AppIcon.png">
+  <meta name="theme-color" content="#020b02">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="DevMatrix">
+  <meta name="description" content="Personal FlockOS dev launcher — all deployments and tools.">
   <style>
     /* ── Reset ── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -617,6 +625,17 @@ function tick() {
 }
 tick();
 setInterval(tick, 1000);
+</script>
+
+<!-- PWA Service Worker -->
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/dev-launcher-sw.js', { scope: '/' })
+        .then(reg => console.log('[DevMatrix SW] registered, scope:', reg.scope))
+        .catch(err => console.warn('[DevMatrix SW] registration failed:', err));
+    });
+  }
 </script>
 
 </body>
