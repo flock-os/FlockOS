@@ -49,8 +49,8 @@
         .hero { text-align: center; margin-bottom: 3rem; padding-top: 2rem; }
         .hero h1 { font-size: 2.25rem; font-weight: 700; color: var(--ink, #1c1917); margin-bottom: 1rem; }
         @media (min-width: 768px) { .hero h1 { font-size: 3rem; } }
-        .hero .subtitle { font-size: 1.125rem; color: var(--ink-muted, #57534e); max-width: 48rem; margin: 0 auto; }
-        .hero .epigraph { font-size: 0.875rem; color: var(--ink-faint, #a8a29e); margin-top: 0.75rem; font-style: italic; }
+        .hero .subtitle { font-size: 1.1875rem; color: var(--ink-muted, #57534e); max-width: 48rem; margin: 0 auto; }
+        .hero .epigraph { font-size: 1rem; color: var(--ink-faint, #a8a29e); margin-top: 0.75rem; font-style: italic; }
         .hero .cta {
             display: inline-block; margin-top: 2rem;
             background: var(--accent, #7eaacc); color: var(--ink-inverse, #faf9f6); padding: 0.75rem 2rem;
@@ -68,7 +68,7 @@
             padding: 1.5rem; margin-bottom: 3rem;
         }
         @media (min-width: 768px) { .card-section { padding: 2rem; } }
-        .card-section h2 { font-size: 1.5rem; font-weight: 700; color: var(--ink, #292524); margin-bottom: 0.5rem; }
+        .card-section h2 { font-size: 1.625rem; font-weight: 700; color: var(--ink, #292524); margin-bottom: 0.5rem; }
         .card-section > .intro { color: var(--ink-muted, #57534e); margin-bottom: 2rem; }
 
         /* ── Invitations grid ──────────────────────────────────── */
@@ -83,14 +83,14 @@
         .inv-card .icon { font-size: 1.875rem; margin-bottom: 1rem; }
         .inv-card h3 { font-size: 1.125rem; font-weight: 700; color: var(--ink, #292524); margin-bottom: 0.5rem; }
         .inv-card:hover h3 { color: var(--accent, #7eaacc); }
-        .inv-card .quote { color: var(--ink-muted, #78716c); font-style: italic; font-size: 0.875rem; margin-bottom: 0.75rem; }
-        .inv-card .ref { font-size: 0.75rem; font-weight: 600; color: var(--ink-faint, #a8a29e); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 1rem; }
+        .inv-card .quote { color: var(--ink-muted, #78716c); font-style: italic; font-size: 1rem; margin-bottom: 0.75rem; }
+        .inv-card .ref { font-size: 0.8125rem; font-weight: 600; color: var(--ink-faint, #a8a29e); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 1rem; }
         .inv-card .insight {
             display: none; padding-top: 1rem; border-top: 1px solid var(--line, #e7e5e4);
-            font-size: 0.875rem; line-height: 1.7; color: var(--ink-muted, #57534e);
+            font-size: 0.9375rem; line-height: 1.75; color: var(--ink-muted, #57534e);
         }
         .inv-card .insight.open { display: block; animation: fadeIn 0.3s; }
-        .inv-card .insight-label { display: block; color: var(--accent, #7eaacc); font-weight: 700; font-size: 0.625rem; text-transform: uppercase; letter-spacing: 0.15em; margin-bottom: 0.25rem; }
+        .inv-card .insight-label { display: block; color: var(--accent, #7eaacc); font-weight: 700; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.15em; margin-bottom: 0.25rem; }
         .inv-card .toggle { text-align: center; margin-top: 1rem; color: var(--ink-faint, #a8a29e); font-size: 1.25rem; font-weight: 300; }
         .inv-card:hover .toggle { color: var(--accent, #7eaacc); }
 
@@ -102,7 +102,7 @@
         @media (min-width: 1024px) { .iam-sidebar { border-right: 1px solid var(--line, #e7e5e4); } }
         .iam-nav-item {
             padding: 0.75rem 1rem; cursor: pointer; border-radius: 0 0.5rem 0.5rem 0;
-            font-size: 0.875rem; font-weight: 500; color: var(--ink-muted, #78716c);
+            font-size: 0.9375rem; font-weight: 500; color: var(--ink-muted, #78716c);
             border-left: 3px solid transparent; transition: all 0.3s;
         }
         .iam-nav-item.active {
@@ -114,16 +114,16 @@
         .iam-badge {
             display: inline-block; padding: 0.25rem 0.75rem; border-radius: 9999px;
             border: 1px solid var(--line, #e7e5e4); background: var(--bg-sunken, #fafaf9);
-            font-size: 0.625rem; font-weight: 700; letter-spacing: 0.2em;
+            font-size: 0.75rem; font-weight: 700; letter-spacing: 0.2em;
             text-transform: uppercase; color: var(--accent, #7eaacc); margin-bottom: 1.5rem;
         }
         .iam-title { font-size: 2.25rem; font-weight: 700; color: var(--ink, #1c1917); line-height: 1.2; margin-bottom: 1.5rem; }
         @media (min-width: 768px) { .iam-title { font-size: 3rem; } }
         .iam-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 2rem; padding-top: 2rem; border-top: 1px solid var(--line, #e7e5e4); }
-        .iam-meta-label { font-size: 0.625rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.15em; color: var(--ink-faint, #a8a29e); margin-bottom: 0.25rem; }
+        .iam-meta-label { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.15em; color: var(--ink-faint, #a8a29e); margin-bottom: 0.25rem; }
         .iam-meta .need { font-size: 1.125rem; color: var(--ink, #292524); font-style: italic; }
-        .iam-meta .verse { font-size: 0.875rem; color: var(--accent, #7eaacc); font-family: monospace; }
-        .iam-desc { margin-top: 2rem; font-size: 1rem; color: var(--ink-muted, #57534e); line-height: 1.7; max-width: 36rem; }
+        .iam-meta .verse { font-size: 0.9375rem; color: var(--accent, #7eaacc); font-family: monospace; }
+        .iam-desc { margin-top: 2rem; font-size: 1.0625rem; color: var(--ink-muted, #57534e); line-height: 1.75; max-width: 36rem; }
 
         /* ── Timeline ──────────────────────────────────────────── */
         .timeline-layout { display: flex; flex-direction: column; gap: 1.5rem; }
@@ -138,33 +138,33 @@
         }
         .tl-item:hover { border-left-color: var(--line, #d6d3d1); }
         .tl-item.active { border-left-color: var(--accent, #7eaacc); }
-        .tl-item h4 { font-weight: 700; font-size: 1rem; color: var(--ink-faint, #a8a29e); }
+        .tl-item h4 { font-weight: 700; font-size: 1.0625rem; color: var(--ink-faint, #a8a29e); }
         .tl-item.active h4 { color: var(--ink, #292524); }
-        .tl-item .sub { font-size: 0.625rem; text-transform: uppercase; letter-spacing: 0.15em; color: var(--ink-faint, #a8a29e); margin-top: 0.25rem; }
+        .tl-item .sub { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.15em; color: var(--ink-faint, #a8a29e); margin-top: 0.25rem; }
         .tl-panel {
             background: var(--bg-sunken, #fafaf9); padding: 2rem; border-radius: 0.75rem;
             border: 1px solid var(--line, #e7e5e4); height: 100%;
             display: flex; flex-direction: column; justify-content: center;
         }
         .tl-panel h3 { font-size: 1.875rem; font-weight: 700; color: var(--ink, #292524); margin-bottom: 0.25rem; }
-        .tl-panel .sub { color: var(--accent, #7eaacc); font-weight: 700; text-transform: uppercase; letter-spacing: 0.15em; font-size: 0.75rem; margin-bottom: 1.5rem; }
-        .tl-panel .mission-label { font-size: 0.625rem; font-weight: 700; color: var(--ink-faint, #a8a29e); text-transform: uppercase; letter-spacing: 0.15em; margin-bottom: 0.5rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--line, #e7e5e4); }
-        .tl-panel .mission { color: var(--ink-muted, #57534e); font-size: 1rem; line-height: 1.7; margin-bottom: 2rem; }
+        .tl-panel .sub { color: var(--accent, #7eaacc); font-weight: 700; text-transform: uppercase; letter-spacing: 0.15em; font-size: 0.8125rem; margin-bottom: 1.5rem; }
+        .tl-panel .mission-label { font-size: 0.75rem; font-weight: 700; color: var(--ink-faint, #a8a29e); text-transform: uppercase; letter-spacing: 0.15em; margin-bottom: 0.5rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--line, #e7e5e4); }
+        .tl-panel .mission { color: var(--ink-muted, #57534e); font-size: 1.0625rem; line-height: 1.75; margin-bottom: 2rem; }
         .tl-hope {
             background: var(--bg-raised, #fff); padding: 1.25rem; border-radius: 0.5rem;
             border-left: 4px solid var(--accent, #7eaacc); box-shadow: 0 1px 2px rgba(0,0,0,0.04);
         }
-        .tl-hope-label { font-size: 0.625rem; font-weight: 700; color: var(--accent, #7eaacc); text-transform: uppercase; letter-spacing: 0.15em; margin-bottom: 0.25rem; }
-        .tl-hope p { color: var(--ink, #292524); font-weight: 500; font-style: italic; font-size: 1rem; line-height: 1.7; }
+        .tl-hope-label { font-size: 0.75rem; font-weight: 700; color: var(--accent, #7eaacc); text-transform: uppercase; letter-spacing: 0.15em; margin-bottom: 0.25rem; }
+        .tl-hope p { color: var(--ink, #292524); font-weight: 500; font-style: italic; font-size: 1.0625rem; line-height: 1.75; }
 
         /* ── Footer ────────────────────────────────────────────── */
         .page-footer {
             background: var(--bg-raised, #fff); border-top: 1px solid var(--line, #e7e5e4);
             padding: 4rem 1rem; text-align: center;
         }
-        .page-footer h2 { font-size: 1.5rem; font-weight: 700; color: var(--accent, #7eaacc); margin-bottom: 1rem; }
-        .page-footer .verse { color: var(--ink-muted, #78716c); font-size: 1.125rem; line-height: 1.7; font-style: italic; max-width: 48rem; margin: 0 auto 2rem; }
-        .page-footer .sign-off { font-size: 0.75rem; color: var(--ink-faint, #a8a29e); text-transform: uppercase; letter-spacing: 0.15em; }
+        .page-footer h2 { font-size: 1.625rem; font-weight: 700; color: var(--accent, #7eaacc); margin-bottom: 1rem; }
+        .page-footer .verse { color: var(--ink-muted, #78716c); font-size: 1.1875rem; line-height: 1.75; font-style: italic; max-width: 48rem; margin: 0 auto 2rem; }
+        .page-footer .sign-off { font-size: 0.8125rem; color: var(--ink-faint, #a8a29e); text-transform: uppercase; letter-spacing: 0.15em; }
     </style>
 </head>
 <body>
