@@ -1375,19 +1375,42 @@ _collapseNavGroups();
 })();
 
 // ── What's New / Changelog ─────────────────────────────────────────────────
-var FLOCKOS_CHANGELOG_VERSION = '3.19';
+var FLOCKOS_CHANGELOG_VERSION = '3.20';
 var _changelogEntries = [
   {
-    version: '3.19', date: 'April 2026', title: 'FlockChat & Firestore Live',
+    version: '3.20', date: 'April 2026', title: 'Global Missions, Xbox & Audit',
+    items: [
+      'New Missions module: global registry tracking 88+ countries with persecution-level tiers and flag icons',
+      'Persecution pill indicators: color-coded severity (Severe / Considerable / Some / Minimal) with World tab sorted worst-first',
+      'Church-aware resource links in Missions — FlockOS, FlockChat, and ATOG scoped per deployment',
+      'Afghan Bibles added: Dari, Pashto, Yousafzai, and Turkmen editions; Bible Access List data imported for all 88 countries',
+      'Missions edit and delete support; registry replicated to all church deployments',
+      'Xbox / TV mode: overscan-safe CSS layout with automatic UA detection on all app shells',
+      'Audit logging: care and prayer case views tracked to auditLog — debounced, once per case per day per session',
+      'Care interaction timeline: human-readable timestamps and author names in full history view',
+      'Care Summary Report: corrected date column formatting; care resolve response fixed',
+      'Bug fixes: permissions section toggle, user profile expansion, and Shepherd admin actions'
+    ]
+  },
+  {
+    version: '3.19', date: 'March–April 2026', title: 'FlockChat, Permissions & Multi-Church',
     items: [
       'FlockChat: full church messaging platform with role-gated channels, direct messages, and real-time presence',
       'Push notifications via Firebase Cloud Messaging — service worker, client token registration, and Cloud Functions',
-      'FlockChat PWA: installable app with manifest, custom icons, and offline support',
+      'FlockChat PWA: installable app with manifest, custom icons, and offline support; light sidebar + accent topbar',
       'Firestore/Wellspring backend now powers all modules — live data sync replaces GAS for real-time reads and writes',
-      'Daily pastoral summary email delivered via Cloud Function with priority badges and mobile-responsive HTML',
-      'Admin navigation rebranded: Flock Users, Flock Admin, Flock Content; new Other Courts group',
-      'Simplified permissions UI — category-level toggles with individual checks only for sensitive actions',
-      'Care module: non-member support, convert prayer request to care case, improved date formatting'
+      'Capability-based permissions: Nehemiah.can(), need-to-know deny-by-default, role badge in topbar replaces bell',
+      'Permission matrix UI: preset roles with advanced per-capability overrides; lazy-load on profile expand',
+      'Flock Users: account management, permissions card, and admin actions panel',
+      'Care: auto-assign Lead Pastor as primary caregiver; 10 new care types deployed to all churches',
+      'Care follow-ups, reassignment, and assignments tab with corrected field names',
+      'Daily pastoral summary email via Cloud Function with priority badges and mobile-responsive HTML',
+      'Calendar: Firebase iCal subscription support; event display corrections',
+      'Theology Explorer: full information display restored in Learning Hub',
+      'Logout: farewell card with full Aaronic blessing (Numbers 6:24–26); church-aware redirect per deployment',
+      'Branded public portals (FlockOS.html) generated for each Nation deployment; per-church Flock Suite URLs in navbar',
+      'SharedVessels CSS: single source of truth; build script auto-syncs to all church targets',
+      'Favicon: iOS-style rounded corners (18% radius) on all app icons; LICENSE included in all deployments'
     ]
   },
   {
