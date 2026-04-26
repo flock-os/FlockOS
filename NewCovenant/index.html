@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NewCovenant Standalone Harness</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Manrope:wght@400;500;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./src/styles.css" />
+  </head>
+  <body>
+    <div class="atmosphere" aria-hidden="true"></div>
+    <main class="experience-shell">
+      <header class="app-header">
+        <div>
+          <p class="eyebrow">NewCovenant</p>
+          <h1>One App, Two Expressions</h1>
+          <p class="subtext">Public view is warm and invitational. Admin view is practical and mission-ready.</p>
+        </div>
+        <div class="mode-toggle" role="tablist" aria-label="App mode">
+          <button id="mode-public" class="mode-btn is-active" type="button" role="tab" aria-selected="true">Public Experience</button>
+          <button id="mode-admin" class="mode-btn" type="button" role="tab" aria-selected="false">Admin Workspace</button>
+        </div>
+      </header>
+
+      <section id="public-view" class="view is-active" aria-label="Public-facing experience">
+        <article class="public-hero reveal">
+          <div>
+            <h2 id="public-hero-title">A place people want to stay</h2>
+            <p id="public-hero-subtitle">
+              Rich visual storytelling, clear pathways into community, and a guided flow that feels personal
+              rather than mechanical.
+            </p>
+            <div class="hero-actions">
+              <button id="public-action-1" class="hero-btn primary" type="button">Join a Gathering</button>
+              <button id="public-action-2" class="hero-btn secondary" type="button">Watch the Story</button>
+            </div>
+          </div>
+          <div class="hero-orb" aria-hidden="true">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+        </article>
+
+        <section class="public-grid reveal" aria-label="Public value pillars">
+          <article class="public-card">
+            <h3>Welcome Path</h3>
+            <p>Beautiful first-run moments, warm language, and visual cues that invite participation.</p>
+          </article>
+          <article class="public-card">
+            <h3>Stories in Motion</h3>
+            <p>Animated journeys, media-forward moments, and designed transitions that feel handcrafted.</p>
+          </article>
+          <article class="public-card">
+            <h3>Real Connection</h3>
+            <p>Fast access to events, prayer, messages, and groups without overwhelming navigation.</p>
+          </article>
+        </section>
+      </section>
+
+      <section id="admin-view" class="view" aria-label="Administrative workspace">
+        <article class="admin-grid reveal">
+          <section class="status-card" id="status-card">
+            <h2>Bootstrap Status</h2>
+            <ul id="status-list" aria-live="polite"></ul>
+          </section>
+
+          <section class="status-card" id="smoke-card">
+            <h2>Smoke Checks</h2>
+            <button id="run-smoke" type="button">Run Smoke Checks</button>
+            <ul id="smoke-list" aria-live="polite"></ul>
+          </section>
+
+          <section class="status-card" id="rehearsal-card">
+            <h2>Integration Rehearsal</h2>
+            <button id="run-rehearsal" type="button">Run Rehearsal</button>
+            <ul id="rehearsal-list" aria-live="polite"></ul>
+          </section>
+
+          <section class="status-card">
+            <h2>Execution Notes</h2>
+            <p>This workspace favors clarity, speed, and practical diagnostics over decoration.</p>
+          </section>
+        </article>
+      </section>
+    </main>
+
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>
