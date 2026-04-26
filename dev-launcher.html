@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FlockOS // DEV MATRIX</title>
+  <link rel="icon" type="image/png" href="Covenant/Courts/TheTabernacle/Images/FlockOS_AppIcon.png">
+  <style>
+    /* ── Reset ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ── Matrix palette ── */
+    :root {
+      --green:        #00ff41;
+      --green-dim:    #00c832;
+      --green-faint:  rgba(0,255,65,0.08);
+      --green-glow:   rgba(0,255,65,0.35);
+      --bg:           #020b02;
+      --bg-panel:     #040f04;
+      --bg-card:      rgba(0,255,65,0.04);
+      --line:         rgba(0,255,65,0.18);
+      --line-strong:  rgba(0,255,65,0.35);
+      --text:         #b8f5c0;
+      --text-dim:     #5a9960;
+      --red:          #ff3b3b;
+      --amber:        #f0c040;
+      --blue:         #40b8ff;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 14px;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+
+    /* ── Matrix rain canvas ── */
+    #matrix-canvas {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      opacity: 0.18;
+    }
+
+    /* ── Layout ── */
+    .shell {
+      position: relative;
+      z-index: 1;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem 4rem;
+      display: flex;
+      flex-direction: column;
+      gap: 2.5rem;
+    }
+
+    /* ── Header ── */
+    .hdr {
+      display: flex;
+      align-items: center;
+      gap: 1.25rem;
+      padding-bottom: 1.25rem;
+      border-bottom: 1px solid var(--line-strong);
+    }
+    .hdr img {
+      width: 52px;
+      height: 52px;
+      border-radius: 12px;
+      border: 1px solid var(--line-strong);
+      box-shadow: 0 0 14px var(--green-glow);
+    }
+    .hdr-text h1 {
+      font-family: 'Courier New', monospace;
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--green);
+      text-shadow: 0 0 10px var(--green-glow);
+    }
+    .hdr-text p {
+      font-size: 0.78rem;
+      color: var(--text-dim);
+      letter-spacing: 0.06em;
+      margin-top: 0.15rem;
+    }
+    .hdr-badge {
+      margin-left: auto;
+      font-size: 0.7rem;
+      letter-spacing: 0.08em;
+      color: var(--green-dim);
+      border: 1px solid var(--line-strong);
+      padding: 0.25rem 0.65rem;
+      border-radius: 4px;
+      text-transform: uppercase;
+      text-shadow: 0 0 6px var(--green-glow);
+      animation: pulse-border 3s infinite;
+      white-space: nowrap;
+    }
+    @keyframes pulse-border {
+      0%, 100% { border-color: var(--line-strong); box-shadow: none; }
+      50%       { border-color: var(--green); box-shadow: 0 0 8px var(--green-glow); }
+    }
+
+    /* ── Section label ── */
+    .section-label {
+      font-size: 0.68rem;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 1rem;
+    }
+    .section-label span {
+      color: var(--green);
+      margin-right: 0.5rem;
+    }
+
+    /* ── Section wrapper ── */
+    .section { display: flex; flex-direction: column; }
+
+    /* ── Grid ── */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 1rem;
+    }
+    .grid-wide {
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    }
+
+    /* ── Card ── */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 1rem 1.1rem 1.1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      cursor: pointer;
+      text-decoration: none;
+      color: inherit;
+      transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+    }
+    .card:hover {
+      border-color: var(--green);
+      box-shadow: 0 0 18px var(--green-glow), inset 0 0 40px rgba(0,255,65,0.04);
+      background: rgba(0,255,65,0.07);
+    }
+
+    .card-head {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .card-icon {
+      width: 38px;
+      height: 38px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      object-fit: contain;
+      background: rgba(0,0,0,0.4);
+      padding: 3px;
+      flex-shrink: 0;
+      filter: drop-shadow(0 0 5px var(--green-glow));
+    }
+    .card-title {
+      font-size: 0.9rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--green);
+      text-shadow: 0 0 6px var(--green-glow);
+    }
+    .card-sub {
+      font-size: 0.72rem;
+      color: var(--text-dim);
+      margin-top: 0.05rem;
+      letter-spacing: 0.04em;
+    }
+
+    .card-desc {
+      font-size: 0.76rem;
+      color: var(--text-dim);
+      line-height: 1.55;
+      border-top: 1px solid var(--line);
+      padding-top: 0.65rem;
+    }
+
+    /* ── App links row inside a card ── */
+    .app-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: auto;
+    }
+    .app-btn {
+      font-family: 'Courier New', monospace;
+      font-size: 0.68rem;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      text-decoration: none;
+      color: var(--bg);
+      background: var(--green-dim);
+      border: 1px solid var(--green);
+      border-radius: 4px;
+      padding: 0.3rem 0.7rem;
+      transition: background 0.15s, box-shadow 0.15s;
+      font-weight: 700;
+    }
+    .app-btn:hover {
+      background: var(--green);
+      box-shadow: 0 0 10px var(--green-glow);
+    }
+    .app-btn.ghost {
+      background: transparent;
+      color: var(--green);
+    }
+    .app-btn.ghost:hover {
+      background: var(--green-faint);
+    }
+    .app-btn.amber {
+      background: transparent;
+      color: var(--amber);
+      border-color: var(--amber);
+    }
+    .app-btn.amber:hover {
+      background: rgba(240,192,64,0.12);
+      box-shadow: 0 0 10px rgba(240,192,64,0.35);
+    }
+    .app-btn.blue {
+      background: transparent;
+      color: var(--blue);
+      border-color: var(--blue);
+    }
+    .app-btn.blue:hover {
+      background: rgba(64,184,255,0.1);
+      box-shadow: 0 0 10px rgba(64,184,255,0.3);
+    }
+    .app-btn.red {
+      background: transparent;
+      color: var(--red);
+      border-color: var(--red);
+    }
+    .app-btn.red:hover {
+      background: rgba(255,59,59,0.1);
+      box-shadow: 0 0 10px rgba(255,59,59,0.3);
+    }
+
+    /* ── Master card (root — slightly elevated) ── */
+    .card.master {
+      border-color: var(--green-dim);
+      background: rgba(0,255,65,0.06);
+    }
+    .card.master:hover {
+      border-color: var(--green);
+      box-shadow: 0 0 28px var(--green-glow);
+    }
+
+    /* ── Infra row ── */
+    .infra-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.65rem;
+    }
+    .infra-btn {
+      font-family: 'Courier New', monospace;
+      font-size: 0.72rem;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      text-decoration: none;
+      padding: 0.45rem 1rem;
+      border-radius: 5px;
+      border: 1px solid var(--line-strong);
+      color: var(--text);
+      background: var(--bg-panel);
+      transition: border-color 0.2s, box-shadow 0.2s, color 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .infra-btn:hover {
+      border-color: var(--green);
+      color: var(--green);
+      box-shadow: 0 0 8px var(--green-glow);
+    }
+    .infra-btn .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--green-dim);
+      box-shadow: 0 0 5px var(--green-glow);
+      flex-shrink: 0;
+    }
+    .infra-btn.fire .dot  { background: #ff7940; box-shadow: 0 0 5px rgba(255,121,64,0.5); }
+    .infra-btn.gh   .dot  { background: #b0b0b0; box-shadow: none; }
+    .infra-btn.gs   .dot  { background: var(--amber); box-shadow: 0 0 5px rgba(240,192,64,0.5); }
+
+    /* ── Status bar ── */
+    .statusbar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 10;
+      background: #010901;
+      border-top: 1px solid var(--line);
+      padding: 0.35rem 1.5rem;
+      font-size: 0.65rem;
+      letter-spacing: 0.08em;
+      color: var(--text-dim);
+      display: flex;
+      gap: 1.5rem;
+      align-items: center;
+    }
+    .statusbar .blink {
+      display: inline-block;
+      width: 7px;
+      height: 7px;
+      background: var(--green);
+      border-radius: 50%;
+      box-shadow: 0 0 6px var(--green-glow);
+      animation: blink 1.4s steps(1) infinite;
+      margin-right: 0.4rem;
+    }
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0; }
+    }
+    .statusbar .ts { margin-left: auto; color: var(--text-dim); }
+
+    /* ── Responsive ── */
+    @media (max-width: 600px) {
+      .hdr { flex-wrap: wrap; }
+      .hdr-badge { margin-left: 0; }
+      .grid, .grid-wide { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<canvas id="matrix-canvas"></canvas>
+
+<div class="shell">
+
+  <!-- Header -->
+  <header class="hdr">
+    <img src="Covenant/Courts/TheTabernacle/Images/FlockOS_AppIcon.png" alt="FlockOS">
+    <div class="hdr-text">
+      <h1>FlockOS // Dev Matrix</h1>
+      <p>Personal launcher — all deployments &amp; tools</p>
+    </div>
+    <div class="hdr-badge"><span class="blink"></span>SYSTEM ONLINE</div>
+  </header>
+
+  <!-- ── ROOT / MASTER ── -->
+  <section class="section">
+    <div class="section-label"><span>01//</span> Root &amp; Master Builds</div>
+    <div class="grid grid-wide">
+
+      <!-- Root Portal -->
+      <div class="card master">
+        <div class="card-head">
+          <img class="card-icon" src="Covenant/Courts/TheTabernacle/Images/FlockOS_AppIcon.png" alt="Root">
+          <div>
+            <div class="card-title">FlockOS — Root</div>
+            <div class="card-sub">Master source / production portal</div>
+          </div>
+        </div>
+        <div class="card-desc">The single source of truth. All church deployments are built from this root.</div>
+        <div class="app-links">
+          <a class="app-btn" href="Covenant/Nations/Root/FlockOS.html">FlockOS Portal</a>
+          <a class="app-btn ghost" href="https://flockos-comms.web.app/?church=root" target="_blank" rel="noopener">FlockChat</a>
+          <a class="app-btn ghost" href="Covenant/Courts/TheUpperRoom/ATOG.html?church=root">ATOG</a>
+          <a class="app-btn ghost" href="Covenant/Nations/Root/FlockOS_Churches.html">Church Index</a>
+        </div>
+      </div>
+
+      <!-- Tabernacle (shared UI layer) -->
+      <div class="card">
+        <div class="card-head">
+          <img class="card-icon" src="Covenant/Courts/TheTabernacle/Images/FlockOS_Midnight.png" alt="Tabernacle">
+          <div>
+            <div class="card-title">The Tabernacle</div>
+            <div class="card-sub">Shared UI shell &amp; component layer</div>
+          </div>
+        </div>
+        <div class="card-desc">The shared design system: american_garments.css, the_tabernacle.js, and all reusable components live here.</div>
+        <div class="app-links">
+          <a class="app-btn ghost" href="Covenant/Courts/TheTabernacle/FlockOS.html">Tabernacle Shell</a>
+          <a class="app-btn ghost blue" href="Covenant/Foundations/SharedVessels/styles/american_garments.css">CSS Source</a>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ── CHURCH DEPLOYMENTS ── -->
+  <section class="section">
+    <div class="section-label"><span>02//</span> Church Deployments</div>
+    <div class="grid">
+
+      <!-- FlockOS Demo -->
+      <div class="card">
+        <div class="card-head">
+          <img class="card-icon" src="Covenant/Courts/TheTabernacle/Images/FlockOS_Pink.png" alt="FlockOS Demo">
+          <div>
+            <div class="card-title">FlockOS Demo</div>
+            <div class="card-sub">Base / general testing deployment</div>
+          </div>
+        </div>
+        <div class="card-desc">General-purpose church deployment for FlockOS feature testing.</div>
+        <div class="app-links">
+          <a class="app-btn" href="Covenant/Nations/FlockOS/FlockOS/Pages/index.html">FlockOS</a>
+          <a class="app-btn ghost" href="https://flockos-comms.web.app/?church=root" target="_blank" rel="noopener">FlockChat</a>
+          <a class="app-btn ghost" href="Covenant/Courts/TheUpperRoom/ATOG.html?church=root">ATOG</a>
+        </div>
+      </div>
+
+      <!-- The Wellspring / GAS -->
+      <div class="card">
+        <div class="card-head">
+          <img class="card-icon" src="Covenant/Courts/TheTabernacle/Images/FlockOS_Orange.png" alt="GAS">
+          <div>
+            <div class="card-title">The Wellspring</div>
+            <div class="card-sub">GAS — offline-capable deployment</div>
+          </div>
+        </div>
+        <div class="card-desc">Google Apps Script–backed deployment. Tests offline-capability features.</div>
+        <div class="app-links">
+          <a class="app-btn" href="Covenant/Nations/GAS/FlockOS/Pages/index.html">FlockOS</a>
+          <a class="app-btn ghost" href="https://flockos-comms.web.app/?church=gas" target="_blank" rel="noopener">FlockChat</a>
+          <a class="app-btn ghost" href="Covenant/Courts/TheUpperRoom/ATOG.html?church=gas">ATOG</a>
+        </div>
+      </div>
+
+      <!-- Trinity Baptist -->
+      <div class="card">
+        <div class="card-head">
+          <img class="card-icon" src="Covenant/Courts/TheTabernacle/Images/FlockOS_Blue.png" alt="Trinity Baptist">
+          <div>
+            <div class="card-title">Trinity Baptist</div>
+            <div class="card-sub">TBC — Indio deployment</div>
+          </div>
+        </div>
+        <div class="card-desc">Live deployment for Trinity Baptist Church (Indio). Firebase: flockos-trinity.</div>
+        <div class="app-links">
+          <a class="app-btn" href="Covenant/Nations/TBC/FlockOS/Pages/index.html">FlockOS</a>
+          <a class="app-btn ghost" href="https://flockos-comms.web.app/?church=tbc" target="_blank" rel="noopener">FlockChat</a>
+          <a class="app-btn ghost" href="Covenant/Courts/TheUpperRoom/ATOG.html?church=tbc">ATOG</a>
+        </div>
+      </div>
+
+      <!-- The Forest -->
+      <div class="card">
+        <div class="card-head">
+          <img class="card-icon" src="Covenant/Courts/TheTabernacle/Images/FlockOS_Green.png" alt="The Forest">
+          <div>
+            <div class="card-title">The Forest</div>
+            <div class="card-sub">TheForest deployment</div>
+          </div>
+        </div>
+        <div class="card-desc">Live deployment for The Forest. Firebase: flockos-theforest.</div>
+        <div class="app-links">
+          <a class="app-btn" href="Covenant/Nations/TheForest/FlockOS/Pages/index.html">FlockOS</a>
+          <a class="app-btn ghost" href="https://flockos-comms.web.app/?church=theforest" target="_blank" rel="noopener">FlockChat</a>
+          <a class="app-btn ghost" href="Covenant/Courts/TheUpperRoom/ATOG.html?church=theforest">ATOG</a>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ── SHARED APPS ── -->
+  <section class="section">
+    <div class="section-label"><span>03//</span> Shared Apps &amp; Modules</div>
+    <div class="grid">
+
+      <!-- FlockChat -->
+      <div class="card">
+        <div class="card-head">
+          <img class="card-icon" src="Covenant/Courts/TheTabernacle/Images/FlockOS_Angels.png" alt="FlockChat">
+          <div>
+            <div class="card-title">FlockChat</div>
+            <div class="card-sub">Firebase Hosting — flockos-comms</div>
+          </div>
+        </div>
+        <div class="card-desc">Real-time church messaging. Source: Covenant/Courts/TheFellowship. Deploy: <code>firebase deploy --only hosting --project flockos-comms</code></div>
+        <div class="app-links">
+          <a class="app-btn" href="Covenant/Courts/TheFellowship/FlockChat.html">Source File</a>
+          <a class="app-btn ghost" href="https://flockos-comms.web.app" target="_blank" rel="noopener">Live App ↗</a>
+          <a class="app-btn ghost blue" href="Covenant/Courts/TheFellowship/FlockChat/the_word.js">the_word.js</a>
+        </div>
+      </div>
+
+      <!-- ATOG -->
+      <div class="card">
+        <div class="card-head">
+          <img class="card-icon" src="Covenant/Courts/TheTabernacle/Images/FlockOS_White.png" alt="ATOG">
+          <div>
+            <div class="card-title">ATOG</div>
+            <div class="card-sub">All The Old Gods — Bible &amp; Reference</div>
+          </div>
+        </div>
+        <div class="card-desc">Shared Bible &amp; theological reference tool. Hosted in TheUpperRoom.</div>
+        <div class="app-links">
+          <a class="app-btn" href="Covenant/Courts/TheUpperRoom/ATOG.html">Source File</a>
+          <a class="app-btn ghost" href="Covenant/Nations/Root/ATOG.html">Root Deploy</a>
+        </div>
+      </div>
+
+      <!-- Missions -->
+      <div class="card">
+        <div class="card-head">
+          <img class="card-icon" src="Covenant/Courts/TheTabernacle/Images/FlockOS_BurntOrange.png" alt="Missions">
+          <div>
+            <div class="card-title">Missions</div>
+            <div class="card-sub">Joshua Project / Missions Registry</div>
+          </div>
+        </div>
+        <div class="card-desc">Global missions registry and People Group data. Built by Shepherds/Build scripts.</div>
+        <div class="app-links">
+          <a class="app-btn ghost amber" href="Covenant/Shepherds/Build/">Build Scripts</a>
+          <a class="app-btn ghost amber" href="Covenant/Scrolls/ProductRegistry/">Registry</a>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ── INFRASTRUCTURE ── -->
+  <section class="section">
+    <div class="section-label"><span>04//</span> Infrastructure &amp; External</div>
+    <div class="infra-row">
+      <a class="infra-btn fire" href="https://console.firebase.google.com/project/flockos-comms/overview" target="_blank" rel="noopener">
+        <span class="dot"></span>Firebase — flockos-comms
+      </a>
+      <a class="infra-btn fire" href="https://console.firebase.google.com/project/flockos-trinity/overview" target="_blank" rel="noopener">
+        <span class="dot"></span>Firebase — flockos-trinity
+      </a>
+      <a class="infra-btn fire" href="https://console.firebase.google.com/project/flockos-theforest/overview" target="_blank" rel="noopener">
+        <span class="dot"></span>Firebase — flockos-theforest
+      </a>
+      <a class="infra-btn gh" href="https://github.com/FlockOS-Dev" target="_blank" rel="noopener">
+        <span class="dot"></span>GitHub Org
+      </a>
+      <a class="infra-btn gs" href="https://script.google.com/home" target="_blank" rel="noopener">
+        <span class="dot"></span>Google Apps Script
+      </a>
+      <a class="infra-btn" href="https://analytics.google.com" target="_blank" rel="noopener">
+        <span class="dot"></span>Google Analytics
+      </a>
+    </div>
+  </section>
+
+</div><!-- /shell -->
+
+<!-- Status bar -->
+<div class="statusbar">
+  <span class="blink"></span>
+  <span>FLOCKOS DEV MATRIX</span>
+  <span style="color:var(--green-dim)">LOCAL BUILD</span>
+  <span class="ts" id="ts"></span>
+</div>
+
+<!-- Matrix rain -->
+<script>
+(function(){
+  const canvas = document.getElementById('matrix-canvas');
+  const ctx = canvas.getContext('2d');
+  const FONT_SIZE = 14;
+  const CHARS = 'ﾊﾐﾋｰｳｼﾅﾓﾆｻﾜﾂｵﾘｱﾎﾃﾏｹﾒｴｶｷﾑﾕﾗｾﾈｽﾀﾇﾍ0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ@#$%&*<>[]{}|/\\';
+
+  let cols, drops;
+
+  function resize() {
+    canvas.width  = window.innerWidth;
+    canvas.height = window.innerHeight;
+    cols  = Math.floor(canvas.width / FONT_SIZE);
+    drops = Array.from({ length: cols }, () => Math.floor(Math.random() * -50));
+  }
+
+  function draw() {
+    ctx.fillStyle = 'rgba(2,11,2,0.06)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.font = FONT_SIZE + 'px monospace';
+
+    for (let i = 0; i < drops.length; i++) {
+      const ch = CHARS[Math.floor(Math.random() * CHARS.length)];
+      const y  = drops[i] * FONT_SIZE;
+      const bright = Math.random() > 0.92;
+      ctx.fillStyle = bright ? '#ccffcc' : '#00c832';
+      ctx.fillText(ch, i * FONT_SIZE, y);
+      if (y > canvas.height && Math.random() > 0.975) drops[i] = 0;
+      drops[i]++;
+    }
+  }
+
+  resize();
+  window.addEventListener('resize', resize);
+  setInterval(draw, 50);
+})();
+
+// Clock
+function tick() {
+  const now = new Date();
+  document.getElementById('ts').textContent =
+    now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) +
+    ' — ' +
+    now.toLocaleTimeString('en-US', { hour12: false });
+}
+tick();
+setInterval(tick, 1000);
+</script>
+
+</body>
+</html>
