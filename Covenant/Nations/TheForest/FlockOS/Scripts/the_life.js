@@ -4902,7 +4902,7 @@ const TheLife = (() => {
           + '<td>' + _esc(c.careType || c.type || '') + '</td>'
           + '<td>' + _esc(c.priority || '') + '</td>'
           + '<td>' + _esc(c.status || '') + '</td>'
-          + '<td>' + _esc(c.openedDate || c.createdAt || '') + '</td>'
+          + '<td>' + _esc(_fmtDate(c.openedDate || c.createdAt || '')) + '</td>'
           + '<td>' + _esc((c.summary || '').substring(0, 60)) + '</td></tr>';
       });
       html += '</tbody></table>';
