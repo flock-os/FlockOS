@@ -9165,7 +9165,14 @@ const Modules = (() => {
       // ══════════════════════════════════════════════════════════════════
       if (_missionsTab === 'world') {
         const raw  = await (_isFirebaseComms() ? UpperRoom.listMissionsRegistry({ limit: 200 }) : TheVine.missions.registry.list({ limit: 200 }));
-        const rows = _rows(raw);
+        const rows = _rows(raw).slice().sort((a, b) => {
+          const ra = parseInt(a.persecutionRank || a.rank, 10);
+          const rb = parseInt(b.persecutionRank || b.rank, 10);
+          const va = isNaN(ra) ? Infinity : ra;
+          const vb = isNaN(rb) ? Infinity : rb;
+          if (va !== vb) return va - vb;
+          return String(a.countryName || a.name || '').localeCompare(String(b.countryName || b.name || ''));
+        });
         _dataCache['missions-world'] = rows;
 
         // KPI bar
