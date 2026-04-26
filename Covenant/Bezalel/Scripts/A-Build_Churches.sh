@@ -4,6 +4,13 @@
 # Reads each JSON config in Scrolls/ChurchRegistry/ and produces a
 # fully-branded deployment under Nations/<shortName>/
 #
+# BRANDING SOURCE OF TRUTH:
+#   NewCovenant/brand.md
+#   All brand values (colors, fonts, names, copy) are defined there.
+#   Church-specific overrides live in Scrolls/ChurchRegistry/<church>.json
+#   under the brandName field. This script reads brandName from each config
+#   and injects it into the deployed HTML at build time.
+#
 # Output:
 #   Nations/FlockOS/
 #   Nations/GAS/

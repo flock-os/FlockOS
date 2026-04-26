@@ -21,7 +21,7 @@ function installMockFlockOS() {
     },
     auth: {
       getCurrentUser() {
-        return { id: "mock-user", name: "Mock User", roles: ["builder"] };
+        return { id: "mock-user", name: "Mock User", roles: ["leader"] };
       }
     },
     offline: {

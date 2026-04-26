@@ -23,6 +23,25 @@ Then open:
 
 - `http://localhost:4173/NewCovenant/index.html`
 
+## Branding Source of Truth
+
+All brand values — names, colors, fonts, copy, deployment surfaces, and the
+confirmation gate for ambiguous decisions — live in one file:
+
+- **[brand.md](./brand.md)**
+
+Brand rule baseline:
+
+- Foundational brand: **FlockOS**
+- All other product/module brands: **Powered by FlockOS**
+
+The build script (`Covenant/Bezalel/Scripts/A-Build_Churches.sh`) reads
+`brandName` from each `Covenant/Scrolls/ChurchRegistry/<church>.json` at
+build time. That field must match the canonical names defined in `brand.md`.
+
+If branding is unclear on any new surface, use the gate questions in `brand.md`
+before publishing copy.
+
 ## Contract-first development flow
 
 1. Update a contract in `src/modules/*/*.contract.js`
