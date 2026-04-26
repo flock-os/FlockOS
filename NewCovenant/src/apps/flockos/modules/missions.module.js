@@ -14,7 +14,7 @@ export const FLOCKOS_MISSIONS_MODULE = {
   "phase": "F4.2",
   "seedData": {
     "source": "live-snapshot-importer",
-    "generatedAt": "2026-04-26T22:47:37.317Z",
+    "generatedAt": "2026-04-26T22:48:53.797Z",
     "records": [
       {
         "id": "M-101",
@@ -79,7 +79,7 @@ export const FLOCKOS_MISSIONS_MODULE = {
     "provider": "FlockOS Source Snapshot",
     "endpoint": "TheVine.missions.registry.list",
     "sourceScript": "Covenant/Courts/TheTabernacle/Scripts/the_well.js",
-    "syncedAt": "2026-04-26T22:47:37.317Z",
+    "syncedAt": "2026-04-26T22:48:53.797Z",
     "refreshMode": "imported-static-snapshot"
   }
 };

@@ -12,7 +12,7 @@ export const FLOCKCHAT_CHANNEL_DETAILS_MODULE = {
   "phase": "F5.4",
   "seedData": {
     "source": "live-snapshot-importer",
-    "generatedAt": "2026-04-26T22:47:37.379Z",
+    "generatedAt": "2026-04-26T22:48:53.882Z",
     "records": [
       {
         "id": "channel-details-001",
@@ -38,7 +38,7 @@ export const FLOCKCHAT_CHANNEL_DETAILS_MODULE = {
     "provider": "FlockChat Source Snapshot",
     "sourceScript": "flockchat-public/FlockChat.html",
     "sourceSurface": "channel-details",
-    "syncedAt": "2026-04-26T22:47:37.379Z",
+    "syncedAt": "2026-04-26T22:48:53.882Z",
     "refreshMode": "imported-static-snapshot"
   }
 };

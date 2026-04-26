@@ -12,7 +12,7 @@ export const FLOCKOS_COMPASSION_MODULE = {
   "phase": "F6.2",
   "seedData": {
     "source": "live-snapshot-importer",
-    "generatedAt": "2026-04-26T22:47:37.317Z",
+    "generatedAt": "2026-04-26T22:48:53.797Z",
     "records": [
       {
         "id": "compassion-001",
@@ -47,7 +47,7 @@ export const FLOCKOS_COMPASSION_MODULE = {
     "provider": "FlockOS Source Snapshot",
     "endpoint": "TheVine.flock.call (module-specific)",
     "sourceScript": "Covenant/Courts/TheTabernacle/Scripts/the_well.js",
-    "syncedAt": "2026-04-26T22:47:37.317Z",
+    "syncedAt": "2026-04-26T22:48:53.797Z",
     "refreshMode": "imported-static-snapshot"
   }
 };

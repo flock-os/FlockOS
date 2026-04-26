@@ -12,7 +12,7 @@ export const FLOCKOS_APP_THEOLOGY_MODULE = {
   "phase": "F7.4",
   "seedData": {
     "source": "live-snapshot-importer",
-    "generatedAt": "2026-04-26T22:47:37.317Z",
+    "generatedAt": "2026-04-26T22:48:53.797Z",
     "records": [
       {
         "id": "apptheology-001",
@@ -48,7 +48,7 @@ export const FLOCKOS_APP_THEOLOGY_MODULE = {
     "endpoint": "TheVine.flock.theology.categories.list",
     "sourceScript": "Covenant/Courts/TheTabernacle/Scripts/the_well.js",
     "sourceSurface": "app-theology",
-    "syncedAt": "2026-04-26T22:47:37.317Z",
+    "syncedAt": "2026-04-26T22:48:53.797Z",
     "refreshMode": "imported-static-snapshot"
   }
 };

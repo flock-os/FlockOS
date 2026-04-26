@@ -13,7 +13,7 @@ export const ATOG_QUIZ_MODULE = {
   "phase": "F7.3",
   "seedData": {
     "source": "live-snapshot-importer",
-    "generatedAt": "2026-04-26T22:47:37.379Z",
+    "generatedAt": "2026-04-26T22:48:53.882Z",
     "records": [
       {
         "id": "quiz-001",
@@ -39,7 +39,7 @@ export const ATOG_QUIZ_MODULE = {
     "provider": "ATOG Source Snapshot",
     "sourceScript": "Covenant/Courts/TheUpperRoom/ATOG.html",
     "sourceSurface": "quiz",
-    "syncedAt": "2026-04-26T22:47:37.379Z",
+    "syncedAt": "2026-04-26T22:48:53.882Z",
     "refreshMode": "imported-static-snapshot"
   }
 };

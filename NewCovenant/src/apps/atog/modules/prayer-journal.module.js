@@ -12,7 +12,7 @@ export const ATOG_PRAYER_JOURNAL_MODULE = {
   "phase": "F6.5",
   "seedData": {
     "source": "live-snapshot-importer",
-    "generatedAt": "2026-04-26T22:47:37.379Z",
+    "generatedAt": "2026-04-26T22:48:53.882Z",
     "records": [
       {
         "id": "prayer-journal-001",
@@ -37,7 +37,7 @@ export const ATOG_PRAYER_JOURNAL_MODULE = {
   "liveSource": {
     "provider": "ATOG Source Snapshot",
     "sourceScript": "Covenant/Courts/TheUpperRoom/ATOG.html",
-    "syncedAt": "2026-04-26T22:47:37.379Z",
+    "syncedAt": "2026-04-26T22:48:53.882Z",
     "refreshMode": "imported-static-snapshot"
   }
 };

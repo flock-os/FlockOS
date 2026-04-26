@@ -12,7 +12,7 @@ export const FLOCKCHAT_EMOJI_PICKER_MODULE = {
   "phase": "F5.5",
   "seedData": {
     "source": "live-snapshot-importer",
-    "generatedAt": "2026-04-26T22:47:37.379Z",
+    "generatedAt": "2026-04-26T22:48:53.882Z",
     "records": [
       {
         "id": "emoji-picker-001",
@@ -38,7 +38,7 @@ export const FLOCKCHAT_EMOJI_PICKER_MODULE = {
     "provider": "FlockChat Source Snapshot",
     "sourceScript": "flockchat-public/FlockChat/the_word.js",
     "sourceSurface": "emoji-picker",
-    "syncedAt": "2026-04-26T22:47:37.379Z",
+    "syncedAt": "2026-04-26T22:48:53.882Z",
     "refreshMode": "imported-static-snapshot"
   }
 };
