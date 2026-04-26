@@ -85,3 +85,17 @@ Admin Workspace includes a `Weave Roadmap` card that summarizes:
 - ATOG, FlockOS, and FlockChat tracks
 - module routes
 - phase targets and status
+
+## Public Site Weave Panel
+
+Public mode now includes an interactive weave panel that switches between:
+
+- ATOG
+- FlockOS
+- FlockChat
+
+Each app view shows:
+
+- narrative summary
+- feature highlights
+- two route-backed action buttons

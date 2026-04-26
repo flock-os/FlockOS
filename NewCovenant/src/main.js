@@ -14,6 +14,7 @@ import { createRootShellAdapter } from "./bridge/rootShellAdapter.js";
 import { createAuthBoundaryAdapter } from "./bridge/authBoundaryAdapter.js";
 import { runIntegrationRehearsal } from "./bridge/integrationRehearsal.js";
 import { WEAVE_MANIFEST, summarizeWeaveManifest } from "./weave/weaveManifest.js";
+import { SITE_WEAVE_CONTENT, getWeaveOrder } from "./weave/siteWeaveContent.js";
 
 const modules = {
   config: createConfigModule(),
@@ -45,6 +46,15 @@ const publicHeroTitle = document.getElementById("public-hero-title");
 const publicHeroSubtitle = document.getElementById("public-hero-subtitle");
 const publicActionOne = document.getElementById("public-action-1");
 const publicActionTwo = document.getElementById("public-action-2");
+const weaveKicker = document.getElementById("weave-kicker");
+const weaveTitle = document.getElementById("weave-title");
+const weaveSummary = document.getElementById("weave-summary");
+const weaveFeatures = document.getElementById("weave-features");
+const weavePrimary = document.getElementById("weave-primary");
+const weaveSecondary = document.getElementById("weave-secondary");
+const weaveAppAtog = document.getElementById("weave-app-atog");
+const weaveAppFlockos = document.getElementById("weave-app-flockos");
+const weaveAppFlockchat = document.getElementById("weave-app-flockchat");
 
 const qaState = {
   smokePassed: false,
@@ -53,6 +63,7 @@ const qaState = {
 
 let latestBuildSummary = null;
 let summaryHistory = [];
+let selectedWeaveApp = "atog";
 
 function setMode(mode) {
   const showPublic = mode === "public";
@@ -256,6 +267,37 @@ function exportBuildSummary() {
   URL.revokeObjectURL(url);
 }
 
+function renderWeavePanel() {
+  const active = SITE_WEAVE_CONTENT[selectedWeaveApp] || SITE_WEAVE_CONTENT.atog;
+
+  weaveKicker.textContent = active.display;
+  weaveTitle.textContent = active.title;
+  weaveSummary.textContent = active.summary;
+
+  weaveFeatures.innerHTML = "";
+  active.features.forEach((feature) => {
+    const item = document.createElement("li");
+    item.textContent = feature;
+    weaveFeatures.appendChild(item);
+  });
+
+  weavePrimary.textContent = active.primaryLabel;
+  weaveSecondary.textContent = active.secondaryLabel;
+
+  weaveAppAtog.classList.toggle("is-active", selectedWeaveApp === "atog");
+  weaveAppFlockos.classList.toggle("is-active", selectedWeaveApp === "flockos");
+  weaveAppFlockchat.classList.toggle("is-active", selectedWeaveApp === "flockchat");
+}
+
+function setWeaveApp(appId) {
+  if (!SITE_WEAVE_CONTENT[appId]) {
+    return;
+  }
+
+  selectedWeaveApp = appId;
+  renderWeavePanel();
+}
+
 function renderWeaveRoadmap() {
   const summary = summarizeWeaveManifest(WEAVE_MANIFEST);
   weaveRoadmapList.innerHTML = "";
@@ -283,7 +325,7 @@ function renderWeaveRoadmap() {
 }
 
 modules.config.set("app.name", "NewCovenant");
-modules.config.set("runtime.phase", "F1.2");
+modules.config.set("runtime.phase", "F3.6");
 
 modules.resolver.registerRoute("/home", ({ path }) => {
   return { route: path, page: "Home" };
@@ -316,6 +358,28 @@ publicActionTwo.addEventListener("click", () => {
   const outcome = rootShellAdapter.navigate(publicActions[1]?.route || "/home");
   bridge.notify(outcome.found ? "Secondary action route resolved" : "Secondary action route missing", outcome.found ? "success" : "warn");
 });
+
+weavePrimary.addEventListener("click", () => {
+  const active = SITE_WEAVE_CONTENT[selectedWeaveApp] || SITE_WEAVE_CONTENT.atog;
+  const outcome = rootShellAdapter.navigate(active.primaryRoute);
+  bridge.notify(
+    outcome.found ? `${active.display} primary route ready` : `${active.display} primary route missing`,
+    outcome.found ? "success" : "warn"
+  );
+});
+
+weaveSecondary.addEventListener("click", () => {
+  const active = SITE_WEAVE_CONTENT[selectedWeaveApp] || SITE_WEAVE_CONTENT.atog;
+  const outcome = rootShellAdapter.navigate(active.secondaryRoute);
+  bridge.notify(
+    outcome.found ? `${active.display} secondary route ready` : `${active.display} secondary route missing`,
+    outcome.found ? "success" : "warn"
+  );
+});
+
+weaveAppAtog.addEventListener("click", () => setWeaveApp("atog"));
+weaveAppFlockos.addEventListener("click", () => setWeaveApp("flockos"));
+weaveAppFlockchat.addEventListener("click", () => setWeaveApp("flockchat"));
 
 modules.offline.queue({ type: "sync-note", data: { title: "First local note" } });
 modules.offline.queue({ type: "sync-note", data: { title: "Second local note" } });
@@ -436,5 +500,6 @@ refreshWeaveButton.addEventListener("click", () => {
 renderBuildSummary();
 renderSummaryHistory();
 renderWeaveRoadmap();
+setWeaveApp(getWeaveOrder()[0]);
 
 setMode("public");

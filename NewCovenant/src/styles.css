@@ -195,6 +195,87 @@ body {
   gap: 0.9rem;
 }
 
+.public-weave {
+  margin-top: 1rem;
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: 0.9rem;
+}
+
+.weave-rail {
+  border-radius: 16px;
+  border: 1px solid #d8c6b1;
+  background: #fff7ee;
+  padding: 0.9rem;
+  display: grid;
+  gap: 0.55rem;
+  align-content: start;
+}
+
+.weave-label {
+  margin: 0 0 0.35rem;
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: #80542c;
+  font-weight: 800;
+}
+
+.weave-app-btn {
+  border: 1px solid #d7c3ab;
+  border-radius: 10px;
+  background: #fffdf9;
+  color: #3e4e63;
+  font-weight: 700;
+  text-align: left;
+  padding: 0.58rem 0.72rem;
+  cursor: pointer;
+}
+
+.weave-app-btn.is-active {
+  background: #194c70;
+  color: #f4f9ff;
+  border-color: #194c70;
+}
+
+.weave-main {
+  border-radius: 16px;
+  border: 1px solid #d8c6b1;
+  background: linear-gradient(140deg, #fffdfa, #f9f1e8);
+  padding: 1rem 1.15rem;
+}
+
+.weave-kicker {
+  margin: 0;
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: #80542c;
+  font-weight: 800;
+}
+
+.weave-main h3 {
+  margin: 0.35rem 0 0.45rem;
+  font-family: "Fraunces", serif;
+  font-size: clamp(1.3rem, 2.7vw, 1.95rem);
+}
+
+.weave-main p {
+  margin: 0;
+  color: #414b5d;
+}
+
+.weave-feature-list {
+  margin: 0.9rem 0 1rem;
+  padding-left: 1.15rem;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.weave-feature-list li {
+  color: #39485e;
+}
+
 .public-card {
   border-radius: 16px;
   background: #fffdf9;
@@ -419,6 +500,19 @@ body {
 
   .public-grid {
     grid-template-columns: 1fr;
+  }
+
+  .public-weave {
+    grid-template-columns: 1fr;
+  }
+
+  .weave-rail {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: center;
+  }
+
+  .weave-label {
+    grid-column: 1 / -1;
   }
 
   .hero-orb {
