@@ -289,10 +289,39 @@ body {
   background: #663b8d;
 }
 
+#capture-summary {
+  border: 1px solid #145a72;
+  background: #1f7796;
+  color: #ffffff;
+  border-radius: 8px;
+  padding: 0.54rem 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+#capture-summary:hover {
+  background: #1a6782;
+}
+
+#clear-history {
+  border: 1px solid #7a2d2d;
+  background: #983737;
+  color: #ffffff;
+  border-radius: 8px;
+  padding: 0.54rem 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+#clear-history:hover {
+  background: #842f2f;
+}
+
 #status-list,
 #smoke-list,
 #rehearsal-list,
-#build-summary-list {
+#build-summary-list,
+#summary-history-list {
   margin: 0.8rem 0 0;
   padding-left: 1rem;
   display: grid;

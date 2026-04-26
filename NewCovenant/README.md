@@ -65,3 +65,11 @@ From Admin Workspace, use `Export Summary` in the Build Summary card.
 
 - Downloads `newcovenant-build-summary-<timestamp>.json`
 - Includes readiness rows, compatibility snapshot, and phase/app metadata
+
+## Build Summary History
+
+In Admin Workspace, `Summary History` tracks in-session readiness snapshots.
+
+- `Capture Snapshot`: add manual history entry
+- `Clear History`: reset session entries
+- Auto-captures on summary refresh, smoke, and rehearsal runs

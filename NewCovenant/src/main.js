@@ -31,6 +31,9 @@ const runRehearsalButton = document.getElementById("run-rehearsal");
 const buildSummaryList = document.getElementById("build-summary-list");
 const refreshSummaryButton = document.getElementById("refresh-summary");
 const exportSummaryButton = document.getElementById("export-summary");
+const summaryHistoryList = document.getElementById("summary-history-list");
+const captureSummaryButton = document.getElementById("capture-summary");
+const clearHistoryButton = document.getElementById("clear-history");
 const modePublicButton = document.getElementById("mode-public");
 const modeAdminButton = document.getElementById("mode-admin");
 const publicView = document.getElementById("public-view");
@@ -46,6 +49,7 @@ const qaState = {
 };
 
 let latestBuildSummary = null;
+let summaryHistory = [];
 
 function setMode(mode) {
   const showPublic = mode === "public";
@@ -184,6 +188,45 @@ function renderBuildSummary() {
   };
 }
 
+function renderSummaryHistory() {
+  summaryHistoryList.innerHTML = "";
+
+  if (summaryHistory.length === 0) {
+    const emptyItem = document.createElement("li");
+    emptyItem.textContent = "No snapshots captured in this session.";
+    emptyItem.className = "warn";
+    summaryHistoryList.appendChild(emptyItem);
+    return;
+  }
+
+  summaryHistory.slice(0, 8).forEach((entry, index) => {
+    const item = document.createElement("li");
+    item.textContent = `#${index + 1} ${entry.when} | ${entry.ready}/${entry.total} ready | source: ${entry.source}`;
+    item.className = entry.ready === entry.total ? "ok" : "warn";
+    summaryHistoryList.appendChild(item);
+  });
+}
+
+function captureSummarySnapshot(source = "manual") {
+  if (!latestBuildSummary) {
+    renderBuildSummary();
+  }
+
+  const snapshot = {
+    when: new Date().toLocaleTimeString(),
+    source,
+    ready: latestBuildSummary.readiness.ready,
+    total: latestBuildSummary.readiness.total
+  };
+
+  summaryHistory.unshift(snapshot);
+  if (summaryHistory.length > 20) {
+    summaryHistory = summaryHistory.slice(0, 20);
+  }
+
+  renderSummaryHistory();
+}
+
 function exportBuildSummary() {
   if (!latestBuildSummary) {
     renderBuildSummary();
@@ -287,6 +330,7 @@ runSmokeButton.addEventListener("click", () => {
   renderSmokeResult(result);
   qaState.smokePassed = result.summary.failed === 0;
   renderBuildSummary();
+  captureSummarySnapshot("smoke");
   bridge.notify(
     result.summary.failed === 0 ? "Smoke checks passed" : "Smoke checks have failures",
     result.summary.failed === 0 ? "success" : "warn"
@@ -324,6 +368,7 @@ runRehearsalButton.addEventListener("click", () => {
   renderRehearsalResult(result);
   qaState.rehearsalPassed = result.summary.afterAvailable === result.summary.total;
   renderBuildSummary();
+  captureSummarySnapshot("rehearsal");
   bridge.notify(
     result.summary.afterAvailable === result.summary.total
       ? "Integration rehearsal completed successfully"
@@ -334,6 +379,7 @@ runRehearsalButton.addEventListener("click", () => {
 
 refreshSummaryButton.addEventListener("click", () => {
   renderBuildSummary();
+  captureSummarySnapshot("refresh");
   bridge.notify("Build summary refreshed", "info");
 });
 
@@ -342,6 +388,18 @@ exportSummaryButton.addEventListener("click", () => {
   bridge.notify("Build summary exported", "success");
 });
 
+captureSummaryButton.addEventListener("click", () => {
+  captureSummarySnapshot("manual");
+  bridge.notify("Summary snapshot captured", "success");
+});
+
+clearHistoryButton.addEventListener("click", () => {
+  summaryHistory = [];
+  renderSummaryHistory();
+  bridge.notify("Summary history cleared", "info");
+});
+
 renderBuildSummary();
+renderSummaryHistory();
 
 setMode("public");
