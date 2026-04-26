@@ -2,7 +2,7 @@
 // Cache-first for the launcher shell and local assets.
 // External URLs (Firebase, GitHub, GAS) are always network-fetched.
 
-const CACHE = 'dev-matrix-v3';
+const CACHE = 'dev-matrix-v4';
 
 // Derive base path from SW location so this works from any subdirectory
 const BASE = self.location.pathname.replace(/\/[^/]*$/, '/');
@@ -13,6 +13,7 @@ const PRECACHE = [
   BASE + 'dev-launcher-icon-192.png',
   BASE + 'dev-launcher-icon-512.png',
   BASE + 'dev-launcher-icon-180.png',
+  BASE + 'Covenant/Courts/TheTabernacle/Images/FSLogo.png',
   BASE + 'Covenant/Courts/TheTabernacle/Images/FlockOS_AppIcon.png',
   BASE + 'Covenant/Courts/TheTabernacle/Images/FlockOS_Pink.png',
   BASE + 'Covenant/Courts/TheTabernacle/Images/FlockOS_Orange.png',

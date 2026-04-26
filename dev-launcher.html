@@ -5,13 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>FlockOS // DEV MATRIX</title>
   <link rel="manifest" href="dev-launcher.manifest.json">
-  <link rel="icon" type="image/png" href="Covenant/Courts/TheTabernacle/Images/FlockOS_AppIcon.png">
+  <link rel="icon" type="image/png" href="Covenant/Courts/TheTabernacle/Images/FSLogo.png">
   <link rel="apple-touch-icon" sizes="180x180" href="dev-launcher-icon-180.png">
   <meta name="theme-color" content="#020b02">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="DevMatrix">
+  <meta name="apple-mobile-web-app-title" content="Developer">
   <meta name="description" content="Personal FlockOS dev launcher — all deployments and tools.">
   <style>
     /* ── Reset ── */
@@ -23,16 +23,27 @@
       --green-dim:    #00c832;
       --green-faint:  rgba(0,255,65,0.08);
       --green-glow:   rgba(0,255,65,0.35);
+      --cyan:         #00e5ff;
+      --cyan-glow:    rgba(0,229,255,0.35);
+      --cyan-faint:   rgba(0,229,255,0.08);
+      --amber:        #f0c040;
+      --amber-glow:   rgba(240,192,64,0.4);
+      --amber-faint:  rgba(240,192,64,0.08);
+      --blue:         #40b8ff;
+      --blue-glow:    rgba(64,184,255,0.35);
+      --blue-faint:   rgba(64,184,255,0.08);
+      --purple:       #bf80ff;
+      --purple-glow:  rgba(191,128,255,0.35);
+      --purple-faint: rgba(191,128,255,0.08);
+      --red:          #ff4f4f;
+      --red-glow:     rgba(255,79,79,0.35);
       --bg:           #020b02;
       --bg-panel:     #040f04;
       --bg-card:      rgba(0,255,65,0.04);
       --line:         rgba(0,255,65,0.18);
       --line-strong:  rgba(0,255,65,0.35);
-      --text:         #b8f5c0;
-      --text-dim:     #5a9960;
-      --red:          #ff3b3b;
-      --amber:        #f0c040;
-      --blue:         #40b8ff;
+      --text:         #d0f5d8;
+      --text-dim:     #6aaa72;
     }
 
     html, body {
@@ -40,7 +51,7 @@
       background: var(--bg);
       color: var(--text);
       font-family: 'Courier New', Courier, monospace;
-      font-size: 14px;
+      font-size: 16px;
       -webkit-font-smoothing: antialiased;
       overflow-x: hidden;
     }
@@ -75,34 +86,35 @@
       border-bottom: 1px solid var(--line-strong);
     }
     .hdr img {
-      width: 52px;
-      height: 52px;
+      width: 58px;
+      height: 58px;
       border-radius: 12px;
       border: 1px solid var(--line-strong);
       box-shadow: 0 0 14px var(--green-glow);
     }
     .hdr-text h1 {
       font-family: 'Courier New', monospace;
-      font-size: 1.5rem;
+      font-size: 1.75rem;
       font-weight: 700;
-      letter-spacing: 0.12em;
+      letter-spacing: 0.1em;
       text-transform: uppercase;
       color: var(--green);
-      text-shadow: 0 0 10px var(--green-glow);
+      text-shadow: 0 0 12px var(--green-glow);
     }
     .hdr-text p {
-      font-size: 0.78rem;
-      color: var(--text-dim);
-      letter-spacing: 0.06em;
-      margin-top: 0.15rem;
+      font-size: 0.95rem;
+      color: var(--cyan);
+      letter-spacing: 0.04em;
+      margin-top: 0.2rem;
+      text-shadow: 0 0 6px var(--cyan-glow);
     }
     .hdr-badge {
       margin-left: auto;
-      font-size: 0.7rem;
+      font-size: 0.82rem;
       letter-spacing: 0.08em;
       color: var(--green-dim);
       border: 1px solid var(--line-strong);
-      padding: 0.25rem 0.65rem;
+      padding: 0.3rem 0.8rem;
       border-radius: 4px;
       text-transform: uppercase;
       text-shadow: 0 0 6px var(--green-glow);
@@ -116,18 +128,27 @@
 
     /* ── Section label ── */
     .section-label {
-      font-size: 0.68rem;
-      letter-spacing: 0.16em;
+      font-size: 0.82rem;
+      letter-spacing: 0.18em;
       text-transform: uppercase;
       color: var(--text-dim);
-      padding-bottom: 0.5rem;
+      padding-bottom: 0.55rem;
       border-bottom: 1px solid var(--line);
-      margin-bottom: 1rem;
+      margin-bottom: 1.1rem;
     }
     .section-label span {
       color: var(--green);
       margin-right: 0.5rem;
     }
+    /* Per-section accent colors */
+    .section-label.s01 { border-bottom-color: rgba(240,192,64,0.3); }
+    .section-label.s01 span { color: var(--amber); text-shadow: 0 0 8px var(--amber-glow); }
+    .section-label.s02 { border-bottom-color: rgba(0,255,65,0.3); }
+    .section-label.s02 span { color: var(--green); text-shadow: 0 0 8px var(--green-glow); }
+    .section-label.s03 { border-bottom-color: rgba(0,229,255,0.3); }
+    .section-label.s03 span { color: var(--cyan); text-shadow: 0 0 8px var(--cyan-glow); }
+    .section-label.s04 { border-bottom-color: rgba(191,128,255,0.3); }
+    .section-label.s04 span { color: var(--purple); text-shadow: 0 0 8px var(--purple-glow); }
 
     /* ── Section wrapper ── */
     .section { display: flex; flex-direction: column; }
@@ -146,11 +167,11 @@
     .card {
       background: var(--bg-card);
       border: 1px solid var(--line);
-      border-radius: 8px;
-      padding: 1rem 1.1rem 1.1rem;
+      border-radius: 10px;
+      padding: 1.2rem 1.3rem 1.25rem;
       display: flex;
       flex-direction: column;
-      gap: 0.75rem;
+      gap: 0.85rem;
       cursor: pointer;
       text-decoration: none;
       color: inherit;
@@ -158,48 +179,61 @@
     }
     .card:hover {
       border-color: var(--green);
-      box-shadow: 0 0 18px var(--green-glow), inset 0 0 40px rgba(0,255,65,0.04);
+      box-shadow: 0 0 20px var(--green-glow), inset 0 0 40px rgba(0,255,65,0.04);
       background: rgba(0,255,65,0.07);
     }
 
     .card-head {
       display: flex;
       align-items: center;
-      gap: 0.75rem;
+      gap: 0.85rem;
     }
     .card-icon {
-      width: 38px;
-      height: 38px;
-      border-radius: 8px;
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
       border: 1px solid var(--line);
       object-fit: contain;
       background: rgba(0,0,0,0.4);
-      padding: 3px;
+      padding: 4px;
       flex-shrink: 0;
       filter: drop-shadow(0 0 5px var(--green-glow));
     }
     .card-title {
-      font-size: 0.9rem;
+      font-size: 1rem;
       font-weight: 700;
-      letter-spacing: 0.05em;
+      letter-spacing: 0.06em;
       text-transform: uppercase;
       color: var(--green);
-      text-shadow: 0 0 6px var(--green-glow);
+      text-shadow: 0 0 8px var(--green-glow);
     }
     .card-sub {
-      font-size: 0.72rem;
+      font-size: 0.82rem;
       color: var(--text-dim);
-      margin-top: 0.05rem;
-      letter-spacing: 0.04em;
+      margin-top: 0.1rem;
+      letter-spacing: 0.03em;
     }
 
     .card-desc {
-      font-size: 0.76rem;
-      color: var(--text-dim);
-      line-height: 1.55;
+      font-size: 0.88rem;
+      color: var(--text);
+      line-height: 1.6;
       border-top: 1px solid var(--line);
-      padding-top: 0.65rem;
+      padding-top: 0.75rem;
     }
+    /* Card accent variants */
+    .card.amber-card { border-color: rgba(240,192,64,0.25); background: var(--amber-faint); }
+    .card.amber-card .card-title { color: var(--amber); text-shadow: 0 0 8px var(--amber-glow); }
+    .card.amber-card:hover { border-color: var(--amber); box-shadow: 0 0 20px var(--amber-glow); }
+    .card.cyan-card  { border-color: rgba(0,229,255,0.2); background: var(--cyan-faint); }
+    .card.cyan-card  .card-title { color: var(--cyan); text-shadow: 0 0 8px var(--cyan-glow); }
+    .card.cyan-card:hover  { border-color: var(--cyan); box-shadow: 0 0 20px var(--cyan-glow); }
+    .card.blue-card  { border-color: rgba(64,184,255,0.2); background: var(--blue-faint); }
+    .card.blue-card  .card-title { color: var(--blue); text-shadow: 0 0 8px var(--blue-glow); }
+    .card.blue-card:hover  { border-color: var(--blue); box-shadow: 0 0 20px var(--blue-glow); }
+    .card.purple-card { border-color: rgba(191,128,255,0.2); background: var(--purple-faint); }
+    .card.purple-card .card-title { color: var(--purple); text-shadow: 0 0 8px var(--purple-glow); }
+    .card.purple-card:hover { border-color: var(--purple); box-shadow: 0 0 20px var(--purple-glow); }
 
     /* ── App links row inside a card ── */
     .app-links {
@@ -210,15 +244,15 @@
     }
     .app-btn {
       font-family: 'Courier New', monospace;
-      font-size: 0.68rem;
-      letter-spacing: 0.07em;
+      font-size: 0.8rem;
+      letter-spacing: 0.06em;
       text-transform: uppercase;
       text-decoration: none;
       color: var(--bg);
       background: var(--green-dim);
       border: 1px solid var(--green);
       border-radius: 4px;
-      padding: 0.3rem 0.7rem;
+      padding: 0.35rem 0.85rem;
       transition: background 0.15s, box-shadow 0.15s;
       font-weight: 700;
     }
@@ -239,8 +273,8 @@
       border-color: var(--amber);
     }
     .app-btn.amber:hover {
-      background: rgba(240,192,64,0.12);
-      box-shadow: 0 0 10px rgba(240,192,64,0.35);
+      background: var(--amber-faint);
+      box-shadow: 0 0 10px var(--amber-glow);
     }
     .app-btn.blue {
       background: transparent;
@@ -248,8 +282,26 @@
       border-color: var(--blue);
     }
     .app-btn.blue:hover {
-      background: rgba(64,184,255,0.1);
-      box-shadow: 0 0 10px rgba(64,184,255,0.3);
+      background: var(--blue-faint);
+      box-shadow: 0 0 10px var(--blue-glow);
+    }
+    .app-btn.cyan {
+      background: transparent;
+      color: var(--cyan);
+      border-color: var(--cyan);
+    }
+    .app-btn.cyan:hover {
+      background: var(--cyan-faint);
+      box-shadow: 0 0 10px var(--cyan-glow);
+    }
+    .app-btn.purple {
+      background: transparent;
+      color: var(--purple);
+      border-color: var(--purple);
+    }
+    .app-btn.purple:hover {
+      background: var(--purple-faint);
+      box-shadow: 0 0 10px var(--purple-glow);
     }
     .app-btn.red {
       background: transparent;
@@ -257,18 +309,22 @@
       border-color: var(--red);
     }
     .app-btn.red:hover {
-      background: rgba(255,59,59,0.1);
-      box-shadow: 0 0 10px rgba(255,59,59,0.3);
+      background: rgba(255,79,79,0.1);
+      box-shadow: 0 0 10px var(--red-glow);
     }
 
     /* ── Master card (root — slightly elevated) ── */
     .card.master {
-      border-color: var(--green-dim);
-      background: rgba(0,255,65,0.06);
+      border-color: rgba(240,192,64,0.4);
+      background: var(--amber-faint);
+    }
+    .card.master .card-title {
+      color: var(--amber);
+      text-shadow: 0 0 10px var(--amber-glow);
     }
     .card.master:hover {
-      border-color: var(--green);
-      box-shadow: 0 0 28px var(--green-glow);
+      border-color: var(--amber);
+      box-shadow: 0 0 28px var(--amber-glow);
     }
 
     /* ── Infra row ── */
@@ -279,11 +335,11 @@
     }
     .infra-btn {
       font-family: 'Courier New', monospace;
-      font-size: 0.72rem;
-      letter-spacing: 0.07em;
+      font-size: 0.85rem;
+      letter-spacing: 0.06em;
       text-transform: uppercase;
       text-decoration: none;
-      padding: 0.45rem 1rem;
+      padding: 0.55rem 1.1rem;
       border-radius: 5px;
       border: 1px solid var(--line-strong);
       color: var(--text);
@@ -291,7 +347,7 @@
       transition: border-color 0.2s, box-shadow 0.2s, color 0.2s;
       display: inline-flex;
       align-items: center;
-      gap: 0.4rem;
+      gap: 0.45rem;
     }
     .infra-btn:hover {
       border-color: var(--green);
@@ -308,7 +364,10 @@
     }
     .infra-btn.fire .dot  { background: #ff7940; box-shadow: 0 0 5px rgba(255,121,64,0.5); }
     .infra-btn.gh   .dot  { background: #b0b0b0; box-shadow: none; }
-    .infra-btn.gs   .dot  { background: var(--amber); box-shadow: 0 0 5px rgba(240,192,64,0.5); }
+    .infra-btn.gs   .dot  { background: var(--amber); box-shadow: 0 0 5px var(--amber-glow); }
+    .infra-btn.fire:hover { border-color: #ff7940; color: #ff7940; box-shadow: 0 0 8px rgba(255,121,64,0.4); }
+    .infra-btn.gh:hover   { border-color: #c8c8c8; color: #c8c8c8; }
+    .infra-btn.gs:hover   { border-color: var(--amber); color: var(--amber); box-shadow: 0 0 8px var(--amber-glow); }
 
     /* ── Status bar ── */
     .statusbar {
@@ -319,9 +378,9 @@
       z-index: 10;
       background: #010901;
       border-top: 1px solid var(--line);
-      padding: 0.35rem 1.5rem;
-      font-size: 0.65rem;
-      letter-spacing: 0.08em;
+      padding: 0.4rem 1.5rem;
+      font-size: 0.78rem;
+      letter-spacing: 0.07em;
       color: var(--text-dim);
       display: flex;
       gap: 1.5rem;
@@ -390,7 +449,7 @@
 
   <!-- ── ROOT / MASTER ── -->
   <section class="section">
-    <div class="section-label"><span>01//</span> Root &amp; Master Builds</div>
+    <div class="section-label s01"><span>01//</span> Root &amp; Master Builds</div>
     <div class="grid grid-wide">
 
       <!-- Root Portal -->
@@ -412,7 +471,7 @@
       </div>
 
       <!-- Tabernacle (shared UI layer) -->
-      <div class="card">
+      <div class="card cyan-card">
         <div class="card-head">
           <img class="card-icon" src="Covenant/Courts/TheTabernacle/Images/FlockOS_Midnight.png" alt="Tabernacle">
           <div>
@@ -432,7 +491,7 @@
 
   <!-- ── CHURCH DEPLOYMENTS ── -->
   <section class="section">
-    <div class="section-label"><span>02//</span> Church Deployments</div>
+    <div class="section-label s02"><span>02//</span> Church Deployments</div>
     <div class="grid">
 
       <!-- FlockOS Demo -->
@@ -453,7 +512,7 @@
       </div>
 
       <!-- The Wellspring / GAS -->
-      <div class="card">
+      <div class="card amber-card">
         <div class="card-head">
           <img class="card-icon" src="Covenant/Courts/TheTabernacle/Images/FlockOS_Orange.png" alt="GAS">
           <div>
@@ -470,7 +529,7 @@
       </div>
 
       <!-- Trinity Baptist -->
-      <div class="card">
+      <div class="card blue-card">
         <div class="card-head">
           <img class="card-icon" src="Covenant/Courts/TheTabernacle/Images/FlockOS_Blue.png" alt="Trinity Baptist">
           <div>
@@ -508,11 +567,11 @@
 
   <!-- ── SHARED APPS ── -->
   <section class="section">
-    <div class="section-label"><span>03//</span> Shared Apps &amp; Modules</div>
+    <div class="section-label s03"><span>03//</span> Shared Apps &amp; Modules</div>
     <div class="grid">
 
       <!-- FlockChat -->
-      <div class="card">
+      <div class="card cyan-card">
         <div class="card-head">
           <img class="card-icon" src="Covenant/Courts/TheTabernacle/Images/FlockOS_Angels.png" alt="FlockChat">
           <div>
@@ -529,7 +588,7 @@
       </div>
 
       <!-- ATOG -->
-      <div class="card">
+      <div class="card purple-card">
         <div class="card-head">
           <img class="card-icon" src="Covenant/Courts/TheTabernacle/Images/FlockOS_White.png" alt="ATOG">
           <div>
@@ -545,7 +604,7 @@
       </div>
 
       <!-- Missions -->
-      <div class="card">
+      <div class="card amber-card">
         <div class="card-head">
           <img class="card-icon" src="Covenant/Courts/TheTabernacle/Images/FlockOS_BurntOrange.png" alt="Missions">
           <div>
@@ -565,7 +624,7 @@
 
   <!-- ── INFRASTRUCTURE ── -->
   <section class="section">
-    <div class="section-label"><span>04//</span> Infrastructure &amp; External</div>
+    <div class="section-label s04"><span>04//</span> Infrastructure &amp; External</div>
     <div class="infra-row">
       <a class="infra-btn fire" href="https://console.firebase.google.com/project/flockos-comms/overview" target="_blank" rel="noopener">
         <span class="dot"></span>Firebase — flockos-comms

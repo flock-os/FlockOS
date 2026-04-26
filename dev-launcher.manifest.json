@@ -1,6 +1,6 @@
 {
-  "name": "FlockOS Dev Matrix",
-  "short_name": "DevMatrix",
+  "name": "Developer",
+  "short_name": "Developer",
   "description": "Personal FlockOS dev launcher — all deployments and tools.",
   "start_url": "./dev-launcher.html",
   "scope": "./",
