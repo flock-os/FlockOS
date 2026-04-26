@@ -9440,11 +9440,13 @@ body.atog-app .rounded-2xl  { border-radius: var(--radius-2xl); }
 /* ── Top Bar ────────────────────────────────────────────────────────────────── */
 .topbar {
   position: fixed; top: 0; left: 0; right: 0;
-  height: var(--topbar-h);
+  /* Safe area: extend behind iOS notch/Dynamic Island when viewport-fit=cover is set */
+  height: calc(var(--topbar-h) + env(safe-area-inset-top, 0px));
+  padding-top: env(safe-area-inset-top, 0px);
   background: var(--bg-raised);
   border-bottom: 1px solid var(--line);
   display: flex; align-items: center;
-  padding: 0 20px; z-index: 100;
+  padding-left: 20px; padding-right: 20px; z-index: 100;
 }
 .topbar-brand {
   font-size: 1.1rem; font-weight: 700; color: var(--accent);
@@ -9459,7 +9461,7 @@ body.atog-app .rounded-2xl  { border-radius: var(--radius-2xl); }
 
 /* ── Sidebar ────────────────────────────────────────────────────────────────── */
 .sidebar {
-  position: fixed; top: var(--topbar-h); left: 0; bottom: 0;
+  position: fixed; top: calc(var(--topbar-h) + env(safe-area-inset-top, 0px)); left: 0; bottom: 0;
   width: var(--sidebar-w);
   background: var(--bg-raised); border-right: 1px solid var(--line);
   overflow-y: auto; padding: 12px 0 120px;
@@ -9488,9 +9490,9 @@ body.atog-app .rounded-2xl  { border-radius: var(--radius-2xl); }
 /* ── Main Content ───────────────────────────────────────────────────────────── */
 .main {
   margin-left: var(--sidebar-w);
-  margin-top: var(--topbar-h);
-  height: calc(100vh - var(--topbar-h));
-  height: calc(100dvh - var(--topbar-h));
+  margin-top: calc(var(--topbar-h) + env(safe-area-inset-top, 0px));
+  height: calc(100vh - var(--topbar-h) - env(safe-area-inset-top, 0px));
+  height: calc(100dvh - var(--topbar-h) - env(safe-area-inset-top, 0px));
   overflow-y: auto; overflow-x: hidden;
   overflow-anchor: none; overscroll-behavior-y: none;
   padding: 24px 20px 200px;
