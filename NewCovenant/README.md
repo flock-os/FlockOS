@@ -38,3 +38,23 @@ Then open:
 	- `src/bridge/publicAdapter.js`
 	- `src/bridge/adminAdapter.js`
 4. Keep UI calls routed through adapters rather than directly calling module internals
+
+## Controlled Build Dry Run
+
+Run a safe standalone package step with no Nations deployment impact:
+
+```bash
+bash NewCovenant/Tools/run_controlled_build.sh
+```
+
+Outputs are written to `NewCovenant/BuildArtifacts/`:
+
+- `newcovenant-standalone-<timestamp>.tar.gz`
+- `controlled-build-report-<timestamp>.txt`
+- `checksums.sha256`
+
+Verify artifacts against checksum manifest:
+
+```bash
+bash NewCovenant/Tools/verify_build_artifacts.sh
+```

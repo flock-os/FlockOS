@@ -28,6 +28,8 @@ const smokeList = document.getElementById("smoke-list");
 const runSmokeButton = document.getElementById("run-smoke");
 const rehearsalList = document.getElementById("rehearsal-list");
 const runRehearsalButton = document.getElementById("run-rehearsal");
+const buildSummaryList = document.getElementById("build-summary-list");
+const refreshSummaryButton = document.getElementById("refresh-summary");
 const modePublicButton = document.getElementById("mode-public");
 const modeAdminButton = document.getElementById("mode-admin");
 const publicView = document.getElementById("public-view");
@@ -36,6 +38,11 @@ const publicHeroTitle = document.getElementById("public-hero-title");
 const publicHeroSubtitle = document.getElementById("public-hero-subtitle");
 const publicActionOne = document.getElementById("public-action-1");
 const publicActionTwo = document.getElementById("public-action-2");
+
+const qaState = {
+  smokePassed: false,
+  rehearsalPassed: false
+};
 
 function setMode(mode) {
   const showPublic = mode === "public";
@@ -114,6 +121,52 @@ currentPathItem.textContent = `root-shell path: ${rootShellAdapter.getCurrentPat
 currentPathItem.className = "ok";
 statusList.appendChild(currentPathItem);
 
+function renderBuildSummary() {
+  const currentPortMap = evaluatePortMap();
+  const rows = [
+    {
+      label: "module contracts",
+      ok: true,
+      detail: "validated at startup"
+    },
+    {
+      label: "bridge contract",
+      ok: bridgeResult.valid,
+      detail: bridgeResult.valid ? "ready" : "missing methods"
+    },
+    {
+      label: "compatibility surfaces",
+      ok: currentPortMap.summary.available === currentPortMap.summary.total,
+      detail: `${currentPortMap.summary.available}/${currentPortMap.summary.total} detected`
+    },
+    {
+      label: "smoke checks",
+      ok: qaState.smokePassed,
+      detail: qaState.smokePassed ? "latest run passed" : "not yet passed in this session"
+    },
+    {
+      label: "integration rehearsal",
+      ok: qaState.rehearsalPassed,
+      detail: qaState.rehearsalPassed ? "latest run passed" : "not yet passed in this session"
+    }
+  ];
+
+  buildSummaryList.innerHTML = "";
+
+  rows.forEach((row) => {
+    const item = document.createElement("li");
+    item.textContent = `${row.label}: ${row.ok ? "READY" : "PENDING"} (${row.detail})`;
+    item.className = row.ok ? "ok" : "warn";
+    buildSummaryList.appendChild(item);
+  });
+
+  const readyCount = rows.filter((row) => row.ok).length;
+  const summary = document.createElement("li");
+  summary.textContent = `Overall readiness: ${readyCount}/${rows.length}`;
+  summary.className = readyCount === rows.length ? "ok" : "warn";
+  buildSummaryList.appendChild(summary);
+}
+
 modules.config.set("app.name", "NewCovenant");
 modules.config.set("runtime.phase", "F1.2");
 
@@ -189,6 +242,8 @@ function renderSmokeResult(result) {
 runSmokeButton.addEventListener("click", () => {
   const result = adminAdapter.runDiagnostics();
   renderSmokeResult(result);
+  qaState.smokePassed = result.summary.failed === 0;
+  renderBuildSummary();
   bridge.notify(
     result.summary.failed === 0 ? "Smoke checks passed" : "Smoke checks have failures",
     result.summary.failed === 0 ? "success" : "warn"
@@ -224,6 +279,8 @@ function renderRehearsalResult(result) {
 runRehearsalButton.addEventListener("click", () => {
   const result = runIntegrationRehearsal();
   renderRehearsalResult(result);
+  qaState.rehearsalPassed = result.summary.afterAvailable === result.summary.total;
+  renderBuildSummary();
   bridge.notify(
     result.summary.afterAvailable === result.summary.total
       ? "Integration rehearsal completed successfully"
@@ -231,5 +288,12 @@ runRehearsalButton.addEventListener("click", () => {
     result.summary.afterAvailable === result.summary.total ? "success" : "warn"
   );
 });
+
+refreshSummaryButton.addEventListener("click", () => {
+  renderBuildSummary();
+  bridge.notify("Build summary refreshed", "info");
+});
+
+renderBuildSummary();
 
 setMode("public");

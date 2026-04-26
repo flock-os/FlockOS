@@ -255,9 +255,24 @@ body {
   background: #88641f;
 }
 
+#refresh-summary {
+  border: 1px solid #2c5d16;
+  background: #3f7d22;
+  color: #ffffff;
+  border-radius: 8px;
+  padding: 0.54rem 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+#refresh-summary:hover {
+  background: #33671b;
+}
+
 #status-list,
 #smoke-list,
-#rehearsal-list {
+#rehearsal-list,
+#build-summary-list {
   margin: 0.8rem 0 0;
   padding-left: 1rem;
   display: grid;
