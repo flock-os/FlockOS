@@ -631,7 +631,7 @@ setInterval(tick, 1000);
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/dev-launcher-sw.js', { scope: '/' })
+      navigator.serviceWorker.register('./dev-launcher-sw.js')
         .then(reg => console.log('[DevMatrix SW] registered, scope:', reg.scope))
         .catch(err => console.warn('[DevMatrix SW] registration failed:', err));
     });
