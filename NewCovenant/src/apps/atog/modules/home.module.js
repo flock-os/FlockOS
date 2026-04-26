@@ -12,7 +12,7 @@ export const ATOG_HOME_MODULE = {
   "phase": "F5.0",
   "seedData": {
     "source": "live-snapshot-importer",
-    "generatedAt": "2026-04-26T22:44:24.995Z",
+    "generatedAt": "2026-04-26T22:47:37.379Z",
     "records": [
       {
         "id": "home-001",
@@ -44,7 +44,7 @@ export const ATOG_HOME_MODULE = {
     "provider": "ATOG Source Snapshot",
     "sourceScript": "Covenant/Courts/TheUpperRoom/ATOG.html",
     "sourceSurface": "home",
-    "syncedAt": "2026-04-26T22:44:24.995Z",
+    "syncedAt": "2026-04-26T22:47:37.379Z",
     "refreshMode": "imported-static-snapshot"
   }
 };

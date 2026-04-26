@@ -13,7 +13,7 @@ export const FLOCKCHAT_AUTH_MODULE = {
   "phase": "F5.2",
   "seedData": {
     "source": "live-snapshot-importer",
-    "generatedAt": "2026-04-26T22:44:24.995Z",
+    "generatedAt": "2026-04-26T22:47:37.379Z",
     "records": [
       {
         "id": "auth-001",
@@ -39,7 +39,7 @@ export const FLOCKCHAT_AUTH_MODULE = {
     "provider": "FlockChat Source Snapshot",
     "sourceScript": "flockchat-public/FlockChat/the_word.js",
     "sourceSurface": "auth",
-    "syncedAt": "2026-04-26T22:44:24.995Z",
+    "syncedAt": "2026-04-26T22:47:37.379Z",
     "refreshMode": "imported-static-snapshot"
   }
 };

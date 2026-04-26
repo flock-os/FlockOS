@@ -12,7 +12,7 @@ export const ATOG_APOLOGETICS_MODULE = {
   "phase": "F7.4",
   "seedData": {
     "source": "live-snapshot-importer",
-    "generatedAt": "2026-04-26T22:44:24.995Z",
+    "generatedAt": "2026-04-26T22:47:37.379Z",
     "records": [
       {
         "id": "apologetics-001",
@@ -38,7 +38,7 @@ export const ATOG_APOLOGETICS_MODULE = {
     "provider": "ATOG Source Snapshot",
     "sourceScript": "Covenant/Courts/TheUpperRoom/ATOG.html",
     "sourceSurface": "apologetics",
-    "syncedAt": "2026-04-26T22:44:24.995Z",
+    "syncedAt": "2026-04-26T22:47:37.379Z",
     "refreshMode": "imported-static-snapshot"
   }
 };

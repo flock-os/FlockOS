@@ -12,7 +12,7 @@ export const FLOCKOS_GIVING_MODULE = {
   "phase": "F7.2",
   "seedData": {
     "source": "live-snapshot-importer",
-    "generatedAt": "2026-04-26T22:23:17.286Z",
+    "generatedAt": "2026-04-26T22:47:37.317Z",
     "records": [
       {
         "id": "giv-001",
@@ -55,7 +55,7 @@ export const FLOCKOS_GIVING_MODULE = {
     "provider": "FlockOS Source Snapshot",
     "endpoint": "TheVine.flock.giving.list",
     "sourceScript": "Covenant/Courts/TheTabernacle/Scripts/the_well.js",
-    "syncedAt": "2026-04-26T22:23:17.286Z",
+    "syncedAt": "2026-04-26T22:47:37.317Z",
     "refreshMode": "imported-static-snapshot"
   }
 };

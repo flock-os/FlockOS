@@ -12,7 +12,7 @@ export const FLOCKCHAT_PROFILE_MODULE = {
   "phase": "F5.6",
   "seedData": {
     "source": "live-snapshot-importer",
-    "generatedAt": "2026-04-26T22:44:24.995Z",
+    "generatedAt": "2026-04-26T22:47:37.379Z",
     "records": [
       {
         "id": "profile-001",
@@ -38,7 +38,7 @@ export const FLOCKCHAT_PROFILE_MODULE = {
     "provider": "FlockChat Source Snapshot",
     "sourceScript": "flockchat-public/FlockChat/the_word.js",
     "sourceSurface": "profile",
-    "syncedAt": "2026-04-26T22:44:24.995Z",
+    "syncedAt": "2026-04-26T22:47:37.379Z",
     "refreshMode": "imported-static-snapshot"
   }
 };

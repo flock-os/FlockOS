@@ -12,7 +12,7 @@ export const FLOCKOS_REPORTS_MODULE = {
   "phase": "F8.1",
   "seedData": {
     "source": "live-snapshot-importer",
-    "generatedAt": "2026-04-26T22:23:17.286Z",
+    "generatedAt": "2026-04-26T22:47:37.317Z",
     "records": [
       {
         "id": "rpt-001",
@@ -50,7 +50,7 @@ export const FLOCKOS_REPORTS_MODULE = {
     "provider": "FlockOS Source Snapshot",
     "endpoint": "TheVine.extra.statistics.snapshots.list",
     "sourceScript": "Covenant/Courts/TheTabernacle/Scripts/the_well.js",
-    "syncedAt": "2026-04-26T22:23:17.286Z",
+    "syncedAt": "2026-04-26T22:47:37.317Z",
     "refreshMode": "imported-static-snapshot"
   }
 };

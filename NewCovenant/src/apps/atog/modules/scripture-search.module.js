@@ -12,7 +12,7 @@ export const ATOG_SCRIPTURE_SEARCH_MODULE = {
   "phase": "F7.4",
   "seedData": {
     "source": "live-snapshot-importer",
-    "generatedAt": "2026-04-26T22:44:24.995Z",
+    "generatedAt": "2026-04-26T22:47:37.379Z",
     "records": [
       {
         "id": "scripture-search-001",
@@ -37,7 +37,7 @@ export const ATOG_SCRIPTURE_SEARCH_MODULE = {
   "liveSource": {
     "provider": "ATOG Source Snapshot",
     "sourceScript": "Covenant/Courts/TheUpperRoom/ATOG.html",
-    "syncedAt": "2026-04-26T22:44:24.995Z",
+    "syncedAt": "2026-04-26T22:47:37.379Z",
     "refreshMode": "imported-static-snapshot"
   }
 };

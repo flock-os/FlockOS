@@ -11,30 +11,45 @@ export const FLOCKOS_MY_GIVING_MODULE = {
   ],
   "phase": "F7.2",
   "seedData": {
-    "source": "source-surface-extract",
-    "generatedAt": "2026-04-26T22:30:00.000Z",
+    "source": "live-snapshot-importer",
+    "generatedAt": "2026-04-26T22:47:37.317Z",
     "records": [
       {
-        "id": "my-giving-001",
-        "label": "Personal giving history",
+        "id": "mygiving-001",
+        "label": "My Giving snapshot 1",
         "route": "/flockos/my-giving",
-        "status": "source-backed",
+        "endpoint": "TheVine.flock.giving.list",
+        "status": "ready",
         "phase": "F7.2",
         "zone": "profile"
       },
       {
-        "id": "my-giving-002",
-        "label": "Scoped giving records",
+        "id": "mygiving-002",
+        "label": "My Giving snapshot 2",
+        "route": "/flockos/my-giving",
         "endpoint": "TheVine.flock.giving.list",
-        "status": "source-backed"
+        "status": "in-progress",
+        "phase": "F7.2",
+        "zone": "profile"
+      },
+      {
+        "id": "mygiving-003",
+        "label": "My Giving snapshot 3",
+        "route": "/flockos/my-giving",
+        "endpoint": "TheVine.flock.giving.list",
+        "status": "queued",
+        "phase": "F7.2",
+        "zone": "profile"
       }
     ]
   },
   "liveSource": {
-    "provider": "FlockOS Source Surface",
+    "provider": "FlockOS Source Snapshot",
     "endpoint": "TheVine.flock.giving.list",
-    "sourceScript": "Covenant/Courts/TheTabernacle/Scripts/the_tabernacle.js",
-    "sourceSurface": "my-giving"
+    "sourceScript": "Covenant/Courts/TheTabernacle/Scripts/the_well.js",
+    "sourceSurface": "my-giving",
+    "syncedAt": "2026-04-26T22:47:37.317Z",
+    "refreshMode": "imported-static-snapshot"
   }
 };
 

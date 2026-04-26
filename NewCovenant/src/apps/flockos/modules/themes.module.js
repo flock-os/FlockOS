@@ -12,30 +12,45 @@ export const FLOCKOS_THEMES_MODULE = {
   ],
   "phase": "F8.3",
   "seedData": {
-    "source": "source-surface-extract",
-    "generatedAt": "2026-04-26T22:30:00.000Z",
+    "source": "live-snapshot-importer",
+    "generatedAt": "2026-04-26T22:47:37.317Z",
     "records": [
       {
         "id": "themes-001",
-        "label": "Theme library",
+        "label": "Themes snapshot 1",
         "route": "/flockos/themes",
-        "status": "source-backed",
+        "endpoint": "TheVine.flock.config.list",
+        "status": "ready",
         "phase": "F8.3",
         "zone": "holy-of-holies"
       },
       {
         "id": "themes-002",
-        "label": "Config-backed theme settings",
+        "label": "Themes snapshot 2",
+        "route": "/flockos/themes",
         "endpoint": "TheVine.flock.config.list",
-        "status": "source-backed"
+        "status": "in-progress",
+        "phase": "F8.3",
+        "zone": "holy-of-holies"
+      },
+      {
+        "id": "themes-003",
+        "label": "Themes snapshot 3",
+        "route": "/flockos/themes",
+        "endpoint": "TheVine.flock.config.list",
+        "status": "queued",
+        "phase": "F8.3",
+        "zone": "holy-of-holies"
       }
     ]
   },
   "liveSource": {
-    "provider": "FlockOS Source Surface",
+    "provider": "FlockOS Source Snapshot",
     "endpoint": "TheVine.flock.config.list",
-    "sourceScript": "Covenant/Courts/TheTabernacle/Scripts/the_tabernacle.js",
-    "sourceSurface": "themes"
+    "sourceScript": "Covenant/Courts/TheTabernacle/Scripts/the_well.js",
+    "sourceSurface": "themes",
+    "syncedAt": "2026-04-26T22:47:37.317Z",
+    "refreshMode": "imported-static-snapshot"
   }
 };
 
