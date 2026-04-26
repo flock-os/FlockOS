@@ -349,6 +349,27 @@
       .hdr-badge { margin-left: 0; }
       .grid, .grid-wide { grid-template-columns: 1fr; }
     }
+
+    /* ── Pull-to-Refresh ── */
+    .ptr-indicator {
+      display: none;
+      position: fixed;
+      top: 18px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 9999;
+      background: var(--bg-panel);
+      border: 1px solid var(--green);
+      border-radius: 20px;
+      padding: 5px 16px;
+      font-size: 0.72rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--green);
+      box-shadow: 0 0 12px var(--green-glow);
+      white-space: nowrap;
+    }
+    .ptr-indicator.visible { display: block; }
   </style>
 </head>
 <body>
@@ -577,6 +598,9 @@
   <span class="ts" id="ts"></span>
 </div>
 
+<!-- Pull-to-Refresh indicator -->
+<div class="ptr-indicator" id="ptrIndicator">&#8635;&nbsp;Release to refresh</div>
+
 <!-- Matrix rain -->
 <script>
 (function(){
@@ -636,6 +660,42 @@ setInterval(tick, 1000);
         .catch(err => console.warn('[DevMatrix SW] registration failed:', err));
     });
   }
+</script>
+
+<!-- Pull-to-Refresh -->
+<script>
+(function() {
+  if (window.innerWidth > 900) return; // desktop doesn't need PTR
+  var ptr = document.getElementById('ptrIndicator');
+  var startY = 0, pulling = false, triggered = false;
+  document.addEventListener('touchstart', function(e) {
+    if (window.scrollY > 5) return;
+    startY = e.touches[0].clientY;
+    pulling = true;
+    triggered = false;
+  }, { passive: true });
+  document.addEventListener('touchmove', function(e) {
+    if (!pulling) return;
+    var dy = e.touches[0].clientY - startY;
+    if (dy > 60 && !triggered) {
+      triggered = true;
+      if (ptr) ptr.classList.add('visible');
+    } else if (dy < 30) {
+      triggered = false;
+      if (ptr) ptr.classList.remove('visible');
+    }
+  }, { passive: true });
+  document.addEventListener('touchend', function() {
+    if (triggered) {
+      if (ptr) ptr.textContent = 'Refreshing…';
+      setTimeout(function() { location.reload(); }, 300);
+    } else {
+      if (ptr) ptr.classList.remove('visible');
+    }
+    pulling = false;
+    triggered = false;
+  }, { passive: true });
+})();
 </script>
 
 </body>
