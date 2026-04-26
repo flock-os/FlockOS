@@ -9601,4 +9601,37 @@ body.atog-app .rounded-2xl  { border-radius: var(--radius-2xl); }
   .card-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
 }
 
+/* ── Xbox / TV-safe (10-foot) ─────────────────────────────────────────────────
+   Xbox One Edge reports ~960×540 CSS pixels at 1080p output and applies a
+   ~5% TV overscan that crops the edges. Detection is set by the inline
+   bootstrap snippet in each shell HTML (sets data-platform="xbox" on <html>).
+   We add a TV-safe inset and slightly tighten the type scale so text and
+   pills don't appear oversized on a TV viewing distance. */
+html[data-platform="xbox"] body {
+  /* TV overscan-safe padding — keeps every edge inside the visible area. */
+  padding: 3vh 3vw;
+  box-sizing: border-box;
+  /* Don't let the body get cropped by overscan. */
+  min-height: 100vh;
+}
+html[data-platform="xbox"] .topbar { top: 3vh; left: 3vw; right: 3vw; width: auto; border-radius: 8px; }
+html[data-platform="xbox"] .sidebar { left: 3vw; top: calc(var(--topbar-h, 56px) + 3vh); }
+html[data-platform="xbox"] .main,
+html[data-platform="xbox"] .content,
+html[data-platform="xbox"] main {
+  padding-top: calc(var(--topbar-h, 56px) + 3vh + 12px);
+}
+/* Cap absurd font scaling — Xbox Edge bumps base size, making everything stretched. */
+html[data-platform="xbox"] {
+  font-size: 14px;
+  -ms-content-zooming: none;
+  -ms-touch-action: pan-x pan-y;
+}
+html[data-platform="xbox"] .card-grid {
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 14px;
+}
+/* Hide mobile-only chrome so it doesn't squeeze content. */
+html[data-platform="xbox"] .topbar-toggle { display: none !important; }
+
 /* === End Unified Garments === */

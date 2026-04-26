@@ -2,7 +2,10 @@
 <html lang="en" data-theme="america">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <script>/* Xbox / TV-safe overscan detection — must run before CSS paints. */
+      if (/Xbox/i.test(navigator.userAgent)) document.documentElement.dataset.platform = 'xbox';
+    </script>
     <title>A Touch of the Gospel</title>
     <link rel="manifest" href="manifest.json">
     <link rel="icon" type="image/png" href="ATOG/Images/ATOG_AppIcon.png">

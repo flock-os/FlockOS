@@ -2,7 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <script>/* Xbox / TV-safe overscan detection — must run before CSS paints. */
+    if (/Xbox/i.test(navigator.userAgent)) document.documentElement.dataset.platform = 'xbox';
+  </script>
   <title>FlockOS — Admin</title>
   <link rel="icon" type="image/png" href="../Images/FlockOS_AppIcon.png">
   <link rel="apple-touch-icon" href="../Images/FlockOS_AppIcon.png">

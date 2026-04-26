@@ -11,7 +11,10 @@
     gtag('config', 'G-D7V88DPF3T');
   </script>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <script>/* Xbox / TV-safe overscan detection — must run before CSS paints. */
+    if (/Xbox/i.test(navigator.userAgent)) document.documentElement.dataset.platform = 'xbox';
+  </script>
   <title>FlockOS</title>
   <link rel="icon" type="image/png" href="FlockOS/Images/FlockOS_Pink.png">
   <link rel="apple-touch-icon" href="FlockOS/Images/FlockOS_Pink.png">
