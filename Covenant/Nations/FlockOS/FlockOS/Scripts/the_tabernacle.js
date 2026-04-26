@@ -9239,9 +9239,11 @@ const Modules = (() => {
         const _churchSlug = (new URLSearchParams(window.location.search).get('church') || 'root').trim().toLowerCase();
         const _churchFolderMap = { root: 'Root', flockos: 'FlockOS', gas: 'GAS', tbc: 'TBC', theforest: 'TheForest' };
         const _churchFolder = _churchFolderMap[_churchSlug] || 'Root';
-        const _flockosUrl  = 'https://flockos.yhwh.one/Covenant/Nations/' + _churchFolder + '/FlockOS.html?church=' + encodeURIComponent(_churchSlug);
-        const _flockchatUrl = 'https://flockos-comms.web.app/FlockChat.html?church=' + encodeURIComponent(_churchSlug);
-        const _atogUrl     = 'https://flockos.yhwh.one/Covenant/Nations/Root/ATOG.html?church=' + encodeURIComponent(_churchSlug);
+        // Derive base URL from current page so links work on any domain (GitHub Pages, custom domain, localhost)
+        const _siteBase = (function() { var m = window.location.pathname.match(/^(.*?)\/Covenant\//); return window.location.origin + (m ? m[1] : '') + '/'; })();
+        const _flockosUrl  = _siteBase + 'Covenant/Nations/' + _churchFolder + '/FlockOS.html?church=' + encodeURIComponent(_churchSlug);
+        const _flockchatUrl = 'https://flockos-comms.web.app/?church=' + encodeURIComponent(_churchSlug);
+        const _atogUrl     = _siteBase + 'Covenant/Nations/Root/ATOG.html?church=' + encodeURIComponent(_churchSlug);
         html += '<div style="margin-top:24px;padding:14px 16px;background:var(--bg-raised);border:1px solid var(--line);border-radius:10px;">'
           + '<div style="font-size:0.72rem;font-weight:700;color:var(--ink-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px;">Global Missions Resources</div>'
           + '<div style="display:flex;gap:10px;flex-wrap:wrap;">'

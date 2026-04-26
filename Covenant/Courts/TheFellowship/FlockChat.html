@@ -36,7 +36,19 @@
       <img src="./FlockChat/Images/FlockChat_AppIcon.png" alt="FlockChat" style="width:100%;max-width:280px;height:auto;display:block;margin:0 auto 6px;">
       <p id="auth-subtitle">Sign in to your workspace</p>
     </div>
-    <a href="https://flock-os.github.io/FlockOS/" class="auth-suite-link">← Back to Flock Suite</a>
+    <a id="fc-back-link" href="https://flock-os.github.io/FlockOS/" class="auth-suite-link">← Back to Flock Suite</a>
+    <script>
+    /* Point "Back to Flock Suite" at the church portal the user came from. */
+    (function() {
+      var church = (new URLSearchParams(window.location.search).get('church') || '').trim().toLowerCase();
+      var folderMap = { root: 'Root', flockos: 'FlockOS', gas: 'GAS', tbc: 'TBC', theforest: 'TheForest' };
+      var folder = church && folderMap[church];
+      var link = document.getElementById('fc-back-link');
+      if (link && folder) {
+        link.href = 'https://flock-os.github.io/FlockOS/Covenant/Nations/' + folder + '/FlockOS.html';
+      }
+    })();
+    </script>
     <div class="auth-error" id="auth-error"></div>
     <div class="auth-field">
       <label>Email</label>
