@@ -269,6 +269,26 @@ body {
   background: #33671b;
 }
 
+.summary-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+#export-summary {
+  border: 1px solid #5c2f87;
+  background: #7444a2;
+  color: #ffffff;
+  border-radius: 8px;
+  padding: 0.54rem 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+#export-summary:hover {
+  background: #663b8d;
+}
+
 #status-list,
 #smoke-list,
 #rehearsal-list,

@@ -30,6 +30,7 @@ const rehearsalList = document.getElementById("rehearsal-list");
 const runRehearsalButton = document.getElementById("run-rehearsal");
 const buildSummaryList = document.getElementById("build-summary-list");
 const refreshSummaryButton = document.getElementById("refresh-summary");
+const exportSummaryButton = document.getElementById("export-summary");
 const modePublicButton = document.getElementById("mode-public");
 const modeAdminButton = document.getElementById("mode-admin");
 const publicView = document.getElementById("public-view");
@@ -43,6 +44,8 @@ const qaState = {
   smokePassed: false,
   rehearsalPassed: false
 };
+
+let latestBuildSummary = null;
 
 function setMode(mode) {
   const showPublic = mode === "public";
@@ -165,6 +168,46 @@ function renderBuildSummary() {
   summary.textContent = `Overall readiness: ${readyCount}/${rows.length}`;
   summary.className = readyCount === rows.length ? "ok" : "warn";
   buildSummaryList.appendChild(summary);
+
+  latestBuildSummary = {
+    generatedAt: new Date().toISOString(),
+    readiness: {
+      ready: readyCount,
+      total: rows.length
+    },
+    rows: rows.map((row) => ({
+      label: row.label,
+      ok: row.ok,
+      detail: row.detail
+    })),
+    portMap: currentPortMap
+  };
+}
+
+function exportBuildSummary() {
+  if (!latestBuildSummary) {
+    renderBuildSummary();
+  }
+
+  const payload = {
+    reportType: "newcovenant-build-summary",
+    phase: modules.config.get("runtime.phase", "unknown"),
+    app: modules.config.get("app.name", "NewCovenant"),
+    summary: latestBuildSummary
+  };
+
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const filename = `newcovenant-build-summary-${stamp}.json`;
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 }
 
 modules.config.set("app.name", "NewCovenant");
@@ -292,6 +335,11 @@ runRehearsalButton.addEventListener("click", () => {
 refreshSummaryButton.addEventListener("click", () => {
   renderBuildSummary();
   bridge.notify("Build summary refreshed", "info");
+});
+
+exportSummaryButton.addEventListener("click", () => {
+  exportBuildSummary();
+  bridge.notify("Build summary exported", "success");
 });
 
 renderBuildSummary();

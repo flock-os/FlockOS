@@ -58,3 +58,10 @@ Verify artifacts against checksum manifest:
 ```bash
 bash NewCovenant/Tools/verify_build_artifacts.sh
 ```
+
+## Build Summary Export
+
+From Admin Workspace, use `Export Summary` in the Build Summary card.
+
+- Downloads `newcovenant-build-summary-<timestamp>.json`
+- Includes readiness rows, compatibility snapshot, and phase/app metadata
