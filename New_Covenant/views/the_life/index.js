@@ -320,9 +320,10 @@ function _openSheet(c, memberDir, onSave) {
   const V = window.TheVine;
   const cid = String(c.id || c.caseId || '');
   const name = c.memberName || c.name || _resolveName(c.memberId, memberDir) || c.memberId || 'Unknown';
-  const assigneeRaw = c.primaryCaregiverId || c.assignedTo || c.assignedName || '';
-  const assigneeName = _resolveName(assigneeRaw, memberDir) || assigneeRaw || '';
+  const assigneeRaw   = c.primaryCaregiverId   || c.assignedTo || c.assignedName || '';
+  const secondaryRaw  = c.secondaryCaregiverId || c.secondaryCaregiver || '';
   const currentStatus = c.status || 'Open';
+  const hasMemberDir  = memberDir && memberDir.length > 0;
 
   const sheet = document.createElement('div');
   sheet.className = 'life-sheet';
@@ -347,10 +348,22 @@ function _openSheet(c, memberDir, onSave) {
             ${STATUSES.map(s => `<button class="life-status-pill${s === currentStatus ? ' is-active' : ''}" data-status="${_e(s)}">${_e(s)}</button>`).join('')}
           </div>
         </div>
-        <!-- Assignee -->
+        <!-- Primary Caregiver -->
         <div class="life-sheet-field">
           <div class="life-sheet-label">Assigned To</div>
-          <input class="life-sheet-input" data-field="assignee" type="text" value="${_e(assigneeName)}" placeholder="Caregiver name or email">
+          ${hasMemberDir
+            ? _caregiverSelect(memberDir, 'assignee', assigneeRaw, '— Unassigned —', true)
+            : `<input class="life-sheet-input" data-field="assignee" type="text" value="${_e(_resolveName(assigneeRaw, memberDir) || assigneeRaw)}" placeholder="Caregiver name or email">`}
+        </div>
+        <!-- Secondary Caregiver -->
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">
+            Secondary Caregiver
+            <span class="life-field-hint">Also has access to view this case</span>
+          </div>
+          ${hasMemberDir
+            ? _caregiverSelect(memberDir, 'secondary', secondaryRaw, '— None —', true)
+            : `<input class="life-sheet-input" data-field="secondary" type="text" value="${_e(_resolveName(secondaryRaw, memberDir) || secondaryRaw)}" placeholder="Secondary caregiver (optional)">`}
         </div>
         <!-- Summary -->
         <div class="life-sheet-field">
@@ -438,14 +451,16 @@ function _openSheet(c, memberDir, onSave) {
     btn.disabled = true;
     btn.textContent = 'Saving…';
     const activeStatus = sheet.querySelector('.life-status-pill.is-active')?.dataset.status || currentStatus;
-    const assigneeVal  = sheet.querySelector('[data-field="assignee"]').value.trim();
+    const assigneeVal  = sheet.querySelector('[data-field="assignee"]')?.value?.trim() || '';
+    const secondaryVal = sheet.querySelector('[data-field="secondary"]')?.value?.trim() || '';
     const summaryVal   = sheet.querySelector('[data-field="summary"]').value.trim();
     try {
       await V.flock.care.update({
-        id:                 cid,
-        status:             activeStatus,
-        primaryCaregiverId: assigneeVal || undefined,
-        summary:            summaryVal  || undefined,
+        id:                   cid,
+        status:               activeStatus,
+        primaryCaregiverId:   assigneeVal  || undefined,
+        secondaryCaregiverId: secondaryVal || undefined,
+        summary:              summaryVal   || undefined,
       });
       _closeSheet();
       if (onSave) onSave();
@@ -560,9 +575,66 @@ function _quickNote(cid, personName) {
 // ── New care modal ─────────────────────────────────────────────────────────────
 const PRIORITY_LABELS = ['Normal', 'High', 'Urgent'];
 
+// ── Member name helper ────────────────────────────────────────────────────────
+function _memberName(m) {
+  return m.preferredName
+    || (((m.firstName || '') + ' ' + (m.lastName || '')).trim())
+    || m.displayName || m.name || m.email || '';
+}
+
+// ── Find Lead Pastor from member directory ────────────────────────────────────
+function _findLeadPastor(members) {
+  const PASTOR_ROLES = ['lead pastor','senior pastor','lead','pastor'];
+  return members.find(m => {
+    const r = String(m.role || m.memberType || '').toLowerCase();
+    return PASTOR_ROLES.some(pr => r === pr || r.startsWith(pr));
+  });
+}
+
+// ── Build a staff/caregiver <select> ─────────────────────────────────────────
+// If staffOnly=true, filters to leaders/pastoral roles; otherwise shows everyone.
+function _caregiverSelect(members, fieldName, defaultId, placeholder, staffOnly) {
+  const STAFF_ROLES = ['leader','deacon','elder','pastor','admin','care','volunteer'];
+  const pool = staffOnly
+    ? members.filter(m => STAFF_ROLES.some(r => String(m.role || m.memberType || '').toLowerCase().includes(r)))
+    : members;
+  const sorted = pool.slice().sort((a, b) => _memberName(a).localeCompare(_memberName(b)));
+  return `<select class="life-sheet-input" data-field="${_e(fieldName)}">
+    <option value="">${_e(placeholder || '— None —')}</option>
+    ${sorted.map(m => {
+      const id  = m.id || m.memberNumber || m.email || '';
+      const sel = (defaultId && (id === defaultId || m.email === defaultId)) ? ' selected' : '';
+      return `<option value="${_e(id)}"${sel}>${_e(_memberName(m))}</option>`;
+    }).join('')}
+  </select>`;
+}
+
+// ── Build a full member <select> with filter search ───────────────────────────
+function _memberPickerHtml(members, fieldName) {
+  const sorted = members.slice().sort((a, b) => _memberName(a).localeCompare(_memberName(b)));
+  return `
+    <div class="life-member-picker">
+      <input class="life-member-search" type="search" placeholder="Filter members…"
+             aria-label="Filter member list" data-member-search="${_e(fieldName)}">
+      <select class="life-sheet-input life-member-select" data-field="${_e(fieldName)}" size="5">
+        <option value="">— Select a member —</option>
+        ${sorted.map(m => {
+          const id   = m.id || m.memberNumber || m.email || '';
+          const disp = _memberName(m);
+          const role = m.role || m.memberType || '';
+          return `<option value="${_e(id)}" data-n="${_e(disp.toLowerCase())}">${_e(disp)}${role ? '  (' + role + ')' : ''}</option>`;
+        }).join('')}
+      </select>
+    </div>`;
+}
+
 function _newCareModal(memberDir, onSave) {
   _closeSheet();
   const V = window.TheVine;
+  const hasMemberDir = memberDir && memberDir.length > 0;
+  const leadPastor   = _findLeadPastor(memberDir || []);
+  const lpId         = leadPastor ? (leadPastor.id || leadPastor.memberNumber || leadPastor.email || '') : '';
+
   const sheet = document.createElement('div');
   sheet.className = 'life-sheet';
   sheet.innerHTML = /* html */`
@@ -576,26 +648,48 @@ function _newCareModal(memberDir, onSave) {
         </button>
       </div>
       <div class="life-sheet-body">
+        <!-- Member picker -->
         <div class="life-sheet-field">
-          <div class="life-sheet-label">Member ID / Email</div>
-          <input class="life-sheet-input" data-field="memberId" type="text" placeholder="Member email or ID">
+          <div class="life-sheet-label">Member</div>
+          ${hasMemberDir
+            ? _memberPickerHtml(memberDir, 'memberId')
+            : `<input class="life-sheet-input" data-field="memberId" type="text" placeholder="Member email or ID">`}
         </div>
+        <!-- Care Type -->
         <div class="life-sheet-field">
           <div class="life-sheet-label">Care Type</div>
           <select class="life-sheet-input" data-field="careType">
             ${Object.entries(CARE_TYPES).map(([k, t]) => `<option value="${_e(k)}">${t.icon} ${t.label}</option>`).join('')}
           </select>
         </div>
+        <!-- Priority -->
         <div class="life-sheet-field">
           <div class="life-sheet-label">Priority</div>
           <div class="life-status-row">
             ${PRIORITY_LABELS.map((p, i) => `<button class="life-status-pill${i === 0 ? ' is-active' : ''}" data-priority="${_e(p.toLowerCase())}">${_e(p)}</button>`).join('')}
           </div>
         </div>
+        <!-- Assigned To (Lead Pastor default) -->
         <div class="life-sheet-field">
-          <div class="life-sheet-label">Assigned To (optional)</div>
-          <input class="life-sheet-input" data-field="assignee" type="text" placeholder="Caregiver name or email">
+          <div class="life-sheet-label">
+            Assigned To
+            ${leadPastor ? `<span class="life-field-hint">Defaulting to Lead Pastor</span>` : ''}
+          </div>
+          ${hasMemberDir
+            ? _caregiverSelect(memberDir, 'assignee', lpId, '— Unassigned —', true)
+            : `<input class="life-sheet-input" data-field="assignee" type="text" placeholder="Caregiver name or email" value="${_e(leadPastor ? _memberName(leadPastor) : '')}">`}
         </div>
+        <!-- Secondary Caregiver -->
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">
+            Secondary Caregiver
+            <span class="life-field-hint">Also gets access to view this case</span>
+          </div>
+          ${hasMemberDir
+            ? _caregiverSelect(memberDir, 'secondary', '', '— None —', true)
+            : `<input class="life-sheet-input" data-field="secondary" type="text" placeholder="Secondary caregiver (optional)">`}
+        </div>
+        <!-- Summary -->
         <div class="life-sheet-field">
           <div class="life-sheet-label">Summary</div>
           <textarea class="life-sheet-ta" data-field="summary" rows="3" placeholder="What's the situation?"></textarea>
@@ -614,6 +708,19 @@ function _newCareModal(memberDir, onSave) {
     sheet.querySelector('.life-sheet-panel').classList.add('is-open');
   });
 
+  // Member search filter
+  const searchInput = sheet.querySelector('[data-member-search]');
+  if (searchInput) {
+    const selEl = sheet.querySelector('[data-field="memberId"]');
+    searchInput.addEventListener('input', () => {
+      const q = searchInput.value.toLowerCase().trim();
+      if (!selEl) return;
+      Array.from(selEl.options).forEach(opt => {
+        opt.hidden = !!(q && !opt.dataset.n?.includes(q) && opt.value !== '');
+      });
+    });
+  }
+
   // Priority pills
   sheet.querySelectorAll('[data-priority]').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -630,7 +737,8 @@ function _newCareModal(memberDir, onSave) {
     const memberId  = sheet.querySelector('[data-field="memberId"]').value.trim();
     const careType  = sheet.querySelector('[data-field="careType"]').value;
     const priority  = sheet.querySelector('[data-priority].is-active')?.dataset.priority || 'normal';
-    const assignee  = sheet.querySelector('[data-field="assignee"]').value.trim();
+    const assignee  = sheet.querySelector('[data-field="assignee"]')?.value?.trim() || '';
+    const secondary = sheet.querySelector('[data-field="secondary"]')?.value?.trim() || '';
     const summary   = sheet.querySelector('[data-field="summary"]').value.trim();
     if (!memberId) { sheet.querySelector('[data-field="memberId"]').focus(); return; }
     const btn = sheet.querySelector('[data-save]');
@@ -641,8 +749,9 @@ function _newCareModal(memberDir, onSave) {
         careType,
         priority,
         status: 'Open',
-        primaryCaregiverId: assignee || undefined,
-        summary: summary || undefined,
+        primaryCaregiverId:   assignee  || undefined,
+        secondaryCaregiverId: secondary || undefined,
+        summary:              summary   || undefined,
       });
       _closeSheet();
       if (onSave) onSave();

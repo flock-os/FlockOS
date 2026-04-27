@@ -2095,6 +2095,68 @@ flock-tabs [role="tablist"], .tabs-bar {
   color: var(--ink-muted, #7a7f96); font: 0.9rem var(--font-ui);
 }
 
+/* ── Field hint (inline label annotation) ──────────────────────────────────── */
+.life-field-hint {
+  font: 500 0.72rem var(--font-ui, system-ui); color: var(--ink-muted, #7a7f96);
+  font-weight: 400; text-transform: none; letter-spacing: 0;
+  margin-left: 6px;
+}
+
+/* ── Member picker (search + select combo) ─────────────────────────────────── */
+.life-member-picker { display: flex; flex-direction: column; gap: 6px; }
+.life-member-search {
+  width: 100%; padding: 8px 12px; border-radius: 8px;
+  border: 1.5px solid var(--line, #e5e7ef); background: var(--bg-raised, #fff);
+  color: var(--ink, #1b264f); font: 0.88rem var(--font-ui); box-sizing: border-box;
+  transition: border-color 140ms;
+}
+.life-member-search:focus { outline: none; border-color: var(--gold, #e8a838); }
+.life-member-select {
+  /* Override the single-line select to show several rows */
+  height: auto; min-height: 110px;
+  border-radius: 10px; padding: 4px 0;
+  overflow-y: auto;
+}
+.life-member-select option { padding: 6px 12px; }
+.life-member-select option:checked { background: var(--accent, #5b8fcf); color: #fff; }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   THE FOLD — Member detail sheet additions
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* Two-column name row */
+.fold-form-row {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+}
+@media (max-width: 480px) { .fold-form-row { grid-template-columns: 1fr; } }
+
+/* Member ID display row */
+.fold-id-row {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  background: var(--bg-sunken, #f0f0f5); border-radius: 10px;
+  padding: 10px 14px; margin-bottom: 4px;
+}
+.fold-id-label { font: 600 0.75rem var(--font-ui); color: var(--ink-muted, #7a7f96); text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; }
+.fold-id-code  { font: 0.82rem 'SF Mono', 'Menlo', 'Consolas', monospace; color: var(--ink, #1b264f); flex: 1; word-break: break-all; }
+.fold-copy-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 5px 12px; border-radius: 7px;
+  border: 1.5px solid var(--line, #e5e7ef); background: var(--bg-raised, #fff);
+  color: var(--ink, #1b264f); font: 600 0.78rem var(--font-ui); cursor: pointer;
+  white-space: nowrap; flex-shrink: 0; transition: border-color 120ms, background 120ms;
+}
+.fold-copy-btn:hover { border-color: var(--accent, #5b8fcf); background: var(--bg-raised, #fff); }
+.fold-copy-btn:disabled { opacity: 0.4; cursor: default; }
+
+/* Permissions section divider */
+.fold-perm-section {
+  padding: 14px 0 0; border-top: 1px solid var(--line, #e5e7ef); margin-top: 4px;
+}
+.fold-perm-section-title {
+  font: 700 0.88rem var(--font-ui); color: var(--ink, #1b264f); margin-bottom: 3px;
+}
+.fold-perm-section-sub { font: 0.78rem var(--font-ui); color: var(--ink-muted, #7a7f96); margin-bottom: 2px; }
+
 /* ══════════════════════════════════════════════════════════════════════════════
    THE GREAT COMMISSION — Missions view
    ══════════════════════════════════════════════════════════════════════════════ */
