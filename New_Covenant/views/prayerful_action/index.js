@@ -95,15 +95,15 @@ export function render() {
           <div class="pray-card-name">${_e(r.name)}</div>
           <div class="pray-card-text">${_e(r.request)}</div>
           <div class="pray-card-foot">
-            <button class="pray-pray-btn" data-id="${r.id}">🙏 I Prayed (${r.prays})</button>
-            <button class="pray-answer-btn" data-id="${r.id}">✅ Mark Answered</button>
+            <button class="pray-pray-btn" data-rid="demo">🙏 I Prayed (${r.prays})</button>
+            <button class="pray-answer-btn" data-rid="demo">✅ Mark Answered</button>
           </div>
         </div>`).join('')}
       </div>
 
       <!-- Answered -->
       <div class="pray-section-label" style="margin-top:8px">Answered (${answered.length})</div>
-      <div class="pray-list">
+      <div class="pray-list" id="pray-answered-list">
         ${answered.map(r => `
         <div class="pray-card pray-card--answered" data-type="${_e(r.type)}">
           <div class="pray-card-head">
@@ -153,34 +153,161 @@ export function render() {
 export function mount(root) {
   /* Filter chips */
   const filters = root.querySelectorAll('.pray-filter');
-  const cards   = root.querySelectorAll('.pray-card');
+  function _applyFilter(f) {
+    root.querySelectorAll('.pray-card').forEach(c => {
+      c.style.display = (f === 'All' || c.dataset.type === f || (f === 'Urgent' && c.classList.contains('pray-card--urgent'))) ? '' : 'none';
+    });
+  }
   filters.forEach(btn => btn.addEventListener('click', () => {
     filters.forEach(b => b.classList.remove('is-active'));
     btn.classList.add('is-active');
-    const f = btn.dataset.filter;
-    cards.forEach(c => {
-      c.style.display = (f === 'All' || c.dataset.type === f || (f === 'Urgent' && c.classList.contains('pray-card--urgent'))) ? '' : 'none';
-    });
+    _applyFilter(btn.dataset.filter);
   }));
 
+  _wireInteractiveButtons(root);
+  _loadPrayer(root, filters);
+  return () => {};
+}
+
+function _wireInteractiveButtons(root) {
   /* "I Prayed" counter bump */
   root.querySelectorAll('.pray-pray-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const m = btn.textContent.match(/\((\d+)\)/);
-      if (m) btn.textContent = btn.textContent.replace(/\(\d+\)/, `(${+m[1]+1})`);
+      if (m) {
+        const newCount = +m[1] + 1;
+        btn.textContent = btn.textContent.replace(/\(\d+\)/, `(${newCount})`);
+        const rid = btn.dataset.rid;
+        if (rid && rid !== 'demo') {
+          window.TheVine?.flock?.prayer?.update({ id: rid, prayCount: newCount }).catch(() => {});
+        }
+      }
     });
   });
 
-  /* Mark answered — remove card */
+  /* Mark answered — remove card with live update */
   root.querySelectorAll('.pray-answer-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const card = btn.closest('.pray-card');
+      const rid  = btn.dataset.rid;
+      if (rid && rid !== 'demo') {
+        window.TheVine?.flock?.prayer?.update({ id: rid, status: 'Answered' }).catch(() => {});
+      }
       card.style.transition = 'opacity 300ms, transform 300ms';
       card.style.opacity = '0';
       card.style.transform = 'translateX(20px)';
       setTimeout(() => card.remove(), 320);
     });
   });
+}
 
-  return () => {};
+const _CLOSED_PRAY = new Set(['answered', 'closed', 'archived', 'deleted']);
+
+function _normalizeCategory(raw) {
+  const s = (raw || '').toLowerCase().replace(/[-_\s]/g, '');
+  if (s.includes('praise') || s.includes('thanksgiving') || s.includes('gratitude')) return 'Praise';
+  if (s.includes('urgent') || s.includes('crisis') || s.includes('emergency'))       return 'Urgent';
+  if (s.includes('personal') || s.includes('family') || s.includes('marriage')
+    || s.includes('health') || s.includes('job') || s.includes('financial'))         return 'Personal';
+  return 'Intercession'; // default — church, missions, spiritual, general
+}
+
+function _liveCard(r, isAnswered) {
+  const id    = r.id || r.requestId || 'demo';
+  const type  = _normalizeCategory(r.category || r.type || '');
+  const name  = r.submitterName  || r.name || 'Anonymous';
+  const text  = r.prayerText     || r.text || r.description || '';
+  const date  = _fmtDate(r.submittedAt || r.createdAt);
+  const prays = Number(r.prayCount || r.prayerCount || 0);
+  const urgent = type === 'Urgent' || (r.priority || '').toLowerCase() === 'urgent';
+  const conf  = r.isConfidential === true || String(r.isConfidential || '').toUpperCase() === 'TRUE';
+
+  const cardHtml = `
+    <div class="pray-card${urgent ? ' pray-card--urgent' : ''}${isAnswered ? ' pray-card--answered' : ''}" data-type="${_e(type)}">
+      <div class="pray-card-head">
+        ${typeBadge(type)}
+        ${urgent ? '<span class="pray-urgent-badge">Urgent</span>' : ''}
+        ${isAnswered ? '<span class="pray-answered-badge">Answered ✅</span>' : ''}
+        <span class="pray-card-date">${_e(date)}</span>
+        ${conf ? '<span class="pray-conf-icon" title="Confidential">🔒</span>' : ''}
+      </div>
+      <div class="pray-card-name">${_e(name)}</div>
+      <div class="pray-card-text">${_e(text)}</div>
+      ${isAnswered
+        ? `<div class="pray-card-prays" style="font:.72rem var(--font-ui);color:var(--ink-muted,#7a7f96);margin-top:4px">${prays || ''} ${prays ? 'people prayed' : ''}</div>`
+        : `<div class="pray-card-foot">
+             <button class="pray-pray-btn" data-rid="${_e(String(id))}">🙏 I Prayed (${prays})</button>
+             <button class="pray-answer-btn" data-rid="${_e(String(id))}">✅ Mark Answered</button>
+           </div>`}
+    </div>`;
+  return cardHtml;
+}
+
+function _fmtDate(ts) {
+  if (!ts) return '';
+  try {
+    const ms = ts?.seconds ? ts.seconds * 1000 : new Date(ts).getTime();
+    if (!ms || isNaN(ms)) return '';
+    return new Date(ms).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  } catch (_) { return ''; }
+}
+
+async function _loadPrayer(root, filterBtns) {
+  const V = window.TheVine;
+  if (!V) return;
+  try {
+    const res  = await V.flock.prayer.list({ limit: 50 });
+    const all  = Array.isArray(res) ? res : (res?.rows ?? res?.data ?? []);
+    if (!all.length) return; // keep static demo data
+
+    const active   = all.filter(r => !_CLOSED_PRAY.has((r.status || 'new').toLowerCase()));
+    const answered = all.filter(r => (r.status || '').toLowerCase() === 'answered');
+
+    // Update stats strip with live counts
+    const urgentN  = active.filter(r => _normalizeCategory(r.category || '') === 'Urgent').length;
+    const answeredN = answered.length;
+    const prayingN  = active.reduce((n, r) => n + Number(r.prayCount || 0), 0);
+    const _setStat = (idx, val) => {
+      const cards = root.querySelectorAll('.pray-stat-card');
+      const el    = cards[idx]?.querySelector('.pray-stat-val');
+      if (el) el.textContent = String(val);
+    };
+    _setStat(0, active.length);
+    _setStat(1, answeredN);
+    _setStat(2, prayingN || active.length);
+
+    // Replace active list
+    const activeList = root.querySelector('#pray-active-list');
+    if (activeList) {
+      const lbl = activeList.previousElementSibling;
+      if (lbl && lbl.classList.contains('pray-section-label')) lbl.textContent = `Active (${active.length})`;
+      activeList.innerHTML = active.length
+        ? active.map(r => _liveCard(r, false)).join('')
+        : `<div class="pray-empty">No active prayer requests right now.</div>`;
+    }
+
+    // Replace answered list
+    const answeredList = root.querySelector('#pray-answered-list');
+    if (answeredList) {
+      const lbl = answeredList.previousElementSibling;
+      if (lbl && lbl.classList.contains('pray-section-label')) lbl.textContent = `Answered (${answered.length})`;
+      answeredList.innerHTML = answered.length
+        ? answered.map(r => _liveCard(r, true)).join('')
+        : `<div class="pray-empty">No answered prayers recorded yet.</div>`;
+    }
+
+    // Re-wire interactive buttons with live rids
+    _wireInteractiveButtons(root);
+
+    // Re-apply active filter
+    const activeFilter = root.querySelector('.pray-filter.is-active');
+    if (activeFilter) {
+      root.querySelectorAll('.pray-card').forEach(c => {
+        const f = activeFilter.dataset.filter;
+        c.style.display = (f === 'All' || c.dataset.type === f || (f === 'Urgent' && c.classList.contains('pray-card--urgent'))) ? '' : 'none';
+      });
+    }
+  } catch (err) {
+    console.warn('[PrayerfulAction] prayer.list failed, showing demo data:', err);
+  }
 }
