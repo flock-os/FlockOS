@@ -84,8 +84,13 @@ async function _loadMembers(root) {
   if (!grid) return;
   grid.innerHTML = '<div style="padding:32px;text-align:center;color:var(--ink-muted,#7a7f96)">Loading members…</div>';
   try {
-    const res  = await V.flock.members.list({ status: 'active' });
-    const rows = _rows(res);
+    const res  = await V.flock.members.list({ limit: 500 });
+    const all  = _rows(res);
+    // Filter client-side: keep active/non-inactive members (matches 'active', true, 'Active', '1')
+    const rows = all.filter(r => {
+      const s = String(r.status || r.active || r.Status || '').toLowerCase();
+      return s !== 'inactive' && s !== 'false' && s !== '0' && s !== 'archived';
+    });
     if (!rows.length) {
       grid.innerHTML = '<div style="padding:32px;text-align:center;color:var(--ink-muted,#7a7f96)">No members found.</div>';
       return;
@@ -96,7 +101,8 @@ async function _loadMembers(root) {
     grid.querySelectorAll('.fold-card').forEach((card) => {
       card.addEventListener('click', () => { /* TODO: open person detail sheet */ });
     });
-  } catch (_) {
+  } catch (err) {
+    console.error('[TheFold] members.list error:', err);
     grid.innerHTML = '<div style="padding:32px;text-align:center;color:var(--ink-muted,#7a7f96)">Could not load members right now.</div>';
   }
 }

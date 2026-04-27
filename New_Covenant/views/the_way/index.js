@@ -87,12 +87,16 @@ async function _loadWay(root) {
   if (tracksEl) {
     tracksEl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Loading tracks…</div>';
     try {
-      const res  = await V.flock.discipleship.paths.list({ status: 'Published' });
-      const rows = _rows(res);
+      const res  = await V.flock.discipleship.paths.list({});
+      const all  = _rows(res);
+      // Filter client-side: exclude archived/inactive
+      const _DEAD = new Set(['archived','inactive','draft']);
+      const rows = all.filter(r => !_DEAD.has((r.status || r.Status || '').toLowerCase()));
       tracksEl.innerHTML = rows.length
         ? rows.map(_liveTrackCard).join('')
         : '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">No discipleship tracks found.</div>';
-    } catch (_) {
+    } catch (err) {
+      console.error('[TheWay] discipleship.paths.list error:', err);
       tracksEl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Discipleship data unavailable.</div>';
     }
   }
@@ -107,7 +111,8 @@ async function _loadWay(root) {
       groupsEl.innerHTML = rows.length
         ? rows.map(_liveGroupRow).join('')
         : '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">No small groups found.</div>';
-    } catch (_) {
+    } catch (err) {
+      console.error('[TheWay] groups.list error:', err);
       groupsEl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Small groups data unavailable.</div>';
     }
   }

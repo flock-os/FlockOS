@@ -17,7 +17,7 @@
 import { kindle, darken } from './the_lampstand.js';
 import { dress } from './the_veil/index.js';
 import { register, go, current } from './the_scribes/index.js';
-import { whoAmI } from './the_priesthood/index.js';
+import { whoAmI, enter } from './the_priesthood/index.js';
 import { report } from './the_watchmen.js';
 import * as adornment from './the_adornment.js';
 import * as livingWater from './the_living_water_register.js';
@@ -30,10 +30,25 @@ const flock = {
 
     adornment.init();       // theme tokens before any paint
     _installErrorBoundary();
-    kindle();              // splash on
+    kindle();               // splash on
+
+    // ── Auth gate — nothing renders until the user is signed in ──────────
+    const user = await whoAmI();
+    if (!user) {
+      // Show login modal over the splash; block until signed in.
+      // Cancel is disabled — the modal cannot be dismissed without signing in.
+      darken(); // fade splash so the modal sits on a clean backdrop
+      const result = await enter();
+      if (!result.ok) {
+        // Login failed without a session (shouldn't normally reach here).
+        return;
+      }
+      kindle(); // splash back on while the shell boots
+    }
+    // ─────────────────────────────────────────────────────────────────────
+
     await dress();          // mount topbar / sidebar / main slot
     await _registerViews();
-    await whoAmI();         // resolve current user from Nehemiah session (no UI block)
     await go(_initialRoute(), { replace: true });
     darken();               // splash off (with fade via the_oil)
     livingWater.register().catch(() => {}); // SW after the first paint

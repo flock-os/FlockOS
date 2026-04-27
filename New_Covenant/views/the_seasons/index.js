@@ -123,7 +123,8 @@ async function _loadEvents(root) {
       const months = _uniqueMonths(eventDates, 2);
       calCol.innerHTML = months.map(([y, m]) => _miniCalendarLive(y, m, eventDates)).join('');
     }
-  } catch (_) {
+  } catch (err) {
+    console.error('[TheSeasons] events.list error:', err);
     listEl.innerHTML = '<div style="padding:32px;text-align:center;color:var(--ink-muted,#7a7f96)">Could not load events right now.</div>';
   }
 }

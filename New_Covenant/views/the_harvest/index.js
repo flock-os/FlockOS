@@ -95,7 +95,8 @@ async function _loadHarvest(root) {
       missionEl.innerHTML = rows.length
         ? rows.map(_liveMissionCard).join('')
         : '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">No supported missionaries on file.</div>';
-    } catch (_) {
+    } catch (err) {
+      console.error('[TheHarvest] missions.registry.list error:', err);
       missionEl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Missions data unavailable.</div>';
     }
   }
@@ -105,12 +106,18 @@ async function _loadHarvest(root) {
   if (outreachEl) {
     outreachEl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Loading outreach…</div>';
     try {
-      const res  = await V.flock.events.list({ type: 'outreach' });
-      const rows = _rows(res);
+      const res  = await V.flock.events.list({ limit: 200 });
+      const all  = _rows(res);
+      // Filter client-side — field may be 'type' or 'eventType'
+      const rows = all.filter(r => {
+        const t = (r.type || r.eventType || r.category || '').toLowerCase();
+        return t.includes('outreach') || t.includes('community') || t.includes('service');
+      });
       outreachEl.innerHTML = rows.length
         ? rows.map(_liveOutreachRow).join('')
         : '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">No outreach events on file.</div>';
-    } catch (_) {
+    } catch (err) {
+      console.error('[TheHarvest] events.list outreach error:', err);
       outreachEl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Outreach data unavailable.</div>';
     }
   }

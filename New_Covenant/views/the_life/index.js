@@ -121,6 +121,8 @@ export function mount(root) {
   return () => {};
 }
 
+const _TERMINAL = new Set(['resolved','closed','archived','cancelled','denied','completed','answered','inactive','deleted']);
+
 async function _loadCare(root) {
   const V = window.TheVine;
   if (!V) return;
@@ -128,8 +130,9 @@ async function _loadCare(root) {
   if (!queue) return;
   queue.innerHTML = '<div style="padding:32px;text-align:center;color:var(--ink-muted,#7a7f96)">Loading care queue…</div>';
   try {
-    const res  = await V.flock.care.list({ status: 'Active' });
-    const rows = _rows(res);
+    const res  = await V.flock.care.list({});
+    const all  = _rows(res);
+    const rows = all.filter(r => !_TERMINAL.has((r.status || r.Status || '').toLowerCase()));
     if (!rows.length) {
       queue.innerHTML = '<div style="padding:32px;text-align:center;color:var(--ink-muted,#7a7f96)">No active care cases. Quiet is good.</div>';
       _updateStats(root, []);
@@ -137,7 +140,8 @@ async function _loadCare(root) {
     }
     queue.innerHTML = rows.map(_liveCareCard).join('');
     _updateStats(root, rows);
-  } catch (_) {
+  } catch (err) {
+    console.error('[TheLife] care.list error:', err);
     queue.innerHTML = '<div style="padding:32px;text-align:center;color:var(--ink-muted,#7a7f96)">Could not load care queue right now.</div>';
   }
 }

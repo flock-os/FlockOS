@@ -18,12 +18,14 @@ let _profile = null;
 export async function whoAmI() {
   // Nehemiah lives on window when loaded by the legacy bundle.
   const N = window.Nehemiah;
-  if (!N || typeof N.getProfile !== 'function') {
-    _profile = null;
-    return null;
-  }
+  if (!N) { _profile = null; return null; }
   try {
-    _profile = N.getProfile() || null;
+    // Prefer stored profile; fall back to session email so auth gate can pass.
+    if (typeof N.getProfile === 'function') _profile = N.getProfile() || null;
+    if (!_profile && typeof N.isAuthenticated === 'function' && N.isAuthenticated()) {
+      const sess = typeof N.getSession === 'function' ? N.getSession() : null;
+      _profile = sess ? { email: sess.email, role: sess.role, displayName: sess.displayName || sess.email } : { authenticated: true };
+    }
   } catch (_) {
     _profile = null;
   }

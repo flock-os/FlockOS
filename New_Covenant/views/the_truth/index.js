@@ -107,7 +107,8 @@ async function _loadTruth(root) {
       seriesEl.innerHTML = rows.length
         ? rows.map(_liveSeriesCard).join('')
         : '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">No sermon series on file.</div>';
-    } catch (_) {
+    } catch (err) {
+      console.error('[TheTruth] sermonSeries.list error:', err);
       seriesEl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Content library unavailable.</div>';
     }
   }
@@ -122,7 +123,8 @@ async function _loadTruth(root) {
       msgsEl.innerHTML = rows.length
         ? rows.map(_liveMsgRow).join('')
         : '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">No messages on file.</div>';
-    } catch (_) {
+    } catch (err) {
+      console.error('[TheTruth] sermons.list error:', err);
       msgsEl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Messages unavailable.</div>';
     }
   }

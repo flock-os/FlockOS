@@ -37,7 +37,6 @@ export async function renderGarments(/* { mode } */) {
         <div class="garments-error" aria-live="polite"></div>
 
         <div class="garments-actions">
-          <button type="button" class="garments-btn-cancel" data-act="cancel">Cancel</button>
           <button type="submit"  class="garments-btn-submit" data-act="submit">
             <span class="garments-btn-label">Sign in</span>
           </button>
@@ -75,15 +74,8 @@ export async function renderGarments(/* { mode } */) {
       resolve(result);
     }
 
-    form.addEventListener('click', (e) => {
-      const btn = e.target.closest('[data-act]');
-      if (btn && btn.dataset.act === 'cancel') { e.preventDefault(); close({ ok: false, cancelled: true }); }
-    });
-
-    // Dismiss on backdrop click
-    root.addEventListener('click', (e) => {
-      if (e.target === root) close({ ok: false, cancelled: true });
-    });
+    // Cancel button removed — login is required to enter the site.
+    // Backdrop click is intentionally non-dismissible.
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
