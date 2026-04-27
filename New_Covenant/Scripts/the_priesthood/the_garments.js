@@ -80,11 +80,11 @@ export async function renderGarments(/* { mode } */) {
           errBox.textContent = 'Sign-in is unavailable right now.';
           return;
         }
-        const result = await N.login({ email, passcode });
-        if (result && result.ok) { close({ ok: true, profile: result.profile || null }); }
-        else { errBox.textContent = (result && result.message) || 'That didn’t work. Check your details.'; }
+        // Nehemiah.login(email, passcode) — two separate args; throws on failure
+        const session = await N.login(email, passcode);
+        close({ ok: true, profile: (session && session.profile) || null });
       } catch (err) {
-        errBox.textContent = err && err.message ? err.message : 'Something went wrong.';
+        errBox.textContent = err && err.message ? err.message : 'That didn\u2019t work. Check your details.';
       }
     });
 
