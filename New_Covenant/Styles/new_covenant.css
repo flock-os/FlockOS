@@ -2546,8 +2546,78 @@ flock-tabs [role="tablist"], .tabs-bar {
   border-radius: 12px;
 }
 
+/* ── Prayer Chain ──────────────────────────────────────────────────────────── */
+.pc-layout {
+  display: grid; grid-template-columns: 1fr 320px; gap: 16px; min-height: 60vh;
+}
+.pc-stream-col {
+  display: flex; flex-direction: column; gap: 8px;
+}
+.pc-stream {
+  flex: 1; overflow-y: auto; padding: 8px 4px; min-height: 50vh;
+  background: var(--bg-raised, #fff); border: 1px solid var(--line, #e5e7ef);
+  border-radius: 12px; display: flex; flex-direction: column; gap: 6px;
+}
+.pc-stream-empty {
+  flex: 1; display: flex; align-items: center; justify-content: center;
+  padding: 40px 16px; color: var(--ink-muted, #7a7f96);
+  font: 0.9rem var(--font-ui); text-align: center;
+}
+.pc-requests-col {
+  background: var(--bg-raised, #fff); border: 1px solid var(--line, #e5e7ef);
+  border-radius: 12px; padding: 12px 14px;
+  display: flex; flex-direction: column; gap: 8px;
+  overflow-y: auto; max-height: 75vh;
+}
+.pc-col-hd {
+  font: 700 0.95rem var(--font-ui); color: var(--ink, #1b264f);
+  padding-bottom: 8px; border-bottom: 1px solid var(--line, #e5e7ef);
+  flex-shrink: 0;
+}
+.pc-col-body { display: flex; flex-direction: column; gap: 8px; }
+.pc-col-empty, .pc-loading {
+  color: var(--ink-muted, #7a7f96); font: 0.88rem var(--font-ui);
+  padding: 12px 0; text-align: center;
+}
+.pc-req-card {
+  padding: 10px 12px; border: 1px solid var(--line, #e5e7ef);
+  border-radius: 10px; display: flex; flex-direction: column; gap: 5px;
+  border-left: 3px solid var(--accent, #5b8fcf);
+  transition: border-color 120ms;
+}
+.pc-req-card.pc-req-answered { border-left-color: #16a34a; opacity: 0.75; }
+.pc-req-hd {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+}
+.pc-req-name {
+  font: 600 0.88rem var(--font-ui); color: var(--ink, #1b264f); min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.pc-req-status {
+  font: 600 0.70rem var(--font-ui); padding: 2px 7px; border-radius: 8px;
+  white-space: nowrap; flex-shrink: 0;
+}
+.pc-req-cat {
+  font: 0.73rem var(--font-ui); color: var(--ink-muted, #7a7f96);
+  background: var(--bg-sunken, #f0f0f5); padding: 1px 7px; border-radius: 6px;
+  align-self: flex-start;
+}
+.pc-req-text {
+  font: 0.83rem/1.55 var(--font-ui); color: var(--ink, #1b264f);
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.pc-req-foot {
+  display: flex; align-items: center; justify-content: space-between;
+  font: 0.73rem var(--font-ui); color: var(--ink-muted, #7a7f96); margin-top: 2px;
+}
+.pc-req-conf { color: #f59e0b; }
+.pc-req-date { color: var(--ink-muted, #7a7f96); }
+
 /* ── Responsive ────────────────────────────────────────────────────────────── */
 @media (max-width: 720px) {
+  .pc-layout { grid-template-columns: 1fr; }
+  .pc-requests-col { max-height: 40vh; }
   .gc-country-grid  { grid-template-columns: repeat(auto-fill, minmax(155px, 1fr)); }
   .gc-kpi-row       { gap: 8px; }
   .gc-kpi-card      { min-width: 80px; padding: 10px; }

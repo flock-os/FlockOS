@@ -31,9 +31,19 @@ export async function careCases() {
 }
 
 export async function prayerRequests() {
+  // UpperRoom (Firestore) is the authoritative backend for prayer requests.
+  // allUsers:true so pastors see everyone's requests, not just their own.
+  const UR = window.UpperRoom;
+  if (UR && typeof UR.listPrayers === 'function') {
+    try {
+      const rows = await UR.listPrayers({ allUsers: true, limit: 100 });
+      return Array.isArray(rows) ? rows : _rows(rows);
+    } catch (_) {}
+  }
+  // TheVine fallback (GAS-backed churches)
   const V = window.TheVine;
   if (!V) return [];
-  const res = await V.flock.prayer?.list({ status: 'New' }) ?? [];
+  const res = await V.flock.prayer?.list({ limit: 100 }) ?? [];
   return _rows(res);
 }
 
