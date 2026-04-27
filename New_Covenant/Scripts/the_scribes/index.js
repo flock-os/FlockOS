@@ -1,0 +1,78 @@
+/* ══════════════════════════════════════════════════════════════════════════════
+   THE SCRIBES — Router (public API)
+   "Then every scribe instructed unto the kingdom of heaven is like
+    unto a man that is an householder." — Matthew 13:52
+
+   The Scribes records the way. Tiny client-side router with three jobs:
+     1. Map URL ↔ view name (the_path).
+     2. Track history (the_chronicle).
+     3. Surface a ⌘K command palette (the_herald).
+
+   This file is the GATE — only this index is imported by the rest of the app.
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+import { parse, build } from './the_path.js';
+import { push, replace as historyReplace, current as historyCurrent } from './the_chronicle.js';
+import { wakeHerald, registerCommand } from './the_herald.js';
+
+const _registry = new Map();   // name -> () => Promise<viewModule>
+const _loaded   = new Map();   // name -> viewModule
+let   _active   = null;        // { name, params, unmount }
+let   _mountSlot = null;
+
+export function setMountSlot(el) { _mountSlot = el; }
+
+export function register(name, loader, opts = {}) {
+  _registry.set(name, loader);
+  // Make it discoverable from ⌘K with optional title/route metadata.
+  if (opts.command) registerCommand({ id: 'goto:' + name, label: opts.command, run: () => go(name) });
+}
+
+export async function go(name, params = {}, { replace = false } = {}) {
+  if (!_registry.has(name)) {
+    console.warn('[the_scribes] unknown view:', name);
+    return;
+  }
+  if (_active && _active.unmount) {
+    try { _active.unmount(); } catch (_) { /* ignore */ }
+  }
+
+  const url = build(name, params);
+  if (replace) historyReplace(url, { name, params });
+  else         push(url, { name, params });
+
+  const mod = await _load(name);
+  if (!_mountSlot) {
+    console.warn('[the_scribes] no mount slot — call setMountSlot first');
+    return;
+  }
+  _mountSlot.innerHTML = mod.render ? mod.render(params) : '';
+  const unmount = mod.mount ? mod.mount(_mountSlot, { params, go }) : null;
+  if (mod.title) document.title = mod.title + ' · FlockOS';
+
+  _active = { name, params, unmount };
+}
+
+export function current() {
+  return _active ? { name: _active.name, params: _active.params } : null;
+}
+
+async function _load(name) {
+  if (_loaded.has(name)) return _loaded.get(name);
+  const mod = await _registry.get(name)();
+  _loaded.set(name, mod);
+  return mod;
+}
+
+/* ── Browser back/forward ────────────────────────────────────────────────── */
+window.addEventListener('popstate', (e) => {
+  const state = e.state || parse(location.pathname + location.search);
+  if (state && state.name && _registry.has(state.name)) {
+    go(state.name, state.params || {}, { replace: true });
+  }
+});
+
+/* ── Boot the command palette once at module load ────────────────────────── */
+wakeHerald({ navigate: go });
+
+export { historyCurrent };

@@ -91,3 +91,6 @@ FlockOS/Tools/Flock Scripts/H-Check_Firestore.py
 check_*.py
 migrate_*.py
 Icon
+
+# New Covenant — local-only architectural notes
+New_Covenant/Architechtural Docs/

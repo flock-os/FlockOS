@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
+  <title>FlockOS</title>
+
+  <!-- PWA manifest -->
+  <link rel="manifest" href="manifest.json">
+
+  <!-- Icons -->
+  <link rel="icon" type="image/png" href="Images/NewCovenant.png">
+  <link rel="apple-touch-icon" href="Images/NewCovenant.png">
+
+  <!-- PWA meta -->
+  <meta name="theme-color" content="#e8a838">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="FlockOS">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="FlockOS">
+  <meta property="og:description" content="Ministry Operating System — Free. Offline-capable. Built for every church.">
+  <meta property="og:image" content="Images/NewCovenant.png">
+
+  <!-- Fonts + single stylesheet (SharedVessels is the source of truth) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://firestore.googleapis.com">
+  <link rel="dns-prefetch" href="https://firestore.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Noto+Sans+Hebrew:wght@400;600;700&family=Noto+Serif:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../Covenant/Foundations/SharedVessels/styles/american_garments.css">
+  <link rel="stylesheet" href="Styles/new_covenant.css">
+
+  <!-- Flash prevention only — the_adornment.js applies data-theme after boot. -->
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    :root { --bg: #f7f8fb; --bg-raised: #ffffff; --ink: #1b264f; --line: #e5e7ef; }
+    html { height: 100%; overflow: hidden; }
+    body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); height: 100%; overflow: hidden; }
+    .veil-wrap {
+      display: grid;
+      grid-template-areas: "top top" "side main" "foot foot";
+      grid-template-columns: 256px 1fr;
+      grid-template-rows: 60px 1fr 30px;
+      height: 100%;
+      min-height: 100vh;
+    }
+    #the-veil-top   { grid-area: top; }
+    #the-veil-side  { grid-area: side; overflow-y: auto; overflow-x: hidden; }
+    #the-holy-place { grid-area: main; min-width: 0; overflow-y: auto; }
+    #the-veil-foot  { grid-area: foot; }
+    @media (max-width: 860px) {
+      .veil-wrap {
+        grid-template-columns: 1fr;
+        grid-template-areas: "top" "main" "foot";
+      }
+      #the-veil-side { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <!--
+    THE SHELL CONTRACT (per A-Instructions.md §4)
+    No view markup, no inline JS beyond flash-prevention above, no third
+    structural element. Everything else is mounted by the_ark.js → the_veil.
+  -->
+  <div class="veil-wrap">
+    <header id="the-veil-top"   class="veil-top"   role="banner"></header>
+    <nav    id="the-veil-side"  class="veil-side"  role="navigation" aria-label="Primary"></nav>
+    <main   id="the-holy-place" class="veil-main"  role="main"></main>
+    <footer id="the-veil-foot"  class="veil-foot"  role="contentinfo"></footer>
+    <div    id="the-staff-host" class="staff-host" aria-live="polite" aria-atomic="true"></div>
+  </div>
+
+  <!--
+    Auto-start the new shell. the_ark.js gates auto-start on ?covenant=new,
+    so during the transition both old and new shells coexist; here we are
+    inside the New_Covenant tree so we always start.
+  -->
+  <script>
+    if (!new URLSearchParams(location.search).has('covenant')) {
+      const u = new URL(location.href);
+      u.searchParams.set('covenant', 'new');
+      history.replaceState(null, '', u);
+    }
+  </script>
+
+  <!-- ── Backend: same scripts as FlockOS Root ───────────────────────────
+       the_legacy_bridge.js polls window for these globals (TheShepherd,
+       TheLife, TheFold, TheScrolls, Nehemiah, TheUpperRoom, etc.). Loading
+       the same set here connects this shell to the live Firestore + GAS data.
+  ──────────────────────────────────────────────────────────────────────── -->
+  <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-functions-compat.js"></script>
+  <script defer src="../Covenant/Courts/TheTabernacle/Scripts/the_upper_room.js"></script>
+  <script defer src="../Covenant/Courts/TheTabernacle/Scripts/fine_linen.js"></script>
+  <script defer src="../Covenant/Courts/TheTabernacle/Scripts/the_true_vine.js"></script>
+  <script defer src="../Covenant/Courts/TheTabernacle/Scripts/the_wellspring.js"></script>
+  <script defer src="../Covenant/Courts/TheTabernacle/Scripts/the_well.js"></script>
+  <script defer src="../Covenant/Courts/TheTabernacle/Scripts/the_tabernacle.js"></script>
+  <script defer src="../Covenant/Courts/TheTabernacle/Scripts/the_truth.js"></script>
+  <script defer src="../Covenant/Courts/TheTabernacle/Scripts/the_seasons.js"></script>
+  <script defer src="../Covenant/Courts/TheTabernacle/Scripts/the_way.js"></script>
+  <script defer src="../Covenant/Courts/TheTabernacle/Scripts/the_harvest.js"></script>
+  <script defer src="../Covenant/Courts/TheTabernacle/Scripts/the_life.js"></script>
+
+  <script type="module" src="Scripts/the_ark.js"></script>
+</body>
+</html>

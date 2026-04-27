@@ -1,3 +1,0 @@
-BuildArtifacts/*.tar.gz
-BuildArtifacts/controlled-build-report-*.txt
-BuildArtifacts/checksums.sha256
