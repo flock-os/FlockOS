@@ -85,19 +85,29 @@ async function _loadHarvest(root) {
   const V = window.TheVine;
   if (!V) return;
 
-  // Missionaries
+  // Missionaries — registry may also contain people-group / country records
+  // (imported from Joshua Project / Bible Access List). Only treat a record as
+  // a supported missionary if it has an actual personal name AND a giving goal.
   const missionEl = root.querySelector('.harvest-missionaries');
   if (missionEl) {
     missionEl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Loading missionaries…</div>';
     try {
-      const res  = await V.missions.registry.list();
-      const rows = _rows(res);
-      missionEl.innerHTML = rows.length
-        ? rows.map(_liveMissionCard).join('')
-        : '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">No supported missionaries on file.</div>';
+      const res  = await V.missions.registry.list().catch(() => null);
+      const all  = _rows(res);
+      // A valid missionary record has a personal name (not just a country name)
+      // and at least some giving data or an explicit goal.
+      const missionaries = all.filter(m => {
+        const hasName = !!(m.missionaryName || m.name);
+        const hasGoal = Number(m.monthlyGoal || m.goal || 0) > 0
+                     || Number(m.monthlyGiving || m.monthlySupport || m.giving || 0) > 0;
+        return hasName && hasGoal;
+      });
+      missionEl.innerHTML = missionaries.length
+        ? missionaries.map(_liveMissionCard).join('')
+        : MISSIONARIES.map(_missionCard).join('');
     } catch (err) {
       console.error('[TheHarvest] missions.registry.list error:', err);
-      missionEl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Missions data unavailable.</div>';
+      missionEl.innerHTML = MISSIONARIES.map(_missionCard).join('');
     }
   }
 
