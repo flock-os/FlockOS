@@ -316,24 +316,17 @@ html, body {
 
 .pillars-label { flex: 1; }
 
-/* Section-specific icon accent colors — colored as stained glass */
-.pillars-item[data-view="the_fellowship"]   .pillars-icon,
-.pillars-item[data-view="the_announcements"].pillars-icon,
-.pillars-item[data-view="the_prayer_chain"] .pillars-icon { color: var(--c-sky, #38bdf8); }
-
-.pillars-item[data-view="the_fold"]   .pillars-icon,
-.pillars-item[data-view="the_life"]   .pillars-icon,
-.pillars-item[data-view="the_seasons"].pillars-icon { color: var(--c-emerald, #34d399); }
-
-.pillars-item[data-view="the_harvest"]      .pillars-icon,
-.pillars-item[data-view="the_way"]          .pillars-icon,
-.pillars-item[data-view="the_truth"]        .pillars-icon,
-.pillars-item[data-view="fishing_for_men"]  .pillars-icon,
-.pillars-item[data-view="fishing_for_data"] .pillars-icon { color: var(--c-amber, #fbbf24); }
-
-.pillars-item[data-view="the_wall"]      .pillars-icon,
-.pillars-item[data-view="bezalel"]       .pillars-icon,
-.pillars-item[data-view="about_flockos"] .pillars-icon { color: var(--c-violet, #a78bfa); }
+/* Section-specific icon accent colors — colored as stained glass.
+   Each sidebar section gets its own hue so icons feel alive. */
+.pillars-item[data-section="home"]        .pillars-icon { color: var(--gold, #e8a838); }
+.pillars-item[data-section="word"]        .pillars-icon { color: var(--c-violet, #a78bfa); }
+.pillars-item[data-section="comms"]       .pillars-icon { color: var(--c-sky,    #38bdf8); }
+.pillars-item[data-section="care"]        .pillars-icon { color: var(--c-emerald,#34d399); }
+.pillars-item[data-section="worship"]     .pillars-icon { color: var(--c-rose,   #fb7185); }
+.pillars-item[data-section="mission"]     .pillars-icon { color: var(--c-amber,  #fbbf24); }
+.pillars-item[data-section="stewardship"] .pillars-icon { color: var(--c-emerald,#34d399); }
+.pillars-item[data-section="legacy"]      .pillars-icon { color: var(--c-violet, #a78bfa); }
+.pillars-item[data-section="build"]       .pillars-icon { color: var(--c-sky,    #38bdf8); }
 
 /* Badges */
 .pillars-badge {

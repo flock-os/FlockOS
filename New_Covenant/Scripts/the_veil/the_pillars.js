@@ -165,8 +165,9 @@ export function mountPillars(host) {
 
 function _section(s) {
   const head = s.title ? `<div class="pillars-section">${s.title}</div>` : '';
+  const slug = (s.title || 'home').toLowerCase().replace(/\s+/g, '-');
   const items = s.items.map((it) => `
-    <button class="pillars-item" type="button" data-view="${it.name}">
+    <button class="pillars-item" type="button" data-view="${it.name}" data-section="${slug}">
       <span class="pillars-icon" aria-hidden="true">${it.icon}</span>
       <span class="pillars-label">${it.label}</span>
       ${it.badge ? `<span class="pillars-badge" data-badge="${it.badge}" hidden></span>` : ''}
