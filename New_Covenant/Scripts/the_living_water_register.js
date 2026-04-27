@@ -28,7 +28,12 @@ export async function register() {
   let lastErr = null;
   for (const url of candidates) {
     try {
-      const reg = await navigator.serviceWorker.register(url, { scope: '/' });
+      // Pre-flight: skip URLs that 404 to keep the console clean
+      const probe = await fetch(url, { method: 'HEAD', cache: 'no-store' }).catch(() => null);
+      if (!probe || !probe.ok) continue;
+      // No explicit scope — defaults to the SW file's directory, avoiding scope violations
+      // when the app is served from a subpath (e.g. /FlockOS/Covenant/Nations/FlockOS/)
+      const reg = await navigator.serviceWorker.register(url);
       return { ok: true, url, scope: reg.scope };
     } catch (err) { lastErr = err; }
   }
