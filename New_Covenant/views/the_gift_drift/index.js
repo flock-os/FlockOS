@@ -85,17 +85,7 @@ export function render() {
         <span class="gift-forecast-note">May–Jun are projections</span>
       </div>
       <div class="gift-bar-chart">
-        ${MONTHS.map(m => {
-          const h = Math.round((m.amount / MAX_AMT) * 140);
-          return `
-          <div class="gift-bar-col">
-            <div class="gift-bar-val">$${(m.amount/1000).toFixed(1)}k</div>
-            <div class="gift-bar-wrap">
-              <div class="gift-bar ${m.forecast ? 'gift-bar--forecast' : ''}" style="height:${h}px"></div>
-            </div>
-            <div class="gift-bar-label">${_e(m.label)}</div>
-          </div>`;
-        }).join('')}
+        <div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Loading giving trend…</div>
       </div>
     </div>
 
@@ -106,18 +96,7 @@ export function render() {
         <span class="gift-card-sub">$18,240 total</span>
       </div>
       <div class="gift-funds">
-        ${FUNDS.map(f => `
-        <div class="gift-fund-row">
-          <div class="gift-fund-head">
-            <span class="gift-fund-dot" style="background:${f.color}"></span>
-            <span class="gift-fund-name">${_e(f.name)}</span>
-            <span class="gift-fund-pct">${f.pct}%</span>
-            <span class="gift-fund-amount">${_e(f.amount)}</span>
-          </div>
-          <div class="gift-fund-bar-wrap">
-            <div class="gift-fund-bar" style="width:${f.pct}%;background:${f.color}"></div>
-          </div>
-        </div>`).join('')}
+        <div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Loading funds…</div>
       </div>
     </div>
 
@@ -133,17 +112,7 @@ export function render() {
       </div>
     </div>
     <div class="gift-transactions">
-      ${GIFTS.map(g => `
-      <div class="gift-tx-row">
-        <div class="gift-tx-avatar">${_e(g.name === 'Anonymous' ? '🙏' : g.name.split(' ').map(w=>w[0]).slice(0,2).join(''))}</div>
-        <div class="gift-tx-body">
-          <div class="gift-tx-name">${_e(g.name)}</div>
-          <div class="gift-tx-fund">${_e(g.fund)}</div>
-        </div>
-        ${methodBadge(g.method)}
-        <div class="gift-tx-amount">${_e(g.amount)}</div>
-        <div class="gift-tx-date">${_e(g.date)}</div>
-      </div>`).join('')}
+      <div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Loading transactions…</div>
     </div>
   </div>
 

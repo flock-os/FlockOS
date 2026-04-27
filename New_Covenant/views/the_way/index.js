@@ -55,7 +55,7 @@ export function render() {
         <button class="flock-btn flock-btn--ghost way-see-all">View All Tracks</button>
       </div>
       <div class="way-tracks">
-        ${TRACKS.map(_trackCard).join('')}
+        <div class="way-loading" style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Loading tracks…</div>
       </div>
 
       <!-- Small Groups -->
@@ -67,7 +67,7 @@ export function render() {
         </button>
       </div>
       <div class="way-groups">
-        ${GROUPS.map(_groupRow).join('')}
+        <div class="way-loading" style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Loading groups…</div>
       </div>
     </section>
   `;

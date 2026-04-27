@@ -34,12 +34,11 @@ export function render() {
       })}
 
       <!-- Stats strip -->
-      <div class="inv-stats">
-        ${INVITE_STATS.map(s => `
-        <div class="inv-stat-card">
-          <div class="inv-stat-n" style="color:${s.color}">${s.n}</div>
-          <div class="inv-stat-label">${_e(s.label)}</div>
-        </div>`).join('')}
+      <div class="inv-stats" data-bind="inv-stats">
+        <div class="inv-stat-card"><div class="inv-stat-n" style="color:var(--gold)">—</div><div class="inv-stat-label">Pending Approval</div></div>
+        <div class="inv-stat-card"><div class="inv-stat-n" style="color:var(--c-emerald)">—</div><div class="inv-stat-label">Approved This Month</div></div>
+        <div class="inv-stat-card"><div class="inv-stat-n" style="color:var(--c-sky)">—</div><div class="inv-stat-label">Invites Sent</div></div>
+        <div class="inv-stat-card"><div class="inv-stat-n" style="color:var(--c-violet)">—</div><div class="inv-stat-label">Accepted</div></div>
       </div>
 
       <!-- Pending approvals -->
@@ -51,7 +50,7 @@ export function render() {
         </button>
       </div>
       <div class="inv-list" data-bind="pending">
-        ${PENDING.map(_pendingRow).join('')}
+        <div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Loading…</div>
       </div>
 
       <!-- Send a new invite -->
@@ -92,9 +91,22 @@ async function _loadPending(root) {
   if (!listEl) return;
 
   try {
+    listEl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Loading pending requests…</div>';
+
     const res  = await V.admin.users.pending();
     const rows = _rows(res);
-    if (!rows.length) return;
+
+    // Update pending count stat
+    const statsEl = root.querySelector('[data-bind="inv-stats"]');
+    if (statsEl) {
+      const firstStat = statsEl.querySelector('.inv-stat-n');
+      if (firstStat) firstStat.textContent = String(rows.length);
+    }
+
+    if (!rows.length) {
+      listEl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">No pending approval requests.</div>';
+      return;
+    }
 
     const users = rows.map(u => ({
       id:        u.id || u.uid || '',

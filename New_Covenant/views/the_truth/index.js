@@ -62,7 +62,7 @@ export function render() {
         <h2 class="way-section-title">Series</h2>
       </div>
       <div class="truth-series-grid">
-        ${SERIES.map(_seriesCard).join('')}
+        <div class="truth-loading" style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Loading series…</div>
       </div>
 
       <!-- Recent messages -->
@@ -71,7 +71,7 @@ export function render() {
         <button class="flock-btn flock-btn--ghost way-see-all">Browse All</button>
       </div>
       <div class="truth-messages">
-        ${MESSAGES.map(_messageRow).join('')}
+        <div class="truth-loading" style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Loading messages…</div>
       </div>
     </section>
   `;

@@ -493,44 +493,7 @@ const STATUSES = ['Open', 'In Progress', 'Follow-Up', 'Referred'];
 
 // Demo care cases — shown when a filter type has no live data
 const _D = Date.now();
-const DEMO_CARE_CASES = [
-  {
-    id: '_demo_prayer_1',    careType: 'Prayer Request',
-    memberName: 'Sarah Mitchell',   priority: 'Normal', status: 'Open',
-    summary: 'Requested prayer for upcoming surgery — anxious about recovery and family.',
-    assignedTo: 'Pastor James',     createdAt: new Date(_D - 2 * 864e5).toISOString(),
-  },
-  {
-    id: '_demo_prayer_2',    careType: 'Prayer Request',
-    memberName: 'The Rodriguez Family', priority: 'High', status: 'Open',
-    summary: 'Family facing financial hardship. Requesting prayer and wisdom for next steps.',
-    assignedTo: '',                 createdAt: new Date(_D - 864e5).toISOString(),
-  },
-  {
-    id: '_demo_visit_1',     careType: 'Hospital Visit',
-    memberName: 'Robert Chen',      priority: 'Urgent', status: 'Open',
-    summary: 'Admitted Tuesday for cardiac procedure. Requested pastoral visit. Wife is present.',
-    assignedTo: 'Deacon Thomas',    createdAt: new Date(_D - 864e5).toISOString(),
-  },
-  {
-    id: '_demo_visit_2',     careType: 'Hospital Visit',
-    memberName: 'Dorothy Williams', priority: 'High',   status: 'In Progress',
-    summary: 'Hip replacement — discharged Monday. Follow-up home visit needed this week.',
-    assignedTo: 'Pastor James',     createdAt: new Date(_D - 3 * 864e5).toISOString(),
-  },
-  {
-    id: '_demo_followup_1',  careType: 'Follow-Up',
-    memberName: 'Marcus Johnson',   priority: 'High',   status: 'Follow-Up',
-    summary: 'Completed counseling series. Scheduled 30-day check-in — previously a grief case.',
-    assignedTo: 'Elder Williams',   createdAt: new Date(_D - 7 * 864e5).toISOString(),
-  },
-  {
-    id: '_demo_followup_2',  careType: 'Follow-Up',
-    memberName: 'Spring Baptism Class', priority: 'Normal', status: 'Follow-Up',
-    summary: '3-month follow-up for April baptism class. Four members need individual check-in.',
-    assignedTo: '',                 createdAt: new Date(_D - 14 * 864e5).toISOString(),
-  },
-];
+const DEMO_CARE_CASES = [];
 
 export function render() {
   return /* html */`
@@ -676,26 +639,11 @@ async function _loadCare(root, caseMap) {
     rows.forEach(c => { caseMap[String(c.id || c.caseId || '')] = c; });
     const memberMap = _buildMemberIndex(memberDir);
     if (!rows.length) {
-      // No live data — show all demo cards so filters are never empty
-      queue.innerHTML =
-        '<div class="life-demo-notice">No live cases yet — showing example data.</div>' +
-        DEMO_CARE_CASES.map(c => _liveCareCard(c, memberMap, true)).join('');
-      _updateStats(root, DEMO_CARE_CASES);
-      DEMO_CARE_CASES.forEach(c => { caseMap[String(c.id)] = c; });
-      return { rows: DEMO_CARE_CASES, memberDir };
+      queue.innerHTML = '<div class="life-empty" style="padding:40px;text-align:center;color:var(--ink-muted,#7a7f96)">No open care cases. Use "New Case" to create one.</div>';
+      _updateStats(root, []);
+      return { rows: [], memberDir };
     }
     queue.innerHTML = rows.map(c => _liveCareCard(c, memberMap)).join('');
-    // For each filter type with zero live cards, append demo cards so that tab is never empty
-    const liveTypeSet = new Set(rows.map(c =>
-      _normalizeType((c.careType || c.type || c.caseType || '').toLowerCase())
-    ));
-    const missingDemos = DEMO_CARE_CASES.filter(d =>
-      !liveTypeSet.has(_normalizeType((d.careType || '').toLowerCase()))
-    );
-    if (missingDemos.length) {
-      queue.innerHTML += missingDemos.map(c => _liveCareCard(c, memberMap, true)).join('');
-      missingDemos.forEach(c => { caseMap[String(c.id)] = c; });
-    }
     _updateStats(root, rows);
     return { rows, memberDir };
   } catch (err) {
@@ -961,8 +909,8 @@ function _openSheet(c, memberDir, onSave) {
     sheet.querySelector('.life-sheet-panel').classList.add('is-open');
   });
 
-  // Load interactions — try multiple parameter shapes since TheVine API varies
-  if (V && cid) {
+  // Load interactions — UpperRoom (Firestore) first, then TheVine GAS fallback
+  if (cid) {
     const _ixRows = (res) => {
       if (!res) return [];
       if (Array.isArray(res)) return res;
@@ -978,27 +926,50 @@ function _openSheet(c, memberDir, onSave) {
     };
     const _renderIx = (items, ix) => {
       if (!items.length) { ix.innerHTML = '<div class="life-ix-empty">No interactions yet.</div>'; return; }
-      ix.innerHTML = items.slice().reverse().map(i => {
+      ix.innerHTML = items.map(i => {
         const ts = _ixTs(i.createdAt || i.timestamp || i.date);
         return `<div class="life-ix-item"><div class="life-ix-note">${_e(i.note || i.content || i.body || i.text || '')}</div><div class="life-ix-meta">${_e(i.author || i.authorName || i.createdBy || '')}${ts ? ' &bull; ' + _e(ts) : ''}</div></div>`;
       }).join('');
     };
-    V.flock.care.interactions.list({ caseId: cid })
-      .then(res => {
-        const items = _ixRows(res);
-        if (items.length) return items;
-        // fallback: some APIs use 'id' instead of 'caseId'
-        return V.flock.care.interactions.list({ id: cid }).then(_ixRows).catch(() => []);
-      })
-      .then((items) => {
-        const ix = sheet.querySelector('[data-ix]');
-        if (!ix) return;
-        _renderIx(items, ix);
-      })
-      .catch(() => {
-        const ix = sheet.querySelector('[data-ix]');
-        if (ix) ix.innerHTML = '<div class="life-ix-empty">Could not load interactions.</div>';
-      });
+
+    // Try UpperRoom (Firestore careInteractions) first — authoritative source
+    const UR = window.UpperRoom;
+    if (UR && typeof UR.listCareInteractions === 'function') {
+      UR.listCareInteractions({ caseId: cid })
+        .then(items => {
+          const rows = _ixRows(items);
+          const ix   = sheet.querySelector('[data-ix]');
+          if (!ix) return;
+          if (rows.length) { _renderIx(rows, ix); return; }
+          // If Firestore had none, fall back to TheVine GAS
+          if (!V) { _renderIx([], ix); return; }
+          V.flock.care.interactions.list({ caseId: cid })
+            .then(r => _renderIx(_ixRows(r), ix))
+            .catch(() => _renderIx([], ix));
+        })
+        .catch(() => {
+          const ix = sheet.querySelector('[data-ix]');
+          if (ix) ix.innerHTML = '<div class="life-ix-empty">Could not load interactions.</div>';
+        });
+    } else if (V) {
+      V.flock.care.interactions.list({ caseId: cid })
+        .then(res => {
+          const items = _ixRows(res);
+          if (items.length) return items;
+          return V.flock.care.interactions.list({ id: cid }).then(_ixRows).catch(() => []);
+        })
+        .then((items) => {
+          const ix = sheet.querySelector('[data-ix]');
+          if (ix) _renderIx(items, ix);
+        })
+        .catch(() => {
+          const ix = sheet.querySelector('[data-ix]');
+          if (ix) ix.innerHTML = '<div class="life-ix-empty">Could not load interactions.</div>';
+        });
+    } else {
+      const ix = sheet.querySelector('[data-ix]');
+      if (ix) ix.innerHTML = '<div class="life-ix-empty">No interactions yet.</div>';
+    }
   }
 
   // Status pill wiring
@@ -1009,27 +980,46 @@ function _openSheet(c, memberDir, onSave) {
     });
   });
 
-  // Add note
+  // Add note — UpperRoom (Firestore) first, then TheVine fallback
   sheet.querySelector('[data-add-note]').addEventListener('click', async () => {
     const ta = sheet.querySelector('.life-note-ta');
     const note = (ta.value || '').trim();
-    if (!note || !V || !cid) return;
+    if (!note || !cid) return;
     const btn = sheet.querySelector('[data-add-note]');
     btn.disabled = true;
     btn.textContent = 'Saving…';
+    const UR = window.UpperRoom;
+    const session = window.TheVine?.session?.();
+    const payload = {
+      caseId,
+      note,
+      createdBy: session?.email || '',
+      author:    session?.email || '',
+    };
     try {
-      await V.flock.care.interactions.create({ caseId: cid, note });
-      ta.value = '';
-      // Refresh interactions
-      const res = await V.flock.care.interactions.list({ caseId: cid });
-      const ix = sheet.querySelector('[data-ix]');
-      if (ix) {
-        const items = _rows(res);
-        ix.innerHTML = items.slice().reverse().map(i => {
-          const ts = i.createdAt ? new Date(i.createdAt).toLocaleString() : '';
-          return `<div class="life-ix-item"><div class="life-ix-note">${_e(i.note || i.content || i.body || '')}</div><div class="life-ix-meta">${_e(i.author || i.authorName || '')}${ts ? ' &bull; ' + _e(ts) : ''}</div></div>`;
-        }).join('');
+      if (UR && typeof UR.createCareInteraction === 'function') {
+        await UR.createCareInteraction(payload);
+      } else if (V) {
+        await V.flock.care.interactions.create({ caseId: cid, note });
       }
+      ta.value = '';
+      // Refresh interactions from UpperRoom
+      const ix = sheet.querySelector('[data-ix]');
+      if (!ix) return;
+      let items = [];
+      if (UR && typeof UR.listCareInteractions === 'function') {
+        items = (await UR.listCareInteractions({ caseId: cid })) || [];
+        if (!Array.isArray(items)) items = items?.rows || items?.data || [];
+      } else if (V) {
+        const res = await V.flock.care.interactions.list({ caseId: cid });
+        items = Array.isArray(res) ? res : (res?.rows || res?.data || []);
+      }
+      ix.innerHTML = items.length
+        ? items.map(i => {
+            const ts = i.createdAt?.seconds ? new Date(i.createdAt.seconds * 1000).toLocaleString() : (i.createdAt ? new Date(i.createdAt).toLocaleString() : '');
+            return `<div class="life-ix-item"><div class="life-ix-note">${_e(i.note || i.content || i.body || '')}</div><div class="life-ix-meta">${_e(i.author || i.authorName || i.createdBy || '')}${ts ? ' &bull; ' + _e(ts) : ''}</div></div>`;
+          }).join('')
+        : '<div class="life-ix-empty">No interactions yet.</div>';
     } catch (err) { console.error('[TheLife] add note error:', err); }
     btn.disabled = false;
     btn.textContent = 'Add Note';

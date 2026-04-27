@@ -257,12 +257,31 @@ function _fmtDate(ts) {
 }
 
 async function _loadPrayer(root, filterBtns) {
-  const V = window.TheVine;
-  if (!V) return;
+  const V  = window.TheVine;
+  const UR = window.UpperRoom;
+
+  // Loading state
+  const activeList   = root.querySelector('#pray-active-list');
+  const answeredList = root.querySelector('#pray-answered-list');
+  if (activeList)   activeList.innerHTML   = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Loading prayer requests…</div>';
+  if (answeredList) answeredList.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Loading…</div>';
+
   try {
-    const res  = await V.flock.prayer.list({ limit: 50 });
-    const all  = Array.isArray(res) ? res : (res?.rows ?? res?.data ?? []);
-    if (!all.length) return; // keep static demo data
+    let all = [];
+    // UpperRoom (Firestore prayers) is authoritative
+    if (UR && typeof UR.listPrayers === 'function') {
+      try {
+        const r = await UR.listPrayers({ allUsers: true, limit: 100 });
+        all = Array.isArray(r) ? r : (r?.rows ?? r?.data ?? []);
+      } catch (_) {}
+    }
+    // Fallback to TheVine GAS
+    if (!all.length && V) {
+      try {
+        const res = await V.flock.prayer.list({ limit: 50 });
+        all = Array.isArray(res) ? res : (res?.rows ?? res?.data ?? []);
+      } catch (_) {}
+    }
 
     const active   = all.filter(r => !_CLOSED_PRAY.has((r.status || 'new').toLowerCase()));
     const answered = all.filter(r => (r.status || '').toLowerCase() === 'answered');

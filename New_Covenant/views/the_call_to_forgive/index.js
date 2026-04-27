@@ -64,7 +64,7 @@ export function render() {
             </button>
           </div>
           <div class="ctf-cases" data-bind="cases">
-            ${CASES.map(_caseRow).join('')}
+            <div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Loading cases…</div>
           </div>
 
           <!-- Process steps -->

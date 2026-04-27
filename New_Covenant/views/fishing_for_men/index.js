@@ -71,7 +71,7 @@ export function render() {
         </button>
       </div>
       <div class="fish-contacts">
-        ${CONTACTS.map(_contactRow).join('')}
+        <div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Loading contacts…</div>
       </div>
     </section>
   `;
@@ -136,7 +136,7 @@ async function _loadOutreach(root) {
     const all  = _rows(res);
 
     if (!all.length) {
-      if (contactsEl) contactsEl.innerHTML = CONTACTS.map(_contactRow).join('');
+      if (contactsEl) contactsEl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">No gospel contacts on file. Use “Log Contact” to add one.</div>';
       return;
     }
 
@@ -184,7 +184,7 @@ async function _loadOutreach(root) {
     }
   } catch (err) {
     console.error('[FishingForMen] outreach.contacts.list error:', err);
-    if (contactsEl) contactsEl.innerHTML = CONTACTS.map(_contactRow).join('');
+    if (contactsEl) contactsEl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Could not load contacts right now.</div>';
   }
 }
 
