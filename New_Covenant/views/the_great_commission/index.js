@@ -97,6 +97,8 @@ function _countryCard(r) {
         ? r.christianPercent.toFixed(2)
         : r.christianPercent.toFixed(1)) + '%'
     : null;
+  // Bottom footer meta — matches FlockOS: continent · dominantReligion
+  const footerMeta = [r.continent, r.dominantReligion].filter(Boolean).join(' · ');
 
   return `
     <article class="gc-country-card"
@@ -109,24 +111,26 @@ function _countryCard(r) {
         ${rank !== '' ? `<span class="gc-rank-pill">#${_e(String(rank))}</span>` : ''}
       </div>
       <div class="gc-country-name">${_e(cname)}</div>
-      <div class="gc-country-meta">${_e(r.continent || '')}${r.continent && r.region ? ' · ' : ''}${_e(r.region || '')}</div>
       <div class="gc-badges">
         ${_persLevel(pers)}
         ${_gospelAccess(acc)}
         ${is1040 ? '<span class="gc-1040-badge">10/40</span>' : ''}
       </div>
-      <div class="gc-country-detail">
-        ${r.dominantReligion ? `<span>⛪ ${_e(r.dominantReligion)}</span>` : ''}
-        ${pop             ? `<span>👥 ${pop}</span>`                                        : ''}
-        ${pctChrist       ? `<span>✝️ ${pctChrist} Christian</span>`                        : ''}
-        ${wwl    != null  ? `<span>📋 WWL #${_e(String(wwl))}</span>`                       : ''}
-        ${ungroups != null ? `<span>🔴 ${_e(String(ungroups))} unreached groups</span>`    : ''}
-        ${popUnreached    ? `<span>📍 ${popUnreached} in unreached pop.</span>`             : ''}
-        ${r.bibleShortageNeed ? `<span>📖 Bible need: ${_e(r.bibleShortageNeed)}</span>`   : ''}
+      ${footerMeta ? `<div class="gc-country-meta">${_e(footerMeta)}</div>` : ''}
+      <div class="gc-country-expand">
+        <div class="gc-country-detail">
+          ${r.region           ? `<span>📍 ${_e(r.region)}</span>`                                   : ''}
+          ${pop                ? `<span>👥 ${pop}</span>`                                             : ''}
+          ${pctChrist          ? `<span>✝️ ${pctChrist} Christian</span>`                             : ''}
+          ${wwl    != null     ? `<span>📋 WWL #${_e(String(wwl))}</span>`                            : ''}
+          ${ungroups != null   ? `<span>🔴 ${_e(String(ungroups))} unreached groups</span>`          : ''}
+          ${popUnreached       ? `<span>📍 ${popUnreached} in unreached pop.</span>`                  : ''}
+          ${r.bibleShortageNeed ? `<span>📖 Bible need: ${_e(r.bibleShortageNeed)}</span>`           : ''}
+        </div>
+        ${r.profileUrl
+          ? `<a class="gc-profile-link" href="${_e(r.profileUrl)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">View Profile ↗</a>`
+          : ''}
       </div>
-      ${r.profileUrl
-        ? `<a class="gc-profile-link" href="${_e(r.profileUrl)}" target="_blank" rel="noopener noreferrer">View Profile ↗</a>`
-        : ''}
     </article>`;
 }
 
@@ -407,8 +411,14 @@ export function mount(root) {
     });
   });
 
-  // Event delegation: prayer card toggle + "I Prayed"
+  // Event delegation: country card expand + prayer card toggle + "I Prayed"
   root.addEventListener('click', async (e) => {
+    // Country card click → expand/collapse detail rows
+    const card = e.target.closest('.gc-country-card');
+    if (card && !e.target.closest('.gc-profile-link')) {
+      card.classList.toggle('is-open');
+      return;
+    }
     const hd = e.target.closest('.gc-prayer-hd');
     if (hd) {
       hd.closest('.gc-prayer-card')?.classList.toggle('is-open');

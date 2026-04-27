@@ -2344,24 +2344,28 @@ flock-tabs [role="tablist"], .tabs-bar {
   gap: 14px;
 }
 .gc-country-card {
-  display: flex; flex-direction: column; gap: 6px;
+  display: flex; flex-direction: column; gap: 5px;
   background: var(--bg-raised, #fff); border: 1px solid var(--line, #e5e7ef);
-  border-radius: 12px; padding: 14px 15px;
-  transition: border-color 140ms, box-shadow 140ms;
+  border-radius: 10px; padding: 14px 15px;
+  cursor: pointer;
+  transition: border-color 150ms, box-shadow 150ms;
 }
 .gc-country-card:hover {
   border-color: var(--accent, #5b8fcf);
-  box-shadow: 0 2px 14px rgba(0,0,0,0.12);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.25);
+}
+.gc-country-card.is-open {
+  border-color: var(--accent, #5b8fcf);
 }
 .gc-card-top   { display: flex; align-items: center; justify-content: space-between; }
-.gc-flag       { font-size: 1.5rem; line-height: 1; }
+.gc-flag       { font-size: 1.3rem; line-height: 1; }
 .gc-rank-pill  {
   font: 800 0.68rem var(--font-ui); color: var(--ink-muted, #7a7f96);
   background: var(--bg-sunken, #f0f0f5); padding: 2px 7px; border-radius: 10px;
 }
-.gc-country-name { font: 700 0.9rem var(--font-ui); color: var(--ink, #1b264f); margin-top: 4px; }
-.gc-country-meta { font: 0.72rem var(--font-ui); color: var(--ink-muted, #7a7f96); }
-.gc-badges       { display: flex; flex-wrap: wrap; gap: 4px; margin: 2px 0; }
+.gc-country-name { font: 700 0.88rem var(--font-ui); color: var(--ink, #1b264f); margin-top: 2px; }
+.gc-country-meta { font: 0.70rem var(--font-ui); color: var(--ink-muted, #7a7f96); margin-top: 2px; }
+.gc-badges       { display: flex; flex-wrap: wrap; gap: 4px; margin: 3px 0 1px; }
 .gc-pers-badge, .gc-access-badge {
   display: inline-block; padding: 2px 8px; border-radius: 10px;
   font: 700 0.70rem var(--font-ui); letter-spacing: .02em;
@@ -2370,12 +2374,20 @@ flock-tabs [role="tablist"], .tabs-bar {
   display: inline-block; padding: 2px 8px; border-radius: 10px;
   font: 700 0.70rem var(--font-ui); background: #3730a3; color: #c7d2fe;
 }
+
+/* Expandable detail — hidden by default, revealed on click */
+.gc-country-expand {
+  display: none; flex-direction: column; gap: 4px;
+  padding-top: 8px; margin-top: 4px;
+  border-top: 1px solid var(--line, #e5e7ef);
+}
+.gc-country-card.is-open .gc-country-expand { display: flex; }
 .gc-country-detail {
-  display: flex; flex-direction: column; gap: 3px; margin-top: 4px;
+  display: flex; flex-direction: column; gap: 3px;
   font: 0.72rem var(--font-ui); color: var(--ink-muted, #7a7f96);
 }
 .gc-profile-link {
-  display: inline-block; margin-top: auto; padding-top: 8px;
+  display: inline-block; padding-top: 4px;
   font: 0.75rem var(--font-ui); color: var(--accent, #5b8fcf); text-decoration: none;
 }
 .gc-profile-link:hover { text-decoration: underline; }
