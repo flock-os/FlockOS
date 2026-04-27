@@ -170,8 +170,8 @@ const _SKIP = new Set(['init','authenticate','signOut','isReady','detachAll','ch
  *   2. Return cached value if fresh; otherwise call original + cache result.
  *   3. Persist result to Cistern under "manna:<prefix>:<method>:<args>".
  *
- * Listener methods (listen*/watch*/on*) and methods receiving function args
- * (callbacks) are passed through unchanged.
+ * Listener methods (listen, watch, on-prefixed) and methods receiving function
+ * args (callbacks) are passed through unchanged.
  *
  * Idempotent — calling wrap() twice on the same target is a no-op.
  */
