@@ -8,6 +8,9 @@ import { pageHero } from '../_frame.js';
 export const name  = 'the_pentecost';
 export const title = 'The Pentecost';
 
+let _activePentSheet = null;
+let _livePentMap     = {};
+
 const _e = s => String(s ?? '').replace(/[&<>"']/g,(c)=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
 const SPECIAL_TYPES = new Set(['baptism','revival','special','retreat','conference','ordination','communion','memorial','dedication']);
@@ -69,8 +72,14 @@ export function render() {
 }
 
 export function mount(root) {
+  // Schedule Event button
+  root.querySelectorAll('.flock-btn--primary').forEach(btn => {
+    if (btn.textContent.includes('Schedule Event')) {
+      btn.addEventListener('click', () => _openPentEventSheet(null, () => _loadPentecost(root)));
+    }
+  });
   _loadPentecost(root);
-  return () => {};
+  return () => { _closePentSheet(); };
 }
 
 function _rows(res) {
@@ -102,6 +111,17 @@ async function _loadPentecost(root) {
     const pastEl = root.querySelector('[data-bind="past"]');
     if (upEl && upcoming.length)  upEl.innerHTML  = upcoming.map(_liveEventCard).join('');
     if (pastEl && past.length)    pastEl.innerHTML = past.map(_liveEventCard).join('');
+    // Build map + wire edit clicks
+    _livePentMap = {};
+    [...upcoming, ...past].forEach(ev => { if (ev.id) _livePentMap[String(ev.id)] = ev; });
+    const reload = () => _loadPentecost(root);
+    root.querySelectorAll('.pent-card[data-id]').forEach(card => {
+      card.style.cursor = 'pointer';
+      card.addEventListener('click', () => {
+        const rec = _livePentMap[card.dataset.id];
+        if (rec) _openPentEventSheet(rec, reload);
+      });
+    });
   } catch (err) {
     console.error('[ThePentecost] events.list error:', err);
   }
@@ -117,18 +137,18 @@ function _liveEventCard(ev) {
   const notes    = ev.description || ev.notes || '';
   const now      = new Date(); now.setHours(0,0,0,0);
   const isPast   = dateMs && new Date(dateMs) < now;
-  return _cardHTML({ title, date, type, meta, notes, candidates: 0, isPast });
+  return _cardHTML({ id: ev.id ? String(ev.id) : undefined, title, date, type, meta, notes, candidates: 0, isPast });
 }
 
 function _eventCard(ev) {
   const meta  = TYPE_META[ev.type] || TYPE_META.special;
   const isPast = ev.status === 'complete';
-  return _cardHTML({ title: ev.title, date: ev.date, type: ev.type, meta, notes: ev.notes, candidates: ev.candidates, isPast });
+  return _cardHTML({ id: undefined, title: ev.title, date: ev.date, type: ev.type, meta, notes: ev.notes, candidates: ev.candidates, isPast });
 }
 
-function _cardHTML({ title, date, type, meta, notes, candidates, isPast }) {
+function _cardHTML({ id, title, date, type, meta, notes, candidates, isPast }) {
   return /* html */`
-    <article class="pent-card${isPast ? ' pent-card--past' : ''}" tabindex="0">
+    <article class="pent-card${isPast ? ' pent-card--past' : ''}"${id ? ` data-id="${_e(id)}"` : ''} tabindex="0">
       <div class="pent-card-icon" style="background:${meta.bg};color:${meta.color}">${meta.icon}</div>
       <div class="pent-card-body">
         <div class="pent-card-title">${_e(title)}</div>
@@ -141,5 +161,122 @@ function _cardHTML({ title, date, type, meta, notes, candidates, isPast }) {
         ${notes ? `<div class="pent-notes">${_e(notes)}</div>` : ''}
       </div>
     </article>`;
+}
+
+// ── Special event sheet ───────────────────────────────────────────────────────
+function _closePentSheet() {
+  if (!_activePentSheet) return;
+  const t = _activePentSheet;
+  t.querySelector('.life-sheet-overlay')?.classList.remove('is-open');
+  t.querySelector('.life-sheet-panel')?.classList.remove('is-open');
+  setTimeout(() => { t.remove(); if (_activePentSheet === t) _activePentSheet = null; }, 320);
+}
+
+const PENT_TYPES = Object.keys(TYPE_META);
+
+function _openPentEventSheet(ev, onReload) {
+  _closePentSheet();
+  const V     = window.TheVine;
+  const isNew = !ev;
+  const uid   = ev?.id ? String(ev.id) : '';
+  const title   = ev?.title || ev?.name || '';
+  const rawType = (ev?.type || ev?.eventType || 'baptism').toLowerCase();
+  const type    = PENT_TYPES.find(k => rawType.includes(k)) || 'special';
+  const date    = ev?.startDate || ev?.date ? String(ev.startDate || ev.date).substring(0,10) : '';
+  const notes   = ev?.description || ev?.notes || '';
+
+  const sheet = document.createElement('div');
+  sheet.className = 'life-sheet';
+  sheet.innerHTML = /* html */`
+    <div class="life-sheet-overlay"></div>
+    <div class="life-sheet-panel" role="dialog" aria-label="${isNew ? 'Schedule Special Event' : 'Edit Special Event'}">
+      <div class="life-sheet-drag"></div>
+      <div class="life-sheet-hd">
+        <div class="life-sheet-hd-info">
+          <div class="life-sheet-hd-name">${isNew ? 'Schedule Special Event' : 'Edit Special Event'}</div>
+          <div class="life-sheet-hd-meta">${isNew ? 'Baptism, revival, retreat, or milestone service' : _e(title)}</div>
+        </div>
+        <button class="life-sheet-close" aria-label="Close">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="life-sheet-body">
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Event Title <span style="color:#dc2626">*</span></div>
+          <input class="life-sheet-input" data-field="title" type="text" value="${_e(title)}" placeholder="e.g. Baptism Sunday">
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Type</div>
+          <select class="life-sheet-input" data-field="type">
+            ${PENT_TYPES.map(t => `<option value="${t}"${t === type ? ' selected' : ''}>${(TYPE_META[t]?.label || t)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Date</div>
+          <input class="life-sheet-input" data-field="startDate" type="date" value="${_e(date)}">
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Notes / Description</div>
+          <textarea class="life-sheet-input" data-field="description" rows="3" style="resize:vertical" placeholder="Details, speaker, preparation notes…">${_e(notes)}</textarea>
+        </div>
+        <div class="fold-form-error" data-error style="display:none;color:#dc2626;font-size:.85rem;margin-top:8px"></div>
+      </div>
+      <div class="life-sheet-foot">
+        ${!isNew ? '<button class="flock-btn flock-btn--danger" data-delete style="margin-right:auto">Cancel Event</button>' : ''}
+        <button class="flock-btn" data-cancel>Cancel</button>
+        <button class="flock-btn flock-btn--primary" data-save>${isNew ? 'Schedule' : 'Save Changes'}</button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(sheet);
+  _activePentSheet = sheet;
+  requestAnimationFrame(() => {
+    sheet.querySelector('.life-sheet-overlay').classList.add('is-open');
+    sheet.querySelector('.life-sheet-panel').classList.add('is-open');
+    if (isNew) sheet.querySelector('[data-field="title"]')?.focus();
+  });
+
+  const close = () => _closePentSheet();
+  sheet.querySelector('[data-cancel]').addEventListener('click', close);
+  sheet.querySelector('.life-sheet-close').addEventListener('click', close);
+  sheet.querySelector('.life-sheet-overlay').addEventListener('click', close);
+
+  sheet.querySelector('[data-save]').addEventListener('click', async () => {
+    const errEl    = sheet.querySelector('[data-error]');
+    const titleVal = sheet.querySelector('[data-field="title"]').value.trim();
+    if (!titleVal) { errEl.textContent = 'Title is required.'; errEl.style.display = ''; return; }
+    errEl.style.display = 'none';
+    const btn = sheet.querySelector('[data-save]');
+    btn.disabled = true; btn.textContent = isNew ? 'Scheduling…' : 'Saving…';
+    const payload = {
+      title:       titleVal,
+      type:        sheet.querySelector('[data-field="type"]').value,
+      startDate:   sheet.querySelector('[data-field="startDate"]').value || undefined,
+      description: sheet.querySelector('[data-field="description"]').value.trim() || undefined,
+    };
+    if (!isNew) payload.id = uid;
+    try {
+      if (isNew) { await V.flock.events.create(payload); }
+      else       { await V.flock.events.update(payload); }
+      _closePentSheet();
+      onReload?.();
+    } catch (err) {
+      errEl.textContent = err?.message || 'Could not save.';
+      errEl.style.display = '';
+      btn.disabled = false; btn.textContent = isNew ? 'Schedule' : 'Save Changes';
+    }
+  });
+
+  sheet.querySelector('[data-delete]')?.addEventListener('click', async () => {
+    const ok = confirm(`Cancel "${title}"? This cannot be undone.`);
+    if (!ok) return;
+    const btn = sheet.querySelector('[data-delete]');
+    btn.disabled = true; btn.textContent = 'Cancelling…';
+    try {
+      await V.flock.events.cancel({ id: uid });
+      _closePentSheet();
+      onReload?.();
+    } catch (err) { btn.disabled = false; btn.textContent = 'Cancel Event'; }
+  });
 }
 

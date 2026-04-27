@@ -17,6 +17,9 @@ import { renderComposer } from '../the_fellowship/the_composer.js';
 export const name  = 'the_prayer_chain';
 export const title = 'Prayer Chain';
 
+let _activePCSheet = null;
+let _liveReqsMap   = {};
+
 const CHANNEL_ID = 'prayer-chain';
 
 export function render() {
@@ -35,7 +38,12 @@ export function render() {
           <div data-bind="composer"></div>
         </div>
         <aside data-bind="requests" class="pc-requests-col">
-          <div class="pc-col-hd">Standing Requests</div>
+          <div class="pc-col-hd" style="display:flex;align-items:center;justify-content:space-between">
+            Standing Requests
+            <button class="flock-btn flock-btn--primary flock-btn--sm" data-act="add-request" style="margin-left:auto">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="margin-right:4px"><path d="M12 5v14M5 12h14"/></svg>Add
+            </button>
+          </div>
           <div class="pc-col-body pc-loading">Loading requests…</div>
         </aside>
       </div>
@@ -62,23 +70,38 @@ export function mount(root) {
   const stopComposer = renderComposer(compose, { channelId: CHANNEL_ID });
 
   // ── Standing requests ──────────────────────────────────────────────────
-  life.prayerRequests().then((rows = []) => {
-    const hd = `<div class="pc-col-hd">Standing Requests</div>`;
-    if (!rows.length) {
-      reqs.innerHTML = hd + `<div class="pc-col-empty">No standing requests right now.</div>`;
-      return;
-    }
-    // Show open/new/in-progress first; answered/closed last
-    const CLOSED = new Set(['answered', 'closed', 'archived', 'deleted']);
-    const open   = rows.filter(r => !CLOSED.has((r.status || '').toLowerCase()));
-    const closed = rows.filter(r =>  CLOSED.has((r.status || '').toLowerCase()));
-    reqs.innerHTML = hd + [...open, ...closed].map(_req).join('');
-  }).catch(() => {
-    reqs.innerHTML = `<div class="pc-col-hd">Standing Requests</div>
-      <div class="pc-col-empty">Prayer request backend unavailable.</div>`;
+  function _loadRequests() {
+    life.prayerRequests().then((rows = []) => {
+      _liveReqsMap = {};
+      rows.forEach(r => { if (r.id) _liveReqsMap[String(r.id)] = r; });
+      const CLOSED = new Set(['answered', 'closed', 'archived', 'deleted']);
+      const open   = rows.filter(r => !CLOSED.has((r.status || '').toLowerCase()));
+      const closed = rows.filter(r =>  CLOSED.has((r.status || '').toLowerCase()));
+      if (!rows.length) {
+        reqs.querySelector('.pc-col-body').innerHTML = `<div class="pc-col-empty">No standing requests right now.</div>`;
+        return;
+      }
+      reqs.querySelector('.pc-col-body').innerHTML = [...open, ...closed].map(_req).join('');
+      // Wire card clicks
+      reqs.querySelectorAll('.pc-req-card[data-id]').forEach(card => {
+        card.style.cursor = 'pointer';
+        card.addEventListener('click', () => {
+          const rec = _liveReqsMap[card.dataset.id];
+          if (rec) _openPrayerRequestSheet(rec, _loadRequests);
+        });
+      });
+    }).catch(() => {
+      reqs.querySelector('.pc-col-body').innerHTML = `<div class="pc-col-empty">Prayer request backend unavailable.</div>`;
+    });
+  }
+  _loadRequests();
+
+  // Add Request button
+  reqs.querySelector('[data-act="add-request"]')?.addEventListener('click', () => {
+    _openPrayerRequestSheet(null, _loadRequests);
   });
 
-  return () => { try { unwatch(); } catch (_) {} try { stopComposer(); } catch (_) {} };
+  return () => { try { unwatch(); } catch (_) {} try { stopComposer(); } catch (_) {} _closePCSheet(); };
 }
 
 // ── Prayer request card ────────────────────────────────────────────────────────
@@ -99,9 +122,10 @@ function _req(p) {
     closed:     { color: '#9ca3af', bg: 'rgba(156,163,175,0.10)' },
   };
   const s = statusMap[status.toLowerCase()] || statusMap.new;
+  const pid = p.id ? _e(String(p.id)) : '';
 
   return `
-    <div class="pc-req-card${isAns ? ' pc-req-answered' : ''}">
+    <div class="pc-req-card${isAns ? ' pc-req-answered' : ''}"${pid ? ` data-id="${pid}"` : ''} tabindex="0">
       <div class="pc-req-hd">
         <span class="pc-req-name">${name}</span>
         <span class="pc-req-status" style="color:${s.color};background:${s.bg};">${_e(status)}</span>
@@ -127,4 +151,130 @@ function _dateStr(v) {
 function _e(s) {
   return String(s ?? '').replace(/[&<>"']/g, (c) =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+// ── Prayer request sheet ────────────────────────────────────────────
+function _closePCSheet() {
+  if (!_activePCSheet) return;
+  const t = _activePCSheet;
+  t.querySelector('.life-sheet-overlay')?.classList.remove('is-open');
+  t.querySelector('.life-sheet-panel')?.classList.remove('is-open');
+  setTimeout(() => { t.remove(); if (_activePCSheet === t) _activePCSheet = null; }, 320);
+}
+
+const PR_CATEGORIES = ['Intercession', 'Praise', 'Personal', 'Urgent', 'Healing', 'Guidance', 'Family'];
+const PR_STATUSES   = ['New', 'In Progress', 'Follow-up', 'Answered', 'Closed'];
+
+function _openPrayerRequestSheet(p, onReload) {
+  _closePCSheet();
+  const V     = window.TheVine;
+  const isNew = !p;
+  const uid   = p?.id ? String(p.id) : '';
+  const submitter = p?.submitterName || p?.['Submitter Name'] || '';
+  const text      = p?.prayerText    || p?.['Prayer Text']    || '';
+  const category  = p?.category      || p?.['Category']       || '';
+  const status    = p?.status        || p?.['Status']         || 'New';
+  const isConf    = p?.isConfidential === true || String(p?.isConfidential || '').toUpperCase() === 'TRUE';
+
+  const sheet = document.createElement('div');
+  sheet.className = 'life-sheet';
+  sheet.innerHTML = /* html */`
+    <div class="life-sheet-overlay"></div>
+    <div class="life-sheet-panel" role="dialog" aria-label="${isNew ? 'Add Prayer Request' : 'Edit Prayer Request'}">
+      <div class="life-sheet-drag"></div>
+      <div class="life-sheet-hd">
+        <div class="life-sheet-hd-info">
+          <div class="life-sheet-hd-name">${isNew ? 'Add Prayer Request' : 'Edit Prayer Request'}</div>
+          <div class="life-sheet-hd-meta">${isNew ? 'Add a standing request to the chain' : _e(submitter || 'Anonymous')}</div>
+        </div>
+        <button class="life-sheet-close" aria-label="Close">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="life-sheet-body">
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Submitter Name <span style="color:#6b7280;font-weight:400">(optional)</span></div>
+          <input class="life-sheet-input" data-field="submitterName" type="text" value="${_e(submitter)}" placeholder="Leave blank for Anonymous">
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Prayer Request <span style="color:#dc2626">*</span></div>
+          <textarea class="life-sheet-input" data-field="prayerText" rows="4" style="resize:vertical" placeholder="Share the prayer need…">${_e(text)}</textarea>
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Category</div>
+          <select class="life-sheet-input" data-field="category">
+            <option value="">— select —</option>
+            ${PR_CATEGORIES.map(c => `<option value="${_e(c)}"${c === category ? ' selected' : ''}>${_e(c)}</option>`).join('')}
+          </select>
+        </div>
+        ${!isNew ? `<div class="life-sheet-field">
+          <div class="life-sheet-label">Status</div>
+          <select class="life-sheet-input" data-field="status">
+            ${PR_STATUSES.map(s => `<option value="${_e(s)}"${s.toLowerCase() === status.toLowerCase() ? ' selected' : ''}>${_e(s)}</option>`).join('')}
+          </select>
+        </div>` : ''}
+        <div class="life-sheet-field" style="display:flex;align-items:center;gap:10px;">
+          <input type="checkbox" data-field="isConfidential" id="pc-conf"${isConf ? ' checked' : ''} style="width:auto">
+          <label for="pc-conf" class="life-sheet-label" style="margin:0">🔒 Mark as confidential (pastoral eyes only)</label>
+        </div>
+        <div class="fold-form-error" data-error style="display:none;color:#dc2626;font-size:.85rem;margin-top:8px"></div>
+      </div>
+      <div class="life-sheet-foot">
+        ${!isNew ? '<button class="flock-btn flock-btn--ghost" data-answered style="margin-right:auto">Mark Answered</button>' : ''}
+        <button class="flock-btn" data-cancel>Cancel</button>
+        <button class="flock-btn flock-btn--primary" data-save>${isNew ? 'Add Request' : 'Save Changes'}</button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(sheet);
+  _activePCSheet = sheet;
+  requestAnimationFrame(() => {
+    sheet.querySelector('.life-sheet-overlay').classList.add('is-open');
+    sheet.querySelector('.life-sheet-panel').classList.add('is-open');
+    if (isNew) sheet.querySelector('[data-field="submitterName"]')?.focus();
+  });
+
+  const close = () => _closePCSheet();
+  sheet.querySelector('[data-cancel]').addEventListener('click', close);
+  sheet.querySelector('.life-sheet-close').addEventListener('click', close);
+  sheet.querySelector('.life-sheet-overlay').addEventListener('click', close);
+
+  sheet.querySelector('[data-save]').addEventListener('click', async () => {
+    const errEl   = sheet.querySelector('[data-error]');
+    const txtVal  = sheet.querySelector('[data-field="prayerText"]').value.trim();
+    if (!txtVal) { errEl.textContent = 'Prayer request text is required.'; errEl.style.display = ''; return; }
+    errEl.style.display = 'none';
+    const btn = sheet.querySelector('[data-save]');
+    btn.disabled = true; btn.textContent = isNew ? 'Submitting…' : 'Saving…';
+    const payload = {
+      submitterName:   sheet.querySelector('[data-field="submitterName"]').value.trim() || 'Anonymous',
+      prayerText:      txtVal,
+      category:        sheet.querySelector('[data-field="category"]').value || undefined,
+      isConfidential:  sheet.querySelector('[data-field="isConfidential"]').checked,
+      ...(isNew ? { status: 'New' } : { status: sheet.querySelector('[data-field="status"]')?.value || status }),
+    };
+    if (!isNew) payload.id = uid;
+    try {
+      if (isNew) { await V.flock.prayer.create(payload); }
+      else       { await V.flock.prayer.update(payload); }
+      _closePCSheet();
+      onReload?.();
+    } catch (err) {
+      errEl.textContent = err?.message || 'Could not save.';
+      errEl.style.display = '';
+      btn.disabled = false; btn.textContent = isNew ? 'Add Request' : 'Save Changes';
+    }
+  });
+
+  sheet.querySelector('[data-answered]')?.addEventListener('click', async () => {
+    const ok = confirm('Mark this prayer request as answered? Praise God!');
+    if (!ok) return;
+    const btn = sheet.querySelector('[data-answered]');
+    btn.disabled = true; btn.textContent = 'Saving…';
+    try {
+      await V.flock.prayer.update({ id: uid, status: 'Answered' });
+      _closePCSheet();
+      onReload?.();
+    } catch (err) { btn.disabled = false; btn.textContent = 'Mark Answered'; }
+  });
 }

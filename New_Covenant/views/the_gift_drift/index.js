@@ -127,7 +127,10 @@ export function render() {
   <div class="gift-card">
     <div class="gift-card-header">
       <h3 class="gift-card-title">Recent Gifts</h3>
-      <button class="btn btn-outline" style="font-size:.8rem;padding:6px 14px">Export CSV</button>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="flock-btn flock-btn--primary flock-btn--sm" data-act="record-gift">+ Record Gift</button>
+        <button class="btn btn-outline" style="font-size:.8rem;padding:6px 14px">Export CSV</button>
+      </div>
     </div>
     <div class="gift-transactions">
       ${GIFTS.map(g => `
@@ -149,7 +152,10 @@ export function render() {
 
 export function mount(root) {
   _loadGiving(root);
-  return () => {};
+  root.querySelector('[data-act="record-gift"]')?.addEventListener('click', () => {
+    _openGiftSheet(null, () => _loadGiving(root));
+  });
+  return () => { _closeGiftSheet(); };
 }
 
 function _rows(res) {
@@ -272,4 +278,133 @@ async function _loadGiving(root) {
       }
     }
   }
+}
+
+// ── Gift sheet ───────────────────────────────────────────────────────────────
+const GIFT_METHODS = ['Online', 'ACH', 'Check', 'Cash', 'Card', 'Other'];
+const GIFT_FUNDS   = ['General Fund', 'Missions', 'Building Fund', 'Benevolence', 'Other'];
+
+function _closeGiftSheet() {
+  if (!_activeGiftSheet) return;
+  const t = _activeGiftSheet;
+  t.querySelector('.life-sheet-overlay')?.classList.remove('is-open');
+  t.querySelector('.life-sheet-panel')?.classList.remove('is-open');
+  setTimeout(() => { t.remove(); if (_activeGiftSheet === t) _activeGiftSheet = null; }, 320);
+}
+
+function _openGiftSheet(g, onReload) {
+  _closeGiftSheet();
+  const V     = window.TheVine;
+  const isNew = !g;
+  const uid   = g?.id ? String(g.id) : '';
+
+  const sheet = document.createElement('div');
+  sheet.className = 'life-sheet';
+  sheet.innerHTML = /* html */`
+    <div class="life-sheet-overlay"></div>
+    <div class="life-sheet-panel" role="dialog" aria-label="Record Gift">
+      <div class="life-sheet-drag"></div>
+      <div class="life-sheet-hd">
+        <div class="life-sheet-hd-info">
+          <div class="life-sheet-hd-name">${isNew ? 'Record Gift' : 'Edit Gift Record'}</div>
+          <div class="life-sheet-hd-meta">${isNew ? 'Log a giving record' : _e(g?.name || g?.giverName || 'Gift record')}</div>
+        </div>
+        <button class="life-sheet-close" aria-label="Close">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="life-sheet-body">
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Giver Name <span style="color:#6b7280;font-weight:400">(optional)</span></div>
+          <input class="life-sheet-input" data-field="name" type="text" value="${_e(g?.name || g?.giverName || '')}" placeholder="Leave blank for Anonymous">
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Amount <span style="color:#dc2626">*</span></div>
+          <input class="life-sheet-input" data-field="amount" type="number" min="0" step="0.01" value="${g?.amount || ''}" placeholder="0.00">
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Fund</div>
+          <select class="life-sheet-input" data-field="fund">
+            ${GIFT_FUNDS.map(f => `<option value="${_e(f)}"${f === (g?.fund || g?.fundName || 'General Fund') ? ' selected' : ''}>${_e(f)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Payment Method</div>
+          <select class="life-sheet-input" data-field="method">
+            ${GIFT_METHODS.map(m => `<option value="${_e(m)}"${m === (g?.method || g?.paymentMethod || 'Online') ? ' selected' : ''}>${_e(m)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Gift Date</div>
+          <input class="life-sheet-input" data-field="giftDate" type="date" value="${g?.giftDate || g?.date || ''}">
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Notes</div>
+          <textarea class="life-sheet-input" data-field="notes" rows="2" placeholder="Optional memo…">${_e(g?.notes || '')}</textarea>
+        </div>
+        <div class="fold-form-error" data-error style="display:none;color:#dc2626;font-size:.85rem;margin-top:8px"></div>
+      </div>
+      <div class="life-sheet-foot">
+        ${!isNew ? '<button class="flock-btn flock-btn--danger" data-delete>Delete Record</button>' : ''}
+        <button class="flock-btn" data-cancel>Cancel</button>
+        <button class="flock-btn flock-btn--primary" data-save>${isNew ? 'Record Gift' : 'Save Changes'}</button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(sheet);
+  _activeGiftSheet = sheet;
+  requestAnimationFrame(() => {
+    sheet.querySelector('.life-sheet-overlay').classList.add('is-open');
+    sheet.querySelector('.life-sheet-panel').classList.add('is-open');
+    sheet.querySelector('[data-field="amount"]')?.focus();
+  });
+
+  const close = () => _closeGiftSheet();
+  sheet.querySelector('[data-cancel]').addEventListener('click', close);
+  sheet.querySelector('.life-sheet-close').addEventListener('click', close);
+  sheet.querySelector('.life-sheet-overlay').addEventListener('click', close);
+
+  sheet.querySelector('[data-save]').addEventListener('click', async () => {
+    const errEl = sheet.querySelector('[data-error]');
+    const rawAmt = parseFloat(sheet.querySelector('[data-field="amount"]').value);
+    if (!rawAmt || isNaN(rawAmt) || rawAmt <= 0) {
+      errEl.textContent = 'A valid gift amount is required.';
+      errEl.style.display = '';
+      return;
+    }
+    errEl.style.display = 'none';
+    const btn = sheet.querySelector('[data-save]');
+    btn.disabled = true; btn.textContent = isNew ? 'Saving…' : 'Saving…';
+    const payload = {
+      name:       sheet.querySelector('[data-field="name"]').value.trim() || 'Anonymous',
+      amount:     rawAmt,
+      fund:       sheet.querySelector('[data-field="fund"]').value,
+      method:     sheet.querySelector('[data-field="method"]').value,
+      giftDate:   sheet.querySelector('[data-field="giftDate"]').value || undefined,
+      notes:      sheet.querySelector('[data-field="notes"]').value.trim() || undefined,
+    };
+    if (!isNew) payload.id = uid;
+    try {
+      if (isNew) { await V.flock.giving.create(payload); }
+      else       { await V.flock.giving.update(payload); }
+      _closeGiftSheet();
+      onReload?.();
+    } catch (err) {
+      errEl.textContent = err?.message || 'Could not save gift record.';
+      errEl.style.display = '';
+      btn.disabled = false; btn.textContent = isNew ? 'Record Gift' : 'Save Changes';
+    }
+  });
+
+  sheet.querySelector('[data-delete]')?.addEventListener('click', async () => {
+    const ok = confirm('Delete this giving record? This action cannot be undone.');
+    if (!ok) return;
+    const btn = sheet.querySelector('[data-delete]');
+    btn.disabled = true; btn.textContent = 'Deleting…';
+    try {
+      await V.flock.giving.update({ id: uid, status: 'Deleted' });
+      _closeGiftSheet();
+      onReload?.();
+    } catch (err) { btn.disabled = false; btn.textContent = 'Delete Record'; }
+  });
 }
