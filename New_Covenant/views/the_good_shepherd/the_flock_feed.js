@@ -49,11 +49,14 @@ function _row(r) {
 function _when(ts) {
   if (!ts) return '';
   try {
-    const d = new Date(ts), now = Date.now(), delta = (now - d.getTime()) / 1000;
-    if (delta < 60)        return 'just now';
-    if (delta < 3600)      return `${Math.floor(delta / 60)}m`;
-    if (delta < 86400)     return `${Math.floor(delta / 3600)}h`;
-    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    // Handle Firestore Timestamp objects
+    const ms  = ts?.seconds ? ts.seconds * 1000 : new Date(ts).getTime();
+    if (!ms || isNaN(ms)) return '';
+    const delta = (Date.now() - ms) / 1000;
+    if (delta < 60)    return 'just now';
+    if (delta < 3600)  return `${Math.floor(delta / 60)}m`;
+    if (delta < 86400) return `${Math.floor(delta / 3600)}h`;
+    return new Date(ms).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
   } catch (_) { return ''; }
 }
 function _e(s) {

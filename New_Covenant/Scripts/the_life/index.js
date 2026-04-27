@@ -19,36 +19,37 @@ function _rows(res) {
   return [];
 }
 
+const _TERMINAL = new Set(['resolved','closed','archived','cancelled','denied','completed','answered','inactive','deleted']);
+
 export async function careCases() {
   const V = window.TheVine;
   if (!V) return [];
-  const res = await V.flock.care.list({ status: 'Active' });
-  return _rows(res);
+  // Fetch all cases — don't filter by status on the API side because field
+  // values vary ('Open', 'In Progress', 'Follow-Up', not 'Active').
+  const res = await V.flock.care.list({});
+  return _rows(res).filter(r => !_TERMINAL.has((r.status || '').toLowerCase()));
 }
 
 export async function prayerRequests() {
   const V = window.TheVine;
   if (!V) return [];
-  const res = await V.flock.prayer.list({ status: 'New' });
+  const res = await V.flock.prayer?.list({ status: 'New' }) ?? [];
   return _rows(res);
 }
 
 export async function compassionList() {
   const V = window.TheVine;
   if (!V) return [];
-  // Compassion list = care follow-ups; fall back to general care queue
+  // Try the dedicated follow-ups endpoint first; fall back to the active care queue.
   try {
-    const res = await V.flock.care.followUps.due();
-    return _rows(res);
-  } catch (_) {
-    const res = await V.flock.care.list({ status: 'Active' });
-    return _rows(res);
-  }
+    const res = await V.flock.care.followUps?.due();
+    const rows = _rows(res);
+    if (rows.length) return rows;
+  } catch (_) {}
+  return careCases();
 }
 
 export async function pendingCount() {
-  const V = window.TheVine;
-  if (!V) return 0;
   const rows = await careCases();
   return rows.length;
 }

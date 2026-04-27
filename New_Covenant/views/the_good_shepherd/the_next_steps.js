@@ -46,17 +46,20 @@ async function _fetch() {
 }
 
 function _row(p) {
-  const name = p.name || p.fullName || p.displayName || 'A sheep';
-  const why  = p.reason || p.note || p.status || '';
+  const name = p.name || p.fullName || p.displayName || p.memberName || 'A sheep';
+  const why  = p.reason || p.note || p.summary
+             || [p.careType || p.type, p.status].filter(Boolean).join(' — ')
+             || '';
+  const pid  = p.id || p.uid || p.caseId || '';
   return `
-    <button type="button" data-pid="${_e(p.id || p.uid || '')}"
+    <button type="button" data-pid="${_e(pid)}"
       style="display:flex; gap:10px; align-items:center; width:100%;
              padding:8px 4px; background:transparent; border:0; cursor:pointer;
              border-bottom:1px solid var(--line,#e5e7ef); text-align:left;">
-      <div style="width:8px; height:8px; border-radius:50%; background:var(--accent,#e8a838);"></div>
+      <div style="width:8px; height:8px; border-radius:50%; background:var(--accent,#e8a838); flex-shrink:0;"></div>
       <div style="flex:1; min-width:0;">
-        <div style="font-weight:600; color:var(--ink,#1b264f);">${_e(name)}</div>
-        <div style="color:var(--ink-muted,#7a7f96); font-size:0.85rem;">${_e(why)}</div>
+        <div style="font-weight:600; color:var(--ink,#1b264f); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${_e(name)}</div>
+        <div style="color:var(--ink-muted,#7a7f96); font-size:0.85rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${_e(why)}</div>
       </div>
     </button>`;
 }
