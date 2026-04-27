@@ -50,11 +50,13 @@ const flock = {
     await dress();          // mount topbar / sidebar / main slot
     await _registerViews();
 
-    // ── Wellspring guard — if local mode is active but has no imported data,
-    //    disable it so all calls reach the live GAS backend (Google Sheets).
-    //    The user's real data lives in GAS. Wellspring is for offline-only mode
-    //    and requires a manual Excel import to be useful.
-    await _guardWellspring();
+    // Preload home view module during boot so first navigation is instant.
+    import('../views/the_good_shepherd/index.js').catch(() => {});
+
+    // ── Wellspring guard — run in background, don't block first paint.
+    //    If local mode is active but has no imported data, disable it so
+    //    all calls reach the live GAS backend (Google Sheets).
+    _guardWellspring().catch(() => {});
 
     await go(_initialRoute(), { replace: true });
     darken();               // splash off (with fade via the_oil)
