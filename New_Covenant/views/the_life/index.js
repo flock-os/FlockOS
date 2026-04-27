@@ -637,7 +637,8 @@ async function _loadCare(root, caseMap) {
       _updateStats(root, []);
       return { rows: [], memberDir };
     }
-    queue.innerHTML = rows.map(c => _liveCareCard(c, memberDir)).join('');
+    const memberMap = _buildMemberIndex(memberDir);
+    queue.innerHTML = rows.map(c => _liveCareCard(c, memberMap)).join('');
     _updateStats(root, rows);
     return { rows, memberDir };
   } catch (err) {
@@ -655,9 +656,13 @@ function _rows(res) {
 }
 
 function _updateStats(root, rows) {
-  const urgent = rows.filter(r => (r.priority || '').toLowerCase() === 'urgent').length;
-  const high   = rows.filter(r => (r.priority || '').toLowerCase() === 'high').length;
-  const normal = rows.filter(r => { const p = (r.priority || 'normal').toLowerCase(); return p !== 'urgent' && p !== 'high'; }).length;
+  let urgent = 0, high = 0, normal = 0;
+  for (const r of rows) {
+    const p = (r.priority || 'normal').toLowerCase();
+    if (p === 'urgent') urgent++;
+    else if (p === 'high') high++;
+    else normal++;
+  }
   const set = (sel, val) => { const el = root.querySelector(sel); if (el) el.textContent = val; };
   set('.life-stat--urgent .life-stat-n', urgent);
   set('.life-stat--high .life-stat-n',   high);
@@ -674,38 +679,56 @@ function _normalizeType(rawType) {
     .replace('newvisitor', 'welcome');
 }
 
-// Resolve a memberId/email to a display name from the member directory
-function _resolveName(idOrEmail, memberDir) {
-  if (!idOrEmail) return '';
-  const key = String(idOrEmail).toLowerCase();
+// Build an O(1) name-lookup Map keyed by every identifier field
+function _buildMemberIndex(memberDir) {
+  const map = new Map();
   for (const m of memberDir) {
-    if ((m.email && m.email.toLowerCase() === key)
-      || (m.primaryEmail && m.primaryEmail.toLowerCase() === key)
-      || m.id === idOrEmail || m.memberNumber === idOrEmail || m.memberPin === idOrEmail) {
-      return (m.preferredName || ((m.firstName || '') + ' ' + (m.lastName || '')).trim() || m.displayName || idOrEmail);
+    const name = m.preferredName || ((m.firstName || '') + ' ' + (m.lastName || '')).trim() || m.displayName || '';
+    for (const k of [m.email, m.primaryEmail, m.id, m.uid, m.docId, m.memberNumber, m.memberPin]) {
+      if (k) { const s = String(k); map.set(s, name); map.set(s.toLowerCase(), name); }
     }
   }
-  return idOrEmail.includes(' ') ? idOrEmail : '';
+  return map;
 }
 
-function _liveCareCard(c, memberDir) {
-  memberDir = memberDir || [];
-  const priority = (c.priority || 'Normal').toLowerCase();
-  // GAS uses 'careType'; fall back to 'type' for older records
-  const rawType  = (c.careType || c.type || c.caseType || 'followup').toLowerCase();
-  const type     = _normalizeType(rawType);
+// Resolve a memberId/email to a display name — accepts a member array or a pre-built Map
+function _resolveName(idOrEmail, memberDirOrMap) {
+  if (!idOrEmail) return '';
+  const s = String(idOrEmail);
+  if (memberDirOrMap instanceof Map) {
+    return memberDirOrMap.get(s) || memberDirOrMap.get(s.toLowerCase()) || (s.includes(' ') ? s : '');
+  }
+  const key = s.toLowerCase();
+  for (const m of memberDirOrMap) {
+    if ((m.email && m.email.toLowerCase() === key)
+      || (m.primaryEmail && m.primaryEmail.toLowerCase() === key)
+      || m.id === s || m.uid === s || m.docId === s
+      || m.memberNumber === s || m.memberPin === s) {
+      return (m.preferredName || ((m.firstName || '') + ' ' + (m.lastName || '')).trim() || m.displayName || s);
+    }
+  }
+  return s.includes(' ') ? s : '';
+}
+
+function _liveCareCard(c, memberDirOrMap) {
+  memberDirOrMap = memberDirOrMap || [];
+  const priority    = (c.priority || 'Normal').toLowerCase();
+  // Preserve original casing for CARE_TYPES lookup; normalize to lowercase for the filter data-type attr
+  const rawTypeOrig = c.careType || c.type || c.caseType || '';
+  const rawType     = rawTypeOrig.toLowerCase();
+  const type        = rawType ? _normalizeType(rawType) : 'other';
   // Name: first try direct name fields, then resolve memberId from directory
   const name     = c.memberName
                 || c.name
-                || _resolveName(c.memberId, memberDir)
+                || _resolveName(c.memberId, memberDirOrMap)
                 || c.memberId
                 || 'Unknown';
   // Assigned: primaryCaregiverId is the canonical field; assignedTo is a fallback
   const assigneeRaw = c.primaryCaregiverId || c.assignedTo || c.assignedName || c.assignee || '';
-  const assignee = _resolveName(assigneeRaw, memberDir) || assigneeRaw || 'Unassigned';
+  const assignee = _resolveName(assigneeRaw, memberDirOrMap) || assigneeRaw || 'Unassigned';
   const note     = c.summary || c.description || c.notes || c.note || '';
   const p        = PRIORITY[priority]  || PRIORITY.normal;
-  const t        = CARE_TYPES[type]    || CARE_TYPES[rawType] || { icon: '🫱', label: c.careType || c.type || type };
+  const t        = CARE_TYPES[rawTypeOrig] || CARE_TYPES[type] || CARE_TYPES[rawType] || { icon: '🫱', label: rawTypeOrig || 'Other' };
   const unassigned = !assigneeRaw || assignee === 'Unassigned';
   const ts       = c.updatedAt || c.createdAt;
   const daysStr  = ts ? _daysAgo(ts) : '';
@@ -741,7 +764,10 @@ function _liveCareCard(c, memberDir) {
 }
 
 function _daysAgo(ts) {
-  const delta = Math.floor((Date.now() - new Date(ts).getTime()) / 86_400_000);
+  // Handle Firestore Timestamp objects ({ seconds, nanoseconds }) and plain date strings/numbers
+  const ms = ts?.seconds ? ts.seconds * 1000 : new Date(ts).getTime();
+  if (!ms || isNaN(ms)) return '';
+  const delta = Math.floor((Date.now() - ms) / 86_400_000);
   if (delta <= 0) return 'Today';
   if (delta === 1) return 'Yesterday';
   return `${delta}d ago`;
@@ -1054,10 +1080,13 @@ function _quickNote(cid, personName) {
 // ── New care modal ─────────────────────────────────────────────────────────────
 const PRIORITY_LABELS = ['Low', 'Normal', 'High', 'Urgent'];
 
-// Resolve CARE_CFG entry — check canonical key then lowercase alias
+// Pre-built case-insensitive lookup for CARE_CFG (e.g. 'crisis' → 'Crisis')
+const _CARE_CFG_LC = Object.fromEntries(Object.keys(CARE_CFG).map(k => [k.toLowerCase(), k]));
+
+// Resolve CARE_CFG entry — exact match first, then case-insensitive fallback
 function _cfgFor(careTypeValue) {
   if (!careTypeValue) return null;
-  return CARE_CFG[careTypeValue] || CARE_CFG[careTypeValue.toLowerCase()] || null;
+  return CARE_CFG[careTypeValue] || CARE_CFG[_CARE_CFG_LC[careTypeValue.toLowerCase()]] || null;
 }
 
 // Render a workflow guide <details> block for a given care type value
@@ -1345,6 +1374,7 @@ function _newCareModal(memberDir, onSave) {
   const summaryTa     = sheet.querySelector('[data-field="summary"]');
   const wgPlaceholder = sheet.querySelector('[data-wg-placeholder]');
 
+  let _lastAppliedType = null;
   function _applyModalType(val) {
     if (!val) return;
     const cfg = _cfgFor(val);
@@ -1354,20 +1384,23 @@ function _newCareModal(memberDir, onSave) {
     sheet.querySelectorAll('[data-priority]').forEach(btn => {
       btn.classList.toggle('is-active', btn.dataset.priority === pri);
     });
-    // Fill notes template if summary is empty
-    if (cfg?.notes && summaryTa && !summaryTa.value.trim()) {
-      summaryTa.value = cfg.notes;
-      summaryTa.rows  = Math.max(4, Math.min(14, (cfg.notes.match(/\n/g) || []).length + 2));
+    // Fill notes template if summary is empty OR if it still contains the previous auto-filled template
+    if (cfg?.notes && summaryTa) {
+      const prevCfg    = _lastAppliedType ? _cfgFor(_lastAppliedType) : null;
+      const isEmpty    = !summaryTa.value.trim();
+      const hasOldTmpl = prevCfg?.notes && summaryTa.value === prevCfg.notes;
+      if (isEmpty || hasOldTmpl) {
+        summaryTa.value = cfg.notes;
+        summaryTa.rows  = Math.max(4, Math.min(14, (cfg.notes.match(/\n/g) || []).length + 2));
+      }
     }
     // Update workflow guide
     if (wgPlaceholder) wgPlaceholder.innerHTML = _workflowGuideHtml(val);
+    _lastAppliedType = val;
   }
 
   if (careTypeSel) {
-    careTypeSel.addEventListener('change', () => {
-      // Only fill notes if summary is empty
-      _applyModalType(careTypeSel.value);
-    });
+    careTypeSel.addEventListener('change', () => _applyModalType(careTypeSel.value));
     // Apply immediately on open so the guide shows and default priority is set
     _applyModalType(careTypeSel.value);
   }
