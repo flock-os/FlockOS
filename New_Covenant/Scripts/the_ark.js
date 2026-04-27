@@ -52,6 +52,12 @@ const flock = {
     //    so Manna has results (or in-flight dedups) when the home view mounts.
     _warmHomeData();
 
+    // ── Pre-fetch home view modules in parallel with dress().
+    //    The router lazy-loads views via dynamic import() which the browser
+    //    cannot statically analyze. Kicking the import now means the module
+    //    is compiled and in the cache by the time go() fires.
+    _preloadViews();
+
     await dress();          // mount topbar / sidebar / main slot
     await _registerViews();
 
@@ -113,6 +119,16 @@ function _initialRoute() {
   const params = new URLSearchParams(location.search);
   const v = params.get('view');
   return v && v.trim() ? v.trim() : 'the_good_shepherd';
+}
+
+/* ── View preload ─────────────────────────────────────────────────────────── */
+function _preloadViews() {
+  // Fire-and-forget: begin fetching+compiling the home view tree in the
+  // background while dress() is running.  When go('the_good_shepherd') fires
+  // the module is already in the browser's module registry — zero-latency.
+  // _frame.js is shared by every view so it's cheap to preload once here.
+  import('../views/_frame.js').catch(() => {});
+  import('../views/the_good_shepherd/index.js').catch(() => {});
 }
 
 /* ── Home data pre-warm ──────────────────────────────────────────────────── */

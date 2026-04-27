@@ -29,9 +29,80 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preconnect" href="https://firestore.googleapis.com">
   <link rel="dns-prefetch" href="https://firestore.googleapis.com">
+  <!-- Firebase Auth endpoints — on the critical boot path (whoAmI) -->
+  <link rel="preconnect" href="https://identitytoolkit.googleapis.com">
+  <link rel="preconnect" href="https://securetoken.googleapis.com">
+  <link rel="dns-prefetch" href="https://identitytoolkit.googleapis.com">
+  <link rel="dns-prefetch" href="https://securetoken.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Noto+Sans+Hebrew:wght@400;600;700&family=Noto+Serif:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="Styles/american_garments.css">
   <link rel="stylesheet" href="Styles/new_covenant.css">
+
+  <!--
+    MODULE PRELOAD — boot + home-view graph
+    Without these hints the browser fetches ES modules serially: download
+    the_ark.js → parse → discover 7 imports → download each → parse → discover
+    their imports → … (4–5 round trips before leaf modules start loading).
+    With modulepreload every file in the tree starts fetching AND compiling in
+    parallel the moment the HTML is parsed, collapsing N waterfalls into 1.
+  -->
+  <!-- Core boot modules -->
+  <link rel="modulepreload" href="Scripts/the_ark.js">
+  <link rel="modulepreload" href="Scripts/the_adornment.js">
+  <link rel="modulepreload" href="Scripts/the_lampstand.js">
+  <link rel="modulepreload" href="Scripts/the_oil.js">
+  <link rel="modulepreload" href="Scripts/the_watchmen.js">
+  <link rel="modulepreload" href="Scripts/the_living_water_register.js">
+  <link rel="modulepreload" href="Scripts/the_legacy_bridge.js">
+  <link rel="modulepreload" href="Scripts/the_manna.js">
+  <link rel="modulepreload" href="Scripts/the_cistern.js">
+  <!-- Router -->
+  <link rel="modulepreload" href="Scripts/the_scribes/index.js">
+  <link rel="modulepreload" href="Scripts/the_scribes/the_path.js">
+  <link rel="modulepreload" href="Scripts/the_scribes/the_chronicle.js">
+  <link rel="modulepreload" href="Scripts/the_scribes/the_herald.js">
+  <!-- Chrome (topbar / sidebar / footer) -->
+  <link rel="modulepreload" href="Scripts/the_veil/index.js">
+  <link rel="modulepreload" href="Scripts/the_veil/the_crown.js">
+  <link rel="modulepreload" href="Scripts/the_veil/the_pillars.js">
+  <link rel="modulepreload" href="Scripts/the_veil/the_courtyard.js">
+  <link rel="modulepreload" href="Scripts/the_veil/the_hem.js">
+  <!-- Auth / identity -->
+  <link rel="modulepreload" href="Scripts/the_priesthood/index.js">
+  <link rel="modulepreload" href="Scripts/the_priesthood/the_garments.js">
+  <link rel="modulepreload" href="Scripts/the_priesthood/the_anointing.js">
+  <link rel="modulepreload" href="Scripts/the_priesthood/the_breastplate.js">
+  <!-- Comms / realtime (used by sidebar badge counts) -->
+  <link rel="modulepreload" href="Scripts/the_upper_room/index.js">
+  <link rel="modulepreload" href="Scripts/the_upper_room/the_firebase_config.js">
+  <link rel="modulepreload" href="Scripts/the_upper_room/the_tenant.js">
+  <link rel="modulepreload" href="Scripts/the_upper_room/the_identity.js">
+  <link rel="modulepreload" href="Scripts/the_upper_room/the_channels.js">
+  <link rel="modulepreload" href="Scripts/the_upper_room/the_messages.js">
+  <link rel="modulepreload" href="Scripts/the_upper_room/the_dms.js">
+  <link rel="modulepreload" href="Scripts/the_upper_room/the_presence.js">
+  <link rel="modulepreload" href="Scripts/the_upper_room/the_typing.js">
+  <link rel="modulepreload" href="Scripts/the_upper_room/the_unread.js">
+  <link rel="modulepreload" href="Scripts/the_upper_room/the_mentions.js">
+  <link rel="modulepreload" href="Scripts/the_upper_room/the_emoji.js">
+  <link rel="modulepreload" href="Scripts/the_upper_room/the_seeding.js">
+  <link rel="modulepreload" href="Scripts/the_upper_room/the_attachments.js">
+  <link rel="modulepreload" href="Scripts/the_upper_room/the_push.js">
+  <!-- Care / pastoral -->
+  <link rel="modulepreload" href="Scripts/the_life/index.js">
+  <!-- Calendar / seasons (home view badge) -->
+  <link rel="modulepreload" href="Scripts/the_seasons/index.js">
+  <!-- Comms summary (home view feed) -->
+  <link rel="modulepreload" href="Scripts/the_comms.js">
+  <link rel="modulepreload" href="Scripts/the_scrolls/index.js">
+  <!-- Home view (always the first route — dynamic import, so explicit preload needed) -->
+  <link rel="modulepreload" href="views/_frame.js">
+  <link rel="modulepreload" href="views/the_good_shepherd/index.js">
+  <link rel="modulepreload" href="views/the_good_shepherd/the_pasture.js">
+  <link rel="modulepreload" href="views/the_good_shepherd/the_count.js">
+  <link rel="modulepreload" href="views/the_good_shepherd/the_flock_feed.js">
+  <link rel="modulepreload" href="views/the_good_shepherd/the_next_steps.js">
+  <link rel="modulepreload" href="views/the_good_shepherd/the_call.js">
 
   <!-- Flash prevention only — the_adornment.js applies data-theme after boot. -->
   <style>
