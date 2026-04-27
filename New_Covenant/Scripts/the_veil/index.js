@@ -12,7 +12,8 @@ import { mountCrown }    from './the_crown.js';
 import { mountPillars }  from './the_pillars.js';
 import { mountCourtyard } from './the_courtyard.js';
 import { mountHem }      from './the_hem.js';
-import { setMountSlot }  from '../the_scribes/index.js';
+import { setMountSlot, reload } from '../the_scribes/index.js';
+import { mountRefresh }  from './the_refresh.js';
 
 let _dressed = false;
 
@@ -30,6 +31,7 @@ export async function dress() {
   mountHem(document.getElementById('the-veil-foot'));
   const slot = mountCourtyard(host);
   setMountSlot(slot);
+  mountRefresh(host, () => reload());
 
   // Close mobile nav when tapping the backdrop (the ::after pseudo-element)
   document.addEventListener('click', (e) => {

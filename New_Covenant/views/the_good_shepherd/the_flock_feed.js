@@ -7,30 +7,41 @@
    and renders them as a compact list. Click a row → jump to Fellowship.
    ══════════════════════════════════════════════════════════════════════════════ */
 
-import { draw } from '../../Scripts/the_manna.js';
+import { draw, swr } from '../../Scripts/the_manna.js';
 import { summary } from '../../Scripts/the_comms.js';
+
+const KEY = 'shepherd:feed';
+const TTL = 5 * 60_000; // align with pre-warm TTL — boot value stays valid
 
 export function mountFlockFeed(host, ctx) {
   if (!host) return () => {};
   let cancelled = false;
 
-  draw('shepherd:feed', () => summary(), { ttl: 20_000 })
-    .then((s) => {
-      if (cancelled || !host.isConnected) return;
-      const rows = (s && s.recentInteractions) || [];
-      if (!rows.length) {
-        host.innerHTML = `<div style="color: var(--ink-muted, #7a7f96);">No recent interactions yet.</div>`;
-        return;
-      }
-      host.innerHTML = rows.slice(0, 6).map(_row).join('');
-      host.querySelectorAll('[data-jump]').forEach((el) => {
-        el.addEventListener('click', () => ctx.go && ctx.go('the_fellowship'));
-      });
-    })
-    .catch(() => {
-      if (cancelled || !host.isConnected) return;
-      host.innerHTML = `<div style="color: var(--ink-muted, #7a7f96);">Pastoral ledger unavailable right now.</div>`;
+  const render = (s) => {
+    if (cancelled || !host.isConnected) return;
+    const rows = (s && s.recentInteractions) || [];
+    if (!rows.length) {
+      host.innerHTML = `<div style="color: var(--ink-muted, #7a7f96);">No recent interactions yet.</div>`;
+      return;
+    }
+    host.innerHTML = rows.slice(0, 6).map(_row).join('');
+    host.querySelectorAll('[data-jump]').forEach((el) => {
+      el.addEventListener('click', () => ctx.go && ctx.go('the_fellowship'));
     });
+  };
+
+  const cached = swr(KEY, () => summary(), render, { ttl: TTL });
+  if (cached !== undefined) {
+    render(cached);
+  } else {
+    draw(KEY, () => summary(), { ttl: TTL })
+      .then(render)
+      .catch(() => {
+        if (!cancelled && host.isConnected) {
+          host.innerHTML = `<div style="color: var(--ink-muted, #7a7f96);">Pastoral ledger unavailable right now.</div>`;
+        }
+      });
+  }
 
   return () => { cancelled = true; };
 }

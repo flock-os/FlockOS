@@ -57,6 +57,12 @@ export function current() {
   return _active ? { name: _active.name, params: _active.params } : null;
 }
 
+/** Re-run the current view's render + mount cycle in place. */
+export async function reload() {
+  if (!_active) return;
+  await go(_active.name, _active.params, { replace: true });
+}
+
 async function _load(name) {
   if (_loaded.has(name)) return _loaded.get(name);
   const mod = await _registry.get(name)();

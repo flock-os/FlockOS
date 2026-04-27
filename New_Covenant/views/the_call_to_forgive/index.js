@@ -121,8 +121,8 @@ async function _loadCases(root) {
 
   try {
     // Reconciliation cases come from care items tagged with reconciliation type
-    const res  = await V.flock.care.list({ type: 'reconciliation', limit: 50 });
-    const rows = _rows(res);
+    const res  = await V.flock.care.list({ type: 'reconciliation', limit: 7 });
+    const rows = _rows(res).slice(0, 7);
     if (!rows.length) return;
 
     casesEl.innerHTML = rows.map(c => {

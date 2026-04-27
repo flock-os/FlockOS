@@ -105,6 +105,22 @@ html[data-theme*="dark"], html[data-theme="ink"] {
 html { scroll-behavior: smooth; }
 body { font-family: var(--font-ui); -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
 
+/* ─── Lock the document so only inner panes scroll ─────────────────────────────
+   Without this, on iOS / PWA mobile the document body can rubber-band and the
+   in-grid topbar slides down out of view (or the navbar / page content bounces
+   under the header). Locking html+body to viewport height with overflow:hidden
+   means ONLY the .veil-main and .veil-side scroll containers move — the topbar
+   stays nailed in place. overscroll-behavior:none kills the chained bounce.
+   ─────────────────────────────────────────────────────────────────────────────── */
+html, body {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+  /* Allow iOS to honor the safe-area inset env() values inside the layout */
+  width: 100%;
+}
+
 /* ─── Shell layout ──────────────────────────────────────────────────────────── */
 .veil-wrap {
   display: grid !important;
@@ -112,16 +128,30 @@ body { font-family: var(--font-ui); -webkit-font-smoothing: antialiased; -moz-os
   grid-template-columns: var(--sidebar-w, 256px) 1fr !important;
   grid-template-rows: calc(var(--topbar-h, 60px) + var(--safe-top, 0px)) 1fr calc(var(--footer-h, 30px) + var(--safe-bottom, 0px)) !important;
   height: 100% !important;
-  min-height: 100vh;
-  min-height: 100dvh;
+  /* No min-height — the lock above guarantees 100% = viewport. A min-height of
+     100vh here used to push the wrap below the viewport on iOS, letting the
+     document scroll and the topbar bounce. */
+  min-height: 0 !important;
   background: var(--bg, #f7f8fb);
   padding-left: var(--safe-left, 0px);
   padding-right: var(--safe-right, 0px);
 }
 
-/* Sidebar scrolls internally; main content area scrolls internally */
-.veil-side  { overflow-y: auto !important; overflow-x: hidden; }
-.veil-main  { overflow-y: auto !important; overflow-x: hidden; }
+/* Sidebar scrolls internally; main content area scrolls internally.
+   `overscroll-behavior: contain` traps the rubber-band inside these panes so
+   it can never cascade up to the document and shove the topbar around. */
+.veil-side  {
+  overflow-y: auto !important; overflow-x: hidden;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  min-height: 0;
+}
+.veil-main  {
+  overflow-y: auto !important; overflow-x: hidden;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  min-height: 0;
+}
 
 
 /* ════════════════════════════════════════════════════════════════════════════
@@ -384,11 +414,83 @@ body { font-family: var(--font-ui); -webkit-font-smoothing: antialiased; -moz-os
   display: grid; gap: 18px;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 }
+/* 5-card stat row — packs tighter on the home dashboard */
+.pasture-grid.pasture-grid-5 {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
 .pasture-row {
   display: grid; gap: 18px; margin-top: 18px;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
 }
 .pasture-cta { margin-top: 28px; display: flex; gap: 12px; flex-wrap: wrap; }
+
+/* Soft empty-state line shared by home cards */
+.empty-soft {
+  color: var(--ink-muted, #7a7f96);
+  font: 0.9rem var(--font-ui);
+  padding: 4px 2px;
+}
+
+/* ── Home: today's events list ─────────────────────────────────────────── */
+.today-row {
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  padding: 10px 6px; background: transparent; border: 0; cursor: pointer;
+  border-bottom: 1px solid var(--line, #e5e7ef); text-align: left;
+  transition: background 120ms var(--ease);
+}
+.today-row:last-child { border-bottom: 0; }
+.today-row:hover { background: rgba(0,0,0,0.02); }
+.today-time {
+  flex: none; min-width: 64px;
+  font: 700 0.82rem var(--font-mono); color: var(--c-amber, #d97706);
+  background: var(--c-amber-bg, rgba(251,191,36,0.12));
+  padding: 6px 10px; border-radius: 8px; text-align: center;
+}
+.today-body { flex: 1; min-width: 0; }
+.today-title { font: 600 0.92rem var(--font-ui); color: var(--ink, #1b264f); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.today-loc   { font: 0.78rem var(--font-ui); color: var(--ink-muted, #7a7f96); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+
+/* ── Home: birthdays this week ─────────────────────────────────────────── */
+.bday-row {
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  padding: 10px 6px; background: transparent; border: 0; cursor: pointer;
+  border-bottom: 1px solid var(--line, #e5e7ef); text-align: left;
+  transition: background 120ms var(--ease);
+}
+.bday-row:last-child { border-bottom: 0; }
+.bday-row:hover { background: rgba(0,0,0,0.02); }
+.bday-cake {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: var(--c-violet-bg, rgba(167,139,250,0.12));
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 1.1rem; flex: none;
+}
+.bday-body  { flex: 1; min-width: 0; }
+.bday-name  { font: 600 0.92rem var(--font-ui); color: var(--ink, #1b264f); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bday-age   { font: 0.76rem var(--font-ui); color: var(--ink-muted, #7a7f96); }
+.bday-when  {
+  flex: none; font: 700 0.78rem var(--font-ui); color: var(--c-violet, #7c3aed);
+  background: var(--c-violet-bg, rgba(167,139,250,0.12));
+  padding: 5px 10px; border-radius: 999px;
+}
+
+/* ── Home: my todos ───────────────────────────────────────────────────── */
+.todo-row {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 9px 4px; border-bottom: 1px solid var(--line, #e5e7ef);
+}
+.todo-row:last-child { border-bottom: 0; }
+.todo-dot {
+  width: 9px; height: 9px; border-radius: 50%;
+  background: var(--c-amber, #fbbf24);
+  flex: none; margin-top: 7px;
+  box-shadow: 0 0 0 3px var(--c-amber-bg, rgba(251,191,36,0.18));
+}
+.todo-body  { flex: 1; min-width: 0; }
+.todo-title { font: 600 0.92rem var(--font-ui); color: var(--ink, #1b264f); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.todo-due   { font: 0.78rem var(--font-ui); color: var(--ink-muted, #7a7f96); margin-top: 2px; }
+.todo-due.is-soon    { color: var(--c-amber, #d97706); font-weight: 600; }
+.todo-due.is-overdue { color: var(--c-rose, #fb7185);   font-weight: 700; }
 
 
 /* ════════════════════════════════════════════════════════════════════════════

@@ -2,18 +2,22 @@
    VIEW: THE GOOD SHEPHERD — Home / dashboard
    "I am the good shepherd; I know my sheep and my sheep know me." — John 10:14
 
-   Live home page now wired to all three real backends:
-     • Fellowship card  → the_upper_room.unreadTotal()       (Firebase)
-     • Care card        → TheLife.pendingCount()              (GAS)
-     • Today card       → TheSeason.todayCount()              (GAS)
-     • Next steps       → TheLife.careCases / compassionList  (GAS)
-     • Recent feed      → comms.summary().recentInteractions  (TheScrolls / GAS)
+   Live home page wired to real backends:
+     • Stat row (5 cards) → unread / care / today's events / members / open prayers
+     • Today's events     → UpperRoom.listEvents (Firestore)
+     • Birthdays this week → UpperRoom.listMembers + birthDate filter (Firestore)
+     • My open todos      → UpperRoom.myTodos (Firestore)
+     • Next steps         → TheLife.careCases / compassionList (GAS, fallback)
+     • Recent feed        → comms.summary().recentInteractions
    ══════════════════════════════════════════════════════════════════════════════ */
 
 import { renderPasture }   from './the_pasture.js';
 import { mountCount }       from './the_count.js';
 import { mountFlockFeed }   from './the_flock_feed.js';
 import { mountNextSteps }   from './the_next_steps.js';
+import { mountBirthdays }   from './the_birthdays.js';
+import { mountMyTodos }     from './the_todos.js';
+import { mountTodayEvents } from './the_today_events.js';
 import { renderCall }       from './the_call.js';
 import { profile }          from '../../Scripts/the_priesthood/index.js';
 
@@ -26,26 +30,50 @@ export function render(/* params */) {
     <section class="pasture">
       ${renderPasture(me)}
 
-      <div class="pasture-grid">
+      <div class="pasture-grid pasture-grid-5">
         <div data-bind="fellowship-summary" data-jump="the_fellowship"><flock-skeleton rows="3"></flock-skeleton></div>
         <div data-bind="care-summary"       data-jump="the_life"><flock-skeleton rows="3"></flock-skeleton></div>
         <div data-bind="today"              data-jump="the_seasons"><flock-skeleton rows="3"></flock-skeleton></div>
+        <div data-bind="members"            data-jump="the_fold"><flock-skeleton rows="3"></flock-skeleton></div>
+        <div data-bind="prayers"            data-jump="the_prayer_chain"><flock-skeleton rows="3"></flock-skeleton></div>
       </div>
 
       <div class="pasture-row">
+        <flock-card>
+          <h3 slot="title">On the calendar today</h3>
+          <div data-bind="today-events">
+            <flock-skeleton rows="3"></flock-skeleton>
+          </div>
+        </flock-card>
+        <flock-card>
+          <h3 slot="title">Birthdays this week</h3>
+          <div data-bind="birthdays">
+            <flock-skeleton rows="3"></flock-skeleton>
+          </div>
+        </flock-card>
+      </div>
+
+      <div class="pasture-row">
+        <flock-card>
+          <h3 slot="title">My open todos</h3>
+          <div data-bind="mytodos">
+            <flock-skeleton rows="3"></flock-skeleton>
+          </div>
+        </flock-card>
         <flock-card>
           <h3 slot="title">Next steps</h3>
           <div data-bind="next">
             <flock-skeleton rows="3"></flock-skeleton>
           </div>
         </flock-card>
-        <flock-card>
-          <h3 slot="title">Recent across the flock</h3>
-          <div data-bind="feed">
-            <flock-skeleton rows="4"></flock-skeleton>
-          </div>
-        </flock-card>
       </div>
+
+      <flock-card>
+        <h3 slot="title">Recent across the flock</h3>
+        <div data-bind="feed">
+          <flock-skeleton rows="4"></flock-skeleton>
+        </div>
+      </flock-card>
 
       <div class="pasture-cta" data-bind="primary-cta"></div>
     </section>
@@ -71,6 +99,11 @@ export function mount(root, ctx) {
   stops.push(mountCount(root.querySelector('[data-bind="fellowship-summary"]'), 'fellowship'));
   stops.push(mountCount(root.querySelector('[data-bind="care-summary"]'),       'care'));
   stops.push(mountCount(root.querySelector('[data-bind="today"]'),              'today'));
+  stops.push(mountCount(root.querySelector('[data-bind="members"]'),            'members'));
+  stops.push(mountCount(root.querySelector('[data-bind="prayers"]'),            'prayers'));
+  stops.push(mountTodayEvents(root.querySelector('[data-bind="today-events"]'), ctx));
+  stops.push(mountBirthdays(root.querySelector('[data-bind="birthdays"]'),      ctx));
+  stops.push(mountMyTodos(root.querySelector('[data-bind="mytodos"]'),          ctx));
   stops.push(mountNextSteps(root.querySelector('[data-bind="next"]'),           ctx));
   stops.push(mountFlockFeed(root.querySelector('[data-bind="feed"]'),           ctx));
 

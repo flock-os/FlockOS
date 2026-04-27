@@ -50,6 +50,9 @@ const flock = {
     // ── Pre-warm home data immediately after auth, in parallel with shell mount.
     //    GAS cold-start (~5s) runs while dress() + _registerViews() execute,
     //    so Manna has results (or in-flight dedups) when the home view mounts.
+    //    We also hydrate Manna SYNCHRONOUSLY from Cistern *before* dress()
+    //    runs, so the home view's first paint is instant.
+    await _hydrateHomeFromCistern();
     _warmHomeData();
 
     // ── Pre-fetch home view modules in parallel with dress().
@@ -129,34 +132,84 @@ function _preloadViews() {
   // _frame.js is shared by every view so it's cheap to preload once here.
   import('../views/_frame.js').catch(() => {});
   import('../views/the_good_shepherd/index.js').catch(() => {});
+  // Sub-modules — without these the home view has to await each one after mount.
+  import('../views/the_good_shepherd/the_count.js').catch(() => {});
+  import('../views/the_good_shepherd/the_pasture.js').catch(() => {});
+  import('../views/the_good_shepherd/the_today_events.js').catch(() => {});
+  import('../views/the_good_shepherd/the_birthdays.js').catch(() => {});
+  import('../views/the_good_shepherd/the_todos.js').catch(() => {});
+  import('../views/the_good_shepherd/the_next_steps.js').catch(() => {});
+  import('../views/the_good_shepherd/the_flock_feed.js').catch(() => {});
+  import('../views/the_good_shepherd/the_call.js').catch(() => {});
 }
 
 /* ── Home data pre-warm ──────────────────────────────────────────────────── */
+
+// All home dashboard data sources, in one place. Used by both the boot
+// pre-warm AND the per-card SWR fetches so cache keys never drift.
+const HOME_DATA_KEYS = [
+  { key: 'shepherd:fellowship',    mod: './the_upper_room/index.js', fn: 'unreadTotal' },
+  { key: 'shepherd:care',          mod: './the_life/index.js',       fn: 'pendingCount' },
+  { key: 'shepherd:today',         mod: './the_seasons/index.js',    fn: 'todayCount' },
+  { key: 'shepherd:next',          mod: './the_life/index.js',       fn: 'careCases' },
+  { key: 'shepherd:feed',          mod: './the_comms.js',            fn: 'summary' },
+  // New cards (added when the home dashboard was upgraded)
+  { key: 'shepherd:members',       upperRoom: 'countMembers' },
+  { key: 'shepherd:prayers',       upperRoom: 'countOpenPrayers' },
+  { key: 'shepherd:today-events',  upperRoom: 'listEvents',  args: [{ limit: 80 }] },
+  { key: 'shepherd:birthdays',     upperRoom: 'listMembers', args: [{ limit: 1000 }] },
+  { key: 'shepherd:mytodos',       upperRoom: 'myTodos' },
+];
+
+/**
+ * Synchronously hydrate Manna with the last-known values for every home
+ * data source from Cistern. Runs BEFORE dress() so the first paint of the
+ * home view shows real data instantly (then SWR refreshes in background).
+ */
+async function _hydrateHomeFromCistern() {
+  try {
+    const [{ hydrate }, { read }] = await Promise.all([
+      import('./the_manna.js'),
+      import('./the_cistern.js'),
+    ]);
+    const entries = await Promise.all(
+      HOME_DATA_KEYS.map(async ({ key }) => {
+        try { return [key, await read('manna:' + key)]; }
+        catch (_) { return [key, undefined]; }
+      })
+    );
+    const map = {};
+    for (const [k, v] of entries) if (v !== undefined) map[k] = v;
+    hydrate(map);
+  } catch (_) { /* non-fatal */ }
+}
+
 async function _warmHomeData() {
   try {
-    const [{ draw, write: mannaPut }, { read, write: cisternPut }] = await Promise.all([
+    const [{ draw }, { write: cisternPut }] = await Promise.all([
       import('./the_manna.js'),
       import('./the_cistern.js'),
     ]);
     const TTL = 5 * 60_000; // 5 minutes — survive tab switches
-    const KEYS = [
-      { key: 'shepherd:fellowship', mod: './the_upper_room/index.js', fn: 'unreadTotal' },
-      { key: 'shepherd:care',       mod: './the_life/index.js',       fn: 'pendingCount' },
-      { key: 'shepherd:today',      mod: './the_seasons/index.js',    fn: 'todayCount' },
-      { key: 'shepherd:feed',       mod: './the_comms.js',            fn: 'summary' },
-    ];
-    await Promise.all(KEYS.map(async ({ key, mod, fn }) => {
-      // Serve stale from Cistern immediately so first render is instant.
+
+    await Promise.all(HOME_DATA_KEYS.map(async (entry) => {
       try {
-        const stale = await read('manna:' + key);
-        if (stale !== undefined) mannaPut(key, stale, { ttl: 500 }); // expires fast so fresh replaces it
-      } catch (_) {}
-      // Kick off the live fetch; persist result to Cistern for next load.
-      try {
-        const m = await import(mod);
-        const value = await draw(key, () => m[fn](), { ttl: TTL });
-        cisternPut('manna:' + key, value).catch(() => {});
-      } catch (_) {}
+        let fetcher;
+        if (entry.upperRoom) {
+          fetcher = async () => {
+            const UR = window.UpperRoom;
+            if (!UR || !UR.isReady || !UR.isReady() || !UR[entry.upperRoom]) return null;
+            return UR[entry.upperRoom](...(entry.args || []));
+          };
+        } else {
+          const m = await import(entry.mod);
+          fetcher = () => m[entry.fn]();
+        }
+        const value = await draw(entry.key, fetcher, { ttl: TTL });
+        if (value !== undefined && value !== null) {
+          cisternPut('manna:' + entry.key, value).catch(() => {});
+        }
+      } catch (_) { /* per-card failures are non-fatal */ }
     }));
   } catch (_) {}
 }

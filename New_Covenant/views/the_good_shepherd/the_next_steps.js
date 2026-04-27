@@ -6,10 +6,12 @@
    three rows on the home page with a one-click jump to that person.
    ══════════════════════════════════════════════════════════════════════════════ */
 
-import { draw } from '../../Scripts/the_manna.js';
+import { draw, swr } from '../../Scripts/the_manna.js';
 import { careCases, compassionList } from '../../Scripts/the_life/index.js';
 import { read, write } from '../../Scripts/the_cistern.js';
 
+const KEY = 'shepherd:next';
+const TTL = 5 * 60_000; // align with pre-warm; UR cache key keeps consistency
 const _MEMBER_MAP_KEY = 'scrolls:member_name_map';
 const _MEMBER_MAP_TTL = 20 * 60 * 1000;
 
@@ -40,23 +42,33 @@ export function mountNextSteps(host, ctx) {
   if (!host) return () => {};
   let cancelled = false;
 
-  draw('shepherd:next', _fetch, { ttl: 30_000 })
-    .then(async (rows = []) => {
-      if (cancelled || !host.isConnected) return;
-      if (!rows.length) {
-        host.innerHTML = `<div style="color: var(--ink-muted, #7a7f96);">Nothing on your plate today.</div>`;
-        return;
-      }
-      const nameMap = await _getNameMap().catch(() => ({}));
-      host.innerHTML = rows.slice(0, 3).map(p => _row(p, nameMap)).join('');
-      host.querySelectorAll('[data-pid]').forEach((el) => {
-        el.addEventListener('click', () => ctx.go && ctx.go('the_life', { person: el.dataset.pid }));
-      });
-    })
-    .catch(() => {
-      if (cancelled || !host.isConnected) return;
-      host.innerHTML = `<div style="color: var(--ink-muted, #7a7f96);">Pastoral backend unavailable right now.</div>`;
+  const render = async (rawRows) => {
+    if (cancelled || !host.isConnected) return;
+    const rows = rawRows || [];
+    if (!rows.length) {
+      host.innerHTML = `<div style="color: var(--ink-muted, #7a7f96);">Nothing on your plate today.</div>`;
+      return;
+    }
+    const nameMap = await _getNameMap().catch(() => ({}));
+    if (cancelled || !host.isConnected) return;
+    host.innerHTML = rows.slice(0, 3).map(p => _row(p, nameMap)).join('');
+    host.querySelectorAll('[data-pid]').forEach((el) => {
+      el.addEventListener('click', () => ctx.go && ctx.go('the_life', { person: el.dataset.pid }));
     });
+  };
+
+  const cached = swr(KEY, _fetch, render, { ttl: TTL });
+  if (cached !== undefined) {
+    render(cached);
+  } else {
+    draw(KEY, _fetch, { ttl: TTL })
+      .then(render)
+      .catch(() => {
+        if (!cancelled && host.isConnected) {
+          host.innerHTML = `<div style="color: var(--ink-muted, #7a7f96);">Pastoral backend unavailable right now.</div>`;
+        }
+      });
+  }
 
   return () => { cancelled = true; };
 }
