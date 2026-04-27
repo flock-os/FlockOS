@@ -75,7 +75,7 @@ export function mount(root, ctx) {
   stops.push(mountFlockFeed(root.querySelector('[data-bind="feed"]'),           ctx));
 
   const ctaSlot = root.querySelector('[data-bind="primary-cta"]');
-  if (ctaSlot) ctaSlot.appendChild(renderCall(ctx));
+  if (ctaSlot) renderCall(ctx).then((el) => { if (ctaSlot.isConnected) ctaSlot.appendChild(el); });
 
   // Auto-refresh while the user lingers on the home view.
   const tick = setInterval(() => {

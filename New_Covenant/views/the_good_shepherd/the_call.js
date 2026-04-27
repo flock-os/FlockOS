@@ -1,24 +1,15 @@
 /* ══════════════════════════════════════════════════════════════════════════════
    THE CALL — Primary CTA strip
    "Many are called, but few are chosen." — Matthew 22:14
-
-   One clear next step on the home page. Decides between:
-     • Sign in (no profile)
-     • Open Fellowship (default for signed-in users)
    ══════════════════════════════════════════════════════════════════════════════ */
 
-import { profile, enter } from '../../Scripts/the_priesthood/index.js';
+import { whoAmI } from '../../Scripts/the_priesthood/index.js';
 
-export function renderCall(ctx) {
+export async function renderCall(ctx) {
+  await whoAmI(); // ensure auth state is resolved before rendering
+
   const wrap = document.createElement('div');
   wrap.style.cssText = `margin-top: 22px; display: flex; gap: 10px; flex-wrap: wrap;`;
-  const me = profile();
-
-  if (!me) {
-    wrap.innerHTML = `<flock-button tone="primary" size="lg">Sign in</flock-button>`;
-    wrap.querySelector('flock-button').addEventListener('click', () => enter());
-    return wrap;
-  }
 
   wrap.innerHTML = `
     <flock-button tone="primary" size="lg" data-act="fellowship">Open Fellowship</flock-button>
