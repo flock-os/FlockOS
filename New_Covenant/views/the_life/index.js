@@ -491,6 +491,47 @@ const CARE_CFG = {
 
 const STATUSES = ['Open', 'In Progress', 'Follow-Up', 'Referred'];
 
+// Demo care cases — shown when a filter type has no live data
+const _D = Date.now();
+const DEMO_CARE_CASES = [
+  {
+    id: '_demo_prayer_1',    careType: 'Prayer Request',
+    memberName: 'Sarah Mitchell',   priority: 'Normal', status: 'Open',
+    summary: 'Requested prayer for upcoming surgery — anxious about recovery and family.',
+    assignedTo: 'Pastor James',     createdAt: new Date(_D - 2 * 864e5).toISOString(),
+  },
+  {
+    id: '_demo_prayer_2',    careType: 'Prayer Request',
+    memberName: 'The Rodriguez Family', priority: 'High', status: 'Open',
+    summary: 'Family facing financial hardship. Requesting prayer and wisdom for next steps.',
+    assignedTo: '',                 createdAt: new Date(_D - 864e5).toISOString(),
+  },
+  {
+    id: '_demo_visit_1',     careType: 'Hospital Visit',
+    memberName: 'Robert Chen',      priority: 'Urgent', status: 'Open',
+    summary: 'Admitted Tuesday for cardiac procedure. Requested pastoral visit. Wife is present.',
+    assignedTo: 'Deacon Thomas',    createdAt: new Date(_D - 864e5).toISOString(),
+  },
+  {
+    id: '_demo_visit_2',     careType: 'Hospital Visit',
+    memberName: 'Dorothy Williams', priority: 'High',   status: 'In Progress',
+    summary: 'Hip replacement — discharged Monday. Follow-up home visit needed this week.',
+    assignedTo: 'Pastor James',     createdAt: new Date(_D - 3 * 864e5).toISOString(),
+  },
+  {
+    id: '_demo_followup_1',  careType: 'Follow-Up',
+    memberName: 'Marcus Johnson',   priority: 'High',   status: 'Follow-Up',
+    summary: 'Completed counseling series. Scheduled 30-day check-in — previously a grief case.',
+    assignedTo: 'Elder Williams',   createdAt: new Date(_D - 7 * 864e5).toISOString(),
+  },
+  {
+    id: '_demo_followup_2',  careType: 'Follow-Up',
+    memberName: 'Spring Baptism Class', priority: 'Normal', status: 'Follow-Up',
+    summary: '3-month follow-up for April baptism class. Four members need individual check-in.',
+    assignedTo: '',                 createdAt: new Date(_D - 14 * 864e5).toISOString(),
+  },
+];
+
 export function render() {
   return /* html */`
     <section class="life-view">
@@ -633,13 +674,28 @@ async function _loadCare(root, caseMap) {
     // Populate caseMap
     Object.keys(caseMap).forEach(k => delete caseMap[k]);
     rows.forEach(c => { caseMap[String(c.id || c.caseId || '')] = c; });
-    if (!rows.length) {
-      queue.innerHTML = '<div class="life-loading">No active care cases. Quiet is good.</div>';
-      _updateStats(root, []);
-      return { rows: [], memberDir };
-    }
     const memberMap = _buildMemberIndex(memberDir);
+    if (!rows.length) {
+      // No live data — show all demo cards so filters are never empty
+      queue.innerHTML =
+        '<div class="life-demo-notice">No live cases yet — showing example data.</div>' +
+        DEMO_CARE_CASES.map(c => _liveCareCard(c, memberMap, true)).join('');
+      _updateStats(root, DEMO_CARE_CASES);
+      DEMO_CARE_CASES.forEach(c => { caseMap[String(c.id)] = c; });
+      return { rows: DEMO_CARE_CASES, memberDir };
+    }
     queue.innerHTML = rows.map(c => _liveCareCard(c, memberMap)).join('');
+    // For each filter type with zero live cards, append demo cards so that tab is never empty
+    const liveTypeSet = new Set(rows.map(c =>
+      _normalizeType((c.careType || c.type || c.caseType || '').toLowerCase())
+    ));
+    const missingDemos = DEMO_CARE_CASES.filter(d =>
+      !liveTypeSet.has(_normalizeType((d.careType || '').toLowerCase()))
+    );
+    if (missingDemos.length) {
+      queue.innerHTML += missingDemos.map(c => _liveCareCard(c, memberMap, true)).join('');
+      missingDemos.forEach(c => { caseMap[String(c.id)] = c; });
+    }
     _updateStats(root, rows);
     return { rows, memberDir };
   } catch (err) {
@@ -672,12 +728,16 @@ function _updateStats(root, rows) {
 }
 
 function _normalizeType(rawType) {
-  return rawType.replace(/[-\s]/g, '')
-    .replace('followupcall', 'followup')
-    .replace('hospitalvisit', 'visit')
-    .replace('prayerrequest', 'prayer')
-    .replace('lifemilestone', 'milestone')
-    .replace('newvisitor', 'welcome');
+  const s = rawType.replace(/[-_\s]/g, '');
+  if (s.includes('prayer'))                              return 'prayer';
+  if (s.includes('visit') || s.includes('hosp'))        return 'visit';
+  if (s.includes('followup') || s.includes('checkin'))  return 'followup';
+  if (s.includes('crisis'))                             return 'crisis';
+  if (s.includes('grief'))                              return 'grief';
+  if (s.includes('counsel'))                            return 'counseling';
+  if (s.includes('milestone') || s.includes('lifemoment')) return 'milestone';
+  if (s.includes('newvisitor') || s.includes('newbeliever') || s.includes('welcome')) return 'welcome';
+  return s || 'other';
 }
 
 // Build an O(1) name-lookup Map keyed by every identifier field
@@ -711,7 +771,7 @@ function _resolveName(idOrEmail, memberDirOrMap) {
   return s.includes(' ') ? s : '';
 }
 
-function _liveCareCard(c, memberDirOrMap) {
+function _liveCareCard(c, memberDirOrMap, isDemo = false) {
   memberDirOrMap = memberDirOrMap || [];
   const priority    = (c.priority || 'Normal').toLowerCase();
   // Preserve original casing for CARE_TYPES lookup; normalize to lowercase for the filter data-type attr
@@ -736,7 +796,8 @@ function _liveCareCard(c, memberDirOrMap) {
   const cid      = _e(String(c.id || c.caseId || ''));
 
   return /* html */`
-    <article class="life-card" data-cid="${cid}" data-type="${_e(type)}" data-priority="${_e(priority)}" tabindex="0">
+    <article class="life-card${isDemo ? ' life-card--demo' : ''}" data-cid="${cid}" data-type="${_e(type)}" data-priority="${_e(priority)}" tabindex="0">
+      ${isDemo ? '<span class="life-demo-badge">Example</span>' : ''}
       <div class="life-card-icon">${t.icon}</div>
       <div class="life-card-body">
         <div class="life-card-top">
