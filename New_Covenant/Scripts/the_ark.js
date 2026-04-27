@@ -49,6 +49,13 @@ const flock = {
 
     await dress();          // mount topbar / sidebar / main slot
     await _registerViews();
+
+    // ── Wellspring guard — if local mode is active but has no imported data,
+    //    disable it so all calls reach the live GAS backend (Google Sheets).
+    //    The user's real data lives in GAS. Wellspring is for offline-only mode
+    //    and requires a manual Excel import to be useful.
+    await _guardWellspring();
+
     await go(_initialRoute(), { replace: true });
     darken();               // splash off (with fade via the_oil)
     livingWater.register().catch(() => {}); // SW after the first paint
@@ -104,6 +111,22 @@ function _initialRoute() {
   const params = new URLSearchParams(location.search);
   const v = params.get('view');
   return v && v.trim() ? v.trim() : 'the_good_shepherd';
+}
+
+/* ── Wellspring guard ─────────────────────────────────────────────────────── */
+async function _guardWellspring() {
+  const W = window.TheWellspring;
+  if (!W || typeof W.status !== 'function') return;
+  try {
+    const s = await W.status();
+    // If Wellspring is active but has no locally-imported data, kill it.
+    // Without an Excel import, it returns empty arrays for every API call
+    // and silently blocks all traffic to the live GAS backend.
+    if (s.active && (!s.loaded || !s.totalRows)) {
+      if (typeof W.disable === 'function') W.disable();
+      console.info('[NewCovenant] TheWellspring disabled — no local data loaded. API calls will reach GAS.');
+    }
+  } catch (_) { /* non-fatal */ }
 }
 
 /* ── Error boundary (light-touch — the_watchmen does the work) ───────────── */
