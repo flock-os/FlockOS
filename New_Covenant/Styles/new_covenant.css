@@ -2094,3 +2094,265 @@ flock-tabs [role="tablist"], .tabs-bar {
   padding: 40px 24px; text-align: center;
   color: var(--ink-muted, #7a7f96); font: 0.9rem var(--font-ui);
 }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   THE GREAT COMMISSION — Missions view
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+.gc-view { display: flex; flex-direction: column; gap: 20px; }
+
+/* ── Tabs ──────────────────────────────────────────────────────────────────── */
+.gc-tabs {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  padding-bottom: 16px; border-bottom: 1px solid var(--line, #e5e7ef);
+}
+.gc-tab {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 7px 14px; border-radius: 7px; border: 1px solid var(--line, #e5e7ef);
+  background: none; color: var(--ink, #1b264f);
+  font: 0.82rem var(--font-ui, system-ui); cursor: pointer;
+  white-space: nowrap; transition: border-color 120ms, background 120ms;
+}
+.gc-tab:hover { border-color: var(--accent, #5b8fcf); background: var(--bg-raised, #fff); }
+.gc-tab.is-active {
+  background: var(--accent, #5b8fcf); color: var(--ink-inverse, #fff);
+  border-color: transparent; font-weight: 700;
+}
+
+/* ── KPI row ───────────────────────────────────────────────────────────────── */
+.gc-kpi-row { display: flex; gap: 10px; flex-wrap: wrap; }
+.gc-kpi-card {
+  flex: 1; min-width: 100px;
+  background: var(--bg-raised, #fff); border: 1px solid var(--line, #e5e7ef);
+  border-radius: 10px; padding: 12px 14px; text-align: center;
+}
+.gc-kpi-n    { font: 800 1.35rem var(--font-ui, system-ui); margin-bottom: 3px; }
+.gc-kpi-label {
+  font: 0.67rem var(--font-ui); color: var(--ink-muted, #7a7f96);
+  text-transform: uppercase; letter-spacing: .04em;
+}
+
+/* ── Filter bar ────────────────────────────────────────────────────────────── */
+.gc-filter-bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.gc-search {
+  flex: 1 1 180px; padding: 8px 14px; border-radius: 8px;
+  border: 1.5px solid var(--line, #e5e7ef); background: var(--bg-raised, #fff);
+  color: var(--ink, #1b264f); font: 0.9rem var(--font-ui); box-sizing: border-box;
+  transition: border-color 120ms;
+}
+.gc-search:focus { outline: none; border-color: var(--accent, #5b8fcf); }
+.gc-select {
+  padding: 8px 12px; border-radius: 8px;
+  border: 1.5px solid var(--line, #e5e7ef); background: var(--bg-raised, #fff);
+  color: var(--ink, #1b264f); font: 0.85rem var(--font-ui); cursor: pointer;
+}
+.gc-select:focus { outline: none; border-color: var(--accent, #5b8fcf); }
+.gc-1040-toggle {
+  display: inline-flex; align-items: center; gap: 6px;
+  font: 0.85rem var(--font-ui); color: var(--ink, #1b264f); cursor: pointer; white-space: nowrap;
+}
+
+/* ── Country card grid ─────────────────────────────────────────────────────── */
+.gc-country-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 14px;
+}
+.gc-country-card {
+  display: flex; flex-direction: column; gap: 6px;
+  background: var(--bg-raised, #fff); border: 1px solid var(--line, #e5e7ef);
+  border-radius: 12px; padding: 14px 15px;
+  transition: border-color 140ms, box-shadow 140ms;
+}
+.gc-country-card:hover {
+  border-color: var(--accent, #5b8fcf);
+  box-shadow: 0 2px 14px rgba(0,0,0,0.12);
+}
+.gc-card-top   { display: flex; align-items: center; justify-content: space-between; }
+.gc-flag       { font-size: 1.5rem; line-height: 1; }
+.gc-rank-pill  {
+  font: 800 0.68rem var(--font-ui); color: var(--ink-muted, #7a7f96);
+  background: var(--bg-sunken, #f0f0f5); padding: 2px 7px; border-radius: 10px;
+}
+.gc-country-name { font: 700 0.9rem var(--font-ui); color: var(--ink, #1b264f); margin-top: 4px; }
+.gc-country-meta { font: 0.72rem var(--font-ui); color: var(--ink-muted, #7a7f96); }
+.gc-badges       { display: flex; flex-wrap: wrap; gap: 4px; margin: 2px 0; }
+.gc-pers-badge, .gc-access-badge {
+  display: inline-block; padding: 2px 8px; border-radius: 10px;
+  font: 700 0.70rem var(--font-ui); letter-spacing: .02em;
+}
+.gc-1040-badge {
+  display: inline-block; padding: 2px 8px; border-radius: 10px;
+  font: 700 0.70rem var(--font-ui); background: #3730a3; color: #c7d2fe;
+}
+.gc-country-detail {
+  display: flex; flex-direction: column; gap: 3px; margin-top: 4px;
+  font: 0.72rem var(--font-ui); color: var(--ink-muted, #7a7f96);
+}
+.gc-profile-link {
+  display: inline-block; margin-top: auto; padding-top: 8px;
+  font: 0.75rem var(--font-ui); color: var(--accent, #5b8fcf); text-decoration: none;
+}
+.gc-profile-link:hover { text-decoration: underline; }
+
+/* ── Prayer focus ──────────────────────────────────────────────────────────── */
+.gc-prayer-list { display: flex; flex-direction: column; gap: 10px; }
+.gc-prayer-group-hd {
+  font: 700 0.78rem var(--font-ui); color: var(--ink-muted, #7a7f96);
+  text-transform: uppercase; letter-spacing: .06em;
+  padding: 8px 0 4px; border-bottom: 1px solid var(--line, #e5e7ef); margin-top: 8px;
+}
+.gc-prayer-group-hd:first-child { margin-top: 0; }
+.gc-prayer-card {
+  background: var(--bg-raised, #fff);
+  border: 1px solid var(--line, #e5e7ef);
+  border-left: 4px solid var(--accent, #5b8fcf);
+  border-radius: 12px; overflow: hidden;
+}
+.gc-prayer-hd {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 18px; cursor: pointer; transition: background 120ms;
+}
+.gc-prayer-hd:hover { background: var(--bg-soft, #f5f6fa); }
+.gc-prayer-icon {
+  width: 42px; height: 42px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.3rem; flex-shrink: 0;
+}
+.gc-prayer-hd-body { flex: 1; min-width: 0; }
+.gc-prayer-title { font: 700 0.95rem var(--font-ui); color: var(--ink, #1b264f); margin-bottom: 4px; }
+.gc-prayer-meta {
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+  font: 0.78rem var(--font-ui); color: var(--ink-muted, #7a7f96);
+}
+.gc-pri-badge { padding: 2px 8px; border-radius: 10px; border: 1px solid; font: 600 0.73rem var(--font-ui); }
+.gc-prayer-count { font: 0.78rem var(--font-ui); color: var(--ink-muted, #7a7f96); }
+.gc-prayer-chevron {
+  font-size: 0.65rem; color: var(--ink-muted, #7a7f96);
+  transition: transform 200ms; flex-shrink: 0;
+}
+.gc-prayer-card.is-open .gc-prayer-chevron { transform: rotate(180deg); }
+.gc-prayer-body {
+  display: none; flex-direction: column; gap: 12px;
+  padding: 14px 18px; border-top: 1px solid var(--line, #e5e7ef);
+}
+.gc-prayer-card.is-open .gc-prayer-body { display: flex; }
+.gc-prayer-section { display: flex; flex-direction: column; gap: 6px; }
+.gc-prayer-section--scripture { background: rgba(212,184,112,0.06); border-radius: 8px; padding: 10px; }
+.gc-prayer-section--pts       { background: rgba(140,197,162,0.06); border-radius: 8px; padding: 10px; }
+.gc-prayer-section-lbl {
+  font: 700 0.75rem var(--font-ui); color: var(--ink-muted, #7a7f96);
+  text-transform: uppercase; letter-spacing: .04em;
+}
+.gc-prayer-section p  { margin: 0; font: 0.88rem var(--font-ui); color: var(--ink, #1b264f); line-height: 1.6; }
+.gc-prayer-pts        { margin: 4px 0 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+.gc-prayer-pts li     { font: 0.88rem var(--font-ui); color: var(--ink, #1b264f); line-height: 1.6; }
+.gc-prayer-dates      { font: 0.78rem var(--font-ui); color: var(--ink-muted, #7a7f96); }
+.gc-prayer-foot       { display: flex; justify-content: flex-end; margin-top: 4px; }
+.gc-pray-btn {
+  padding: 8px 22px; border-radius: 8px;
+  background: var(--gold, #e8a838); color: #1b264f;
+  border: none; font: 700 0.88rem var(--font-ui);
+  cursor: pointer; transition: opacity 140ms;
+}
+.gc-pray-btn:hover    { opacity: 0.85; }
+.gc-pray-btn:disabled { opacity: 0.5; cursor: default; }
+
+/* ── Mission teams ─────────────────────────────────────────────────────────── */
+.gc-team-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px;
+}
+.gc-team-card {
+  background: var(--bg-raised, #fff); border: 1px solid var(--line, #e5e7ef);
+  border-radius: 12px; padding: 14px 16px;
+  display: flex; flex-direction: column; gap: 8px; transition: border-color 140ms;
+}
+.gc-team-card:hover    { border-color: var(--accent, #5b8fcf); }
+.gc-team-top           { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.gc-team-name          { font: 700 0.92rem var(--font-ui); color: var(--ink, #1b264f); }
+.gc-team-meta          { font: 0.75rem var(--font-ui); color: var(--ink-muted, #7a7f96); margin-top: 2px; }
+.gc-team-status        { font: 700 0.72rem var(--font-ui); white-space: nowrap; flex-shrink: 0; }
+.gc-team-dates         { font: 0.75rem var(--font-ui); color: var(--ink-muted, #7a7f96); }
+.gc-fund-row           { display: flex; justify-content: space-between; font: 0.70rem var(--font-ui); color: var(--ink-muted, #7a7f96); }
+.gc-fund-bar           { height: 6px; border-radius: 3px; background: var(--bg-sunken, #f0f0f5); overflow: hidden; }
+.gc-fund-fill          { height: 100%; background: var(--accent, #5b8fcf); border-radius: 3px; transition: width 300ms; }
+.gc-team-members       { font: 0.72rem var(--font-ui); color: var(--ink-muted, #7a7f96); }
+
+/* ── Mission partners ──────────────────────────────────────────────────────── */
+.gc-partner-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px;
+}
+.gc-partner-card {
+  background: var(--bg-raised, #fff); border: 1px solid var(--line, #e5e7ef);
+  border-radius: 12px; padding: 14px 16px;
+  display: flex; flex-direction: column; gap: 8px; transition: border-color 140ms;
+}
+.gc-partner-card:hover  { border-color: var(--accent, #5b8fcf); }
+.gc-partner-top         { display: flex; align-items: flex-start; gap: 12px; }
+.gc-partner-icon        { font-size: 1.5rem; flex-shrink: 0; margin-top: 1px; }
+.gc-partner-info        { flex: 1; min-width: 0; }
+.gc-partner-name        { font: 700 0.9rem var(--font-ui); color: var(--ink, #1b264f); }
+.gc-partner-meta        { font: 0.75rem var(--font-ui); color: var(--ink-muted, #7a7f96); margin-top: 2px; }
+.gc-partner-status {
+  font: 600 0.70rem var(--font-ui); background: var(--bg-sunken, #f0f0f5);
+  padding: 2px 8px; border-radius: 10px; color: var(--ink-muted, #7a7f96); flex-shrink: 0;
+}
+.gc-partner-desc   { margin: 0; font: 0.82rem var(--font-ui); color: var(--ink-muted, #7a7f96); line-height: 1.5; }
+.gc-partner-footer {
+  display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+  font: 0.75rem var(--font-ui); color: var(--ink-muted, #7a7f96);
+}
+
+/* ── Field updates ─────────────────────────────────────────────────────────── */
+.gc-updates-list { display: flex; flex-direction: column; gap: 10px; }
+.gc-update-card {
+  background: var(--bg-raised, #fff); border: 1px solid var(--line, #e5e7ef);
+  border-left: 4px solid var(--line, #e5e7ef);
+  border-radius: 10px; padding: 14px 16px; display: flex; gap: 12px;
+}
+.gc-update-icon    { font-size: 1.3rem; flex-shrink: 0; margin-top: 1px; }
+.gc-update-content { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.gc-update-title   { font: 700 0.92rem var(--font-ui); color: var(--ink, #1b264f); }
+.gc-update-type {
+  display: inline-block; font: 0.70rem var(--font-ui);
+  background: var(--bg-sunken, #f0f0f5); padding: 1px 7px; border-radius: 8px;
+  color: var(--ink-muted, #7a7f96); margin-bottom: 2px;
+}
+.gc-update-body { margin: 0; font: 0.82rem var(--font-ui); color: var(--ink-muted, #7a7f96); line-height: 1.5; }
+.gc-update-meta { display: flex; gap: 12px; font: 0.70rem var(--font-ui); color: var(--ink-muted, #7a7f96); margin-top: 4px; }
+
+/* ── Resources panel ───────────────────────────────────────────────────────── */
+.gc-resources        { display: flex; flex-direction: column; gap: 16px; }
+.gc-resources-title  { font: 800 1.05rem var(--font-ui); color: var(--ink, #1b264f); margin: 0; }
+.gc-resources-sub    { margin: 0; font: 0.88rem var(--font-ui); color: var(--ink-muted, #7a7f96); }
+.gc-resources-grid   { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+.gc-resource-card {
+  display: flex; align-items: flex-start; gap: 14px;
+  background: var(--bg-raised, #fff); border: 1px solid var(--line, #e5e7ef);
+  border-radius: 12px; padding: 14px 16px; text-decoration: none;
+  transition: border-color 140ms, box-shadow 140ms;
+}
+.gc-resource-card:hover { border-color: var(--accent, #5b8fcf); box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+.gc-resource-icon  { font-size: 1.5rem; flex-shrink: 0; }
+.gc-resource-name  { font: 700 0.9rem var(--font-ui); color: var(--ink, #1b264f); margin-bottom: 3px; }
+.gc-resource-desc  { font: 0.75rem var(--font-ui); color: var(--ink-muted, #7a7f96); }
+
+/* ── Loading / empty ───────────────────────────────────────────────────────── */
+.gc-loading, .gc-empty {
+  padding: 40px 24px; text-align: center;
+  color: var(--ink-muted, #7a7f96); font: 0.9rem var(--font-ui);
+  background: var(--bg-raised, #fff); border: 1px dashed var(--line, #e5e7ef);
+  border-radius: 12px;
+}
+
+/* ── Responsive ────────────────────────────────────────────────────────────── */
+@media (max-width: 720px) {
+  .gc-country-grid  { grid-template-columns: repeat(auto-fill, minmax(155px, 1fr)); }
+  .gc-kpi-row       { gap: 8px; }
+  .gc-kpi-card      { min-width: 80px; padding: 10px; }
+  .gc-filter-bar    { flex-direction: column; align-items: stretch; }
+  .gc-search        { flex: unset; }
+  .gc-tabs          { gap: 4px; }
+  .gc-tab           { padding: 6px 10px; font-size: 0.78rem; }
+  .gc-team-grid, .gc-partner-grid, .gc-resources-grid { grid-template-columns: 1fr; }
+}
