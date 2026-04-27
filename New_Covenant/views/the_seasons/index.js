@@ -318,10 +318,13 @@ function _openEventSheet(ev, onReload) {
   const title  = ev?.title || ev?.name    || '';
   const type   = (ev?.type || ev?.category || 'service').toLowerCase();
   const loc    = ev?.location || ev?.loc  || '';
-  const sDate  = _isoDate(ev?._date || ev?.startDate || ev?.date);
-  const sTime  = ev?.startTime || ev?.time || '';
-  const desc   = ev?.description || ev?.notes || '';
-  const rsvpN  = ev?.rsvpCount || ev?.rsvp || '';
+  const sDate   = _isoDate(ev?._date || ev?.startDate || ev?.date);
+  const sTime   = ev?.startTime || ev?.time || '';
+  const eDate   = _isoDate(ev?.endDate);
+  const eTime   = ev?.endTime || '';
+  const desc    = ev?.description || ev?.notes || '';
+  const rsvpN   = ev?.rsvpCount || ev?.rsvp || '';
+  const rsvpReq = ev?.rsvpRequired || false;
 
   const sheet = document.createElement('div');
   sheet.className = 'life-sheet';
@@ -345,12 +348,22 @@ function _openEventSheet(ev, onReload) {
         </div>
         <div class="fold-form-row">
           <div class="life-sheet-field">
-            <div class="life-sheet-label">Date <span style="color:#dc2626">*</span></div>
+            <div class="life-sheet-label">Start Date <span style="color:#dc2626">*</span></div>
             <input class="life-sheet-input" data-field="startDate" type="date" value="${_e(sDate)}">
           </div>
           <div class="life-sheet-field">
-            <div class="life-sheet-label">Time</div>
+            <div class="life-sheet-label">Start Time</div>
             <input class="life-sheet-input" data-field="startTime" type="time" value="${_e(sTime)}">
+          </div>
+        </div>
+        <div class="fold-form-row">
+          <div class="life-sheet-field">
+            <div class="life-sheet-label">End Date</div>
+            <input class="life-sheet-input" data-field="endDate" type="date" value="${_e(eDate)}">
+          </div>
+          <div class="life-sheet-field">
+            <div class="life-sheet-label">End Time</div>
+            <input class="life-sheet-input" data-field="endTime" type="time" value="${_e(eTime)}">
           </div>
         </div>
         <div class="life-sheet-field">
@@ -366,6 +379,10 @@ function _openEventSheet(ev, onReload) {
         <div class="life-sheet-field">
           <div class="life-sheet-label">Description / Notes</div>
           <textarea class="life-sheet-input" data-field="description" rows="3" style="resize:vertical">${_e(desc)}</textarea>
+        </div>
+        <div class="life-sheet-field" style="display:flex;align-items:center;gap:10px;">
+          <input type="checkbox" id="event-rsvp-chk" data-field="rsvpRequired" style="width:16px;height:16px;cursor:pointer"${rsvpReq ? ' checked' : ''}>
+          <label for="event-rsvp-chk" style="cursor:pointer;font-size:.9rem;">RSVP required for this event</label>
         </div>
         <div class="fold-form-error" data-error style="display:none;color:#dc2626;font-size:.85rem;margin-top:8px"></div>
       </div>
@@ -399,13 +416,20 @@ function _openEventSheet(ev, onReload) {
     errEl.style.display = 'none';
     const btn = sheet.querySelector('[data-save]');
     btn.disabled = true; btn.textContent = isNew ? 'Creating…' : 'Saving…';
+    const endDateVal   = sheet.querySelector('[data-field="endDate"]').value || undefined;
+    const endTimeVal   = sheet.querySelector('[data-field="endTime"]').value || undefined;
+    const eventTypeVal = sheet.querySelector('[data-field="type"]').value;
     const payload = {
-      title:       titleVal,
-      startDate:   dateVal,
-      startTime:   sheet.querySelector('[data-field="startTime"]').value,
-      location:    sheet.querySelector('[data-field="location"]').value.trim(),
-      type:        sheet.querySelector('[data-field="type"]').value,
-      description: sheet.querySelector('[data-field="description"]').value.trim(),
+      title:        titleVal,
+      startDate:    dateVal,
+      startTime:    sheet.querySelector('[data-field="startTime"]').value || undefined,
+      endDate:      endDateVal,
+      endTime:      endTimeVal,
+      location:     sheet.querySelector('[data-field="location"]').value.trim() || undefined,
+      type:         eventTypeVal,   // GAS fallback
+      eventType:    eventTypeVal,   // Firestore field
+      description:  sheet.querySelector('[data-field="description"]').value.trim() || undefined,
+      rsvpRequired: sheet.querySelector('[data-field="rsvpRequired"]').checked,
     };
     if (!isNew) payload.id = uid;
     try {

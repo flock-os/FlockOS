@@ -317,6 +317,28 @@ function _openMemberSheet(person, V, onReload) {
             ${MEMBER_TYPES.map(t => `<option value="${_e(t.toLowerCase())}"${role.toLowerCase() === t.toLowerCase() ? ' selected' : ''}>${_e(t)}</option>`).join('')}
           </select>
         </div>
+        <!-- Personal details -->
+        <div class="fold-form-row">
+          <div class="life-sheet-field">
+            <div class="life-sheet-label">Date of Birth</div>
+            <input class="life-sheet-input" data-field="birthDate" type="date" value="${_e(person.birthDate || person.birthdate || '')}">
+          </div>
+          <div class="life-sheet-field">
+            <div class="life-sheet-label">Gender</div>
+            <select class="life-sheet-input" data-field="gender">
+              <option value="">— Select —</option>
+              ${['Male','Female','Non-binary','Prefer not to say'].map(g => `<option value="${_e(g)}"${(person.gender||'') === g ? ' selected' : ''}>${_e(g)}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Join Date</div>
+          <input class="life-sheet-input" data-field="joinDate" type="date" value="${_e(person.joinDate || person.memberSince || '')}">
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Notes</div>
+          <textarea class="life-sheet-input" data-field="notes" rows="2" style="resize:vertical" placeholder="Pastoral notes, household info, etc.">${_e(person.notes || '')}</textarea>
+        </div>
         <!-- Permissions -->
         <div class="fold-perm-section">
           <div class="fold-perm-section-title">🔐 FlockOS Access Level</div>
@@ -381,6 +403,10 @@ function _openMemberSheet(person, V, onReload) {
       email:      sheet.querySelector('[data-field="email"]').value.trim(),
       phone:      sheet.querySelector('[data-field="phone"]').value.trim(),
       memberType: sheet.querySelector('[data-field="memberType"]').value,
+      birthDate:  sheet.querySelector('[data-field="birthDate"]').value || undefined,
+      gender:     sheet.querySelector('[data-field="gender"]').value || undefined,
+      joinDate:   sheet.querySelector('[data-field="joinDate"]').value || undefined,
+      notes:      sheet.querySelector('[data-field="notes"]').value.trim() || undefined,
     };
     const accessRole = sheet.querySelector('[data-field="accessRole"]').value;
     try {
@@ -468,7 +494,24 @@ function _openNewMemberSheet(onReload) {
             ${MEMBER_TYPES.map(t => `<option value="${_e(t.toLowerCase())}"${t === 'Visitor' ? ' selected' : ''}>${_e(t)}</option>`).join('')}
           </select>
         </div>
-        <!-- FlockOS Access -->
+        <!-- Personal details -->
+        <div class="fold-form-row">
+          <div class="life-sheet-field">
+            <div class="life-sheet-label">Date of Birth</div>
+            <input class="life-sheet-input" data-field="birthDate" type="date">
+          </div>
+          <div class="life-sheet-field">
+            <div class="life-sheet-label">Gender</div>
+            <select class="life-sheet-input" data-field="gender">
+              <option value="">— Select —</option>
+              ${['Male','Female','Non-binary','Prefer not to say'].map(g => `<option value="${_e(g)}">${_e(g)}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Notes</div>
+          <textarea class="life-sheet-input" data-field="notes" rows="2" style="resize:vertical" placeholder="Any additional notes…"></textarea>
+        </div>
         <div class="fold-perm-section">
           <div class="fold-perm-section-title">🔐 FlockOS Access Level</div>
           <div class="fold-perm-section-sub">Optional — grant access so they can log in to FlockOS.</div>
@@ -511,6 +554,9 @@ function _openNewMemberSheet(onReload) {
       email:      sheet.querySelector('[data-field="email"]').value.trim(),
       phone:      sheet.querySelector('[data-field="phone"]').value.trim(),
       memberType: sheet.querySelector('[data-field="memberType"]').value,
+      birthDate:  sheet.querySelector('[data-field="birthDate"]').value || undefined,
+      gender:     sheet.querySelector('[data-field="gender"]').value || undefined,
+      notes:      sheet.querySelector('[data-field="notes"]').value.trim() || undefined,
     };
     const accessRole = sheet.querySelector('[data-field="accessRole"]').value;
     try {

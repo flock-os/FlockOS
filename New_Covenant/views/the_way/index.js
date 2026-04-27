@@ -183,8 +183,8 @@ function _liveTrackCard(t, i) {
 }
 
 function _liveGroupRow(g) {
-  const name     = g.name || 'Small Group';
-  const leader   = g.leader || g.leaderName || '';
+  const name     = g.groupName || g.name || 'Small Group';
+  const leader   = g.leaderName || g.leader || g.leaderId || '';
   const members  = g.memberCount || g.members || '';
   const day      = g.meetingDay  || g.day || '';
   const time     = g.meetingTime || g.time || '';
@@ -356,13 +356,15 @@ function _openGroupSheet(g, onReload) {
     btn.disabled = true; btn.textContent = isNew ? 'Creating…' : 'Saving…';
     const maxVal = parseInt(sheet.querySelector('[data-field="maxMembers"]').value);
     const payload = {
-      name:        nameVal,
+      name:        nameVal,   // GAS column header
+      groupName:   nameVal,   // Firestore field
       type:        sheet.querySelector('[data-field="type"]').value,
+      groupType:   sheet.querySelector('[data-field="type"]').value, // Firestore field
       leaderName:  sheet.querySelector('[data-field="leaderName"]').value.trim(),
       meetingDay:  sheet.querySelector('[data-field="meetingDay"]').value,
       meetingTime: sheet.querySelector('[data-field="meetingTime"]').value,
       description: sheet.querySelector('[data-field="description"]').value.trim(),
-      ...(maxVal > 0 ? { maxMembers: maxVal } : {}),
+      ...(maxVal > 0 ? { capacity: maxVal, maxMembers: maxVal } : {}),
     };
     if (!isNew) payload.id = uid;
     try {

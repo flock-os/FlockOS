@@ -349,7 +349,8 @@ function _openGiftSheet(g, onReload) {
       amount:     rawAmt,
       fund:       sheet.querySelector('[data-field="fund"]').value,
       method:     sheet.querySelector('[data-field="method"]').value,
-      giftDate:   sheet.querySelector('[data-field="giftDate"]').value || undefined,
+      date:       sheet.querySelector('[data-field="giftDate"]').value || undefined, // Firestore field
+      giftDate:   sheet.querySelector('[data-field="giftDate"]').value || undefined, // GAS fallback
       notes:      sheet.querySelector('[data-field="notes"]').value.trim() || undefined,
     };
     if (!isNew) payload.id = uid;
