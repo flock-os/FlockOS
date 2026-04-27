@@ -52,6 +52,13 @@ const SECTIONS = [
     title: '',
     items: [{ name: 'the_good_shepherd', label: 'Home', icon: ICON.home }],
   },
+  /* ── Word ────────────────────────────────────────────────────────────── */
+  {
+    title: 'Word',
+    items: [
+      { name: 'the_upper_room',        label: 'The Upper Room',     icon: ICON.flame },
+    ],
+  },
   /* ── Comms ───────────────────────────────────────────────────────────── */
   {
     title: 'Comms',

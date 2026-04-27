@@ -114,6 +114,9 @@ async function _registerViews() {
   register('the_life',                 V('the_life'),                 { command: 'Go to: Pastoral Care' });
   register('the_seasons',              V('the_seasons'),              { command: 'Go to: Seasons' });
 
+  // Word & devotion
+  register('the_upper_room',           V('the_upper_room'),           { command: 'Go to: The Upper Room' });
+
   // Mission views
   register('the_harvest',              V('the_harvest'),              { command: 'Go to: Harvest' });
   register('the_way',                  V('the_way'),                  { command: 'Go to: The Way' });
@@ -144,6 +147,10 @@ function _preloadViews() {
   import('../views/the_good_shepherd/the_next_steps.js').catch(() => {});
   import('../views/the_good_shepherd/the_flock_feed.js').catch(() => {});
   import('../views/the_good_shepherd/the_call.js').catch(() => {});
+  import('../views/the_good_shepherd/the_word.js').catch(() => {});
+  // The Upper Room — surfaced from the home dashboard, parse it now.
+  import('../views/the_upper_room/index.js').catch(() => {});
+  import('../views/the_upper_room/the_devotional.js').catch(() => {});
 }
 
 /* ── Home data pre-warm ──────────────────────────────────────────────────── */
