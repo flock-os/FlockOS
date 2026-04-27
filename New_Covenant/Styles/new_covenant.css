@@ -24,6 +24,7 @@
   /* Brand gold */
   --gold:          #e8a838;
   --gold-deep:     #c27a10;
+  --gold-text:     #b45309; /* AA-readable gold for body text on light backgrounds */
   --gold-soft:     rgba(232,168,56,0.15);
   --gold-glow:     rgba(232,168,56,0.32);
   --gold-shadow:   0 4px 20px rgba(232,168,56,0.42), 0 1px 4px rgba(232,168,56,0.20);
@@ -385,8 +386,8 @@ html, body {
 }
 .page-hero-sub { color: var(--ink-muted, #7a7f96); font: 1rem var(--font-ui); max-width: 60ch; margin: 0; }
 .page-hero-scripture {
-  margin: 8px 0 0; font: italic 0.88rem var(--font-serif);
-  color: var(--gold, #e8a838); opacity: 0.82;
+  margin: 10px 0 0; font: italic 600 1rem/1.5 var(--font-serif);
+  color: var(--gold-text, #b45309); opacity: 1;
 }
 
 
