@@ -4,6 +4,7 @@
    ══════════════════════════════════════════════════════════════════════════════ */
 
 import { pageHero } from '../_frame.js';
+import { profile } from '../../Scripts/the_priesthood/index.js';
 
 export const name  = 'the_life';
 export const title = 'Pastoral Care';
@@ -814,6 +815,7 @@ function _openSheet(c, memberDir, onSave) {
   const secondaryRaw  = c.secondaryCaregiverId || c.secondaryCaregiver || '';
   const currentStatus = c.status || 'Open';
   const rawType       = c.careType || c.type || '';
+  const cfg           = _cfgFor(rawType);
   const hasMemberDir  = memberDir && memberDir.length > 0;
   const isPastoral    = _isLeadPastorGroup(memberDir || []);
 
@@ -862,17 +864,17 @@ function _openSheet(c, memberDir, onSave) {
           <div class="life-sheet-label">Summary / Notes</div>
           <textarea class="life-sheet-ta" data-field="summary" rows="3" placeholder="What's happening?">${_e(c.summary || c.description || '')}</textarea>
         </div>
-        <!-- Pastoral Notes (Lead Pastor Group only) -->
+        <!-- Workflow guide (collapsible, visible to all caregivers) -->
+        ${rawType ? `<div class="life-sheet-field life-wg-field">${_workflowGuideHtml(rawType)}</div>` : ''}
+        <!-- Lead Pastor Eyes Only -->
         ${isPastoral ? `
         <div class="life-sheet-field life-pastoral-field">
           <div class="life-sheet-label">
-            🔐 Pastoral Notes
-            <span class="life-field-hint life-pastoral-hint">Lead Pastor only &mdash; not visible to other caregivers</span>
+            🔐 Lead Pastor Eyes Only
+            <span class="life-field-hint life-pastoral-hint">Not visible to other caregivers</span>
           </div>
-          <textarea class="life-sheet-ta life-pastoral-ta" data-field="pastoralNotes" rows="3" placeholder="Confidential pastoral observations, discernment, prayer notes…">${_e(c.pastoralNotes || '')}</textarea>
+          <textarea class="life-sheet-ta life-pastoral-ta" data-field="pastoralNotes" rows="6" placeholder="Confidential notes, discernment, workflow tracking…">${_e(c.pastoralNotes || (cfg && cfg.notes ? cfg.notes : ''))}</textarea>
         </div>` : ''}
-        <!-- Workflow guide (collapsible) -->
-        ${rawType ? `<div class="life-sheet-field life-wg-field">${_workflowGuideHtml(rawType)}</div>` : ''}
         <!-- Interactions -->
         <div class="life-sheet-field">
           <div class="life-sheet-label">Interactions</div>
@@ -897,21 +899,44 @@ function _openSheet(c, memberDir, onSave) {
     sheet.querySelector('.life-sheet-panel').classList.add('is-open');
   });
 
-  // Load interactions
+  // Load interactions — try multiple parameter shapes since TheVine API varies
   if (V && cid) {
-    V.flock.care.interactions.list({ caseId: cid }).then((res) => {
-      const ix = sheet.querySelector('[data-ix]');
-      if (!ix) return;
-      const items = _rows(res);
+    const _ixRows = (res) => {
+      if (!res) return [];
+      if (Array.isArray(res)) return res;
+      for (const k of ['rows', 'data', 'interactions', 'items', 'results', 'records']) {
+        if (Array.isArray(res[k])) return res[k];
+      }
+      return [];
+    };
+    const _ixTs = (v) => {
+      if (!v) return '';
+      const ms = v?.seconds ? v.seconds * 1000 : new Date(v).getTime();
+      return ms && !isNaN(ms) ? new Date(ms).toLocaleString() : '';
+    };
+    const _renderIx = (items, ix) => {
       if (!items.length) { ix.innerHTML = '<div class="life-ix-empty">No interactions yet.</div>'; return; }
       ix.innerHTML = items.slice().reverse().map(i => {
-        const ts = i.createdAt ? new Date(i.createdAt).toLocaleString() : '';
-        return `<div class="life-ix-item"><div class="life-ix-note">${_e(i.note || i.content || i.body || '')}</div><div class="life-ix-meta">${_e(i.author || i.authorName || '')}${ts ? ' &bull; ' + _e(ts) : ''}</div></div>`;
+        const ts = _ixTs(i.createdAt || i.timestamp || i.date);
+        return `<div class="life-ix-item"><div class="life-ix-note">${_e(i.note || i.content || i.body || i.text || '')}</div><div class="life-ix-meta">${_e(i.author || i.authorName || i.createdBy || '')}${ts ? ' &bull; ' + _e(ts) : ''}</div></div>`;
       }).join('');
-    }).catch(() => {
-      const ix = sheet.querySelector('[data-ix]');
-      if (ix) ix.innerHTML = '<div class="life-ix-empty">Could not load interactions.</div>';
-    });
+    };
+    V.flock.care.interactions.list({ caseId: cid })
+      .then(res => {
+        const items = _ixRows(res);
+        if (items.length) return items;
+        // fallback: some APIs use 'id' instead of 'caseId'
+        return V.flock.care.interactions.list({ id: cid }).then(_ixRows).catch(() => []);
+      })
+      .then((items) => {
+        const ix = sheet.querySelector('[data-ix]');
+        if (!ix) return;
+        _renderIx(items, ix);
+      })
+      .catch(() => {
+        const ix = sheet.querySelector('[data-ix]');
+        if (ix) ix.innerHTML = '<div class="life-ix-empty">Could not load interactions.</div>';
+      });
   }
 
   // Status pill wiring
@@ -1133,20 +1158,31 @@ function _findLeadPastor(members) {
   });
 }
 
-// Returns true if the currently signed-in Firebase user is in the Lead Pastor Group
+// Returns true if the currently signed-in user is in the Lead Pastor Group
 function _isLeadPastorGroup(members) {
   try {
+    const PASTOR_ROLES = ['lead pastor', 'senior pastor', 'lead', 'pastor'];
+    const _matchRole = (r) => { const s = String(r || '').toLowerCase(); return PASTOR_ROLES.some(pr => s === pr || s.startsWith(pr)); };
+    // 1. Nehemiah session profile (most reliable — auth goes through GAS, not Firebase)
+    const p = typeof profile === 'function' ? profile() : null;
+    if (p) {
+      if (_matchRole(p.role || p.memberType)) return true;
+      // Also check against member directory by email if role not on profile
+      const pEmail = (p.email || '').toLowerCase();
+      if (pEmail) {
+        const m = members.find(m => (m.email || '').toLowerCase() === pEmail);
+        if (m && _matchRole(m.role || m.memberType)) return true;
+      }
+    }
+    // 2. Firebase auth fallback
     const fb    = typeof firebase !== 'undefined' && firebase.auth?.();
     const uid   = fb?.currentUser?.uid   || '';
-    const email = fb?.currentUser?.email || '';
+    const email = (fb?.currentUser?.email || '').toLowerCase();
     if (!uid && !email) return false;
-    const PASTOR_ROLES = ['lead pastor', 'senior pastor', 'lead', 'pastor'];
     return members.some(m => {
-      const isMe = (uid   && (m.id === uid   || m.uid === uid   || m.docId === uid))
-                || (email && (m.email === email));
-      if (!isMe) return false;
-      const r = String(m.role || m.memberType || '').toLowerCase();
-      return PASTOR_ROLES.some(pr => r === pr || r.startsWith(pr));
+      const isMe = (uid   && (m.id === uid || m.uid === uid || m.docId === uid))
+                || (email && (m.email || '').toLowerCase() === email);
+      return isMe && _matchRole(m.role || m.memberType);
     });
   } catch { return false; }
 }
