@@ -8,6 +8,9 @@ import { pageHero } from '../_frame.js';
 export const name  = 'the_generations';
 export const title = 'The Generations';
 
+let _activeGenSheet    = null;
+let _liveMilestonesMap = {};
+
 const _e = s => String(s ?? '').replace(/[&<>"']/g,(c)=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
 const MILESTONES = [
@@ -68,7 +71,7 @@ export function render() {
       <!-- Timeline -->
       <div class="way-section-header" style="margin-top:24px;">
         <h2 class="way-section-title">Church Timeline</h2>
-        <button class="flock-btn flock-btn--ghost">Add Milestone</button>
+        <button class="flock-btn flock-btn--ghost" data-act="add-milestone">Add Milestone</button>
       </div>
       <div class="gen-timeline" data-bind="timeline">
         ${MILESTONES.slice().reverse().map(_milestone).join('')}
@@ -78,8 +81,10 @@ export function render() {
 }
 
 export function mount(root) {
+  const reload = () => _loadGenerations(root);
   _loadGenerations(root);
-  return () => {};
+  root.querySelector('[data-act="add-milestone"]')?.addEventListener('click', () => _openMilestoneSheet(null, reload));
+  return () => { _closeGenSheet(); };
 }
 
 function _rows(res) {
@@ -113,8 +118,9 @@ async function _loadGenerations(root) {
       const cat   = (m.category || m.type || 'growth').toLowerCase();
       const desc  = m.description || m.notes || m.desc || '';
       const meta  = CAT_META[cat] || CAT_META.growth;
+      const mid   = m.id ? ` data-id="${_e(String(m.id))}"` : '';
       return /* html */`
-        <div class="gen-milestone">
+        <div class="gen-milestone"${mid}>
           <div class="gen-milestone-year">${year}</div>
           <div class="gen-milestone-dot" style="background:${meta.color}"></div>
           <div class="gen-milestone-body">
@@ -126,6 +132,15 @@ async function _loadGenerations(root) {
           </div>
         </div>`;
     }).join('');
+    _liveMilestonesMap = {};
+    sorted.forEach(m => { if (m.id) _liveMilestonesMap[String(m.id)] = m; });
+    tlEl.querySelectorAll('.gen-milestone[data-id]').forEach(card => {
+      card.style.cursor = 'pointer';
+      card.addEventListener('click', () => {
+        const rec = _liveMilestonesMap[card.dataset.id];
+        if (rec) _openMilestoneSheet(rec, () => _loadGenerations(root));
+      });
+    });
   } catch (err) {
     console.error('[TheGenerations] milestones.list error:', err);
   }
@@ -145,5 +160,119 @@ function _milestone(m) {
         <div class="gen-milestone-desc">${_e(m.desc)}</div>
       </div>
     </div>`;
+}
+
+// ── Milestone sheet ───────────────────────────────────────────────────────────
+const GEN_CATEGORIES = Object.keys(CAT_META);
+
+function _closeGenSheet() {
+  if (!_activeGenSheet) return;
+  const t = _activeGenSheet;
+  t.querySelector('.life-sheet-overlay')?.classList.remove('is-open');
+  t.querySelector('.life-sheet-panel')?.classList.remove('is-open');
+  setTimeout(() => { t.remove(); if (_activeGenSheet === t) _activeGenSheet = null; }, 320);
+}
+
+function _openMilestoneSheet(m, onReload) {
+  _closeGenSheet();
+  const V     = window.TheVine;
+  const isNew = !m;
+  const uid   = m?.id ? String(m.id) : '';
+
+  const sheet = document.createElement('div');
+  sheet.className = 'life-sheet';
+  sheet.innerHTML = /* html */`
+    <div class="life-sheet-overlay"></div>
+    <div class="life-sheet-panel" role="dialog" aria-label="${isNew ? 'Add Milestone' : 'Edit Milestone'}">
+      <div class="life-sheet-drag"></div>
+      <div class="life-sheet-hd">
+        <div class="life-sheet-hd-info">
+          <div class="life-sheet-hd-name">${isNew ? 'Add Milestone' : 'Edit Milestone'}</div>
+          <div class="life-sheet-hd-meta">${isNew ? 'Record a new chapter in the church story' : _e(m?.title || 'Milestone')}</div>
+        </div>
+        <button class="life-sheet-close" aria-label="Close">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="life-sheet-body">
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Year <span style="color:#dc2626">*</span></div>
+          <input class="life-sheet-input" data-field="year" type="number" min="1800" max="2100" value="${m?.year || new Date().getFullYear()}" placeholder="${new Date().getFullYear()}">
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Title <span style="color:#dc2626">*</span></div>
+          <input class="life-sheet-input" data-field="title" type="text" value="${_e(m?.title || '')}" placeholder="Name this milestone…">
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Category</div>
+          <select class="life-sheet-input" data-field="category">
+            ${GEN_CATEGORIES.map(c => `<option value="${_e(c)}"${c === (m?.category || m?.type || 'growth') ? ' selected' : ''}>${_e(c.charAt(0).toUpperCase() + c.slice(1))}</option>`).join('')}
+          </select>
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Description</div>
+          <textarea class="life-sheet-input" data-field="description" rows="3" style="resize:vertical" placeholder="Describe this chapter of the church story…">${_e(m?.description || m?.notes || m?.desc || '')}</textarea>
+        </div>
+        <div class="fold-form-error" data-error style="display:none;color:#dc2626;font-size:.85rem;margin-top:8px"></div>
+      </div>
+      <div class="life-sheet-foot">
+        ${!isNew ? '<button class="flock-btn flock-btn--danger" data-delete>Delete</button>' : ''}
+        <button class="flock-btn" data-cancel>Cancel</button>
+        <button class="flock-btn flock-btn--primary" data-save>${isNew ? 'Add Milestone' : 'Save Changes'}</button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(sheet);
+  _activeGenSheet = sheet;
+  requestAnimationFrame(() => {
+    sheet.querySelector('.life-sheet-overlay').classList.add('is-open');
+    sheet.querySelector('.life-sheet-panel').classList.add('is-open');
+    sheet.querySelector('[data-field="title"]')?.focus();
+  });
+
+  const close = () => _closeGenSheet();
+  sheet.querySelector('[data-cancel]').addEventListener('click', close);
+  sheet.querySelector('.life-sheet-close').addEventListener('click', close);
+  sheet.querySelector('.life-sheet-overlay').addEventListener('click', close);
+
+  sheet.querySelector('[data-save]').addEventListener('click', async () => {
+    const errEl = sheet.querySelector('[data-error]');
+    const yr    = parseInt(sheet.querySelector('[data-field="year"]').value, 10);
+    const ttl   = sheet.querySelector('[data-field="title"]').value.trim();
+    if (!ttl)          { errEl.textContent = 'Title is required.';       errEl.style.display = ''; return; }
+    if (!yr || isNaN(yr)) { errEl.textContent = 'A valid year is required.'; errEl.style.display = ''; return; }
+    errEl.style.display = 'none';
+    const btn = sheet.querySelector('[data-save]');
+    btn.disabled = true; btn.textContent = 'Saving…';
+    const payload = {
+      year:        yr,
+      title:       ttl,
+      category:    sheet.querySelector('[data-field="category"]').value,
+      description: sheet.querySelector('[data-field="description"]').value.trim() || undefined,
+    };
+    if (!isNew) payload.id = uid;
+    try {
+      if (isNew) { await V.flock.milestones.create(payload); }
+      else       { await V.flock.milestones.update(payload); }
+      _closeGenSheet();
+      onReload?.();
+    } catch (err) {
+      errEl.textContent = err?.message || 'Could not save.';
+      errEl.style.display = '';
+      btn.disabled = false; btn.textContent = isNew ? 'Add Milestone' : 'Save Changes';
+    }
+  });
+
+  sheet.querySelector('[data-delete]')?.addEventListener('click', async () => {
+    const ok = confirm(`Delete "${m?.title || 'this milestone'}"? This cannot be undone.`);
+    if (!ok) return;
+    const btn = sheet.querySelector('[data-delete]');
+    btn.disabled = true; btn.textContent = 'Deleting…';
+    try {
+      await V.flock.milestones.delete({ id: uid });
+      _closeGenSheet();
+      onReload?.();
+    } catch (_) { btn.disabled = false; btn.textContent = 'Delete'; }
+  });
 }
 

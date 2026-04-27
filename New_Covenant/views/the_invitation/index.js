@@ -96,14 +96,43 @@ async function _loadPending(root) {
     const rows = _rows(res);
     if (!rows.length) return;
 
-    listEl.innerHTML = rows.map(u => {
-      const name  = u.displayName || u.name || `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email || 'Unknown';
-      const email = u.email || '';
-      const dateMs = u.createdAt?.seconds ? u.createdAt.seconds * 1000 : (u.submittedAt ? new Date(u.submittedAt).getTime() : 0);
-      const submitted = dateMs ? new Date(dateMs).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '';
-      const source = u.source || u.signUpSource || '—';
-      return _pendingRow({ name, email, submitted, source, role: u.role || 'visitor' });
-    }).join('');
+    const users = rows.map(u => ({
+      id:        u.id || u.uid || '',
+      name:      u.displayName || u.name || `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email || 'Unknown',
+      email:     u.email || '',
+      submitted: (() => {
+        const ms = u.createdAt?.seconds ? u.createdAt.seconds * 1000 : (u.submittedAt ? new Date(u.submittedAt).getTime() : 0);
+        return ms ? new Date(ms).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '';
+      })(),
+      source:    u.source || u.signUpSource || '—',
+      role:      u.role || 'visitor',
+    }));
+    listEl.innerHTML = users.map(_pendingRow).join('');
+
+    // Wire approve / deny on live rows
+    listEl.querySelectorAll('.inv-pending-row').forEach((row, i) => {
+      const u = users[i];
+      if (!u?.id) return;
+      row.querySelector('.inv-approve-btn')?.addEventListener('click', async e => {
+        e.stopPropagation();
+        const btn = e.currentTarget;
+        btn.disabled = true; btn.textContent = 'Approving…';
+        try {
+          await V.admin.users.approve({ id: u.id });
+          row.remove();
+        } catch (_) { btn.disabled = false; btn.textContent = 'Approve'; }
+      });
+      row.querySelector('.inv-deny-btn')?.addEventListener('click', async e => {
+        e.stopPropagation();
+        if (!confirm(`Deny membership request from ${u.name}?`)) return;
+        const btn = e.currentTarget;
+        btn.disabled = true; btn.textContent = 'Denying…';
+        try {
+          await V.admin.users.deny({ id: u.id });
+          row.remove();
+        } catch (_) { btn.disabled = false; btn.textContent = 'Deny'; }
+      });
+    });
   } catch (err) {
     console.error('[TheInvitation] users.pending error:', err);
   }
