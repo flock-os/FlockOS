@@ -2451,6 +2451,10 @@ flock-tabs [role="tablist"], .tabs-bar {
 .gc-fund-fill          { height: 100%; background: var(--accent, #5b8fcf); border-radius: 3px; transition: width 300ms; }
 .gc-team-members       { font: 0.72rem var(--font-ui); color: var(--ink-muted, #7a7f96); }
 
+/* ── Action bar (Add buttons) ──────────────────────────────────────────────── */
+.gc-action-bar { display: flex; justify-content: flex-end; }
+.gc-action-hd  { display: flex; justify-content: flex-end; }
+
 /* ── Mission partners ──────────────────────────────────────────────────────── */
 .gc-partner-grid {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px;

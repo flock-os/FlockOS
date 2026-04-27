@@ -342,6 +342,8 @@ export function render() {
         ${_kpiCard('10/40 Window',        '—', '#818cf8')}
       </div>
 
+      <div id="gc-action-bar" class="gc-action-bar" style="display:none;"></div>
+
       <div class="gc-filter-bar" id="gc-filters">
         <input  class="gc-search" id="gc-search" type="search"
                 placeholder="Search countries…" aria-label="Search countries">
@@ -449,6 +451,7 @@ export function mount(root) {
 
 // ── World: country registry ────────────────────────────────────────────────────
 async function _loadWorld(root, V) {
+  _setActionBar(root, 'world', V, null);
   const content = root.querySelector('#gc-content');
   if (!content) return;
   content.innerHTML = '<div class="gc-loading">Loading country data…</div>';
@@ -523,6 +526,7 @@ function _bindWorldFilters(root) {
 
 // ── Prayer focus ───────────────────────────────────────────────────────────────
 async function _loadPrayer(root, V) {
+  _setActionBar(root, 'prayer', V, () => _loadPrayer(root, V));
   const content = root.querySelector('#gc-content');
   if (!content) return;
   content.innerHTML = '<div class="gc-loading">Loading prayer focus…</div>';
@@ -556,6 +560,7 @@ async function _loadPrayer(root, V) {
 
 // ── Mission teams ──────────────────────────────────────────────────────────────
 async function _loadTeams(root, V) {
+  _setActionBar(root, 'teams', V, () => _loadTeams(root, V));
   const content = root.querySelector('#gc-content');
   if (!content) return;
   content.innerHTML = '<div class="gc-loading">Loading mission teams…</div>';
@@ -571,6 +576,7 @@ async function _loadTeams(root, V) {
 
 // ── Mission partners ───────────────────────────────────────────────────────────
 async function _loadPartners(root, V) {
+  _setActionBar(root, 'partners', V, () => _loadPartners(root, V));
   const content = root.querySelector('#gc-content');
   if (!content) return;
   content.innerHTML = '<div class="gc-loading">Loading mission partners…</div>';
@@ -586,6 +592,7 @@ async function _loadPartners(root, V) {
 
 // ── Field updates ──────────────────────────────────────────────────────────────
 async function _loadUpdates(root, V) {
+  _setActionBar(root, 'updates', V, () => _loadUpdates(root, V));
   const content = root.querySelector('#gc-content');
   if (!content) return;
   content.innerHTML = '<div class="gc-loading">Loading field updates…</div>';
@@ -601,6 +608,334 @@ async function _loadUpdates(root, V) {
 
 // ── Resources ──────────────────────────────────────────────────────────────────
 function _showResources(root) {
+  _setActionBar(root, 'resources', null, null);
   const content = root.querySelector('#gc-content');
   if (content) content.innerHTML = _resourcesPanel();
+}
+
+// ── Action bar ────────────────────────────────────────────────────────────────
+function _setActionBar(root, tab, V, onRefresh) {
+  const bar = root.querySelector('#gc-action-bar');
+  if (!bar) return;
+  const configs = {
+    prayer:   { label: 'Add Prayer Need',  },
+    teams:    { label: 'Add Mission Team', },
+    partners: { label: 'Add Partner',      },
+    updates:  { label: 'Add Field Update', },
+  };
+  const cfg = configs[tab];
+  if (!cfg) { bar.style.display = 'none'; bar.innerHTML = ''; return; }
+  bar.style.display = '';
+  bar.innerHTML = `<div class="gc-action-hd">
+    <button class="flock-btn flock-btn--primary gc-add-btn">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      ${_e(cfg.label)}
+    </button>
+  </div>`;
+  bar.querySelector('.gc-add-btn').addEventListener('click', () => {
+    _openMissionsSheet(tab, V, onRefresh);
+  });
+}
+
+// ── Missions entry sheet ─────────────────────────────────────────────────────
+let _activeMissionsSheet = null;
+
+function _closeMissionsSheet() {
+  if (!_activeMissionsSheet) return;
+  const s = _activeMissionsSheet;
+  _activeMissionsSheet = null;
+  s.querySelector('.life-sheet-panel')?.classList.remove('is-open');
+  s.querySelector('.life-sheet-overlay')?.classList.remove('is-open');
+  setTimeout(() => s.remove(), 280);
+}
+
+function _missionsFormFields(type) {
+  if (type === 'prayer') return `
+    <div class="life-sheet-field">
+      <div class="life-sheet-label">Title <span style="color:#ef4444">*</span></div>
+      <input class="life-sheet-input" data-field="title" type="text" placeholder="Prayer need title">
+    </div>
+    <div class="life-sheet-field">
+      <div class="life-sheet-label">Priority</div>
+      <select class="life-sheet-input" data-field="priority">
+        <option value="normal">Normal</option>
+        <option value="high">High</option>
+        <option value="urgent">Urgent</option>
+      </select>
+    </div>
+    <div class="life-sheet-field">
+      <div class="life-sheet-label">Country <span class="life-field-hint">optional</span></div>
+      <input class="life-sheet-input" data-field="country" type="text" placeholder="e.g. Iran, Nigeria">
+    </div>
+    <div class="life-sheet-field">
+      <div class="life-sheet-label">People Group <span class="life-field-hint">optional</span></div>
+      <input class="life-sheet-input" data-field="peopleGroup" type="text" placeholder="e.g. Pashtun, Fulani">
+    </div>
+    <div class="life-sheet-field">
+      <div class="life-sheet-label">Background / Description <span class="life-field-hint">optional</span></div>
+      <textarea class="life-sheet-ta" data-field="description" rows="3" placeholder="Context and background…"></textarea>
+    </div>
+    <div class="life-sheet-field">
+      <div class="life-sheet-label">Scripture <span class="life-field-hint">optional</span></div>
+      <input class="life-sheet-input" data-field="scripture" type="text" placeholder="e.g. Romans 10:14">
+    </div>
+    <div class="life-sheet-field">
+      <div class="life-sheet-label">Prayer Points <span class="life-field-hint">one per line</span></div>
+      <textarea class="life-sheet-ta" data-field="prayerPoints" rows="4" placeholder="Pray for open doors…&#10;Pray for protection for church planters…"></textarea>
+    </div>`;
+
+  if (type === 'teams') return `
+    <div class="life-sheet-field">
+      <div class="life-sheet-label">Team Name <span style="color:#ef4444">*</span></div>
+      <input class="life-sheet-input" data-field="teamName" type="text" placeholder="e.g. Guatemala Summer Team 2026">
+    </div>
+    <div class="life-sheet-field">
+      <div class="life-sheet-label">Country / Location</div>
+      <input class="life-sheet-input" data-field="countryId" type="text" placeholder="e.g. Guatemala, Brazil">
+    </div>
+    <div class="life-sheet-field">
+      <div class="life-sheet-label">Trip Type</div>
+      <select class="life-sheet-input" data-field="tripType">
+        <option value="">— Select —</option>
+        <option>Short-term</option>
+        <option>Long-term</option>
+        <option>Survey</option>
+        <option>Medical</option>
+        <option>Teaching</option>
+        <option>Construction</option>
+        <option>Other</option>
+      </select>
+    </div>
+    <div class="life-sheet-field">
+      <div class="life-sheet-label">Status</div>
+      <select class="life-sheet-input" data-field="tripStatus">
+        <option value="planning">Planning</option>
+        <option value="fundraising">Fundraising</option>
+        <option value="ready">Ready</option>
+        <option value="on field">On Field</option>
+        <option value="completed">Completed</option>
+        <option value="cancelled">Cancelled</option>
+      </select>
+    </div>
+    <div class="life-sheet-field" style="display:flex;gap:10px;">
+      <div style="flex:1;">
+        <div class="life-sheet-label">Start Date</div>
+        <input class="life-sheet-input" data-field="startDate" type="date">
+      </div>
+      <div style="flex:1;">
+        <div class="life-sheet-label">End Date</div>
+        <input class="life-sheet-input" data-field="endDate" type="date">
+      </div>
+    </div>
+    <div class="life-sheet-field" style="display:flex;gap:10px;">
+      <div style="flex:1;">
+        <div class="life-sheet-label">Budget ($)</div>
+        <input class="life-sheet-input" data-field="budget" type="number" min="0" placeholder="0">
+      </div>
+      <div style="flex:1;">
+        <div class="life-sheet-label">Member Count</div>
+        <input class="life-sheet-input" data-field="memberCount" type="number" min="1" placeholder="0">
+      </div>
+    </div>
+    <div class="life-sheet-field">
+      <div class="life-sheet-label">Team Lead Name</div>
+      <input class="life-sheet-input" data-field="teamLeadName" type="text" placeholder="Full name">
+    </div>`;
+
+  if (type === 'partners') return `
+    <div class="life-sheet-field">
+      <div class="life-sheet-label">Organization Name <span style="color:#ef4444">*</span></div>
+      <input class="life-sheet-input" data-field="organizationName" type="text" placeholder="e.g. SIM, ABWE, OM">
+    </div>
+    <div class="life-sheet-field">
+      <div class="life-sheet-label">Partner Type</div>
+      <select class="life-sheet-input" data-field="partnerType">
+        <option value="">— Select —</option>
+        <option>Sending Agency</option>
+        <option>Field Team</option>
+        <option>Translation</option>
+        <option>Media</option>
+        <option>Humanitarian</option>
+        <option>Church Network</option>
+      </select>
+    </div>
+    <div class="life-sheet-field">
+      <div class="life-sheet-label">Focus Area</div>
+      <input class="life-sheet-input" data-field="focusArea" type="text" placeholder="e.g. North Africa, Bible translation">
+    </div>
+    <div class="life-sheet-field">
+      <div class="life-sheet-label">Relationship Status</div>
+      <select class="life-sheet-input" data-field="relationshipStatus">
+        <option value="Active">Active</option>
+        <option value="Exploring">Exploring</option>
+        <option value="Legacy">Legacy</option>
+        <option value="Inactive">Inactive</option>
+      </select>
+    </div>
+    <div class="life-sheet-field">
+      <div class="life-sheet-label">Workers Count</div>
+      <input class="life-sheet-input" data-field="workersCount" type="number" min="0" placeholder="0">
+    </div>
+    <div class="life-sheet-field">
+      <div class="life-sheet-label">Website</div>
+      <input class="life-sheet-input" data-field="website" type="url" placeholder="https://…">
+    </div>
+    <div class="life-sheet-field">
+      <div class="life-sheet-label">Description</div>
+      <textarea class="life-sheet-ta" data-field="description" rows="3" placeholder="Brief description of their work and mission…"></textarea>
+    </div>`;
+
+  if (type === 'updates') return `
+    <div class="life-sheet-field">
+      <div class="life-sheet-label">Title <span style="color:#ef4444">*</span></div>
+      <input class="life-sheet-input" data-field="title" type="text" placeholder="Update headline">
+    </div>
+    <div class="life-sheet-field">
+      <div class="life-sheet-label">Update Type</div>
+      <select class="life-sheet-input" data-field="updateType">
+        <option value="">— Select —</option>
+        <option>Prayer Alert</option>
+        <option>Situation Report</option>
+        <option>Victory Report</option>
+        <option>Breaking</option>
+        <option>Analysis</option>
+      </select>
+    </div>
+    <div class="life-sheet-field">
+      <div class="life-sheet-label">Severity</div>
+      <select class="life-sheet-input" data-field="severity">
+        <option value="Informational">Informational</option>
+        <option value="Moderate">Moderate</option>
+        <option value="High">High</option>
+        <option value="Critical">Critical</option>
+      </select>
+    </div>
+    <div class="life-sheet-field">
+      <div class="life-sheet-label">Country / Region</div>
+      <input class="life-sheet-input" data-field="country" type="text" placeholder="e.g. North Korea, Sahel Region">
+    </div>
+    <div class="life-sheet-field">
+      <div class="life-sheet-label">Report Body <span style="color:#ef4444">*</span></div>
+      <textarea class="life-sheet-ta" data-field="body" rows="5" placeholder="Full update text…"></textarea>
+    </div>
+    <div class="life-sheet-field">
+      <div class="life-sheet-label">Source</div>
+      <input class="life-sheet-input" data-field="source" type="text" placeholder="e.g. Open Doors, VOM, Field Partner">
+    </div>`;
+
+  return '';
+}
+
+const _GC_TITLES = {
+  prayer:   'Add Prayer Need',
+  teams:    'Add Mission Team',
+  partners: 'Add Partner',
+  updates:  'Add Field Update',
+};
+
+function _openMissionsSheet(type, V, onSaved) {
+  _closeMissionsSheet();
+  const title = _GC_TITLES[type] || 'Add Entry';
+  const sheet = document.createElement('div');
+  sheet.className = 'life-sheet';
+  sheet.innerHTML = `
+    <div class="life-sheet-overlay"></div>
+    <div class="life-sheet-panel" role="dialog" aria-label="${_e(title)}">
+      <div class="life-sheet-drag"></div>
+      <div class="life-sheet-hd">
+        <div class="life-sheet-hd-info">
+          <div class="life-sheet-hd-name">${_e(title)}</div>
+        </div>
+        <button class="life-sheet-close" aria-label="Close">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="life-sheet-body">
+        ${_missionsFormFields(type)}
+        <div class="gc-sheet-err" style="display:none;color:var(--danger,#dc2626);font:0.84rem var(--font-ui);margin-top:8px;"></div>
+      </div>
+      <div class="life-sheet-foot">
+        <button class="flock-btn" data-cancel>Cancel</button>
+        <button class="flock-btn flock-btn--primary" data-submit>Save</button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(sheet);
+  _activeMissionsSheet = sheet;
+
+  requestAnimationFrame(() => {
+    sheet.querySelector('.life-sheet-overlay').classList.add('is-open');
+    sheet.querySelector('.life-sheet-panel').classList.add('is-open');
+  });
+
+  const showErr = (msg) => {
+    const el = sheet.querySelector('.gc-sheet-err');
+    if (el) { el.textContent = msg; el.style.display = msg ? '' : 'none'; }
+  };
+
+  sheet.querySelector('.life-sheet-close').addEventListener('click', _closeMissionsSheet);
+  sheet.querySelector('.life-sheet-overlay').addEventListener('click', _closeMissionsSheet);
+  sheet.querySelector('[data-cancel]').addEventListener('click', _closeMissionsSheet);
+
+  sheet.querySelector('[data-submit]').addEventListener('click', async () => {
+    const btn = sheet.querySelector('[data-submit]');
+    showErr('');
+
+    const get    = (f) => (sheet.querySelector(`[data-field="${f}"]`)?.value ?? '').trim();
+    const getNum = (f) => { const v = parseFloat(get(f)); return isNaN(v) ? undefined : v; };
+
+    let payload = {};
+    if (type === 'prayer') {
+      if (!get('title')) { showErr('Title is required.'); return; }
+      payload = { title: get('title'), priority: get('priority') || 'normal',
+        ...(get('country')      ? { country:      get('country')      } : {}),
+        ...(get('peopleGroup')  ? { peopleGroup:  get('peopleGroup')  } : {}),
+        ...(get('description')  ? { description:  get('description')  } : {}),
+        ...(get('scripture')    ? { scripture:    get('scripture')    } : {}),
+        ...(get('prayerPoints') ? { prayerPoints: get('prayerPoints') } : {}),
+      };
+    } else if (type === 'teams') {
+      if (!get('teamName')) { showErr('Team Name is required.'); return; }
+      payload = { teamName: get('teamName'),
+        ...(get('countryId')    ? { countryId:    get('countryId')    } : {}),
+        ...(get('tripType')     ? { tripType:     get('tripType')     } : {}),
+        ...(get('tripStatus')   ? { tripStatus:   get('tripStatus')   } : {}),
+        ...(get('startDate')    ? { startDate:    get('startDate')    } : {}),
+        ...(get('endDate')      ? { endDate:      get('endDate')      } : {}),
+        ...(getNum('budget')      !== undefined ? { budget:      getNum('budget')      } : {}),
+        ...(getNum('memberCount') !== undefined ? { memberCount: getNum('memberCount') } : {}),
+        ...(get('teamLeadName') ? { teamLeadName: get('teamLeadName') } : {}),
+      };
+    } else if (type === 'partners') {
+      if (!get('organizationName')) { showErr('Organization Name is required.'); return; }
+      payload = { organizationName: get('organizationName'),
+        ...(get('partnerType')        ? { partnerType:        get('partnerType')        } : {}),
+        ...(get('focusArea')          ? { focusArea:          get('focusArea')          } : {}),
+        ...(get('relationshipStatus') ? { relationshipStatus: get('relationshipStatus') } : {}),
+        ...(getNum('workersCount')    !== undefined ? { workersCount: getNum('workersCount') } : {}),
+        ...(get('website')            ? { website:            get('website')            } : {}),
+        ...(get('description')        ? { description:        get('description')        } : {}),
+      };
+    } else if (type === 'updates') {
+      if (!get('title')) { showErr('Title is required.'); return; }
+      if (!get('body'))  { showErr('Report body is required.'); return; }
+      payload = { title: get('title'), body: get('body'),
+        ...(get('updateType') ? { updateType: get('updateType') } : {}),
+        ...(get('severity')   ? { severity:   get('severity')   } : {}),
+        ...(get('country')    ? { country:    get('country')    } : {}),
+        ...(get('source')     ? { source:     get('source')     } : {}),
+      };
+    }
+
+    btn.disabled = true; btn.textContent = 'Saving…';
+    try {
+      const nsMap = { prayer: 'prayerFocus', teams: 'teams', partners: 'partners', updates: 'updates' };
+      await V.missions[nsMap[type]].create(payload);
+      _closeMissionsSheet();
+      if (onSaved) onSaved();
+    } catch (err) {
+      showErr('Could not save: ' + (err?.message || String(err)));
+      btn.disabled = false; btn.textContent = 'Save';
+    }
+  });
 }
