@@ -45,8 +45,8 @@ export function render() {
           <h2 class="lm-mission-title">What is FlockOS?</h2>
           <p class="lm-mission-text">FlockOS is a covenant-rooted church management system that brings together pastoral care, communications, missions, giving, and discipleship into one living dashboard — built on Google Apps Script, Firebase, and the Spirit of God.</p>
           <div class="lm-mission-foot">
-            <a class="flock-btn flock-btn--primary" href="?view=software_deployment_referral">Request a Church →</a>
-            <a class="flock-btn flock-btn--ghost"   href="?view=about_flockos">About FlockOS</a>
+            <button class="flock-btn flock-btn--primary" data-go="software_deployment_referral">Request a Church →</button>
+            <button class="flock-btn flock-btn--ghost"   data-go="about_flockos">About FlockOS</button>
           </div>
         </div>
       </div>
@@ -83,7 +83,10 @@ export function render() {
   `;
 }
 
-export function mount(_root) {
+export function mount(root, ctx) {
+  root.querySelectorAll('[data-go]').forEach(btn => {
+    btn.addEventListener('click', () => ctx?.go?.(btn.dataset.go));
+  });
   return () => {};
 }
 

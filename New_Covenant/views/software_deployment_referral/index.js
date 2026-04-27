@@ -85,7 +85,7 @@ export function render() {
   `;
 }
 
-export function mount(root) {
+export function mount(root, ctx) {
   // Checklist progress tracking
   root.querySelectorAll('.sdr-check').forEach(chk => {
     chk.addEventListener('change', () => _updateProgress(root));
@@ -97,12 +97,12 @@ export function mount(root) {
 
   // Bezalel navigation
   root.querySelector('.sdr-bezalel-btn')?.addEventListener('click', () => {
-    window.TheVine?.go?.('bezalel');
+    ctx?.go?.('bezalel');
   });
 
   // Request church → invitation page
   root.querySelector('[data-act="request-church"]')?.addEventListener('click', () => {
-    window.TheVine?.go?.('the_invitation');
+    ctx?.go?.('the_invitation');
   });
 
   return () => {};

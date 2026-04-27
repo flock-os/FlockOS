@@ -31,46 +31,93 @@ const ICON = {
   chart:      I('<path d="M3 21V3"/><path d="M7 17V11M11 17V7M15 17V13M19 17V9"/>'),
   hammer:     I('<path d="M14 8 6 16l4 4 8-8"/><path d="M14 8l4-4 6 6-4 4z"/>'),
   question:   I('<circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 2-3 4"/><circle cx="12" cy="17" r=".5" fill="currentColor"/>'),
+  /* ── New icons for expanded nav ─────────────────────────────────────── */
+  music:      I('<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>'),
+  flame:      I('<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>'),
+  bell:       I('<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>'),
+  clipboard:  I('<path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="12" y2="16"/>'),
+  notebook:   I('<rect x="3" y="3" width="18" height="18" rx="2"/><line x1="7" y1="7" x2="17" y2="7"/><line x1="7" y1="12" x2="17" y2="12"/><line x1="7" y1="17" x2="13" y2="17"/>'),
+  scales:     I('<path d="M12 3v18"/><path d="M3 7l9 3 9-3"/><path d="M3 17l9-3 9 3"/>'),
+  dollar:     I('<path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>'),
+  target:     I('<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>'),
+  clock:      I('<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>'),
+  userplus:   I('<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/>'),
+  upload:     I('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>'),
+  info:       I('<circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>'),
 };
 
 const SECTIONS = [
+  /* ── Home ────────────────────────────────────────────────────────────── */
   {
     title: '',
-    items: [{ name: 'the_good_shepherd',  label: 'Home',           icon: ICON.home }],
+    items: [{ name: 'the_good_shepherd', label: 'Home', icon: ICON.home }],
   },
+  /* ── Comms ───────────────────────────────────────────────────────────── */
   {
     title: 'Comms',
     items: [
-      { name: 'the_fellowship',        label: 'Fellowship',         icon: ICON.chat,     badge: 'fellowship' },
+      { name: 'the_fellowship',        label: 'Fellowship',         icon: ICON.chat,      badge: 'fellowship' },
       { name: 'the_announcements',     label: 'Announcements',      icon: ICON.bullhorn },
       { name: 'the_prayer_chain',      label: 'Prayer Chain',       icon: ICON.hands },
     ],
   },
+  /* ── Care ────────────────────────────────────────────────────────────── */
   {
     title: 'Care',
     items: [
       { name: 'the_fold',              label: 'The Fold',           icon: ICON.fold },
-      { name: 'the_life',              label: 'Pastoral Care',      icon: ICON.heart,    badge: 'care' },
+      { name: 'the_life',              label: 'Pastoral Care',      icon: ICON.heart,     badge: 'care' },
+      { name: 'the_call_to_forgive',   label: 'Reconciliation',     icon: ICON.scales },
+      { name: 'prayerful_action',      label: 'Prayer Journal',     icon: ICON.notebook },
       { name: 'the_seasons',           label: 'Seasons',            icon: ICON.calendar },
     ],
   },
+  /* ── Worship ─────────────────────────────────────────────────────────── */
+  {
+    title: 'Worship',
+    items: [
+      { name: 'the_anatomy_of_worship', label: 'Service Order',     icon: ICON.clipboard },
+      { name: 'quarterly_worship',       label: 'Worship Plan',      icon: ICON.music },
+      { name: 'the_pentecost',           label: 'Special Services',  icon: ICON.flame },
+    ],
+  },
+  /* ── Mission ─────────────────────────────────────────────────────────── */
   {
     title: 'Mission',
     items: [
+      { name: 'the_great_commission',  label: 'Missions',           icon: ICON.globe },
       { name: 'the_harvest',           label: 'Harvest',            icon: ICON.harvest },
-      { name: 'the_great_commission',  label: 'Missions',           icon: ICON.globe   },
       { name: 'the_way',               label: 'The Way',            icon: ICON.cross },
       { name: 'the_truth',             label: 'Content',            icon: ICON.pen },
       { name: 'fishing_for_men',       label: 'Outreach',           icon: ICON.fish },
       { name: 'fishing_for_data',      label: 'Analytics',          icon: ICON.chart },
     ],
   },
+  /* ── Stewardship ─────────────────────────────────────────────────────── */
+  {
+    title: 'Stewardship',
+    items: [
+      { name: 'the_gift_drift',        label: 'Giving',             icon: ICON.dollar },
+      { name: 'the_weavers_plan',      label: "The Weaver's Plan",  icon: ICON.target },
+    ],
+  },
+  /* ── Legacy ──────────────────────────────────────────────────────────── */
+  {
+    title: 'Legacy',
+    items: [
+      { name: 'the_generations',       label: 'The Generations',    icon: ICON.clock },
+    ],
+  },
+  /* ── Build ───────────────────────────────────────────────────────────── */
   {
     title: 'Build',
     items: [
-      { name: 'the_wall',              label: 'Admin',              icon: ICON.shield },
-      { name: 'bezalel',               label: 'Bezalel',            icon: ICON.hammer },
-      { name: 'about_flockos',         label: 'About FlockOS',      icon: ICON.question },
+      { name: 'the_wall',                    label: 'Admin',          icon: ICON.shield },
+      { name: 'bezalel',                     label: 'Bezalel',        icon: ICON.hammer },
+      { name: 'the_invitation',              label: 'Invitations',    icon: ICON.userplus },
+      { name: 'software_deployment_referral', label: 'Deploy & Refer', icon: ICON.upload },
+      { name: 'learn_more',                  label: 'Learn More',     icon: ICON.info },
+      { name: 'about_flockos',               label: 'About FlockOS',  icon: ICON.question },
     ],
   },
 ];
