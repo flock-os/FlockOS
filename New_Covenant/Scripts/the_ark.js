@@ -120,9 +120,13 @@ globalThis.flock = flock;
 /* ── Auto-start when ?covenant=new is present, else stay silent ───────────── */
 const _qs = new URLSearchParams(location.search);
 if (_qs.get('covenant') === 'new') {
+  // Wait for DOMContentLoaded — guarantees all `defer` backend scripts
+  // (firm_foundation.js, the_true_vine.js, the_window_bridge.js, etc.)
+  // have fully executed before we touch window.Nehemiah or window.TheVine.
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => flock.start());
   } else {
+    // Already past DOMContentLoaded (e.g. dynamic load) — start immediately.
     flock.start();
   }
 }
