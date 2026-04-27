@@ -92,21 +92,35 @@ async function _loadHarvest(root) {
   if (missionEl) {
     missionEl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Loading missionaries…</div>';
     try {
-      const res  = await V.missions.registry.list().catch(() => null);
-      const all  = _rows(res);
-      // A valid missionary record has a personal name (not just a country name)
-      // and at least some giving data or an explicit goal.
-      const missionaries = all.filter(m => {
-        const hasName = !!(m.missionaryName || m.name);
-        const hasGoal = Number(m.monthlyGoal || m.goal || 0) > 0
-                     || Number(m.monthlyGiving || m.monthlySupport || m.giving || 0) > 0;
-        return hasName && hasGoal;
-      });
+      // Try partners list first (contains supported missionaries / orgs with giving goals),
+      // then fall back to registry records that look like personal missionary profiles.
+      let missionaries = [];
+      const [partnersRes, registryRes] = await Promise.allSettled([
+        V.missions.partners.list({ limit: 100 }),
+        V.missions.registry.list().catch(() => null),
+      ]);
+      if (partnersRes.status === 'fulfilled') {
+        const all = _rows(partnersRes.value);
+        missionaries = all.filter(m => {
+          const hasGoal = Number(m.monthlyGoal || m.monthlyTarget || m.goal || 0) > 0
+                       || Number(m.monthlyGiving || m.monthlySupport || m.giving || 0) > 0;
+          return hasGoal;
+        });
+      }
+      if (!missionaries.length && registryRes.status === 'fulfilled') {
+        const all = _rows(registryRes.value);
+        missionaries = all.filter(m => {
+          const hasName = !!(m.missionaryName || m.name);
+          const hasGoal = Number(m.monthlyGoal || m.goal || 0) > 0
+                       || Number(m.monthlyGiving || m.monthlySupport || m.giving || 0) > 0;
+          return hasName && hasGoal;
+        });
+      }
       missionEl.innerHTML = missionaries.length
         ? missionaries.map(_liveMissionCard).join('')
         : MISSIONARIES.map(_missionCard).join('');
     } catch (err) {
-      console.error('[TheHarvest] missions.registry.list error:', err);
+      console.error('[TheHarvest] missions load error:', err);
       missionEl.innerHTML = MISSIONARIES.map(_missionCard).join('');
     }
   }

@@ -93,7 +93,85 @@ export function render() {
   `;
 }
 
-export function mount() { return () => {}; }
+export function mount(root) {
+  _loadAnalytics(root);
+  return () => {};
+}
+
+function _rows(res) {
+  if (Array.isArray(res)) return res;
+  if (res && Array.isArray(res.rows))      return res.rows;
+  if (res && Array.isArray(res.data))      return res.data;
+  if (res && Array.isArray(res.weekly))    return res.weekly;
+  if (res && Array.isArray(res.snapshots)) return res.snapshots;
+  return [];
+}
+
+async function _loadAnalytics(root) {
+  const V = window.TheVine;
+  if (!V) return;
+
+  const [attRes, giveRes, membersRes] = await Promise.allSettled([
+    V.flock.attendance.summary({ weeks: 12 }),
+    V.flock.giving.summary(),
+    V.flock.members.list({ limit: 500 }),
+  ]);
+
+  // ── Attendance KPI + chart ──────────────────────────────────────────────
+  if (attRes.status === 'fulfilled' && attRes.value) {
+    const rows = _rows(attRes.value.weekly || attRes.value.snapshots || attRes.value);
+    if (rows.length) {
+      const last12 = rows.slice(-12);
+      const vals   = last12.map(w => Number(w.count || w.total || w.attendance || 0));
+      const labels = last12.map(w => {
+        const d = w.date || w.serviceDate || w.week;
+        if (!d) return '';
+        const dt = new Date(typeof d === 'object' && d.seconds ? d.seconds * 1000 : d);
+        return dt.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+      });
+      const maxV = Math.max(...vals, 1);
+      const chartWrap = root.querySelector('.data-chart-wrap');
+      if (chartWrap && vals.some(v => v > 0)) {
+        chartWrap.innerHTML = _barChart(vals, labels, maxV);
+      }
+      // Update avg attendance KPI card (index 0)
+      const avg = Math.round(vals.reduce((s, v) => s + v, 0) / vals.length);
+      if (avg > 0) _setKpi(root, 0, String(avg));
+    }
+  }
+
+  // ── Giving KPI ──────────────────────────────────────────────────────────
+  if (giveRes.status === 'fulfilled' && giveRes.value) {
+    const g = giveRes.value;
+    const monthly = g.monthlyTotal ?? g.thisMonth ?? g.givingMonthTotal ?? g.total ?? 0;
+    if (monthly > 0) {
+      _setKpi(root, 1, `$${(monthly / 1000).toFixed(1)}k`);
+    }
+  }
+
+  // ── Members: new this quarter ───────────────────────────────────────────
+  if (membersRes.status === 'fulfilled') {
+    const all = _rows(membersRes.value);
+    if (all.length) {
+      const now    = new Date();
+      const qStart = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1);
+      const newQ   = all.filter(m => {
+        const raw = m.joinDate || m.createdAt;
+        if (!raw) return false;
+        const dt = new Date(typeof raw === 'object' && raw.seconds ? raw.seconds * 1000 : raw);
+        return dt >= qStart;
+      }).length;
+      if (newQ > 0) _setKpi(root, 2, String(newQ));
+    }
+  }
+}
+
+function _setKpi(root, idx, value) {
+  const cards = root.querySelectorAll('.data-kpi-card');
+  if (!cards[idx]) return;
+  const el = cards[idx].querySelector('.data-kpi-value');
+  if (el) el.textContent = value;
+}
 
 function _barChart(data, labels, maxVal) {
   const W = 100 / data.length;

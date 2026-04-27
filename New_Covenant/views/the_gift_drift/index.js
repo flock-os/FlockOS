@@ -147,6 +147,129 @@ export function render() {
 </section>`;
 }
 
-export function mount(_root) {
+export function mount(root) {
+  _loadGiving(root);
   return () => {};
+}
+
+function _rows(res) {
+  if (Array.isArray(res)) return res;
+  if (res && Array.isArray(res.rows)) return res.rows;
+  if (res && Array.isArray(res.data)) return res.data;
+  return [];
+}
+
+async function _loadGiving(root) {
+  const V = window.TheVine;
+  if (!V) return;
+
+  const [summaryRes, listRes] = await Promise.allSettled([
+    V.flock.giving.summary(),
+    V.flock.giving.list({ limit: 20 }),
+  ]);
+
+  // ── KPI strip ───────────────────────────────────────────────────────────
+  if (summaryRes.status === 'fulfilled' && summaryRes.value) {
+    const s       = summaryRes.value;
+    const monthly = s.monthlyTotal ?? s.thisMonth ?? s.total ?? 0;
+    const ytd     = s.ytdTotal     ?? s.yearToDate ?? 0;
+    const avg     = s.averageGift  ?? s.avgGift    ?? 0;
+    const givers  = s.activeGivers ?? s.uniqueGivers ?? 0;
+
+    const kpiEl = root.querySelector('.gift-kpi-strip');
+    if (kpiEl) {
+      const cards = kpiEl.querySelectorAll('.gift-kpi-card');
+      const _set  = (i, v) => {
+        const el = cards[i]?.querySelector('.gift-kpi-value');
+        if (el && v) el.textContent = v;
+      };
+      if (monthly > 0) _set(0, `$${monthly.toLocaleString()}`);
+      if (ytd     > 0) _set(1, `$${ytd.toLocaleString()}`);
+      if (avg     > 0) _set(2, `$${Math.round(avg).toLocaleString()}`);
+      if (givers  > 0) _set(3, String(givers));
+    }
+
+    // ── Bar chart from monthly breakdown ──────────────────────────────────
+    const monthlyData = s.monthly || s.monthlyBreakdown || s.byMonth || [];
+    if (Array.isArray(monthlyData) && monthlyData.length) {
+      const maxA = Math.max(...monthlyData.map(m => m.amount || m.total || 0), 1);
+      const barEl = root.querySelector('.gift-bar-chart');
+      if (barEl) {
+        barEl.innerHTML = monthlyData.map(m => {
+          const amt  = m.amount || m.total || 0;
+          const lbl  = m.label  || m.month || '';
+          const h    = Math.round((amt / maxA) * 140);
+          const isForecast = m.forecast === true;
+          return `
+            <div class="gift-bar-col">
+              <div class="gift-bar-val">$${(amt / 1000).toFixed(1)}k</div>
+              <div class="gift-bar-wrap">
+                <div class="gift-bar${isForecast ? ' gift-bar--forecast' : ''}" style="height:${h}px"></div>
+              </div>
+              <div class="gift-bar-label">${_e(lbl)}</div>
+            </div>`;
+        }).join('');
+      }
+    }
+
+    // ── Fund breakdown ─────────────────────────────────────────────────────
+    const fundData = s.funds || s.byFund || s.fundBreakdown || [];
+    if (Array.isArray(fundData) && fundData.length) {
+      const fundsEl = root.querySelector('.gift-funds');
+      if (fundsEl) {
+        const total = fundData.reduce((sum, f) => sum + (f.amount || f.total || 0), 0) || 1;
+        const FUND_COLORS = ['var(--c-violet,#7c3aed)','var(--gold,#e8a838)','var(--c-sky,#0ea5e9)','var(--c-emerald,#059669)','#db2777','#c05818'];
+        fundsEl.innerHTML = fundData.map((f, i) => {
+          const amt = f.amount || f.total || 0;
+          const pct = Math.round((amt / total) * 100);
+          const col = FUND_COLORS[i % FUND_COLORS.length];
+          return `
+            <div class="gift-fund-row">
+              <div class="gift-fund-head">
+                <span class="gift-fund-dot" style="background:${col}"></span>
+                <span class="gift-fund-name">${_e(f.name || f.fund || `Fund ${i + 1}`)}</span>
+                <span class="gift-fund-pct">${pct}%</span>
+                <span class="gift-fund-amount">$${amt.toLocaleString()}</span>
+              </div>
+              <div class="gift-fund-bar-wrap">
+                <div class="gift-fund-bar" style="width:${pct}%;background:${col}"></div>
+              </div>
+            </div>`;
+        }).join('');
+      }
+    }
+  }
+
+  // ── Recent gifts table ──────────────────────────────────────────────────
+  if (listRes.status === 'fulfilled') {
+    const gifts = _rows(listRes.value);
+    if (gifts.length) {
+      const txEl = root.querySelector('.gift-transactions');
+      if (txEl) {
+        txEl.innerHTML = gifts.map(g => {
+          const name   = g.name || g.displayName || g.giverName || 'Anonymous';
+          const fund   = g.fund || g.fundName || g.designatedFund || 'General Fund';
+          const raw    = g.amount || g.totalAmount || 0;
+          const amt    = typeof raw === 'number' ? `$${raw.toLocaleString()}` : String(raw);
+          const method = g.method || g.paymentMethod || g.type || 'Online';
+          const dateMs = g.createdAt?.seconds
+            ? g.createdAt.seconds * 1000
+            : (g.giftDate || g.date ? new Date(g.giftDate || g.date).getTime() : 0);
+          const date   = dateMs ? new Date(dateMs).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '—';
+          const initials = name === 'Anonymous' ? '🙏' : name.split(/\s+/).map(w => w[0] || '').slice(0, 2).join('');
+          return `
+            <div class="gift-tx-row">
+              <div class="gift-tx-avatar">${initials}</div>
+              <div class="gift-tx-body">
+                <div class="gift-tx-name">${_e(name)}</div>
+                <div class="gift-tx-fund">${_e(fund)}</div>
+              </div>
+              ${methodBadge(method)}
+              <div class="gift-tx-amount">${_e(amt)}</div>
+              <div class="gift-tx-date">${_e(date)}</div>
+            </div>`;
+        }).join('');
+      }
+    }
+  }
 }
