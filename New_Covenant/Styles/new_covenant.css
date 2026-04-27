@@ -656,21 +656,12 @@ flock-tabs [role="tablist"], .tabs-bar {
 }
 
 /* Flame icon centered above headline */
-.garments-flame {
-  width: 48px; height: 48px; border-radius: 50%;
-  background: radial-gradient(circle at 50% 35%,
-    #fffbe0 0%, #ffd24a 28%, #e88820 58%, rgba(192,80,20,0.40) 88%, transparent 100%);
-  box-shadow: 0 0 28px rgba(232,168,56,0.70), 0 0 60px rgba(232,168,56,0.28);
-  margin: 0 auto 20px;
-  animation: garments-flicker 2s ease-in-out infinite;
-}
-@keyframes garments-flicker {
-  0%,100% { transform: scale(1)    rotate(-1deg); opacity: 0.95; }
-  30%     { transform: scale(1.07) rotate(1.5deg); opacity: 1;   }
-  60%     { transform: scale(0.96) rotate(-0.5deg); opacity: 0.90; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .garments-flame { animation: none; }
+.garments-logo {
+  display: block;
+  width: 64px; height: 64px;
+  margin: 0 auto 16px;
+  object-fit: contain;
+  filter: drop-shadow(0 0 18px rgba(232,168,56,0.50));
 }
 
 /* Brand name */
