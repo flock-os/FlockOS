@@ -8,19 +8,47 @@
 
 import { draw } from '../../Scripts/the_manna.js';
 import { careCases, compassionList } from '../../Scripts/the_life/index.js';
+import { read, write } from '../../Scripts/the_cistern.js';
+
+const _MEMBER_MAP_KEY = 'scrolls:member_name_map';
+const _MEMBER_MAP_TTL = 20 * 60 * 1000;
+
+async function _getNameMap() {
+  try {
+    const cached = await read(_MEMBER_MAP_KEY);
+    if (cached && cached.expires > Date.now() && cached.map) return cached.map;
+  } catch (_) {}
+  const V = window.TheVine;
+  if (!V) return {};
+  try {
+    const res     = await V.flock.members.list({ limit: 500 });
+    const members = Array.isArray(res) ? res : (res?.rows ?? res?.data ?? []);
+    const map     = {};
+    for (const m of members) {
+      const name = m.preferredName || (`${m.firstName || ''} ${m.lastName || ''}`).trim() || m.displayName || m.name || '';
+      if (!name) continue;
+      for (const k of [m.id, m.uid, m.docId, m.memberNumber, m.memberPin, m.email]) {
+        if (k) map[String(k)] = name;
+      }
+    }
+    await write(_MEMBER_MAP_KEY, { map, expires: Date.now() + _MEMBER_MAP_TTL });
+    return map;
+  } catch (_) { return {}; }
+}
 
 export function mountNextSteps(host, ctx) {
   if (!host) return () => {};
   let cancelled = false;
 
   draw('shepherd:next', _fetch, { ttl: 30_000 })
-    .then((rows = []) => {
+    .then(async (rows = []) => {
       if (cancelled || !host.isConnected) return;
       if (!rows.length) {
         host.innerHTML = `<div style="color: var(--ink-muted, #7a7f96);">Nothing on your plate today.</div>`;
         return;
       }
-      host.innerHTML = rows.slice(0, 3).map(_row).join('');
+      const nameMap = await _getNameMap().catch(() => ({}));
+      host.innerHTML = rows.slice(0, 3).map(p => _row(p, nameMap)).join('');
       host.querySelectorAll('[data-pid]').forEach((el) => {
         el.addEventListener('click', () => ctx.go && ctx.go('the_life', { person: el.dataset.pid }));
       });
@@ -45,12 +73,16 @@ async function _fetch() {
   return [];
 }
 
-function _row(p) {
-  const name = p.name || p.fullName || p.displayName || p.memberName || 'A sheep';
-  const why  = p.reason || p.note || p.summary
+function _row(p, nameMap = {}) {
+  const rawId = p.memberId || p.id || p.uid || p.caseId || '';
+  const name  = p.name || p.fullName || p.displayName || p.memberName
+             || (rawId && nameMap[rawId])
+             || rawId
+             || 'A sheep';
+  const why   = p.reason || p.note || p.summary
              || [p.careType || p.type, p.status].filter(Boolean).join(' — ')
              || '';
-  const pid  = p.id || p.uid || p.caseId || '';
+  const pid   = p.id || p.uid || p.caseId || '';
   return `
     <button type="button" data-pid="${_e(pid)}"
       style="display:flex; gap:10px; align-items:center; width:100%;
