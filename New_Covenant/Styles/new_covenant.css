@@ -53,6 +53,12 @@
   --sidebar-w:     256px;
   --footer-h:      30px;
 
+  /* PWA safe areas (iOS notch / Dynamic Island / home indicator) */
+  --safe-top:    env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left:   env(safe-area-inset-left, 0px);
+  --safe-right:  env(safe-area-inset-right, 0px);
+
   /* Radius */
   --radius-sm:     8px;
   --radius-md:     12px;
@@ -104,10 +110,13 @@ body { font-family: var(--font-ui); -webkit-font-smoothing: antialiased; -moz-os
   display: grid !important;
   grid-template-areas: "top top" "side main" "foot foot" !important;
   grid-template-columns: var(--sidebar-w, 256px) 1fr !important;
-  grid-template-rows: var(--topbar-h, 60px) 1fr var(--footer-h, 30px) !important;
+  grid-template-rows: calc(var(--topbar-h, 60px) + var(--safe-top, 0px)) 1fr calc(var(--footer-h, 30px) + var(--safe-bottom, 0px)) !important;
   height: 100% !important;
   min-height: 100vh;
+  min-height: 100dvh;
   background: var(--bg, #f7f8fb);
+  padding-left: var(--safe-left, 0px);
+  padding-right: var(--safe-right, 0px);
 }
 
 /* Sidebar scrolls internally; main content area scrolls internally */
@@ -120,7 +129,7 @@ body { font-family: var(--font-ui); -webkit-font-smoothing: antialiased; -moz-os
    ════════════════════════════════════════════════════════════════════════════ */
 .veil-top {
   display: flex; align-items: center; gap: 12px;
-  padding: 0 20px;
+  padding: var(--safe-top, 0px) 20px 0;
   /* Same dark cathedral tone as the sidebar */
   background: linear-gradient(90deg, #0c1445 0%, #14103a 60%, #0a1128 100%);
   position: relative;
@@ -311,7 +320,8 @@ body { font-family: var(--font-ui); -webkit-font-smoothing: antialiased; -moz-os
    FOOTER
    ════════════════════════════════════════════════════════════════════════════ */
 .veil-foot {
-  display: flex; align-items: center; gap: 10px; padding: 0 20px;
+  display: flex; align-items: center; gap: 10px;
+  padding: 0 20px var(--safe-bottom, 0px);
   background: #060c24;
   border-top: 1px solid rgba(255,255,255,0.06);
   color: rgba(255,255,255,0.28); font: 0.72rem var(--font-ui);
