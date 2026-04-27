@@ -130,15 +130,20 @@ async function _loadCare(root) {
   if (!queue) return;
   queue.innerHTML = '<div style="padding:32px;text-align:center;color:var(--ink-muted,#7a7f96)">Loading care queue…</div>';
   try {
-    const res  = await V.flock.care.list({});
-    const all  = _rows(res);
+    // Fetch care cases + member directory in parallel so we can resolve names
+    const [careRes, membersRes] = await Promise.all([
+      V.flock.care.list({}),
+      V.flock.members.list({ limit: 500 }).catch(() => []),
+    ]);
+    const memberDir = _rows(membersRes);
+    const all  = _rows(careRes);
     const rows = all.filter(r => !_TERMINAL.has((r.status || r.Status || '').toLowerCase()));
     if (!rows.length) {
       queue.innerHTML = '<div style="padding:32px;text-align:center;color:var(--ink-muted,#7a7f96)">No active care cases. Quiet is good.</div>';
       _updateStats(root, []);
       return;
     }
-    queue.innerHTML = rows.map(_liveCareCard).join('');
+    queue.innerHTML = rows.map(c => _liveCareCard(c, memberDir)).join('');
     _updateStats(root, rows);
   } catch (err) {
     console.error('[TheLife] care.list error:', err);
@@ -156,7 +161,7 @@ function _rows(res) {
 function _updateStats(root, rows) {
   const urgent = rows.filter(r => (r.priority || '').toLowerCase() === 'urgent').length;
   const high   = rows.filter(r => (r.priority || '').toLowerCase() === 'high').length;
-  const normal = rows.length - urgent - high;
+  const normal = rows.filter(r => { const p = (r.priority || 'normal').toLowerCase(); return p !== 'urgent' && p !== 'high'; }).length;
   const q = (sel) => root.querySelector(sel);
   const urgentEl = q('.life-stat--urgent .life-stat-n');
   const highEl   = q('.life-stat--high .life-stat-n');
@@ -168,15 +173,45 @@ function _updateStats(root, rows) {
   if (totalEl)  totalEl.textContent  = rows.length;
 }
 
-function _liveCareCard(c) {
-  const priority = (c.priority || 'normal').toLowerCase();
-  const type     = (c.caseType || c.type || 'followup').toLowerCase();
-  const name     = c.memberName || c.name || 'Unknown';
-  const assignee = c.assignedTo || c.assignee || 'Unassigned';
-  const note     = c.description || c.note || '';
+// Resolve a memberId/email to a display name from the member directory
+function _resolveName(idOrEmail, memberDir) {
+  if (!idOrEmail) return '';
+  const key = String(idOrEmail).toLowerCase();
+  for (const m of memberDir) {
+    if ((m.email && m.email.toLowerCase() === key)
+      || (m.primaryEmail && m.primaryEmail.toLowerCase() === key)
+      || m.id === idOrEmail || m.memberNumber === idOrEmail || m.memberPin === idOrEmail) {
+      return (m.preferredName || ((m.firstName || '') + ' ' + (m.lastName || '')).trim() || m.displayName || idOrEmail);
+    }
+  }
+  // If it looks like a name already (has a space or isn't an email/ID), return it directly
+  return idOrEmail.includes(' ') ? idOrEmail : '';
+}
+
+function _liveCareCard(c, memberDir) {
+  memberDir = memberDir || [];
+  const priority = (c.priority || 'Normal').toLowerCase();
+  // GAS uses 'careType'; fall back to 'type' for older records
+  const rawType  = (c.careType || c.type || c.caseType || 'followup').toLowerCase();
+  const type     = rawType.replace(/[-\s]/g, '')  // 'follow-up call' → 'followupcall'
+                         .replace('followupcall', 'followup')
+                         .replace('hospitalvisit', 'visit')
+                         .replace('prayerrequest', 'prayer')
+                         .replace('lifemilestone', 'milestone')
+                         .replace('newvisitor', 'welcome');
+  // Name: first try direct name fields, then resolve memberId from directory
+  const name     = c.memberName
+                || c.name
+                || _resolveName(c.memberId, memberDir)
+                || c.memberId
+                || 'Unknown';
+  // Assigned: primaryCaregiverId is the canonical field; assignedTo is a fallback
+  const assigneeRaw = c.primaryCaregiverId || c.assignedTo || c.assignedName || c.assignee || '';
+  const assignee = _resolveName(assigneeRaw, memberDir) || assigneeRaw || 'Unassigned';
+  const note     = c.summary || c.description || c.notes || c.note || '';
   const p        = PRIORITY[priority]  || PRIORITY.normal;
-  const t        = CARE_TYPES[type]    || { icon: '·', label: type };
-  const unassigned = !assignee || assignee === 'Unassigned';
+  const t        = CARE_TYPES[type]    || CARE_TYPES[rawType] || { icon: '🫱', label: c.careType || c.type || type };
+  const unassigned = !assigneeRaw || assignee === 'Unassigned';
   const ts       = c.updatedAt || c.createdAt;
   const daysStr  = ts ? _daysAgo(ts) : '';
   const cid      = _e(String(c.id || c.caseId || ''));
