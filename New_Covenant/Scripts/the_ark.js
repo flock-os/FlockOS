@@ -47,15 +47,15 @@ const flock = {
     }
     // ─────────────────────────────────────────────────────────────────────
 
+    // ── Pre-warm home data immediately after auth, in parallel with shell mount.
+    //    GAS cold-start (~5s) runs while dress() + _registerViews() execute,
+    //    so Manna has results (or in-flight dedups) when the home view mounts.
+    _warmHomeData();
+
     await dress();          // mount topbar / sidebar / main slot
     await _registerViews();
 
-    // Preload home view module during boot so first navigation is instant.
-    import('../views/the_good_shepherd/index.js').catch(() => {});
-
     // ── Wellspring guard — run in background, don't block first paint.
-    //    If local mode is active but has no imported data, disable it so
-    //    all calls reach the live GAS backend (Google Sheets).
     _guardWellspring().catch(() => {});
 
     await go(_initialRoute(), { replace: true });
@@ -113,6 +113,36 @@ function _initialRoute() {
   const params = new URLSearchParams(location.search);
   const v = params.get('view');
   return v && v.trim() ? v.trim() : 'the_good_shepherd';
+}
+
+/* ── Home data pre-warm ──────────────────────────────────────────────────── */
+async function _warmHomeData() {
+  try {
+    const [{ draw, write: mannaPut }, { read, write: cisternPut }] = await Promise.all([
+      import('./the_manna.js'),
+      import('./the_cistern.js'),
+    ]);
+    const TTL = 5 * 60_000; // 5 minutes — survive tab switches
+    const KEYS = [
+      { key: 'shepherd:fellowship', mod: './the_upper_room/index.js', fn: 'unreadTotal' },
+      { key: 'shepherd:care',       mod: './the_life/index.js',       fn: 'pendingCount' },
+      { key: 'shepherd:today',      mod: './the_seasons/index.js',    fn: 'todayCount' },
+      { key: 'shepherd:feed',       mod: './the_comms.js',            fn: 'summary' },
+    ];
+    await Promise.all(KEYS.map(async ({ key, mod, fn }) => {
+      // Serve stale from Cistern immediately so first render is instant.
+      try {
+        const stale = await read('manna:' + key);
+        if (stale !== undefined) mannaPut(key, stale, { ttl: 500 }); // expires fast so fresh replaces it
+      } catch (_) {}
+      // Kick off the live fetch; persist result to Cistern for next load.
+      try {
+        const m = await import(mod);
+        const value = await draw(key, () => m[fn](), { ttl: TTL });
+        cisternPut('manna:' + key, value).catch(() => {});
+      } catch (_) {}
+    }));
+  } catch (_) {}
 }
 
 /* ── Wellspring guard ─────────────────────────────────────────────────────── */

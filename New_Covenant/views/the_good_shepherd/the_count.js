@@ -36,7 +36,7 @@ export function mountCount(host, kind) {
   const meta = COPY[kind] || { caption: '', empty: 'Nothing yet.' };
   let cancelled = false;
 
-  draw(`shepherd:${kind}`, () => _fetch(kind), { ttl: 30_000 })
+  draw(`shepherd:${kind}`, () => _fetch(kind), { ttl: 5 * 60_000 })
     .then((n) => {
       if (cancelled || !host.isConnected) return;
       const num = (typeof n === 'number' && Number.isFinite(n)) ? n : null;
