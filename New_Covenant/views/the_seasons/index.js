@@ -78,7 +78,7 @@ export function render() {
 }
 
 export function mount(root) {
-  // Type filter chips
+  // Type filter chips (for both demo and live cards)
   root.querySelectorAll('[data-type-filter]').forEach((btn) => {
     btn.addEventListener('click', () => {
       const type = btn.dataset.typeFilter;
@@ -87,7 +87,120 @@ export function mount(root) {
       });
     });
   });
+
+  _loadEvents(root);
   return () => {};
+}
+
+async function _loadEvents(root) {
+  const V = window.TheVine;
+  if (!V) return;
+  const listEl = root.querySelector('.seasons-list');
+  const calCol = root.querySelector('.seasons-calendar-col');
+  if (!listEl) return;
+
+  listEl.innerHTML = '<div style="padding:32px;text-align:center;color:var(--ink-muted,#7a7f96)">Loading events…</div>';
+  try {
+    const res  = await V.flock.events.list();
+    const rows = _rows(res);
+    if (!rows.length) {
+      listEl.innerHTML = '<div style="padding:32px;text-align:center;color:var(--ink-muted,#7a7f96)">No upcoming events found.</div>';
+      return;
+    }
+    const now = new Date(); now.setHours(0,0,0,0);
+    const upcoming = rows
+      .map((ev) => ({ ...ev, _date: new Date(ev.startDate || ev.date || ev.createdAt) }))
+      .filter((ev) => ev._date >= now)
+      .sort((a, b) => a._date - b._date);
+
+    listEl.innerHTML = upcoming.length
+      ? upcoming.map(_liveEventCard).join('')
+      : '<div style="padding:32px;text-align:center;color:var(--ink-muted,#7a7f96)">No upcoming events.</div>';
+
+    // Rebuild mini-calendars from live event dates
+    if (calCol) {
+      const eventDates = upcoming.map((ev) => ev._date);
+      const months = _uniqueMonths(eventDates, 2);
+      calCol.innerHTML = months.map(([y, m]) => _miniCalendarLive(y, m, eventDates)).join('');
+    }
+  } catch (_) {
+    listEl.innerHTML = '<div style="padding:32px;text-align:center;color:var(--ink-muted,#7a7f96)">Could not load events right now.</div>';
+  }
+}
+
+function _rows(res) {
+  if (Array.isArray(res)) return res;
+  if (res && Array.isArray(res.rows)) return res.rows;
+  if (res && Array.isArray(res.data)) return res.data;
+  return [];
+}
+
+function _uniqueMonths(dates, limit = 2) {
+  const seen = new Set();
+  const now  = new Date();
+  // Always include current month
+  seen.add(`${now.getFullYear()}-${now.getMonth()}`);
+  for (const d of dates) {
+    seen.add(`${d.getFullYear()}-${d.getMonth()}`);
+    if (seen.size >= limit) break;
+  }
+  return [...seen].slice(0, limit).map((k) => k.split('-').map(Number));
+}
+
+function _liveEventCard(ev) {
+  const d     = ev._date;
+  const title = ev.title || ev.name || 'Event';
+  const type  = (ev.type || ev.category || 'service').toLowerCase();
+  const time  = ev.startTime || ev.time || '';
+  const loc   = ev.location  || ev.loc  || '';
+  const rsvp  = ev.rsvpCount || ev.attendees || 0;
+  const meta  = TYPE_META[type] || TYPE_META.service;
+  const now   = new Date(); now.setHours(0,0,0,0);
+  const isToday = d.toDateString() === now.toDateString();
+  const rsvpStr = rsvp > 0 ? `<span class="seasons-rsvp">${rsvp} attending</span>` : '';
+
+  return /* html */`
+    <article class="seasons-card${isToday ? ' is-today' : ''}" data-type="${_e(type)}" tabindex="0">
+      <div class="seasons-card-date">
+        <div class="seasons-card-day">${d.getDate()}</div>
+        <div class="seasons-card-mon">${MONTHS[d.getMonth()].slice(0,3).toUpperCase()}</div>
+      </div>
+      <div class="seasons-card-body">
+        <div class="seasons-card-title">${_e(title)}</div>
+        <div class="seasons-card-meta">
+          <span class="seasons-type-badge" style="color:${meta.color}; background:${meta.bg}">${meta.label}</span>
+          ${time ? `<span class="seasons-time">${_e(time)}</span>` : ''}
+          ${loc  ? `<span class="seasons-loc"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 13-8 13s-8-7-8-13a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>${_e(loc)}</span>` : ''}
+          ${rsvpStr}
+        </div>
+      </div>
+      ${isToday ? '<div class="seasons-today-dot"></div>' : ''}
+    </article>`;
+}
+
+function _miniCalendarLive(year, month, eventDates) {
+  const label     = `${MONTHS[month]} ${year}`;
+  const firstDay  = new Date(year, month, 1).getDay();
+  const daysInMo  = new Date(year, month + 1, 0).getDate();
+  const eventDaySet = new Set(
+    eventDates.filter((d) => d.getFullYear() === year && d.getMonth() === month).map((d) => d.getDate())
+  );
+  const now = new Date();
+  let cells = '';
+  for (let i = 0; i < firstDay; i++) cells += '<div class="cal-empty"></div>';
+  for (let d = 1; d <= daysInMo; d++) {
+    const isToday = year === now.getFullYear() && month === now.getMonth() && d === now.getDate();
+    const hasEv   = eventDaySet.has(d);
+    cells += `<div class="cal-day${isToday ? ' cal-today' : ''}${hasEv ? ' cal-has-event' : ''}">${d}</div>`;
+  }
+  return /* html */`
+    <div class="mini-cal">
+      <div class="mini-cal-header">${label}</div>
+      <div class="mini-cal-grid">
+        ${DAYS.map(d => `<div class="cal-label">${d}</div>`).join('')}
+        ${cells}
+      </div>
+    </div>`;
 }
 
 // ── Builders ─────────────────────────────────────────────────────────────────

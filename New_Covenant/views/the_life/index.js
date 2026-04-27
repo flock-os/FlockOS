@@ -92,26 +92,125 @@ export function render() {
 }
 
 export function mount(root) {
-  root.querySelectorAll('[data-life-filter]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      root.querySelectorAll('[data-life-filter]').forEach(b => b.classList.remove('is-active'));
-      btn.classList.add('is-active');
-      const f = btn.dataset.lifeFilter;
-      root.querySelectorAll('.life-card').forEach((card) => {
-        const show = f === 'all' || card.dataset.type === f || card.dataset.priority === f;
-        card.style.display = show ? '' : 'none';
+  function _wireFilters() {
+    root.querySelectorAll('[data-life-filter]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        root.querySelectorAll('[data-life-filter]').forEach(b => b.classList.remove('is-active'));
+        btn.classList.add('is-active');
+        const f = btn.dataset.lifeFilter;
+        root.querySelectorAll('.life-card').forEach((card) => {
+          const show = f === 'all' || card.dataset.type === f || card.dataset.priority === f;
+          card.style.display = show ? '' : 'none';
+        });
       });
     });
-  });
-
-  root.querySelectorAll('[data-care-complete]').forEach((btn) => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const card = btn.closest('.life-card');
-      if (card) { card.style.opacity = '0.4'; card.style.pointerEvents = 'none'; }
+  }
+  function _wireComplete() {
+    root.querySelectorAll('[data-care-complete]').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const card = btn.closest('.life-card');
+        if (card) { card.style.opacity = '0.4'; card.style.pointerEvents = 'none'; }
+      });
     });
-  });
+  }
+  _wireFilters();
+  _wireComplete();
+
+  _loadCare(root).then(() => { _wireFilters(); _wireComplete(); });
   return () => {};
+}
+
+async function _loadCare(root) {
+  const V = window.TheVine;
+  if (!V) return;
+  const queue = root.querySelector('[data-bind="queue"]');
+  if (!queue) return;
+  queue.innerHTML = '<div style="padding:32px;text-align:center;color:var(--ink-muted,#7a7f96)">Loading care queue…</div>';
+  try {
+    const res  = await V.flock.care.list({ status: 'Active' });
+    const rows = _rows(res);
+    if (!rows.length) {
+      queue.innerHTML = '<div style="padding:32px;text-align:center;color:var(--ink-muted,#7a7f96)">No active care cases. Quiet is good.</div>';
+      _updateStats(root, []);
+      return;
+    }
+    queue.innerHTML = rows.map(_liveCareCard).join('');
+    _updateStats(root, rows);
+  } catch (_) {
+    queue.innerHTML = '<div style="padding:32px;text-align:center;color:var(--ink-muted,#7a7f96)">Could not load care queue right now.</div>';
+  }
+}
+
+function _rows(res) {
+  if (Array.isArray(res)) return res;
+  if (res && Array.isArray(res.rows)) return res.rows;
+  if (res && Array.isArray(res.data)) return res.data;
+  return [];
+}
+
+function _updateStats(root, rows) {
+  const urgent = rows.filter(r => (r.priority || '').toLowerCase() === 'urgent').length;
+  const high   = rows.filter(r => (r.priority || '').toLowerCase() === 'high').length;
+  const normal = rows.length - urgent - high;
+  const q = (sel) => root.querySelector(sel);
+  const urgentEl = q('.life-stat--urgent .life-stat-n');
+  const highEl   = q('.life-stat--high .life-stat-n');
+  const normalEl = q('.life-stat--normal .life-stat-n');
+  const totalEl  = q('.life-stat--total .life-stat-n');
+  if (urgentEl) urgentEl.textContent = urgent;
+  if (highEl)   highEl.textContent   = high;
+  if (normalEl) normalEl.textContent = normal;
+  if (totalEl)  totalEl.textContent  = rows.length;
+}
+
+function _liveCareCard(c) {
+  const priority = (c.priority || 'normal').toLowerCase();
+  const type     = (c.caseType || c.type || 'followup').toLowerCase();
+  const name     = c.memberName || c.name || 'Unknown';
+  const assignee = c.assignedTo || c.assignee || 'Unassigned';
+  const note     = c.description || c.note || '';
+  const p        = PRIORITY[priority]  || PRIORITY.normal;
+  const t        = CARE_TYPES[type]    || { icon: '·', label: type };
+  const unassigned = !assignee || assignee === 'Unassigned';
+  const ts       = c.updatedAt || c.createdAt;
+  const daysStr  = ts ? _daysAgo(ts) : '';
+  const cid      = _e(String(c.id || c.caseId || ''));
+
+  return /* html */`
+    <article class="life-card" data-type="${_e(type)}" data-priority="${_e(priority)}" tabindex="0">
+      <div class="life-card-icon">${t.icon}</div>
+      <div class="life-card-body">
+        <div class="life-card-top">
+          <span class="life-card-name">${_e(name)}</span>
+          <span class="life-priority-badge" style="color:${p.color}; background:${p.bg}">${p.label}</span>
+          <span class="life-type-badge">${t.label}</span>
+        </div>
+        <div class="life-card-note">${_e(note)}</div>
+        <div class="life-card-foot">
+          <span class="life-assignee${unassigned ? ' life-assignee--empty' : ''}">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            ${_e(assignee)}
+          </span>
+          ${daysStr ? `<span class="life-days">${daysStr}</span>` : ''}
+        </div>
+      </div>
+      <div class="life-card-actions">
+        <button class="life-action-btn" title="Mark complete" data-care-complete="${cid}" aria-label="Complete">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </button>
+        <button class="life-action-btn" title="Add note" aria-label="Note">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg>
+        </button>
+      </div>
+    </article>`;
+}
+
+function _daysAgo(ts) {
+  const delta = Math.floor((Date.now() - new Date(ts).getTime()) / 86_400_000);
+  if (delta <= 0) return 'Today';
+  if (delta === 1) return 'Yesterday';
+  return `${delta}d ago`;
 }
 
 function _careCard(c) {

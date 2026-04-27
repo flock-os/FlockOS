@@ -74,17 +74,126 @@ export function render() {
 }
 
 export function mount(root) {
-  root.querySelectorAll('[data-truth-filter]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      root.querySelectorAll('[data-truth-filter]').forEach(b => b.classList.remove('is-active'));
-      btn.classList.add('is-active');
-      const f = btn.dataset.truthFilter;
-      root.querySelectorAll('.truth-msg-row').forEach((row) => {
-        row.style.display = (f === 'all' || row.dataset.type === f) ? '' : 'none';
+  // Filter wiring (works for demo and live rows)
+  function _wireFilters() {
+    root.querySelectorAll('[data-truth-filter]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        root.querySelectorAll('[data-truth-filter]').forEach(b => b.classList.remove('is-active'));
+        btn.classList.add('is-active');
+        const f = btn.dataset.truthFilter;
+        root.querySelectorAll('.truth-msg-row').forEach((row) => {
+          row.style.display = (f === 'all' || row.dataset.type === f) ? '' : 'none';
+        });
       });
     });
-  });
+  }
+  _wireFilters();
+
+  _loadTruth(root).then(() => _wireFilters());
   return () => {};
+}
+
+async function _loadTruth(root) {
+  const V = window.TheVine;
+  if (!V) return;
+
+  // Sermon series
+  const seriesEl = root.querySelector('.truth-series-grid');
+  if (seriesEl) {
+    seriesEl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Loading series…</div>';
+    try {
+      const res  = await V.flock.sermonSeries.list();
+      const rows = _rows(res);
+      seriesEl.innerHTML = rows.length
+        ? rows.map(_liveSeriesCard).join('')
+        : '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">No sermon series on file.</div>';
+    } catch (_) {
+      seriesEl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Content library unavailable.</div>';
+    }
+  }
+
+  // Recent sermons/messages
+  const msgsEl = root.querySelector('.truth-messages');
+  if (msgsEl) {
+    msgsEl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Loading messages…</div>';
+    try {
+      const res  = await V.flock.sermons.list();
+      const rows = _rows(res);
+      msgsEl.innerHTML = rows.length
+        ? rows.map(_liveMsgRow).join('')
+        : '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">No messages on file.</div>';
+    } catch (_) {
+      msgsEl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Messages unavailable.</div>';
+    }
+  }
+}
+
+function _rows(res) {
+  if (Array.isArray(res)) return res;
+  if (res && Array.isArray(res.rows)) return res.rows;
+  if (res && Array.isArray(res.data)) return res.data;
+  return [];
+}
+
+const _COVER_COLORS = ['#7c3aed','#0ea5e9','#059669','#e8a838','#db2777','#c05818','#6366f1'];
+const _SERIES_ICONS = ['🌿','🛡️','💧','👑','🕊️','🔥','✝️'];
+
+function _liveSeriesCard(s, i) {
+  const title    = s.title || s.name || 'Series';
+  const speaker  = s.speaker || s.preacher || s.author || '';
+  const desc     = s.description || s.desc || '';
+  const episodes = s.episodeCount || s.messageCount || s.count || 0;
+  const current  = !!(s.current || (s.status || '').toLowerCase() === 'active');
+  const color    = _COVER_COLORS[i % _COVER_COLORS.length];
+  const icon     = _SERIES_ICONS[i % _SERIES_ICONS.length];
+  return /* html */`
+    <article class="truth-series-card${current ? ' truth-series--current' : ''}" tabindex="0">
+      <div class="truth-series-cover" style="background:${color}">${icon}</div>
+      <div class="truth-series-body">
+        <div class="truth-series-title">${_e(title)}</div>
+        ${speaker ? `<div class="truth-series-speaker">${_e(speaker)}</div>` : ''}
+        ${desc    ? `<div class="truth-series-desc">${_e(desc)}</div>` : ''}
+        <div class="truth-series-foot">
+          ${episodes ? `<span class="truth-episode-count">${episodes} messages</span>` : ''}
+          ${current  ? '<span class="truth-current-badge">Current</span>' : ''}
+        </div>
+      </div>
+    </article>`;
+}
+
+function _liveMsgRow(m) {
+  const title    = m.title || m.name || 'Message';
+  const type     = (m.type || m.messageType || 'sermon').toLowerCase();
+  const speaker  = m.speaker || m.preacher || m.author || '';
+  const date     = m.deliveredDate || m.date || m.createdAt ? _fmtDate(m.deliveredDate || m.date || m.createdAt) : '';
+  const duration = m.duration || '';
+  const views    = m.playCount || m.views || m.viewCount || 0;
+  const meta     = TYPE_META[type] || TYPE_META.sermon;
+  return /* html */`
+    <article class="truth-msg-row" data-type="${_e(type)}" tabindex="0">
+      <div class="truth-msg-play">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+      </div>
+      <div class="truth-msg-body">
+        <div class="truth-msg-title">${_e(title)}</div>
+        <div class="truth-msg-meta">
+          <span class="truth-type-badge" style="color:${meta.color}; background:${meta.bg}">${meta.label}</span>
+          ${speaker  ? `<span>${_e(speaker)}</span><span>·</span>` : ''}
+          ${date     ? `<span>${_e(date)}</span>` : ''}
+          ${duration ? `<span>·</span><span>${_e(duration)}</span>` : ''}
+        </div>
+      </div>
+      ${views ? `<div class="truth-msg-views">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        ${views}
+      </div>` : ''}
+    </article>`;
+}
+
+function _fmtDate(ts) {
+  if (!ts) return '';
+  try { return new Date(ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }); }
+  catch (_) { return String(ts); }
 }
 
 function _seriesCard(s) {

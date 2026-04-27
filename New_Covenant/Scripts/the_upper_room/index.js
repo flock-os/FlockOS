@@ -40,4 +40,10 @@ export {
 
 /* Convenience scalars retained for one-line call sites. */
 export const churchId    = () => tenant.churchId();
-export const unreadTotal = (...a) => callWhen(NAME, 'unreadTotal', ...a);
+export async function unreadTotal() {
+  const OR = window.UpperRoom;
+  if (OR && typeof OR.getUnreadCount === 'function') {
+    try { return await OR.getUnreadCount(); } catch (_) {}
+  }
+  return 0;
+}

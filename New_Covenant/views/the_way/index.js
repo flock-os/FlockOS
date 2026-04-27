@@ -73,7 +73,106 @@ export function render() {
   `;
 }
 
-export function mount() { return () => {}; }
+export function mount(root) {
+  _loadWay(root);
+  return () => {};
+}
+
+async function _loadWay(root) {
+  const V = window.TheVine;
+  if (!V) return;
+
+  // Discipleship tracks
+  const tracksEl = root.querySelector('.way-tracks');
+  if (tracksEl) {
+    tracksEl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Loading tracks…</div>';
+    try {
+      const res  = await V.flock.discipleship.paths.list({ status: 'Published' });
+      const rows = _rows(res);
+      tracksEl.innerHTML = rows.length
+        ? rows.map(_liveTrackCard).join('')
+        : '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">No discipleship tracks found.</div>';
+    } catch (_) {
+      tracksEl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Discipleship data unavailable.</div>';
+    }
+  }
+
+  // Small groups
+  const groupsEl = root.querySelector('.way-groups');
+  if (groupsEl) {
+    groupsEl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Loading groups…</div>';
+    try {
+      const res  = await V.flock.groups.list();
+      const rows = _rows(res);
+      groupsEl.innerHTML = rows.length
+        ? rows.map(_liveGroupRow).join('')
+        : '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">No small groups found.</div>';
+    } catch (_) {
+      groupsEl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Small groups data unavailable.</div>';
+    }
+  }
+}
+
+function _rows(res) {
+  if (Array.isArray(res)) return res;
+  if (res && Array.isArray(res.rows)) return res.rows;
+  if (res && Array.isArray(res.data)) return res.data;
+  return [];
+}
+
+const _TRACK_COLORS = ['#059669','#0ea5e9','#7c3aed','#e8a838','#db2777','#c05818'];
+
+function _liveTrackCard(t, i) {
+  const title    = t.title || t.name || 'Track';
+  const stage    = t.stage || t.level || t.category || '';
+  const desc     = t.description || t.desc || '';
+  const lessons  = t.lessonCount   || t.stepCount    || 0;
+  const enrolled = t.enrolledCount || t.enrollmentCount || t.enrolled || 0;
+  const complete = t.completedCount || t.completionCount || t.complete || 0;
+  const pct      = enrolled ? Math.round((complete / enrolled) * 100) : 0;
+  const color    = _TRACK_COLORS[i % _TRACK_COLORS.length];
+  return /* html */`
+    <article class="way-track-card" tabindex="0">
+      <div class="way-track-stripe" style="background:${color}"></div>
+      <div class="way-track-body">
+        ${stage ? `<div class="way-track-stage" style="color:${color}">${_e(stage)}</div>` : ''}
+        <div class="way-track-title">${_e(title)}</div>
+        ${desc ? `<div class="way-track-desc">${_e(desc)}</div>` : ''}
+        <div class="way-track-meta">
+          ${lessons  ? `<span>${lessons} lessons</span>` : ''}
+          ${enrolled ? `<span>${enrolled} enrolled</span>` : ''}
+        </div>
+        ${enrolled ? `
+        <div class="way-progress-bar">
+          <div class="way-progress-fill" style="width:${pct}%; background:${color}"></div>
+        </div>
+        <div class="way-progress-label">${complete}/${enrolled} completed (${pct}%)</div>` : ''}
+      </div>
+    </article>`;
+}
+
+function _liveGroupRow(g) {
+  const name     = g.name || 'Small Group';
+  const leader   = g.leader || g.leaderName || '';
+  const members  = g.memberCount || g.members || '';
+  const day      = g.meetingDay  || g.day || '';
+  const time     = g.meetingTime || g.time || '';
+  const type     = g.type || g.groupType || 'Small Group';
+  const initials = leader.split(/\s+/).map(w => w[0] || '').slice(0,2).join('').toUpperCase();
+  return /* html */`
+    <article class="way-group-row" tabindex="0">
+      <div class="way-group-avatar">${initials || '?'}</div>
+      <div class="way-group-body">
+        <div class="way-group-name">${_e(name)}</div>
+        <div class="way-group-meta">
+          <span>${_e(type)}</span>
+          ${(day || time) ? `<span>·</span><span>${_e([day && day + 's', time].filter(Boolean).join(' '))}</span>` : ''}
+          ${members ? `<span>·</span><span>${members} members</span>` : ''}
+        </div>
+      </div>
+      ${leader ? `<div class="way-group-leader">Led by ${_e(leader)}</div>` : ''}
+    </article>`;
+}
 
 function _trackCard(t) {
   const pct = Math.round((t.complete / t.enrolled) * 100);

@@ -70,14 +70,84 @@ export function mount(root) {
     });
   }
 
-  // Member card click → open detail (stub)
-  root.querySelectorAll('.fold-card').forEach((card) => {
-    card.addEventListener('click', () => {
-      // TODO: open person detail sheet
-    });
-  });
+  // Load live members — replaces demo grid when backend is ready
+  _loadMembers(root);
 
   return () => {};
+}
+
+async function _loadMembers(root) {
+  const V = window.TheVine;
+  if (!V) return;
+  const grid  = root.querySelector('[data-bind="members"]');
+  const stats = root.querySelector('[data-bind="stats"]');
+  if (!grid) return;
+  grid.innerHTML = '<div style="padding:32px;text-align:center;color:var(--ink-muted,#7a7f96)">Loading members…</div>';
+  try {
+    const res  = await V.flock.members.list({ status: 'active' });
+    const rows = _rows(res);
+    if (!rows.length) {
+      grid.innerHTML = '<div style="padding:32px;text-align:center;color:var(--ink-muted,#7a7f96)">No members found.</div>';
+      return;
+    }
+    grid.innerHTML = rows.map(_liveCard).join('');
+    if (stats) stats.innerHTML = _liveStats(rows);
+    // Re-wire card clicks on live cards
+    grid.querySelectorAll('.fold-card').forEach((card) => {
+      card.addEventListener('click', () => { /* TODO: open person detail sheet */ });
+    });
+  } catch (_) {
+    grid.innerHTML = '<div style="padding:32px;text-align:center;color:var(--ink-muted,#7a7f96)">Could not load members right now.</div>';
+  }
+}
+
+function _rows(res) {
+  if (Array.isArray(res)) return res;
+  if (res && Array.isArray(res.rows)) return res.rows;
+  if (res && Array.isArray(res.data)) return res.data;
+  return [];
+}
+
+const _AVATAR_COLORS = ['#7c3aed','#0ea5e9','#059669','#c05818','#db2777','#6366f1','#0891b2','#b45309','#be185d','#4f46e5'];
+
+function _liveCard(p) {
+  const first    = p.firstName || '';
+  const last     = p.lastName  || '';
+  const name     = p.displayName || p.name || `${first} ${last}`.trim() || 'Unknown';
+  const role     = (p.role || p.memberType || 'member').toLowerCase();
+  const initials = (first ? first[0] : (name[0] || '')) + (last ? last[0] : (name[1] || ''));
+  const yr       = p.joinDate ? new Date(p.joinDate).getFullYear() : (p.createdAt ? new Date(p.createdAt).getFullYear() : '');
+  const color    = _AVATAR_COLORS[(name.charCodeAt(0) + (name.charCodeAt(1) || 0)) % _AVATAR_COLORS.length];
+  return `
+    <article class="fold-card" role="listitem" tabindex="0"
+             data-name="${_e(name.toLowerCase())}" data-role="${_e(role)}">
+      <div class="fold-avatar" style="background:${color}">${_e(initials.toUpperCase().slice(0,2))}</div>
+      <div class="fold-card-body">
+        <div class="fold-name">${_e(name)}</div>
+        <div class="fold-meta">
+          <span class="fold-role-badge fold-role-${_e(role)}">${_e(role)}</span>
+          ${yr ? `<span class="fold-joined">Since ${yr}</span>` : ''}
+        </div>
+      </div>
+      <svg class="fold-card-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="m9 18 6-6-6-6"/></svg>
+    </article>`;
+}
+
+function _liveStats(rows) {
+  const total    = rows.length;
+  const leaders  = rows.filter(r => ['leader','elder','deacon','pastor','admin'].includes((r.role || r.memberType || '').toLowerCase())).length;
+  const visitors = rows.filter(r => (r.role || r.memberType || '').toLowerCase() === 'visitor').length;
+  const members  = total - leaders - visitors;
+  return [
+    { label: 'Total',    n: total,    color: 'var(--c-violet)' },
+    { label: 'Members',  n: members,  color: 'var(--c-sky)' },
+    { label: 'Visitors', n: visitors, color: 'var(--c-emerald)' },
+    { label: 'Leaders',  n: leaders,  color: 'var(--gold)' },
+  ].map((s) => `
+    <div class="fold-stat-chip">
+      <span class="fold-stat-dot" style="background:${s.color}"></span>
+      <strong>${s.n}</strong> <span>${s.label}</span>
+    </div>`).join('');
 }
 
 function _applyFilter(root, filter) {

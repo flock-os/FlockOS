@@ -76,7 +76,107 @@ export function render() {
   `;
 }
 
-export function mount() { return () => {}; }
+export function mount(root) {
+  _loadHarvest(root);
+  return () => {};
+}
+
+async function _loadHarvest(root) {
+  const V = window.TheVine;
+  if (!V) return;
+
+  // Missionaries
+  const missionEl = root.querySelector('.harvest-missionaries');
+  if (missionEl) {
+    missionEl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Loading missionaries…</div>';
+    try {
+      const res  = await V.missions.registry.list();
+      const rows = _rows(res);
+      missionEl.innerHTML = rows.length
+        ? rows.map(_liveMissionCard).join('')
+        : '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">No supported missionaries on file.</div>';
+    } catch (_) {
+      missionEl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Missions data unavailable.</div>';
+    }
+  }
+
+  // Local outreach
+  const outreachEl = root.querySelector('.harvest-outreach');
+  if (outreachEl) {
+    outreachEl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Loading outreach…</div>';
+    try {
+      const res  = await V.flock.events.list({ type: 'outreach' });
+      const rows = _rows(res);
+      outreachEl.innerHTML = rows.length
+        ? rows.map(_liveOutreachRow).join('')
+        : '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">No outreach events on file.</div>';
+    } catch (_) {
+      outreachEl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Outreach data unavailable.</div>';
+    }
+  }
+}
+
+function _rows(res) {
+  if (Array.isArray(res)) return res;
+  if (res && Array.isArray(res.rows)) return res.rows;
+  if (res && Array.isArray(res.data)) return res.data;
+  return [];
+}
+
+function _liveMissionCard(m) {
+  const name    = m.missionaryName || m.name || 'Missionary';
+  const region  = m.region || m.country || '';
+  const org     = m.organization || m.org || '';
+  const giving  = Number(m.monthlyGiving || m.monthlySupport || m.giving || 0);
+  const goal    = Number(m.monthlyGoal   || m.goal || giving || 1);
+  const pct     = Math.min(100, Math.round((giving / goal) * 100));
+  const needs   = giving < goal;
+  const initials = name.split(/[&\s]+/).filter(Boolean).map(w => w[0] || '').slice(0,2).join('').toUpperCase();
+  return /* html */`
+    <article class="harvest-mission-card${needs ? ' harvest-mission--needs' : ''}">
+      <div class="harvest-mission-avatar">${initials}</div>
+      <div class="harvest-mission-body">
+        <div class="harvest-mission-name">${_e(name)}</div>
+        <div class="harvest-mission-meta">
+          ${region ? `<span>${_e(region)}</span><span>·</span>` : ''}
+          ${org    ? `<span>${_e(org)}</span>` : ''}
+        </div>
+        <div class="harvest-giving-bar">
+          <div class="harvest-giving-fill" style="width:${pct}%"></div>
+        </div>
+        <div class="harvest-giving-label">$${giving}/mo of $${goal}/mo goal (${pct}%)</div>
+      </div>
+      ${needs ? '<div class="harvest-needs-badge">Needs Support</div>' : ''}
+    </article>`;
+}
+
+function _liveOutreachRow(o) {
+  const title   = o.title || o.name || 'Outreach Event';
+  const date    = o.startDate || o.date ? _fmtDate(o.startDate || o.date) : '';
+  const team    = o.teamSize || o.volunteers || '';
+  const status  = (o.status || 'upcoming').toLowerCase();
+  const contacts = o.contacts || o.rsvpCount || '';
+  const statusColor = status === 'complete' ? '#059669' : status === 'active' ? '#0ea5e9' : '#e8a838';
+  const statusBg    = status === 'complete' ? 'rgba(5,150,105,0.10)' : status === 'active' ? 'rgba(14,165,233,0.10)' : 'rgba(232,168,56,0.13)';
+  return /* html */`
+    <article class="harvest-outreach-row" tabindex="0">
+      <div class="harvest-outreach-body">
+        <div class="harvest-outreach-title">${_e(title)}</div>
+        <div class="harvest-outreach-meta">
+          ${date ? `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg> ${_e(date)}` : ''}
+          ${team ? `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" style="margin-left:8px"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg> ${_e(String(team))} team` : ''}
+          ${contacts ? `<span style="margin-left:8px; color:var(--ink-muted)">${_e(String(contacts))}</span>` : ''}
+        </div>
+      </div>
+      <span class="harvest-outreach-status" style="color:${statusColor}; background:${statusBg}">${status}</span>
+    </article>`;
+}
+
+function _fmtDate(ts) {
+  if (!ts) return '';
+  try { return new Date(ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }); }
+  catch (_) { return String(ts); }
+}
 
 function _missionCard(m) {
   const pct  = Math.min(100, Math.round((m.giving / m.goal) * 100));
