@@ -661,7 +661,28 @@ flock-tabs [role="tablist"], .tabs-bar {
   width: 64px; height: 64px;
   margin: 0 auto 16px;
   object-fit: contain;
-  filter: drop-shadow(0 0 18px rgba(232,168,56,0.50));
+  filter:
+    drop-shadow(0 0 12px rgba(255,210,74,0.80))
+    drop-shadow(0 0 32px rgba(232,136,32,0.55))
+    drop-shadow(0 0 60px rgba(192,80,20,0.30));
+  animation: garments-flicker 2s ease-in-out infinite;
+}
+@keyframes garments-flicker {
+  0%,100% { filter:
+    drop-shadow(0 0 12px rgba(255,210,74,0.80))
+    drop-shadow(0 0 32px rgba(232,136,32,0.55))
+    drop-shadow(0 0 60px rgba(192,80,20,0.30)); }
+  30%     { filter:
+    drop-shadow(0 0 18px rgba(255,225,90,0.95))
+    drop-shadow(0 0 44px rgba(232,136,32,0.70))
+    drop-shadow(0 0 80px rgba(192,80,20,0.40)); }
+  60%     { filter:
+    drop-shadow(0 0 10px rgba(255,200,60,0.70))
+    drop-shadow(0 0 26px rgba(232,136,32,0.45))
+    drop-shadow(0 0 50px rgba(192,80,20,0.22)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .garments-logo { animation: none; }
 }
 
 /* Brand name */
