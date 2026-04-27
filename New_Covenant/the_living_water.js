@@ -5,33 +5,37 @@
 
    Strategy:
    • APP SHELL   → Cache-first, background refresh (fast loads)
-   • NAVIGATION  → Network-first, offline fallback to cached /index.html
+   • NAVIGATION  → Network-first, offline fallback to cached index.html
    • FONTS       → Cache-first (immutable after first fetch)
    • PUSH        → Show notification; click → focus or open app
    ══════════════════════════════════════════════════════════════════════════════ */
 
-const CACHE_NAME = 'flockos-new-covenant-v1';
+const CACHE_NAME = 'flockos-new-covenant-v2';
+
+/* Derive base path from SW location (works at root or any subpath) */
+const SW_BASE = self.location.pathname.replace(/\/[^\/]+$/, '/');
+// e.g. '/FlockOS/New_Covenant/' on GitHub Pages, or '/' at Firebase root
 
 /* App shell — these files are cached on SW install */
 const APP_SHELL = [
-  '/',
-  '/index.html',
-  '/Styles/new_covenant.css',
-  '/Scripts/the_ark.js',
-  '/Scripts/the_adornment.js',
-  '/Scripts/the_lampstand.js',
-  '/Scripts/the_oil.js',
-  '/Scripts/the_watchmen.js',
-  '/Scripts/the_living_water_register.js',
-  '/Scripts/the_veil/index.js',
-  '/Scripts/the_veil/the_crown.js',
-  '/Scripts/the_veil/the_pillars.js',
-  '/Scripts/the_veil/the_hem.js',
-  '/Scripts/the_veil/the_courtyard.js',
-  '/Scripts/the_scribes/index.js',
-  '/Scripts/the_priesthood/index.js',
-  '/Images/NewCovenant.png',
-  '/manifest.json',
+  SW_BASE,
+  SW_BASE + 'index.html',
+  SW_BASE + 'Styles/new_covenant.css',
+  SW_BASE + 'Scripts/the_ark.js',
+  SW_BASE + 'Scripts/the_adornment.js',
+  SW_BASE + 'Scripts/the_lampstand.js',
+  SW_BASE + 'Scripts/the_oil.js',
+  SW_BASE + 'Scripts/the_watchmen.js',
+  SW_BASE + 'Scripts/the_living_water_register.js',
+  SW_BASE + 'Scripts/the_veil/index.js',
+  SW_BASE + 'Scripts/the_veil/the_crown.js',
+  SW_BASE + 'Scripts/the_veil/the_pillars.js',
+  SW_BASE + 'Scripts/the_veil/the_hem.js',
+  SW_BASE + 'Scripts/the_veil/the_courtyard.js',
+  SW_BASE + 'Scripts/the_scribes/index.js',
+  SW_BASE + 'Scripts/the_priesthood/index.js',
+  SW_BASE + 'Images/NewCovenant.png',
+  SW_BASE + 'manifest.json',
 ];
 
 /* ─── Install: cache the app shell ─────────────────────────────────────────── */
@@ -152,8 +156,8 @@ async function _networkFirstNav(request) {
     return fresh;
   } catch (_) {
     const cached = await caches.match(request) ||
-                   await caches.match('/index.html') ||
-                   await caches.match('/');
+                   await caches.match(SW_BASE + 'index.html') ||
+                   await caches.match(SW_BASE);
     if (cached) return cached;
     return new Response(
       '<!DOCTYPE html><html><body style="font-family:sans-serif;padding:2rem">' +

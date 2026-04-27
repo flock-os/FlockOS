@@ -2,8 +2,8 @@
   "name": "FlockOS",
   "short_name": "FlockOS",
   "description": "Ministry Operating System — Free. Offline-capable. Built for every church.",
-  "start_url": "/?covenant=new",
-  "scope": "/",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
   "orientation": "any",
   "background_color": "#0c1445",
@@ -30,21 +30,21 @@
       "name": "Home",
       "short_name": "Home",
       "description": "Go to the Good Shepherd dashboard",
-      "url": "/?covenant=new&view=the_good_shepherd",
+      "url": "./index.html?view=the_good_shepherd",
       "icons": [{ "src": "Images/NewCovenant.png", "sizes": "512x512" }]
     },
     {
       "name": "Fellowship",
       "short_name": "Fellowship",
       "description": "Open messaging and channels",
-      "url": "/?covenant=new&view=the_fellowship",
+      "url": "./index.html?view=the_fellowship",
       "icons": [{ "src": "Images/flockos-icon.svg", "sizes": "any" }]
     },
     {
       "name": "Pastoral Care",
       "short_name": "Care",
       "description": "Open pastoral care follow-ups",
-      "url": "/?covenant=new&view=the_life",
+      "url": "./index.html?view=the_life",
       "icons": [{ "src": "Images/flockos-icon.svg", "sizes": "any" }]
     }
   ],

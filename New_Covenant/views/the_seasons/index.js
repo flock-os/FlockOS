@@ -69,6 +69,18 @@ export function render() {
           <div class="seasons-list">
             ${upcoming.map(_eventCard).join('')}
           </div>
+
+          <!-- RSVPs -->
+          <div class="seasons-list-header" style="margin-top:32px;">
+            <h2 class="seasons-list-title">RSVPs</h2>
+            <button class="flock-btn flock-btn--primary flock-btn--sm seasons-rsvp-btn">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+              Record RSVP
+            </button>
+          </div>
+          <div data-bind="rsvps">
+            <div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Loading RSVPs…</div>
+          </div>
         </div>
 
         <!-- Right: mini calendar -->
@@ -96,8 +108,13 @@ export function mount(root) {
   const addBtn = root.querySelector('.seasons-add-btn');
   if (addBtn) addBtn.addEventListener('click', () => _openEventSheet(null, () => _loadEvents(root)));
 
+  // Record RSVP button
+  const rsvpBtn = root.querySelector('.seasons-rsvp-btn');
+  if (rsvpBtn) rsvpBtn.addEventListener('click', () => _openRsvpSheet(null, _liveEventsMap, () => _loadRsvps(root)));
+
   _loadEvents(root);
-  return () => { _closeEventSheet(); };
+  _loadRsvps(root);
+  return () => { _closeEventSheet(); _closeRsvpSheet(); };
 }
 
 async function _loadEvents(root) {
@@ -404,7 +421,6 @@ function _openEventSheet(ev, onReload) {
   const close = () => _closeEventSheet();
   sheet.querySelector('[data-cancel]').addEventListener('click', close);
   sheet.querySelector('.life-sheet-close').addEventListener('click', close);
-  sheet.querySelector('.life-sheet-overlay').addEventListener('click', close);
 
   // Save / Create
   sheet.querySelector('[data-save]').addEventListener('click', async () => {
@@ -458,6 +474,166 @@ function _openEventSheet(ev, onReload) {
     } catch (err) {
       console.error('[TheSeasons] event cancel error:', err);
       btn.disabled = false; btn.textContent = 'Cancel Event';
+    }
+  });
+}
+
+// ── RSVPs ─────────────────────────────────────────────────────────────────────
+let _activeRsvpSheet = null;
+const RSVP_RESPONSES = ['Attending', 'Maybe', 'Not Attending'];
+
+function _closeRsvpSheet() {
+  if (!_activeRsvpSheet) return;
+  const t = _activeRsvpSheet;
+  t.querySelector('.life-sheet-overlay')?.classList.remove('is-open');
+  t.querySelector('.life-sheet-panel')?.classList.remove('is-open');
+  setTimeout(() => { t.remove(); if (_activeRsvpSheet === t) _activeRsvpSheet = null; }, 320);
+}
+
+async function _loadRsvps(root) {
+  const host = root.querySelector('[data-bind="rsvps"]');
+  if (!host) return;
+  const UR = window.UpperRoom;
+  if (!UR || typeof UR.listRsvps !== 'function') {
+    host.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">RSVPs require Firestore (UpperRoom) — not available.</div>';
+    return;
+  }
+  host.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Loading RSVPs…</div>';
+  try {
+    const rows = await UR.listRsvps({ limit: 100 });
+    if (!rows || !rows.length) {
+      host.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">No RSVPs recorded yet.</div>';
+      return;
+    }
+    host.innerHTML = rows.map(r => _rsvpRow(r)).join('');
+  } catch (err) {
+    console.error('[TheSeasons] listRsvps:', err);
+    host.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Could not load RSVPs right now.</div>';
+  }
+}
+
+function _rsvpRow(r) {
+  const name     = r.memberName || r.memberId || '—';
+  const eventLbl = r.eventTitle || r.eventId  || '—';
+  const resp     = r.response || 'Attending';
+  const guests   = r.guestCount > 0 ? `+${r.guestCount} guest${r.guestCount > 1 ? 's' : ''}` : '';
+  const ts       = r.respondedAt?.seconds
+    ? new Date(r.respondedAt.seconds * 1000).toLocaleDateString()
+    : (r.respondedAt ? new Date(r.respondedAt).toLocaleDateString() : '');
+  const respC  = resp === 'Attending' ? '#059669' : resp === 'Maybe' ? '#e8a838' : '#6b7280';
+  const respBg = resp === 'Attending' ? 'rgba(5,150,105,0.10)' : resp === 'Maybe' ? 'rgba(232,168,56,0.13)' : 'rgba(107,114,128,0.10)';
+  const initials = name === '—' ? '👤' : name.split(/\s+/).map(w => w[0] || '').slice(0, 2).join('');
+
+  return /* html */`
+    <div class="gift-tx-row" style="align-items:center;">
+      <div class="gift-tx-avatar">${initials}</div>
+      <div class="gift-tx-body">
+        <div class="gift-tx-name">${_e(name)}</div>
+        <div class="gift-tx-fund">${_e(eventLbl)}${guests ? ' &bull; ' + _e(guests) : ''}</div>
+      </div>
+      <span class="gift-method-badge" style="background:${respBg};color:${respC}">${_e(resp)}</span>
+      <div class="gift-tx-date">${_e(ts)}</div>
+    </div>`;
+}
+
+function _openRsvpSheet(item, eventsMap, onSave) {
+  _closeRsvpSheet();
+  const UR    = window.UpperRoom;
+  if (!UR) return;
+  const isNew = !item;
+  // Build event list from _liveEventsMap (populated by _loadEvents)
+  const eventOptions = Object.values(eventsMap || {}).map(ev => {
+    const label = `${ev.title || ev.name || 'Event'} — ${_isoDate(ev._date || ev.startDate)}`;
+    return `<option value="${_e(String(ev.id))}"${ev.id === item?.eventId ? ' selected' : ''}>${_e(label)}</option>`;
+  });
+
+  const sheet = document.createElement('div');
+  sheet.className = 'life-sheet';
+  sheet.innerHTML = /* html */`
+    <div class="life-sheet-overlay"></div>
+    <div class="life-sheet-panel" role="dialog" aria-label="Record RSVP">
+      <div class="life-sheet-drag"></div>
+      <div class="life-sheet-hd">
+        <div class="life-sheet-hd-info"><div class="life-sheet-hd-name">Record RSVP</div></div>
+        <button class="life-sheet-close" aria-label="Close">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="life-sheet-body">
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Event <span style="color:#dc2626">*</span></div>
+          <select class="life-sheet-input" data-field="eventId">
+            <option value="">— Select event —</option>
+            ${eventOptions.join('')}
+          </select>
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Member / Attendee <span style="color:#dc2626">*</span></div>
+          <input class="life-sheet-input" data-field="memberId" type="text" value="${_e(item?.memberId || '')}" placeholder="Email or name">
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Response</div>
+          <div class="life-status-row">
+            ${RSVP_RESPONSES.map(r => `<button class="life-status-pill${r === (item?.response || 'Attending') ? ' is-active' : ''}" data-resp="${_e(r)}">${_e(r)}</button>`).join('')}
+          </div>
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Additional Guests</div>
+          <input class="life-sheet-input" data-field="guestCount" type="number" min="0" value="${item?.guestCount || 0}">
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Notes</div>
+          <textarea class="life-sheet-input" data-field="notes" rows="2" placeholder="Dietary restrictions, accessibility, etc.">${_e(item?.notes || '')}</textarea>
+        </div>
+        <div class="fold-form-error" data-error style="display:none;color:#dc2626;font-size:.85rem;margin-top:8px"></div>
+      </div>
+      <div class="life-sheet-foot">
+        <button class="flock-btn" data-cancel>Cancel</button>
+        <button class="flock-btn flock-btn--primary" data-save>Record RSVP</button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(sheet);
+  _activeRsvpSheet = sheet;
+  requestAnimationFrame(() => {
+    sheet.querySelector('.life-sheet-overlay').classList.add('is-open');
+    sheet.querySelector('.life-sheet-panel').classList.add('is-open');
+  });
+
+  sheet.querySelectorAll('[data-resp]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      sheet.querySelectorAll('[data-resp]').forEach(b => b.classList.remove('is-active'));
+      btn.classList.add('is-active');
+    });
+  });
+
+  const close = () => _closeRsvpSheet();
+  sheet.querySelector('[data-cancel]').addEventListener('click', close);
+  sheet.querySelector('.life-sheet-close').addEventListener('click', close);
+
+  sheet.querySelector('[data-save]').addEventListener('click', async () => {
+    const errEl    = sheet.querySelector('[data-error]');
+    const eventId  = sheet.querySelector('[data-field="eventId"]').value;
+    const memberId = sheet.querySelector('[data-field="memberId"]').value.trim();
+    if (!eventId)  { errEl.textContent = 'Please select an event.'; errEl.style.display = ''; return; }
+    if (!memberId) { errEl.textContent = 'Member / attendee is required.'; errEl.style.display = ''; return; }
+    errEl.style.display = 'none';
+    const btn = sheet.querySelector('[data-save]');
+    btn.disabled = true; btn.textContent = 'Saving…';
+    try {
+      await UR.rsvpEvent({
+        eventId,
+        memberId,
+        response:   sheet.querySelector('[data-resp].is-active')?.dataset.resp || 'Attending',
+        guestCount: parseInt(sheet.querySelector('[data-field="guestCount"]').value, 10) || 0,
+        notes:      sheet.querySelector('[data-field="notes"]').value.trim() || '',
+      });
+      _closeRsvpSheet();
+      if (onSave) onSave();
+    } catch (err) {
+      console.error('[TheSeasons] rsvpEvent:', err);
+      errEl.textContent = err?.message || 'Could not record RSVP.'; errEl.style.display = '';
+      btn.disabled = false; btn.textContent = 'Record RSVP';
     }
   });
 }

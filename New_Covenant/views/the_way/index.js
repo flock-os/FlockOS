@@ -61,13 +61,37 @@ export function render() {
       <!-- Small Groups -->
       <div class="way-section-header" style="margin-top:28px;">
         <h2 class="way-section-title">Small Groups</h2>
-        <button class="flock-btn flock-btn--primary">
+        <button class="flock-btn flock-btn--primary" data-new-group>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
           New Group
         </button>
       </div>
       <div class="way-groups">
         <div class="way-loading" style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Loading groups…</div>
+      </div>
+
+      <!-- Ministries -->
+      <div class="way-section-header" style="margin-top:32px;">
+        <h2 class="way-section-title">Ministries</h2>
+        <button class="flock-btn flock-btn--primary" data-new-ministry>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+          New Ministry
+        </button>
+      </div>
+      <div data-bind="ministries">
+        <div class="way-loading" style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Loading ministries…</div>
+      </div>
+
+      <!-- Volunteers -->
+      <div class="way-section-header" style="margin-top:32px;">
+        <h2 class="way-section-title">Volunteer Slots</h2>
+        <button class="flock-btn flock-btn--primary" data-new-volunteer>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+          Add Volunteer
+        </button>
+      </div>
+      <div data-bind="volunteers">
+        <div class="way-loading" style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Loading volunteers…</div>
       </div>
     </section>
   `;
@@ -82,14 +106,11 @@ let _liveGroupsMap  = {};
 export function mount(root) {
   _loadWay(root);
 
-  // New Group button (last .flock-btn--primary in header)
-  root.querySelectorAll('.flock-btn--primary').forEach(btn => {
-    if (btn.textContent.includes('New Group')) {
-      btn.addEventListener('click', () => _openGroupSheet(null, () => _loadWay(root)));
-    }
-  });
+  root.querySelector('[data-new-group]')?.addEventListener('click', () => _openGroupSheet(null, () => _loadWay(root)));
+  root.querySelector('[data-new-ministry]')?.addEventListener('click', () => _openMinistrySheet(null, () => _loadMinistries(root)));
+  root.querySelector('[data-new-volunteer]')?.addEventListener('click', () => _openVolunteerSheet(null, () => _loadVolunteers(root)));
 
-  return () => { _closeWaySheet(); };
+  return () => { _closeWaySheet(); _closeMinistrySheet(); _closeVolunteerSheet(); };
 }
 
 async function _loadWay(root) {
@@ -142,6 +163,9 @@ async function _loadWay(root) {
       groupsEl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Small groups data unavailable.</div>';
     }
   }
+
+  _loadMinistries(root);
+  _loadVolunteers(root);
 }
 
 function _rows(res) {
@@ -345,7 +369,6 @@ function _openGroupSheet(g, onReload) {
   const close = () => _closeWaySheet();
   sheet.querySelector('[data-cancel]').addEventListener('click', close);
   sheet.querySelector('.life-sheet-close').addEventListener('click', close);
-  sheet.querySelector('.life-sheet-overlay').addEventListener('click', close);
 
   sheet.querySelector('[data-save]').addEventListener('click', async () => {
     const errEl   = sheet.querySelector('[data-error]');
@@ -392,6 +415,327 @@ function _openGroupSheet(g, onReload) {
     } catch (err) {
       console.error('[TheWay] group archive error:', err);
       btn.disabled = false; btn.textContent = 'Archive Group';
+    }
+  });
+}
+
+// ── MINISTRIES ────────────────────────────────────────────────────────────────
+let _activeMinistrySheet = null;
+const MINISTRY_TYPES     = ['Worship', 'Outreach', 'Care', 'Youth', 'Children', 'Men\'s', 'Women\'s', 'Prayer', 'Missions', 'Media', 'Facilities', 'Finance', 'Other'];
+const MINISTRY_STATUSES  = ['Active', 'Inactive', 'Forming', 'Archived'];
+
+function _closeMinistrySheet() {
+  if (!_activeMinistrySheet) return;
+  const t = _activeMinistrySheet;
+  t.querySelector('.life-sheet-overlay')?.classList.remove('is-open');
+  t.querySelector('.life-sheet-panel')?.classList.remove('is-open');
+  setTimeout(() => { t.remove(); if (_activeMinistrySheet === t) _activeMinistrySheet = null; }, 320);
+}
+
+async function _loadMinistries(root) {
+  const host = root.querySelector('[data-bind="ministries"]');
+  if (!host) return;
+  const UR = window.UpperRoom;
+  if (!UR || typeof UR.listMinistries !== 'function') {
+    host.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Ministries require Firestore (UpperRoom) — not available.</div>';
+    return;
+  }
+  host.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Loading ministries…</div>';
+  try {
+    const res  = await UR.listMinistries({ limit: 100 });
+    const rows = Array.isArray(res) ? res : (res?.results || res?.rows || []);
+    if (!rows.length) {
+      host.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">No ministries on record. Use "New Ministry" to add one.</div>';
+      return;
+    }
+    host.innerHTML = rows.map(m => _ministryRow(m)).join('');
+    host.querySelectorAll('[data-ministry-id]').forEach(row => {
+      row.style.cursor = 'pointer';
+      row.addEventListener('click', () => {
+        const id   = row.dataset.ministryId;
+        const item = rows.find(r => String(r.id) === id);
+        if (item) _openMinistrySheet(item, () => _loadMinistries(root));
+      });
+    });
+  } catch (err) {
+    console.error('[TheWay] listMinistries:', err);
+    host.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Could not load ministries right now.</div>';
+  }
+}
+
+function _ministryRow(m) {
+  const name   = m.name || '—';
+  const type   = m.type || m.ministryType || 'Other';
+  const leader = m.leader || m.leaderName || m.leaderId || '—';
+  const members = m.memberCount || 0;
+  const status = m.status || 'Active';
+  const isActive = status === 'Active';
+  const c  = isActive ? '#059669' : '#6b7280';
+  const bg = isActive ? 'rgba(5,150,105,0.10)' : 'rgba(107,114,128,0.10)';
+
+  return /* html */`
+    <article class="way-group-row" data-ministry-id="${_e(String(m.id || ''))}" tabindex="0">
+      <div class="way-group-icon">⛪</div>
+      <div class="way-group-body">
+        <div class="way-group-name">${_e(name)}</div>
+        <div class="way-group-meta">
+          <span class="way-group-badge" style="color:${c};background:${bg}">${_e(status)}</span>
+          <span>${_e(type)}</span>
+          ${leader !== '—' ? `<span>Lead: ${_e(leader)}</span>` : ''}
+          ${members ? `<span>${members} members</span>` : ''}
+        </div>
+      </div>
+    </article>`;
+}
+
+function _openMinistrySheet(item, onSave) {
+  _closeMinistrySheet();
+  const UR    = window.UpperRoom;
+  if (!UR) return;
+  const isEdit   = !!item;
+  const currentStatus = item?.status || 'Active';
+
+  const sheet = document.createElement('div');
+  sheet.className = 'life-sheet';
+  sheet.innerHTML = /* html */`
+    <div class="life-sheet-overlay"></div>
+    <div class="life-sheet-panel" role="dialog" aria-label="${isEdit ? 'Edit Ministry' : 'New Ministry'}">
+      <div class="life-sheet-drag"></div>
+      <div class="life-sheet-hd">
+        <div class="life-sheet-hd-info"><div class="life-sheet-hd-name">${isEdit ? 'Edit Ministry' : 'New Ministry'}</div></div>
+        <button class="life-sheet-close" aria-label="Close">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="life-sheet-body">
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Ministry Name <span style="color:#dc2626">*</span></div>
+          <input class="life-sheet-input" data-field="name" type="text" value="${_e(item?.name || '')}" placeholder="e.g. Worship Ministry">
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Type</div>
+          <select class="life-sheet-input" data-field="type">
+            ${MINISTRY_TYPES.map(t => `<option value="${_e(t)}"${(item?.type || item?.ministryType || 'Other') === t ? ' selected' : ''}>${_e(t)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Status</div>
+          <div class="life-status-row">
+            ${MINISTRY_STATUSES.map(s => `<button class="life-status-pill${s === currentStatus ? ' is-active' : ''}" data-status="${_e(s)}">${_e(s)}</button>`).join('')}
+          </div>
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Leader</div>
+          <input class="life-sheet-input" data-field="leader" type="text" value="${_e(item?.leader || item?.leaderName || '')}" placeholder="Name or email">
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Member Count</div>
+          <input class="life-sheet-input" data-field="memberCount" type="number" min="0" value="${item?.memberCount || ''}">
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Description</div>
+          <textarea class="life-sheet-ta" data-field="description" rows="3" placeholder="What is this ministry's purpose?">${_e(item?.description || '')}</textarea>
+        </div>
+        <div class="fold-form-error" data-error style="display:none;color:#dc2626;font-size:.85rem;margin-top:8px"></div>
+      </div>
+      <div class="life-sheet-foot">
+        <button class="flock-btn" data-cancel>Cancel</button>
+        <button class="flock-btn flock-btn--primary" data-save>${isEdit ? 'Save Changes' : 'Create Ministry'}</button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(sheet);
+  _activeMinistrySheet = sheet;
+  requestAnimationFrame(() => {
+    sheet.querySelector('.life-sheet-overlay').classList.add('is-open');
+    sheet.querySelector('.life-sheet-panel').classList.add('is-open');
+  });
+
+  sheet.querySelectorAll('[data-status]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      sheet.querySelectorAll('[data-status]').forEach(b => b.classList.remove('is-active'));
+      btn.classList.add('is-active');
+    });
+  });
+
+  const close = () => _closeMinistrySheet();
+  sheet.querySelector('[data-cancel]').addEventListener('click', close);
+  sheet.querySelector('.life-sheet-close').addEventListener('click', close);
+
+  sheet.querySelector('[data-save]').addEventListener('click', async () => {
+    const errEl = sheet.querySelector('[data-error]');
+    const name  = sheet.querySelector('[data-field="name"]').value.trim();
+    if (!name) { errEl.textContent = 'Name is required.'; errEl.style.display = ''; return; }
+    errEl.style.display = 'none';
+    const btn = sheet.querySelector('[data-save]');
+    btn.disabled = true; btn.textContent = 'Saving…';
+    const payload = {
+      name,
+      type:        sheet.querySelector('[data-field="type"]').value,
+      status:      sheet.querySelector('[data-status].is-active')?.dataset.status || currentStatus,
+      leader:      sheet.querySelector('[data-field="leader"]').value.trim() || undefined,
+      memberCount: parseInt(sheet.querySelector('[data-field="memberCount"]').value, 10) || 0,
+      description: sheet.querySelector('[data-field="description"]').value.trim() || undefined,
+    };
+    try {
+      if (isEdit) { await UR.updateMinistry(Object.assign({ id: item.id }, payload)); }
+      else        { await UR.createMinistry(payload); }
+      _closeMinistrySheet();
+      if (onSave) onSave();
+    } catch (err) {
+      console.error('[TheWay] ministry save:', err);
+      errEl.textContent = err?.message || 'Could not save ministry.'; errEl.style.display = '';
+      btn.disabled = false; btn.textContent = isEdit ? 'Save Changes' : 'Create Ministry';
+    }
+  });
+}
+
+// ── VOLUNTEERS ────────────────────────────────────────────────────────────────
+let _activeVolunteerSheet = null;
+
+function _closeVolunteerSheet() {
+  if (!_activeVolunteerSheet) return;
+  const t = _activeVolunteerSheet;
+  t.querySelector('.life-sheet-overlay')?.classList.remove('is-open');
+  t.querySelector('.life-sheet-panel')?.classList.remove('is-open');
+  setTimeout(() => { t.remove(); if (_activeVolunteerSheet === t) _activeVolunteerSheet = null; }, 320);
+}
+
+async function _loadVolunteers(root) {
+  const host = root.querySelector('[data-bind="volunteers"]');
+  if (!host) return;
+  const UR = window.UpperRoom;
+  if (!UR || typeof UR.listVolunteers !== 'function') {
+    host.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Volunteers require Firestore (UpperRoom) — not available.</div>';
+    return;
+  }
+  host.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Loading volunteers…</div>';
+  try {
+    const res  = await UR.listVolunteers({ limit: 80 });
+    const rows = Array.isArray(res) ? res : (res?.results || res?.rows || []);
+    if (!rows.length) {
+      host.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">No volunteer records. Use "Add Volunteer" to log one.</div>';
+      return;
+    }
+    host.innerHTML = rows.map(v => _volunteerRow(v)).join('');
+    host.querySelectorAll('[data-vol-id]').forEach(row => {
+      row.style.cursor = 'pointer';
+      row.addEventListener('click', () => {
+        const id   = row.dataset.volId;
+        const item = rows.find(r => String(r.id) === id);
+        if (item) _openVolunteerSheet(item, () => _loadVolunteers(root));
+      });
+    });
+  } catch (err) {
+    console.error('[TheWay] listVolunteers:', err);
+    host.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Could not load volunteers right now.</div>';
+  }
+}
+
+function _volunteerRow(v) {
+  const name     = v.memberName || v.memberId || '—';
+  const role     = v.role || 'Volunteer';
+  const ministry = v.ministryName || v.ministryId || '—';
+  const date     = v.serviceDate
+    ? (typeof v.serviceDate === 'string' ? v.serviceDate : new Date(v.serviceDate?.seconds ? v.serviceDate.seconds * 1000 : v.serviceDate).toLocaleDateString())
+    : '';
+  const initials = name === '—' ? '🙋' : name.split(/\s+/).map(w => w[0] || '').slice(0, 2).join('');
+
+  return /* html */`
+    <article class="way-group-row" data-vol-id="${_e(String(v.id || ''))}" tabindex="0">
+      <div class="way-group-icon">${initials}</div>
+      <div class="way-group-body">
+        <div class="way-group-name">${_e(name)}</div>
+        <div class="way-group-meta">
+          <span>${_e(role)}</span>
+          ${ministry !== '—' ? `<span>${_e(ministry)}</span>` : ''}
+          ${date ? `<span>${_e(date)}</span>` : ''}
+        </div>
+      </div>
+    </article>`;
+}
+
+function _openVolunteerSheet(item, onSave) {
+  _closeVolunteerSheet();
+  const UR    = window.UpperRoom;
+  if (!UR) return;
+  const isEdit = !!item;
+
+  const sheet = document.createElement('div');
+  sheet.className = 'life-sheet';
+  sheet.innerHTML = /* html */`
+    <div class="life-sheet-overlay"></div>
+    <div class="life-sheet-panel" role="dialog" aria-label="${isEdit ? 'Edit Volunteer' : 'Add Volunteer'}">
+      <div class="life-sheet-drag"></div>
+      <div class="life-sheet-hd">
+        <div class="life-sheet-hd-info"><div class="life-sheet-hd-name">${isEdit ? 'Edit Volunteer Record' : 'Add Volunteer'}</div></div>
+        <button class="life-sheet-close" aria-label="Close">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="life-sheet-body">
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Member <span style="color:#dc2626">*</span></div>
+          <input class="life-sheet-input" data-field="memberId" type="text" value="${_e(item?.memberId || item?.memberName || '')}" placeholder="Email or name">
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Role</div>
+          <input class="life-sheet-input" data-field="role" type="text" value="${_e(item?.role || '')}" placeholder="e.g. Sound Tech, Greeter, Usher…">
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Ministry</div>
+          <input class="life-sheet-input" data-field="ministryId" type="text" value="${_e(item?.ministryId || item?.ministryName || '')}" placeholder="Ministry name or ID">
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Service Date</div>
+          <input class="life-sheet-input" data-field="serviceDate" type="date" value="${_e(typeof item?.serviceDate === 'string' ? item.serviceDate : '')}">
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Notes</div>
+          <textarea class="life-sheet-ta" data-field="notes" rows="2" placeholder="Availability, restrictions, context…">${_e(item?.notes || '')}</textarea>
+        </div>
+        <div class="fold-form-error" data-error style="display:none;color:#dc2626;font-size:.85rem;margin-top:8px"></div>
+      </div>
+      <div class="life-sheet-foot">
+        <button class="flock-btn" data-cancel>Cancel</button>
+        <button class="flock-btn flock-btn--primary" data-save>${isEdit ? 'Save Changes' : 'Add Volunteer'}</button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(sheet);
+  _activeVolunteerSheet = sheet;
+  requestAnimationFrame(() => {
+    sheet.querySelector('.life-sheet-overlay').classList.add('is-open');
+    sheet.querySelector('.life-sheet-panel').classList.add('is-open');
+  });
+
+  const close = () => _closeVolunteerSheet();
+  sheet.querySelector('[data-cancel]').addEventListener('click', close);
+  sheet.querySelector('.life-sheet-close').addEventListener('click', close);
+
+  sheet.querySelector('[data-save]').addEventListener('click', async () => {
+    const errEl    = sheet.querySelector('[data-error]');
+    const memberId = sheet.querySelector('[data-field="memberId"]').value.trim();
+    if (!memberId) { errEl.textContent = 'Member is required.'; errEl.style.display = ''; return; }
+    errEl.style.display = 'none';
+    const btn = sheet.querySelector('[data-save]');
+    btn.disabled = true; btn.textContent = 'Saving…';
+    const payload = {
+      memberId,
+      role:        sheet.querySelector('[data-field="role"]').value.trim() || 'Volunteer',
+      ministryId:  sheet.querySelector('[data-field="ministryId"]').value.trim() || undefined,
+      serviceDate: sheet.querySelector('[data-field="serviceDate"]').value || undefined,
+      notes:       sheet.querySelector('[data-field="notes"]').value.trim() || undefined,
+    };
+    try {
+      if (isEdit) { await UR.updateVolunteer(Object.assign({ id: item.id }, payload)); }
+      else        { await UR.createVolunteer(payload); }
+      _closeVolunteerSheet();
+      if (onSave) onSave();
+    } catch (err) {
+      console.error('[TheWay] volunteer save:', err);
+      errEl.textContent = err?.message || 'Could not save volunteer record.'; errEl.style.display = '';
+      btn.disabled = false; btn.textContent = isEdit ? 'Save Changes' : 'Add Volunteer';
     }
   });
 }

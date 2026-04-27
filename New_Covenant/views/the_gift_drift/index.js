@@ -66,7 +66,7 @@ export function render() {
   })}
 
   <!-- KPI strip -->
-  <div class="gift-kpi-strip">
+  <div class="gift-kpi-strip" data-gift-kpi>
     ${KPI.map(k => `
     <div class="gift-kpi-card">
       <div class="gift-kpi-value">${_e(k.value)}</div>
@@ -111,8 +111,19 @@ export function render() {
         <button class="btn btn-outline" style="font-size:.8rem;padding:6px 14px">Export CSV</button>
       </div>
     </div>
-    <div class="gift-transactions">
+    <div class="gift-transactions" data-bind="transactions">
       <div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Loading transactions…</div>
+    </div>
+  </div>
+
+  <!-- Pledges -->
+  <div class="gift-card" style="margin-top:24px;">
+    <div class="gift-card-header">
+      <h3 class="gift-card-title">Pledges</h3>
+      <button class="flock-btn flock-btn--primary flock-btn--sm" data-act="new-pledge">+ New Pledge</button>
+    </div>
+    <div data-bind="pledges">
+      <div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Loading pledges…</div>
     </div>
   </div>
 
@@ -121,10 +132,14 @@ export function render() {
 
 export function mount(root) {
   _loadGiving(root);
+  _loadPledges(root);
   root.querySelector('[data-act="record-gift"]')?.addEventListener('click', () => {
     _openGiftSheet(null, () => _loadGiving(root));
   });
-  return () => { _closeGiftSheet(); };
+  root.querySelector('[data-act="new-pledge"]')?.addEventListener('click', () => {
+    _openPledgeSheet(null, () => _loadPledges(root));
+  });
+  return () => { _closeGiftSheet(); _closePledgeSheet(); };
 }
 
 function _rows(res) {
@@ -219,7 +234,7 @@ async function _loadGiving(root) {
   if (listRes.status === 'fulfilled') {
     const gifts = _rows(listRes.value);
     if (gifts.length) {
-      const txEl = root.querySelector('.gift-transactions');
+      const txEl = root.querySelector('[data-bind="transactions"]');
       if (txEl) {
         txEl.innerHTML = gifts.map(g => {
           const name   = g.name || g.displayName || g.giverName || 'Anonymous';
@@ -331,7 +346,6 @@ function _openGiftSheet(g, onReload) {
   const close = () => _closeGiftSheet();
   sheet.querySelector('[data-cancel]').addEventListener('click', close);
   sheet.querySelector('.life-sheet-close').addEventListener('click', close);
-  sheet.querySelector('.life-sheet-overlay').addEventListener('click', close);
 
   sheet.querySelector('[data-save]').addEventListener('click', async () => {
     const errEl = sheet.querySelector('[data-error]');
@@ -376,5 +390,206 @@ function _openGiftSheet(g, onReload) {
       _closeGiftSheet();
       onReload?.();
     } catch (err) { btn.disabled = false; btn.textContent = 'Delete Record'; }
+  });
+}
+
+// ── Pledges ───────────────────────────────────────────────────────────────────
+let _activePledgeSheet = null;
+const PLEDGE_STATUSES = ['Active', 'Fulfilled', 'Cancelled', 'Lapsed'];
+const PLEDGE_FUNDS    = ['General Fund', 'Missions', 'Building Fund', 'Benevolence', 'Other'];
+
+function _closePledgeSheet() {
+  if (!_activePledgeSheet) return;
+  const t = _activePledgeSheet;
+  t.querySelector('.life-sheet-overlay')?.classList.remove('is-open');
+  t.querySelector('.life-sheet-panel')?.classList.remove('is-open');
+  setTimeout(() => { t.remove(); if (_activePledgeSheet === t) _activePledgeSheet = null; }, 320);
+}
+
+async function _loadPledges(root) {
+  const host = root.querySelector('[data-bind="pledges"]');
+  if (!host) return;
+  const UR = window.UpperRoom;
+  if (!UR || typeof UR.listPledges !== 'function') {
+    host.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Pledges require Firestore (UpperRoom) — not available.</div>';
+    return;
+  }
+  host.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Loading pledges…</div>';
+  try {
+    const rows = await UR.listPledges({ limit: 100 });
+    if (!rows || !rows.length) {
+      host.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">No pledges on record. Use "New Pledge" to log one.</div>';
+      return;
+    }
+    host.innerHTML = rows.map(p => _pledgeRow(p)).join('');
+    host.querySelectorAll('[data-pledge-id]').forEach(row => {
+      row.addEventListener('click', () => {
+        const id = row.dataset.pledgeId;
+        const item = rows.find(r => String(r.id) === id);
+        if (item) _openPledgeSheet(item, () => _loadPledges(root));
+      });
+    });
+  } catch (err) {
+    console.error('[TheGiftDrift] listPledges:', err);
+    host.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Could not load pledges right now.</div>';
+  }
+}
+
+function _pledgeRow(p) {
+  const name   = p.name || p.giverName || p.memberName || 'Anonymous';
+  const fund   = p.fund || p.fundName || 'General Fund';
+  const total  = p.totalAmount || p.amount || 0;
+  const paid   = p.paidAmount  || p.amountPaid || 0;
+  const status = p.status || 'Active';
+  const pct    = total > 0 ? Math.min(100, Math.round((paid / total) * 100)) : 0;
+  const fulfilled = status === 'Fulfilled';
+  const statusBg  = fulfilled ? 'rgba(5,150,105,0.10)' : status === 'Active' ? 'rgba(14,165,233,0.10)' : 'rgba(107,114,128,0.10)';
+  const statusC   = fulfilled ? '#059669' : status === 'Active' ? '#0ea5e9' : '#6b7280';
+  const initials  = name === 'Anonymous' ? '🙏' : name.split(/\s+/).map(w => w[0] || '').slice(0, 2).join('');
+
+  return /* html */`
+    <div class="gift-tx-row" data-pledge-id="${_e(String(p.id || ''))}" style="cursor:pointer;" tabindex="0">
+      <div class="gift-tx-avatar">${initials}</div>
+      <div class="gift-tx-body">
+        <div class="gift-tx-name">${_e(name)}</div>
+        <div class="gift-tx-fund">${_e(fund)} &bull; ${pct}% fulfilled</div>
+        <div style="background:#e5e7eb;border-radius:4px;height:4px;margin-top:4px;overflow:hidden;">
+          <div style="height:100%;width:${pct}%;background:${statusC};border-radius:4px;transition:width .3s"></div>
+        </div>
+      </div>
+      <span class="gift-method-badge" style="background:${statusBg};color:${statusC}">${_e(status)}</span>
+      <div class="gift-tx-amount">$${Number(total).toLocaleString()}</div>
+      <div class="gift-tx-date">${paid > 0 ? `$${Number(paid).toLocaleString()} paid` : '—'}</div>
+    </div>`;
+}
+
+function _openPledgeSheet(item, onReload) {
+  _closePledgeSheet();
+  const UR    = window.UpperRoom;
+  const isNew = !item;
+  const fmtDate = (v) => {
+    if (!v) return '';
+    try {
+      const ms = v?.seconds ? v.seconds * 1000 : +new Date(v);
+      if (!ms || isNaN(ms)) return '';
+      return new Date(ms).toISOString().slice(0, 10);
+    } catch { return typeof v === 'string' ? v : ''; }
+  };
+
+  const sheet = document.createElement('div');
+  sheet.className = 'life-sheet';
+  sheet.innerHTML = /* html */`
+    <div class="life-sheet-overlay"></div>
+    <div class="life-sheet-panel" role="dialog" aria-label="${isNew ? 'New Pledge' : 'Edit Pledge'}">
+      <div class="life-sheet-drag"></div>
+      <div class="life-sheet-hd">
+        <div class="life-sheet-hd-info">
+          <div class="life-sheet-hd-name">${isNew ? 'New Pledge' : 'Edit Pledge'}</div>
+          <div class="life-sheet-hd-meta">${isNew ? 'Record a giving pledge' : _e(item?.name || item?.giverName || 'Pledge record')}</div>
+        </div>
+        <button class="life-sheet-close" aria-label="Close">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="life-sheet-body">
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Giver Name <span style="color:#6b7280;font-weight:400">(optional)</span></div>
+          <input class="life-sheet-input" data-field="name" type="text" value="${_e(item?.name || item?.giverName || '')}" placeholder="Leave blank for Anonymous">
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Pledge Total <span style="color:#dc2626">*</span></div>
+          <input class="life-sheet-input" data-field="totalAmount" type="number" min="0" step="0.01" value="${item?.totalAmount || item?.amount || ''}" placeholder="0.00">
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Amount Paid So Far</div>
+          <input class="life-sheet-input" data-field="paidAmount" type="number" min="0" step="0.01" value="${item?.paidAmount || item?.amountPaid || ''}" placeholder="0.00">
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Fund</div>
+          <select class="life-sheet-input" data-field="fund">
+            ${PLEDGE_FUNDS.map(f => `<option value="${_e(f)}"${f === (item?.fund || item?.fundName || 'General Fund') ? ' selected' : ''}>${_e(f)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Status</div>
+          <div class="life-status-row">
+            ${PLEDGE_STATUSES.map(s => `<button class="life-status-pill${s === (item?.status || 'Active') ? ' is-active' : ''}" data-status="${_e(s)}">${_e(s)}</button>`).join('')}
+          </div>
+        </div>
+        <div class="fold-form-row">
+          <div class="life-sheet-field">
+            <div class="life-sheet-label">Pledge Date</div>
+            <input class="life-sheet-input" data-field="pledgeDate" type="date" value="${_e(fmtDate(item?.pledgeDate || item?.createdAt))}">
+          </div>
+          <div class="life-sheet-field">
+            <div class="life-sheet-label">Fulfillment Date</div>
+            <input class="life-sheet-input" data-field="fulfillmentDate" type="date" value="${_e(fmtDate(item?.fulfillmentDate))}">
+          </div>
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Notes</div>
+          <textarea class="life-sheet-input" data-field="notes" rows="2" placeholder="Optional memo…">${_e(item?.notes || '')}</textarea>
+        </div>
+        <div class="fold-form-error" data-error style="display:none;color:#dc2626;font-size:.85rem;margin-top:8px"></div>
+      </div>
+      <div class="life-sheet-foot">
+        <button class="flock-btn" data-cancel>Cancel</button>
+        <button class="flock-btn flock-btn--primary" data-save>${isNew ? 'Record Pledge' : 'Save Changes'}</button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(sheet);
+  _activePledgeSheet = sheet;
+  requestAnimationFrame(() => {
+    sheet.querySelector('.life-sheet-overlay').classList.add('is-open');
+    sheet.querySelector('.life-sheet-panel').classList.add('is-open');
+  });
+
+  sheet.querySelectorAll('[data-status]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      sheet.querySelectorAll('[data-status]').forEach(b => b.classList.remove('is-active'));
+      btn.classList.add('is-active');
+    });
+  });
+
+  const close = () => _closePledgeSheet();
+  sheet.querySelector('[data-cancel]').addEventListener('click', close);
+  sheet.querySelector('.life-sheet-close').addEventListener('click', close);
+
+  sheet.querySelector('[data-save]').addEventListener('click', async () => {
+    const errEl    = sheet.querySelector('[data-error]');
+    const totalVal = parseFloat(sheet.querySelector('[data-field="totalAmount"]').value);
+    if (!totalVal || isNaN(totalVal) || totalVal <= 0) {
+      errEl.textContent = 'A valid pledge total is required.'; errEl.style.display = ''; return;
+    }
+    errEl.style.display = 'none';
+    const btn = sheet.querySelector('[data-save]');
+    btn.disabled = true; btn.textContent = 'Saving…';
+    const payload = {
+      name:            sheet.querySelector('[data-field="name"]').value.trim() || 'Anonymous',
+      totalAmount:     totalVal,
+      paidAmount:      parseFloat(sheet.querySelector('[data-field="paidAmount"]').value) || 0,
+      fund:            sheet.querySelector('[data-field="fund"]').value,
+      status:          sheet.querySelector('[data-status].is-active')?.dataset.status || 'Active',
+      pledgeDate:      sheet.querySelector('[data-field="pledgeDate"]').value || undefined,
+      fulfillmentDate: sheet.querySelector('[data-field="fulfillmentDate"]').value || undefined,
+      notes:           sheet.querySelector('[data-field="notes"]').value.trim() || undefined,
+    };
+    try {
+      if (isNew) {
+        await UR.createPledge(payload);
+      } else {
+        // UpperRoom has no updatePledge — write directly via createPledge pattern (replace)
+        // Most church apps just create new pledge records; we archive + create for edits
+        const oldStatus = payload.status;
+        await UR.createPledge(Object.assign({}, payload, { replacesId: item.id }));
+      }
+      _closePledgeSheet();
+      onReload?.();
+    } catch (err) {
+      console.error('[TheGiftDrift] pledge save:', err);
+      errEl.textContent = err?.message || 'Could not save pledge.'; errEl.style.display = '';
+      btn.disabled = false; btn.textContent = isNew ? 'Record Pledge' : 'Save Changes';
+    }
   });
 }

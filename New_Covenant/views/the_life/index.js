@@ -543,6 +543,42 @@ export function render() {
       <div class="life-queue" data-bind="queue">
         <div class="life-loading">Loading care queue…</div>
       </div>
+
+      <!-- Care Assignments -->
+      <div class="way-section-header" style="margin-top:32px;">
+        <h2 class="way-section-title">Care Assignments</h2>
+        <button class="flock-btn flock-btn--primary" data-new-assign>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+          Assign
+        </button>
+      </div>
+      <div data-bind="assignments">
+        <div class="life-loading">Loading assignments…</div>
+      </div>
+
+      <!-- Compassion Requests -->
+      <div class="way-section-header" style="margin-top:32px;">
+        <h2 class="way-section-title">Compassion Requests</h2>
+        <button class="flock-btn flock-btn--primary" data-new-compassion>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+          New Request
+        </button>
+      </div>
+      <div data-bind="compassion">
+        <div class="life-loading">Loading compassion requests…</div>
+      </div>
+
+      <!-- Todos -->
+      <div class="way-section-header" style="margin-top:32px;">
+        <h2 class="way-section-title">Todos</h2>
+        <button class="flock-btn flock-btn--primary" data-new-todo>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+          Add Todo
+        </button>
+      </div>
+      <div data-bind="todos">
+        <div class="life-loading">Loading todos…</div>
+      </div>
     </section>
   `;
 }
@@ -603,16 +639,34 @@ export function mount(root) {
     fresh.addEventListener('click', () => _newCareModal(_memberDir, _reload));
   }
 
+  function _wireSecondaryNewBtns() {
+    const wireOnce = (sel, openFn, reloadFn) => {
+      const btn = root.querySelector(sel);
+      if (!btn) return;
+      const fresh = btn.cloneNode(true);
+      btn.replaceWith(fresh);
+      fresh.addEventListener('click', () => openFn(null, _memberDir, reloadFn));
+    };
+    wireOnce('[data-new-assign]',     _openAssignSheet,     () => _loadAssignments(root, _memberDir));
+    wireOnce('[data-new-compassion]', _openCompassionSheet, () => _loadCompassion(root, _memberDir));
+    wireOnce('[data-new-todo]',       _openTodoSheet,       () => _loadTodos(root, _memberDir));
+  }
+
   async function _reload() {
     const result = await _loadCare(root, _caseMap);
     if (result) _memberDir = result.memberDir;
     _wireCards();
     _wireFilters();
     _wireNewBtn();
+    _wireSecondaryNewBtns();
+    _loadAssignments(root, _memberDir);
+    _loadCompassion(root, _memberDir);
+    _loadTodos(root, _memberDir);
   }
 
   _wireFilters();
   _wireNewBtn();
+  _wireSecondaryNewBtns();
   _reload();
 
   return () => { _closeSheet(); };
@@ -1090,7 +1144,6 @@ function _openSheet(c, memberDir, onSave) {
 
   // Close
   sheet.querySelector('.life-sheet-close').addEventListener('click', () => _closeSheet());
-  sheet.querySelector('.life-sheet-overlay').addEventListener('click', () => _closeSheet());
 
   // Swipe to close (panel drag)
   let _startY = null;
@@ -1154,7 +1207,6 @@ function _quickNote(cid, personName) {
 
   sheet.querySelector('[data-cancel]').addEventListener('click', () => _closeSheet());
   sheet.querySelector('.life-sheet-close').addEventListener('click', () => _closeSheet());
-  sheet.querySelector('.life-sheet-overlay').addEventListener('click', () => _closeSheet());
 
   sheet.querySelector('[data-save]').addEventListener('click', async () => {
     const ta  = sheet.querySelector('.life-note-ta');
@@ -1513,7 +1565,6 @@ function _newCareModal(memberDir, onSave) {
 
   sheet.querySelector('[data-cancel]').addEventListener('click', () => _closeSheet());
   sheet.querySelector('.life-sheet-close').addEventListener('click', () => _closeSheet());
-  sheet.querySelector('.life-sheet-overlay').addEventListener('click', () => _closeSheet());
 
   sheet.querySelector('[data-save]').addEventListener('click', async () => {
     const memberId  = sheet.querySelector('[data-field="memberId"]').value.trim();
@@ -1541,5 +1592,590 @@ function _newCareModal(memberDir, onSave) {
       console.error('[TheLife] care.create error:', err);
       btn.disabled = false; btn.textContent = 'Create Case';
     }
+  });
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// CARE ASSIGNMENTS / COMPASSION REQUESTS / TODOS
+// ══════════════════════════════════════════════════════════════════════════════
+
+const TODO_STATUSES       = ['Not Started', 'In Progress', 'Done', 'Archived'];
+const TODO_PRIORITIES     = ['Low', 'Medium', 'High', 'Urgent'];
+const COMPASSION_STATUSES = ['Pending', 'Approved', 'Denied', 'Resolved'];
+const COMPASSION_TYPES    = ['Financial', 'Food', 'Housing', 'Transportation', 'Medical', 'Utility', 'Other'];
+const ASSIGN_ROLES        = ['Shepherd', 'Mentor', 'Care Team', 'Discipleship', 'Other'];
+
+function _ts(v) {
+  if (!v) return '';
+  const ms = v?.seconds ? v.seconds * 1000 : new Date(v).getTime();
+  return ms && !isNaN(ms) ? ms : '';
+}
+
+function _fmtDate(v) {
+  const ms = _ts(v);
+  if (!ms) return '';
+  return new Date(ms).toLocaleDateString();
+}
+
+function _emptyState(msg) {
+  return `<div class="life-empty" style="padding:32px;text-align:center;color:var(--ink-muted,#7a7f96)">${_e(msg)}</div>`;
+}
+
+// ── CARE ASSIGNMENTS ─────────────────────────────────────────────────────────
+async function _loadAssignments(root, memberDir) {
+  const host = root.querySelector('[data-bind="assignments"]');
+  if (!host) return;
+  const UR = window.UpperRoom;
+  if (!UR || typeof UR.listCareAssignments !== 'function') {
+    host.innerHTML = _emptyState('Assignments require Firestore (UpperRoom) — not available.');
+    return;
+  }
+  host.innerHTML = '<div class="life-loading">Loading assignments…</div>';
+  try {
+    const rows = await UR.listCareAssignments({ limit: 80 });
+    if (!rows || !rows.length) {
+      host.innerHTML = _emptyState('No active care assignments. Use "Assign" to pair a member with a caregiver.');
+      return;
+    }
+    const memberMap = _buildMemberIndex(memberDir || []);
+    host.innerHTML = `<div class="life-queue">${rows.map(r => _assignCard(r, memberMap)).join('')}</div>`;
+    host.querySelectorAll('[data-assign-id]').forEach(card => {
+      card.addEventListener('click', (e) => {
+        if (e.target.closest('[data-end-assign]')) return;
+        const id = card.dataset.assignId;
+        const item = rows.find(r => String(r.id) === id);
+        if (item) _openAssignSheet(item, memberDir, () => _loadAssignments(root, memberDir));
+      });
+      const endBtn = card.querySelector('[data-end-assign]');
+      if (endBtn) {
+        endBtn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const id = card.dataset.assignId;
+          if (!confirm('End this assignment?')) return;
+          try { await UR.endCareAssignment(id); _loadAssignments(root, memberDir); }
+          catch (err) { console.error('[TheLife] endCareAssignment:', err); }
+        });
+      }
+    });
+  } catch (err) {
+    console.error('[TheLife] listCareAssignments:', err);
+    host.innerHTML = _emptyState('Could not load assignments right now.');
+  }
+}
+
+function _assignCard(a, memberMap) {
+  const memberName    = _resolveName(a.memberId, memberMap)    || a.memberName    || a.memberId    || '—';
+  const caregiverName = _resolveName(a.caregiverId, memberMap) || a.caregiverName || a.caregiverId || '—';
+  const role   = a.role || 'Shepherd';
+  const status = a.status || 'Active';
+  const isActive = status === 'Active';
+  return /* html */`
+    <article class="life-card" data-assign-id="${_e(String(a.id || ''))}" tabindex="0">
+      <div class="life-card-icon">🤝</div>
+      <div class="life-card-body">
+        <div class="life-card-top">
+          <span class="life-card-name">${_e(memberName)}</span>
+          <span class="life-type-badge">${_e(role)}</span>
+          <span class="life-priority-badge" style="color:${isActive ? '#0ea5e9' : '#6b7280'}; background:${isActive ? 'rgba(14,165,233,0.10)' : 'rgba(107,114,128,0.10)'}">${_e(status)}</span>
+        </div>
+        <div class="life-card-note">Caregiver: ${_e(caregiverName)}${a.notes ? ' &bull; ' + _e(a.notes) : ''}</div>
+        <div class="life-card-foot">
+          <span class="life-days">${_e(_fmtDate(a.createdAt) || '')}</span>
+        </div>
+      </div>
+      ${isActive ? `<div class="life-card-actions">
+        <button class="life-action-btn" title="End assignment" data-end-assign aria-label="End">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>` : ''}
+    </article>`;
+}
+
+function _openAssignSheet(item, memberDir, onSave) {
+  _closeSheet();
+  const UR = window.UpperRoom;
+  if (!UR) return;
+  const isEdit = !!item;
+  const hasDir = memberDir && memberDir.length > 0;
+
+  const sheet = document.createElement('div');
+  sheet.className = 'life-sheet';
+  sheet.innerHTML = /* html */`
+    <div class="life-sheet-overlay"></div>
+    <div class="life-sheet-panel" role="dialog" aria-label="${isEdit ? 'Edit Assignment' : 'New Assignment'}">
+      <div class="life-sheet-drag"></div>
+      <div class="life-sheet-hd">
+        <div class="life-sheet-hd-info"><div class="life-sheet-hd-name">${isEdit ? 'Reassign Caregiver' : 'New Care Assignment'}</div></div>
+        <button class="life-sheet-close" aria-label="Close">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="life-sheet-body">
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Member</div>
+          ${hasDir
+            ? (isEdit
+                ? `<input class="life-sheet-input" type="text" value="${_e(_resolveName(item.memberId, _buildMemberIndex(memberDir)) || item.memberId || '')}" disabled>
+                   <input type="hidden" data-field="memberId" value="${_e(item.memberId || '')}">`
+                : _memberPickerHtml(memberDir, 'memberId'))
+            : `<input class="life-sheet-input" data-field="memberId" type="text" value="${_e(item?.memberId || '')}" placeholder="Member email or ID" ${isEdit ? 'disabled' : ''}>`}
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">${isEdit ? 'New Caregiver' : 'Caregiver'}</div>
+          ${hasDir
+            ? _caregiverSelect(memberDir, 'caregiverId', isEdit ? '' : (item?.caregiverId || ''), '— Select caregiver —')
+            : `<input class="life-sheet-input" data-field="caregiverId" type="text" value="${_e(item?.caregiverId || '')}" placeholder="Caregiver email or ID">`}
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Role</div>
+          <select class="life-sheet-input" data-field="role">
+            ${ASSIGN_ROLES.map(r => `<option value="${_e(r)}"${(item?.role || 'Shepherd') === r ? ' selected' : ''}>${_e(r)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Notes</div>
+          <textarea class="life-sheet-ta" data-field="notes" rows="3" placeholder="Why this pairing? Boundaries, scope…">${_e(item?.notes || '')}</textarea>
+        </div>
+      </div>
+      <div class="life-sheet-foot">
+        <button class="flock-btn" data-cancel>Cancel</button>
+        <button class="flock-btn flock-btn--primary" data-save>${isEdit ? 'Reassign' : 'Create Assignment'}</button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(sheet);
+  _activeSheet = sheet;
+  requestAnimationFrame(() => {
+    sheet.querySelector('.life-sheet-overlay').classList.add('is-open');
+    sheet.querySelector('.life-sheet-panel').classList.add('is-open');
+  });
+
+  // Member picker wiring (new only)
+  if (!isEdit) _wireMemberPicker(sheet);
+
+  sheet.querySelector('[data-cancel]').addEventListener('click', () => _closeSheet());
+  sheet.querySelector('.life-sheet-close').addEventListener('click', () => _closeSheet());
+
+  sheet.querySelector('[data-save]').addEventListener('click', async () => {
+    const memberId    = sheet.querySelector('[data-field="memberId"]').value.trim();
+    const caregiverId = sheet.querySelector('[data-field="caregiverId"]').value.trim();
+    const role        = sheet.querySelector('[data-field="role"]').value;
+    const notes       = sheet.querySelector('[data-field="notes"]').value.trim();
+    if (!memberId)    { sheet.querySelector('[data-field="memberId"]').focus(); return; }
+    if (!caregiverId) { sheet.querySelector('[data-field="caregiverId"]').focus(); return; }
+    const btn = sheet.querySelector('[data-save]');
+    btn.disabled = true; btn.textContent = 'Saving…';
+    try {
+      if (isEdit) {
+        await UR.reassignCareAssignment({ id: item.id, newCaregiverId: caregiverId, notes });
+      } else {
+        await UR.createCareAssignment({ memberId, caregiverId, role, notes, status: 'Active' });
+      }
+      _closeSheet();
+      if (onSave) onSave();
+    } catch (err) {
+      console.error('[TheLife] save assignment:', err);
+      btn.disabled = false; btn.textContent = isEdit ? 'Reassign' : 'Create Assignment';
+    }
+  });
+}
+
+// ── COMPASSION REQUESTS ──────────────────────────────────────────────────────
+async function _loadCompassion(root, memberDir) {
+  const host = root.querySelector('[data-bind="compassion"]');
+  if (!host) return;
+  const UR = window.UpperRoom;
+  if (!UR || typeof UR.listCompassionRequests !== 'function') {
+    host.innerHTML = _emptyState('Compassion requests require Firestore (UpperRoom) — not available.');
+    return;
+  }
+  host.innerHTML = '<div class="life-loading">Loading compassion requests…</div>';
+  try {
+    const res  = await UR.listCompassionRequests({ limit: 80 });
+    const rows = Array.isArray(res) ? res : (res?.results || res?.rows || []);
+    if (!rows.length) {
+      host.innerHTML = _emptyState('No compassion requests on file. Use "New Request" to log one.');
+      return;
+    }
+    const memberMap = _buildMemberIndex(memberDir || []);
+    host.innerHTML = `<div class="life-queue">${rows.map(r => _compassionCard(r, memberMap)).join('')}</div>`;
+    host.querySelectorAll('[data-compassion-id]').forEach(card => {
+      card.addEventListener('click', () => {
+        const id = card.dataset.compassionId;
+        const item = rows.find(r => String(r.id) === id);
+        if (item) _openCompassionSheet(item, memberDir, () => _loadCompassion(root, memberDir));
+      });
+    });
+  } catch (err) {
+    console.error('[TheLife] listCompassionRequests:', err);
+    host.innerHTML = _emptyState('Could not load compassion requests right now.');
+  }
+}
+
+function _compassionCard(r, memberMap) {
+  const name = _resolveName(r.memberId, memberMap) || r.memberName || r.requesterName || r.memberId || '—';
+  const type = r.type || r.requestType || 'Other';
+  const amt  = r.amount ? `$${Number(r.amount).toLocaleString()}` : '';
+  const status = r.status || 'Pending';
+  const statusColor = status === 'Approved' ? '#10b981' : status === 'Denied' ? '#dc2626' : status === 'Resolved' ? '#6b7280' : '#e8a838';
+  const statusBg    = status === 'Approved' ? 'rgba(16,185,129,0.10)' : status === 'Denied' ? 'rgba(220,38,38,0.10)' : status === 'Resolved' ? 'rgba(107,114,128,0.10)' : 'rgba(232,168,56,0.13)';
+  const desc = r.description || r.summary || r.notes || '';
+  return /* html */`
+    <article class="life-card" data-compassion-id="${_e(String(r.id || ''))}" tabindex="0">
+      <div class="life-card-icon">💝</div>
+      <div class="life-card-body">
+        <div class="life-card-top">
+          <span class="life-card-name">${_e(name)}</span>
+          <span class="life-type-badge">${_e(type)}${amt ? ' &bull; ' + _e(amt) : ''}</span>
+          <span class="life-priority-badge" style="color:${statusColor};background:${statusBg}">${_e(status)}</span>
+        </div>
+        <div class="life-card-note">${_e(desc)}</div>
+        <div class="life-card-foot">
+          <span class="life-days">${_e(_fmtDate(r.createdAt) || '')}</span>
+        </div>
+      </div>
+    </article>`;
+}
+
+function _openCompassionSheet(item, memberDir, onSave) {
+  _closeSheet();
+  const UR = window.UpperRoom;
+  if (!UR) return;
+  const isEdit = !!item;
+  const hasDir = memberDir && memberDir.length > 0;
+  const currentStatus = item?.status || 'Pending';
+
+  const sheet = document.createElement('div');
+  sheet.className = 'life-sheet';
+  sheet.innerHTML = /* html */`
+    <div class="life-sheet-overlay"></div>
+    <div class="life-sheet-panel" role="dialog" aria-label="${isEdit ? 'Edit Compassion Request' : 'New Compassion Request'}">
+      <div class="life-sheet-drag"></div>
+      <div class="life-sheet-hd">
+        <div class="life-sheet-hd-info"><div class="life-sheet-hd-name">${isEdit ? 'Compassion Request' : 'New Compassion Request'}</div></div>
+        <button class="life-sheet-close" aria-label="Close">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="life-sheet-body">
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Status</div>
+          <div class="life-status-row">
+            ${COMPASSION_STATUSES.map(s => `<button class="life-status-pill${s === currentStatus ? ' is-active' : ''}" data-status="${_e(s)}">${_e(s)}</button>`).join('')}
+          </div>
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Member</div>
+          ${hasDir
+            ? (isEdit
+                ? `<input class="life-sheet-input" type="text" value="${_e(_resolveName(item.memberId, _buildMemberIndex(memberDir)) || item.memberId || '')}" disabled>
+                   <input type="hidden" data-field="memberId" value="${_e(item.memberId || '')}">`
+                : _memberPickerHtml(memberDir, 'memberId'))
+            : `<input class="life-sheet-input" data-field="memberId" type="text" value="${_e(item?.memberId || '')}" placeholder="Member email or ID" ${isEdit ? 'disabled' : ''}>`}
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Type</div>
+          <select class="life-sheet-input" data-field="type">
+            ${COMPASSION_TYPES.map(t => `<option value="${_e(t)}"${(item?.type || 'Other') === t ? ' selected' : ''}>${_e(t)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Amount (optional)</div>
+          <input class="life-sheet-input" data-field="amount" type="number" min="0" step="0.01" value="${_e(item?.amount ?? '')}" placeholder="0.00">
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Description / Need</div>
+          <textarea class="life-sheet-ta" data-field="description" rows="4" placeholder="What is the need?">${_e(item?.description || item?.summary || '')}</textarea>
+        </div>
+      </div>
+      <div class="life-sheet-foot">
+        <button class="flock-btn" data-cancel>Cancel</button>
+        <button class="flock-btn flock-btn--primary" data-save>${isEdit ? 'Save Changes' : 'Create Request'}</button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(sheet);
+  _activeSheet = sheet;
+  requestAnimationFrame(() => {
+    sheet.querySelector('.life-sheet-overlay').classList.add('is-open');
+    sheet.querySelector('.life-sheet-panel').classList.add('is-open');
+  });
+
+  if (!isEdit) _wireMemberPicker(sheet);
+
+  sheet.querySelectorAll('.life-status-pill').forEach(btn => {
+    btn.addEventListener('click', () => {
+      sheet.querySelectorAll('.life-status-pill').forEach(b => b.classList.remove('is-active'));
+      btn.classList.add('is-active');
+    });
+  });
+
+  sheet.querySelector('[data-cancel]').addEventListener('click', () => _closeSheet());
+  sheet.querySelector('.life-sheet-close').addEventListener('click', () => _closeSheet());
+
+  sheet.querySelector('[data-save]').addEventListener('click', async () => {
+    const memberId    = sheet.querySelector('[data-field="memberId"]').value.trim();
+    const type        = sheet.querySelector('[data-field="type"]').value;
+    const amount      = sheet.querySelector('[data-field="amount"]').value;
+    const description = sheet.querySelector('[data-field="description"]').value.trim();
+    const status      = sheet.querySelector('.life-status-pill.is-active')?.dataset.status || currentStatus;
+    if (!memberId) { sheet.querySelector('[data-field="memberId"]').focus(); return; }
+    const btn = sheet.querySelector('[data-save]');
+    btn.disabled = true; btn.textContent = 'Saving…';
+    const payload = {
+      memberId, type, status, description,
+      amount: amount ? Number(amount) : undefined,
+    };
+    try {
+      if (isEdit) {
+        await UR.updateCompassionRequest(Object.assign({ id: item.id }, payload));
+      } else {
+        await UR.createCompassionRequest(payload);
+      }
+      _closeSheet();
+      if (onSave) onSave();
+    } catch (err) {
+      console.error('[TheLife] save compassion:', err);
+      btn.disabled = false; btn.textContent = isEdit ? 'Save Changes' : 'Create Request';
+    }
+  });
+}
+
+// ── TODOS ────────────────────────────────────────────────────────────────────
+async function _loadTodos(root, memberDir) {
+  const host = root.querySelector('[data-bind="todos"]');
+  if (!host) return;
+  const UR = window.UpperRoom;
+  if (!UR || typeof UR.listTodos !== 'function') {
+    host.innerHTML = _emptyState('Todos require Firestore (UpperRoom) — not available.');
+    return;
+  }
+  host.innerHTML = '<div class="life-loading">Loading todos…</div>';
+  try {
+    const res  = await UR.listTodos({ limit: 100 });
+    const all  = Array.isArray(res) ? res : (res?.results || res?.rows || []);
+    const rows = all.filter(t => (t.status || 'Not Started') !== 'Archived');
+    if (!rows.length) {
+      host.innerHTML = _emptyState('No open todos. Use "Add Todo" to create one.');
+      return;
+    }
+    const memberMap = _buildMemberIndex(memberDir || []);
+    host.innerHTML = `<div class="life-queue">${rows.map(t => _todoCard(t, memberMap)).join('')}</div>`;
+    host.querySelectorAll('[data-todo-id]').forEach(card => {
+      card.addEventListener('click', (e) => {
+        if (e.target.closest('[data-todo-complete]')) return;
+        const id = card.dataset.todoId;
+        const item = rows.find(t => String(t.id) === id);
+        if (item) _openTodoSheet(item, memberDir, () => _loadTodos(root, memberDir));
+      });
+      const cBtn = card.querySelector('[data-todo-complete]');
+      if (cBtn) {
+        cBtn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const id = card.dataset.todoId;
+          try { await UR.completeTodo(id); _loadTodos(root, memberDir); }
+          catch (err) { console.error('[TheLife] completeTodo:', err); }
+        });
+      }
+    });
+  } catch (err) {
+    console.error('[TheLife] listTodos:', err);
+    host.innerHTML = _emptyState('Could not load todos right now.');
+  }
+}
+
+function _todoCard(t, memberMap) {
+  const title    = t.title || '(untitled)';
+  const priority = t.priority || 'Medium';
+  const status   = t.status || 'Not Started';
+  const isDone   = status === 'Done';
+  const assigned = _resolveName(t.assignedTo, memberMap) || t.assignedTo || 'Unassigned';
+  const due      = _fmtDate(t.dueDate);
+  const priColor = priority === 'Urgent' ? '#dc2626' : priority === 'High' ? '#e8a838' : priority === 'Low' ? '#6b7280' : '#0ea5e9';
+  const priBg    = priority === 'Urgent' ? 'rgba(220,38,38,0.10)' : priority === 'High' ? 'rgba(232,168,56,0.13)' : priority === 'Low' ? 'rgba(107,114,128,0.10)' : 'rgba(14,165,233,0.10)';
+  return /* html */`
+    <article class="life-card" data-todo-id="${_e(String(t.id || ''))}" tabindex="0" style="${isDone ? 'opacity:0.55;' : ''}">
+      <div class="life-card-icon">${isDone ? '✅' : '📋'}</div>
+      <div class="life-card-body">
+        <div class="life-card-top">
+          <span class="life-card-name" style="${isDone ? 'text-decoration:line-through;' : ''}">${_e(title)}</span>
+          <span class="life-priority-badge" style="color:${priColor};background:${priBg}">${_e(priority)}</span>
+          <span class="life-type-badge">${_e(status)}</span>
+        </div>
+        ${t.description ? `<div class="life-card-note">${_e(t.description)}</div>` : ''}
+        <div class="life-card-foot">
+          <span class="life-assignee">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            ${_e(assigned)}
+          </span>
+          ${due ? `<span class="life-days">Due ${_e(due)}</span>` : ''}
+        </div>
+      </div>
+      ${!isDone ? `<div class="life-card-actions">
+        <button class="life-action-btn" title="Mark done" data-todo-complete aria-label="Done">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </button>
+      </div>` : ''}
+    </article>`;
+}
+
+function _openTodoSheet(item, memberDir, onSave) {
+  _closeSheet();
+  const UR = window.UpperRoom;
+  if (!UR) return;
+  const isEdit = !!item;
+  const hasDir = memberDir && memberDir.length > 0;
+  const currentStatus   = item?.status   || 'Not Started';
+  const currentPriority = item?.priority || 'Medium';
+  const dueIso = (() => {
+    const ms = _ts(item?.dueDate);
+    if (!ms) return item?.dueDate || '';
+    return new Date(ms).toISOString().slice(0, 10);
+  })();
+
+  const sheet = document.createElement('div');
+  sheet.className = 'life-sheet';
+  sheet.innerHTML = /* html */`
+    <div class="life-sheet-overlay"></div>
+    <div class="life-sheet-panel" role="dialog" aria-label="${isEdit ? 'Edit Todo' : 'New Todo'}">
+      <div class="life-sheet-drag"></div>
+      <div class="life-sheet-hd">
+        <div class="life-sheet-hd-info"><div class="life-sheet-hd-name">${isEdit ? 'Edit Todo' : 'New Todo'}</div></div>
+        <button class="life-sheet-close" aria-label="Close">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="life-sheet-body">
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Title</div>
+          <input class="life-sheet-input" data-field="title" type="text" value="${_e(item?.title || '')}" placeholder="What needs to be done?">
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Status</div>
+          <div class="life-status-row">
+            ${TODO_STATUSES.map(s => `<button class="life-status-pill${s === currentStatus ? ' is-active' : ''}" data-status="${_e(s)}">${_e(s)}</button>`).join('')}
+          </div>
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Priority</div>
+          <div class="life-status-row">
+            ${TODO_PRIORITIES.map(p => `<button class="life-status-pill${p === currentPriority ? ' is-active' : ''}" data-priority="${_e(p)}">${_e(p)}</button>`).join('')}
+          </div>
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Assigned To</div>
+          ${hasDir
+            ? _caregiverSelect(memberDir, 'assignedTo', item?.assignedTo || '', '— Unassigned —')
+            : `<input class="life-sheet-input" data-field="assignedTo" type="text" value="${_e(item?.assignedTo || '')}" placeholder="Email or member id">`}
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Due Date</div>
+          <input class="life-sheet-input" data-field="dueDate" type="date" value="${_e(dueIso)}">
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Description</div>
+          <textarea class="life-sheet-ta" data-field="description" rows="3" placeholder="Details, links, context…">${_e(item?.description || '')}</textarea>
+        </div>
+      </div>
+      <div class="life-sheet-foot">
+        ${isEdit ? `<button class="flock-btn flock-btn--danger" data-delete style="margin-right:auto">Delete</button>` : ''}
+        <button class="flock-btn" data-cancel>Cancel</button>
+        <button class="flock-btn flock-btn--primary" data-save>${isEdit ? 'Save Changes' : 'Add Todo'}</button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(sheet);
+  _activeSheet = sheet;
+  requestAnimationFrame(() => {
+    sheet.querySelector('.life-sheet-overlay').classList.add('is-open');
+    sheet.querySelector('.life-sheet-panel').classList.add('is-open');
+  });
+
+  // Status pills (single-select within their row)
+  sheet.querySelectorAll('[data-status]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      sheet.querySelectorAll('[data-status]').forEach(b => b.classList.remove('is-active'));
+      btn.classList.add('is-active');
+    });
+  });
+  sheet.querySelectorAll('[data-priority]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      sheet.querySelectorAll('[data-priority]').forEach(b => b.classList.remove('is-active'));
+      btn.classList.add('is-active');
+    });
+  });
+
+  sheet.querySelector('[data-cancel]').addEventListener('click', () => _closeSheet());
+  sheet.querySelector('.life-sheet-close').addEventListener('click', () => _closeSheet());
+
+  sheet.querySelector('[data-delete]')?.addEventListener('click', async () => {
+    if (!confirm('Delete this todo?')) return;
+    try { await UR.deleteTodo(item.id); _closeSheet(); if (onSave) onSave(); }
+    catch (err) { console.error('[TheLife] deleteTodo:', err); }
+  });
+
+  sheet.querySelector('[data-save]').addEventListener('click', async () => {
+    const title       = sheet.querySelector('[data-field="title"]').value.trim();
+    const status      = sheet.querySelector('[data-status].is-active')?.dataset.status     || currentStatus;
+    const priority    = sheet.querySelector('[data-priority].is-active')?.dataset.priority || currentPriority;
+    const assignedTo  = sheet.querySelector('[data-field="assignedTo"]').value.trim();
+    const dueDate     = sheet.querySelector('[data-field="dueDate"]').value;
+    const description = sheet.querySelector('[data-field="description"]').value.trim();
+    if (!title) { sheet.querySelector('[data-field="title"]').focus(); return; }
+    const btn = sheet.querySelector('[data-save]');
+    btn.disabled = true; btn.textContent = 'Saving…';
+    const payload = { title, status, priority, assignedTo, dueDate, description };
+    try {
+      if (isEdit) {
+        await UR.updateTodo(item.id, payload);
+      } else {
+        await UR.createTodo(payload);
+      }
+      _closeSheet();
+      if (onSave) onSave();
+    } catch (err) {
+      console.error('[TheLife] save todo:', err);
+      btn.disabled = false; btn.textContent = isEdit ? 'Save Changes' : 'Add Todo';
+    }
+  });
+}
+
+// ── Member picker wiring (shared helper) ─────────────────────────────────────
+function _wireMemberPicker(sheet) {
+  const pickerEl = sheet.querySelector('[data-picker-for]');
+  if (!pickerEl) return;
+  const hiddenInput = pickerEl.querySelector('[data-field]');
+  const searchInput = pickerEl.querySelector('.life-member-search');
+  const selEl       = pickerEl.querySelector('[data-member-sel]');
+  const searchWrap  = pickerEl.querySelector('.life-member-picker-search-wrap');
+  const chipEl      = pickerEl.querySelector('.life-member-chip');
+  const chipName    = chipEl?.querySelector('.life-member-chip-name');
+  const chipClear   = chipEl?.querySelector('.life-member-chip-clear');
+  if (!hiddenInput || !selEl || !searchWrap || !chipEl) return;
+
+  searchInput?.addEventListener('input', () => {
+    const q = searchInput.value.toLowerCase().trim();
+    Array.from(selEl.options).forEach(opt => {
+      opt.hidden = !!(q && opt.value && !opt.dataset.n?.includes(q));
+    });
+  });
+  selEl.addEventListener('change', () => {
+    const val = selEl.value;
+    if (!val) return;
+    const rawLabel = selEl.options[selEl.selectedIndex]?.text || val;
+    const label    = rawLabel.replace(/\s{2,}\(.*\)$/, '').trim();
+    hiddenInput.value     = val;
+    if (chipName) chipName.textContent = label;
+    searchWrap.style.display = 'none';
+    chipEl.style.display    = 'flex';
+  });
+  chipClear?.addEventListener('click', () => {
+    hiddenInput.value = '';
+    selEl.value       = '';
+    if (searchInput) searchInput.value = '';
+    Array.from(selEl.options).forEach(opt => { opt.hidden = false; });
+    chipEl.style.display    = 'none';
+    searchWrap.style.display = '';
+    searchInput?.focus();
   });
 }

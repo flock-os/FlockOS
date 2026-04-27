@@ -820,7 +820,6 @@ function _openCountrySheet(rec, onSaved) {
   };
 
   sheet.querySelector('.life-sheet-close').addEventListener('click', _closeMissionsSheet);
-  sheet.querySelector('.life-sheet-overlay').addEventListener('click', _closeMissionsSheet);
   sheet.querySelector('[data-cancel]').addEventListener('click', _closeMissionsSheet);
 
   sheet.querySelector('[data-submit]').addEventListener('click', async () => {
@@ -1138,7 +1137,6 @@ function _openMissionsSheet(type, V, onSaved, rec = null) {
   }
 
   sheet.querySelector('.life-sheet-close').addEventListener('click', _closeMissionsSheet);
-  sheet.querySelector('.life-sheet-overlay').addEventListener('click', _closeMissionsSheet);
   sheet.querySelector('[data-cancel]').addEventListener('click', _closeMissionsSheet);
 
   sheet.querySelector('[data-submit]').addEventListener('click', async () => {

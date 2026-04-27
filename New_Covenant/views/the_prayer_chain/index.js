@@ -237,7 +237,6 @@ function _openPrayerRequestSheet(p, onReload) {
   const close = () => _closePCSheet();
   sheet.querySelector('[data-cancel]').addEventListener('click', close);
   sheet.querySelector('.life-sheet-close').addEventListener('click', close);
-  sheet.querySelector('.life-sheet-overlay').addEventListener('click', close);
 
   sheet.querySelector('[data-save]').addEventListener('click', async () => {
     const errEl   = sheet.querySelector('[data-error]');

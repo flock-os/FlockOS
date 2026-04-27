@@ -390,7 +390,6 @@ function _openMemberSheet(person, V, onReload) {
   // Close
   sheet.querySelector('[data-cancel]').addEventListener('click', () => _closeMemberSheet());
   sheet.querySelector('.life-sheet-close').addEventListener('click', () => _closeMemberSheet());
-  sheet.querySelector('.life-sheet-overlay').addEventListener('click', () => _closeMemberSheet());
 
   // Save
   sheet.querySelector('[data-save]').addEventListener('click', async () => {
@@ -539,7 +538,6 @@ function _openNewMemberSheet(onReload) {
 
   sheet.querySelector('[data-cancel]').addEventListener('click', () => _closeMemberSheet());
   sheet.querySelector('.life-sheet-close').addEventListener('click', () => _closeMemberSheet());
-  sheet.querySelector('.life-sheet-overlay').addEventListener('click', () => _closeMemberSheet());
 
   sheet.querySelector('[data-save]').addEventListener('click', async () => {
     const firstName = sheet.querySelector('[data-field="firstName"]').value.trim();
