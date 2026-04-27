@@ -26,6 +26,7 @@ const ICON = {
   heart:      I('<path d="M20.84 4.6a5.5 5.5 0 0 0-7.78 0L12 5.66l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21l8.84-8.62a5.5 5.5 0 0 0 0-7.78z"/>'),
   pen:        I('<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/>'),
   shield:     I('<path d="M12 2 4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5z"/>'),
+  globe:      I('<circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>'),
   fish:       I('<path d="M2 12c4-6 14-6 18 0-4 6-14 6-18 0z"/><circle cx="16" cy="12" r="1"/>'),
   chart:      I('<path d="M3 21V3"/><path d="M7 17V11M11 17V7M15 17V13M19 17V9"/>'),
   hammer:     I('<path d="M14 8 6 16l4 4 8-8"/><path d="M14 8l4-4 6 6-4 4z"/>'),
@@ -57,6 +58,7 @@ const SECTIONS = [
     title: 'Mission',
     items: [
       { name: 'the_harvest',           label: 'Harvest',            icon: ICON.harvest },
+      { name: 'the_great_commission',  label: 'Missions',           icon: ICON.globe   },
       { name: 'the_way',               label: 'The Way',            icon: ICON.cross },
       { name: 'the_truth',             label: 'Content',            icon: ICON.pen },
       { name: 'fishing_for_men',       label: 'Outreach',           icon: ICON.fish },
