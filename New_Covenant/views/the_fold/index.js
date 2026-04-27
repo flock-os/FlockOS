@@ -73,6 +73,10 @@ export function mount(root) {
   // Load live members — replaces demo grid when backend is ready
   _loadMembers(root);
 
+  // Add Person button
+  const addBtn = root.querySelector('[data-act="add-person"]');
+  if (addBtn) addBtn.addEventListener('click', () => _openNewMemberSheet(() => _loadMembers(root)));
+
   return () => { _closeMemberSheet(); };
 }
 
@@ -110,7 +114,7 @@ async function _loadMembers(root) {
     grid.querySelectorAll('.fold-card').forEach((card) => {
       const open = () => {
         const person = _personMap[card.dataset.id];
-        if (person) _openMemberSheet(person, V);
+        if (person) _openMemberSheet(person, V, () => _loadMembers(root));
       };
       card.addEventListener('click', open);
       card.addEventListener('keydown', (e) => {
@@ -248,7 +252,7 @@ function _closeMemberSheet(el) {
   setTimeout(() => { target.remove(); if (_activeFoldSheet === target) _activeFoldSheet = null; }, 320);
 }
 
-function _openMemberSheet(person, V) {
+function _openMemberSheet(person, V, onReload) {
   _closeMemberSheet();
   const first   = person.firstName || '';
   const last    = person.lastName  || '';
@@ -324,6 +328,7 @@ function _openMemberSheet(person, V) {
         </div>
       </div>
       <div class="life-sheet-foot">
+        <button class="flock-btn flock-btn--danger" data-delete style="margin-right:auto">Archive</button>
         <button class="flock-btn" data-cancel>Cancel</button>
         <button class="flock-btn flock-btn--primary" data-save>Save Changes</button>
       </div>
@@ -384,9 +389,26 @@ function _openMemberSheet(person, V) {
         await V.flock.permissions.set({ memberId: uid, role: accessRole }).catch(() => {});
       }
       _closeMemberSheet();
+      onReload?.();
     } catch (err) {
       console.error('[TheFold] member update error:', err);
       btn.disabled = false; btn.textContent = 'Save Changes';
+    }
+  });
+
+  // Delete / archive
+  sheet.querySelector('[data-delete]').addEventListener('click', async () => {
+    const ok = confirm(`Archive ${name}? They will be hidden from the directory but their records are preserved.`);
+    if (!ok) return;
+    const btn = sheet.querySelector('[data-delete]');
+    btn.disabled = true; btn.textContent = 'Archiving…';
+    try {
+      await V.flock.members.delete({ id: uid });
+      _closeMemberSheet();
+      onReload?.();
+    } catch (err) {
+      console.error('[TheFold] member delete error:', err);
+      btn.disabled = false; btn.textContent = 'Archive';
     }
   });
 }
@@ -394,4 +416,116 @@ function _openMemberSheet(person, V) {
 function _e(s) {
   return String(s ?? '').replace(/[&<>"']/g, (c) =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+// ── Add new member sheet ──────────────────────────────────────────────────────
+function _openNewMemberSheet(onReload) {
+  _closeMemberSheet();
+  const V = window.TheVine;
+  const sheet = document.createElement('div');
+  sheet.className = 'life-sheet';
+  sheet.innerHTML = /* html */`
+    <div class="life-sheet-overlay"></div>
+    <div class="life-sheet-panel" role="dialog" aria-label="Add New Person">
+      <div class="life-sheet-drag"></div>
+      <div class="life-sheet-hd">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div class="fold-avatar" style="background:var(--c-violet);width:38px;height:38px;font-size:1.2rem;flex-shrink:0;">✝</div>
+          <div class="life-sheet-hd-info">
+            <div class="life-sheet-hd-name">Add New Person</div>
+            <div class="life-sheet-hd-meta">New member, visitor, or leader</div>
+          </div>
+        </div>
+        <button class="life-sheet-close" aria-label="Close">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="life-sheet-body">
+        <!-- Name -->
+        <div class="fold-form-row">
+          <div class="life-sheet-field">
+            <div class="life-sheet-label">First Name <span style="color:#dc2626">*</span></div>
+            <input class="life-sheet-input" data-field="firstName" type="text" placeholder="First name" autofocus>
+          </div>
+          <div class="life-sheet-field">
+            <div class="life-sheet-label">Last Name</div>
+            <input class="life-sheet-input" data-field="lastName" type="text" placeholder="Last name">
+          </div>
+        </div>
+        <!-- Contact -->
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Email</div>
+          <input class="life-sheet-input" data-field="email" type="email" placeholder="Email address">
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Phone</div>
+          <input class="life-sheet-input" data-field="phone" type="tel" placeholder="Phone number">
+        </div>
+        <!-- Member Type -->
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Member Type</div>
+          <select class="life-sheet-input" data-field="memberType">
+            ${MEMBER_TYPES.map(t => `<option value="${_e(t.toLowerCase())}"${t === 'Visitor' ? ' selected' : ''}>${_e(t)}</option>`).join('')}
+          </select>
+        </div>
+        <!-- FlockOS Access -->
+        <div class="fold-perm-section">
+          <div class="fold-perm-section-title">🔐 FlockOS Access Level</div>
+          <div class="fold-perm-section-sub">Optional — grant access so they can log in to FlockOS.</div>
+          <select class="life-sheet-input" data-field="accessRole" style="margin-top:8px;">
+            <option value="">— No access —</option>
+            ${ACCESS_ROLES.map(r => `<option value="${_e(r.value)}">${_e(r.label)}</option>`).join('')}
+          </select>
+        </div>
+        <!-- Error slot -->
+        <div class="fold-form-error" data-error style="display:none;color:#dc2626;font-size:.85rem;margin-top:8px"></div>
+      </div>
+      <div class="life-sheet-foot">
+        <button class="flock-btn" data-cancel>Cancel</button>
+        <button class="flock-btn flock-btn--primary" data-save>Add Person</button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(sheet);
+  _activeFoldSheet = sheet;
+  requestAnimationFrame(() => {
+    sheet.querySelector('.life-sheet-overlay').classList.add('is-open');
+    sheet.querySelector('.life-sheet-panel').classList.add('is-open');
+    sheet.querySelector('[data-field="firstName"]')?.focus();
+  });
+
+  sheet.querySelector('[data-cancel]').addEventListener('click', () => _closeMemberSheet());
+  sheet.querySelector('.life-sheet-close').addEventListener('click', () => _closeMemberSheet());
+  sheet.querySelector('.life-sheet-overlay').addEventListener('click', () => _closeMemberSheet());
+
+  sheet.querySelector('[data-save]').addEventListener('click', async () => {
+    const firstName = sheet.querySelector('[data-field="firstName"]').value.trim();
+    const errEl     = sheet.querySelector('[data-error]');
+    if (!firstName) { errEl.textContent = 'First name is required.'; errEl.style.display = ''; return; }
+    errEl.style.display = 'none';
+    const btn = sheet.querySelector('[data-save]');
+    btn.disabled = true; btn.textContent = 'Adding…';
+    const payload = {
+      firstName,
+      lastName:   sheet.querySelector('[data-field="lastName"]').value.trim(),
+      email:      sheet.querySelector('[data-field="email"]').value.trim(),
+      phone:      sheet.querySelector('[data-field="phone"]').value.trim(),
+      memberType: sheet.querySelector('[data-field="memberType"]').value,
+    };
+    const accessRole = sheet.querySelector('[data-field="accessRole"]').value;
+    try {
+      const res = await V.flock.members.create(payload);
+      const newId = res?.id || res?.memberId || res?.memberNumber;
+      if (accessRole && newId) {
+        await V.flock.permissions.set({ memberId: newId, role: accessRole }).catch(() => {});
+      }
+      _closeMemberSheet();
+      onReload?.();
+    } catch (err) {
+      console.error('[TheFold] member create error:', err);
+      errEl.textContent = err?.message || 'Could not create member. Please try again.';
+      errEl.style.display = '';
+      btn.disabled = false; btn.textContent = 'Add Person';
+    }
+  });
 }

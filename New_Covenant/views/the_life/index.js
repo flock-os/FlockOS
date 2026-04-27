@@ -947,6 +947,7 @@ function _openSheet(c, memberDir, onSave) {
         </div>
       </div>
       <div class="life-sheet-foot">
+        <button class="flock-btn flock-btn--danger life-delete-btn" data-delete style="margin-right:auto">Delete Case</button>
         <button class="flock-btn life-resolve-btn" data-resolve>Resolve Case</button>
         <button class="flock-btn flock-btn--primary" data-save>Save Changes</button>
       </div>
@@ -1073,6 +1074,24 @@ function _openSheet(c, memberDir, onSave) {
       try { await V.flock.care.update({ id: cid, status: 'Resolved' }); } catch (err) {
         console.error('[TheLife] resolve error:', err);
         btn.disabled = false; btn.textContent = 'Resolve Case'; return;
+      }
+    }
+    _closeSheet();
+    if (onSave) onSave();
+  });
+
+  // Delete case
+  sheet.querySelector('[data-delete]').addEventListener('click', async () => {
+    const ok = confirm(`Delete care case for ${name}? This cannot be undone.`);
+    if (!ok) return;
+    const btn = sheet.querySelector('[data-delete]');
+    btn.disabled = true; btn.textContent = 'Deleting…';
+    try {
+      await V.flock.care.update({ id: cid, status: 'Deleted' });
+    } catch {
+      try { await V.flock.care.update({ id: cid, status: 'Archived' }); } catch (err) {
+        console.error('[TheLife] delete error:', err);
+        btn.disabled = false; btn.textContent = 'Delete Case'; return;
       }
     }
     _closeSheet();

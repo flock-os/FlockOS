@@ -93,6 +93,9 @@ export function render() {
   `;
 }
 
+let _activePlanSheet = null;
+let _livePlansMap    = {};
+
 export function mount(root) {
   // Quarter tab switching (visual only)
   root.querySelectorAll('.qw-qtab').forEach(btn => {
@@ -102,8 +105,15 @@ export function mount(root) {
     });
   });
 
+  // New Plan button
+  root.querySelectorAll('.flock-btn--primary').forEach(btn => {
+    if (btn.textContent.includes('New Plan')) {
+      btn.addEventListener('click', () => _openPlanSheet(null, () => _loadPlans(root)));
+    }
+  });
+
   _loadPlans(root);
-  return () => {};
+  return () => { _closePlanSheet(); };
 }
 
 function _rows(res) {
@@ -134,7 +144,7 @@ async function _loadPlans(root) {
     }).sort((a, b) => new Date(a.serviceDate || a.date) - new Date(b.serviceDate || b.date));
 
     if (!plans.length) return;
-    plansEl.innerHTML = plans.map(p => {
+    plansEl.innerHTML = plans.map((p, i) => {
       const dateMs = new Date(p.serviceDate || p.date || p.createdAt).getTime();
       const date   = dateMs ? new Date(dateMs).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '';
       const title  = p.title || p.name || 'Service';
@@ -142,8 +152,19 @@ async function _loadPlans(root) {
       const theme  = p.theme || p.message || '';
       const preacher = p.preacher || p.speaker || '';
       const songs  = p.songs || p.setlist || [];
-      return _planCard({ date, title, series, theme, preacher, songs });
+      const pid = p.id ? String(p.id) : String(i);
+      if (p.id) _livePlansMap[pid] = p;
+      return _planCard({ date, title, series, theme, preacher, songs, _id: pid });
     }).join('');
+    // Wire card clicks for edit
+    const reload = () => _loadPlans(root);
+    plansEl.querySelectorAll('.qw-plan-card[data-id]').forEach(card => {
+      card.style.cursor = 'pointer';
+      card.addEventListener('click', () => {
+        const plan = _livePlansMap[card.dataset.id];
+        if (plan) _openPlanSheet(plan, reload);
+      });
+    });
   } catch (err) {
     console.error('[QuarterlyWorship] servicePlans.list error:', err);
   }
@@ -154,7 +175,7 @@ function _planCard(p) {
     ? `<div class="qw-plan-songs">🎵 ${p.songs.map(s => _e(typeof s === 'string' ? s : s.title || '')).join(' · ')}</div>`
     : '';
   return /* html */`
-    <article class="qw-plan-card" tabindex="0">
+    <article class="qw-plan-card" tabindex="0"${p._id ? ` data-id="${_e(p._id)}"` : ''}>
       <div class="qw-plan-date">${_e(p.date)}</div>
       <div class="qw-plan-body">
         <div class="qw-plan-title">${_e(p.title)}</div>
@@ -168,3 +189,133 @@ function _planCard(p) {
     </article>`;
 }
 
+// ── Service Plan sheet (create / edit) ──────────────────────────────────────────
+function _closePlanSheet() {
+  if (!_activePlanSheet) return;
+  const t = _activePlanSheet;
+  t.querySelector('.life-sheet-overlay')?.classList.remove('is-open');
+  t.querySelector('.life-sheet-panel')?.classList.remove('is-open');
+  setTimeout(() => { t.remove(); if (_activePlanSheet === t) _activePlanSheet = null; }, 320);
+}
+
+function _openPlanSheet(plan, onReload) {
+  _closePlanSheet();
+  const V     = window.TheVine;
+  const isNew = !plan;
+  const uid   = plan?.id ? String(plan.id) : '';
+  const title = plan?.title || plan?.name || '';
+  const date  = plan?.serviceDate ? String(plan.serviceDate).substring(0,10) : (plan?.date ? String(plan.date).substring(0,10) : '');
+  const series   = plan?.series   || plan?.seriesName || '';
+  const theme    = plan?.theme    || plan?.message    || '';
+  const preacher = plan?.preacher || plan?.speaker    || '';
+  const songs    = Array.isArray(plan?.songs) ? plan.songs.map(s => typeof s === 'string' ? s : s.title || '').join(', ') : '';
+
+  const sheet = document.createElement('div');
+  sheet.className = 'life-sheet';
+  sheet.innerHTML = /* html */`
+    <div class="life-sheet-overlay"></div>
+    <div class="life-sheet-panel" role="dialog" aria-label="${isNew ? 'New Service Plan' : 'Edit Service Plan'}">
+      <div class="life-sheet-drag"></div>
+      <div class="life-sheet-hd">
+        <div class="life-sheet-hd-info">
+          <div class="life-sheet-hd-name">${isNew ? 'New Service Plan' : 'Edit Service Plan'}</div>
+          <div class="life-sheet-hd-meta">${isNew ? 'Create a new service order' : _e(title)}</div>
+        </div>
+        <button class="life-sheet-close" aria-label="Close">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="life-sheet-body">
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Title <span style="color:#dc2626">*</span></div>
+          <input class="life-sheet-input" data-field="title" type="text" value="${_e(title)}" placeholder="e.g. Kingdom Roots — Week 1">
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Service Date <span style="color:#dc2626">*</span></div>
+          <input class="life-sheet-input" data-field="serviceDate" type="date" value="${_e(date)}">
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Series Name</div>
+          <input class="life-sheet-input" data-field="series" type="text" value="${_e(series)}" placeholder="e.g. Kingdom Roots">
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Theme / Message</div>
+          <input class="life-sheet-input" data-field="theme" type="text" value="${_e(theme)}" placeholder="e.g. Abide in the Vine">
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Preacher / Speaker</div>
+          <input class="life-sheet-input" data-field="preacher" type="text" value="${_e(preacher)}" placeholder="e.g. Pastor Greg">
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Songs / Setlist <span style="color:#6b7280;font-weight:400">(comma-separated)</span></div>
+          <textarea class="life-sheet-input" data-field="songs" rows="3" style="resize:vertical" placeholder="Come Thou Fount, Holy Spirit, What A Beautiful Name">${_e(songs)}</textarea>
+        </div>
+        <div class="fold-form-error" data-error style="display:none;color:#dc2626;font-size:.85rem;margin-top:8px"></div>
+      </div>
+      <div class="life-sheet-foot">
+        ${!isNew ? '<button class="flock-btn flock-btn--danger" data-delete style="margin-right:auto">Delete Plan</button>' : ''}
+        <button class="flock-btn" data-cancel>Cancel</button>
+        <button class="flock-btn flock-btn--primary" data-save>${isNew ? 'Create Plan' : 'Save Changes'}</button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(sheet);
+  _activePlanSheet = sheet;
+  requestAnimationFrame(() => {
+    sheet.querySelector('.life-sheet-overlay').classList.add('is-open');
+    sheet.querySelector('.life-sheet-panel').classList.add('is-open');
+    if (isNew) sheet.querySelector('[data-field="title"]')?.focus();
+  });
+
+  const close = () => _closePlanSheet();
+  sheet.querySelector('[data-cancel]').addEventListener('click', close);
+  sheet.querySelector('.life-sheet-close').addEventListener('click', close);
+  sheet.querySelector('.life-sheet-overlay').addEventListener('click', close);
+
+  sheet.querySelector('[data-save]').addEventListener('click', async () => {
+    const errEl    = sheet.querySelector('[data-error]');
+    const titleVal = sheet.querySelector('[data-field="title"]').value.trim();
+    const dateVal  = sheet.querySelector('[data-field="serviceDate"]').value;
+    if (!titleVal) { errEl.textContent = 'Title is required.'; errEl.style.display = ''; return; }
+    if (!dateVal)  { errEl.textContent = 'Service date is required.'; errEl.style.display = ''; return; }
+    errEl.style.display = 'none';
+    const btn = sheet.querySelector('[data-save]');
+    btn.disabled = true; btn.textContent = isNew ? 'Creating…' : 'Saving…';
+    const songsRaw = sheet.querySelector('[data-field="songs"]').value;
+    const songArr  = songsRaw ? songsRaw.split(',').map(s => s.trim()).filter(Boolean) : [];
+    const payload = {
+      title:    titleVal,
+      serviceDate: dateVal,
+      series:   sheet.querySelector('[data-field="series"]').value.trim(),
+      theme:    sheet.querySelector('[data-field="theme"]').value.trim(),
+      preacher: sheet.querySelector('[data-field="preacher"]').value.trim(),
+      songs:    songArr,
+    };
+    if (!isNew) payload.id = uid;
+    try {
+      if (isNew) { await V.flock.servicePlans.create(payload); }
+      else       { await V.flock.servicePlans.update(payload); }
+      _closePlanSheet();
+      onReload?.();
+    } catch (err) {
+      console.error('[QuarterlyWorship] plan save error:', err);
+      errEl.textContent = err?.message || 'Could not save plan.';
+      errEl.style.display = '';
+      btn.disabled = false; btn.textContent = isNew ? 'Create Plan' : 'Save Changes';
+    }
+  });
+
+  sheet.querySelector('[data-delete]')?.addEventListener('click', async () => {
+    const ok = confirm(`Delete “${title}”? This cannot be undone.`);
+    if (!ok) return;
+    const btn = sheet.querySelector('[data-delete]');
+    btn.disabled = true; btn.textContent = 'Deleting…';
+    try {
+      await V.flock.servicePlans.update({ id: uid, status: 'Deleted' });
+      _closePlanSheet();
+      onReload?.();
+    } catch (err) {
+      btn.disabled = false; btn.textContent = 'Delete Plan';
+    }
+  });
+}

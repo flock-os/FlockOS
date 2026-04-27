@@ -166,7 +166,11 @@ export function mount(root) {
 
   _wireInteractiveButtons(root);
   _loadPrayer(root, filters);
-  return () => {};
+
+  // Add Request button
+  root.querySelector('#pray-add-btn')?.addEventListener('click', () => _openAddRequestSheet(() => _loadPrayer(root, filters)));
+
+  return () => { _closePraySheet(); };
 }
 
 function _wireInteractiveButtons(root) {
@@ -310,4 +314,114 @@ async function _loadPrayer(root, filterBtns) {
   } catch (err) {
     console.warn('[PrayerfulAction] prayer.list failed, showing demo data:', err);
   }
+}
+
+// ── Add Prayer Request sheet ─────────────────────────────────────────────────
+let _activePraySheet = null;
+
+function _closePraySheet() {
+  if (!_activePraySheet) return;
+  const t = _activePraySheet;
+  t.querySelector('.life-sheet-overlay')?.classList.remove('is-open');
+  t.querySelector('.life-sheet-panel')?.classList.remove('is-open');
+  setTimeout(() => { t.remove(); if (_activePraySheet === t) _activePraySheet = null; }, 320);
+}
+
+function _openAddRequestSheet(onReload) {
+  _closePraySheet();
+  const V = window.TheVine;
+  const sheet = document.createElement('div');
+  sheet.className = 'life-sheet';
+  sheet.innerHTML = /* html */`
+    <div class="life-sheet-overlay"></div>
+    <div class="life-sheet-panel" role="dialog" aria-label="New Prayer Request">
+      <div class="life-sheet-drag"></div>
+      <div class="life-sheet-hd">
+        <div class="life-sheet-hd-info">
+          <div class="life-sheet-hd-name">New Prayer Request</div>
+          <div class="life-sheet-hd-meta">Submit a request to the church prayer team</div>
+        </div>
+        <button class="life-sheet-close" aria-label="Close">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="life-sheet-body">
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Name <span style="color:#6b7280;font-weight:400">(or leave blank for anonymous)</span></div>
+          <input class="life-sheet-input" data-field="name" type="text" placeholder="Your name">
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Prayer Request <span style="color:#dc2626">*</span></div>
+          <textarea class="life-sheet-input" data-field="prayerText" rows="4" style="resize:vertical" placeholder="Share your prayer request…"></textarea>
+        </div>
+        <div class="fold-form-row">
+          <div class="life-sheet-field">
+            <div class="life-sheet-label">Category</div>
+            <select class="life-sheet-input" data-field="category">
+              <option value="Intercession">Intercession</option>
+              <option value="Praise">Praise &amp; Thanksgiving</option>
+              <option value="Personal">Personal</option>
+              <option value="Urgent">Urgent</option>
+            </select>
+          </div>
+          <div class="life-sheet-field">
+            <div class="life-sheet-label">Priority</div>
+            <select class="life-sheet-input" data-field="priority">
+              <option value="Normal">Normal</option>
+              <option value="High">High</option>
+              <option value="Urgent">Urgent</option>
+            </select>
+          </div>
+        </div>
+        <div class="life-sheet-field" style="display:flex;align-items:center;gap:10px;margin-top:4px">
+          <input type="checkbox" id="pray-conf-chk" data-field="isConfidential" style="width:16px;height:16px;cursor:pointer">
+          <label for="pray-conf-chk" style="font:.88rem var(--font-ui);cursor:pointer">🔒 Keep confidential (prayer team only)</label>
+        </div>
+        <div class="fold-form-error" data-error style="display:none;color:#dc2626;font-size:.85rem;margin-top:8px"></div>
+      </div>
+      <div class="life-sheet-foot">
+        <button class="flock-btn" data-cancel>Cancel</button>
+        <button class="flock-btn flock-btn--primary" data-save>Submit Request</button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(sheet);
+  _activePraySheet = sheet;
+  requestAnimationFrame(() => {
+    sheet.querySelector('.life-sheet-overlay').classList.add('is-open');
+    sheet.querySelector('.life-sheet-panel').classList.add('is-open');
+    sheet.querySelector('[data-field="prayerText"]')?.focus();
+  });
+
+  const close = () => _closePraySheet();
+  sheet.querySelector('[data-cancel]').addEventListener('click', close);
+  sheet.querySelector('.life-sheet-close').addEventListener('click', close);
+  sheet.querySelector('.life-sheet-overlay').addEventListener('click', close);
+
+  sheet.querySelector('[data-save]').addEventListener('click', async () => {
+    const errEl    = sheet.querySelector('[data-error]');
+    const textVal  = sheet.querySelector('[data-field="prayerText"]').value.trim();
+    if (!textVal) { errEl.textContent = 'Please enter a prayer request.'; errEl.style.display = ''; return; }
+    errEl.style.display = 'none';
+    const btn = sheet.querySelector('[data-save]');
+    btn.disabled = true; btn.textContent = 'Submitting…';
+    const payload = {
+      submitterName:   sheet.querySelector('[data-field="name"]').value.trim() || 'Anonymous',
+      prayerText:      textVal,
+      category:        sheet.querySelector('[data-field="category"]').value,
+      priority:        sheet.querySelector('[data-field="priority"]').value,
+      isConfidential:  sheet.querySelector('[data-field="isConfidential"]').checked,
+      status:          'New',
+    };
+    try {
+      if (V) { await V.flock.prayer.create(payload); }
+      _closePraySheet();
+      onReload?.();
+    } catch (err) {
+      console.error('[PrayerfulAction] prayer.create error:', err);
+      errEl.textContent = err?.message || 'Could not submit request. Please try again.';
+      errEl.style.display = '';
+      btn.disabled = false; btn.textContent = 'Submit Request';
+    }
+  });
 }

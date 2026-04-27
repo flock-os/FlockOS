@@ -39,6 +39,10 @@ const TYPE_META = {
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 const DAYS   = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+const EVENT_TYPES = ['service','prayer','ministry','outreach','admin','special','training','other'];
+
+let _activeSeasonSheet = null;
+let _liveEventsMap     = {};
 
 export function render() {
   const upcoming = EVENTS.filter(e => e.date >= new Date(TODAY.getFullYear(), TODAY.getMonth(), TODAY.getDate()));
@@ -88,8 +92,12 @@ export function mount(root) {
     });
   });
 
+  // New Event button
+  const addBtn = root.querySelector('.seasons-add-btn');
+  if (addBtn) addBtn.addEventListener('click', () => _openEventSheet(null, () => _loadEvents(root)));
+
   _loadEvents(root);
-  return () => {};
+  return () => { _closeEventSheet(); };
 }
 
 async function _loadEvents(root) {
@@ -116,6 +124,19 @@ async function _loadEvents(root) {
     listEl.innerHTML = upcoming.length
       ? upcoming.map(_liveEventCard).join('')
       : '<div style="padding:32px;text-align:center;color:var(--ink-muted,#7a7f96)">No upcoming events.</div>';
+
+    // Build lookup and wire card clicks
+    _liveEventsMap = {};
+    upcoming.forEach(ev => { if (ev.id) _liveEventsMap[String(ev.id)] = ev; });
+    const reload = () => _loadEvents(root);
+    listEl.querySelectorAll('.seasons-card').forEach(card => {
+      card.style.cursor = 'pointer';
+      card.addEventListener('click', () => {
+        const ev = _liveEventsMap[card.dataset.id];
+        if (ev) _openEventSheet(ev, reload);
+      });
+      card.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); card.click(); } });
+    });
 
     // Rebuild mini-calendars from live event dates
     if (calCol) {
@@ -161,7 +182,7 @@ function _liveEventCard(ev) {
   const rsvpStr = rsvp > 0 ? `<span class="seasons-rsvp">${rsvp} attending</span>` : '';
 
   return /* html */`
-    <article class="seasons-card${isToday ? ' is-today' : ''}" data-type="${_e(type)}" tabindex="0">
+    <article class="seasons-card${isToday ? ' is-today' : ''}" data-type="${_e(type)}" data-id="${_e(String(ev.id || ''))}" tabindex="0">
       <div class="seasons-card-date">
         <div class="seasons-card-day">${d.getDate()}</div>
         <div class="seasons-card-mon">${MONTHS[d.getMonth()].slice(0,3).toUpperCase()}</div>
@@ -268,4 +289,151 @@ function _fmtDate(d) {
 function _e(s) {
   return String(s ?? '').replace(/[&<>"']/g, (c) =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+// ── Event sheet (create / edit) ──────────────────────────────────────────────
+function _closeEventSheet() {
+  if (!_activeSeasonSheet) return;
+  const target = _activeSeasonSheet;
+  target.querySelector('.life-sheet-overlay')?.classList.remove('is-open');
+  target.querySelector('.life-sheet-panel')?.classList.remove('is-open');
+  setTimeout(() => { target.remove(); if (_activeSeasonSheet === target) _activeSeasonSheet = null; }, 320);
+}
+
+function _isoDate(d) {
+  if (!d) return '';
+  try {
+    const ms = d?.seconds ? d.seconds * 1000 : +new Date(d);
+    if (isNaN(ms)) return '';
+    const dt = new Date(ms);
+    return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+  } catch { return ''; }
+}
+
+function _openEventSheet(ev, onReload) {
+  _closeEventSheet();
+  const V      = window.TheVine;
+  const isNew  = !ev;
+  const uid    = ev?.id   ? String(ev.id) : '';
+  const title  = ev?.title || ev?.name    || '';
+  const type   = (ev?.type || ev?.category || 'service').toLowerCase();
+  const loc    = ev?.location || ev?.loc  || '';
+  const sDate  = _isoDate(ev?._date || ev?.startDate || ev?.date);
+  const sTime  = ev?.startTime || ev?.time || '';
+  const desc   = ev?.description || ev?.notes || '';
+  const rsvpN  = ev?.rsvpCount || ev?.rsvp || '';
+
+  const sheet = document.createElement('div');
+  sheet.className = 'life-sheet';
+  sheet.innerHTML = /* html */`
+    <div class="life-sheet-overlay"></div>
+    <div class="life-sheet-panel" role="dialog" aria-label="${isNew ? 'New Event' : 'Edit Event'}">
+      <div class="life-sheet-drag"></div>
+      <div class="life-sheet-hd">
+        <div class="life-sheet-hd-info">
+          <div class="life-sheet-hd-name">${isNew ? 'New Event' : 'Edit Event'}</div>
+          <div class="life-sheet-hd-meta">${isNew ? 'Add to the calendar' : _e(title)}</div>
+        </div>
+        <button class="life-sheet-close" aria-label="Close">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="life-sheet-body">
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Event Title <span style="color:#dc2626">*</span></div>
+          <input class="life-sheet-input" data-field="title" type="text" value="${_e(title)}" placeholder="e.g. Sunday Worship Service">
+        </div>
+        <div class="fold-form-row">
+          <div class="life-sheet-field">
+            <div class="life-sheet-label">Date <span style="color:#dc2626">*</span></div>
+            <input class="life-sheet-input" data-field="startDate" type="date" value="${_e(sDate)}">
+          </div>
+          <div class="life-sheet-field">
+            <div class="life-sheet-label">Time</div>
+            <input class="life-sheet-input" data-field="startTime" type="time" value="${_e(sTime)}">
+          </div>
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Location</div>
+          <input class="life-sheet-input" data-field="location" type="text" value="${_e(loc)}" placeholder="Main Sanctuary, Chapel, Online…">
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Event Type</div>
+          <select class="life-sheet-input" data-field="type">
+            ${EVENT_TYPES.map(t => `<option value="${_e(t)}"${t === type ? ' selected' : ''}>${_e(t.charAt(0).toUpperCase()+t.slice(1))}</option>`).join('')}
+          </select>
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Description / Notes</div>
+          <textarea class="life-sheet-input" data-field="description" rows="3" style="resize:vertical">${_e(desc)}</textarea>
+        </div>
+        <div class="fold-form-error" data-error style="display:none;color:#dc2626;font-size:.85rem;margin-top:8px"></div>
+      </div>
+      <div class="life-sheet-foot">
+        ${!isNew ? '<button class="flock-btn flock-btn--danger" data-delete style="margin-right:auto">Cancel Event</button>' : ''}
+        <button class="flock-btn" data-cancel>Close</button>
+        <button class="flock-btn flock-btn--primary" data-save>${isNew ? 'Create Event' : 'Save Changes'}</button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(sheet);
+  _activeSeasonSheet = sheet;
+  requestAnimationFrame(() => {
+    sheet.querySelector('.life-sheet-overlay').classList.add('is-open');
+    sheet.querySelector('.life-sheet-panel').classList.add('is-open');
+    if (isNew) sheet.querySelector('[data-field="title"]')?.focus();
+  });
+
+  const close = () => _closeEventSheet();
+  sheet.querySelector('[data-cancel]').addEventListener('click', close);
+  sheet.querySelector('.life-sheet-close').addEventListener('click', close);
+  sheet.querySelector('.life-sheet-overlay').addEventListener('click', close);
+
+  // Save / Create
+  sheet.querySelector('[data-save]').addEventListener('click', async () => {
+    const errEl    = sheet.querySelector('[data-error]');
+    const titleVal = sheet.querySelector('[data-field="title"]').value.trim();
+    const dateVal  = sheet.querySelector('[data-field="startDate"]').value;
+    if (!titleVal) { errEl.textContent = 'Title is required.'; errEl.style.display = ''; return; }
+    if (!dateVal)  { errEl.textContent = 'Date is required.'; errEl.style.display = ''; return; }
+    errEl.style.display = 'none';
+    const btn = sheet.querySelector('[data-save]');
+    btn.disabled = true; btn.textContent = isNew ? 'Creating…' : 'Saving…';
+    const payload = {
+      title:       titleVal,
+      startDate:   dateVal,
+      startTime:   sheet.querySelector('[data-field="startTime"]').value,
+      location:    sheet.querySelector('[data-field="location"]').value.trim(),
+      type:        sheet.querySelector('[data-field="type"]').value,
+      description: sheet.querySelector('[data-field="description"]').value.trim(),
+    };
+    if (!isNew) payload.id = uid;
+    try {
+      if (isNew) { await V.flock.events.create(payload); }
+      else       { await V.flock.events.update(payload); }
+      _closeEventSheet();
+      onReload?.();
+    } catch (err) {
+      console.error('[TheSeasons] event save error:', err);
+      errEl.textContent = err?.message || 'Could not save event. Please try again.';
+      errEl.style.display = '';
+      btn.disabled = false; btn.textContent = isNew ? 'Create Event' : 'Save Changes';
+    }
+  });
+
+  // Cancel/Delete event
+  sheet.querySelector('[data-delete]')?.addEventListener('click', async () => {
+    const ok = confirm(`Cancel "${title}"? This will remove it from the calendar.`);
+    if (!ok) return;
+    const btn = sheet.querySelector('[data-delete]');
+    btn.disabled = true; btn.textContent = 'Cancelling…';
+    try {
+      await V.flock.events.cancel({ id: uid });
+      _closeEventSheet();
+      onReload?.();
+    } catch (err) {
+      console.error('[TheSeasons] event cancel error:', err);
+      btn.disabled = false; btn.textContent = 'Cancel Event';
+    }
+  });
 }

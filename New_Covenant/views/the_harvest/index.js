@@ -8,6 +8,10 @@ import { pageHero } from '../_frame.js';
 export const name  = 'the_harvest';
 export const title = 'Harvest';
 
+let _activeHarvestSheet = null;
+let _liveMissMap        = {};
+let _liveOutreachMap    = {};
+
 const YEAR = 2026;
 
 const STATS = [
@@ -77,8 +81,20 @@ export function render() {
 }
 
 export function mount(root) {
+  // New Effort button
+  root.querySelectorAll('.flock-btn--primary').forEach(btn => {
+    if (btn.textContent.includes('New Effort')) {
+      btn.addEventListener('click', () => _openOutreachSheet(null, () => _loadHarvest(root)));
+    }
+  });
+  // Manage Support
+  root.querySelectorAll('.flock-btn--ghost').forEach(btn => {
+    if (btn.textContent.includes('Manage Support')) {
+      btn.addEventListener('click', () => _openMissionarySheet(null, () => _loadHarvest(root)));
+    }
+  });
   _loadHarvest(root);
-  return () => {};
+  return () => { _closeHarvestSheet(); };
 }
 
 async function _loadHarvest(root) {
@@ -119,6 +135,19 @@ async function _loadHarvest(root) {
       missionEl.innerHTML = missionaries.length
         ? missionaries.map(_liveMissionCard).join('')
         : MISSIONARIES.map(_missionCard).join('');
+      // Wire edit clicks for live missionaries
+      if (missionaries.length) {
+        _liveMissMap = {};
+        missionaries.forEach(m => { if (m.id) _liveMissMap[String(m.id)] = m; });
+        const mReload = () => _loadHarvest(root);
+        missionEl.querySelectorAll('.harvest-mission-card[data-id]').forEach(card => {
+          card.style.cursor = 'pointer';
+          card.addEventListener('click', () => {
+            const rec = _liveMissMap[card.dataset.id];
+            if (rec) _openMissionarySheet(rec, mReload);
+          });
+        });
+      }
     } catch (err) {
       console.error('[TheHarvest] missions load error:', err);
       missionEl.innerHTML = MISSIONARIES.map(_missionCard).join('');
@@ -140,6 +169,19 @@ async function _loadHarvest(root) {
       outreachEl.innerHTML = rows.length
         ? rows.map(_liveOutreachRow).join('')
         : '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">No outreach events on file.</div>';
+      // Wire edit clicks for live outreach
+      if (rows.length) {
+        _liveOutreachMap = {};
+        rows.forEach(r => { if (r.id) _liveOutreachMap[String(r.id)] = r; });
+        const oReload = () => _loadHarvest(root);
+        outreachEl.querySelectorAll('.harvest-outreach-row[data-id]').forEach(card => {
+          card.style.cursor = 'pointer';
+          card.addEventListener('click', () => {
+            const rec = _liveOutreachMap[card.dataset.id];
+            if (rec) _openOutreachSheet(rec, oReload);
+          });
+        });
+      }
     } catch (err) {
       console.error('[TheHarvest] events.list outreach error:', err);
       outreachEl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Outreach data unavailable.</div>';
@@ -164,7 +206,7 @@ function _liveMissionCard(m) {
   const needs   = giving < goal;
   const initials = name.split(/[&\s]+/).filter(Boolean).map(w => w[0] || '').slice(0,2).join('').toUpperCase();
   return /* html */`
-    <article class="harvest-mission-card${needs ? ' harvest-mission--needs' : ''}">
+    <article class="harvest-mission-card${needs ? ' harvest-mission--needs' : ''}"${m.id ? ` data-id="${_e(String(m.id))}"` : ''}>
       <div class="harvest-mission-avatar">${initials}</div>
       <div class="harvest-mission-body">
         <div class="harvest-mission-name">${_e(name)}</div>
@@ -190,7 +232,7 @@ function _liveOutreachRow(o) {
   const statusColor = status === 'complete' ? '#059669' : status === 'active' ? '#0ea5e9' : '#e8a838';
   const statusBg    = status === 'complete' ? 'rgba(5,150,105,0.10)' : status === 'active' ? 'rgba(14,165,233,0.10)' : 'rgba(232,168,56,0.13)';
   return /* html */`
-    <article class="harvest-outreach-row" tabindex="0">
+    <article class="harvest-outreach-row"${o.id ? ` data-id="${_e(String(o.id))}"` : ''} tabindex="0">
       <div class="harvest-outreach-body">
         <div class="harvest-outreach-title">${_e(title)}</div>
         <div class="harvest-outreach-meta">
@@ -255,4 +297,263 @@ function _outreachRow(o) {
 function _e(s) {
   return String(s ?? '').replace(/[&<>"']/g, (c) =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+// ── Harvest sheets (outreach + missionary) ────────────────────────────────
+function _closeHarvestSheet() {
+  if (!_activeHarvestSheet) return;
+  const t = _activeHarvestSheet;
+  t.querySelector('.life-sheet-overlay')?.classList.remove('is-open');
+  t.querySelector('.life-sheet-panel')?.classList.remove('is-open');
+  setTimeout(() => { t.remove(); if (_activeHarvestSheet === t) _activeHarvestSheet = null; }, 320);
+}
+
+const OUTREACH_STATUSES = ['upcoming', 'active', 'complete', 'cancelled'];
+
+function _openOutreachSheet(ev, onReload) {
+  _closeHarvestSheet();
+  const V     = window.TheVine;
+  const isNew = !ev;
+  const uid   = ev?.id ? String(ev.id) : '';
+  const title = ev?.title || ev?.name || '';
+  const date  = ev?.startDate ? String(ev.startDate).substring(0,10) : '';
+  const location  = ev?.location || '';
+  const teamSize  = ev?.teamSize || ev?.volunteers || '';
+  const status    = ev?.status   || 'upcoming';
+  const description = ev?.description || ev?.notes || '';
+
+  const sheet = document.createElement('div');
+  sheet.className = 'life-sheet';
+  sheet.innerHTML = /* html */`
+    <div class="life-sheet-overlay"></div>
+    <div class="life-sheet-panel" role="dialog" aria-label="${isNew ? 'New Outreach Effort' : 'Edit Outreach Effort'}">
+      <div class="life-sheet-drag"></div>
+      <div class="life-sheet-hd">
+        <div class="life-sheet-hd-info">
+          <div class="life-sheet-hd-name">${isNew ? 'New Outreach Effort' : 'Edit Outreach'}</div>
+          <div class="life-sheet-hd-meta">${isNew ? 'Log a local evangelism or service event' : _e(title)}</div>
+        </div>
+        <button class="life-sheet-close" aria-label="Close">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="life-sheet-body">
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Effort Title <span style="color:#dc2626">*</span></div>
+          <input class="life-sheet-input" data-field="title" type="text" value="${_e(title)}" placeholder="e.g. Downtown Gospel Rally">
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Date</div>
+          <input class="life-sheet-input" data-field="startDate" type="date" value="${_e(date)}">
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Location</div>
+          <input class="life-sheet-input" data-field="location" type="text" value="${_e(location)}" placeholder="e.g. Community Park">
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Team Size</div>
+          <input class="life-sheet-input" data-field="teamSize" type="number" min="1" value="${_e(String(teamSize))}" placeholder="e.g. 12">
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Status</div>
+          <select class="life-sheet-input" data-field="status">
+            ${OUTREACH_STATUSES.map(s => `<option value="${s}"${s === status ? ' selected' : ''}>${s}</option>`).join('')}
+          </select>
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Notes / Description</div>
+          <textarea class="life-sheet-input" data-field="description" rows="3" style="resize:vertical" placeholder="Describe the effort, goals, and follow-up…">${_e(description)}</textarea>
+        </div>
+        <div class="fold-form-error" data-error style="display:none;color:#dc2626;font-size:.85rem;margin-top:8px"></div>
+      </div>
+      <div class="life-sheet-foot">
+        ${!isNew ? '<button class="flock-btn flock-btn--danger" data-delete style="margin-right:auto">Delete Effort</button>' : ''}
+        <button class="flock-btn" data-cancel>Cancel</button>
+        <button class="flock-btn flock-btn--primary" data-save>${isNew ? 'Create Effort' : 'Save Changes'}</button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(sheet);
+  _activeHarvestSheet = sheet;
+  requestAnimationFrame(() => {
+    sheet.querySelector('.life-sheet-overlay').classList.add('is-open');
+    sheet.querySelector('.life-sheet-panel').classList.add('is-open');
+    if (isNew) sheet.querySelector('[data-field="title"]')?.focus();
+  });
+
+  const close = () => _closeHarvestSheet();
+  sheet.querySelector('[data-cancel]').addEventListener('click', close);
+  sheet.querySelector('.life-sheet-close').addEventListener('click', close);
+  sheet.querySelector('.life-sheet-overlay').addEventListener('click', close);
+
+  sheet.querySelector('[data-save]').addEventListener('click', async () => {
+    const errEl    = sheet.querySelector('[data-error]');
+    const titleVal = sheet.querySelector('[data-field="title"]').value.trim();
+    if (!titleVal) { errEl.textContent = 'Title is required.'; errEl.style.display = ''; return; }
+    errEl.style.display = 'none';
+    const btn = sheet.querySelector('[data-save]');
+    btn.disabled = true; btn.textContent = isNew ? 'Creating…' : 'Saving…';
+    const teamVal = parseFloat(sheet.querySelector('[data-field="teamSize"]').value);
+    const payload = {
+      title:    titleVal,
+      type:     'Outreach',
+      startDate: sheet.querySelector('[data-field="startDate"]').value || undefined,
+      location:  sheet.querySelector('[data-field="location"]').value.trim() || undefined,
+      teamSize:  isNaN(teamVal) ? undefined : teamVal,
+      status:    sheet.querySelector('[data-field="status"]').value,
+      description: sheet.querySelector('[data-field="description"]').value.trim() || undefined,
+    };
+    if (!isNew) payload.id = uid;
+    try {
+      if (isNew) { await V.flock.events.create(payload); }
+      else       { await V.flock.events.update(payload); }
+      _closeHarvestSheet();
+      onReload?.();
+    } catch (err) {
+      console.error('[TheHarvest] outreach save error:', err);
+      errEl.textContent = err?.message || 'Could not save.';
+      errEl.style.display = '';
+      btn.disabled = false; btn.textContent = isNew ? 'Create Effort' : 'Save Changes';
+    }
+  });
+
+  sheet.querySelector('[data-delete]')?.addEventListener('click', async () => {
+    const ok = confirm(`Delete "${title}"? This cannot be undone.`);
+    if (!ok) return;
+    const btn = sheet.querySelector('[data-delete]');
+    btn.disabled = true; btn.textContent = 'Deleting…';
+    try {
+      await V.flock.events.cancel({ id: uid });
+      _closeHarvestSheet();
+      onReload?.();
+    } catch (err) { btn.disabled = false; btn.textContent = 'Delete Effort'; }
+  });
+}
+
+const PARTNER_TYPES = ['Sending Agency', 'Field Partner', 'Training Ministry', 'Relief & Development', 'Church Plant', 'Other'];
+
+function _openMissionarySheet(m, onReload) {
+  _closeHarvestSheet();
+  const V     = window.TheVine;
+  const isNew = !m;
+  const uid   = m?.id ? String(m.id) : '';
+  const name  = m ? (m.missionaryName || m.name || '') : '';
+  const region = m?.region || m?.country || '';
+  const org    = m?.organization || m?.org || '';
+  const pType  = m?.partnerType || m?.type || '';
+  const goal   = m?.monthlyGoal || m?.goal || '';
+  const website = m?.website || '';
+  const description = m?.description || '';
+
+  const sheet = document.createElement('div');
+  sheet.className = 'life-sheet';
+  sheet.innerHTML = /* html */`
+    <div class="life-sheet-overlay"></div>
+    <div class="life-sheet-panel" role="dialog" aria-label="${isNew ? 'Add Missionary Partner' : 'Edit Missionary Partner'}">
+      <div class="life-sheet-drag"></div>
+      <div class="life-sheet-hd">
+        <div class="life-sheet-hd-info">
+          <div class="life-sheet-hd-name">${isNew ? 'Add Missionary Partner' : 'Edit Missionary'}</div>
+          <div class="life-sheet-hd-meta">${isNew ? 'Add a supported missionary or mission partner' : _e(name)}</div>
+        </div>
+        <button class="life-sheet-close" aria-label="Close">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="life-sheet-body">
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Name / Organization <span style="color:#dc2626">*</span></div>
+          <input class="life-sheet-input" data-field="name" type="text" value="${_e(name)}" placeholder="e.g. Thomas & Grace Adu">
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Region / Country</div>
+          <input class="life-sheet-input" data-field="region" type="text" value="${_e(region)}" placeholder="e.g. West Africa">
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Sending Organization</div>
+          <input class="life-sheet-input" data-field="org" type="text" value="${_e(org)}" placeholder="e.g. SIM, ABWE, OM">
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Partner Type</div>
+          <select class="life-sheet-input" data-field="partnerType">
+            <option value="">— select —</option>
+            ${PARTNER_TYPES.map(t => `<option value="${_e(t)}"${t === pType ? ' selected' : ''}>${_e(t)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Monthly Support Goal ($)</div>
+          <input class="life-sheet-input" data-field="monthlyGoal" type="number" min="0" value="${_e(String(goal))}" placeholder="e.g. 1500">
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Website</div>
+          <input class="life-sheet-input" data-field="website" type="url" value="${_e(website)}" placeholder="https://…">
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Notes</div>
+          <textarea class="life-sheet-input" data-field="description" rows="3" style="resize:vertical" placeholder="Ministry focus, prayer needs, relationship history…">${_e(description)}</textarea>
+        </div>
+        <div class="fold-form-error" data-error style="display:none;color:#dc2626;font-size:.85rem;margin-top:8px"></div>
+      </div>
+      <div class="life-sheet-foot">
+        ${!isNew ? '<button class="flock-btn flock-btn--danger" data-delete style="margin-right:auto">Remove Partner</button>' : ''}
+        <button class="flock-btn" data-cancel>Cancel</button>
+        <button class="flock-btn flock-btn--primary" data-save>${isNew ? 'Add Partner' : 'Save Changes'}</button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(sheet);
+  _activeHarvestSheet = sheet;
+  requestAnimationFrame(() => {
+    sheet.querySelector('.life-sheet-overlay').classList.add('is-open');
+    sheet.querySelector('.life-sheet-panel').classList.add('is-open');
+    if (isNew) sheet.querySelector('[data-field="name"]')?.focus();
+  });
+
+  const close = () => _closeHarvestSheet();
+  sheet.querySelector('[data-cancel]').addEventListener('click', close);
+  sheet.querySelector('.life-sheet-close').addEventListener('click', close);
+  sheet.querySelector('.life-sheet-overlay').addEventListener('click', close);
+
+  sheet.querySelector('[data-save]').addEventListener('click', async () => {
+    const errEl   = sheet.querySelector('[data-error]');
+    const nameVal = sheet.querySelector('[data-field="name"]').value.trim();
+    if (!nameVal) { errEl.textContent = 'Name is required.'; errEl.style.display = ''; return; }
+    errEl.style.display = 'none';
+    const btn = sheet.querySelector('[data-save]');
+    btn.disabled = true; btn.textContent = isNew ? 'Adding…' : 'Saving…';
+    const goalVal = parseFloat(sheet.querySelector('[data-field="monthlyGoal"]').value);
+    const payload = {
+      organizationName: nameVal,
+      region:      sheet.querySelector('[data-field="region"]').value.trim() || undefined,
+      organization: sheet.querySelector('[data-field="org"]').value.trim() || undefined,
+      partnerType: sheet.querySelector('[data-field="partnerType"]').value || undefined,
+      monthlyGoal: isNaN(goalVal) ? undefined : goalVal,
+      website:     sheet.querySelector('[data-field="website"]').value.trim() || undefined,
+      description: sheet.querySelector('[data-field="description"]').value.trim() || undefined,
+    };
+    if (!isNew) payload.id = uid;
+    try {
+      if (isNew) { await V.missions.partners.create(payload); }
+      else       { await V.missions.partners.update(payload); }
+      _closeHarvestSheet();
+      onReload?.();
+    } catch (err) {
+      console.error('[TheHarvest] missionary save error:', err);
+      errEl.textContent = err?.message || 'Could not save.';
+      errEl.style.display = '';
+      btn.disabled = false; btn.textContent = isNew ? 'Add Partner' : 'Save Changes';
+    }
+  });
+
+  sheet.querySelector('[data-delete]')?.addEventListener('click', async () => {
+    const ok = confirm(`Remove "${name}" from missionary support? This cannot be undone.`);
+    if (!ok) return;
+    const btn = sheet.querySelector('[data-delete]');
+    btn.disabled = true; btn.textContent = 'Removing…';
+    try {
+      await V.missions.partners.update({ id: uid, status: 'Deleted' });
+      _closeHarvestSheet();
+      onReload?.();
+    } catch (err) { btn.disabled = false; btn.textContent = 'Remove Partner'; }
+  });
 }

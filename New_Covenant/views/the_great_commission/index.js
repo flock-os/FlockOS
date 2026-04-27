@@ -221,7 +221,7 @@ function _teamCard(r) {
   const pct    = budget > 0 ? Math.min(100, Math.round((raised / budget) * 100)) : 0;
 
   return `
-    <div class="gc-team-card">
+    <div class="gc-team-card" data-id="${_e(String(r.id || ''))}" tabindex="0" style="cursor:pointer">
       <div class="gc-team-top">
         <div>
           <div class="gc-team-name">${_e(r.teamName || r.name || 'Unnamed Team')}</div>
@@ -250,7 +250,7 @@ function _partnerCard(r) {
   const status = r.relationshipStatus || r.status || '';
 
   return `
-    <div class="gc-partner-card">
+    <div class="gc-partner-card" data-id="${_e(String(r.id || ''))}" tabindex="0" style="cursor:pointer">
       <div class="gc-partner-top">
         <span class="gc-partner-icon">${icon}</span>
         <div class="gc-partner-info">
@@ -612,6 +612,16 @@ async function _loadTeams(root, V) {
     content.innerHTML = rows.length
       ? `<div class="gc-team-grid">${rows.map(_teamCard).join('')}</div>`
       : '<div class="gc-empty">No mission teams found. Add teams through FlockOS to track short-term trips and long-term workers.</div>';
+    // Build map + wire edit clicks
+    _gcTeamsMap = {};
+    rows.forEach(r => { if (r.id) _gcTeamsMap[String(r.id)] = r; });
+    const reload = () => _loadTeams(root, V);
+    content.querySelectorAll('.gc-team-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const rec = _gcTeamsMap[card.dataset.id];
+        _openMissionsSheet('teams', V, reload, rec || null);
+      });
+    });
   } catch (err) {
     content.innerHTML = `<div class="gc-empty">Could not load teams. ${_e(String(err.message || err))}</div>`;
   }
@@ -628,6 +638,16 @@ async function _loadPartners(root, V) {
     content.innerHTML = rows.length
       ? `<div class="gc-partner-grid">${rows.map(_partnerCard).join('')}</div>`
       : '<div class="gc-empty">No mission partners found. Add sending agencies and field partners through FlockOS.</div>';
+    // Build map + wire edit clicks
+    _gcPartnersMap = {};
+    rows.forEach(r => { if (r.id) _gcPartnersMap[String(r.id)] = r; });
+    const reload = () => _loadPartners(root, V);
+    content.querySelectorAll('.gc-partner-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const rec = _gcPartnersMap[card.dataset.id];
+        _openMissionsSheet('partners', V, reload, rec || null);
+      });
+    });;
   } catch (err) {
     content.innerHTML = `<div class="gc-empty">Could not load partners. ${_e(String(err.message || err))}</div>`;
   }
@@ -849,6 +869,8 @@ function _openCountrySheet(rec, onSaved) {
 let _activeMissionsSheet = null;
 let _canEditRegistry     = false;   // set on each _loadWorld call
 let _worldRows           = [];      // cached for edit lookups
+let _gcTeamsMap          = {};
+let _gcPartnersMap       = {};
 
 function _closeMissionsSheet() {
   if (!_activeMissionsSheet) return;
@@ -1042,10 +1064,15 @@ const _GC_TITLES = {
   partners: 'Add Partner',
   updates:  'Add Field Update',
 };
+const _GC_EDIT_TITLES = {
+  teams:    'Edit Mission Team',
+  partners: 'Edit Partner',
+};
 
-function _openMissionsSheet(type, V, onSaved) {
+function _openMissionsSheet(type, V, onSaved, rec = null) {
   _closeMissionsSheet();
-  const title = _GC_TITLES[type] || 'Add Entry';
+  const isEdit = !!(rec?.id);
+  const title  = isEdit ? (_GC_EDIT_TITLES[type] || 'Edit Entry') : (_GC_TITLES[type] || 'Add Entry');
   const sheet = document.createElement('div');
   sheet.className = 'life-sheet';
   sheet.innerHTML = `
@@ -1065,8 +1092,9 @@ function _openMissionsSheet(type, V, onSaved) {
         <div class="gc-sheet-err" style="display:none;color:var(--danger,#dc2626);font:0.84rem var(--font-ui);margin-top:8px;"></div>
       </div>
       <div class="life-sheet-foot">
+        ${isEdit ? '<button class="flock-btn flock-btn--danger" data-delete style="margin-right:auto">Delete</button>' : ''}
         <button class="flock-btn" data-cancel>Cancel</button>
-        <button class="flock-btn flock-btn--primary" data-submit>Save</button>
+        <button class="flock-btn flock-btn--primary" data-submit>${isEdit ? 'Save Changes' : 'Save'}</button>
       </div>
     </div>`;
 
@@ -1082,6 +1110,32 @@ function _openMissionsSheet(type, V, onSaved) {
     const el = sheet.querySelector('.gc-sheet-err');
     if (el) { el.textContent = msg; el.style.display = msg ? '' : 'none'; }
   };
+
+  // Pre-fill fields for edit mode
+  if (isEdit && rec) {
+    const _pf = (field, val) => {
+      const el = sheet.querySelector(`[data-field="${field}"]`);
+      if (!el || val == null || val === '') return;
+      if (el.tagName === 'SELECT') el.value = String(val);
+      else el.value = val;
+    };
+    _pf('teamName',           rec.teamName    || rec.name);
+    _pf('countryId',          rec.countryId   || rec.country);
+    _pf('tripType',           rec.tripType);
+    _pf('tripStatus',         rec.tripStatus  || rec.status);
+    _pf('startDate',          rec.startDate ? String(rec.startDate).substring(0,10) : undefined);
+    _pf('endDate',            rec.endDate   ? String(rec.endDate).substring(0,10)   : undefined);
+    _pf('budget',             rec.budget);
+    _pf('memberCount',        rec.memberCount || rec.teamMembers);
+    _pf('teamLeadName',       rec.teamLeadName || rec.leadName);
+    _pf('organizationName',   rec.organizationName || rec.name);
+    _pf('partnerType',        rec.partnerType || rec.type);
+    _pf('focusArea',          rec.focusArea);
+    _pf('relationshipStatus', rec.relationshipStatus || rec.status);
+    _pf('workersCount',       rec.workersCount);
+    _pf('website',            rec.website);
+    _pf('description',        rec.description);
+  }
 
   sheet.querySelector('.life-sheet-close').addEventListener('click', _closeMissionsSheet);
   sheet.querySelector('.life-sheet-overlay').addEventListener('click', _closeMissionsSheet);
@@ -1137,15 +1191,35 @@ function _openMissionsSheet(type, V, onSaved) {
       };
     }
 
+    if (isEdit) payload.id = rec.id;
     btn.disabled = true; btn.textContent = 'Saving…';
     try {
       const nsMap = { prayer: 'prayerFocus', teams: 'teams', partners: 'partners', updates: 'updates' };
-      await V.missions[nsMap[type]].create(payload);
+      if (isEdit) { await V.missions[nsMap[type]].update(payload); }
+      else        { await V.missions[nsMap[type]].create(payload); }
       _closeMissionsSheet();
       if (onSaved) onSaved();
     } catch (err) {
       showErr('Could not save: ' + (err?.message || String(err)));
-      btn.disabled = false; btn.textContent = 'Save';
+      btn.disabled = false; btn.textContent = isEdit ? 'Save Changes' : 'Save';
+    }
+  });
+
+  // Delete (edit mode only)
+  sheet.querySelector('[data-delete]')?.addEventListener('click', async () => {
+    const label = type === 'partners' ? (rec.organizationName || rec.name || 'this partner')
+                : type === 'teams'    ? (rec.teamName || rec.name || 'this team') : 'this entry';
+    const ok = confirm(`Delete ${label}? This cannot be undone.`);
+    if (!ok) return;
+    const btn = sheet.querySelector('[data-delete]');
+    btn.disabled = true; btn.textContent = 'Deleting…';
+    try {
+      const nsMap = { prayer: 'prayerFocus', teams: 'teams', partners: 'partners', updates: 'updates' };
+      await V.missions[nsMap[type]].update({ id: rec.id, status: 'Deleted' });
+      _closeMissionsSheet();
+      if (onSaved) onSaved();
+    } catch (err) {
+      btn.disabled = false; btn.textContent = 'Delete';
     }
   });
 }

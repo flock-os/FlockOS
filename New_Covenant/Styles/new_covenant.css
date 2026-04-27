@@ -498,8 +498,11 @@ flock-button[tone="danger"] button { background: #dc2626; color: #fff; }
 flock-button[size="lg"] button { padding: 13px 26px; font-size: 1rem; border-radius: 11px; }
 flock-button[size="sm"] button { padding: 6px 12px; font-size: 0.82rem; }
 flock-button button:active, .flock-btn:active { transform: scale(0.96); }
-
-/* Input */
+.flock-btn--ghost  { background: transparent; color: var(--ink, #1b264f); border: 1.5px solid var(--line, #e5e7ef); }
+.flock-btn--ghost:hover  { background: var(--bg-base, #f4f6fb); }
+.flock-btn--danger { background: #dc2626; color: #fff; border-color: #b91c1c; }
+.flock-btn--danger:hover { background: #b91c1c; }
+.flock-btn--sm { padding: 6px 14px; font-size: 0.82rem; }
 flock-input input, flock-select select, .flock-field {
   width: 100%; padding: 10px 12px; background: var(--bg-raised, #fff); color: var(--ink, #1b264f);
   border: 1.5px solid var(--line, #e5e7ef); border-radius: var(--radius-sm);

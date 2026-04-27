@@ -73,9 +73,23 @@ export function render() {
   `;
 }
 
+const GROUP_TYPES  = ['Small Group','Life Group','Study Group','Youth Group','Men\'s Group','Women\'s Group','Prayer Group','Recovery Group'];
+const GROUP_DAYS   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+
+let _activeWaySheet = null;
+let _liveGroupsMap  = {};
+
 export function mount(root) {
   _loadWay(root);
-  return () => {};
+
+  // New Group button (last .flock-btn--primary in header)
+  root.querySelectorAll('.flock-btn--primary').forEach(btn => {
+    if (btn.textContent.includes('New Group')) {
+      btn.addEventListener('click', () => _openGroupSheet(null, () => _loadWay(root)));
+    }
+  });
+
+  return () => { _closeWaySheet(); };
 }
 
 async function _loadWay(root) {
@@ -111,6 +125,18 @@ async function _loadWay(root) {
       groupsEl.innerHTML = rows.length
         ? rows.map(_liveGroupRow).join('')
         : '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">No small groups found.</div>';
+
+      // Store map and wire clicks
+      _liveGroupsMap = {};
+      rows.forEach(g => { if (g.id) _liveGroupsMap[String(g.id)] = g; });
+      const reload = () => _loadWay(root);
+      groupsEl.querySelectorAll('.way-group-row').forEach(row => {
+        row.style.cursor = 'pointer';
+        row.addEventListener('click', () => {
+          const g = _liveGroupsMap[row.dataset.id];
+          if (g) _openGroupSheet(g, reload);
+        });
+      });
     } catch (err) {
       console.error('[TheWay] groups.list error:', err);
       groupsEl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Small groups data unavailable.</div>';
@@ -165,7 +191,7 @@ function _liveGroupRow(g) {
   const type     = g.type || g.groupType || 'Small Group';
   const initials = leader.split(/\s+/).map(w => w[0] || '').slice(0,2).join('').toUpperCase();
   return /* html */`
-    <article class="way-group-row" tabindex="0">
+    <article class="way-group-row" tabindex="0" data-id="${_e(String(g.id || ''))}">
       <div class="way-group-avatar">${initials || '?'}</div>
       <div class="way-group-body">
         <div class="way-group-name">${_e(name)}</div>
@@ -224,4 +250,146 @@ function _groupRow(g) {
 function _e(s) {
   return String(s ?? '').replace(/[&<>"']/g, (c) =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+// ── Group sheet (create / edit) ───────────────────────────────────────────────
+function _closeWaySheet() {
+  if (!_activeWaySheet) return;
+  const t = _activeWaySheet;
+  t.querySelector('.life-sheet-overlay')?.classList.remove('is-open');
+  t.querySelector('.life-sheet-panel')?.classList.remove('is-open');
+  setTimeout(() => { t.remove(); if (_activeWaySheet === t) _activeWaySheet = null; }, 320);
+}
+
+function _openGroupSheet(g, onReload) {
+  _closeWaySheet();
+  const V     = window.TheVine;
+  const isNew = !g;
+  const uid   = g?.id ? String(g.id) : '';
+  const name  = g?.name  || '';
+  const leader = g?.leader || g?.leaderName || '';
+  const type  = g?.type  || g?.groupType || 'Small Group';
+  const day   = g?.meetingDay  || g?.day || '';
+  const time  = g?.meetingTime || g?.time || '';
+  const maxM  = g?.maxMembers  || g?.capacity || '';
+  const desc  = g?.description || '';
+
+  const sheet = document.createElement('div');
+  sheet.className = 'life-sheet';
+  sheet.innerHTML = /* html */`
+    <div class="life-sheet-overlay"></div>
+    <div class="life-sheet-panel" role="dialog" aria-label="${isNew ? 'New Group' : 'Edit Group'}">
+      <div class="life-sheet-drag"></div>
+      <div class="life-sheet-hd">
+        <div class="life-sheet-hd-info">
+          <div class="life-sheet-hd-name">${isNew ? 'New Small Group' : 'Edit Group'}</div>
+          <div class="life-sheet-hd-meta">${isNew ? 'Create a new group or ministry' : _e(name)}</div>
+        </div>
+        <button class="life-sheet-close" aria-label="Close">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="life-sheet-body">
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Group Name <span style="color:#dc2626">*</span></div>
+          <input class="life-sheet-input" data-field="name" type="text" value="${_e(name)}" placeholder="e.g. Young Adults — Eastside">
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Group Type</div>
+          <select class="life-sheet-input" data-field="type">
+            ${GROUP_TYPES.map(t => `<option value="${_e(t)}"${t === type ? ' selected' : ''}>${_e(t)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Leader</div>
+          <input class="life-sheet-input" data-field="leaderName" type="text" value="${_e(leader)}" placeholder="Leader name">
+        </div>
+        <div class="fold-form-row">
+          <div class="life-sheet-field">
+            <div class="life-sheet-label">Meeting Day</div>
+            <select class="life-sheet-input" data-field="meetingDay">
+              <option value="">— Select day —</option>
+              ${GROUP_DAYS.map(d => `<option value="${_e(d)}"${d === day ? ' selected' : ''}>${_e(d)}</option>`).join('')}
+            </select>
+          </div>
+          <div class="life-sheet-field">
+            <div class="life-sheet-label">Time</div>
+            <input class="life-sheet-input" data-field="meetingTime" type="time" value="${_e(time)}">
+          </div>
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Max Members <span style="color:#6b7280;font-weight:400">(optional)</span></div>
+          <input class="life-sheet-input" data-field="maxMembers" type="number" min="1" value="${_e(String(maxM))}" placeholder="No limit">
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Description</div>
+          <textarea class="life-sheet-input" data-field="description" rows="3" style="resize:vertical" placeholder="What is this group about?">${_e(desc)}</textarea>
+        </div>
+        <div class="fold-form-error" data-error style="display:none;color:#dc2626;font-size:.85rem;margin-top:8px"></div>
+      </div>
+      <div class="life-sheet-foot">
+        ${!isNew ? '<button class="flock-btn flock-btn--danger" data-delete style="margin-right:auto">Archive Group</button>' : ''}
+        <button class="flock-btn" data-cancel>Cancel</button>
+        <button class="flock-btn flock-btn--primary" data-save>${isNew ? 'Create Group' : 'Save Changes'}</button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(sheet);
+  _activeWaySheet = sheet;
+  requestAnimationFrame(() => {
+    sheet.querySelector('.life-sheet-overlay').classList.add('is-open');
+    sheet.querySelector('.life-sheet-panel').classList.add('is-open');
+    if (isNew) sheet.querySelector('[data-field="name"]')?.focus();
+  });
+
+  const close = () => _closeWaySheet();
+  sheet.querySelector('[data-cancel]').addEventListener('click', close);
+  sheet.querySelector('.life-sheet-close').addEventListener('click', close);
+  sheet.querySelector('.life-sheet-overlay').addEventListener('click', close);
+
+  sheet.querySelector('[data-save]').addEventListener('click', async () => {
+    const errEl   = sheet.querySelector('[data-error]');
+    const nameVal = sheet.querySelector('[data-field="name"]').value.trim();
+    if (!nameVal) { errEl.textContent = 'Group name is required.'; errEl.style.display = ''; return; }
+    errEl.style.display = 'none';
+    const btn = sheet.querySelector('[data-save]');
+    btn.disabled = true; btn.textContent = isNew ? 'Creating…' : 'Saving…';
+    const maxVal = parseInt(sheet.querySelector('[data-field="maxMembers"]').value);
+    const payload = {
+      name:        nameVal,
+      type:        sheet.querySelector('[data-field="type"]').value,
+      leaderName:  sheet.querySelector('[data-field="leaderName"]').value.trim(),
+      meetingDay:  sheet.querySelector('[data-field="meetingDay"]').value,
+      meetingTime: sheet.querySelector('[data-field="meetingTime"]').value,
+      description: sheet.querySelector('[data-field="description"]').value.trim(),
+      ...(maxVal > 0 ? { maxMembers: maxVal } : {}),
+    };
+    if (!isNew) payload.id = uid;
+    try {
+      if (isNew) { await V.flock.groups.create(payload); }
+      else       { await V.flock.groups.update(payload); }
+      _closeWaySheet();
+      onReload?.();
+    } catch (err) {
+      console.error('[TheWay] group save error:', err);
+      errEl.textContent = err?.message || 'Could not save group.';
+      errEl.style.display = '';
+      btn.disabled = false; btn.textContent = isNew ? 'Create Group' : 'Save Changes';
+    }
+  });
+
+  sheet.querySelector('[data-delete]')?.addEventListener('click', async () => {
+    const ok = confirm(`Archive "${name}"? Members will be notified.`);
+    if (!ok) return;
+    const btn = sheet.querySelector('[data-delete]');
+    btn.disabled = true; btn.textContent = 'Archiving…';
+    try {
+      await V.flock.groups.update({ id: uid, status: 'Archived' });
+      _closeWaySheet();
+      onReload?.();
+    } catch (err) {
+      console.error('[TheWay] group archive error:', err);
+      btn.disabled = false; btn.textContent = 'Archive Group';
+    }
+  });
 }
