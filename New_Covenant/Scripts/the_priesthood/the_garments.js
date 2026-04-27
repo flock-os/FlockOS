@@ -18,7 +18,7 @@ export async function renderGarments(/* { mode } */) {
 
     root.innerHTML = `
       <form class="garments-card" novalidate>
-        <img class="garments-logo" src="Images/flockos-icon.svg" alt="FlockOS" aria-hidden="true">
+        <img class="garments-logo" src="Images/NewCovenant.png" alt="FlockOS" aria-hidden="true">
         <h2 class="garments-title">Enter the Fold</h2>
         <p class="garments-sub">Tend the flock entrusted to you.</p>
 
