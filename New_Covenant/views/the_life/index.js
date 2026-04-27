@@ -352,7 +352,7 @@ function _openSheet(c, memberDir, onSave) {
         <div class="life-sheet-field">
           <div class="life-sheet-label">Assigned To</div>
           ${hasMemberDir
-            ? _caregiverSelect(memberDir, 'assignee', assigneeRaw, '— Unassigned —', true)
+            ? _caregiverSelect(memberDir, 'assignee', assigneeRaw, '— Unassigned —')
             : `<input class="life-sheet-input" data-field="assignee" type="text" value="${_e(_resolveName(assigneeRaw, memberDir) || assigneeRaw)}" placeholder="Caregiver name or email">`}
         </div>
         <!-- Secondary Caregiver -->
@@ -362,7 +362,7 @@ function _openSheet(c, memberDir, onSave) {
             <span class="life-field-hint">Also has access to view this case</span>
           </div>
           ${hasMemberDir
-            ? _caregiverSelect(memberDir, 'secondary', secondaryRaw, '— None —', true)
+            ? _caregiverSelect(memberDir, 'secondary', secondaryRaw, '— None —')
             : `<input class="life-sheet-input" data-field="secondary" type="text" value="${_e(_resolveName(secondaryRaw, memberDir) || secondaryRaw)}" placeholder="Secondary caregiver (optional)">`}
         </div>
         <!-- Summary -->
@@ -591,40 +591,46 @@ function _findLeadPastor(members) {
   });
 }
 
-// ── Build a staff/caregiver <select> ─────────────────────────────────────────
-// If staffOnly=true, filters to leaders/pastoral roles; otherwise shows everyone.
-function _caregiverSelect(members, fieldName, defaultId, placeholder, staffOnly) {
-  const STAFF_ROLES = ['leader','deacon','elder','pastor','admin','care','volunteer'];
-  const pool = staffOnly
-    ? members.filter(m => STAFF_ROLES.some(r => String(m.role || m.memberType || '').toLowerCase().includes(r)))
-    : members;
-  const sorted = pool.slice().sort((a, b) => _memberName(a).localeCompare(_memberName(b)));
+// ── Build a caregiver <select> (all members, sorted) ────────────────────────
+function _caregiverSelect(members, fieldName, defaultId, placeholder) {
+  const sorted = (members || []).slice().sort((a, b) => _memberName(a).localeCompare(_memberName(b)));
+  // Resolve ID: try several common field names
+  function _mid(m) { return m.id || m.uid || m.docId || m.memberNumber || m.email || ''; }
   return `<select class="life-sheet-input" data-field="${_e(fieldName)}">
     <option value="">${_e(placeholder || '— None —')}</option>
     ${sorted.map(m => {
-      const id  = m.id || m.memberNumber || m.email || '';
-      const sel = (defaultId && (id === defaultId || m.email === defaultId)) ? ' selected' : '';
-      return `<option value="${_e(id)}"${sel}>${_e(_memberName(m))}</option>`;
+      const id  = _mid(m);
+      const sel = (defaultId && (id === defaultId || m.email === defaultId || m.uid === defaultId)) ? ' selected' : '';
+      const role = m.role || m.memberType || '';
+      return `<option value="${_e(id)}"${sel}>${_e(_memberName(m))}${role ? '  (' + role + ')' : ''}</option>`;
     }).join('')}
   </select>`;
 }
 
-// ── Build a full member <select> with filter search ───────────────────────────
+// ── Build a member picker: search + select that collapses to a chip ──────────
 function _memberPickerHtml(members, fieldName) {
-  const sorted = members.slice().sort((a, b) => _memberName(a).localeCompare(_memberName(b)));
+  const sorted = (members || []).slice().sort((a, b) => _memberName(a).localeCompare(_memberName(b)));
+  function _mid(m) { return m.id || m.uid || m.docId || m.memberNumber || m.email || ''; }
   return `
-    <div class="life-member-picker">
-      <input class="life-member-search" type="search" placeholder="Filter members…"
-             aria-label="Filter member list" data-member-search="${_e(fieldName)}">
-      <select class="life-sheet-input life-member-select" data-field="${_e(fieldName)}" size="5">
-        <option value="">— Select a member —</option>
-        ${sorted.map(m => {
-          const id   = m.id || m.memberNumber || m.email || '';
-          const disp = _memberName(m);
-          const role = m.role || m.memberType || '';
-          return `<option value="${_e(id)}" data-n="${_e(disp.toLowerCase())}">${_e(disp)}${role ? '  (' + role + ')' : ''}</option>`;
-        }).join('')}
-      </select>
+    <div class="life-member-picker" data-picker-for="${_e(fieldName)}">
+      <input type="hidden" data-field="${_e(fieldName)}" value="">
+      <div class="life-member-picker-search-wrap">
+        <input class="life-member-search" type="search" placeholder="Search members…"
+               aria-label="Search members" autocomplete="off">
+        <select class="life-member-select" size="5" data-member-sel="${_e(fieldName)}">
+          <option value="">— Select a member —</option>
+          ${sorted.map(m => {
+            const id   = _mid(m);
+            const disp = _memberName(m);
+            const role = m.role || m.memberType || '';
+            return `<option value="${_e(id)}" data-n="${_e(disp.toLowerCase())}">${_e(disp)}${role ? '  (' + role + ')' : ''}</option>`;
+          }).join('')}
+        </select>
+      </div>
+      <div class="life-member-chip" style="display:none">
+        <span class="life-member-chip-name"></span>
+        <button type="button" class="life-member-chip-clear" aria-label="Clear member selection">&#x2715;</button>
+      </div>
     </div>`;
 }
 
@@ -633,7 +639,7 @@ function _newCareModal(memberDir, onSave) {
   const V = window.TheVine;
   const hasMemberDir = memberDir && memberDir.length > 0;
   const leadPastor   = _findLeadPastor(memberDir || []);
-  const lpId         = leadPastor ? (leadPastor.id || leadPastor.memberNumber || leadPastor.email || '') : '';
+  const lpId         = leadPastor ? (leadPastor.id || leadPastor.uid || leadPastor.docId || leadPastor.memberNumber || leadPastor.email || '') : '';
 
   const sheet = document.createElement('div');
   sheet.className = 'life-sheet';
@@ -676,7 +682,7 @@ function _newCareModal(memberDir, onSave) {
             ${leadPastor ? `<span class="life-field-hint">Defaulting to Lead Pastor</span>` : ''}
           </div>
           ${hasMemberDir
-            ? _caregiverSelect(memberDir, 'assignee', lpId, '— Unassigned —', true)
+            ? _caregiverSelect(memberDir, 'assignee', lpId, '— Unassigned —')
             : `<input class="life-sheet-input" data-field="assignee" type="text" placeholder="Caregiver name or email" value="${_e(leadPastor ? _memberName(leadPastor) : '')}">`}
         </div>
         <!-- Secondary Caregiver -->
@@ -686,7 +692,7 @@ function _newCareModal(memberDir, onSave) {
             <span class="life-field-hint">Also gets access to view this case</span>
           </div>
           ${hasMemberDir
-            ? _caregiverSelect(memberDir, 'secondary', '', '— None —', true)
+            ? _caregiverSelect(memberDir, 'secondary', '', '— None —')
             : `<input class="life-sheet-input" data-field="secondary" type="text" placeholder="Secondary caregiver (optional)">`}
         </div>
         <!-- Summary -->
@@ -708,16 +714,43 @@ function _newCareModal(memberDir, onSave) {
     sheet.querySelector('.life-sheet-panel').classList.add('is-open');
   });
 
-  // Member search filter
-  const searchInput = sheet.querySelector('[data-member-search]');
-  if (searchInput) {
-    const selEl = sheet.querySelector('[data-field="memberId"]');
-    searchInput.addEventListener('input', () => {
+  // Member picker: search filter + collapse-to-chip on selection
+  const pickerEl = sheet.querySelector('[data-picker-for]');
+  if (pickerEl) {
+    const hiddenInput = pickerEl.querySelector('[data-field]');
+    const searchInput = pickerEl.querySelector('.life-member-search');
+    const selEl       = pickerEl.querySelector('[data-member-sel]');
+    const searchWrap  = pickerEl.querySelector('.life-member-picker-search-wrap');
+    const chipEl      = pickerEl.querySelector('.life-member-chip');
+    const chipName    = chipEl.querySelector('.life-member-chip-name');
+    const chipClear   = chipEl.querySelector('.life-member-chip-clear');
+
+    searchInput?.addEventListener('input', () => {
       const q = searchInput.value.toLowerCase().trim();
-      if (!selEl) return;
       Array.from(selEl.options).forEach(opt => {
-        opt.hidden = !!(q && !opt.dataset.n?.includes(q) && opt.value !== '');
+        opt.hidden = !!(q && opt.value && !opt.dataset.n?.includes(q));
       });
+    });
+
+    selEl?.addEventListener('change', () => {
+      const val = selEl.value;
+      if (!val) return;
+      const rawLabel = selEl.options[selEl.selectedIndex]?.text || val;
+      const label    = rawLabel.replace(/\s{2,}\(.*\)$/, '').trim(); // strip role suffix
+      hiddenInput.value     = val;
+      chipName.textContent  = label;
+      searchWrap.style.display = 'none';
+      chipEl.style.display    = 'flex';
+    });
+
+    chipClear?.addEventListener('click', () => {
+      hiddenInput.value = '';
+      selEl.value       = '';
+      if (searchInput) searchInput.value = '';
+      Array.from(selEl.options).forEach(opt => { opt.hidden = false; });
+      chipEl.style.display    = 'none';
+      searchWrap.style.display = '';
+      searchInput?.focus();
     });
   }
 

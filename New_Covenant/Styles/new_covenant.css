@@ -2102,8 +2102,9 @@ flock-tabs [role="tablist"], .tabs-bar {
   margin-left: 6px;
 }
 
-/* ── Member picker (search + select combo) ─────────────────────────────────── */
+/* ── Member picker (search + select combo, collapses to chip) ───────────────── */
 .life-member-picker { display: flex; flex-direction: column; gap: 6px; }
+.life-member-picker-search-wrap { display: flex; flex-direction: column; gap: 6px; }
 .life-member-search {
   width: 100%; padding: 8px 12px; border-radius: 8px;
   border: 1.5px solid var(--line, #e5e7ef); background: var(--bg-raised, #fff);
@@ -2112,13 +2113,32 @@ flock-tabs [role="tablist"], .tabs-bar {
 }
 .life-member-search:focus { outline: none; border-color: var(--gold, #e8a838); }
 .life-member-select {
-  /* Override the single-line select to show several rows */
-  height: auto; min-height: 110px;
-  border-radius: 10px; padding: 4px 0;
-  overflow-y: auto;
+  width: 100%; padding: 4px 0; border-radius: 10px;
+  border: 1.5px solid var(--line, #e5e7ef); background: var(--bg-raised, #fff);
+  color: var(--ink, #1b264f); font: 0.9rem var(--font-ui); box-sizing: border-box;
+  min-height: 110px; overflow-y: auto;
 }
 .life-member-select option { padding: 6px 12px; }
 .life-member-select option:checked { background: var(--accent, #5b8fcf); color: #fff; }
+.life-member-select:focus { outline: none; border-color: var(--gold, #e8a838); }
+
+/* Chip — shown after a member is selected */
+.life-member-chip {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 14px; border-radius: 10px;
+  background: var(--bg-soft, #f0f1f8); border: 1.5px solid var(--accent, #5b8fcf);
+}
+.life-member-chip-name {
+  flex: 1; font: 600 0.92rem var(--font-ui); color: var(--ink, #1b264f);
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.life-member-chip-clear {
+  flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; border-radius: 50%; border: none;
+  background: var(--bg-raised, #fff); color: var(--ink-muted, #7a7f96);
+  font-size: 1rem; cursor: pointer; transition: background 120ms, color 120ms;
+}
+.life-member-chip-clear:hover { background: var(--danger-bg, #fde8e8); color: var(--danger, #c0392b); }
 
 /* ══════════════════════════════════════════════════════════════════════════════
    THE FOLD — Member detail sheet additions
