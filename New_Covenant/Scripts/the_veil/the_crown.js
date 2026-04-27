@@ -22,7 +22,6 @@ export function mountCrown(host) {
   host.innerHTML = `
     <button class="veil-action veil-menu" data-act="toggle-side" aria-label="Open navigation">${ICON.menu}</button>
     <a class="veil-brand" href="?covenant=new&view=the_good_shepherd" aria-label="FlockOS home">
-      <img alt="" src="Images/NewCovenant.png" onerror="this.style.display='none'">
       <span class="veil-brand-text">FlockOS</span>
     </a>
     <div class="veil-spacer"></div>
@@ -30,7 +29,9 @@ export function mountCrown(host) {
       ${ICON.search}<span>Search anything…</span><kbd>⌘K</kbd>
     </button>
     <button class="veil-action" data-act="open-notifications" aria-label="Notifications">${ICON.bell}</button>
-    <button class="veil-avatar" data-act="open-account" aria-label="Account" data-bind="avatar">·</button>
+    <button class="veil-avatar" data-act="open-account" aria-label="Account" data-bind="avatar">
+      <img class="veil-avatar-logo" alt="" src="Images/NewCovenant.png" onerror="this.style.display='none'">
+    </button>
   `;
   _paintAvatar(host);
 
@@ -52,11 +53,7 @@ export function mountCrown(host) {
 }
 
 function _paintAvatar(host) {
-  const slot = host.querySelector('[data-bind="avatar"]');
-  if (!slot) return;
-  const me = profile();
-  const name = me && (me.firstName || me.fullName || me.preferredName || me.email);
-  if (!name) { slot.textContent = '·'; return; }
-  slot.textContent = String(name).trim().split(/\s+/).slice(0, 2)
-    .map((p) => p[0] || '').join('').toUpperCase() || '·';
+  // Avatar now displays the FlockOS logo image (set in markup); no initials needed.
+  // Function kept as a no-op so existing setTimeout calls remain safe.
+  return host;
 }

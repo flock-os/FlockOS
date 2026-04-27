@@ -236,18 +236,21 @@ html, body {
   font: 600 0.7rem var(--font-mono); color: rgba(255,255,255,0.45);
 }
 
-/* Avatar */
+/* Avatar — now hosts the FlockOS logo */
 .veil-avatar {
-  width: 34px; height: 34px; border-radius: 50%;
-  background: linear-gradient(135deg, var(--gold, #e8a838) 0%, #c05818 100%);
-  color: #fff; font: 700 0.82rem var(--font-ui);
+  width: 38px; height: 38px; border-radius: 50%;
+  background: rgba(255,255,255,0.06);
   display: inline-flex; align-items: center; justify-content: center;
-  box-shadow: var(--gold-shadow); border: 0; cursor: pointer; flex-shrink: 0;
+  box-shadow: 0 0 0 1.5px var(--gold, #e8a838), 0 4px 14px rgba(232,168,56,0.28);
+  border: 0; cursor: pointer; flex-shrink: 0; padding: 0; overflow: hidden;
   transition: transform 150ms var(--spring), box-shadow 150ms var(--ease);
 }
 .veil-avatar:hover {
-  transform: scale(1.12);
-  box-shadow: 0 6px 28px rgba(232,168,56,0.58);
+  transform: scale(1.10);
+  box-shadow: 0 0 0 2px var(--gold, #e8a838), 0 6px 22px rgba(232,168,56,0.55);
+}
+.veil-avatar-logo {
+  width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block;
 }
 
 
@@ -2038,7 +2041,6 @@ flock-tabs [role="tablist"], .tabs-bar {
 @media (max-width: 720px) {
   .veil-main  { padding: 16px 14px 28px; }
   .veil-search { display: none; }
-  .veil-brand-text { display: none; }
   .page-hero  { padding: 22px 20px 20px; border-radius: var(--radius-lg); }
   .page-hero h1 { font-size: 1.55rem; }
   .pasture-hero h1 { font-size: 1.8rem; }
