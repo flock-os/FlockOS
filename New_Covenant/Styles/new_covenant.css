@@ -2357,12 +2357,18 @@ flock-tabs [role="tablist"], .tabs-bar {
 .gc-country-card.is-open {
   border-color: var(--accent, #5b8fcf);
 }
-.gc-card-top   { display: flex; align-items: center; justify-content: space-between; }
+.gc-card-top   { display: flex; align-items: center; justify-content: space-between; gap: 4px; }
 .gc-flag       { font-size: 1.3rem; line-height: 1; }
 .gc-rank-pill  {
   font: 800 0.68rem var(--font-ui); color: var(--ink-muted, #7a7f96);
   background: var(--bg-sunken, #f0f0f5); padding: 2px 7px; border-radius: 10px;
 }
+.gc-edit-btn {
+  margin-left: auto; opacity: 0; pointer-events: none; transition: opacity .15s;
+  background: none; border: none; cursor: pointer; padding: 2px 4px; font-size: 0.85rem;
+  border-radius: 6px; color: var(--ink-muted, #7a7f96); line-height: 1;
+}
+.gc-country-card:hover .gc-edit-btn { opacity: 1; pointer-events: auto; }
 .gc-country-name { font: 700 0.88rem var(--font-ui); color: var(--ink, #1b264f); margin-top: 2px; }
 .gc-country-meta { font: 0.70rem var(--font-ui); color: var(--ink-muted, #7a7f96); margin-top: 2px; }
 .gc-badges       { display: flex; flex-wrap: wrap; gap: 4px; margin: 3px 0 1px; }

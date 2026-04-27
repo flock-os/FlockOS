@@ -82,22 +82,24 @@ function _kpiCard(label, val, color) {
 
 // ── Country card (grid tile) ───────────────────────────────────────────────────
 function _countryCard(r) {
-  const cname = r.countryName || r.name || '';
-  const rank  = r.restrictionsRank ?? r.persecutionRank ?? r.rank ?? '';
-  const pers  = r.persecutionLevel || r.persecution || '';
-  const acc   = r.gospelAccess || r.access || '';
-  const is1040 = String(r['10/40Window'] || r.tenFortyWindow || '').toLowerCase() === 'yes'
-              || r['10/40Window'] === true || r.tenFortyWindow === true;
-  const pop          = r.population      ? Number(r.population).toLocaleString()       : null;
+  const cname  = r.countryName || r.name || '';
+  // Rank pill: prefer WWL rank (1–100+), then Bible restrictions rank; skip when 0
+  const rankNum = r.worldWatchListRank > 0 ? r.worldWatchListRank
+                : r.restrictionsRank  > 0 ? r.restrictionsRank
+                : null;
+  const pers   = r.persecutionLevel || r.persecution || '';
+  const acc    = r.gospelAccess || r.access || '';
+  const is1040 = r.tenFortyWindow === true
+              || String(r.tenFortyWindow  || '').toLowerCase() === 'yes'
+              || r['10/40Window'] === true
+              || String(r['10/40Window']  || '').toLowerCase() === 'yes';
+  const pop          = r.population         ? Number(r.population).toLocaleString()          : null;
   const popUnreached = r.populationUnreached ? Number(r.populationUnreached).toLocaleString() : null;
-  const wwl          = r.worldWatchListRank != null ? r.worldWatchListRank               : null;
-  const ungroups     = r.unreachedGroups   != null ? r.unreachedGroups                   : null;
-  const pctChrist    = r.christianPercent  != null
-    ? (r.christianPercent < 1
-        ? r.christianPercent.toFixed(2)
-        : r.christianPercent.toFixed(1)) + '%'
+  const wwl          = r.worldWatchListRank  != null ? r.worldWatchListRank                   : null;
+  const ungroups     = r.unreachedGroups     != null ? r.unreachedGroups                      : null;
+  const pctChrist    = r.christianPercent    != null
+    ? (r.christianPercent < 1 ? r.christianPercent.toFixed(2) : r.christianPercent.toFixed(1)) + '%'
     : null;
-  // Bottom footer meta — matches FlockOS: continent · dominantReligion
   const footerMeta = [r.continent, r.dominantReligion].filter(Boolean).join(' · ');
 
   return `
@@ -108,24 +110,27 @@ function _countryCard(r) {
       data-1040="${is1040 ? 'yes' : 'no'}">
       <div class="gc-card-top">
         <span class="gc-flag">${_e(r.icon || '🌍')}</span>
-        ${rank !== '' ? `<span class="gc-rank-pill">#${_e(String(rank))}</span>` : ''}
+        ${rankNum !== null ? `<span class="gc-rank-pill">#${_e(String(rankNum))}</span>` : ''}
+        ${_canEditRegistry
+          ? `<button class="gc-edit-btn" data-edit-id="${_e(r.id || '')}" aria-label="Edit country" title="Edit">✏️</button>`
+          : ''}
       </div>
       <div class="gc-country-name">${_e(cname)}</div>
       <div class="gc-badges">
         ${_persLevel(pers)}
-        ${_gospelAccess(acc)}
+        ${acc ? _gospelAccess(acc) : ''}
         ${is1040 ? '<span class="gc-1040-badge">10/40</span>' : ''}
       </div>
       ${footerMeta ? `<div class="gc-country-meta">${_e(footerMeta)}</div>` : ''}
       <div class="gc-country-expand">
         <div class="gc-country-detail">
-          ${r.region           ? `<span>📍 ${_e(r.region)}</span>`                                   : ''}
-          ${pop                ? `<span>👥 ${pop}</span>`                                             : ''}
-          ${pctChrist          ? `<span>✝️ ${pctChrist} Christian</span>`                             : ''}
-          ${wwl    != null     ? `<span>📋 WWL #${_e(String(wwl))}</span>`                            : ''}
-          ${ungroups != null   ? `<span>🔴 ${_e(String(ungroups))} unreached groups</span>`          : ''}
-          ${popUnreached       ? `<span>📍 ${popUnreached} in unreached pop.</span>`                  : ''}
-          ${r.bibleShortageNeed ? `<span>📖 Bible need: ${_e(r.bibleShortageNeed)}</span>`           : ''}
+          ${r.region           ? `<span>📍 ${_e(r.region)}</span>`                              : ''}
+          ${pop                ? `<span>👥 ${pop}</span>`                                        : ''}
+          ${pctChrist          ? `<span>✝️ ${pctChrist} Christian</span>`                        : ''}
+          ${wwl    != null     ? `<span>📋 WWL #${_e(String(wwl))}</span>`                       : ''}
+          ${ungroups != null   ? `<span>🔴 ${_e(String(ungroups))} unreached groups</span>`     : ''}
+          ${popUnreached       ? `<span>📍 ${popUnreached} in unreached pop.</span>`             : ''}
+          ${r.bibleShortageNeed ? `<span>📖 Bible need: ${_e(r.bibleShortageNeed)}</span>`      : ''}
         </div>
         ${r.profileUrl
           ? `<a class="gc-profile-link" href="${_e(r.profileUrl)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">View Profile ↗</a>`
@@ -413,6 +418,16 @@ export function mount(root) {
 
   // Event delegation: country card expand + prayer card toggle + "I Prayed"
   root.addEventListener('click', async (e) => {
+    // Edit button on country card (admin/pastor)
+    const editBtn = e.target.closest('.gc-edit-btn');
+    if (editBtn) {
+      e.stopPropagation();
+      const id     = editBtn.dataset.editId;
+      const record = _worldRows.find(r => r.id === id) || null;
+      _openCountrySheet(record, () => _loadWorld(root, V));
+      return;
+    }
+
     // Country card click → expand/collapse detail rows
     const card = e.target.closest('.gc-country-card');
     if (card && !e.target.closest('.gc-profile-link')) {
@@ -461,27 +476,45 @@ export function mount(root) {
 
 // ── World: country registry ────────────────────────────────────────────────────
 async function _loadWorld(root, V) {
-  _setActionBar(root, 'world', V, null);
+  _canEditRegistry = typeof window.Nehemiah !== 'undefined'
+    && (window.Nehemiah.can?.('missions.registry.edit') || false);
+  _setActionBar(root, 'world', V, () => _loadWorld(root, V));
   const content = root.querySelector('#gc-content');
   if (!content) return;
   content.innerHTML = '<div class="gc-loading">Loading country data…</div>';
 
   try {
-    const raw  = await V.missions.registry.list({ limit: 300 });
-    const rows = _normalize(raw).slice().sort((a, b) => {
-      const ra = parseInt(a.restrictionsRank ?? a.persecutionRank ?? a.rank, 10);
-      const rb = parseInt(b.restrictionsRank ?? b.persecutionRank ?? b.rank, 10);
-      const va = isNaN(ra) ? Infinity : ra;
-      const vb = isNaN(rb) ? Infinity : rb;
-      if (va !== vb) return va - vb;
+    // Prefer UpperRoom direct Firestore (top-level `missionsRegistry` collection)
+    // over TheVine which may apply church-scoping.
+    const UR = window.UpperRoom;
+    let rawArr = [];
+    if (UR && typeof UR.listMissionsRegistry === 'function') {
+      const res = await UR.listMissionsRegistry({ limit: 300 });
+      rawArr = Array.isArray(res) ? res : _normalize(res);
+    } else if (V?.missions?.registry?.list) {
+      rawArr = _normalize(await V.missions.registry.list({ limit: 300 }));
+    }
+
+    // Sort: persecution severity first, then WWL rank ascending, then alphabetical
+    const PERS_ORDER = {
+      extreme: 0, severe: 1, 'very high': 1, considerable: 2, high: 2,
+      moderate: 3, some: 4, minimal: 5, low: 6,
+    };
+    const rows = rawArr.slice().sort((a, b) => {
+      const pa = PERS_ORDER[String(a.persecutionLevel || '').toLowerCase()] ?? 99;
+      const pb = PERS_ORDER[String(b.persecutionLevel || '').toLowerCase()] ?? 99;
+      if (pa !== pb) return pa - pb;
+      const ra = parseInt(a.worldWatchListRank ?? a.restrictionsRank ?? 9999, 10);
+      const rb = parseInt(b.worldWatchListRank ?? b.restrictionsRank ?? 9999, 10);
+      if (!isNaN(ra) && !isNaN(rb) && ra !== rb) return ra - rb;
       return String(a.countryName || a.name || '').localeCompare(String(b.countryName || b.name || ''));
     });
+    _worldRows = rows;
 
-    const extremeCount   = rows.filter(r => String(r.persecutionLevel || r.persecution || '').toLowerCase() === 'extreme').length;
-    const unreachedCount = rows.filter(r => String(r.gospelAccess || r.access || '').toLowerCase() === 'unreached').length;
+    const extremeCount   = rows.filter(r => String(r.persecutionLevel || '').toLowerCase() === 'extreme').length;
+    const unreachedCount = rows.filter(r => (r.unreachedGroups > 0) || (r.populationUnreached > 0)).length;
     const win1040Count   = rows.filter(r =>
-      String(r['10/40Window'] || r.tenFortyWindow || '').toLowerCase() === 'yes'
-      || r['10/40Window'] === true || r.tenFortyWindow === true
+      r.tenFortyWindow === true || String(r.tenFortyWindow || '').toLowerCase() === 'yes'
     ).length;
 
     const kpiEl = root.querySelector('#gc-kpi');
@@ -489,7 +522,7 @@ async function _loadWorld(root, V) {
       kpiEl.innerHTML =
           _kpiCard('Countries Tracked',   rows.length,    'var(--accent,#5b8fcf)')
         + _kpiCard('Extreme Persecution', extremeCount,   'var(--danger,#dc2626)')
-        + _kpiCard('Unreached Gospel',    unreachedCount, '#f59e0b')
+        + _kpiCard('Unreached Peoples',   unreachedCount, '#f59e0b')
         + _kpiCard('10/40 Window',        win1040Count,   '#818cf8');
     }
 
@@ -627,6 +660,25 @@ function _showResources(root) {
 function _setActionBar(root, tab, V, onRefresh) {
   const bar = root.querySelector('#gc-action-bar');
   if (!bar) return;
+
+  // World tab: Add Country (admin/pastor only)
+  if (tab === 'world') {
+    const canEdit = typeof window.Nehemiah !== 'undefined'
+      && (window.Nehemiah.can?.('missions.registry.edit') || false);
+    if (!canEdit) { bar.style.display = 'none'; bar.innerHTML = ''; return; }
+    bar.style.display = '';
+    bar.innerHTML = `<div class="gc-action-hd">
+      <button class="flock-btn flock-btn--primary gc-add-btn">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        Add Country
+      </button>
+    </div>`;
+    bar.querySelector('.gc-add-btn').addEventListener('click', () => {
+      _openCountrySheet(null, onRefresh);
+    });
+    return;
+  }
+
   const configs = {
     prayer:   { label: 'Add Prayer Need',  },
     teams:    { label: 'Add Mission Team', },
@@ -647,8 +699,156 @@ function _setActionBar(root, tab, V, onRefresh) {
   });
 }
 
+// ── Country add / edit sheet ───────────────────────────────────────────────────
+function _openCountrySheet(rec, onSaved) {
+  _closeMissionsSheet();
+  const isNew = !rec;
+  const title = isNew ? 'Add Country to Registry' : `Edit: ${rec?.countryName || 'Country'}`;
+  const val  = (f) => _e(String(rec?.[f] ?? ''));
+  const sel  = (f, v) => String(rec?.[f] ?? '') === v ? ' selected' : '';
+
+  const sheet = document.createElement('div');
+  sheet.className = 'life-sheet';
+  sheet.innerHTML = `
+    <div class="life-sheet-overlay"></div>
+    <div class="life-sheet-panel" role="dialog" aria-label="${_e(title)}">
+      <div class="life-sheet-drag"></div>
+      <div class="life-sheet-hd">
+        <div class="life-sheet-hd-info">
+          <div class="life-sheet-hd-name">${_e(title)}</div>
+        </div>
+        <button class="life-sheet-close" aria-label="Close">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="life-sheet-body">
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Country Name <span style="color:#ef4444">*</span></div>
+          <input class="life-sheet-input" data-field="countryName" type="text" value="${val('countryName')}" placeholder="e.g. Afghanistan">
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Continent / Region</div>
+          <input class="life-sheet-input" data-field="continent" type="text" value="${val('continent')}" placeholder="e.g. Asia, Sub-Saharan Africa">
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Persecution Level</div>
+          <select class="life-sheet-input" data-field="persecutionLevel">
+            <option value="">— Unknown / Not ranked —</option>
+            <option value="Extreme"${sel('persecutionLevel', 'Extreme')}>Extreme</option>
+            <option value="Severe"${sel('persecutionLevel', 'Severe')}>Severe</option>
+            <option value="Considerable"${sel('persecutionLevel', 'Considerable')}>Considerable</option>
+            <option value="Moderate"${sel('persecutionLevel', 'Moderate')}>Moderate</option>
+            <option value="Some"${sel('persecutionLevel', 'Some')}>Some</option>
+            <option value="Minimal"${sel('persecutionLevel', 'Minimal')}>Minimal</option>
+            <option value="Low"${sel('persecutionLevel', 'Low')}>Low</option>
+          </select>
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">World Watch List Rank <span class="life-field-hint">1 = most persecuted</span></div>
+          <input class="life-sheet-input" data-field="worldWatchListRank" type="number" min="0" max="200" value="${val('worldWatchListRank')}" placeholder="0">
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Dominant Religion</div>
+          <input class="life-sheet-input" data-field="dominantReligion" type="text" value="${val('dominantReligion')}" placeholder="e.g. Islam, Hinduism, Buddhism">
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Population</div>
+          <input class="life-sheet-input" data-field="population" type="number" min="0" value="${val('population')}" placeholder="0">
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Christian % of Population</div>
+          <input class="life-sheet-input" data-field="christianPercent" type="number" min="0" max="100" step="0.01" value="${val('christianPercent')}" placeholder="0.00">
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">In the 10/40 Window</div>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font:0.9rem var(--font-ui);">
+            <input type="checkbox" data-field="tenFortyWindow" ${rec?.tenFortyWindow ? 'checked' : ''} style="width:16px;height:16px;cursor:pointer;">
+            Yes, this country is in the 10/40 Window
+          </label>
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">ISO Code <span class="life-field-hint">2-letter country code</span></div>
+          <input class="life-sheet-input" data-field="isoCode" type="text" maxlength="3" value="${val('isoCode')}" placeholder="e.g. AF, NG">
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Flag Emoji</div>
+          <input class="life-sheet-input" data-field="icon" type="text" value="${val('icon')}" placeholder="🇦🇫">
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Profile URL <span class="life-field-hint">Joshua Project or Open Doors</span></div>
+          <input class="life-sheet-input" data-field="profileUrl" type="url" value="${val('profileUrl')}" placeholder="https://joshuaproject.net/countries/AF">
+        </div>
+        <div class="gc-sheet-err" style="display:none;color:var(--danger,#dc2626);font:0.84rem var(--font-ui);margin-top:8px;"></div>
+      </div>
+      <div class="life-sheet-foot">
+        <button class="flock-btn" data-cancel>Cancel</button>
+        <button class="flock-btn flock-btn--primary" data-submit>${isNew ? 'Add Country' : 'Save Changes'}</button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(sheet);
+  _activeMissionsSheet = sheet;
+
+  requestAnimationFrame(() => {
+    sheet.querySelector('.life-sheet-overlay').classList.add('is-open');
+    sheet.querySelector('.life-sheet-panel').classList.add('is-open');
+  });
+
+  const showErr = (msg) => {
+    const el = sheet.querySelector('.gc-sheet-err');
+    if (el) { el.textContent = msg; el.style.display = msg ? '' : 'none'; }
+  };
+
+  sheet.querySelector('.life-sheet-close').addEventListener('click', _closeMissionsSheet);
+  sheet.querySelector('.life-sheet-overlay').addEventListener('click', _closeMissionsSheet);
+  sheet.querySelector('[data-cancel]').addEventListener('click', _closeMissionsSheet);
+
+  sheet.querySelector('[data-submit]').addEventListener('click', async () => {
+    const btn = sheet.querySelector('[data-submit]');
+    showErr('');
+
+    const get    = (f) => (sheet.querySelector(`[data-field="${f}"]`)?.value ?? '').trim();
+    const getNum = (f) => { const v = parseFloat(get(f)); return isNaN(v) ? undefined : v; };
+    const getBool = (f) => sheet.querySelector(`[data-field="${f}"]`)?.checked ?? false;
+
+    if (!get('countryName')) { showErr('Country name is required.'); return; }
+    const UR = window.UpperRoom;
+    if (!UR) { showErr('UpperRoom API not available — cannot save.'); return; }
+
+    const changes = {
+      countryName: get('countryName'),
+      ...(get('continent')        ? { continent:        get('continent')        } : {}),
+      ...(get('persecutionLevel') ? { persecutionLevel: get('persecutionLevel') } : {}),
+      ...(get('dominantReligion') ? { dominantReligion: get('dominantReligion') } : {}),
+      ...(getNum('population')         !== undefined ? { population:         getNum('population')         } : {}),
+      ...(getNum('worldWatchListRank') !== undefined ? { worldWatchListRank: getNum('worldWatchListRank') } : {}),
+      ...(getNum('christianPercent')   !== undefined ? { christianPercent:   getNum('christianPercent')   } : {}),
+      ...(get('profileUrl') ? { profileUrl: get('profileUrl') } : {}),
+      ...(get('isoCode')    ? { isoCode:    get('isoCode')    } : {}),
+      ...(get('icon')       ? { icon:       get('icon')       } : {}),
+      tenFortyWindow: getBool('tenFortyWindow'),
+    };
+
+    btn.disabled = true; btn.textContent = 'Saving…';
+    try {
+      if (isNew) {
+        await UR.createMissionsRegistry(changes);
+      } else {
+        await UR.updateMissionsRegistry({ id: rec.id, ...changes });
+      }
+      _closeMissionsSheet();
+      if (onSaved) onSaved();
+    } catch (err) {
+      showErr('Could not save: ' + (err?.message || String(err)));
+      btn.disabled = false; btn.textContent = isNew ? 'Add Country' : 'Save Changes';
+    }
+  });
+}
+
 // ── Missions entry sheet ─────────────────────────────────────────────────────
 let _activeMissionsSheet = null;
+let _canEditRegistry     = false;   // set on each _loadWorld call
+let _worldRows           = [];      // cached for edit lookups
 
 function _closeMissionsSheet() {
   if (!_activeMissionsSheet) return;
