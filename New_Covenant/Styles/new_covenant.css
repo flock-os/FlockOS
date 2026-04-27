@@ -614,6 +614,163 @@ flock-tabs [role="tablist"], .tabs-bar {
 
 
 /* ════════════════════════════════════════════════════════════════════════════
+   GARMENTS (the_garments) — Sign-in modal
+   Same royal dark palette as the lampstand. Branded, intentional.
+   ════════════════════════════════════════════════════════════════════════════ */
+.garments-overlay {
+  position: fixed; inset: 0; z-index: 9100;
+  display: flex; align-items: center; justify-content: center;
+  /* Dark veil — echoes the lampstand */
+  background: rgba(8, 10, 28, 0.82);
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  animation: garments-in 240ms var(--ease, ease) both;
+}
+@keyframes garments-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.garments-card {
+  width: min(400px, 92vw);
+  background: linear-gradient(170deg, #0d1144 0%, #160e38 60%, #0a1025 100%);
+  border: 1px solid rgba(232,168,56,0.20);
+  border-radius: 18px;
+  box-shadow: 0 32px 80px rgba(0,0,0,0.60), 0 0 0 1px rgba(255,255,255,0.04);
+  padding: 36px 32px 28px;
+  display: flex; flex-direction: column; gap: 0;
+  animation: garments-rise 280ms var(--ease, ease) both;
+}
+@keyframes garments-rise {
+  from { opacity: 0; transform: translateY(18px) scale(0.97); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* Flame icon centered above headline */
+.garments-flame {
+  width: 48px; height: 48px; border-radius: 50%;
+  background: radial-gradient(circle at 50% 35%,
+    #fffbe0 0%, #ffd24a 28%, #e88820 58%, rgba(192,80,20,0.40) 88%, transparent 100%);
+  box-shadow: 0 0 28px rgba(232,168,56,0.70), 0 0 60px rgba(232,168,56,0.28);
+  margin: 0 auto 20px;
+  animation: garments-flicker 2s ease-in-out infinite;
+}
+@keyframes garments-flicker {
+  0%,100% { transform: scale(1)    rotate(-1deg); opacity: 0.95; }
+  30%     { transform: scale(1.07) rotate(1.5deg); opacity: 1;   }
+  60%     { transform: scale(0.96) rotate(-0.5deg); opacity: 0.90; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .garments-flame { animation: none; }
+}
+
+/* Brand name */
+.garments-brand {
+  text-align: center;
+  font: 700 0.75rem/1 var(--font-ui, 'Noto Sans', sans-serif);
+  letter-spacing: 0.16em; text-transform: uppercase;
+  color: rgba(255,255,255,0.38);
+  margin-bottom: 8px;
+}
+
+/* Headline */
+.garments-title {
+  text-align: center;
+  font: 700 1.6rem/1.15 var(--font-serif, 'Noto Serif', Georgia, serif);
+  background: linear-gradient(135deg, #ffe9a0, #e8a838, #c47a10);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  margin: 0 0 6px;
+}
+
+/* Quiet subline */
+.garments-sub {
+  text-align: center;
+  font: italic 0.88rem var(--font-serif, 'Noto Serif', Georgia, serif);
+  color: rgba(255,255,255,0.38);
+  margin: 0 0 28px;
+}
+
+/* Form fields */
+.garments-field {
+  display: flex; flex-direction: column; gap: 6px;
+  margin-bottom: 14px;
+}
+.garments-label {
+  font: 600 0.78rem/1 var(--font-ui, 'Noto Sans', sans-serif);
+  letter-spacing: 0.04em; text-transform: uppercase;
+  color: rgba(255,255,255,0.45);
+}
+.garments-input {
+  padding: 11px 14px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 10px;
+  font: 1rem var(--font-ui, 'Noto Sans', sans-serif);
+  color: #fff;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+  outline: none;
+}
+.garments-input::placeholder { color: rgba(255,255,255,0.22); }
+.garments-input:focus {
+  border-color: rgba(232,168,56,0.60);
+  box-shadow: 0 0 0 3px rgba(232,168,56,0.14);
+}
+
+/* Error line */
+.garments-error {
+  min-height: 1.2em;
+  font: 0.83rem var(--font-ui, 'Noto Sans', sans-serif);
+  color: #fca5a5;
+  margin: 2px 0 12px;
+  text-align: center;
+}
+
+/* Actions row */
+.garments-actions {
+  display: flex; gap: 10px; justify-content: center; margin-top: 4px;
+}
+.garments-btn-cancel {
+  padding: 10px 20px;
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 10px;
+  font: 600 0.9rem var(--font-ui, 'Noto Sans', sans-serif);
+  color: rgba(255,255,255,0.45);
+  cursor: pointer; transition: border-color 140ms ease, color 140ms ease;
+}
+.garments-btn-cancel:hover { border-color: rgba(255,255,255,0.30); color: rgba(255,255,255,0.70); }
+.garments-btn-submit {
+  flex: 1; padding: 11px 20px;
+  background: linear-gradient(135deg, var(--gold,#e8a838) 0%, #c05818 100%);
+  border: 0; border-radius: 10px;
+  font: 700 0.95rem var(--font-ui, 'Noto Sans', sans-serif);
+  color: #fff;
+  cursor: pointer;
+  box-shadow: 0 4px 18px rgba(232,168,56,0.38);
+  transition: opacity 150ms ease, transform 120ms ease;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.garments-btn-submit:hover { opacity: 0.9; }
+.garments-btn-submit:active { transform: scale(0.97); }
+.garments-btn-submit:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+/* Spinner inside submit button */
+.garments-spinner {
+  width: 15px; height: 15px; border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.30);
+  border-top-color: #fff;
+  animation: garments-spin 700ms linear infinite;
+  flex-shrink: 0;
+}
+@keyframes garments-spin { to { transform: rotate(360deg); } }
+
+/* Scripture footer */
+.garments-scripture {
+  text-align: center;
+  font: italic 0.76rem var(--font-serif, 'Noto Serif', Georgia, serif);
+  color: rgba(255,255,255,0.20);
+  margin-top: 20px;
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
    SPLASH (the_lampstand)
    Dark, dramatic, royal. Flame with radial halo rings.
    ════════════════════════════════════════════════════════════════════════════ */
