@@ -2141,6 +2141,78 @@ flock-tabs [role="tablist"], .tabs-bar {
 .life-member-chip-clear:hover { background: var(--danger-bg, #fde8e8); color: var(--danger, #c0392b); }
 
 /* ══════════════════════════════════════════════════════════════════════════════
+   CARE WORKFLOW GUIDE — collapsible panel inside care sheets
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+.life-wg-field { padding: 0; }
+.life-workflow-guide {
+  border: 1px solid var(--wg-color, #5b9bd5);
+  border-radius: 12px; overflow: hidden;
+  transition: border-color 140ms;
+}
+.life-wg-summary {
+  display: flex; align-items: center; gap: 8px; list-style: none;
+  padding: 11px 16px; cursor: pointer;
+  font: 700 0.83rem var(--font-ui); color: var(--wg-color, #5b9bd5);
+  background: color-mix(in srgb, var(--wg-color, #5b9bd5) 8%, transparent);
+  user-select: none;
+}
+.life-wg-summary::marker,
+.life-wg-summary::-webkit-details-marker { display: none; }
+.life-wg-summary::before {
+  content: '▶'; font-size: 0.65rem; transition: transform 180ms;
+  color: var(--wg-color, #5b9bd5); margin-right: 2px;
+}
+.life-workflow-guide[open] > .life-wg-summary::before { transform: rotate(90deg); }
+
+.life-wg-body {
+  padding: 12px 14px; display: flex; flex-direction: column; gap: 8px;
+  background: var(--bg-raised, #fff);
+}
+.life-wg-stages { display: flex; flex-direction: column; gap: 6px; }
+.life-wg-stage {
+  padding: 9px 12px; border-radius: 8px;
+  border-left: 3px solid var(--wg-color, #5b9bd5);
+  background: color-mix(in srgb, var(--wg-color, #5b9bd5) 5%, var(--bg-soft, #f5f6fa));
+}
+.life-wg-stage-t { font: 700 0.80rem var(--font-ui); color: var(--ink, #1b264f); margin-bottom: 2px; }
+.life-wg-stage-d { font: 0.79rem var(--font-ui); color: var(--ink-muted, #7a7f96); line-height: 1.45; }
+
+/* Watch For sub-section */
+.life-wg-watch {
+  border: 1px solid #d4853a; border-radius: 8px; overflow: hidden;
+}
+.life-wg-watch > summary {
+  padding: 8px 12px; cursor: pointer; font: 700 0.80rem var(--font-ui);
+  color: #d4853a; background: rgba(212,133,58,0.07); user-select: none;
+}
+.life-wg-watch > summary::marker,
+.life-wg-watch > summary::-webkit-details-marker { display: none; }
+.life-wg-watch-body { padding: 8px 12px; display: flex; flex-direction: column; gap: 5px; }
+.life-wg-watch-item {
+  padding: 7px 10px; border-radius: 6px; border-left: 3px solid #d4853a;
+  background: rgba(212,133,58,0.05); font: 0.79rem var(--font-ui); color: var(--ink-muted, #7a7f96);
+  line-height: 1.4;
+}
+
+/* Closure Checklist sub-section */
+.life-wg-check {
+  border: 1px solid var(--line, #e5e7ef); border-radius: 8px; overflow: hidden;
+}
+.life-wg-check > summary {
+  padding: 8px 12px; cursor: pointer; font: 700 0.80rem var(--font-ui);
+  color: var(--ink, #1b264f); background: var(--bg-soft, #f5f6fa); user-select: none;
+}
+.life-wg-check > summary::marker,
+.life-wg-check > summary::-webkit-details-marker { display: none; }
+.life-wg-check-body { padding: 8px 12px; display: flex; flex-direction: column; gap: 6px; }
+.life-wg-check-item {
+  display: flex; align-items: flex-start; gap: 8px; cursor: pointer;
+  font: 0.82rem var(--font-ui); color: var(--ink-muted, #7a7f96); line-height: 1.45;
+}
+.life-wg-check-item input[type="checkbox"] { margin-top: 2px; flex-shrink: 0; accent-color: var(--accent, #5b8fcf); }
+
+/* ══════════════════════════════════════════════════════════════════════════════
    THE FOLD — Member detail sheet additions
    ══════════════════════════════════════════════════════════════════════════════ */
 

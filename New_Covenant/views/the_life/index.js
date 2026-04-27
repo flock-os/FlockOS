@@ -9,19 +9,483 @@ export const name  = 'the_life';
 export const title = 'Pastoral Care';
 
 const PRIORITY = {
-  urgent: { label: 'Urgent',  color: '#dc2626', bg: 'rgba(220,38,38,0.10)' },
-  high:   { label: 'High',    color: '#e8a838', bg: 'rgba(232,168,56,0.13)' },
-  normal: { label: 'Normal',  color: '#0ea5e9', bg: 'rgba(14,165,233,0.10)' },
+  urgent: { label: 'Urgent', color: '#dc2626', bg: 'rgba(220,38,38,0.10)' },
+  high:   { label: 'High',   color: '#e8a838', bg: 'rgba(232,168,56,0.13)' },
+  normal: { label: 'Normal', color: '#0ea5e9', bg: 'rgba(14,165,233,0.10)' },
+  low:    { label: 'Low',    color: '#6b7280', bg: 'rgba(107,114,128,0.10)' },
 };
 
+// Canonical care types — keys match Firestore careType values exactly
 const CARE_TYPES = {
-  prayer:     { icon: '🙏', label: 'Prayer Request' },
-  visit:      { icon: '🏥', label: 'Hospital Visit'  },
-  followup:   { icon: '📞', label: 'Follow-up Call'  },
-  grief:      { icon: '🕊️', label: 'Grief Support'   },
-  counseling: { icon: '💬', label: 'Counseling'       },
-  welcome:    { icon: '👋', label: 'New Visitor'      },
-  milestone:  { icon: '🎉', label: 'Life Milestone'   },
+  // ── Crisis & Safety ───────────────────────────────────────────────────────
+  'Crisis':                         { icon: '🚨', label: 'Crisis',                         priority: 'urgent' },
+  'Abuse / Domestic Violence':      { icon: '🛡️', label: 'Abuse / Domestic Violence',      priority: 'urgent' },
+  // ── Medical & Physical ────────────────────────────────────────────────────
+  'Hospital Visit':                 { icon: '🏥', label: 'Hospital Visit',                 priority: 'urgent' },
+  'Medical':                        { icon: '🩺', label: 'Medical',                        priority: 'high'   },
+  'Terminal Illness / End of Life': { icon: '🕯️', label: 'Terminal Illness / End of Life', priority: 'high'   },
+  'Elder Care':                     { icon: '🧓', label: 'Elder Care',                     priority: 'high'   },
+  // ── Grief & Loss ──────────────────────────────────────────────────────────
+  'Grief':                          { icon: '🤍', label: 'Grief',                          priority: 'high'   },
+  'Pregnancy & Infant Loss':        { icon: '🕊️', label: 'Pregnancy & Infant Loss',        priority: 'high'   },
+  // ── Relationships ─────────────────────────────────────────────────────────
+  'Marriage':                       { icon: '💍', label: 'Marriage',                       priority: 'normal' },
+  'Pre-Marriage':                   { icon: '💑', label: 'Pre-Marriage',                   priority: 'normal' },
+  'Family':                         { icon: '👨‍👩‍👧', label: 'Family',                          priority: 'normal' },
+  // ── Addiction & Recovery ─────────────────────────────────────────────────
+  'Addiction':                      { icon: '🔗', label: 'Addiction',                      priority: 'high'   },
+  'Pornography / Sexual Addiction': { icon: '🔒', label: 'Pornography / Sexual Addiction', priority: 'high'   },
+  // ── Mental & Emotional Health ─────────────────────────────────────────────
+  'Mental Health':                  { icon: '🧠', label: 'Mental Health',                  priority: 'normal' },
+  'Counseling':                     { icon: '💬', label: 'Counseling',                     priority: 'normal' },
+  // ── Spiritual Growth & Discipleship ─────────────────────────────────────
+  'New Believer':                   { icon: '✨', label: 'New Believer',                   priority: 'normal' },
+  'New Member Integration':         { icon: '🤝', label: 'New Member Integration',         priority: 'normal' },
+  'Discipleship':                   { icon: '📚', label: 'Discipleship',                   priority: 'low'    },
+  'Shepherding':                    { icon: '🐑', label: 'Shepherding',                    priority: 'low'    },
+  'Restoration':                    { icon: '🔄', label: 'Restoration',                    priority: 'high'   },
+  // ── Life Situations ───────────────────────────────────────────────────────
+  'Financial':                      { icon: '💰', label: 'Financial',                      priority: 'normal' },
+  'Immigration / Deportation':      { icon: '✈️', label: 'Immigration / Deportation',      priority: 'high'   },
+  'Incarceration & Re-Entry':       { icon: '🔑', label: 'Incarceration & Re-Entry',       priority: 'high'   },
+  'Gender Identity / Sexuality':    { icon: '✝️', label: 'Gender Identity / Sexuality',    priority: 'normal' },
+  // ── General ───────────────────────────────────────────────────────────────
+  'Prayer Request':                 { icon: '🙏', label: 'Prayer Request',                 priority: 'normal' },
+  'Follow-Up':                      { icon: '📞', label: 'Follow-Up',                      priority: 'normal' },
+  'Life Milestone':                 { icon: '🎉', label: 'Life Milestone',                 priority: 'normal' },
+  'Other':                          { icon: '🫱', label: 'Other',                          priority: 'normal' },
+  // ── Backward-compat aliases (old camelCase keys) ──────────────────────────
+  prayer:     { icon: '🙏', label: 'Prayer Request',   priority: 'normal' },
+  visit:      { icon: '🏥', label: 'Hospital Visit',   priority: 'urgent' },
+  followup:   { icon: '📞', label: 'Follow-Up',        priority: 'normal' },
+  grief:      { icon: '🤍', label: 'Grief',            priority: 'high'   },
+  counseling: { icon: '💬', label: 'Counseling',       priority: 'normal' },
+  welcome:    { icon: '✨', label: 'New Believer',     priority: 'normal' },
+  milestone:  { icon: '🎉', label: 'Life Milestone',  priority: 'normal' },
+};
+
+// Workflow guide config per care type — stages, notes template, watchFor, closureChecklist
+const _SEP = '────────────────────────────────';
+const CARE_CFG = {
+  'Crisis': {
+    color: '#c94c4c',
+    stages: [
+      { t: 'Stage 1 — Immediate Response',  d: 'Contact within hours. Confirm physical safety. Never leave a crisis unacknowledged.' },
+      { t: 'Stage 2 — Safety Assessment',   d: 'Danger? Self-harm? Housing secure? Children safe? If yes → involve authorities. Document everything.' },
+      { t: 'Stage 3 — Resource Connection', d: 'Connect to: 988 Lifeline, DV shelter, ER, or housing agency. The church walks alongside — it does not replace professional help.' },
+      { t: 'Stage 4 — Stabilization',       d: 'Daily check-ins until stable. Log every contact. Assign secondary caregiver. No single point of failure.' },
+      { t: 'Stage 5 — Transition',          d: 'Once stable: convert to Counseling, Grief, Restoration, or Shepherding. Close this case.' },
+    ],
+    notes: `CRISIS INTAKE\n${_SEP}\nNature of Crisis:\n\n\nImmediate Safety Concerns (self-harm, danger, housing):\n\n\nPeople Involved:\n\n\n${_SEP}\nResources Contacted:\nReferrals Made:\nFollow-Up Plan:\nNext Check-In:`,
+    watchFor: [
+      'Escalating language: hopelessness, finality, giving away possessions',
+      'Dissociation: flat affect, disconnect from reality',
+      'Substance use as coping',
+      'Complete isolation from all support',
+      'Return to the environment or person that caused the crisis',
+    ],
+    closureChecklist: ['Immediate safety confirmed', 'Professional resources connected', 'Transition case opened', 'Member stable for 7+ consecutive days', 'Final pastoral note'],
+  },
+  'Grief': {
+    color: '#9b7ec8',
+    stages: [
+      { t: 'Stage 1 — First Contact (24 hrs)', d: 'Reach out within 24 hours of learning of the loss. Show up — do not send a text and wait.' },
+      { t: 'Stage 2 — Presence & Listening',  d: 'First visit: listen only. Do not minimize or problem-solve. Coordinate practical needs: meals, childcare, funeral logistics.' },
+      { t: 'Stage 3 — Practical Support',     d: 'Activate Compassion team: meals 2 weeks, transportation, childcare. Handle memorial coordination.' },
+      { t: 'Stage 4 — Ongoing Presence',      d: 'Week 1: daily. Month 1: weekly. After: bi-weekly. Grief peaks at 3–6 months — do not disappear then.' },
+      { t: 'Stage 5 — Milestone Check-Ins',   d: 'Mark: 3 months, 6 months, 1 year, anniversary, first holidays. Calendar these at case creation.' },
+    ],
+    notes: `GRIEF INTAKE\n${_SEP}\nLoss (what / whom / when):\n\n\nRelationship to Deceased:\n\nFamily Situation:\n\n\n${_SEP}\nImmediate Practical Needs:\nSpiritual State:\nSupport System:\nNext Contact:`,
+    watchFor: [
+      'Isolation: declining all invitations, not attending church',
+      'Complicated grief: inability to function 6+ months post-loss',
+      'Self-medication: increased alcohol use, sleep medication dependence',
+      'Anniversary reactions: predictable spikes around holidays, birthdays, death anniversary',
+    ],
+    closureChecklist: ['All milestone dates contacted', 'Member confirms readiness for closure', 'Ongoing community connection confirmed', 'Final pastoral note'],
+  },
+  'Marriage': {
+    color: '#c47878',
+    stages: [
+      { t: 'Stage 1 — Initial Contact', d: 'Often one spouse reaches out first. Listen without taking sides. Affirm the goal is to help the marriage, not adjudicate it.' },
+      { t: 'Stage 2 — Joint Meeting',   d: 'Meet with both spouses when safe. No ongoing work with one spouse only. Danger present → handle separately, refer professionally.' },
+      { t: 'Stage 3 — Counseling Plan', d: 'Define cadence (weekly recommended). Refer professionally if no progress after 6 sessions.' },
+      { t: 'Stage 4 — Sessions',        d: 'Focus on communication, covenant, Christ-centered vision. Log key themes as Interactions — not full session details.' },
+      { t: 'Stage 5 — Referral if Needed', d: 'Abuse, trauma, addiction, mental health: refer professionally. Coordinate — do not abandon the couple.' },
+      { t: 'Stage 6 — Close & Follow-Up',  d: 'Resolved: close the case. Schedule 3- and 6-month check-ins. Marriage is discipleship, not a problem to fix.' },
+    ],
+    notes: `MARRIAGE INTAKE (CONFIDENTIAL)\n${_SEP}\nPresenting Issue:\n\n\nSpouse 1 Perspective:\n\n\nSpouse 2 Perspective:\n\n\nHow long has this been a struggle:\n\n${_SEP}\nChildren involved: YES / NO\nPrior counseling: YES / NO\nBoth willing to engage: YES / NO\nSession Cadence:\nReferral Needed:`,
+    watchFor: [
+      'One spouse disengaging from the process',
+      'Escalation of conflict between sessions',
+      'Disclosure of infidelity during counseling',
+      'Signs of domestic violence surfacing (activate DV protocol)',
+    ],
+    closureChecklist: ['Both spouses agree care is no longer needed', 'DV screening completed at intake', '3-month and 6-month check-ins scheduled', 'Final pastoral note'],
+  },
+  'Pre-Marriage': {
+    color: '#c47878',
+    stages: [
+      { t: 'Stage 1 — Engagement Contact',      d: 'Contact within 1 week of learning of the engagement. Frame it as a gift: "We want to help you both start well."' },
+      { t: 'Stage 2 — Initial Assessment',      d: 'Meet individually with each person first. Assess: family of origin, communication, conflict history, finances, faith alignment. Consider PREPARE/ENRICH.' },
+      { t: 'Stage 3 — Structured Preparation',  d: '6 sessions minimum: (1) Covenant & Commitment, (2) Communication & Conflict, (3) Family of Origin, (4) Finances, (5) Roles & Expectations, (6) Faith & Spiritual Life.' },
+      { t: 'Stage 4 — Pre-Wedding Meeting',     d: 'Within 30 days of the wedding. Ceremony content, Scripture. Ask both: "Is there anything on your heart as you enter this covenant?" Pray together.' },
+      { t: 'Stage 5 — Post-Wedding Follow-Up',  d: 'Check in at 3 months, 6 months, and 1 year. These contacts are the bridge to the Marriage workflow if ever needed.' },
+    ],
+    notes: `PRE-MARRIAGE INTAKE\n${_SEP}\nWedding Date:\n\nSpouse 1 Name:\n\nSpouse 2 Name:\n\nPrior Marriage (either): YES / NO\nChildren from Prior Relationship: YES / NO\n\n${_SEP}\nAssessment Tool Used:\nMentor Couple Assigned:\nSessions Completed:\nKey Topics / Themes:\nPost-Wedding Check-In Dates:`,
+    closureChecklist: ['All 6 preparation sessions completed', 'Pre-wedding meeting conducted', 'Post-wedding follow-ups scheduled (3, 6, 12 months)', 'Final pastoral note'],
+  },
+  'Addiction': {
+    color: '#d4853a',
+    stages: [
+      { t: 'Stage 1 — Confidential Intake',     d: 'Zero condemnation. Be explicit about who will and will not know. This posture determines whether they stay or flee.' },
+      { t: 'Stage 2 — Assessment',              d: 'Substance/behavior, duration, family awareness, professional support, safety risks (some withdrawal needs medical care).' },
+      { t: 'Stage 3 — Accountability',          d: 'Assign an accountability partner (same-sex, mature believer). Weekly minimum check-ins. Document triggers in Notes.' },
+      { t: 'Stage 4 — Professional Referral',   d: 'AA/NA/Celebrate Recovery, licensed counselor, or treatment program. The church walks alongside — it does not replace.' },
+      { t: 'Stage 5 — Ongoing Through Relapse', d: 'Relapse is common. Do not withdraw. Recommit to the plan. Celebrate milestones: 30d, 90d, 6mo, 1yr.' },
+      { t: 'Stage 6 — Long-Term Follow-Up',     d: 'Recovery is measured in years. Maintain connection even in stable sobriety. New identity in Christ is the goal.' },
+    ],
+    notes: `ADDICTION INTAKE (CONFIDENTIAL)\n${_SEP}\nSubstance / Behavior:\n\nDuration / History:\n\nCurrent Status (active / recovery / relapse):\n\nFamily Awareness: YES / NO\n\n${_SEP}\nAccountability Partner:\nProfessional Support (AA / therapist / program):\nChurch Support Plan:\nNext Check-In:`,
+    watchFor: [
+      'Return to previous social environments (people, places, patterns)',
+      'Sudden improvement in mood without explanation',
+      'Financial irregularities: unexplained spending, borrowing',
+      'Missed accountability check-ins',
+      'Stopping professional treatment without consultation',
+    ],
+    closureChecklist: ['Accountability partner active', 'Professional support connected', '12 months of sustained recovery', 'Transition to Shepherding', 'Final pastoral note'],
+  },
+  'Pornography / Sexual Addiction': {
+    color: '#d4853a',
+    stages: [
+      { t: 'Stage 1 — Disclosure',               d: 'Receive without shock or lecture. Same-sex pastor/elder responds. Say: "Thank you. This took courage. You are not alone." Establish strict confidentiality.' },
+      { t: 'Stage 2 — Assessment',               d: 'Duration, frequency, triggers, escalation, spouse awareness. If married: do not advise spouse disclosure — refer to licensed therapist trained in sexual addiction.' },
+      { t: 'Stage 3 — Accountability Structure', d: 'Assign same-sex accountability partner. Install accountability software (Covenant Eyes). Weekly check-ins with specific questions.' },
+      { t: 'Stage 4 — Professional Referral',    d: 'CSAT (findacsat.com), Pure Desire Ministries, Celebrate Recovery. If married: refer spouse to betrayal trauma therapist.' },
+      { t: 'Stage 5 — Recovery & Relapse',       d: 'Contact within 24 hours of relapse. Lead with grace, not shame. Celebrate: 30d, 90d, 6mo, 1yr.' },
+      { t: 'Stage 6 — Long-Term Freedom',        d: '12- and 24-month formal reviews. Invite them to give back as accountability partner. Close → Shepherding.' },
+    ],
+    notes: `SEXUAL ADDICTION INTAKE (CONFIDENTIAL)\n${_SEP}\nDuration / History:\n\nPattern / Frequency:\n\nEscalation (has it changed over time): YES / NO\n\nSpouse / Family Aware: YES / NO\nProfessional Help in Place: YES / NO\n\n${_SEP}\nAccountability Partner Assigned:\nAccountability Software Installed: YES / NO\nReferral Made:\nMarriage Case Opened: YES / NO\nNext Check-In:`,
+    watchFor: [
+      'Accountability software disabled or bypassed',
+      'Spouse betrayal trauma symptoms',
+      'Escalation in behavior pattern over time',
+      'Isolation from accountability partner or community',
+    ],
+    closureChecklist: ['Accountability partner active', 'Software installed and reporting', 'Professional referral made', '12- and 24-month reviews completed', 'Transition to Shepherding'],
+  },
+  'Hospital Visit': {
+    color: '#5b9bd5',
+    stages: [
+      { t: 'Stage 1 — Contact Within 24 Hours', d: 'Never let a member be hospitalized without pastoral contact in 24 hours. Call if you cannot visit immediately.' },
+      { t: 'Stage 2 — Visit & Pray',            d: 'Show up. Read Scripture (Psalm 23, Psalm 46, John 14). Pray specifically. Brief is fine — the point is presence.' },
+      { t: 'Stage 3 — Follow the Family',       d: 'The waiting room needs pastoral care too. A call to the spouse or adult child carrying the weight matters.' },
+      { t: 'Stage 4 — Discharge & Recovery',    d: 'Follow up within 48 hours of discharge. Arrange meals or help. Check in weekly until clearly recovering.' },
+      { t: 'Stage 5 — Close or Transition',     d: 'Full recovery → resolve. Long-term illness → Elder Care or Shepherding. Member passes → open Grief case for family.' },
+    ],
+    notes: `HOSPITAL VISIT\n${_SEP}\nHospital / Facility:\n\nRoom / Unit:\n\nNature of Illness / Procedure:\n\nFamily Present:\n\n${_SEP}\nVisit Date:\nPrayer Topics:\nExpected Discharge:\nFamily Needs:`,
+    closureChecklist: ['Post-discharge follow-up completed', 'Practical needs addressed (meals, transport)', 'If long-term: transitioned to appropriate care type', 'If member passed: Grief case opened for family', 'Final pastoral note'],
+  },
+  'Medical': {
+    color: '#3d9fbf',
+    stages: [
+      { t: 'Stage 1 — Initial Notification',    d: 'Contact within 48 hours of learning of the diagnosis. Do not wait for them to reach out — the silence of the church in a health crisis is a wound that lasts.' },
+      { t: 'Stage 2 — Pastoral Visit & Prayer', d: 'Arrange an in-person or video visit. Listen before advising. Read Scripture (Psalm 23, 103, Romans 8:18-28). Pray specifically.' },
+      { t: 'Stage 3 — Practical Support',       d: 'Activate Compassion team: meals during treatment, transportation to appointments, household and childcare help.' },
+      { t: 'Stage 4 — Family Coordination',     d: 'Identify the primary family caregiver. They are carrying weight too. Care for the caregiver.' },
+      { t: 'Stage 5 — Care Through Treatment',  d: 'Track treatment phases. Reach out before and after each major procedure. Do not disappear between appointments.' },
+      { t: 'Stage 6 — Close or Transition',     d: 'Full recovery → celebrate and resolve. Chronic/terminal → Elder Care. Member passes → open Grief case for family.' },
+    ],
+    notes: `MEDICAL CARE INTAKE\n${_SEP}\nDiagnosis / Medical Situation:\n\nTreatment Plan (surgery / chemo / procedure / other):\n\nExpected Timeline:\n\n\n${_SEP}\nPrimary Family Contact & Relationship:\n\nPractical Needs (meals / transport / household / childcare):\n\nSpiritual State:\n\nPrayer Requests:\n\nNext Contact:`,
+    watchFor: [
+      'Increased isolation during treatment phases',
+      'Spiritual drift or questioning God during prolonged illness',
+      'Caregiver breakdown: family member carrying primary burden showing exhaustion',
+      'Depression developing alongside the physical condition',
+    ],
+    closureChecklist: ['Treatment phase documented', 'Caregiver fatigue assessed', 'If terminal: transitioned to Terminal Illness workflow', 'If member passed: Grief case opened', 'Final pastoral note'],
+  },
+  'Terminal Illness / End of Life': {
+    color: '#9b7ec8',
+    stages: [
+      { t: 'Stage 1 — Receiving the News',   d: 'Contact within 24 hours. Lead with presence and prayer. Do not say "God will heal you" unless they say it first. Ask about the family.' },
+      { t: 'Stage 2 — Walking the Journey',  d: 'Weekly visits minimum. Pray specifically. Walk through over time: their life story, what they believe about what comes next, forgiveness, legacy.' },
+      { t: 'Stage 3 — Family Care',          d: 'Family is in anticipatory grief — name it and tend to it. Separate pastoral care for the primary caregiver. Partner with hospice team.' },
+      { t: 'Stage 4 — Active Dying Phase',   d: 'Pastor personally reachable at all hours. Be present in the vigil if wanted. Read Scripture aloud — hearing is often the last sense to fade.' },
+      { t: 'Stage 5 — Immediate Family Care', d: 'Remain with the family after death. Activate the Grief workflow. Coordinate memorial/funeral. Personal contact every week for the first 30 days.' },
+    ],
+    notes: `TERMINAL ILLNESS INTAKE\n${_SEP}\nDiagnosis:\n\nPrognosis / Timeline:\n\nHospice Enrolled: YES / NO\nHospice Team:\n\nFamily Situation:\n\n\n${_SEP}\nPrimary Family Caregiver:\nAdvance Directive in Place: YES / NO\nSpiritual State:\nKey Topics to Walk Through:\nNext Visit:`,
+    watchFor: [
+      'Family conflict over end-of-life decisions',
+      'Patient expressing unresolved guilt, fear, or anger',
+      'Caregiver collapse: primary family member breaking down',
+      'Hospice team and church team working in isolation — coordinate intentionally',
+    ],
+    closureChecklist: ['Advance directive conversation completed', 'Hospice team coordinated', 'At passing: Grief case opened for family', 'Memorial/funeral coordination completed', '30-day post-loss plan active'],
+  },
+  'Elder Care': {
+    color: '#d4b870',
+    stages: [
+      { t: 'Stage 1 — Referral',               d: 'Case opened within 24 hrs. Notify lead pastor.' },
+      { t: 'Stage 2 — Assessment (48 hrs)',    d: 'In-person visit. Assess: Spiritual · Physical · Practical · Relational. Document in Notes.' },
+      { t: 'Stage 3 — Care Plan',              d: 'Assign Primary + Secondary Caregiver. Set visit cadence. Slot volunteers for meals, transport, companionship.' },
+      { t: 'Stage 4 — Active Care',            d: 'Log every contact as an Interaction. Monthly report to pastor. Pray on every visit.' },
+      { t: 'Stage 5 — Escalation',             d: 'Signs of decline → elevate to Urgent, increase visits, pastor personally attends.' },
+      { t: 'Stage 6 — Transition',             d: 'Facility/hospice: visit within first week. When member passes → open Grief case for family.' },
+    ],
+    notes: `ELDER CARE ASSESSMENT\n${_SEP}\nSpiritual (peace, connection, foundation):\n\n\nPhysical (meals, mobility, medication, safety):\n\n\nPractical (transport, bills, home, errands):\n\n\nRelational (family involvement, isolation):\n\n\n${_SEP}\nVisit Cadence: Weekly\nFamily Contact:\nNext Review Date:`,
+    watchFor: [
+      'Cognitive decline: confusion, repeating questions, forgetting names',
+      'Hygiene deterioration: unwashed clothing, unkempt appearance',
+      'Weight loss or inability to cook',
+      'Medication confusion: missed doses, double doses, expired prescriptions',
+      'Fall risk: bruises, unsteady gait, clutter in walking paths',
+      'Financial exploitation: unexplained withdrawals, new "friends" managing money',
+    ],
+    closureChecklist: ['All interactions logged', 'Family notified and connected', 'If member passed: Grief case opened for family', 'If transitioned to facility: visitation cadence established', 'Final pastoral note'],
+  },
+  'Mental Health': {
+    color: '#7eaacc',
+    stages: [
+      { t: 'Stage 1 — Safe Disclosure',        d: 'Respond immediately. Assess safety first: any risk of self-harm? If yes → Crisis workflow immediately. Establish confidentiality explicitly.' },
+      { t: 'Stage 2 — Understanding Situation', d: 'What is the condition? How long? In treatment? What does a hard day cost them? What role does their faith play? Do not attempt to diagnose.' },
+      { t: 'Stage 3 — Pastoral Care Plan',     d: 'Assign a caregiver with emotional stability and clear boundaries. Weekly check-in texts often preferred. If not in professional care: provide a specific referral.' },
+      { t: 'Stage 4 — Long-Term Presence',     d: 'Do not disappear during stable seasons. Watch for: stopping medication, increased isolation, sudden calm after despair (safety risk).' },
+      { t: 'Stage 5 — Crisis Response',        d: 'Suicidal ideation: do not leave them alone. Call 988 together if needed. Activate Crisis workflow. Keep this case open for the ongoing journey.' },
+      { t: 'Stage 6 — Long-Term Review',       d: 'Formal review at 6 and 12 months. Some cases remain open indefinitely. When thriving: close → convert to Shepherding.' },
+    ],
+    notes: `MENTAL HEALTH INTAKE (CONFIDENTIAL)\n${_SEP}\nPresenting Condition (as member describes it):\n\nDuration:\n\nCurrently in Professional Treatment: YES / NO\nTherapist / Psychiatrist:\n\nMedication in Place: YES / NO\n\n\n${_SEP}\nSafety Concern: YES / NO — If YES: Crisis workflow activated\nCaregiver Assigned:\nContact Cadence:\nReferral Made:\nNext Contact:`,
+    watchFor: [
+      'Medication non-compliance without professional guidance',
+      'Increased isolation during stable seasons',
+      'Sudden calm after prolonged distress (may indicate suicidal decision — activate Crisis)',
+      'Caregiver compassion fatigue: mental health accompaniment is emotionally heavy long-term work',
+    ],
+    closureChecklist: ['Member stable and in ongoing professional care', '6-month and 12-month reviews completed', 'No active safety concerns', 'Transitioned to Shepherding', 'Final pastoral note'],
+  },
+  'Counseling': {
+    color: '#5b9bd5',
+    stages: [
+      { t: 'Stage 1 — Intake',               d: 'Understand the presenting issue and goals. Is this within pastoral scope or does it need a licensed professional from the start?' },
+      { t: 'Stage 2 — First Session: Listen', d: 'Entirely listening. Resist the urge to fix. Help them articulate the root, not just the symptom.' },
+      { t: 'Stage 3 — Ongoing Sessions',      d: 'Weekly or bi-weekly. Bring Scripture naturally. Assign homework and follow up on it.' },
+      { t: 'Stage 4 — Refer if Needed',       d: 'Mental illness, trauma, addiction, suicidal ideation, DV: refer professionally. Coordinate both tracks.' },
+      { t: 'Stage 5 — Close',                 d: 'Presenting issue resolved or tools in hand: close with prayer, reflection, and a 30-day check-in.' },
+    ],
+    notes: `COUNSELING INTAKE\n${_SEP}\nPresenting Issue:\n\n\nBackground:\n\nGoals for Counseling:\n\n\n${_SEP}\nSession Cadence:\nReferral Needed: YES / NO\nReferral Resource:\nNext Session:`,
+    watchFor: [
+      'Issues beyond pastoral scope being treated as pastoral counseling',
+      'Dependency: member becoming emotionally reliant on the counseling relationship',
+      'Stalled progress: sessions continuing without clear direction',
+    ],
+    closureChecklist: ['Presenting issue resolved or member has tools to continue', 'Professional referral made if clinical issues surfaced', '30-day check-in scheduled', 'Final pastoral note'],
+  },
+  'New Believer': {
+    color: '#4caf8a',
+    stages: [
+      { t: 'Stage 1 — Immediate Connection',     d: 'Contact within 48 hours. Make them feel found, not processed.' },
+      { t: 'Stage 2 — Assign a Mentor',           d: 'Same-sex, mature believer. Not the pastor — discipleship at the body level. Chemistry matters.' },
+      { t: 'Stage 3 — Foundations (4–8 wks)',    d: 'Who is God? Jesus? The Bible, prayer, the church, sin, and grace. Structured guide. Write answers together.' },
+      { t: 'Stage 4 — Community Integration',    d: 'Into a small group within 30 days. Belonging precedes behaving. Introduce them personally.' },
+      { t: 'Stage 5 — Baptism Conversation',     d: 'When they understand what they believe and why: have the conversation. Milestone, not checkbox.' },
+      { t: 'Stage 6 — Close & Celebrate',        d: 'At 6 months: in community, growing, serving? Celebrate and close. A sheep is in the fold.' },
+    ],
+    notes: `NEW BELIEVER INTAKE\n${_SEP}\nHow they came to faith:\n\n\nBackground (church history, prior faith):\n\nImmediate Questions / Concerns:\n\n\n${_SEP}\nMentor Assigned:\nFoundations Curriculum:\nSmall Group:\nBaptism Interest: YES / NO\nNext Meeting:`,
+    watchFor: [
+      'Isolation from the faith community within the first 90 days (highest dropout risk)',
+      'Pressure from family or friends hostile to the decision',
+      'Theological confusion from online sources or fringe teaching',
+      'Mentor mismatch: lack of chemistry, missed meetings, fading engagement',
+    ],
+    closureChecklist: ['Mentor assigned and active', 'Foundations curriculum completed', 'Connected to a small group', 'Baptism conversation had', 'Final pastoral note'],
+  },
+  'New Member Integration': {
+    color: '#4caf8a',
+    stages: [
+      { t: 'Stage 1 — Connection at Joining', d: 'Personal contact within 48 hours. Learn their story: background, what brought them here, what they\'re hoping for.' },
+      { t: 'Stage 2 — 30 Days: Belonging',    d: 'Personal introduction to a small group within 30 days. Introduce them to 3–5 members who share something in common. Ensure the whole household is connected.' },
+      { t: 'Stage 3 — 60 Days: Serving',      d: 'Conversation: where are your gifts? Make a specific invitation to a serving team — not a generic ask.' },
+      { t: 'Stage 4 — 90-Day Assessment',     d: 'In a small group? At least one meaningful friendship? Connected to serving? If yes: close and celebrate. If no: identify the barrier.' },
+      { t: 'Stage 5 — Transfer to Shepherding', d: 'When integrated: close this case, open a Shepherding case. Note their small group, serving role, and key relationships.' },
+    ],
+    notes: `NEW MEMBER INTEGRATION\n${_SEP}\nName(s):\n\nJoining Date:\n\nBackground (prior church, transfer, returning):\n\nFamily / Household Members:\n\n\n${_SEP}\nWelcome Elder / Deacon Assigned:\nSmall Group Connected: YES / NO  ► Date:\nServing Team Connected: YES / NO  ► Team:\n90-Day Assessment Date:\nNotes:`,
+    watchFor: [
+      'Quiet disappearance: member stops attending, no one notices for weeks',
+      'Surface connection only: attending but never belonging',
+      'Spouse or family left out of the integration process',
+    ],
+    closureChecklist: ['Connected to a small group', 'At least one meaningful friendship formed', '90-day assessment completed', 'Shepherding case opened', 'Final pastoral note'],
+  },
+  'Discipleship': {
+    color: '#4caf8a',
+    stages: [
+      { t: 'Stage 1 — Match with Disciple-Maker', d: 'Same-sex, mature believer who models what the disciple needs to become. Chemistry matters — do not force a bad match.' },
+      { t: 'Stage 2 — Define Goals',              d: 'What do you want to look different in 6 months? Write the goals. Undefined discipleship drifts.' },
+      { t: 'Stage 3 — Regular Meetings',           d: 'Weekly is ideal. A curriculum gives structure — but the conversation, not the content, is the point.' },
+      { t: 'Stage 4 — Milestone Celebration',      d: 'Mark growth moments: first Bible study completed, sharing faith, serving, baptism. Log each as an Interaction.' },
+      { t: 'Stage 5 — Multiply',                   d: 'The goal is a disciple who makes disciples. When ready: identify someone younger in faith to walk with.' },
+    ],
+    notes: `DISCIPLESHIP PLAN\n${_SEP}\nDisciple-Maker Assigned:\n\nGoals (spiritual growth areas):\n\nCurrent Spiritual Disciplines:\n\n\n${_SEP}\nMeeting Cadence:\nCurriculum / Study:\nMilestones:\nTarget Completion:`,
+    watchFor: [
+      'Stalled progress: meetings happening but no growth',
+      'Knowledge without obedience: studying but not applying',
+      'Disciple-maker burnout: carrying too many relationships at once',
+    ],
+    closureChecklist: ['Goals defined at intake have been met', 'Curriculum completed', 'Multiplication conversation had', 'Final pastoral note'],
+  },
+  'Shepherding': {
+    color: '#7eaacc',
+    stages: [
+      { t: 'Stage 1 — Connection',            d: 'Initiate contact. Often proactive — the member may not know they are being shepherded. Know your sheep before they need rescue.' },
+      { t: 'Stage 2 — Regular Check-Ins',     d: 'Monthly minimum. Spiritual, relational, and practical state. A shepherd who only acts in crisis is not shepherding.' },
+      { t: 'Stage 3 — Identify Deeper Needs', d: 'Shepherding often reveals what the member would not have initiated. Watch for withdrawal, spiritual drift, stress.' },
+      { t: 'Stage 4 — Close or Escalate',     d: '3 healthy months: resolve (the relationship continues). Deeper need surfaces: convert to the appropriate care type.' },
+    ],
+    notes: `SHEPHERDING NOTES\n${_SEP}\nReason for case:\n\nSpiritual State:\n\nLife Circumstances:\n\n\n${_SEP}\nConnection Goal:\nVisit Cadence:\nNext Contact:`,
+    watchFor: [
+      'Gradual withdrawal: attendance drops, responses become shorter, engagement fades',
+      'Life transitions not disclosed: job loss, health change, relational strain',
+      'Spiritual drift: going through the motions without growth',
+      'Case sitting idle: no Interactions logged for 60 days',
+    ],
+    closureChecklist: ['3 consecutive months of healthy engagement', 'No pending concerns', 'Member connected to ongoing church community', 'Final pastoral note'],
+  },
+  'Restoration': {
+    color: '#d4a93a',
+    stages: [
+      { t: 'Stage 1 — Sensitive Intake',         d: 'Lead with grace. Establish the goal is restoration, not punishment. Be explicit about who will know.' },
+      { t: 'Stage 2 — Understand the Situation', d: 'What happened? Who was harmed? Ongoing or past? Is repentance genuine? Legal implications?' },
+      { t: 'Stage 3 — Accountability Plan',      d: 'Named elder/leader as sponsor. Weekly check-ins. Agreed-upon boundaries. Defined timeline with review points.' },
+      { t: 'Stage 4 — Community Reintegration',  d: 'Gradual, not sudden. Protect the community. Those harmed must not be retraumatized. Process, not event.' },
+      { t: 'Stage 5 — Long-Term Review',         d: '3- and 6-month reviews. Flourishing, serving appropriately, no new concerns → then and only then resolve.' },
+    ],
+    notes: `RESTORATION INTAKE (CONFIDENTIAL)\n${_SEP}\nSituation Summary:\n\n\nRepentance Indicators:\n\nPeople Affected:\n\n\n${_SEP}\nAccountability Structure:\nRestoration Steps Agreed:\nElder / Pastor Oversight:\nTimeline for Review:`,
+    watchFor: [
+      'Premature restoration: community pressure to "move on" before the process is complete',
+      'Victim being sidelined: harmed person\'s needs overshadowed by the offender\'s restoration',
+      'Legal issues quietly dropped: ensure the church does not obstruct any civil or criminal process',
+    ],
+    closureChecklist: ['Accountability plan completed (3–6 month minimum)', 'Formal reviews at 3 and 6 months completed', 'Victim care addressed separately (if applicable)', 'Final pastoral note'],
+  },
+  'Family': {
+    color: '#c47878',
+    stages: [
+      { t: 'Stage 1 — Intake',              d: 'Who is reaching out? Who else is involved? Safety concern? The caller is often carrying weight for the whole family.' },
+      { t: 'Stage 2 — Family Dynamics',     d: 'Prodigal child, estrangement, parenting struggle, blended family tension? Listen before advising.' },
+      { t: 'Stage 3 — Care Plan',           d: 'Pastoral listening, practical resources (parenting class, therapy referral), or safety need? Assign caregiver and cadence.' },
+      { t: 'Stage 4 — Ongoing Support',     d: 'Family situations are rarely quick. Commit to the long view. Pray specifically for the relational dynamics at play.' },
+      { t: 'Stage 5 — Referral if Needed',  d: 'Family therapy for severe dysfunction; legal counsel for custody/estate; DV resources if safety is a concern.' },
+    ],
+    notes: `FAMILY CARE INTAKE\n${_SEP}\nPresenting Situation:\n\n\nFamily Members Involved:\n\nChildren Present: YES / NO\n\n\n${_SEP}\nKey Needs (spiritual / relational / practical):\nReferral Needed:\nFollow-Up Plan:\nNext Contact:`,
+    watchFor: [
+      'Safety concerns masked as "family conflict" — always assess for domestic violence',
+      'Children caught in the middle of adult conflict',
+      'Estrangement reinforced by church members taking sides',
+    ],
+    closureChecklist: ['Presenting issue addressed or stabilized', 'Professional referral made if needed', 'Safety concerns resolved', 'All affected family members offered care', 'Final pastoral note'],
+  },
+  'Financial': {
+    color: '#4caf8a',
+    stages: [
+      { t: 'Stage 1 — Confidential Intake',      d: 'Financial need carries shame. Make them feel safe, not judged. Be explicit about confidentiality.' },
+      { t: 'Stage 2 — Needs Assessment',         d: 'Immediate need (rent, utilities, food, medical)? Cause? One-time crisis or recurring pattern? Household size?' },
+      { t: 'Stage 3 — Stewardship Counsel',      d: 'Crown Financial, Good Sense, or budget coaching. Offer this regardless of whether assistance is provided.' },
+      { t: 'Stage 4 — Assistance if Applicable', d: 'Benevolence Fund: follow church policy. Document. Aid is a hand-up, not a hand-out. Connect to a stewardship plan.' },
+      { t: 'Stage 5 — Follow-Up',                d: 'Check in at 30 and 90 days. Is the situation improving? Is there a trajectory toward stability?' },
+    ],
+    notes: `FINANCIAL CARE INTAKE (CONFIDENTIAL)\n${_SEP}\nPresenting Need:\n\nCause (job loss / medical / other):\n\nHousehold Size:\n\n\n${_SEP}\nImmediate Assistance Needed: YES / NO\nAmount / Type Requested:\nBenevolence Eligibility:\nStewardship Resources Shared:\nFollow-Up Date:`,
+    watchFor: [
+      'Recurring crises: repeated emergency requests may indicate addiction, exploitation, or mental health issues',
+      'Benevolence dependency: assistance without a stewardship plan creating a cycle',
+      'Marital strain caused by or worsened by financial stress',
+    ],
+    closureChecklist: ['Immediate need addressed', 'Stewardship plan offered', '30- and 90-day follow-ups completed', 'Trajectory toward stability confirmed', 'Final pastoral note'],
+  },
+  'Abuse / Domestic Violence': {
+    color: '#c94c4c',
+    stages: [
+      { t: 'Stage 1 — Disclosure & Response',     d: 'Believe them. Create a private setting immediately — never in the presence of the abuser. Ask: Are you safe? Are your children safe? Do NOT contact or confront the abuser.' },
+      { t: 'Stage 2 — Safety Planning',            d: 'Safe people, safe location, go-bag, documents. Refer to local DV shelter. Do not pressure a timeline — victims leave an average of 7 times before leaving for good.' },
+      { t: 'Stage 3 — Sustained Pastoral Care',    d: 'Assign same-sex caregiver. Weekly contact minimum. Never place victim in a setting with the abuser without their explicit consent.' },
+      { t: 'Stage 4 — Legal & Practical Support',  d: 'Accompany to court if requested. Connect to legal aid. Coordinate Compassion team: housing, meals, childcare, transport.' },
+      { t: 'Stage 5 — Long-Term Care',             d: 'Healing is measured in years. Watch for re-entry into abusive relationship (no condemnation), PTSD, spiritual wounds. 6-month formal review.' },
+    ],
+    notes: `ABUSE / DV INTAKE (CONFIDENTIAL — DO NOT SHARE)\n${_SEP}\nNature of Abuse (physical / emotional / financial / sexual / spiritual):\n\nDuration:\n\nChildren in home: YES / NO\n\n\n${_SEP}\nImmediate Safety: SAFE / AT RISK\nShelter / Safe Location Identified:\nLegal Action Desired: YES / NO / UNSURE\nMandatory Report Filed: YES / NO / N/A\nNext Contact:`,
+    watchFor: [
+      'Re-entry into the abusive relationship (no condemnation — maintain care)',
+      'PTSD symptoms: hypervigilance, nightmares, startle response',
+      'Abuser showing up at church or using church systems to locate victim',
+      'Children exhibiting behavioral changes: aggression, withdrawal, regression',
+    ],
+    closureChecklist: ['Victim is physically safe', 'Victim confirmed ready for closure', 'Professional support connected', 'No information accessible to the abuser', 'Shepherding case opened for ongoing oversight'],
+  },
+  'Immigration / Deportation': {
+    color: '#5b9bd5',
+    stages: [
+      { t: 'Stage 1 — Confidential Disclosure',     d: 'Absolute confidentiality — immigration status disclosure can cause direct, irreversible harm. If active enforcement is underway: Crisis protocol + this workflow simultaneously.' },
+      { t: 'Stage 2 — Legal Resource Connection',   d: 'Connect immediately to qualified immigration legal help (CLINIC, Immigration Advocates Network). Warn against notarios and unlicensed consultants.' },
+      { t: 'Stage 3 — Practical & Safety Planning', d: 'Organize critical documents. Build family emergency plan: who cares for children, power of attorney. Compassion team: meals, transport, financial assistance.' },
+      { t: 'Stage 4 — If Detention Occurs',         d: 'Contact immigration attorney immediately. Visit if facility allows. Support the family remaining at home — they are now in their own crisis.' },
+      { t: 'Stage 5 — If Deportation Occurs',       d: 'Continue care for the family remaining. Maintain contact with deported member. Long-term separation care is multi-year work.' },
+      { t: 'Stage 6 — Sustained Accompaniment',     d: 'Immigration situations extend for months or years. Remain present through every court date. Case review every 6 months.' },
+    ],
+    notes: `IMMIGRATION CARE INTAKE (CONFIDENTIAL — DO NOT DISCLOSE STATUS)\n${_SEP}\nGeneral Situation (no status details in this field — verbal only):\n\nFamily Members Affected:\n\nU.S.-Citizen Children: YES / NO\n\n\n${_SEP}\nEnforcement Action Active: YES / NO\nLegal Counsel Connected: YES / NO\nFamily Emergency Plan in Place: YES / NO\nNext Contact:`,
+    closureChecklist: ['Legal counsel connected', 'Family emergency plan in place', 'All family members accounted for', 'If deportation occurred: family case remains open', '6-month review completed', 'Final pastoral note'],
+  },
+  'Incarceration & Re-Entry': {
+    color: '#7eaacc',
+    stages: [
+      { t: 'Stage 1 — Arrest / Sentencing',   d: 'Contact the family immediately. Open a separate Family case for the household. Do not withdraw from the incarcerated member — the fold extends inside.' },
+      { t: 'Stage 2 — Ministry Inside',       d: 'Establish visitation schedule. Send letters and cards. Ensure member has a Bible. Explore chaplaincy volunteer access.' },
+      { t: 'Stage 3 — Family on the Outside', d: 'Spouse and children experience a distinct grief. Activate Compassion: meals, financial, transport.' },
+      { t: 'Stage 4 — Pre-Release Planning',  d: 'Begin 60–90 days before release: housing, employment (re-entry-friendly employers), community, parole/probation terms.' },
+      { t: 'Stage 5 — Re-Entry',              d: 'Be present near release day — this is the highest-risk moment. Assign accountability partner. Weekly check-ins for first 90 days.' },
+      { t: 'Stage 6 — Long-Term Stability',   d: 'Keep case open 12 months minimum. Watch for return to prior environments and isolation. Close → transition to Discipleship or Shepherding.' },
+    ],
+    notes: `INCARCERATION INTAKE\n${_SEP}\nCurrent Status (incarcerated / pre-sentencing / re-entry):\n\nFacility / Location:\n\nExpected Release Date:\n\nFamily Members Affected:\n\n\n${_SEP}\nFamily Care Case Opened: YES / NO\nVisitation Registration Needed: YES / NO\nKey Re-Entry Barriers:\nAccountability Partner:\nNext Contact:`,
+    watchFor: [
+      'Return to previous relationships and environments post-release',
+      'Substance use relapse during re-entry period',
+      'Employment instability or inability to find re-entry-friendly work',
+      'Isolation from church community after release',
+    ],
+    closureChecklist: ['Re-entry plan executed (housing, employment, community)', 'Accountability partner active', '12 months of stable community participation', 'Transition to Discipleship or Shepherding', 'Final pastoral note'],
+  },
+  'Pregnancy & Infant Loss': {
+    color: '#9b7ec8',
+    stages: [
+      { t: 'Stage 1 — First Contact (24 hrs)',    d: 'Contact within 24 hours. Lead with presence, not words. Acknowledge the father explicitly — his grief is real and often invisible. Do NOT say: "At least it was early" or "God needed an angel."' },
+      { t: 'Stage 2 — Presence & Acknowledgment', d: 'Visit in person. Ask about the baby by name if given. Activate Compassion: meals 2+ weeks, childcare, errands.' },
+      { t: 'Stage 3 — Ongoing Grief Journey',     d: 'Calendar grief spikes: original due date, first Mother\'s/Father\'s Day, anniversary of loss, subsequent pregnancies.' },
+      { t: 'Stage 4 — Referral & Community',      d: 'Refer to SHARE Pregnancy & Infant Loss Support (nationalshare.org). For infertility: long-term care with no defined endpoint is right.' },
+      { t: 'Stage 5 — Close or Transition',       d: 'Close when family is stabilized. Leave the door open explicitly. Recurring loss or infertility: convert to Shepherding.' },
+    ],
+    notes: `PREGNANCY & INFANT LOSS INTAKE\n${_SEP}\nType of Loss (miscarriage / stillbirth / infant death / infertility / other):\n\nDate of Loss:\n\nOriginal Due Date (if applicable):\n\nFather / Partner Acknowledged: YES\n\n\n${_SEP}\nPractical Needs:\nSpiritual State:\nReferral Made: YES / NO\nGrief Milestone Dates Calendared: YES / NO\nNext Contact:`,
+    watchFor: [
+      'Isolation and withdrawal — same patterns as Grief',
+      'Father/partner grief being invisible or dismissed',
+      'Anniversary reactions: original due date, loss anniversary, Mother\'s/Father\'s Day',
+      'Subsequent pregnancy triggering intense anxiety or fear',
+    ],
+    closureChecklist: ['Father/partner included throughout', 'Grief milestone dates calendared and contacted', 'Referral to support group made', 'Door left explicitly open', 'Final pastoral note'],
+  },
+  'Gender Identity / Sexuality': {
+    color: '#7eaacc',
+    stages: [
+      { t: 'Stage 1 — Safe Disclosure',          d: 'Receive with calm, unhurried presence. Listen fully before responding. Same-sex pastor/elder responds whenever possible. Establish confidentiality explicitly.' },
+      { t: 'Stage 2 — Understanding Their World', d: 'What is the nature of the struggle? What do they believe theologically? What are they asking for from the church right now?' },
+      { t: 'Stage 3 — Pastoral Care Plan',        d: 'Assign same-sex, spiritually mature caregiver. Regular meetings (monthly minimum). Affirm: their place in this community is not conditional on their struggle.' },
+      { t: 'Stage 4 — Community & Belonging',     d: 'Isolation is the enemy. Ensure genuine community: small group, friendships, belonging. If married: spouse needs their own pastoral care.' },
+      { t: 'Stage 5 — Long-Term Accompaniment',  d: 'This is rarely a short journey. Celebrate faithfulness. If member steps away from biblical teaching: maintain relationship and hold truth in love.' },
+    ],
+    notes: `GENDER IDENTITY / SEXUALITY INTAKE (CONFIDENTIAL)\n${_SEP}\nNature of Struggle (as member describes it):\n\nTheological Stance (member's understanding):\n\nWhat They Are Seeking from the Church:\n\nFamily / Spouse Aware: YES / NO\n\n\n${_SEP}\nCaregiver Assigned (same sex):\nProfessional Referral Made: YES / NO\nCommunity Connection Plan:\nNext Meeting:`,
+    watchFor: [
+      'Isolation: pulling away from community out of shame or fear',
+      'Online influence: theology and community from internet sources contradicting the church\'s framework',
+      'Spouse distress: if married, the spouse may be processing their own grief or fear — open a separate case',
+    ],
+    closureChecklist: ['Connected to ongoing community', 'Professional counselor referral made if desired', '6-month formal reviews completed', 'Transitioned to Shepherding', 'Final pastoral note'],
+  },
 };
 
 const STATUSES = ['Open', 'In Progress', 'Follow-Up', 'Referred'];
@@ -323,6 +787,7 @@ function _openSheet(c, memberDir, onSave) {
   const assigneeRaw   = c.primaryCaregiverId   || c.assignedTo || c.assignedName || '';
   const secondaryRaw  = c.secondaryCaregiverId || c.secondaryCaregiver || '';
   const currentStatus = c.status || 'Open';
+  const rawType       = c.careType || c.type || '';
   const hasMemberDir  = memberDir && memberDir.length > 0;
 
   const sheet = document.createElement('div');
@@ -334,7 +799,7 @@ function _openSheet(c, memberDir, onSave) {
       <div class="life-sheet-hd">
         <div class="life-sheet-hd-info">
           <div class="life-sheet-hd-name">${_e(name)}</div>
-          <div class="life-sheet-hd-meta">${_e(c.careType || c.type || '')} &bull; ${_e(currentStatus)}</div>
+          <div class="life-sheet-hd-meta">${_e(rawType)} &bull; ${_e(currentStatus)}</div>
         </div>
         <button class="life-sheet-close" aria-label="Close">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
@@ -370,6 +835,8 @@ function _openSheet(c, memberDir, onSave) {
           <div class="life-sheet-label">Summary / Notes</div>
           <textarea class="life-sheet-ta" data-field="summary" rows="3" placeholder="What's happening?">${_e(c.summary || c.description || '')}</textarea>
         </div>
+        <!-- Workflow guide (collapsible) -->
+        ${rawType ? `<div class="life-sheet-field life-wg-field">${_workflowGuideHtml(rawType)}</div>` : ''}
         <!-- Interactions -->
         <div class="life-sheet-field">
           <div class="life-sheet-label">Interactions</div>
@@ -573,7 +1040,41 @@ function _quickNote(cid, personName) {
 }
 
 // ── New care modal ─────────────────────────────────────────────────────────────
-const PRIORITY_LABELS = ['Normal', 'High', 'Urgent'];
+const PRIORITY_LABELS = ['Low', 'Normal', 'High', 'Urgent'];
+
+// Resolve CARE_CFG entry — check canonical key then lowercase alias
+function _cfgFor(careTypeValue) {
+  if (!careTypeValue) return null;
+  return CARE_CFG[careTypeValue] || CARE_CFG[careTypeValue.toLowerCase()] || null;
+}
+
+// Render a workflow guide <details> block for a given care type value
+function _workflowGuideHtml(careTypeValue) {
+  const cfg = _cfgFor(careTypeValue);
+  const t   = CARE_TYPES[careTypeValue] || CARE_TYPES[careTypeValue?.toLowerCase()] || {};
+  if (!cfg || !cfg.stages) return '';
+  const color = cfg.color || '#5b9bd5';
+  const stagesHtml = cfg.stages.map(s =>
+    `<div class="life-wg-stage"><div class="life-wg-stage-t">${_e(s.t)}</div><div class="life-wg-stage-d">${_e(s.d)}</div></div>`
+  ).join('');
+  const watchHtml = cfg.watchFor?.length
+    ? `<details class="life-wg-watch"><summary>⚠ Watch For</summary><div class="life-wg-watch-body">${
+        cfg.watchFor.map(w => `<div class="life-wg-watch-item">${_e(w)}</div>`).join('')
+      }</div></details>`
+    : '';
+  const checklistHtml = cfg.closureChecklist?.length
+    ? `<details class="life-wg-check"><summary>✓ Closure Checklist</summary><div class="life-wg-check-body">${
+        cfg.closureChecklist.map(c => `<label class="life-wg-check-item"><input type="checkbox"> ${_e(c)}</label>`).join('')
+      }</div></details>`
+    : '';
+  return `<details class="life-workflow-guide" style="--wg-color:${color}">
+    <summary class="life-wg-summary">${t.icon || '🫱'} ${_e(careTypeValue)} — Workflow Guide</summary>
+    <div class="life-wg-body">
+      <div class="life-wg-stages">${stagesHtml}</div>
+      ${watchHtml}${checklistHtml}
+    </div>
+  </details>`;
+}
 
 // ── Member name helper ────────────────────────────────────────────────────────
 function _memberName(m) {
@@ -665,16 +1166,63 @@ function _newCareModal(memberDir, onSave) {
         <div class="life-sheet-field">
           <div class="life-sheet-label">Care Type</div>
           <select class="life-sheet-input" data-field="careType">
-            ${Object.entries(CARE_TYPES).map(([k, t]) => `<option value="${_e(k)}">${t.icon} ${t.label}</option>`).join('')}
+            <optgroup label="Crisis & Safety">
+              <option value="Crisis">🚨 Crisis</option>
+              <option value="Abuse / Domestic Violence">🛡️ Abuse / Domestic Violence</option>
+            </optgroup>
+            <optgroup label="Medical & Physical">
+              <option value="Hospital Visit">🏥 Hospital Visit</option>
+              <option value="Medical">🩺 Medical</option>
+              <option value="Elder Care">🧓 Elder Care</option>
+              <option value="Terminal Illness / End of Life">🕯️ Terminal Illness / End of Life</option>
+            </optgroup>
+            <optgroup label="Grief & Loss">
+              <option value="Grief">🤍 Grief</option>
+              <option value="Pregnancy &amp; Infant Loss">🕊️ Pregnancy &amp; Infant Loss</option>
+            </optgroup>
+            <optgroup label="Relationships">
+              <option value="Marriage">💍 Marriage</option>
+              <option value="Pre-Marriage">💑 Pre-Marriage</option>
+              <option value="Family">👨‍👩‍👧 Family</option>
+            </optgroup>
+            <optgroup label="Addiction &amp; Recovery">
+              <option value="Addiction">🔗 Addiction</option>
+              <option value="Pornography / Sexual Addiction">🔒 Pornography / Sexual Addiction</option>
+            </optgroup>
+            <optgroup label="Mental &amp; Emotional Health">
+              <option value="Mental Health">🧠 Mental Health</option>
+              <option value="Counseling">💬 Counseling</option>
+            </optgroup>
+            <optgroup label="Discipleship &amp; Growth">
+              <option value="New Believer">✨ New Believer</option>
+              <option value="New Member Integration">🤝 New Member Integration</option>
+              <option value="Discipleship">📚 Discipleship</option>
+              <option value="Shepherding">🐑 Shepherding</option>
+              <option value="Restoration">🔄 Restoration</option>
+            </optgroup>
+            <optgroup label="Life Situations">
+              <option value="Financial">💰 Financial</option>
+              <option value="Immigration / Deportation">✈️ Immigration / Deportation</option>
+              <option value="Incarceration &amp; Re-Entry">🔑 Incarceration &amp; Re-Entry</option>
+              <option value="Gender Identity / Sexuality">✝️ Gender Identity / Sexuality</option>
+            </optgroup>
+            <optgroup label="General">
+              <option value="Prayer Request">🙏 Prayer Request</option>
+              <option value="Follow-Up">📞 Follow-Up</option>
+              <option value="Life Milestone">🎉 Life Milestone</option>
+              <option value="Other">🫱 Other</option>
+            </optgroup>
           </select>
         </div>
         <!-- Priority -->
         <div class="life-sheet-field">
           <div class="life-sheet-label">Priority</div>
           <div class="life-status-row">
-            ${PRIORITY_LABELS.map((p, i) => `<button class="life-status-pill${i === 0 ? ' is-active' : ''}" data-priority="${_e(p.toLowerCase())}">${_e(p)}</button>`).join('')}
+            ${PRIORITY_LABELS.map((p) => `<button class="life-status-pill" data-priority="${_e(p.toLowerCase())}">${_e(p)}</button>`).join('')}
           </div>
         </div>
+        <!-- Workflow guide (updates dynamically with care type) -->
+        <div class="life-wg-field" data-wg-placeholder></div>
         <!-- Assigned To (Lead Pastor default) -->
         <div class="life-sheet-field">
           <div class="life-sheet-label">
@@ -761,6 +1309,38 @@ function _newCareModal(memberDir, onSave) {
       btn.classList.add('is-active');
     });
   });
+
+  // Care type wiring: auto-set priority + fill notes template + update workflow guide
+  const careTypeSel   = sheet.querySelector('[data-field="careType"]');
+  const summaryTa     = sheet.querySelector('[data-field="summary"]');
+  const wgPlaceholder = sheet.querySelector('[data-wg-placeholder]');
+
+  function _applyModalType(val) {
+    if (!val) return;
+    const cfg = _cfgFor(val);
+    const t   = CARE_TYPES[val] || {};
+    // Auto-set priority pill
+    const pri = t.priority || 'normal';
+    sheet.querySelectorAll('[data-priority]').forEach(btn => {
+      btn.classList.toggle('is-active', btn.dataset.priority === pri);
+    });
+    // Fill notes template if summary is empty
+    if (cfg?.notes && summaryTa && !summaryTa.value.trim()) {
+      summaryTa.value = cfg.notes;
+      summaryTa.rows  = Math.max(4, Math.min(14, (cfg.notes.match(/\n/g) || []).length + 2));
+    }
+    // Update workflow guide
+    if (wgPlaceholder) wgPlaceholder.innerHTML = _workflowGuideHtml(val);
+  }
+
+  if (careTypeSel) {
+    careTypeSel.addEventListener('change', () => {
+      // Only fill notes if summary is empty
+      _applyModalType(careTypeSel.value);
+    });
+    // Apply immediately on open so the guide shows and default priority is set
+    _applyModalType(careTypeSel.value);
+  }
 
   sheet.querySelector('[data-cancel]').addEventListener('click', () => _closeSheet());
   sheet.querySelector('.life-sheet-close').addEventListener('click', () => _closeSheet());
