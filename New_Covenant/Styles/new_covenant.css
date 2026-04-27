@@ -2144,6 +2144,25 @@ flock-tabs [role="tablist"], .tabs-bar {
    CARE WORKFLOW GUIDE — collapsible panel inside care sheets
    ══════════════════════════════════════════════════════════════════════════════ */
 
+/* ── Pastoral Notes field (Lead Pastor Group only) ───────────────────────────── */
+.life-pastoral-field {
+  border: 1px solid rgba(124, 58, 237, 0.3);
+  border-radius: 10px;
+  padding: 12px 14px 10px;
+  background: rgba(124, 58, 237, 0.04);
+}
+.life-pastoral-field .life-sheet-label { color: #7c3aed; }
+.life-pastoral-hint { color: rgba(124, 58, 237, 0.65) !important; }
+.life-pastoral-ta {
+  border-color: rgba(124, 58, 237, 0.25) !important;
+  background: rgba(124, 58, 237, 0.02);
+}
+.life-pastoral-ta:focus {
+  border-color: rgba(124, 58, 237, 0.55) !important;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.10);
+}
+
 .life-wg-field { padding: 0; }
 .life-workflow-guide {
   border: 1px solid var(--wg-color, #5b9bd5);

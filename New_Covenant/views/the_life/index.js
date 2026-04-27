@@ -789,6 +789,7 @@ function _openSheet(c, memberDir, onSave) {
   const currentStatus = c.status || 'Open';
   const rawType       = c.careType || c.type || '';
   const hasMemberDir  = memberDir && memberDir.length > 0;
+  const isPastoral    = _isLeadPastorGroup(memberDir || []);
 
   const sheet = document.createElement('div');
   sheet.className = 'life-sheet';
@@ -835,6 +836,15 @@ function _openSheet(c, memberDir, onSave) {
           <div class="life-sheet-label">Summary / Notes</div>
           <textarea class="life-sheet-ta" data-field="summary" rows="3" placeholder="What's happening?">${_e(c.summary || c.description || '')}</textarea>
         </div>
+        <!-- Pastoral Notes (Lead Pastor Group only) -->
+        ${isPastoral ? `
+        <div class="life-sheet-field life-pastoral-field">
+          <div class="life-sheet-label">
+            🔐 Pastoral Notes
+            <span class="life-field-hint life-pastoral-hint">Lead Pastor only &mdash; not visible to other caregivers</span>
+          </div>
+          <textarea class="life-sheet-ta life-pastoral-ta" data-field="pastoralNotes" rows="3" placeholder="Confidential pastoral observations, discernment, prayer notes…">${_e(c.pastoralNotes || '')}</textarea>
+        </div>` : ''}
         <!-- Workflow guide (collapsible) -->
         ${rawType ? `<div class="life-sheet-field life-wg-field">${_workflowGuideHtml(rawType)}</div>` : ''}
         <!-- Interactions -->
@@ -917,10 +927,11 @@ function _openSheet(c, memberDir, onSave) {
     const btn = sheet.querySelector('[data-save]');
     btn.disabled = true;
     btn.textContent = 'Saving…';
-    const activeStatus = sheet.querySelector('.life-status-pill.is-active')?.dataset.status || currentStatus;
-    const assigneeVal  = sheet.querySelector('[data-field="assignee"]')?.value?.trim() || '';
-    const secondaryVal = sheet.querySelector('[data-field="secondary"]')?.value?.trim() || '';
-    const summaryVal   = sheet.querySelector('[data-field="summary"]').value.trim();
+    const activeStatus  = sheet.querySelector('.life-status-pill.is-active')?.dataset.status || currentStatus;
+    const assigneeVal   = sheet.querySelector('[data-field="assignee"]')?.value?.trim() || '';
+    const secondaryVal  = sheet.querySelector('[data-field="secondary"]')?.value?.trim() || '';
+    const summaryVal    = sheet.querySelector('[data-field="summary"]').value.trim();
+    const pastoralVal   = isPastoral ? (sheet.querySelector('[data-field="pastoralNotes"]')?.value ?? null) : undefined;
     try {
       await V.flock.care.update({
         id:                   cid,
@@ -928,6 +939,7 @@ function _openSheet(c, memberDir, onSave) {
         primaryCaregiverId:   assigneeVal  || undefined,
         secondaryCaregiverId: secondaryVal || undefined,
         summary:              summaryVal   || undefined,
+        ...(isPastoral && pastoralVal !== null ? { pastoralNotes: pastoralVal } : {}),
       });
       _closeSheet();
       if (onSave) onSave();
@@ -1090,6 +1102,24 @@ function _findLeadPastor(members) {
     const r = String(m.role || m.memberType || '').toLowerCase();
     return PASTOR_ROLES.some(pr => r === pr || r.startsWith(pr));
   });
+}
+
+// Returns true if the currently signed-in Firebase user is in the Lead Pastor Group
+function _isLeadPastorGroup(members) {
+  try {
+    const fb    = typeof firebase !== 'undefined' && firebase.auth?.();
+    const uid   = fb?.currentUser?.uid   || '';
+    const email = fb?.currentUser?.email || '';
+    if (!uid && !email) return false;
+    const PASTOR_ROLES = ['lead pastor', 'senior pastor', 'lead', 'pastor'];
+    return members.some(m => {
+      const isMe = (uid   && (m.id === uid   || m.uid === uid   || m.docId === uid))
+                || (email && (m.email === email));
+      if (!isMe) return false;
+      const r = String(m.role || m.memberType || '').toLowerCase();
+      return PASTOR_ROLES.some(pr => r === pr || r.startsWith(pr));
+    });
+  } catch { return false; }
 }
 
 // ── Build a caregiver <select> (all members, sorted) ────────────────────────
