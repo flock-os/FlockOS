@@ -50,10 +50,13 @@ const flock = {
     // ── Pre-warm home data immediately after auth, in parallel with shell mount.
     //    GAS cold-start (~5s) runs while dress() + _registerViews() execute,
     //    so Manna has results (or in-flight dedups) when the home view mounts.
-    //    We also hydrate Manna SYNCHRONOUSLY from Cistern *before* dress()
-    //    runs, so the home view's first paint is instant.
-    await _hydrateHomeFromCistern();
+    //    Site-wide cache hydration loads EVERY persisted manna:* key from
+    //    Cistern into memory before any view mounts — first read of any
+    //    UpperRoom/TheVine call then resolves instantly from disk.
+    await _hydrateAllFromCistern();
+    _wrapDataSources();   // auto-cache UpperRoom + TheVine read methods
     _warmHomeData();
+    _warmCommonData();    // pre-fetch members / events / cases / etc.
 
     // ── Pre-fetch home view modules in parallel with dress().
     //    The router lazy-loads views via dynamic import() which the browser
@@ -160,6 +163,106 @@ const HOME_DATA_KEYS = [
   { key: 'shepherd:birthdays',     upperRoom: 'listMembers', args: [{ limit: 1000 }] },
   { key: 'shepherd:mytodos',       upperRoom: 'myTodos' },
 ];
+
+/**
+ * Synchronously hydrate Manna with EVERY persisted manna:* key from Cistern.
+ * Runs BEFORE dress() so the first paint of any view (not just home) shows
+ * cached data instantly while wrapped UpperRoom/TheVine calls refresh in
+ * the background.
+ */
+async function _hydrateAllFromCistern() {
+  try {
+    const { hydrateAll } = await import('./the_manna.js');
+    await hydrateAll();
+  } catch (_) { /* non-fatal */ }
+}
+
+/**
+ * Install auto-caching on every read method of window.UpperRoom and
+ * window.TheVine.flock/missions/extra/app. Idempotent. After this call
+ * EVERY view's UpperRoom.listMembers() / TheVine.flock.todo.list() etc.
+ * automatically caches + persists with no view-side changes.
+ */
+async function _wrapDataSources() {
+  try {
+    const { wrap } = await import('./the_manna.js');
+    // UpperRoom (Firestore SDK) — wrap once it's ready.
+    const wrapUR = () => {
+      const UR = window.UpperRoom;
+      if (UR && !UR.__mannaWrapped) {
+        wrap('UR', UR, {
+          ttl: 5 * 60_000,
+          ttlByMethod: {
+            // Member directory rarely changes mid-session.
+            listMembers: 30 * 60_000, countMembers: 30 * 60_000,
+            listMemberCards: 30 * 60_000, searchMemberCards: 5 * 60_000,
+            // Settings / permissions — near-static.
+            getCommsMode: 30 * 60_000, getPermissions: 30 * 60_000,
+            listPermissionModules: 60 * 60_000,
+            // Notification prefs / counts — short.
+            getNotifPrefs: 60_000, getUnreadCount: 30_000,
+            // Care queues — moderate.
+            careDashboard: 60_000, careFollowUpsDue: 60_000,
+            // Calendar / content — medium.
+            listEvents: 5 * 60_000, listBroadcasts: 2 * 60_000,
+            listTemplates: 10 * 60_000,
+          },
+        });
+      }
+    };
+    wrapUR();
+    // If UpperRoom isn't ready yet (race), retry on a short interval until it appears.
+    if (!window.UpperRoom || !window.UpperRoom.__mannaWrapped) {
+      let tries = 0;
+      const t = setInterval(() => {
+        wrapUR();
+        if ((window.UpperRoom && window.UpperRoom.__mannaWrapped) || ++tries > 40) clearInterval(t);
+      }, 250);
+    }
+
+    // TheVine (GAS REST) — wrap each gospel/branch namespace's leaf method
+    // groups (members, events, prayer, todo, etc.). Each leaf has list/get
+    // methods that benefit from caching since GAS round-trips are slow.
+    const V = window.TheVine;
+    if (V) {
+      for (const branch of ['flock', 'missions', 'extra', 'app',
+                            'john',  'mark',     'luke',  'matthew']) {
+        const b = V[branch];
+        if (!b || typeof b !== 'object') continue;
+        for (const groupName of Object.keys(b)) {
+          const g = b[groupName];
+          if (g && typeof g === 'object' && !g.__mannaWrapped) {
+            wrap('V.' + branch + '.' + groupName, g, { ttl: 5 * 60_000 });
+          }
+        }
+      }
+    }
+  } catch (_) { /* non-fatal */ }
+}
+
+/**
+ * Pre-fetch the most commonly viewed data immediately after auth so
+ * navigating to ANY of the top views feels instant. Each fetch flows
+ * through the wrapped UpperRoom which auto-caches + auto-persists.
+ */
+async function _warmCommonData() {
+  // Slight delay so wrap() has run and UpperRoom is ready.
+  setTimeout(() => {
+    const UR = window.UpperRoom;
+    if (!UR || !UR.isReady || !UR.isReady()) return;
+    const safe = (fn) => { try { const p = fn(); if (p && p.catch) p.catch(() => {}); } catch (_) {} };
+    // Members, events, todos, care — drives Fold, Seasons, Life, home cards.
+    safe(() => UR.listMembers && UR.listMembers({ limit: 1000 }));
+    safe(() => UR.listEvents && UR.listEvents({ limit: 80 }));
+    safe(() => UR.myTodos && UR.myTodos());
+    safe(() => UR.listCareCases && UR.listCareCases());
+    safe(() => UR.careDashboard && UR.careDashboard());
+    safe(() => UR.listPrayers && UR.listPrayers({ status: 'open' }));
+    safe(() => UR.countOpenPrayers && UR.countOpenPrayers());
+    safe(() => UR.listConversations && UR.listConversations());
+    safe(() => UR.listBroadcasts && UR.listBroadcasts());
+  }, 250);
+}
 
 /**
  * Synchronously hydrate Manna with the last-known values for every home

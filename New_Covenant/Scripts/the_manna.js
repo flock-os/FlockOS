@@ -7,7 +7,7 @@
    in-flight fetches. Sits in front of TheVine and the_upper_room.
 
    Public API:
-     draw(key, fetcher, { ttl })  — get from cache or run fetcher (deduped)
+     draw(key, fetcher, { ttl, persist })  — get from cache or run fetcher (deduped)
      swr(key, fetcher, onFresh, { ttl })
                                    — synchronous: return cached value (or
                                      undefined) immediately, refresh in
@@ -16,14 +16,21 @@
      invalidate(keyOrPrefix?)      — clear one key, prefix, or everything
      peek(key)                     — synchronous get (or undefined)
      write(key, value, { ttl })    — manual put
-     hydrate(map)                  — bulk-load { key: value } at boot
+     hydrate(map)                  — bulk-load { key: value } in-memory
+     hydrateAll()                  — load ALL persisted manna:* keys from
+                                     Cistern into memory at boot (instant
+                                     warm cache for every view).
+     wrap(prefix, target, opts)    — install auto-caching on every read
+                                     method of an API namespace (e.g. wrap
+                                     window.UpperRoom so all list/get/count
+                                     calls cache + persist automatically).
    ══════════════════════════════════════════════════════════════════════════════ */
 
 const DEFAULT_TTL = 60_000; // 1 minute
 const _store = new Map();   // key -> { value, expires }
 const _inflight = new Map(); // key -> Promise
 
-export async function draw(key, fetcher, { ttl = DEFAULT_TTL } = {}) {
+export async function draw(key, fetcher, { ttl = DEFAULT_TTL, persist = false } = {}) {
   const hit = _store.get(key);
   if (hit && hit.expires > Date.now()) return hit.value;
 
@@ -34,6 +41,7 @@ export async function draw(key, fetcher, { ttl = DEFAULT_TTL } = {}) {
     .then((value) => {
       _store.set(key, { value, expires: Date.now() + ttl });
       _inflight.delete(key);
+      if (persist && value !== undefined && value !== null) _persist(key, value);
       return value;
     })
     .catch((err) => {
@@ -108,5 +116,87 @@ export function hydrate(map) {
   for (const [key, value] of Object.entries(map)) {
     if (value === undefined) continue;
     _store.set(key, { value, expires: 1 });
+  }
+}
+
+/* ── Cistern persistence (lazy module ref to avoid circular import) ─────── */
+let _cisternModP = null;
+function _cistern() {
+  if (!_cisternModP) _cisternModP = import('./the_cistern.js').catch(() => null);
+  return _cisternModP;
+}
+function _persist(key, value) {
+  _cistern().then((mod) => { if (mod) mod.write('manna:' + key, value).catch(() => {}); });
+}
+
+/**
+ * Load every persisted manna:* key from Cistern into memory. Runs once at
+ * boot before any view mounts so the FIRST read of any wrapped API call
+ * resolves instantly from disk while a background refresh updates the cache.
+ */
+export async function hydrateAll() {
+  const mod = await _cistern();
+  if (!mod) return;
+  try {
+    const all = await mod.keys();
+    const targets = (all || []).filter((k) => typeof k === 'string' && k.startsWith('manna:'));
+    if (!targets.length) return;
+    const pairs = await Promise.all(targets.map(async (k) => {
+      try { return [k.slice(6), await mod.read(k)]; } catch (_) { return [k.slice(6), undefined]; }
+    }));
+    const map = {};
+    for (const [k, v] of pairs) if (v !== undefined) map[k] = v;
+    hydrate(map);
+  } catch (_) { /* non-fatal */ }
+}
+
+/* ── API auto-wrap ──────────────────────────────────────────────────────── */
+
+// Read-style method names: pure-data fetches that are safe to cache.
+const _READ_RX = /^(list|get|count|search|browse|fetch|find|read|describe|all|own|my|today|next|upcoming|recent|due|pending|open|active|history|summary|stats|dashboard|care)/i;
+// Listener / streaming methods — must bypass caching entirely.
+const _LISTEN_RX = /^(listen|watch|on[A-Z]|subscribe|stream)/;
+// Lifecycle / state accessors that should not be wrapped.
+const _SKIP = new Set(['init','authenticate','signOut','isReady','detachAll','churchId','userEmail','live','ready']);
+
+/**
+ * Install auto-caching on every read method of an API namespace.
+ *
+ *   wrap('UR', window.UpperRoom);                 // 60s TTL default
+ *   wrap('VINE.flock.members', vineMembers, { ttl: 5*60_000 });
+ *
+ * Read methods (list / get / count / etc.) are wrapped to:
+ *   1. Build a stable cache key from method name + JSON-serialised args.
+ *   2. Return cached value if fresh; otherwise call original + cache result.
+ *   3. Persist result to Cistern under "manna:<prefix>:<method>:<args>".
+ *
+ * Listener methods (listen*/watch*/on*) and methods receiving function args
+ * (callbacks) are passed through unchanged.
+ *
+ * Idempotent — calling wrap() twice on the same target is a no-op.
+ */
+export function wrap(prefix, target, { ttl = 5 * 60_000, ttlByMethod = {} } = {}) {
+  if (!target || typeof target !== 'object') return;
+  if (target.__mannaWrapped) return;
+  try { Object.defineProperty(target, '__mannaWrapped', { value: true, enumerable: false }); }
+  catch (_) { return; }
+
+  for (const name of Object.keys(target)) {
+    if (_SKIP.has(name)) continue;
+    const fn = target[name];
+    if (typeof fn !== 'function') continue;
+    if (_LISTEN_RX.test(name)) continue;
+    if (!_READ_RX.test(name)) continue;
+
+    const methodTtl = ttlByMethod[name] != null ? ttlByMethod[name] : ttl;
+    target[name] = function (...args) {
+      // Skip cache when caller passes a callback (likely a listener).
+      if (args.some((a) => typeof a === 'function')) return fn.apply(this, args);
+      let argKey;
+      try { argKey = args.length ? JSON.stringify(args) : ''; }
+      catch (_) { return fn.apply(this, args); } // unserialisable args → bypass
+      const key = prefix + ':' + name + (argKey ? ':' + argKey : '');
+      return draw(key, () => fn.apply(target, args), { ttl: methodTtl, persist: true });
+    };
   }
 }
