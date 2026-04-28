@@ -413,17 +413,30 @@
 
     var snippet = body.length > 80 ? body.substring(0, 80) + '…' : body;
 
-    // Batch: write message + update conversation metadata + mark unread for others
+    // Batch: write message + upsert conversation metadata.
+    // set({merge:true}) instead of update() so well-known channel docs
+    // (announcements, prayer-chain, etc.) are auto-created on first post
+    // rather than failing with "No document to update".
     var batch = _db.batch();
     batch.set(msgRef, msgData);
-    batch.update(convoRef, {
-      lastMessageAt: _now(),
-      lastSnippet:   snippet,
-      lastSenderName: _userName
-    });
+    batch.set(convoRef, {
+      lastMessageAt:  _now(),
+      lastSnippet:    snippet,
+      lastSenderName: _userName,
+      type:           _wellKnownType(convoId),
+      createdAt:      _now()  // merged: only sticks on first write
+    }, { merge: true });
     return batch.commit().then(function() {
       return msgId;
     });
+  }
+
+  // Well-known channel ids → conversation type. Lets sendMessage create
+  // the conversation doc on first post without the caller pre-creating it.
+  function _wellKnownType(convoId) {
+    if (convoId === 'announcements') return 'channel';
+    if (convoId === 'prayer-chain')  return 'channel';
+    return 'channel';
   }
 
   /* ── Fetch messages (one-time) ──────────────────────────────────── */
