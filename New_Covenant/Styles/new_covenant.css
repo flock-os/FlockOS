@@ -384,7 +384,7 @@ html, body {
   background: radial-gradient(circle, rgba(232,168,56,0.22) 0%, transparent 70%);
 }
 .page-hero h1, .page-hero-title {
-  font: 700 1.9rem/1.15 var(--font-serif);
+  font: 700 1.9rem/1.25 var(--font-ui);
   letter-spacing: -0.02em; margin: 0 0 6px; color: var(--ink, #1b264f);
 }
 .page-hero-sub { color: var(--ink-muted, #7a7f96); font: 1rem var(--font-ui); max-width: 60ch; margin: 0; }
@@ -401,7 +401,7 @@ html, body {
   letter-spacing: 0.01em;
 }
 .pasture-hero h1 {
-  font: 700 2.3rem/1.2 var(--font-serif);
+  font: 700 2.3rem/1.25 var(--font-ui);
   letter-spacing: -0.025em; margin: 0 0 8px;
   padding-bottom: 4px; overflow: visible;
   background: linear-gradient(135deg, var(--ink, #1b264f) 10%, #7c3aed 90%);
