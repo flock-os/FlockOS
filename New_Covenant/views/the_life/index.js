@@ -1295,22 +1295,9 @@ function _openSheet(c, memberDir, onSave) {
     if (onSave) onSave();
   });
 
-  // Close
+  // Close (explicit close button only — swipe-to-dismiss intentionally disabled
+  // so scrolling the case body back to the top cannot accidentally close the sheet)
   sheet.querySelector('.life-sheet-close').addEventListener('click', () => _closeSheet());
-
-  // Swipe to close (panel drag)
-  let _startY = null;
-  const panel = sheet.querySelector('.life-sheet-panel');
-  panel.addEventListener('touchstart', e => { _startY = e.touches[0].clientY; }, { passive: true });
-  panel.addEventListener('touchmove', e => {
-    const dy = e.touches[0].clientY - _startY;
-    if (dy > 0) panel.style.transform = `translateY(${dy}px)`;
-  }, { passive: true });
-  panel.addEventListener('touchend', e => {
-    const dy = e.changedTouches[0].clientY - _startY;
-    panel.style.transform = '';
-    if (dy > 80) _closeSheet();
-  });
 }
 
 function _closeSheet(el) {
