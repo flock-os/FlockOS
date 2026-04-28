@@ -119,7 +119,7 @@ async function _loadCases(root, onReload) {
   try {
     // Reconciliation cases come from care items tagged with reconciliation type
     const res  = await V.flock.care.list({ type: 'reconciliation', limit: 25 });
-    const rows = _rows(res).filter(r => String(r.type || r.careType || '').toLowerCase() === 'reconciliation' || !r.type).slice(0, 12);
+    const rows = _rows(res).filter(r => String(r.type || r.careType || '').toLowerCase() === 'reconciliation').slice(0, 12);
     if (!rows.length) {
       casesEl.innerHTML = '<div class="life-empty" style="padding:32px;text-align:center;color:var(--ink-muted,#7a7f96)">No reconciliation cases on file. Use "Open Case" to begin one.</div>';
       _liveCasesMap = {};
@@ -127,7 +127,7 @@ async function _loadCases(root, onReload) {
     }
 
     casesEl.innerHTML = rows.map(c => {
-      const party1   = c.memberName || c.party1 || c.submitterName || 'Member';
+      const party1   = c.memberName || c.party1 || c.submitterName || '(unnamed)';
       const party2   = c.party2 || c.otherParty || '';
       const issue    = c.title || c.description || c.issue || '';
       const stage    = c.status || c.stage || 'Processing';
