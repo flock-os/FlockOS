@@ -10,43 +10,15 @@ export const title = 'The Gift Drift';
 
 const _e = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
-/* ── Demo data ────────────────────────────────────────────────────────────── */
-const KPI = [
-  { label: 'This Month',  value: '$18,240', delta: '+6%',  up: true  },
-  { label: 'YTD Giving',  value: '$84,720', delta: '+11%', up: true  },
-  { label: 'Avg Gift',    value: '$127',    delta: '-3%',  up: false },
-  { label: 'Active Givers', value: '148',   delta: '+9',   up: true  },
+/* ── KPI scaffold labels (values filled by backend) ─────────────────────── */
+const KPI_DEFS = [
+  { label: 'This Month'    },
+  { label: 'YTD Giving'    },
+  { label: 'Avg Gift'      },
+  { label: 'Active Givers' },
 ];
 
-/* Monthly giving Jan–Apr + forecast May–Jun */
-const MONTHS = [
-  { label: 'Jan', amount: 19800, forecast: false },
-  { label: 'Feb', amount: 16400, forecast: false },
-  { label: 'Mar', amount: 21300, forecast: false },
-  { label: 'Apr', amount: 18240, forecast: false },
-  { label: 'May', amount: 17500, forecast: true  },
-  { label: 'Jun', amount: 19000, forecast: true  },
-];
-const MAX_AMT = Math.max(...MONTHS.map(m => m.amount));
-
-/* Giving funds */
-const FUNDS = [
-  { name: 'General Fund',       pct: 68, color: 'var(--c-violet,#7c3aed)', amount: '$11,603' },
-  { name: 'Missions',           pct: 16, color: 'var(--gold,#e8a838)',      amount: '$2,918'  },
-  { name: 'Building Fund',      pct: 10, color: 'var(--c-sky,#0ea5e9)',     amount: '$1,824'  },
-  { name: 'Benevolence',        pct:  6, color: 'var(--c-emerald,#059669)', amount: '$1,094'  },
-];
-
-/* Recent transactions */
-const GIFTS = [
-  { name: 'Anonymous',       fund: 'General Fund',  amount: '$500',  method: 'Online', date: 'Apr 26' },
-  { name: 'James & Ruth K.', fund: 'Missions',      amount: '$250',  method: 'ACH',    date: 'Apr 25' },
-  { name: 'Maria Gonzalez',  fund: 'Building Fund', amount: '$200',  method: 'Check',  date: 'Apr 25' },
-  { name: 'David Chen',      fund: 'General Fund',  amount: '$150',  method: 'Online', date: 'Apr 24' },
-  { name: 'Sarah & Tom L.',  fund: 'Benevolence',   amount: '$100',  method: 'Online', date: 'Apr 24' },
-  { name: 'Anonymous',       fund: 'General Fund',  amount: '$1,000',method: 'Cash',   date: 'Apr 23' },
-  { name: 'Emma Thornton',   fund: 'Missions',      amount: '$75',   method: 'Online', date: 'Apr 23' },
-];
+let _activeGiftSheet   = null;
 
 /* ── Helpers ──────────────────────────────────────────────────────────────── */
 function methodBadge(m) {
