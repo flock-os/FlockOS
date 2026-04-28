@@ -43,7 +43,7 @@ export function mountPrayerHours(host, ctx) {
         </div>`;
         }).join('')}
       </div>
-      <button class="flock-btn flock-btn--ghost devo-dark-btn ph-begin-btn" id="ph-begin-btn">
+      <button class="flock-btn flock-btn--ghost devo-dark-btn ph-begin-btn" id="ph-begin-btn" style="width:100%;margin-top:16px;color:#fff;border-color:rgba(255,255,255,.25)">
         Begin ${_e(now.label)}
       </button>
     </div>`;
