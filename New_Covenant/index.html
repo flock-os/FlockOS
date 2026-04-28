@@ -108,8 +108,12 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; }
     :root { --bg: #f7f8fb; --bg-raised: #ffffff; --ink: #1b264f; --line: #e5e7ef; }
-    html { height: 100%; overflow: hidden; }
-    body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); height: 100%; overflow: hidden; }
+    /* html/body painted DARK regardless of theme so the iOS PWA safe-area
+       (home indicator zone, status bar) never reveals a white band behind
+       the dark topbar / footer / sidebar. The actual page surfaces paint
+       their own light background on top. */
+    html { height: 100%; overflow: hidden; background: #060c24; }
+    body { margin: 0; padding: 0; background: #060c24; color: var(--ink); height: 100%; overflow: hidden; }
     .veil-wrap {
       display: grid;
       grid-template-areas: "top top" "side main" "foot foot";

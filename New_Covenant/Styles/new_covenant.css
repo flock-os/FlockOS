@@ -120,6 +120,16 @@ html, body {
   overscroll-behavior: none;
   /* Allow iOS to honor the safe-area inset env() values inside the layout */
   width: 100%;
+  /* Dark base so the iOS PWA safe-area (home indicator / status bar) never
+     flashes white behind the topbar/sidebar/footer. */
+  background: #060c24;
+}
+
+/* In iOS standalone PWA mode, fill the entire screen including the area
+   behind the home indicator. The footer's dark background extends through
+   the safe-area padding so no white band ever appears at the bottom. */
+@media all and (display-mode: standalone) {
+  html, body { background: #060c24; }
 }
 
 /* ─── Shell layout ──────────────────────────────────────────────────────────── */
@@ -146,12 +156,21 @@ html, body {
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
   min-height: 0;
+  /* contain: paint clips any iOS rubber-band overshoot to the grid cell so
+     the top of the sidebar can never visually slide up under the topbar
+     during a bounce. position+z-index keeps it strictly below the topbar. */
+  contain: paint;
+  position: relative;
+  z-index: 1;
 }
 .veil-main  {
   overflow-y: auto !important; overflow-x: hidden;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
   min-height: 0;
+  contain: paint;
+  position: relative;
+  z-index: 1;
 }
 
 
