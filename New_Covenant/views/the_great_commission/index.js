@@ -487,6 +487,10 @@ async function _loadWorld(root, V) {
     // Prefer UpperRoom direct Firestore (top-level `missionsRegistry` collection)
     // over TheVine which may apply church-scoping.
     const UR = window.UpperRoom;
+    if (!UR && !V?.missions?.registry?.list) {
+      content.innerHTML = '<div class="gc-empty">Missions backend not loaded — country registry unavailable.</div>';
+      return;
+    }
     let rawArr = [];
     if (UR && typeof UR.listMissionsRegistry === 'function') {
       const res = await UR.listMissionsRegistry({ limit: 300 });
@@ -572,6 +576,10 @@ async function _loadPrayer(root, V) {
   _setActionBar(root, 'prayer', V, () => _loadPrayer(root, V));
   const content = root.querySelector('#gc-content');
   if (!content) return;
+  if (!V?.missions?.prayerFocus?.list) {
+    content.innerHTML = '<div class="gc-empty">Missions backend not loaded — prayer focus unavailable.</div>';
+    return;
+  }
   content.innerHTML = '<div class="gc-loading">Loading prayer focus…</div>';
 
   try {
@@ -606,6 +614,10 @@ async function _loadTeams(root, V) {
   _setActionBar(root, 'teams', V, () => _loadTeams(root, V));
   const content = root.querySelector('#gc-content');
   if (!content) return;
+  if (!V?.missions?.teams?.list) {
+    content.innerHTML = '<div class="gc-empty">Missions backend not loaded — mission teams unavailable.</div>';
+    return;
+  }
   content.innerHTML = '<div class="gc-loading">Loading mission teams…</div>';
   try {
     const rows = _normalize(await V.missions.teams.list({ limit: 60 }));
@@ -632,6 +644,10 @@ async function _loadPartners(root, V) {
   _setActionBar(root, 'partners', V, () => _loadPartners(root, V));
   const content = root.querySelector('#gc-content');
   if (!content) return;
+  if (!V?.missions?.partners?.list) {
+    content.innerHTML = '<div class="gc-empty">Missions backend not loaded — partners unavailable.</div>';
+    return;
+  }
   content.innerHTML = '<div class="gc-loading">Loading mission partners…</div>';
   try {
     const rows = _normalize(await V.missions.partners.list({ limit: 100 }));
@@ -647,7 +663,7 @@ async function _loadPartners(root, V) {
         const rec = _gcPartnersMap[card.dataset.id];
         _openMissionsSheet('partners', V, reload, rec || null);
       });
-    });;
+    });
   } catch (err) {
     content.innerHTML = `<div class="gc-empty">Could not load partners. ${_e(String(err.message || err))}</div>`;
   }
@@ -658,6 +674,10 @@ async function _loadUpdates(root, V) {
   _setActionBar(root, 'updates', V, () => _loadUpdates(root, V));
   const content = root.querySelector('#gc-content');
   if (!content) return;
+  if (!V?.missions?.updates?.list) {
+    content.innerHTML = '<div class="gc-empty">Missions backend not loaded — field updates unavailable.</div>';
+    return;
+  }
   content.innerHTML = '<div class="gc-loading">Loading field updates…</div>';
   try {
     const rows = _normalize(await V.missions.updates.list({ limit: 30 }));
@@ -1190,6 +1210,7 @@ function _openMissionsSheet(type, V, onSaved, rec = null) {
     }
 
     if (isEdit) payload.id = rec.id;
+    if (!V?.missions) { showErr('Missions backend not loaded — cannot save.'); return; }
     btn.disabled = true; btn.textContent = 'Saving…';
     try {
       const nsMap = { prayer: 'prayerFocus', teams: 'teams', partners: 'partners', updates: 'updates' };
@@ -1217,7 +1238,9 @@ function _openMissionsSheet(type, V, onSaved, rec = null) {
       _closeMissionsSheet();
       if (onSaved) onSaved();
     } catch (err) {
+      console.error('[GreatCommission] delete error:', err);
       btn.disabled = false; btn.textContent = 'Delete';
+      alert(err?.message || 'Could not delete entry.');
     }
   });
 }
