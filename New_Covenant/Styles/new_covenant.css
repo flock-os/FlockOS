@@ -3197,18 +3197,19 @@ flock-tabs [role="tablist"], .tabs-bar {
   display: flex;
   flex-direction: column;
 }
-.pasture-devo-col .word-card.devo-dark-card .devo-dark-btn {
-  margin-top: auto;
-  padding-top: 14px;
-  align-self: stretch;
-  width: 100%;
-  text-align: center;
-}
-/* Prayer hours Begin button — match devo button width/style */
+/* Both buttons — full width, pinned to bottom, identical size */
+.pasture-devo-col .word-card.devo-dark-card .devo-dark-btn,
 .pasture-devo-col .pray-liturgy-card > .flock-btn {
+  display: flex !important;
+  align-self: stretch !important;
   width: 100%;
-  text-align: center;
   box-sizing: border-box;
+  justify-content: center;
+  margin-top: auto;
+  font-size: 0.92rem;
+}
+.pasture-devo-col .word-card.devo-dark-card .devo-dark-btn {
+  padding-top: 14px;
 }
 @media (max-width: 720px) {
   .pasture-devo-row { grid-template-columns: 1fr; }
