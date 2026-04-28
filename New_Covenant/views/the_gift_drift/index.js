@@ -67,11 +67,11 @@ export function render() {
 
   <!-- KPI strip -->
   <div class="gift-kpi-strip" data-gift-kpi>
-    ${KPI.map(k => `
+    ${KPI_DEFS.map(k => `
     <div class="gift-kpi-card">
-      <div class="gift-kpi-value">${_e(k.value)}</div>
+      <div class="gift-kpi-value">—</div>
       <div class="gift-kpi-label">${_e(k.label)}</div>
-      <div class="gift-kpi-delta ${k.up ? 'gift-delta--up' : 'gift-delta--down'}">${_e(k.delta)} vs last period</div>
+      <div class="gift-kpi-delta" style="color:var(--ink-muted,#7a7f96)">Loading…</div>
     </div>`).join('')}
   </div>
 
@@ -82,10 +82,10 @@ export function render() {
     <div class="gift-card">
       <div class="gift-card-header">
         <h3 class="gift-card-title">Monthly Giving Trend</h3>
-        <span class="gift-forecast-note">May–Jun are projections</span>
+        <span class="gift-forecast-note">Live data</span>
       </div>
       <div class="gift-bar-chart">
-        <div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Loading giving trend…</div>
+        <div class="life-empty">Loading giving trend…</div>
       </div>
     </div>
 
@@ -93,10 +93,10 @@ export function render() {
     <div class="gift-card">
       <div class="gift-card-header">
         <h3 class="gift-card-title">This Month by Fund</h3>
-        <span class="gift-card-sub">$18,240 total</span>
+        <span class="gift-card-sub"></span>
       </div>
       <div class="gift-funds">
-        <div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Loading funds…</div>
+        <div class="life-empty">Loading funds…</div>
       </div>
     </div>
 
@@ -112,7 +112,7 @@ export function render() {
       </div>
     </div>
     <div class="gift-transactions" data-bind="transactions">
-      <div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Loading transactions…</div>
+      <div class="life-empty">Loading transactions…</div>
     </div>
   </div>
 
@@ -123,7 +123,7 @@ export function render() {
       <button class="flock-btn flock-btn--primary flock-btn--sm" data-act="new-pledge">+ New Pledge</button>
     </div>
     <div data-bind="pledges">
-      <div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Loading pledges…</div>
+      <div class="life-empty">Loading pledges…</div>
     </div>
   </div>
 
@@ -151,7 +151,15 @@ function _rows(res) {
 
 async function _loadGiving(root) {
   const V = window.TheVine;
-  if (!V) return;
+  const txEl    = root.querySelector('[data-bind="transactions"]');
+  const barEl   = root.querySelector('.gift-bar-chart');
+  const fundsEl = root.querySelector('.gift-funds');
+  if (!V?.flock?.giving) {
+    if (txEl)    txEl.innerHTML    = '<div class="life-empty">Giving backend not loaded.</div>';
+    if (barEl)   barEl.innerHTML   = '<div class="life-empty">Giving backend not loaded.</div>';
+    if (fundsEl) fundsEl.innerHTML = '<div class="life-empty">Giving backend not loaded.</div>';
+    return;
+  }
 
   const [summaryRes, listRes] = await Promise.allSettled([
     V.flock.giving.summary(),
@@ -368,6 +376,7 @@ function _openGiftSheet(g, onReload) {
       notes:      sheet.querySelector('[data-field="notes"]').value.trim() || undefined,
     };
     if (!isNew) payload.id = uid;
+    if (!V?.flock?.giving) { errEl.textContent = 'Giving backend not loaded — cannot save.'; errEl.style.display = ''; btn.disabled = false; btn.textContent = isNew ? 'Record Gift' : 'Save Changes'; return; }
     try {
       if (isNew) { await V.flock.giving.create(payload); }
       else       { await V.flock.giving.update(payload); }
@@ -389,7 +398,11 @@ function _openGiftSheet(g, onReload) {
       await V.flock.giving.update({ id: uid, status: 'Deleted' });
       _closeGiftSheet();
       onReload?.();
-    } catch (err) { btn.disabled = false; btn.textContent = 'Delete Record'; }
+    } catch (err) {
+      console.error('[TheGiftDrift] gift delete:', err);
+      btn.disabled = false; btn.textContent = 'Delete Record';
+      alert(err?.message || 'Could not delete gift record.');
+    }
   });
 }
 
@@ -411,14 +424,14 @@ async function _loadPledges(root) {
   if (!host) return;
   const UR = window.UpperRoom;
   if (!UR || typeof UR.listPledges !== 'function') {
-    host.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Pledges require Firestore (UpperRoom) — not available.</div>';
+    host.innerHTML = '<div class="life-empty">Pledges require Firestore (UpperRoom) — not available.</div>';
     return;
   }
-  host.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Loading pledges…</div>';
+  host.innerHTML = '<div class="life-empty">Loading pledges…</div>';
   try {
     const rows = await UR.listPledges({ limit: 100 });
     if (!rows || !rows.length) {
-      host.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">No pledges on record. Use "New Pledge" to log one.</div>';
+      host.innerHTML = '<div class="life-empty">No pledges on record. Use “New Pledge” to log one.</div>';
       return;
     }
     host.innerHTML = rows.map(p => _pledgeRow(p)).join('');
@@ -431,7 +444,7 @@ async function _loadPledges(root) {
     });
   } catch (err) {
     console.error('[TheGiftDrift] listPledges:', err);
-    host.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Could not load pledges right now.</div>';
+    host.innerHTML = '<div class="life-empty">Could not load pledges right now.</div>';
   }
 }
 
@@ -562,6 +575,7 @@ function _openPledgeSheet(item, onReload) {
     if (!totalVal || isNaN(totalVal) || totalVal <= 0) {
       errEl.textContent = 'A valid pledge total is required.'; errEl.style.display = ''; return;
     }
+    if (!UR || typeof UR.createPledge !== 'function') { errEl.textContent = 'Pledge backend not loaded — cannot save.'; errEl.style.display = ''; return; }
     errEl.style.display = 'none';
     const btn = sheet.querySelector('[data-save]');
     btn.disabled = true; btn.textContent = 'Saving…';

@@ -9,24 +9,6 @@ import { pageHero } from '../_frame.js';
 export const name  = 'the_seasons';
 export const title = 'Seasons';
 
-// ── Demo events data ─────────────────────────────────────────────────────────
-const TODAY = new Date(2026, 3, 26); // April 26, 2026
-
-const EVENTS = [
-  { id: 1, title: 'Sunday Worship Service',   date: new Date(2026,3,26), time:'10:00 AM', type:'service',   loc:'Main Sanctuary',       rsvp: 0 },
-  { id: 2, title: 'Prayer & Intercession',     date: new Date(2026,3,28), time:'7:00 PM',  type:'prayer',    loc:'Chapel',               rsvp: 18 },
-  { id: 3, title: 'Youth Group Night',         date: new Date(2026,3,29), time:'6:30 PM',  type:'ministry',  loc:'Fellowship Hall',       rsvp: 34 },
-  { id: 4, title: 'Sunday Worship Service',   date: new Date(2026,4, 3), time:'10:00 AM', type:'service',   loc:'Main Sanctuary',       rsvp: 0 },
-  { id: 5, title: 'Elder Board Meeting',       date: new Date(2026,4, 5), time:'6:00 PM',  type:'admin',     loc:'Conference Room',       rsvp: 7 },
-  { id: 6, title: 'Community Outreach Day',    date: new Date(2026,4, 9), time:'9:00 AM',  type:'outreach',  loc:'City Park',             rsvp: 62 },
-  { id: 7, title: 'Sunday Worship Service',   date: new Date(2026,4,10), time:'10:00 AM', type:'service',   loc:'Main Sanctuary',       rsvp: 0 },
-  { id: 8, title: 'Mothers\' Day Brunch',      date: new Date(2026,4,10), time:'12:00 PM', type:'special',   loc:'Fellowship Hall',       rsvp: 41 },
-  { id: 9, title: 'Small Group Leaders Training', date: new Date(2026,4,14), time:'7:00 PM', type:'training', loc:'Room 204',            rsvp: 15 },
-  { id:10, title: 'Sunday Worship Service',   date: new Date(2026,4,17), time:'10:00 AM', type:'service',   loc:'Main Sanctuary',       rsvp: 0 },
-  { id:11, title: 'Marriage Enrichment Night', date: new Date(2026,4,22), time:'7:00 PM',  type:'ministry',  loc:'Fireside Lounge',      rsvp: 24 },
-  { id:12, title: 'Sunday Worship Service',   date: new Date(2026,4,24), time:'10:00 AM', type:'service',   loc:'Main Sanctuary',       rsvp: 0 },
-];
-
 const TYPE_META = {
   service:  { label: 'Service',   color: '#7c3aed', bg: 'rgba(124,58,237,0.12)' },
   prayer:   { label: 'Prayer',    color: '#0ea5e9', bg: 'rgba(14,165,233,0.12)' },
@@ -45,7 +27,11 @@ let _activeSeasonSheet = null;
 let _liveEventsMap     = {};
 
 export function render() {
-  const upcoming = EVENTS.filter(e => e.date >= new Date(TODAY.getFullYear(), TODAY.getMonth(), TODAY.getDate()));
+  const now = new Date();
+  const m1  = now.getMonth();
+  const m2  = (m1 + 1) % 12;
+  const y1  = now.getFullYear();
+  const y2  = m2 === 0 ? y1 + 1 : y1;
 
   return /* html */`
     <section class="seasons-view">
@@ -67,7 +53,7 @@ export function render() {
           </div>
 
           <div class="seasons-list">
-            ${upcoming.map(_eventCard).join('')}
+            <div class="life-empty">Loading events…</div>
           </div>
 
           <!-- RSVPs -->
@@ -79,14 +65,14 @@ export function render() {
             </button>
           </div>
           <div data-bind="rsvps">
-            <div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Loading RSVPs…</div>
+            <div class="life-empty">Loading RSVPs…</div>
           </div>
         </div>
 
-        <!-- Right: mini calendar -->
+        <!-- Right: mini calendar (skeletons; populated by _loadEvents) -->
         <div class="seasons-calendar-col">
-          ${_miniCalendar(2026, 3)}
-          ${_miniCalendar(2026, 4)}
+          ${_miniCalendarLive(y1, m1, [])}
+          ${_miniCalendarLive(y2, m2, [])}
         </div>
       </div>
     </section>
@@ -119,17 +105,20 @@ export function mount(root) {
 
 async function _loadEvents(root) {
   const V = window.TheVine;
-  if (!V) return;
   const listEl = root.querySelector('.seasons-list');
   const calCol = root.querySelector('.seasons-calendar-col');
   if (!listEl) return;
+  if (!V?.flock?.events?.list) {
+    listEl.innerHTML = '<div class="life-empty">Events backend not loaded.</div>';
+    return;
+  }
 
-  listEl.innerHTML = '<div style="padding:32px;text-align:center;color:var(--ink-muted,#7a7f96)">Loading events…</div>';
+  listEl.innerHTML = '<div class="life-empty">Loading events…</div>';
   try {
     const res  = await V.flock.events.list();
     const rows = _rows(res);
     if (!rows.length) {
-      listEl.innerHTML = '<div style="padding:32px;text-align:center;color:var(--ink-muted,#7a7f96)">No upcoming events found.</div>';
+      listEl.innerHTML = '<div class="life-empty">No events yet. Click “New Event” to add one.</div>';
       return;
     }
     const now = new Date(); now.setHours(0,0,0,0);
@@ -140,7 +129,7 @@ async function _loadEvents(root) {
 
     listEl.innerHTML = upcoming.length
       ? upcoming.map(_liveEventCard).join('')
-      : '<div style="padding:32px;text-align:center;color:var(--ink-muted,#7a7f96)">No upcoming events.</div>';
+      : '<div class="life-empty">No upcoming events.</div>';
 
     // Build lookup and wire card clicks
     _liveEventsMap = {};
@@ -163,7 +152,7 @@ async function _loadEvents(root) {
     }
   } catch (err) {
     console.error('[TheSeasons] events.list error:', err);
-    listEl.innerHTML = '<div style="padding:32px;text-align:center;color:var(--ink-muted,#7a7f96)">Could not load events right now.</div>';
+    listEl.innerHTML = '<div class="life-empty">Could not load events right now.</div>';
   }
 }
 
@@ -242,67 +231,7 @@ function _miniCalendarLive(year, month, eventDates) {
     </div>`;
 }
 
-// ── Builders ─────────────────────────────────────────────────────────────────
-function _eventCard(ev) {
-  const meta  = TYPE_META[ev.type] || TYPE_META.service;
-  const isToday = _sameDay(ev.date, TODAY);
-  const dStr  = _fmtDate(ev.date, isToday);
-  const rsvpStr = ev.rsvp > 0 ? `<span class="seasons-rsvp">${ev.rsvp} attending</span>` : '';
-
-  return /* html */`
-    <article class="seasons-card${isToday ? ' is-today' : ''}" data-type="${_e(ev.type)}" tabindex="0">
-      <div class="seasons-card-date">
-        <div class="seasons-card-day">${ev.date.getDate()}</div>
-        <div class="seasons-card-mon">${MONTHS[ev.date.getMonth()].slice(0,3).toUpperCase()}</div>
-      </div>
-      <div class="seasons-card-body">
-        <div class="seasons-card-title">${_e(ev.title)}</div>
-        <div class="seasons-card-meta">
-          <span class="seasons-type-badge" style="color:${meta.color}; background:${meta.bg}">${meta.label}</span>
-          <span class="seasons-time">${_e(ev.time)}</span>
-          <span class="seasons-loc">
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 13-8 13s-8-7-8-13a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
-            ${_e(ev.loc)}
-          </span>
-          ${rsvpStr}
-        </div>
-      </div>
-      ${isToday ? '<div class="seasons-today-dot"></div>' : ''}
-    </article>
-  `;
-}
-
-function _miniCalendar(year, month) {
-  const label     = `${MONTHS[month]} ${year}`;
-  const firstDay  = new Date(year, month, 1).getDay();
-  const daysInMo  = new Date(year, month + 1, 0).getDate();
-  const eventDays = new Set(EVENTS.filter(e => e.date.getFullYear() === year && e.date.getMonth() === month).map(e => e.date.getDate()));
-
-  let cells = '';
-  for (let i = 0; i < firstDay; i++) cells += '<div class="cal-empty"></div>';
-  for (let d = 1; d <= daysInMo; d++) {
-    const isToday = year === TODAY.getFullYear() && month === TODAY.getMonth() && d === TODAY.getDate();
-    const hasEv   = eventDays.has(d);
-    cells += `<div class="cal-day${isToday ? ' cal-today' : ''}${hasEv ? ' cal-has-event' : ''}">${d}</div>`;
-  }
-
-  return /* html */`
-    <div class="mini-cal">
-      <div class="mini-cal-header">${label}</div>
-      <div class="mini-cal-grid">
-        ${DAYS.map(d => `<div class="cal-label">${d}</div>`).join('')}
-        ${cells}
-      </div>
-    </div>
-  `;
-}
-
-function _sameDay(a, b) {
-  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
-}
-function _fmtDate(d) {
-  return `${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
-}
+// ── Builders ────────────────────────────────────────────────
 function _e(s) {
   return String(s ?? '').replace(/[&<>"']/g, (c) =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -429,6 +358,7 @@ function _openEventSheet(ev, onReload) {
     const dateVal  = sheet.querySelector('[data-field="startDate"]').value;
     if (!titleVal) { errEl.textContent = 'Title is required.'; errEl.style.display = ''; return; }
     if (!dateVal)  { errEl.textContent = 'Date is required.'; errEl.style.display = ''; return; }
+    if (!V?.flock?.events) { errEl.textContent = 'Events backend not loaded — cannot save.'; errEl.style.display = ''; return; }
     errEl.style.display = 'none';
     const btn = sheet.querySelector('[data-save]');
     btn.disabled = true; btn.textContent = isNew ? 'Creating…' : 'Saving…';
@@ -474,6 +404,7 @@ function _openEventSheet(ev, onReload) {
     } catch (err) {
       console.error('[TheSeasons] event cancel error:', err);
       btn.disabled = false; btn.textContent = 'Cancel Event';
+      alert(err?.message || 'Could not cancel event.');
     }
   });
 }
@@ -495,20 +426,20 @@ async function _loadRsvps(root) {
   if (!host) return;
   const UR = window.UpperRoom;
   if (!UR || typeof UR.listRsvps !== 'function') {
-    host.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">RSVPs require Firestore (UpperRoom) — not available.</div>';
+    host.innerHTML = '<div class="life-empty">RSVPs require Firestore (UpperRoom) — not available.</div>';
     return;
   }
-  host.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Loading RSVPs…</div>';
+  host.innerHTML = '<div class="life-empty">Loading RSVPs…</div>';
   try {
     const rows = await UR.listRsvps({ limit: 100 });
     if (!rows || !rows.length) {
-      host.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">No RSVPs recorded yet.</div>';
+      host.innerHTML = '<div class="life-empty">No RSVPs recorded yet.</div>';
       return;
     }
     host.innerHTML = rows.map(r => _rsvpRow(r)).join('');
   } catch (err) {
     console.error('[TheSeasons] listRsvps:', err);
-    host.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Could not load RSVPs right now.</div>';
+    host.innerHTML = '<div class="life-empty">Could not load RSVPs right now.</div>';
   }
 }
 
