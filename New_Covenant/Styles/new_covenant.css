@@ -2096,28 +2096,33 @@ flock-tabs [role="tablist"], .tabs-bar {
 /* ─── Responsive ─────────────────────────────────────────────────────────── */
 @media (max-width: 860px) {
   .veil-wrap {
-    grid-template-areas: "top" "main" "foot" !important;
+    grid-template-areas: "top" "main" !important;
     grid-template-columns: 1fr !important;
   }
   #the-veil-side { display: none !important; }
   .veil-menu { display: inline-flex !important; }
 
-  /* Sidebar slides in as fixed overlay when hamburger is clicked */
+  /* Sidebar slides in as fixed overlay when hamburger is clicked.
+     Top must include the iOS PWA safe-area inset so the first nav item
+     ("Home") doesn't slide up under the notch / Dynamic Island portion of
+     the topbar. */
   body.veil-side-open #the-veil-side {
     display: block !important;
     position: fixed;
-    top: var(--topbar-h, 60px); left: 0; bottom: 0;
+    top: calc(var(--topbar-h, 60px) + var(--safe-top, 0px));
+    left: 0; bottom: 0;
     width: min(280px, 80vw);
     z-index: 300;
     overflow: hidden auto;
     box-shadow: 4px 0 32px rgba(0,0,0,.5);
     animation: _slide-in-left 220ms var(--spring, cubic-bezier(.34,1.56,.64,1)) both;
   }
-  /* Dim backdrop — starts below the topbar so topbar stays usable */
+  /* Dim backdrop — starts below the topbar (incl. safe-area) so topbar stays usable */
   body.veil-side-open::after {
     content: '';
     position: fixed;
-    top: var(--topbar-h, 60px); left: 0; right: 0; bottom: 0;
+    top: calc(var(--topbar-h, 60px) + var(--safe-top, 0px));
+    left: 0; right: 0; bottom: 0;
     background: rgba(0,0,0,.52);
     z-index: 299;
     cursor: pointer;
