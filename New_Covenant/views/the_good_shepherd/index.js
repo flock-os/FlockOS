@@ -20,7 +20,6 @@ import { mountMyTodos }     from './the_todos.js';
 import { mountTodayEvents } from './the_today_events.js';
 import { mountTodayWord }     from './the_word.js';
 import { mountPrayerHours }  from './the_prayer_hours.js';
-import { renderCall }       from './the_call.js';
 import { profile }          from '../../Scripts/the_priesthood/index.js';
 
 export const name  = 'the_good_shepherd';
@@ -85,8 +84,6 @@ export function render(/* params */) {
           <flock-skeleton rows="4"></flock-skeleton>
         </div>
       </flock-card>
-
-      <div class="pasture-cta" data-bind="primary-cta"></div>
     </section>
   `;
 }
@@ -119,9 +116,6 @@ export function mount(root, ctx) {
   stops.push(mountMyTodos(root.querySelector('[data-bind="mytodos"]'),          ctx));
   stops.push(mountNextSteps(root.querySelector('[data-bind="next"]'),           ctx));
   stops.push(mountFlockFeed(root.querySelector('[data-bind="feed"]'),           ctx));
-
-  const ctaSlot = root.querySelector('[data-bind="primary-cta"]');
-  if (ctaSlot) renderCall(ctx).then((el) => { if (ctaSlot.isConnected) ctaSlot.appendChild(el); });
 
   // Auto-refresh while the user lingers on the home view.
   const tick = setInterval(() => {

@@ -2149,7 +2149,7 @@ flock-tabs [role="tablist"], .tabs-bar {
 }
 
 @media (max-width: 720px) {
-  .veil-main  { padding: 16px 14px 28px; }
+  .veil-main  { padding: 30px 30px calc(var(--safe-bottom, 0px) + 30px) !important; }
   .veil-search { display: none; }
   .page-hero  { padding: 22px 20px 20px; border-radius: var(--radius-lg); }
   .page-hero h1 { font-size: 1.55rem; }
