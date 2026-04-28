@@ -3143,6 +3143,54 @@
   }
 
   /* ══════════════════════════════════════════════════════════════════
+     STRATEGIC PLAN — Goals, Initiatives, Key Dates
+     Used by views/the_weavers_plan
+     ══════════════════════════════════════════════════════════════════ */
+
+  function _strategicGoalsRef()       { return _churchDoc().collection('strategicGoals'); }
+  function _strategicInitiativesRef() { return _churchDoc().collection('strategicInitiatives'); }
+  function _strategicKeyDatesRef()    { return _churchDoc().collection('strategicKeyDates'); }
+
+  function _spList(ref) {
+    return ref.orderBy('createdAt', 'desc').limit(200).get().then(function(snap) {
+      var out = [];
+      snap.forEach(function(d) { var o = d.data(); o.id = d.id; out.push(o); });
+      return out;
+    }).catch(function() { return []; });
+  }
+  function _spCreate(ref, data) {
+    data = data || {};
+    data.createdAt = _now();
+    data.createdBy = _userEmail;
+    return ref.add(data).then(function(r) { var out = Object.assign({}, data); out.id = r.id; return out; });
+  }
+  function _spUpdate(ref, data) {
+    var id = data && data.id; if (!id) throw new Error('id required');
+    var rest = Object.assign({}, data); delete rest.id;
+    rest.updatedAt = _now();
+    return ref.doc(id).update(rest).then(function() { var out = Object.assign({ id: id }, rest); return out; });
+  }
+  function _spDelete(ref, opts) {
+    var id = (opts && opts.id) || opts; if (!id) throw new Error('id required');
+    return ref.doc(id).delete().then(function() { return { id: id, success: true }; });
+  }
+
+  function listStrategicGoals()        { return _spList(_strategicGoalsRef()); }
+  function createStrategicGoal(d)      { return _spCreate(_strategicGoalsRef(), d); }
+  function updateStrategicGoal(d)      { return _spUpdate(_strategicGoalsRef(), d); }
+  function deleteStrategicGoal(o)      { return _spDelete(_strategicGoalsRef(), o); }
+
+  function listStrategicInitiatives()  { return _spList(_strategicInitiativesRef()); }
+  function createStrategicInitiative(d){ return _spCreate(_strategicInitiativesRef(), d); }
+  function updateStrategicInitiative(d){ return _spUpdate(_strategicInitiativesRef(), d); }
+  function deleteStrategicInitiative(o){ return _spDelete(_strategicInitiativesRef(), o); }
+
+  function listStrategicKeyDates()     { return _spList(_strategicKeyDatesRef()); }
+  function createStrategicKeyDate(d)   { return _spCreate(_strategicKeyDatesRef(), d); }
+  function updateStrategicKeyDate(d)   { return _spUpdate(_strategicKeyDatesRef(), d); }
+  function deleteStrategicKeyDate(o)   { return _spDelete(_strategicKeyDatesRef(), o); }
+
+  /* ══════════════════════════════════════════════════════════════════
      DISCIPLESHIP — Paths
      ══════════════════════════════════════════════════════════════════ */
 
@@ -4876,6 +4924,20 @@
     createJournal: createJournal,
     updateJournal: updateJournal,
     deleteJournal: deleteJournal,
+
+    // Strategic Plan (the_weavers_plan)
+    listStrategicGoals:        listStrategicGoals,
+    createStrategicGoal:       createStrategicGoal,
+    updateStrategicGoal:       updateStrategicGoal,
+    deleteStrategicGoal:       deleteStrategicGoal,
+    listStrategicInitiatives:  listStrategicInitiatives,
+    createStrategicInitiative: createStrategicInitiative,
+    updateStrategicInitiative: updateStrategicInitiative,
+    deleteStrategicInitiative: deleteStrategicInitiative,
+    listStrategicKeyDates:     listStrategicKeyDates,
+    createStrategicKeyDate:    createStrategicKeyDate,
+    updateStrategicKeyDate:    updateStrategicKeyDate,
+    deleteStrategicKeyDate:    deleteStrategicKeyDate,
 
     // Discipleship — Paths
     listDiscPaths:    listDiscPaths,
