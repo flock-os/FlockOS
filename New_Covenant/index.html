@@ -116,11 +116,12 @@
     body { margin: 0; padding: 0; background: #060c24; color: var(--ink); height: 100%; overflow: hidden; }
     .veil-wrap {
       display: grid;
-      grid-template-areas: "top top" "side main" "foot foot";
+      grid-template-areas: "top top" "side main";
       grid-template-columns: 256px 1fr;
-      grid-template-rows: 60px 1fr 30px;
+      grid-template-rows: 60px 1fr;
       height: 100%;
       min-height: 100vh;
+      position: relative;
     }
     #the-veil-top   { grid-area: top; }
     #the-veil-side  { grid-area: side; overflow-y: auto; overflow-x: hidden; }

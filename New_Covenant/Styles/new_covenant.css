@@ -133,20 +133,26 @@ html, body {
 }
 
 /* ─── Shell layout ──────────────────────────────────────────────────────────── */
+/* Footer is overlaid (position:absolute) instead of taking its own grid row,
+   so the main content area stretches the full screen height. The scroll
+   panes reserve scroll-padding-bottom equal to (footer + safe + 30px) so
+   no content is hidden behind the footer and the last item can scroll
+   fully into view with breathing room. */
 .veil-wrap {
   display: grid !important;
-  grid-template-areas: "top top" "side main" "foot foot" !important;
+  grid-template-areas: "top top" "side main" !important;
   grid-template-columns: var(--sidebar-w, 256px) 1fr !important;
-  grid-template-rows: calc(var(--topbar-h, 60px) + var(--safe-top, 0px)) 1fr calc(var(--footer-h, 30px) + var(--safe-bottom, 0px)) !important;
+  grid-template-rows: calc(var(--topbar-h, 60px) + var(--safe-top, 0px)) 1fr !important;
   height: 100% !important;
-  /* No min-height — the lock above guarantees 100% = viewport. A min-height of
-     100vh here used to push the wrap below the viewport on iOS, letting the
-     document scroll and the topbar bounce. */
   min-height: 0 !important;
   background: var(--bg, #f7f8fb);
   padding-left: var(--safe-left, 0px);
   padding-right: var(--safe-right, 0px);
+  position: relative;
 }
+
+/* Computed bottom-clearance: footer height + iOS safe-area + 30px breathing room. */
+:root { --foot-clearance: calc(var(--footer-h, 30px) + var(--safe-bottom, 0px) + 30px); }
 
 /* Sidebar scrolls internally; main content area scrolls internally.
    `overscroll-behavior: contain` traps the rubber-band inside these panes so
@@ -162,6 +168,7 @@ html, body {
   contain: paint;
   position: relative;
   z-index: 1;
+  padding-bottom: var(--foot-clearance);
 }
 .veil-main  {
   overflow-y: auto !important; overflow-x: hidden;
@@ -171,6 +178,7 @@ html, body {
   contain: paint;
   position: relative;
   z-index: 1;
+  padding-bottom: var(--foot-clearance);
 }
 
 
@@ -371,6 +379,13 @@ html, body {
   background: #060c24;
   border-top: 1px solid rgba(255,255,255,0.06);
   color: rgba(255,255,255,0.28); font: 0.72rem var(--font-ui);
+  /* Overlaid across the bottom so .veil-main can paint full-screen behind it. */
+  position: absolute;
+  left: var(--safe-left, 0px);
+  right: var(--safe-right, 0px);
+  bottom: 0;
+  height: calc(var(--footer-h, 30px) + var(--safe-bottom, 0px));
+  z-index: 5;
 }
 .veil-foot a { color: rgba(255,255,255,0.38); text-decoration: none; }
 .veil-foot a:hover { color: var(--gold, #e8a838); }
