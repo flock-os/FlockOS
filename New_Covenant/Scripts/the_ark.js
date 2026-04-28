@@ -23,7 +23,19 @@ import * as adornment from './the_adornment.js';
 import * as livingWater from './the_living_water_register.js';
 
 const flock = {
-  /** Boot the new FlockOS shell. Idempotent. */
+  /** Boot the new FlockOS shell. Idempotent.
+   *
+   *  Boot order is optimised for "shell-first" perceived performance:
+   *    1. Kick off auth + cache hydration + view preloads in parallel with
+   *       chrome mount — none of them depend on each other.
+   *    2. Resolve auth (usually instant — localStorage check). If not signed
+   *       in, show login modal. Login modal sits over the splash, no flash.
+   *    3. Wrap data sources, fire warm-up fetches (non-blocking).
+   *    4. Render the initial view → skeletons paint, cached values appear
+   *       instantly from hydrated Manna, fresh values stream in via SWR.
+   *    5. Drop the splash. The user now sees the formatted shell with
+   *       data filling in progressively as backends respond.
+   */
   async start() {
     if (flock._started) return;
     flock._started = true;
@@ -32,46 +44,36 @@ const flock = {
     _installErrorBoundary();
     kindle();               // splash on
 
-    // ── Auth gate — nothing renders until the user is signed in ──────────
-    const user = await whoAmI();
+    // ── Fire all independent boot work in parallel ──────────────────────
+    const whoAmIPromise  = whoAmI().catch(() => null);
+    const hydratePromise = _hydrateAllFromCistern();
+    const dressPromise   = dress();
+    _preloadViews();
+
+    // ── Auth gate (usually instant — Nehemiah reads localStorage) ────────
+    const user = await whoAmIPromise;
     if (!user) {
-      // Show login modal over the splash; block until signed in.
-      // Cancel is disabled — the modal cannot be dismissed without signing in.
       darken(); // fade splash so the modal sits on a clean backdrop
       const result = await enter();
-      if (!result.ok) {
-        // Login failed without a session (shouldn't normally reach here).
-        return;
-      }
-      kindle(); // splash back on while the shell boots
+      if (!result || !result.ok) return;
+      kindle(); // splash back on while the shell finishes booting
     }
     // ─────────────────────────────────────────────────────────────────────
 
-    // ── Pre-warm home data immediately after auth, in parallel with shell mount.
-    //    GAS cold-start (~5s) runs while dress() + _registerViews() execute,
-    //    so Manna has results (or in-flight dedups) when the home view mounts.
-    //    Site-wide cache hydration loads EVERY persisted manna:* key from
-    //    Cistern into memory before any view mounts — first read of any
-    //    UpperRoom/TheVine call then resolves instantly from disk.
-    await _hydrateAllFromCistern();
+    // ── Now safe to wire data sources + warm caches in the background.
     _wrapDataSources();   // auto-cache UpperRoom + TheVine read methods
     _warmHomeData();
     _warmCommonData();    // pre-fetch members / events / cases / etc.
-
-    // ── Pre-fetch home view modules in parallel with dress().
-    //    The router lazy-loads views via dynamic import() which the browser
-    //    cannot statically analyze. Kicking the import now means the module
-    //    is compiled and in the cache by the time go() fires.
-    _preloadViews();
-
-    await dress();          // mount topbar / sidebar / main slot
-    await _registerViews();
-
-    // ── Wellspring guard — run in background, don't block first paint.
     _guardWellspring().catch(() => {});
 
+    // ── Wait for hydration + chrome mount, then render the view.
+    //    Hydration ensures cached values are in Manna so the home view's
+    //    SWR reads return them synchronously on first paint.
+    await Promise.all([hydratePromise, dressPromise]);
+    await _registerViews();
     await go(_initialRoute(), { replace: true });
     darken();               // splash off (with fade via the_oil)
+
     livingWater.register().catch(() => {}); // SW after the first paint
   },
 
