@@ -128,8 +128,6 @@ async function _loadWay(root) {
       console.error('[TheWay] discipleship.paths.list error:', err);
       tracksEl.innerHTML = '<div class="life-empty">Could not load discipleship tracks right now.</div>';
     }
-  } else if (tracksEl) {
-    tracksEl.innerHTML = '<div class="life-empty">Discipleship paths backend not available.</div>';
   }
 
   // Small groups

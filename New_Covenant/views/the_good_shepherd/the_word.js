@@ -11,6 +11,7 @@
 import { draw, swr } from '../../Scripts/the_manna.js';
 import { buildAdapter } from '../../Scripts/the_living_water_adapter.js';
 const TTL = 30 * 60_000;
+const KEY = 'upperRoom:devotionals'; // shared cache key with the_devotional.js
 
 export function mountTodayWord(host, ctx) {
   if (!host) return () => {};

@@ -13,6 +13,7 @@
 import { draw, swr } from '../../Scripts/the_manna.js';
 import { buildAdapter } from '../../Scripts/the_living_water_adapter.js';
 const TTL = 30 * 60_000; // 30 min — devotionals change once a day
+const KEY = 'upperRoom:devotionals';
 
 export function mountDevotional(host, ctx) {
   if (!host) return () => {};

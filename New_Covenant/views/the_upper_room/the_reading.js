@@ -11,6 +11,7 @@
 import { draw, swr } from '../../Scripts/the_manna.js';
 import { buildAdapter } from '../../Scripts/the_living_water_adapter.js';
 const TTL = 60 * 60_000; // 1 hour — reading plan rarely changes
+const KEY = 'upperRoom:reading';
 
 export function mountReading(host /*, ctx */) {
   if (!host) return () => {};
