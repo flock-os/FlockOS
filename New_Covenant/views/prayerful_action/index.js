@@ -10,26 +10,15 @@ export const title = 'Prayerful Action';
 
 const _e = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
-/* ── Demo data ────────────────────────────────────────────────────────────── */
+/* ── Static config ─────────────────────────────────────────────────────────── */
 const STATS = [
-  { label: 'Active Requests', value: '24', icon: '🙏' },
-  { label: 'Answered',        value: '89', icon: '✅' },
-  { label: 'Praying Today',   value: '12', icon: '👥' },
-  { label: 'Days This Streak',value: '7',  icon: '🔥' },
+  { label: 'Active Requests', value: '0', icon: '🙏' },
+  { label: 'Answered',        value: '0', icon: '✅' },
+  { label: 'Praying Today',   value: '0', icon: '👥' },
+  { label: 'Days This Streak',value: '—', icon: '🔥' },
 ];
 
 const FILTERS = ['All', 'Intercession', 'Praise', 'Personal', 'Urgent'];
-
-const REQUESTS = [
-  { id: 1, type: 'Intercession', name: 'Margaret & Bill F.', request: 'Recovery from surgery — Lord, bring complete healing and peace to their home.', status: 'Active',   date: 'Apr 26', urgent: true,  prays: 8  },
-  { id: 2, type: 'Praise',       name: 'The Chen Family',   request: 'Baby girl born healthy! Praising God for His gift of new life.', status: 'Active',   date: 'Apr 25', urgent: false, prays: 14 },
-  { id: 3, type: 'Intercession', name: 'Robert Simmons',    request: 'Job search after layoff — believing God is opening a door.', status: 'Active',   date: 'Apr 24', urgent: false, prays: 5  },
-  { id: 4, type: 'Personal',     name: 'Anonymous',         request: 'Wisdom for a difficult family decision. Need the Lord\'s clear direction.', status: 'Active',   date: 'Apr 23', urgent: false, prays: 3  },
-  { id: 5, type: 'Intercession', name: 'Grace Thompson',    request: 'Stage 2 diagnosis — standing on His promises. Claiming Isaiah 53:5.', status: 'Active',   date: 'Apr 22', urgent: true,  prays: 22 },
-  { id: 6, type: 'Intercession', name: 'Youth Ministry',    request: 'Upcoming summer camp — protection, salvations, spiritual breakthrough.', status: 'Active',   date: 'Apr 21', urgent: false, prays: 11 },
-  { id: 7, type: 'Praise',       name: 'Pastor Marcus',     request: 'Marriage restored after counseling — God\'s faithfulness is real!', status: 'Answered', date: 'Apr 10', urgent: false, prays: 19 },
-  { id: 8, type: 'Personal',     name: 'David Okafor',      request: 'Prodigal son came home last Sunday — grace upon grace.', status: 'Answered', date: 'Apr 5',  urgent: false, prays: 31 },
-];
 
 const LITURGY = [
   { time: 'Dawn',      label: 'Morning Watch',    text: '"O LORD, in the morning you hear my voice." — Psalm 5:3',    icon: '🌅' },
@@ -47,9 +36,6 @@ function typeBadge(t) {
 
 /* ── Render ───────────────────────────────────────────────────────────────── */
 export function render() {
-  const active   = REQUESTS.filter(r => r.status === 'Active');
-  const answered = REQUESTS.filter(r => r.status === 'Answered');
-
   return `
 <section class="pray-view">
   ${pageHero({
@@ -82,39 +68,16 @@ export function render() {
         <button class="btn btn-primary" style="font-size:.8rem;padding:7px 16px" id="pray-add-btn">+ Add Request</button>
       </div>
 
-      <!-- Active requests -->
-      <div class="pray-section-label">Active (${active.length})</div>
+      <!-- Active requests (filled live by mount) -->
+      <div class="pray-section-label">Active</div>
       <div class="pray-list" id="pray-active-list">
-        ${active.map(r => `
-        <div class="pray-card ${r.urgent ? 'pray-card--urgent' : ''}" data-type="${_e(r.type)}">
-          <div class="pray-card-head">
-            ${typeBadge(r.type)}
-            ${r.urgent ? '<span class="pray-urgent-badge">Urgent</span>' : ''}
-            <span class="pray-card-date">${_e(r.date)}</span>
-          </div>
-          <div class="pray-card-name">${_e(r.name)}</div>
-          <div class="pray-card-text">${_e(r.request)}</div>
-          <div class="pray-card-foot">
-            <button class="pray-pray-btn" data-rid="demo">🙏 I Prayed (${r.prays})</button>
-            <button class="pray-answer-btn" data-rid="demo">✅ Mark Answered</button>
-          </div>
-        </div>`).join('')}
+        <div class="life-empty" style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Loading prayer requests…</div>
       </div>
 
-      <!-- Answered -->
-      <div class="pray-section-label" style="margin-top:8px">Answered (${answered.length})</div>
+      <!-- Answered (filled live by mount) -->
+      <div class="pray-section-label" style="margin-top:8px">Answered</div>
       <div class="pray-list" id="pray-answered-list">
-        ${answered.map(r => `
-        <div class="pray-card pray-card--answered" data-type="${_e(r.type)}">
-          <div class="pray-card-head">
-            ${typeBadge(r.type)}
-            <span class="pray-answered-badge">Answered ✅</span>
-            <span class="pray-card-date">${_e(r.date)}</span>
-          </div>
-          <div class="pray-card-name">${_e(r.name)}</div>
-          <div class="pray-card-text">${_e(r.request)}</div>
-          <div class="pray-card-prays" style="font:.72rem var(--font-ui);color:var(--ink-muted,#7a7f96);margin-top:4px">${r.prays} people prayed</div>
-        </div>`).join('')}
+        <div class="life-empty" style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Loading…</div>
       </div>
 
     </div>
@@ -174,17 +137,22 @@ export function mount(root) {
 }
 
 function _wireInteractiveButtons(root) {
-  /* "I Prayed" counter bump */
+  const UR = window.UpperRoom;
+  const V  = window.TheVine;
+
+  /* "I Prayed" counter bump — writes to UpperRoom (Firestore) first */
   root.querySelectorAll('.pray-pray-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const m = btn.textContent.match(/\((\d+)\)/);
-      if (m) {
-        const newCount = +m[1] + 1;
-        btn.textContent = btn.textContent.replace(/\(\d+\)/, `(${newCount})`);
-        const rid = btn.dataset.rid;
-        if (rid && rid !== 'demo') {
-          window.TheVine?.flock?.prayer?.update({ id: rid, prayCount: newCount }).catch(() => {});
-        }
+      if (!m) return;
+      const newCount = +m[1] + 1;
+      btn.textContent = btn.textContent.replace(/\(\d+\)/, `(${newCount})`);
+      const rid = btn.dataset.rid;
+      if (!rid || rid === 'demo') return;
+      if (UR && typeof UR.updatePrayer === 'function') {
+        UR.updatePrayer(rid, { prayCount: newCount }).catch(() => {});
+      } else {
+        V?.flock?.prayer?.update({ id: rid, prayCount: newCount }).catch(() => {});
       }
     });
   });
@@ -195,7 +163,11 @@ function _wireInteractiveButtons(root) {
       const card = btn.closest('.pray-card');
       const rid  = btn.dataset.rid;
       if (rid && rid !== 'demo') {
-        window.TheVine?.flock?.prayer?.update({ id: rid, status: 'Answered' }).catch(() => {});
+        if (UR && typeof UR.updatePrayer === 'function') {
+          UR.updatePrayer(rid, { status: 'Answered' }).catch(() => {});
+        } else {
+          V?.flock?.prayer?.update({ id: rid, status: 'Answered' }).catch(() => {});
+        }
       }
       card.style.transition = 'opacity 300ms, transform 300ms';
       card.style.opacity = '0';
@@ -306,7 +278,7 @@ async function _loadPrayer(root, filterBtns) {
       if (lbl && lbl.classList.contains('pray-section-label')) lbl.textContent = `Active (${active.length})`;
       activeList.innerHTML = active.length
         ? active.map(r => _liveCard(r, false)).join('')
-        : `<div class="pray-empty">No active prayer requests right now.</div>`;
+        : `<div class="life-empty" style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">No active prayer requests right now.</div>`;
     }
 
     // Replace answered list
@@ -316,7 +288,7 @@ async function _loadPrayer(root, filterBtns) {
       if (lbl && lbl.classList.contains('pray-section-label')) lbl.textContent = `Answered (${answered.length})`;
       answeredList.innerHTML = answered.length
         ? answered.map(r => _liveCard(r, true)).join('')
-        : `<div class="pray-empty">No answered prayers recorded yet.</div>`;
+        : `<div class="life-empty" style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">No answered prayers recorded yet.</div>`;
     }
 
     // Re-wire interactive buttons with live rids
@@ -331,7 +303,9 @@ async function _loadPrayer(root, filterBtns) {
       });
     }
   } catch (err) {
-    console.warn('[PrayerfulAction] prayer.list failed, showing demo data:', err);
+    console.error('[PrayerfulAction] prayer.list failed:', err);
+    if (activeList)   activeList.innerHTML   = '<div class="life-empty" style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Could not load prayer requests right now.</div>';
+    if (answeredList) answeredList.innerHTML = '<div class="life-empty" style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Could not load answered prayers.</div>';
   }
 }
 
@@ -423,16 +397,27 @@ function _openAddRequestSheet(onReload) {
     errEl.style.display = 'none';
     const btn = sheet.querySelector('[data-save]');
     btn.disabled = true; btn.textContent = 'Submitting…';
+    // Convert checkbox boolean → 'TRUE'/'FALSE' string (Firestore createPrayer expects strings)
+    const isConfChecked = sheet.querySelector('[data-field="isConfidential"]').checked;
     const payload = {
       submitterName:   sheet.querySelector('[data-field="name"]').value.trim() || 'Anonymous',
       prayerText:      textVal,
       category:        sheet.querySelector('[data-field="category"]').value,
       priority:        sheet.querySelector('[data-field="priority"]').value,
-      isConfidential:  sheet.querySelector('[data-field="isConfidential"]').checked,
+      isConfidential:  isConfChecked ? 'TRUE' : 'FALSE',
       status:          'New',
     };
     try {
-      if (V) { await V.flock.prayer.create(payload); }
+      const UR = window.UpperRoom;
+      // Firestore (UpperRoom) is the source of truth — reads come from here
+      if (UR && typeof UR.createPrayer === 'function') {
+        await UR.createPrayer(payload);
+      } else if (V) {
+        // Legacy GAS fallback if Firestore isn't available
+        await V.flock.prayer.create(payload);
+      } else {
+        throw new Error('No prayer backend available.');
+      }
       _closePraySheet();
       onReload?.();
     } catch (err) {
