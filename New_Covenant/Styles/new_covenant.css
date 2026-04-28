@@ -3729,7 +3729,17 @@ flock-tabs [role="tablist"], .tabs-bar {
    GROW · the_gospel/* learning modules + the_growth dashboard
    "Grow in the grace and knowledge of our Lord Jesus Christ." — 2 Peter 3:18
    ══════════════════════════════════════════════════════════════════════════════ */
-.grow-page { display:flex; flex-direction:column; gap:24px; padding:0 4px 64px; }
+/* Map the legacy --text / --muted / --surface / --border vars these styles
+   reference (fallbacks were dark-theme) onto the real site light-theme vars
+   used everywhere else in New Covenant. This keeps contrast correct without
+   rewriting every rule below. */
+.grow-page {
+  --text:    var(--ink, #1b264f);
+  --muted:   var(--ink-muted, #7a7f96);
+  --surface: var(--bg-raised, #ffffff);
+  --border:  var(--line, #e5e7ef);
+  display:flex; flex-direction:column; gap:24px; padding:0 4px 64px;
+}
 
 .grow-hero {
   display:flex; align-items:center; gap:18px;
@@ -3804,7 +3814,7 @@ flock-tabs [role="tablist"], .tabs-bar {
   aspect-ratio:16/9; background:#1a1a1d center/cover no-repeat;
   display:grid; place-items:center;
 }
-.grow-card-cover--placeholder { background:linear-gradient(135deg, color-mix(in srgb, var(--grow-accent, #2563eb) 30%, transparent), #15151a); }
+.grow-card-cover--placeholder { background:linear-gradient(135deg, color-mix(in srgb, var(--grow-accent, #2563eb) 30%, transparent), var(--bg-base, #f7f8fb)); }
 .grow-card-cover-icon { color:var(--grow-accent, #fff); opacity:.65; }
 .grow-card-cover-icon svg { width:48px; height:48px; }
 .grow-card-body { padding:14px 16px; display:flex; flex-direction:column; gap:8px; flex:1; }
@@ -3829,7 +3839,7 @@ flock-tabs [role="tablist"], .tabs-bar {
 .grow-skel-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:16px; }
 .grow-skel-card {
   height:200px; border-radius:14px;
-  background:linear-gradient(90deg, rgba(255,255,255,.04) 0%, rgba(255,255,255,.08) 50%, rgba(255,255,255,.04) 100%);
+  background:linear-gradient(90deg, var(--bg-base, #f0f2f7) 0%, var(--line, #e5e7ef) 50%, var(--bg-base, #f0f2f7) 100%);
   background-size:200% 100%;
   animation:growSkel 1.4s ease-in-out infinite;
 }
@@ -3838,17 +3848,19 @@ flock-tabs [role="tablist"], .tabs-bar {
 .grow-chip {
   display:inline-block; padding:3px 10px; border-radius:999px;
   font-size:11px; font-weight:500;
-  background:rgba(255,255,255,.08); color:var(--text, #f5f5f7);
+  background:var(--line, #e5e7ef); color:var(--ink, #1b264f);
 }
-.grow-chip--neutral { background:rgba(255,255,255,.06); color:var(--muted, #aaa); }
-.grow-chip--topic   { background:color-mix(in srgb, var(--grow-accent, #2563eb) 22%, transparent); }
-.grow-chip--level   { background:rgba(120,200,180,.18); color:#a8e8d2; }
-.grow-chip--good    { background:rgba(80,200,120,.20); color:#a3e8b6; }
+.grow-chip--neutral { background:var(--bg-base, #f0f2f7); color:var(--ink-muted, #7a7f96); }
+.grow-chip--topic   { background:color-mix(in srgb, var(--grow-accent, #2563eb) 22%, transparent); color:var(--ink, #1b264f); }
+.grow-chip--level   { background:rgba(45,140,110,.16);  color:#0f6b4a; }
+.grow-chip--good    { background:rgba(45,160,90,.18);   color:#0a7c3e; }
+.grow-chip--warn    { background:rgba(220,150,40,.18);  color:#8a5a00; }
+.grow-chip--danger  { background:rgba(192,57,43,.16);   color:#9a2317; }
 
 .grow-section-head { display:flex; justify-content:space-between; align-items:center; margin:8px 0 -4px; }
 .grow-section-title { font-size:13px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--muted, #aaa); margin:0; }
 
-.grow-progress { height:6px; border-radius:6px; background:rgba(255,255,255,.08); overflow:hidden; }
+.grow-progress { height:6px; border-radius:6px; background:var(--line, #e5e7ef); overflow:hidden; }
 .grow-progress-fill { height:100%; border-radius:6px; transition:width .2s; }
 
 .grow-btn {
@@ -3868,7 +3880,7 @@ flock-tabs [role="tablist"], .tabs-bar {
 
 .grow-streak { padding:14px; border:1px solid var(--border, rgba(255,255,255,.08)); border-radius:12px; background:var(--surface, rgba(255,255,255,.03)); }
 .grow-heat-grid { display:grid; grid-template-columns:repeat(12, 1fr); gap:4px; max-width:340px; }
-.grow-heat { display:block; aspect-ratio:1; border-radius:3px; background:rgba(255,255,255,.06); }
+.grow-heat { display:block; aspect-ratio:1; border-radius:3px; background:var(--line, #e5e7ef); }
 .grow-heat--1 { background:color-mix(in srgb, var(--grow-accent, #2563eb) 35%, transparent); }
 .grow-heat--2 { background:color-mix(in srgb, var(--grow-accent, #2563eb) 65%, transparent); }
 .grow-heat--3 { background:var(--grow-accent, #2563eb); }
@@ -3889,7 +3901,7 @@ flock-tabs [role="tablist"], .tabs-bar {
   padding:9px 12px; border-radius:8px; cursor:pointer;
   background:transparent; border:none; color:inherit; font:inherit; text-align:left;
 }
-.grow-cat:hover, .grow-lex-row:hover, .grow-book-row:hover, .grow-gen-row:hover { background:rgba(255,255,255,.05); }
+.grow-cat:hover, .grow-lex-row:hover, .grow-book-row:hover, .grow-gen-row:hover { background:var(--bg-base, #f4f6fb); }
 .grow-cat.is-active, .grow-lex-row.is-active, .grow-book-row.is-active, .grow-gen-row.is-active {
   background:color-mix(in srgb, var(--grow-accent, #2563eb) 18%, transparent);
 }
@@ -3907,7 +3919,7 @@ flock-tabs [role="tablist"], .tabs-bar {
 .grow-doctrine-title { margin:0 0 6px; font-size:16px; font-weight:600; color:var(--text, #f5f5f7); }
 .grow-doctrine-body  { margin:0 0 8px; line-height:1.6; color:var(--text, #d8d8d8); font-size:14px; }
 .grow-scriptures { display:flex; flex-wrap:wrap; gap:6px; }
-.grow-scripture { font-size:11px; padding:3px 8px; border-radius:6px; background:rgba(255,255,255,.06); color:var(--muted, #aaa); }
+.grow-scripture { font-size:11px; padding:3px 8px; border-radius:6px; background:var(--bg-base, #f0f2f7); color:var(--ink-muted, #7a7f96); }
 
 .grow-lex-meta { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px; }
 .grow-lex-original { font-size:20px; font-weight:600; color:var(--grow-accent, #2563eb); }
@@ -3925,7 +3937,7 @@ flock-tabs [role="tablist"], .tabs-bar {
 .grow-devo-title { margin:0 0 4px; font-size:16px; font-weight:600; }
 .grow-devo-scripture { margin:0; font-style:italic; color:var(--muted, #aaa); font-size:13px; }
 .grow-devo-body { padding-top:12px; line-height:1.65; color:var(--text, #d8d8d8); font-size:14px; }
-.grow-quote { margin:10px 0; padding:10px 14px; border-left:3px solid var(--grow-accent, #2563eb); background:rgba(255,255,255,.03); font-style:italic; }
+.grow-quote { margin:10px 0; padding:10px 14px; border-left:3px solid var(--grow-accent, #2563eb); background:var(--bg-base, #f7f8fb); font-style:italic; color:var(--ink, #1b264f); }
 .grow-prayer { color:var(--muted, #aaa); }
 
 /* apologetics */
@@ -3966,7 +3978,7 @@ flock-tabs [role="tablist"], .tabs-bar {
 .grow-input, .grow-textarea {
   padding:10px 12px;
   border:1px solid var(--border, rgba(255,255,255,.1));
-  border-radius:8px; background:rgba(0,0,0,.2); color:var(--text, #f5f5f7);
+  border-radius:8px; background:var(--bg-raised, #ffffff); color:var(--ink, #1b264f);
   font:inherit; font-size:14px;
 }
 .grow-textarea { resize:vertical; font-family:inherit; }
@@ -3999,6 +4011,7 @@ flock-tabs [role="tablist"], .tabs-bar {
 /* ── GROW DASHBOARD ─────────────────────────────────────────────────────── */
 .growth-section { margin-top:8px; }
 .growth-section-head { margin-bottom:12px; }
+.growth-section { --text: var(--ink, #1b264f); --muted: var(--ink-muted, #7a7f96); --surface: var(--bg-raised, #ffffff); --border: var(--line, #e5e7ef); }
 .growth-section-title { margin:0 0 4px; font-size:13px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--muted, #aaa); }
 .growth-section-blurb { margin:0; font-size:13px; color:var(--muted, #888); }
 
@@ -4028,3 +4041,13 @@ flock-tabs [role="tablist"], .tabs-bar {
 .growth-card-text { display:flex; flex-direction:column; gap:4px; min-width:0; }
 .growth-card-title { font-weight:600; color:var(--text, #f5f5f7); font-size:15px; }
 .growth-card-desc  { font-size:13px; color:var(--muted, #aaa); line-height:1.5; }
+
+/* "Ask for help" → prayer request */
+.grow-help-row {
+  display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+  margin-top:14px; padding-top:12px;
+  border-top:1px dashed var(--line, #e5e7ef);
+}
+.grow-help-status { font-size:12px; }
+.grow-help-status--ok  { color:#0a7c3e; }
+.grow-help-status--err { color:#9a2317; }

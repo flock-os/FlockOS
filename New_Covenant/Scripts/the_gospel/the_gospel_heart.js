@@ -3,7 +3,7 @@
    "Search me, O God, and know my heart!" — Psalm 139:23
    ══════════════════════════════════════════════════════════════════════════════ */
 
-import { ur, vine, rows, esc, emptyState, backendOffline, loadingCards, sectionHead } from './the_gospel_shared.js';
+import { ur, vine, rows, esc, emptyState, backendOffline, loadingCards, sectionHead, helpButton, wireHelp, bibleLink } from './the_gospel_shared.js';
 
 export const name        = 'the_gospel_heart';
 export const title       = 'Heart Check';
@@ -109,7 +109,36 @@ function _paint(root) {
         </div>
       `).join('')}
     </div>
+    ${answered ? _prescriptionsHtml() : ''}
+    ${answered ? helpButton({ label: 'Send this heart check to my pastor', dataAttr: 'help-heart' }) : ''}
   `;
+  if (answered) {
+    wireHelp(scan, () => {
+      const flagged = _state.rows.filter((q) => _state.answers[q['Question ID'] || q.id] === 'yes');
+      const lines = ['Heart Check — areas where I answered “Yes” (struggling):'];
+      flagged.forEach((q) => {
+        const cat = q.Category || q.category || 'Reflection';
+        lines.push(`\u2022 [${cat}] ${q.Question || q.question || ''}`);
+      });
+      return lines.join('\n');
+    }, { category: 'Heart Check', source: 'Heart Check', confidential: true });
+  }
+}
+
+function _prescriptionsHtml() {
+  const flagged = _state.rows.filter((q) => _state.answers[q['Question ID'] || q.id] === 'yes');
+  if (!flagged.length) return '';
+  let h = `<div class="grow-section-head" style="margin-top:14px;"><h2 class="grow-section-title">Prescriptions</h2></div>`;
+  flagged.slice(0, 6).forEach((q) => {
+    const rx  = q.Prescription || q.prescription || '';
+    const ref = q['Verse Reference'] || q.verseReference || '';
+    h += `<div style="padding:8px 10px; margin:6px 0; background:var(--bg-base, #f7f8fb); border-left:3px solid ${accent}; border-radius:6px;">
+      <p style="margin:0; font-size:13px; color:var(--ink, #1b264f);">${esc(q.Question || '')}</p>
+      ${rx  ? `<p style="margin:4px 0 0; font-size:13px; color:var(--ink, #1b264f);"><strong>Step:</strong> ${esc(rx)}</p>` : ''}
+      ${ref ? `<p style="margin:2px 0 0; font-size:12px; font-style:italic; color:var(--ink-muted, #7a7f96);">${bibleLink(ref)}</p>` : ''}
+    </div>`;
+  });
+  return h;
 }
 
 function _qRow(q) {

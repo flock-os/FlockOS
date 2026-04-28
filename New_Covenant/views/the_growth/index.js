@@ -14,6 +14,7 @@ import * as Devotionals  from '../../Scripts/the_gospel/the_gospel_devotionals.j
 import * as Apologetics  from '../../Scripts/the_gospel/the_gospel_apologetics.js';
 import * as Counseling   from '../../Scripts/the_gospel/the_gospel_counseling.js';
 import * as Heart        from '../../Scripts/the_gospel/the_gospel_heart.js';
+import * as Mirror       from '../../Scripts/the_gospel/the_gospel_mirror.js';
 import * as Genealogy    from '../../Scripts/the_gospel/the_gospel_genealogy.js';
 import * as Journal      from '../../Scripts/the_gospel/the_gospel_journal.js';
 import * as Certificates from '../../Scripts/the_gospel/the_gospel_certificates.js';
@@ -26,7 +27,7 @@ const SECTIONS = [
   {
     title:   'Daily Practice',
     blurb:   'Habits to walk with the Lord this week.',
-    modules: [Reading, Devotionals, Journal, Heart],
+    modules: [Reading, Devotionals, Journal, Heart, Mirror],
   },
   {
     title:   'Study & Discipleship',

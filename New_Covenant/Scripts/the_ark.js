@@ -138,6 +138,7 @@ async function _registerViews() {
   register('the_gospel_apologetics',   V('the_gospel_apologetics'),   { command: 'Go to: Apologetics' });
   register('the_gospel_counseling',    V('the_gospel_counseling'),    { command: 'Go to: Counseling' });
   register('the_gospel_heart',         V('the_gospel_heart'),         { command: 'Go to: Heart Check' });
+  register('the_gospel_mirror',        V('the_gospel_mirror'),        { command: 'Go to: Shepherd\u2019s Mirror' });
   register('the_gospel_genealogy',     V('the_gospel_genealogy'),     { command: 'Go to: Biblical Genealogy' });
   register('the_gospel_journal',       V('the_gospel_journal'),       { command: 'Go to: Journal' });
   register('the_gospel_certificates',  V('the_gospel_certificates'),  { command: 'Go to: Certificates' });
@@ -157,22 +158,22 @@ function _preloadViews() {
   // background while dress() is running.  When go('the_good_shepherd') fires
   // the module is already in the browser's module registry — zero-latency.
   // _frame.js is shared by every view so it's cheap to preload once here.
-  import('../views/_frame.js').catch(() => {});
-  import('../views/the_good_shepherd/index.js').catch(() => {});
+  import('../Views/_frame.js').catch(() => {});
+  import('../Views/the_good_shepherd/index.js').catch(() => {});
   // Sub-modules — without these the home view has to await each one after mount.
-  import('../views/the_good_shepherd/the_count.js').catch(() => {});
-  import('../views/the_good_shepherd/the_pasture.js').catch(() => {});
-  import('../views/the_good_shepherd/the_today_events.js').catch(() => {});
-  import('../views/the_good_shepherd/the_birthdays.js').catch(() => {});
-  import('../views/the_good_shepherd/the_todos.js').catch(() => {});
-  import('../views/the_good_shepherd/the_next_steps.js').catch(() => {});
-  import('../views/the_good_shepherd/the_flock_feed.js').catch(() => {});
-  import('../views/the_good_shepherd/the_call.js').catch(() => {});
-  import('../views/the_good_shepherd/the_word.js').catch(() => {});
-  import('../views/the_good_shepherd/the_prayer_hours.js').catch(() => {});
+  import('../Views/the_good_shepherd/the_count.js').catch(() => {});
+  import('../Views/the_good_shepherd/the_pasture.js').catch(() => {});
+  import('../Views/the_good_shepherd/the_today_events.js').catch(() => {});
+  import('../Views/the_good_shepherd/the_birthdays.js').catch(() => {});
+  import('../Views/the_good_shepherd/the_todos.js').catch(() => {});
+  import('../Views/the_good_shepherd/the_next_steps.js').catch(() => {});
+  import('../Views/the_good_shepherd/the_flock_feed.js').catch(() => {});
+  import('../Views/the_good_shepherd/the_call.js').catch(() => {});
+  import('../Views/the_good_shepherd/the_word.js').catch(() => {});
+  import('../Views/the_good_shepherd/the_prayer_hours.js').catch(() => {});
   // The Upper Room — surfaced from the home dashboard, parse it now.
-  import('../views/the_upper_room/index.js').catch(() => {});
-  import('../views/the_upper_room/the_devotional.js').catch(() => {});
+  import('../Views/the_upper_room/index.js').catch(() => {});
+  import('../Views/the_upper_room/the_devotional.js').catch(() => {});
 }
 
 /* ── Home data pre-warm ──────────────────────────────────────────────────── */

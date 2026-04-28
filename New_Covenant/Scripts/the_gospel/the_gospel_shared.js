@@ -130,3 +130,68 @@ export function sectionHead(title, action) {
     </div>
   `;
 }
+
+/* ── ASK FOR HELP → PRAYER REQUEST ─────────────────────────────────────────
+   Generates a prayer request from a learning-hub module summary. Wired into
+   counseling, heart, mirror, and quiz-results "Ask for help" buttons.   */
+export async function askForHelp({ summary, category = 'Discipleship', source = 'Grow', confidential = true } = {}) {
+  const U = ur();
+  const sess = session();
+  const prayerText = String(summary || '').trim();
+  if (!prayerText) {
+    return { ok: false, error: 'Nothing to send.' };
+  }
+  if (!U || typeof U.createPrayer !== 'function') {
+    // Fallback: copy to clipboard so the user still has something useful.
+    try { await navigator.clipboard.writeText(prayerText); }
+    catch (_) {}
+    return { ok: false, offline: true, error: 'Sign in to send a prayer request. Summary copied to clipboard.' };
+  }
+  try {
+    const id = await U.createPrayer({
+      submitterName:     sess.displayName || sess.name || sess.email || 'Anonymous',
+      submitterEmail:    sess.email || '',
+      prayerText:        `[${source}] ${prayerText}`,
+      category,
+      isConfidential:    confidential ? 'TRUE' : 'FALSE',
+      followUpRequested: 'TRUE',
+    });
+    return { ok: true, id };
+  } catch (e) {
+    return { ok: false, error: e.message || String(e) };
+  }
+}
+
+/** Render a small "Send to Prayer Chain" button + status row. */
+export function helpButton({ label = 'Ask for help', dataAttr = 'help' } = {}) {
+  return /* html */`
+    <div class="grow-help-row" data-bind="${esc(dataAttr)}">
+      <button type="button" class="grow-btn grow-btn--ghost" data-help-btn>
+        🙏 ${esc(label)}
+      </button>
+      <span class="grow-help-status grow-muted" data-help-status></span>
+    </div>
+  `;
+}
+
+/** Wire the helpButton inside `root` to call askForHelp() with `summaryFn()`. */
+export function wireHelp(root, summaryFn, opts = {}) {
+  const btn  = root.querySelector('[data-help-btn]');
+  const stat = root.querySelector('[data-help-status]');
+  if (!btn || !stat) return;
+  btn.addEventListener('click', async () => {
+    btn.disabled = true;
+    stat.textContent = 'Sending…';
+    let summary = '';
+    try { summary = await summaryFn(); } catch (_) {}
+    const r = await askForHelp({ summary, ...opts });
+    btn.disabled = false;
+    if (r.ok) {
+      stat.textContent = '✓ Prayer request sent. A pastor will reach out.';
+      stat.classList.add('grow-help-status--ok');
+    } else {
+      stat.textContent = r.error || 'Could not send.';
+      stat.classList.add('grow-help-status--err');
+    }
+  });
+}
