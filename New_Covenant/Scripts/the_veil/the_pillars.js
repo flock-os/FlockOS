@@ -44,6 +44,7 @@ const ICON = {
   userplus:   I('<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/>'),
   upload:     I('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>'),
   info:       I('<circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>'),
+  sprout:     I('<path d="M12 22V11"/><path d="M5 13c0-3 3-5 7-4 0 4-3 6-7 4z"/><path d="M19 9c0-3-3-5-7-4 0 4 3 6 7 4z"/>'),
 };
 
 const SECTIONS = [
@@ -57,6 +58,7 @@ const SECTIONS = [
     title: 'Word',
     items: [
       { name: 'the_upper_room',        label: 'The Upper Room',     icon: ICON.flame },
+      { name: 'the_growth',            label: 'Grow',               icon: ICON.sprout },
     ],
   },
   /* ── Comms ───────────────────────────────────────────────────────────── */

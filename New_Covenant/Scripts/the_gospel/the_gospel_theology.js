@@ -1,0 +1,111 @@
+/* ══════════════════════════════════════════════════════════════════════════════
+   THE GOSPEL · THEOLOGY — Doctrine map: categories → sections → scriptures.
+   "Sound doctrine that conforms to the gospel concerning the glory of the
+    blessed God." — 1 Timothy 1:10-11
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+import { ur, vine, rows, esc, snip, emptyState, backendOffline, loadingCards, sectionHead } from './the_gospel_shared.js';
+
+export const name        = 'the_gospel_theology';
+export const title       = 'Theology';
+export const description = 'A living map of biblical doctrine — each category opens to its sections, scriptures, and applications.';
+export const icon        = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3v18"/></svg>`;
+export const accent      = '#c2410c';
+
+let _state = { tree: [], openId: null };
+
+export function render() {
+  return /* html */`
+    <section class="grow-page" data-grow="theology">
+      <header class="grow-hero" style="--grow-accent:${accent}">
+        <div class="grow-hero-icon">${icon}</div>
+        <div class="grow-hero-text">
+          <h1 class="grow-hero-title">${title}</h1>
+          <p class="grow-hero-sub">${esc(description)}</p>
+        </div>
+      </header>
+
+      <div class="grow-split">
+        <aside class="grow-split-aside">
+          ${sectionHead('Categories')}
+          <div class="grow-cat-list" data-bind="cats">${loadingCards(6)}</div>
+        </aside>
+        <article class="grow-split-main" data-bind="detail">
+          <p class="grow-muted">Select a category to read its sections, supporting scriptures, and pastoral notes.</p>
+        </article>
+      </div>
+    </section>
+  `;
+}
+
+export function mount(root) {
+  _load(root);
+  return () => {};
+}
+
+async function _load(root) {
+  const catEl = root.querySelector('[data-bind="cats"]');
+  const U = ur(); const V = vine();
+  if (!U && !V) { catEl.innerHTML = backendOffline('Theology library not loaded.'); return; }
+  try {
+    const res = U
+      ? (typeof U.theologyFull === 'function' ? await U.theologyFull() : await U.listTheologyCategories({ limit: 200 }))
+      : await V.flock.call('theology.full', {}, { skipAuth: true });
+    _state.tree = _normalize(res);
+    _paint(root);
+  } catch (e) {
+    console.error('[gospel/theology] load:', e);
+    catEl.innerHTML = emptyState({ icon: '⚠️', title: 'Could not load theology', body: e.message || String(e) });
+  }
+}
+
+function _normalize(res) {
+  // Accept either {categories:[{...sections:[]}]}, full tree, or flat list
+  if (res && Array.isArray(res.categories)) return res.categories;
+  const list = rows(res);
+  if (list.length && list[0] && Array.isArray(list[0].sections)) return list;
+  // Flat list — group by id
+  return list.map((c) => ({ ...c, sections: c.sections || [] }));
+}
+
+function _paint(root) {
+  const catEl = root.querySelector('[data-bind="cats"]');
+  if (!_state.tree.length) {
+    catEl.innerHTML = emptyState({ icon: '☩', title: 'No theology entries yet', body: 'Ask your shepherd to seed the doctrine map.' });
+    return;
+  }
+  catEl.innerHTML = _state.tree.map((c) => `
+    <button class="grow-cat ${_state.openId === c.id ? 'is-active' : ''}" data-cat="${esc(c.id)}">
+      <span class="grow-cat-title">${esc(c.title || c.name || 'Untitled')}</span>
+      ${c.sections ? `<span class="grow-cat-count">${c.sections.length}</span>` : ''}
+    </button>
+  `).join('');
+  catEl.querySelectorAll('[data-cat]').forEach((btn) => {
+    btn.addEventListener('click', () => { _state.openId = btn.getAttribute('data-cat'); _paint(root); _paintDetail(root); });
+  });
+  _paintDetail(root);
+}
+
+function _paintDetail(root) {
+  const detEl = root.querySelector('[data-bind="detail"]');
+  if (!_state.openId) return;
+  const cat = _state.tree.find((c) => c.id === _state.openId);
+  if (!cat) { detEl.innerHTML = `<p class="grow-muted">Category not found.</p>`; return; }
+  const sections = cat.sections || [];
+  detEl.innerHTML = /* html */`
+    <h2 class="grow-detail-title">${esc(cat.title || cat.name || '')}</h2>
+    ${cat.description ? `<p class="grow-detail-sub">${esc(cat.description)}</p>` : ''}
+    ${sections.length ? sections.map(_section).join('') : `<p class="grow-muted">No sections in this category yet.</p>`}
+  `;
+}
+
+function _section(s) {
+  const scriptures = (s.scriptures || []).map((r) => `<span class="grow-scripture">${esc(typeof r === 'string' ? r : (r.reference || r.ref || ''))}</span>`).join('');
+  return /* html */`
+    <article class="grow-doctrine">
+      <h3 class="grow-doctrine-title">${esc(s.title || '')}</h3>
+      ${s.description ? `<p class="grow-doctrine-body">${esc(snip(s.description, 600))}</p>` : ''}
+      ${scriptures ? `<div class="grow-scriptures">${scriptures}</div>` : ''}
+    </article>
+  `;
+}

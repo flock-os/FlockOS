@@ -125,6 +125,23 @@ async function _registerViews() {
   register('the_harvest',              V('the_harvest'),              { command: 'Go to: Harvest' });
   register('the_way',                  V('the_way'),                  { command: 'Go to: The Way' });
   register('the_truth',                V('the_truth'),                { command: 'Go to: Content' });
+
+  // Grow — discipleship dashboard + the_gospel/* learning modules
+  register('the_growth',               V('the_growth'),               { command: 'Go to: Grow' });
+  register('the_gospel_courses',       V('the_gospel_courses'),       { command: 'Go to: Courses' });
+  register('the_gospel_quizzes',       V('the_gospel_quizzes'),       { command: 'Go to: Quizzes' });
+  register('the_gospel_reading',       V('the_gospel_reading'),       { command: 'Go to: Reading Plans' });
+  register('the_gospel_theology',      V('the_gospel_theology'),      { command: 'Go to: Theology' });
+  register('the_gospel_lexicon',       V('the_gospel_lexicon'),       { command: 'Go to: Lexicon' });
+  register('the_gospel_library',       V('the_gospel_library'),       { command: 'Go to: The Word library' });
+  register('the_gospel_devotionals',   V('the_gospel_devotionals'),   { command: 'Go to: Devotionals' });
+  register('the_gospel_apologetics',   V('the_gospel_apologetics'),   { command: 'Go to: Apologetics' });
+  register('the_gospel_counseling',    V('the_gospel_counseling'),    { command: 'Go to: Counseling' });
+  register('the_gospel_heart',         V('the_gospel_heart'),         { command: 'Go to: Heart Check' });
+  register('the_gospel_genealogy',     V('the_gospel_genealogy'),     { command: 'Go to: Biblical Genealogy' });
+  register('the_gospel_journal',       V('the_gospel_journal'),       { command: 'Go to: Journal' });
+  register('the_gospel_certificates',  V('the_gospel_certificates'),  { command: 'Go to: Certificates' });
+  register('the_gospel_analytics',     V('the_gospel_analytics'),     { command: 'Go to: Learning analytics' });
 }
 
 /* ── Initial route ────────────────────────────────────────────────────────── */
