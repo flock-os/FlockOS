@@ -152,8 +152,9 @@ html, body {
   position: relative;
 }
 
-/* Computed bottom-clearance: footer height + iOS safe-area + 30px breathing room. */
-:root { --foot-clearance: calc(var(--footer-h, 30px) + var(--safe-bottom, 0px) + 30px); }
+/* Computed bottom-clearance: footer height + iOS safe-area + 120px breathing
+   room so the last card can scroll well up into the viewport. */
+:root { --foot-clearance: calc(var(--footer-h, 30px) + var(--safe-bottom, 0px) + 120px); }
 
 /* Sidebar scrolls internally; main content area scrolls internally.
    `overscroll-behavior: contain` traps the rubber-band inside these panes so
@@ -2104,11 +2105,11 @@ flock-tabs [role="tablist"], .tabs-bar {
   .veil-menu { display: inline-flex !important; }
 
   /* Footer is desktop-only chrome — on mobile it just wraps over content
-     and steals real estate. Hide it and shrink main's bottom clearance to
-     just the iOS safe-area + 30px breathing room. */
+     and steals real estate. Hide it and give main generous bottom headroom
+     so the last card can scroll well up into the viewport. */
   .veil-foot { display: none !important; }
   .veil-main, .veil-side {
-    padding-bottom: calc(var(--safe-bottom, 0px) + 30px) !important;
+    padding-bottom: calc(var(--safe-bottom, 0px) + 200px) !important;
   }
 
   /* Sidebar slides in as fixed overlay when hamburger is clicked.
@@ -2150,7 +2151,7 @@ flock-tabs [role="tablist"], .tabs-bar {
 }
 
 @media (max-width: 720px) {
-  .veil-main  { padding: 30px 30px calc(var(--safe-bottom, 0px) + 30px) !important; }
+  .veil-main  { padding: 30px 30px calc(var(--safe-bottom, 0px) + 200px) !important; }
   .veil-search { display: none; }
   .page-hero  { padding: 22px 20px 20px; border-radius: var(--radius-lg); }
   .page-hero h1 { font-size: 1.55rem; }
