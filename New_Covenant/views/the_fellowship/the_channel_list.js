@@ -8,10 +8,17 @@ import { renderThread } from './the_thread.js';
 
 export function renderChannelsPane(host /*, ctx */) {
   if (!host) return () => {};
-  host.style.cssText = `display:grid; grid-template-columns: 220px 1fr; gap: 16px; min-height: 60vh;`;
   host.innerHTML = `
-    <aside class="ch-list" style="border-right:1px solid var(--line,#e5e7ef); padding-right:10px;"></aside>
-    <div class="ch-thread"></div>
+    <div class="ch-pane" style="display:flex; flex-direction:column; gap:10px; min-height:60vh;">
+      <header style="display:flex; align-items:center; gap:8px;">
+        <strong style="flex:1; font:600 0.95rem 'Noto Sans',sans-serif; color:var(--ink,#1b264f);">Channels</strong>
+        <button type="button" class="flock-btn flock-btn--primary flock-btn--sm" data-act="new-channel">+ New Channel</button>
+      </header>
+      <div class="ch-grid" style="display:grid; grid-template-columns:220px 1fr; gap:16px; flex:1; min-height:0;">
+        <aside class="ch-list" style="border-right:1px solid var(--line,#e5e7ef); padding-right:10px; overflow:auto;"></aside>
+        <div class="ch-thread" style="min-width:0;"></div>
+      </div>
+    </div>
   `;
   const list   = host.querySelector('.ch-list');
   const thread = host.querySelector('.ch-thread');
@@ -23,9 +30,10 @@ export function renderChannelsPane(host /*, ctx */) {
 
   function paint(rows = []) {
     list.innerHTML = rows.length ? rows.map(_row).join('') :
-      `<div style="color:var(--ink-muted,#7a7f96); padding:8px;">No channels yet.</div>`;
+      `<div style="color:var(--ink-muted,#7a7f96); padding:8px;">No channels yet. Click “+ New Channel” above.</div>`;
     list.querySelectorAll('[data-ch]').forEach((el) => {
-      el.addEventListener('click', () => {
+      el.addEventListener('click', (e) => {
+        if (e.target.closest('[data-archive]')) return; // archive btn handled separately
         if (activeId === el.dataset.ch) return;
         activeId = el.dataset.ch;
         list.querySelectorAll('[data-ch]').forEach((n) => n.style.background = 'transparent');
@@ -35,7 +43,27 @@ export function renderChannelsPane(host /*, ctx */) {
         stopThread = renderThread(thread, { channelId: activeId });
       });
     });
+    list.querySelectorAll('[data-archive]').forEach((btn) => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const id   = btn.dataset.archive;
+        const name = btn.dataset.name || id;
+        if (!confirm(`Archive #${name}? Members will lose access.`)) return;
+        try { await channels.archive(id); }
+        catch (err) { console.error('[Fellowship] archive channel:', err); alert(err?.message || 'Could not archive channel.'); }
+      });
+    });
   }
+
+  host.querySelector('[data-act="new-channel"]').addEventListener('click', async () => {
+    const name = prompt('Channel name (e.g. prayer, worship-team):');
+    if (!name) return;
+    const clean = name.trim().toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '');
+    if (!clean) { alert('Please enter a valid channel name.'); return; }
+    const description = prompt('Short description (optional):') || '';
+    try { await channels.create({ name: clean, description }); }
+    catch (err) { console.error('[Fellowship] create channel:', err); alert(err?.message || 'Could not create channel.'); }
+  });
 
   // Seed defaults idempotently then watch.
   seeding.seed().catch(() => {});
@@ -50,14 +78,17 @@ export function renderChannelsPane(host /*, ctx */) {
 function _row(c) {
   const badge = c && c.unread ? `<span style="background:var(--accent,#e8a838); color:#fff; padding:1px 6px; border-radius:10px; font-size:0.72rem;">${c.unread}</span>` : '';
   return `
-    <button data-ch="${_e(c.id)}" type="button"
+    <div data-ch="${_e(c.id)}" class="ch-row"
       style="display:flex; align-items:center; gap:8px; width:100%; padding:8px 10px;
-             border:0; background:transparent; cursor:pointer; border-radius:8px;
-             color:var(--ink,#1b264f); text-align:left; font:500 0.92rem 'Noto Sans',sans-serif;">
+             cursor:pointer; border-radius:8px; color:var(--ink,#1b264f); text-align:left;
+             font:500 0.92rem 'Noto Sans',sans-serif;">
       <span style="color:var(--ink-muted,#7a7f96);">#</span>
-      <span style="flex:1;">${_e(c.name || c.id)}</span>
+      <span style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${_e(c.name || c.id)}</span>
       ${badge}
-    </button>`;
+      <button type="button" data-archive="${_e(c.id)}" data-name="${_e(c.name || c.id)}" title="Archive channel"
+        style="border:0; background:transparent; cursor:pointer; padding:2px 6px;
+               color:var(--ink-muted,#7a7f96); border-radius:6px; font-size:1rem;">×</button>
+    </div>`;
 }
 function _e(s) {
   return String(s ?? '').replace(/[&<>"']/g, (c) =>

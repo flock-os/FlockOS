@@ -12,17 +12,18 @@ import * as scrolls from '../../Scripts/the_scrolls/index.js';
 
 export function renderInteractionsPane(host /*, ctx */) {
   if (!host) return () => {};
-  host.style.cssText = `display:flex; flex-direction:column; gap:10px; min-height: 60vh;`;
   host.innerHTML = `
-    <div style="display:flex; gap:8px; align-items:center;">
-      <flock-select label="Type" id="ix-type"></flock-select>
-      <input type="search" placeholder="Search…" id="ix-q"
-        style="flex:1; padding:9px 12px; border:1px solid var(--line,#e5e7ef);
-               border-radius:8px; font:inherit; background:var(--bg-raised,#fff); color:var(--ink,#1b264f);">
-      <flock-button data-act="refresh">Refresh</flock-button>
-    </div>
-    <div data-bind="list" style="display:flex; flex-direction:column; gap:6px;">
-      <flock-skeleton rows="6"></flock-skeleton>
+    <div class="ix-pane" style="display:flex; flex-direction:column; gap:10px; min-height:60vh;">
+      <div style="display:flex; gap:8px; align-items:center;">
+        <flock-select label="Type" id="ix-type"></flock-select>
+        <input type="search" placeholder="Search…" id="ix-q"
+          style="flex:1; padding:9px 12px; border:1px solid var(--line,#e5e7ef);
+                 border-radius:8px; font:inherit; background:var(--bg-raised,#fff); color:var(--ink,#1b264f);">
+        <flock-button data-act="refresh">Refresh</flock-button>
+      </div>
+      <div data-bind="list" style="display:flex; flex-direction:column; gap:6px;">
+        <flock-skeleton rows="6"></flock-skeleton>
+      </div>
     </div>
   `;
 
