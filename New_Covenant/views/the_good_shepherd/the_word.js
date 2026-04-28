@@ -23,7 +23,6 @@ export function mountTodayWord(host, ctx) {
     if (!list.length) {
       host.innerHTML = `
         <div class="word-card word-card--empty devo-dark-card">
-          <div class="word-mark devo-dark-mark">🕯️</div>
           <div class="word-body">
             <div class="word-eyebrow devo-dark-eyebrow">Today's Word</div>
             <div class="word-title devo-dark-title">Open the Word together</div>
@@ -47,7 +46,6 @@ export function mountTodayWord(host, ctx) {
 
     host.innerHTML = `
       <div class="word-card devo-dark-card">
-        <div class="word-mark devo-dark-mark">🕯️</div>
         <div class="word-body">
           <div class="word-eyebrow devo-dark-eyebrow">
             <span>Today's Word</span>

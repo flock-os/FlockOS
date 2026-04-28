@@ -3180,11 +3180,11 @@ flock-tabs [role="tablist"], .tabs-bar {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
-  align-items: start;
+  align-items: stretch;
 }
-.pasture-devo-col { min-width: 0; }
-.pasture-devo-col .word-card { height: 100%; box-sizing: border-box; }
-.pasture-devo-col .pray-liturgy-card { height: 100%; box-sizing: border-box; }
+.pasture-devo-col { min-width: 0; display: flex; flex-direction: column; }
+.pasture-devo-col .word-card,
+.pasture-devo-col .pray-liturgy-card { flex: 1; box-sizing: border-box; }
 @media (max-width: 720px) {
   .pasture-devo-row { grid-template-columns: 1fr; }
 }
