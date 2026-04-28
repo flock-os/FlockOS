@@ -124,7 +124,6 @@ async function _loadTruth(root) {
   }
 
   // Recent sermons/messages
-  const msgsEl = root.querySelector('.truth-messages');
   if (msgsEl) {
     msgsEl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Loading messages…</div>';
     try {

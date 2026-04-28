@@ -148,7 +148,6 @@ async function _loadHarvest(root) {
   }
 
   // Local outreach
-  const outreachEl = root.querySelector('.harvest-outreach');
   if (outreachEl) {
     outreachEl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Loading outreach…</div>';
     try {
