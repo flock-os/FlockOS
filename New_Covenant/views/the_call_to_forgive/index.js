@@ -107,19 +107,31 @@ function _rows(res) {
   return [];
 }
 
+function _isFB() {
+  const UR = window.UpperRoom;
+  return !!(UR && typeof UR.isReady === 'function' && UR.isReady() && typeof UR.listCareCases === 'function');
+}
+
 async function _loadCases(root, onReload) {
-  const V = window.TheVine;
+  const V  = window.TheVine;
+  const UR = window.UpperRoom;
+  const useFB = _isFB();
   const casesEl = root.querySelector('[data-bind="cases"]');
   if (!casesEl) return;
-  if (!V) {
+  if (!useFB && !V) {
     casesEl.innerHTML = '<div class="life-empty" style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Reconciliation data is unavailable right now.</div>';
     return;
   }
 
   try {
-    // Reconciliation cases come from care items tagged with reconciliation type
-    const res  = await V.flock.care.list({ type: 'reconciliation', limit: 25 });
-    const rows = _rows(res).filter(r => String(r.type || r.careType || '').toLowerCase() === 'reconciliation').slice(0, 12);
+    // Fetch all care cases then filter client-side by careType=reconciliation
+    let allRows;
+    if (useFB) {
+      allRows = _rows(await UR.listCareCases({}));
+    } else {
+      allRows = _rows(await V.flock.care.list({ careType: 'reconciliation', limit: 50 }));
+    }
+    const rows = allRows.filter(r => String(r.careType || r.type || '').toLowerCase() === 'reconciliation').slice(0, 12);
     if (!rows.length) {
       casesEl.innerHTML = '<div class="life-empty" style="padding:32px;text-align:center;color:var(--ink-muted,#7a7f96)">No reconciliation cases on file. Use "Open Case" to begin one.</div>';
       _liveCasesMap = {};
@@ -129,7 +141,7 @@ async function _loadCases(root, onReload) {
     casesEl.innerHTML = rows.map(c => {
       const party1   = c.memberName || c.party1 || c.submitterName || '(unnamed)';
       const party2   = c.party2 || c.otherParty || '';
-      const issue    = c.title || c.description || c.issue || '';
+      const issue    = c.summary || c.title || c.description || c.issue || '';
       const stage    = c.status || c.stage || 'Processing';
       const dateMs   = c.createdAt?.seconds ? c.createdAt.seconds * 1000 : (c.date ? new Date(c.date).getTime() : 0);
       const date     = dateMs ? new Date(dateMs).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '';
@@ -145,13 +157,13 @@ async function _loadCases(root, onReload) {
           id:     rec.id,
           party1: rec.memberName || rec.party1 || rec.submitterName || 'Member',
           party2: rec.party2 || rec.otherParty || '',
-          issue:  rec.title || rec.description || rec.issue || '',
+          issue:  rec.summary || rec.title || rec.description || rec.issue || '',
           stage:  rec.status || rec.stage || 'Processing',
         }, onReload);
       });
     });
   } catch (err) {
-    console.error('[TheCallToForgive] care.list error:', err);
+    console.error('[TheCallToForgive] load error:', err);
     casesEl.innerHTML = '<div class="life-empty" style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Could not load reconciliation cases right now.</div>';
   }
 }
@@ -187,6 +199,8 @@ function _closeCtfSheet() {
 function _openCaseSheet(c, onReload) {
   _closeCtfSheet();
   const V     = window.TheVine;
+  const UR    = window.UpperRoom;
+  const useFB = _isFB();
   const isNew = !c;
   const uid   = c?.id ? String(c.id) : '';
 
@@ -254,16 +268,19 @@ function _openCaseSheet(c, onReload) {
     const btn = sheet.querySelector('[data-save]');
     btn.disabled = true; btn.textContent = isNew ? 'Opening…' : 'Saving…';
     const payload = {
-      type:        'reconciliation',
-      party1:      p1,
-      party2:      sheet.querySelector('[data-field="party2"]').value.trim() || undefined,
-      description: sheet.querySelector('[data-field="issue"]').value.trim() || undefined,
-      status:      isNew ? 'Processing' : (sheet.querySelector('[data-field="stage"]')?.value || 'Processing'),
+      careType: 'reconciliation',
+      party1:   p1,
+      party2:   sheet.querySelector('[data-field="party2"]').value.trim() || undefined,
+      summary:  sheet.querySelector('[data-field="issue"]').value.trim() || undefined,
+      status:   isNew ? 'Processing' : (sheet.querySelector('[data-field="stage"]')?.value || 'Processing'),
     };
     if (!isNew) payload.id = uid;
     try {
-      if (isNew) { await V.flock.care.create(payload); }
-      else       { await V.flock.care.update(payload); }
+      if (isNew) {
+        await (useFB ? UR.createCareCase(payload) : V.flock.care.create(payload));
+      } else {
+        await (useFB ? UR.updateCareCase(payload) : V.flock.care.update(payload));
+      }
       _closeCtfSheet();
       onReload?.();
     } catch (err) {
@@ -279,7 +296,7 @@ function _openCaseSheet(c, onReload) {
     const btn = sheet.querySelector('[data-close-case]');
     btn.disabled = true; btn.textContent = 'Closing…';
     try {
-      await V.flock.care.update({ id: uid, status: 'Closed' });
+      await (useFB ? UR.updateCareCase({ id: uid, status: 'Closed' }) : V.flock.care.update({ id: uid, status: 'Closed' }));
       _closeCtfSheet();
       onReload?.();
     } catch (_) { btn.disabled = false; btn.textContent = 'Close Case'; }
@@ -291,8 +308,8 @@ function _openCaseSheet(c, onReload) {
     const btn = sheet.querySelector('[data-delete]');
     btn.disabled = true; btn.textContent = 'Deleting…';
     try {
-      if (typeof V.flock.care.delete === 'function') await V.flock.care.delete({ id: uid });
-      else await V.flock.care.update({ id: uid, status: 'Deleted' });
+      // care.delete does not exist in the API — always soft-delete via status update
+      await (useFB ? UR.updateCareCase({ id: uid, status: 'Deleted' }) : V.flock.care.update({ id: uid, status: 'Deleted' }));
       _closeCtfSheet();
       onReload?.();
     } catch (err) {
