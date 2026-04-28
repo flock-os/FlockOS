@@ -12,22 +12,6 @@ let _activeTruthSheet = null;
 let _liveSeriesMap    = {};
 let _liveMsgMap       = {};
 
-const SERIES = [
-  { id: 1, title: 'Rooted',            speaker: 'Pastor Mike',  episodes: 6,  cover: '#7c3aed', icon: '🌿', current: true,  desc: 'Colossians — established and built up in him.' },
-  { id: 2, title: 'Fear Not',          speaker: 'Elder Sarah',  episodes: 4,  cover: '#0ea5e9', icon: '🛡️', current: false, desc: 'Overcoming anxiety through the promises of God.' },
-  { id: 3, title: 'Living Water',      speaker: 'Pastor Mike',  episodes: 8,  cover: '#059669', icon: '💧', current: false, desc: 'John 4 — the invitation that changes everything.' },
-  { id: 4, title: 'The King is Coming',speaker: 'Guest: Dr. A. Osei', episodes: 3, cover: '#e8a838', icon: '👑', current: false, desc: 'Revelation 1–3 — letters to the seven churches.' },
-];
-
-const MESSAGES = [
-  { id: 1, title: 'Rooted & Built Up (Week 6)',  series: 'Rooted',       speaker: 'Pastor Mike', date: 'Apr 20, 2026', duration: '42 min', views: 184, type: 'sermon' },
-  { id: 2, title: 'Rooted & Built Up (Week 5)',  series: 'Rooted',       speaker: 'Pastor Mike', date: 'Apr 13, 2026', duration: '38 min', views: 201, type: 'sermon' },
-  { id: 3, title: 'Women\'s Bible Study — Esther 4', series: 'Study', speaker: 'Grace Kimura',  date: 'Apr 10, 2026', duration: '55 min', views:  62, type: 'study' },
-  { id: 4, title: 'Fear Not — Week 4 (Final)',   series: 'Fear Not',     speaker: 'Elder Sarah',  date: 'Apr  6, 2026', duration: '44 min', views: 167, type: 'sermon' },
-  { id: 5, title: 'Morning Devotional — Psalm 46', series: 'Devotional', speaker: 'Deacon James', date: 'Apr  1, 2026', duration: '12 min', views:  95, type: 'devotional' },
-  { id: 6, title: 'Fear Not — Week 3',           series: 'Fear Not',     speaker: 'Elder Sarah',  date: 'Mar 30, 2026', duration: '41 min', views: 149, type: 'sermon' },
-];
-
 const TYPE_META = {
   sermon:     { label: 'Sermon',     color: '#7c3aed', bg: 'rgba(124,58,237,0.11)' },
   study:      { label: 'Study',      color: '#0ea5e9', bg: 'rgba(14,165,233,0.11)' },
@@ -106,10 +90,14 @@ export function mount(root) {
 
 async function _loadTruth(root) {
   const V = window.TheVine;
-  if (!V) return;
-
-  // Sermon series
   const seriesEl = root.querySelector('.truth-series-grid');
+  const msgsEl   = root.querySelector('.truth-messages');
+  if (!V) {
+    if (seriesEl) seriesEl.innerHTML = '<div class="life-empty" style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Content backend not loaded.</div>';
+    if (msgsEl)   msgsEl.innerHTML   = '<div class="life-empty" style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Content backend not loaded.</div>';
+    return;
+  }
+  if (!V) return;
   if (seriesEl) {
     seriesEl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Loading series…</div>';
     try {
@@ -231,49 +219,6 @@ function _fmtDate(ts) {
   catch (_) { return String(ts); }
 }
 
-function _seriesCard(s) {
-  return /* html */`
-    <article class="truth-series-card${s.current ? ' truth-series--current' : ''}" tabindex="0">
-      <div class="truth-series-cover" style="background:${s.cover}">${s.icon}</div>
-      <div class="truth-series-body">
-        <div class="truth-series-title">${_e(s.title)}</div>
-        <div class="truth-series-speaker">${_e(s.speaker)}</div>
-        <div class="truth-series-desc">${_e(s.desc)}</div>
-        <div class="truth-series-foot">
-          <span class="truth-episode-count">${s.episodes} messages</span>
-          ${s.current ? '<span class="truth-current-badge">Current</span>' : ''}
-        </div>
-      </div>
-    </article>
-  `;
-}
-
-function _messageRow(m) {
-  const meta = TYPE_META[m.type] || TYPE_META.sermon;
-  return /* html */`
-    <article class="truth-msg-row" data-type="${_e(m.type)}" tabindex="0">
-      <div class="truth-msg-play">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-      </div>
-      <div class="truth-msg-body">
-        <div class="truth-msg-title">${_e(m.title)}</div>
-        <div class="truth-msg-meta">
-          <span class="truth-type-badge" style="color:${meta.color}; background:${meta.bg}">${meta.label}</span>
-          <span>${_e(m.speaker)}</span>
-          <span>·</span>
-          <span>${_e(m.date)}</span>
-          <span>·</span>
-          <span>${_e(m.duration)}</span>
-        </div>
-      </div>
-      <div class="truth-msg-views">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-        ${m.views}
-      </div>
-    </article>
-  `;
-}
-
 function _e(s) {
   return String(s ?? '').replace(/[&<>"']/g, (c) =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -374,6 +319,7 @@ function _openMsgSheet(m, onReload) {
     const errEl = sheet.querySelector('[data-error]');
     const titleVal = sheet.querySelector('[data-field="title"]').value.trim();
     if (!titleVal) { errEl.textContent = 'Title is required.'; errEl.style.display = ''; return; }
+    if (!V) { errEl.textContent = 'Content backend not loaded.'; errEl.style.display = ''; return; }
     errEl.style.display = 'none';
     const btn = sheet.querySelector('[data-save]');
     btn.disabled = true; btn.textContent = isNew ? 'Uploading…' : 'Saving…';
@@ -408,7 +354,11 @@ function _openMsgSheet(m, onReload) {
       await V.flock.sermons.update({ id: uid, status: 'Deleted' });
       _closeTruthSheet();
       onReload?.();
-    } catch (err) { btn.disabled = false; btn.textContent = 'Delete'; }
+    } catch (err) {
+      console.error('[TheTruth] sermons.delete error:', err);
+      btn.disabled = false; btn.textContent = 'Delete';
+      alert(err?.message || 'Could not delete message.');
+    }
   });
 }
 
@@ -479,6 +429,7 @@ function _openSeriesSheet(s, onReload) {
     const errEl   = sheet.querySelector('[data-error]');
     const titleVal = sheet.querySelector('[data-field="title"]').value.trim();
     if (!titleVal) { errEl.textContent = 'Title is required.'; errEl.style.display = ''; return; }
+    if (!V) { errEl.textContent = 'Content backend not loaded.'; errEl.style.display = ''; return; }
     errEl.style.display = 'none';
     const btn = sheet.querySelector('[data-save]');
     btn.disabled = true; btn.textContent = isNew ? 'Creating…' : 'Saving…';
@@ -512,7 +463,11 @@ function _openSeriesSheet(s, onReload) {
       await V.flock.sermonSeries.update({ id: uid, status: 'Archived' });
       _closeTruthSheet();
       onReload?.();
-    } catch (err) { btn.disabled = false; btn.textContent = 'Archive Series'; }
+    } catch (err) {
+      console.error('[TheTruth] sermonSeries.archive error:', err);
+      btn.disabled = false; btn.textContent = 'Archive Series';
+      alert(err?.message || 'Could not archive series.');
+    }
   });
 }
 

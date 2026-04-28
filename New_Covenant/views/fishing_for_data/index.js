@@ -8,28 +8,14 @@ import { pageHero } from '../_frame.js';
 export const name  = 'fishing_for_data';
 export const title = 'Analytics';
 
-// ── Demo data ─────────────────────────────────────────────────────────────────
-const KPI = [
-  { label: 'Avg. Weekly Attendance', value: '312',  delta: '+8%',  up: true,  color: 'var(--c-violet)' },
-  { label: 'Monthly Giving',         value: '$24.6k', delta: '+12%', up: true,  color: 'var(--c-emerald)' },
-  { label: 'New Members (QTD)',       value: '41',   delta: '+5',   up: true,  color: 'var(--c-sky)'    },
-  { label: 'Care Items Open',         value: '8',    delta: '-3',   up: false, color: 'var(--gold)'     },
-];
-
-// Weekly attendance: last 12 weeks, ending today (Apr 26)
-const ATTENDANCE = [247,261,284,255,311,298,319,302,328,315,309,312];
-const WEEKS      = ['Feb 1','Feb 8','Feb 15','Feb 22','Mar 1','Mar 8','Mar 15','Mar 22','Mar 29','Apr 5','Apr 13','Apr 20'];
-
-const MONTHLY = [
-  { month: 'Jan', attendance: 288, giving: 21400, members: 229, new: 6 },
-  { month: 'Feb', attendance: 297, giving: 22100, members: 233, new: 4 },
-  { month: 'Mar', attendance: 308, giving: 23500, members: 239, new: 6 },
-  { month: 'Apr', attendance: 312, giving: 24600, members: 247, new: 8 },
+const KPI_DEFS = [
+  { label: 'Avg. Weekly Attendance', color: 'var(--c-violet)' },
+  { label: 'Monthly Giving',         color: 'var(--c-emerald)' },
+  { label: 'New Members (QTD)',      color: 'var(--c-sky)' },
+  { label: 'Care Items Open',        color: 'var(--gold)' },
 ];
 
 export function render() {
-  const maxAtt = Math.max(...ATTENDANCE);
-
   return /* html */`
     <section class="data-view">
       ${pageHero({
@@ -39,14 +25,12 @@ export function render() {
       })}
 
       <!-- KPI strip -->
-      <div class="data-kpi-strip">
-        ${KPI.map(k => `
+      <div class="data-kpi-strip" data-bind="kpi">
+        ${KPI_DEFS.map(k => `
           <div class="data-kpi-card">
-            <div class="data-kpi-value" style="color:${k.color}">${_e(k.value)}</div>
+            <div class="data-kpi-value" style="color:${k.color}">—</div>
             <div class="data-kpi-label">${_e(k.label)}</div>
-            <div class="data-kpi-delta ${k.up ? 'data-delta--up' : 'data-delta--down'}">
-              ${k.up ? '↑' : '↓'} ${_e(k.delta)} vs last period
-            </div>
+            <div class="data-kpi-delta" style="color:var(--ink-muted,#7a7f96)">Loading…</div>
           </div>
         `).join('')}
       </div>
@@ -56,38 +40,9 @@ export function render() {
         <div class="data-card-header">
           <h2 class="data-card-title">Weekly Attendance — Last 12 Weeks</h2>
         </div>
-        <div class="data-chart-wrap">
-          ${_barChart(ATTENDANCE, WEEKS, maxAtt)}
+        <div class="data-chart-wrap" data-bind="chart">
+          <div class="life-empty" style="padding:24px 8px;color:var(--ink-muted,#7a7f96);text-align:center">Loading attendance data…</div>
         </div>
-      </div>
-
-      <!-- Monthly summary table -->
-      <div class="data-card">
-        <div class="data-card-header">
-          <h2 class="data-card-title">Monthly Summary — 2026</h2>
-        </div>
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Month</th>
-              <th>Avg Attendance</th>
-              <th>Giving</th>
-              <th>Total Members</th>
-              <th>New Members</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${MONTHLY.map(r => `
-              <tr>
-                <td><strong>${_e(r.month)}</strong></td>
-                <td>${r.attendance}</td>
-                <td>$${r.giving.toLocaleString()}</td>
-                <td>${r.members}</td>
-                <td class="data-cell--good">+${r.new}</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
       </div>
     </section>
   `;
@@ -108,16 +63,25 @@ function _rows(res) {
 }
 
 async function _loadAnalytics(root) {
-  const V = window.TheVine;
-  if (!V) return;
+  const errMsg = (msg) => `<div class="life-empty" style="padding:24px 8px;color:var(--ink-muted,#7a7f96);text-align:center">${msg}</div>`;
+  const chartWrap = root.querySelector('[data-bind="chart"]');
 
-  const [attRes, giveRes, membersRes] = await Promise.allSettled([
-    V.flock.attendance.summary({ weeks: 12 }),
-    V.flock.giving.summary(),
-    V.flock.members.list({ limit: 500 }),
+  const V = window.TheVine;
+  if (!V) {
+    if (chartWrap) chartWrap.innerHTML = errMsg('Analytics backend not loaded.');
+    root.querySelectorAll('.data-kpi-card .data-kpi-delta').forEach(el => { el.textContent = 'Unavailable'; });
+    return;
+  }
+
+  const [attRes, giveRes, membersRes, careRes] = await Promise.allSettled([
+    V.flock?.attendance?.summary?.({ weeks: 12 }),
+    V.flock?.giving?.summary?.(),
+    V.flock?.members?.list?.({ limit: 500 }),
+    V.flock?.care?.list?.({ limit: 500 }),
   ]);
 
-  // ── Attendance KPI + chart ──────────────────────────────────────────────
+  let chartFilled = false;
+
   if (attRes.status === 'fulfilled' && attRes.value) {
     const rows = _rows(attRes.value.weekly || attRes.value.snapshots || attRes.value);
     if (rows.length) {
@@ -130,26 +94,25 @@ async function _loadAnalytics(root) {
         return dt.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
       });
       const maxV = Math.max(...vals, 1);
-      const chartWrap = root.querySelector('.data-chart-wrap');
       if (chartWrap && vals.some(v => v > 0)) {
         chartWrap.innerHTML = _barChart(vals, labels, maxV);
+        chartFilled = true;
       }
-      // Update avg attendance KPI card (index 0)
       const avg = Math.round(vals.reduce((s, v) => s + v, 0) / vals.length);
-      if (avg > 0) _setKpi(root, 0, String(avg));
+      _setKpi(root, 0, avg > 0 ? String(avg) : '—', '12-week average');
+    } else {
+      _setKpi(root, 0, '—', 'No data');
     }
-  }
+  } else { _setKpi(root, 0, '—', 'Unavailable'); }
+  if (chartWrap && !chartFilled) chartWrap.innerHTML = errMsg('No attendance snapshots available.');
 
-  // ── Giving KPI ──────────────────────────────────────────────────────────
   if (giveRes.status === 'fulfilled' && giveRes.value) {
     const g = giveRes.value;
     const monthly = g.monthlyTotal ?? g.thisMonth ?? g.givingMonthTotal ?? g.total ?? 0;
-    if (monthly > 0) {
-      _setKpi(root, 1, `$${(monthly / 1000).toFixed(1)}k`);
-    }
-  }
+    if (monthly > 0) _setKpi(root, 1, `$${(monthly / 1000).toFixed(1)}k`, 'This month');
+    else             _setKpi(root, 1, '—', 'No data');
+  } else { _setKpi(root, 1, '—', 'Unavailable'); }
 
-  // ── Members: new this quarter ───────────────────────────────────────────
   if (membersRes.status === 'fulfilled') {
     const all = _rows(membersRes.value);
     if (all.length) {
@@ -161,16 +124,27 @@ async function _loadAnalytics(root) {
         const dt = new Date(typeof raw === 'object' && raw.seconds ? raw.seconds * 1000 : raw);
         return dt >= qStart;
       }).length;
-      if (newQ > 0) _setKpi(root, 2, String(newQ));
-    }
-  }
+      _setKpi(root, 2, String(newQ), 'Quarter to date');
+    } else { _setKpi(root, 2, '0', 'No members yet'); }
+  } else { _setKpi(root, 2, '—', 'Unavailable'); }
+
+  if (careRes.status === 'fulfilled') {
+    const all = _rows(careRes.value);
+    const TERMINAL = new Set(['resolved','closed','archived','cancelled','denied','completed','answered','inactive','deleted']);
+    const open = all.filter(c => !TERMINAL.has(String(c.status || '').toLowerCase()));
+    _setKpi(root, 3, String(open.length), open.length ? 'Open now' : 'All clear');
+  } else { _setKpi(root, 3, '—', 'Unavailable'); }
 }
 
-function _setKpi(root, idx, value) {
+function _setKpi(root, idx, value, deltaLabel) {
   const cards = root.querySelectorAll('.data-kpi-card');
   if (!cards[idx]) return;
   const el = cards[idx].querySelector('.data-kpi-value');
   if (el) el.textContent = value;
+  if (deltaLabel != null) {
+    const d = cards[idx].querySelector('.data-kpi-delta');
+    if (d) { d.textContent = deltaLabel; d.style.color = 'var(--ink-muted,#7a7f96)'; }
+  }
 }
 
 function _barChart(data, labels, maxVal) {

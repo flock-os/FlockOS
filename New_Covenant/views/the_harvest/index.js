@@ -12,27 +12,13 @@ let _activeHarvestSheet = null;
 let _liveMissMap        = {};
 let _liveOutreachMap    = {};
 
-const YEAR = 2026;
+const YEAR = new Date().getFullYear();
 
-const STATS = [
-  { label: 'Decisions for Christ', n: 34,  delta: '+8 this quarter',  icon: '✝️',  color: 'var(--c-violet)' },
-  { label: 'Baptisms',             n: 19,  delta: '+5 this quarter',  icon: '💧',  color: 'var(--c-sky)'    },
-  { label: 'New Members',          n: 41,  delta: '+11 this quarter', icon: '🌱',  color: 'var(--c-emerald)'},
-  { label: 'Gospel Contacts',      n: 287, delta: 'This year',        icon: '🌍',  color: 'var(--gold)'     },
-];
-
-const MISSIONARIES = [
-  { name: 'Thomas & Grace Adu',  region: 'West Africa',       org: 'SIM',           giving: 1200, goal: 1500, supported: true  },
-  { name: 'Rafael Mendes',       region: 'Amazonian Brazil',  org: 'ABWE',          giving:  800, goal:  800, supported: true  },
-  { name: 'Sophie & Jean Blanc', region: 'North Africa',      org: 'OM',            giving:  600, goal:  900, supported: true  },
-  { name: 'Deborah Nwachukwu',   region: 'Middle East',       org: 'Frontiers',     giving:    0, goal: 1000, supported: false },
-];
-
-const OUTREACH = [
-  { title: 'Downtown Gospel Rally',   date: 'May 17',   team: 12, contacts: '~80 expected',  status: 'upcoming' },
-  { title: 'Prison Ministry Visit',   date: 'May 3',    team: 6,  contacts: 'Brookfield CI',  status: 'upcoming' },
-  { title: 'Neighborhood Bible Club', date: 'Weekly',   team: 8,  contacts: 'Oak Ave / kids', status: 'active'   },
-  { title: 'Easter Outreach',         date: 'Apr 5',    team: 24, contacts: '143 gospel conversations', status: 'complete' },
+const STAT_DEFS = [
+  { key: 'decisions', label: 'Decisions for Christ', icon: '✝️', color: 'var(--c-violet)' },
+  { key: 'baptisms',  label: 'Baptisms',             icon: '💧', color: 'var(--c-sky)' },
+  { key: 'newMembers',label: 'New Members',          icon: '🌱', color: 'var(--c-emerald)' },
+  { key: 'contacts',  label: 'Gospel Contacts',      icon: '🌍', color: 'var(--gold)' },
 ];
 
 export function render() {
@@ -45,13 +31,13 @@ export function render() {
       })}
 
       <!-- Kingdom stats -->
-      <div class="harvest-stats">
-        ${STATS.map(s => `
-          <div class="harvest-stat-card">
+      <div class="harvest-stats" data-bind="stats">
+        ${STAT_DEFS.map(s => `
+          <div class="harvest-stat-card" data-stat="${s.key}">
             <div class="harvest-stat-icon">${s.icon}</div>
-            <div class="harvest-stat-n" style="color:${s.color}">${s.n}</div>
+            <div class="harvest-stat-n" style="color:${s.color}">—</div>
             <div class="harvest-stat-label">${_e(s.label)}</div>
-            <div class="harvest-stat-delta">${_e(s.delta)}</div>
+            <div class="harvest-stat-delta">Loading…</div>
           </div>
         `).join('')}
       </div>
@@ -62,7 +48,7 @@ export function render() {
         <button class="flock-btn flock-btn--ghost">Manage Support</button>
       </div>
       <div class="harvest-missionaries">
-        ${MISSIONARIES.map(_missionCard).join('')}
+        <div class="life-empty" style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Loading missionaries…</div>
       </div>
 
       <!-- Local Outreach -->
@@ -74,7 +60,7 @@ export function render() {
         </button>
       </div>
       <div class="harvest-outreach">
-        ${OUTREACH.map(_outreachRow).join('')}
+        <div class="life-empty" style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Loading outreach…</div>
       </div>
     </section>
   `;
@@ -99,12 +85,19 @@ export function mount(root) {
 
 async function _loadHarvest(root) {
   const V = window.TheVine;
-  if (!V) return;
+  const missionEl  = root.querySelector('.harvest-missionaries');
+  const outreachEl = root.querySelector('.harvest-outreach');
+  const statsEl    = root.querySelector('[data-bind="stats"]');
 
+  if (!V) {
+    if (missionEl)  missionEl.innerHTML  = '<div class="life-empty" style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Harvest backend not loaded.</div>';
+    if (outreachEl) outreachEl.innerHTML = '<div class="life-empty" style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Harvest backend not loaded.</div>';
+    _setAllStats(statsEl, '—', 'Unavailable');
+    return;
+  }
   // Missionaries — registry may also contain people-group / country records
   // (imported from Joshua Project / Bible Access List). Only treat a record as
   // a supported missionary if it has an actual personal name AND a giving goal.
-  const missionEl = root.querySelector('.harvest-missionaries');
   if (missionEl) {
     missionEl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Loading missionaries…</div>';
     try {
@@ -134,7 +127,7 @@ async function _loadHarvest(root) {
       }
       missionEl.innerHTML = missionaries.length
         ? missionaries.map(_liveMissionCard).join('')
-        : MISSIONARIES.map(_missionCard).join('');
+        : '<div class="life-empty" style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">No missionary partners on file yet.</div>';
       // Wire edit clicks for live missionaries
       if (missionaries.length) {
         _liveMissMap = {};
@@ -150,7 +143,7 @@ async function _loadHarvest(root) {
       }
     } catch (err) {
       console.error('[TheHarvest] missions load error:', err);
-      missionEl.innerHTML = MISSIONARIES.map(_missionCard).join('');
+      missionEl.innerHTML = '<div class="life-empty" style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Could not load missionary partners.</div>';
     }
   }
 
@@ -184,9 +177,70 @@ async function _loadHarvest(root) {
       }
     } catch (err) {
       console.error('[TheHarvest] events.list outreach error:', err);
-      outreachEl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Outreach data unavailable.</div>';
+      outreachEl.innerHTML = '<div class="life-empty" style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Outreach data unavailable.</div>';
     }
   }
+
+  // Kingdom stats — derive from registry where possible
+  await _loadHarvestStats(V, statsEl);
+}
+
+async function _loadHarvestStats(V, statsEl) {
+  if (!statsEl) return;
+  const yearStart = new Date(new Date().getFullYear(), 0, 1);
+  const qStart    = new Date(new Date().getFullYear(), Math.floor(new Date().getMonth() / 3) * 3, 1);
+  const inRange = (raw, since) => {
+    if (!raw) return false;
+    const dt = new Date(typeof raw === 'object' && raw.seconds ? raw.seconds * 1000 : raw);
+    return dt >= since;
+  };
+
+  const [bapRes, decRes, memRes] = await Promise.allSettled([
+    V.flock?.baptisms?.list?.({ limit: 500 }),
+    V.flock?.decisions?.list?.({ limit: 500 }),
+    V.flock?.members?.list?.({ limit: 1000 }),
+  ]);
+
+  // Baptisms (year-to-date + quarter delta)
+  if (bapRes.status === 'fulfilled') {
+    const all = _rows(bapRes.value);
+    const ytd = all.filter(b => inRange(b.baptismDate || b.date || b.createdAt, yearStart)).length;
+    const qtd = all.filter(b => inRange(b.baptismDate || b.date || b.createdAt, qStart)).length;
+    _setStat(statsEl, 'baptisms', String(ytd), qtd ? `+${qtd} this quarter` : 'This year');
+  } else { _setStat(statsEl, 'baptisms', '—', 'Unavailable'); }
+
+  // Decisions for Christ
+  if (decRes.status === 'fulfilled') {
+    const all = _rows(decRes.value);
+    const ytd = all.filter(d => inRange(d.decisionDate || d.date || d.createdAt, yearStart)).length;
+    const qtd = all.filter(d => inRange(d.decisionDate || d.date || d.createdAt, qStart)).length;
+    _setStat(statsEl, 'decisions', String(ytd), qtd ? `+${qtd} this quarter` : 'This year');
+  } else { _setStat(statsEl, 'decisions', '—', 'Unavailable'); }
+
+  // New members (this year + this quarter delta)
+  if (memRes.status === 'fulfilled') {
+    const all = _rows(memRes.value);
+    const ytd = all.filter(m => inRange(m.joinDate || m.createdAt, yearStart)).length;
+    const qtd = all.filter(m => inRange(m.joinDate || m.createdAt, qStart)).length;
+    _setStat(statsEl, 'newMembers', String(ytd), qtd ? `+${qtd} this quarter` : 'This year');
+  } else { _setStat(statsEl, 'newMembers', '—', 'Unavailable'); }
+
+  // Gospel contacts — no backend yet, show placeholder
+  _setStat(statsEl, 'contacts', '—', 'Track in Outreach');
+}
+
+function _setStat(statsEl, key, n, delta) {
+  const card = statsEl.querySelector(`[data-stat="${key}"]`);
+  if (!card) return;
+  const nEl = card.querySelector('.harvest-stat-n');
+  const dEl = card.querySelector('.harvest-stat-delta');
+  if (nEl) nEl.textContent = n;
+  if (dEl) dEl.textContent = delta;
+}
+
+function _setAllStats(statsEl, n, delta) {
+  if (!statsEl) return;
+  STAT_DEFS.forEach(s => _setStat(statsEl, s.key, n, delta));
 }
 
 function _rows(res) {
@@ -249,49 +303,6 @@ function _fmtDate(ts) {
   if (!ts) return '';
   try { return new Date(ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }); }
   catch (_) { return String(ts); }
-}
-
-function _missionCard(m) {
-  const pct  = Math.min(100, Math.round((m.giving / m.goal) * 100));
-  const initials = m.name.split(/[&\s]+/).filter(Boolean).map(w => w[0] || '').slice(0,2).join('').toUpperCase();
-  return /* html */`
-    <article class="harvest-mission-card${m.supported ? '' : ' harvest-mission--needs'}">
-      <div class="harvest-mission-avatar">${initials}</div>
-      <div class="harvest-mission-body">
-        <div class="harvest-mission-name">${_e(m.name)}</div>
-        <div class="harvest-mission-meta">
-          <span>${_e(m.region)}</span>
-          <span>·</span>
-          <span>${_e(m.org)}</span>
-        </div>
-        <div class="harvest-giving-bar">
-          <div class="harvest-giving-fill" style="width:${pct}%"></div>
-        </div>
-        <div class="harvest-giving-label">$${m.giving}/mo of $${m.goal}/mo goal (${pct}%)</div>
-      </div>
-      ${!m.supported ? '<div class="harvest-needs-badge">Needs Support</div>' : ''}
-    </article>
-  `;
-}
-
-function _outreachRow(o) {
-  const statusColor = o.status === 'complete' ? '#059669' : o.status === 'active' ? '#0ea5e9' : '#e8a838';
-  const statusBg    = o.status === 'complete' ? 'rgba(5,150,105,0.10)' : o.status === 'active' ? 'rgba(14,165,233,0.10)' : 'rgba(232,168,56,0.13)';
-  return /* html */`
-    <article class="harvest-outreach-row" tabindex="0">
-      <div class="harvest-outreach-body">
-        <div class="harvest-outreach-title">${_e(o.title)}</div>
-        <div class="harvest-outreach-meta">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
-          ${_e(o.date)}
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" style="margin-left:8px"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-          ${o.team} team
-          <span style="margin-left:8px; color:var(--ink-muted);">${_e(o.contacts)}</span>
-        </div>
-      </div>
-      <span class="harvest-outreach-status" style="color:${statusColor}; background:${statusBg}">${o.status}</span>
-    </article>
-  `;
 }
 
 function _e(s) {
@@ -389,6 +400,7 @@ function _openOutreachSheet(ev, onReload) {
     const errEl    = sheet.querySelector('[data-error]');
     const titleVal = sheet.querySelector('[data-field="title"]').value.trim();
     if (!titleVal) { errEl.textContent = 'Title is required.'; errEl.style.display = ''; return; }
+    if (!V) { errEl.textContent = 'Harvest backend not loaded.'; errEl.style.display = ''; return; }
     errEl.style.display = 'none';
     const btn = sheet.querySelector('[data-save]');
     btn.disabled = true; btn.textContent = isNew ? 'Creating…' : 'Saving…';
@@ -425,7 +437,11 @@ function _openOutreachSheet(ev, onReload) {
       await V.flock.events.cancel({ id: uid });
       _closeHarvestSheet();
       onReload?.();
-    } catch (err) { btn.disabled = false; btn.textContent = 'Delete Effort'; }
+    } catch (err) {
+      console.error('[TheHarvest] outreach delete error:', err);
+      btn.disabled = false; btn.textContent = 'Delete Effort';
+      alert(err?.message || 'Could not delete outreach effort.');
+    }
   });
 }
 
@@ -516,6 +532,7 @@ function _openMissionarySheet(m, onReload) {
     const errEl   = sheet.querySelector('[data-error]');
     const nameVal = sheet.querySelector('[data-field="name"]').value.trim();
     if (!nameVal) { errEl.textContent = 'Name is required.'; errEl.style.display = ''; return; }
+    if (!V) { errEl.textContent = 'Harvest backend not loaded.'; errEl.style.display = ''; return; }
     errEl.style.display = 'none';
     const btn = sheet.querySelector('[data-save]');
     btn.disabled = true; btn.textContent = isNew ? 'Adding…' : 'Saving…';
@@ -552,6 +569,10 @@ function _openMissionarySheet(m, onReload) {
       await V.missions.partners.update({ id: uid, status: 'Deleted' });
       _closeHarvestSheet();
       onReload?.();
-    } catch (err) { btn.disabled = false; btn.textContent = 'Remove Partner'; }
+    } catch (err) {
+      console.error('[TheHarvest] missionary delete error:', err);
+      btn.disabled = false; btn.textContent = 'Remove Partner';
+      alert(err?.message || 'Could not remove missionary partner.');
+    }
   });
 }

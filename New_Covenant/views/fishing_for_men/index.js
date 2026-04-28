@@ -12,21 +12,11 @@ let _activeFishSheet = null;
 let _liveContactsMap = {};
 
 const FUNNEL = [
-  { stage: 'Gospel Contacts',   n: 287, color: 'var(--c-sky)',     pct: 100 },
-  { stage: 'Follow-up Made',    n: 143, color: 'var(--c-violet)',   pct: 50  },
-  { stage: 'Interested',        n:  72, color: 'var(--gold)',       pct: 25  },
-  { stage: 'Attending Church',  n:  38, color: 'var(--c-emerald)',  pct: 13  },
-  { stage: 'Decisions',         n:  34, color: '#dc2626',           pct: 12  },
-];
-
-const CONTACTS = [
-  { name: 'Noah Williams',    source: 'Street Outreach',   date: 'Apr 24', stage: 'Attending Church', assigned: 'Elijah M.' },
-  { name: 'Aisha Kamara',     source: 'Friend Referral',   date: 'Apr 22', stage: 'Interested',       assigned: 'James O.'  },
-  { name: 'Dario Ferreira',   source: 'Community Event',   date: 'Apr 19', stage: 'Follow-up Made',   assigned: 'Unassigned' },
-  { name: 'Mei-Ling Zhao',    source: 'FlockChat Invite',  date: 'Apr 17', stage: 'Interested',       assigned: 'Priya N.'  },
-  { name: 'Kwame Asante',     source: 'Prison Ministry',   date: 'Apr 10', stage: 'Attending Church', assigned: 'Pastor Mike' },
-  { name: 'Beatrice Olawale', source: 'Mothers Day Event', date: 'Apr  6', stage: 'Gospel Contacts',  assigned: 'Unassigned' },
-  { name: 'Sven Larsson',     source: 'Community Outreach',date: 'Mar 28', stage: 'Decisions',        assigned: 'Elder Sarah' },
+  { stage: 'Gospel Contacts',   color: 'var(--c-sky)' },
+  { stage: 'Follow-up Made',    color: 'var(--c-violet)' },
+  { stage: 'Interested',        color: 'var(--gold)' },
+  { stage: 'Attending Church',  color: 'var(--c-emerald)' },
+  { stage: 'Decisions',         color: '#dc2626' },
 ];
 
 const STAGE_COLOR = {
@@ -48,16 +38,16 @@ export function render() {
 
       <!-- Funnel -->
       <div class="way-section-header">
-        <h2 class="way-section-title">Evangelism Funnel — 2026</h2>
+        <h2 class="way-section-title">Evangelism Funnel — ${new Date().getFullYear()}</h2>
       </div>
       <div class="fish-funnel">
         ${FUNNEL.map(f => `
           <div class="fish-funnel-row">
             <div class="fish-funnel-label">${_e(f.stage)}</div>
             <div class="fish-funnel-bar-wrap">
-              <div class="fish-funnel-bar" style="width:${f.pct}%; background:${f.color}"></div>
+              <div class="fish-funnel-bar" style="width:0%; background:${f.color}"></div>
             </div>
-            <div class="fish-funnel-n" style="color:${f.color}">${f.n}</div>
+            <div class="fish-funnel-n" style="color:${f.color}">—</div>
           </div>
         `).join('')}
       </div>
@@ -71,7 +61,7 @@ export function render() {
         </button>
       </div>
       <div class="fish-contacts">
-        <div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Loading contacts…</div>
+        <div class="life-empty" style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Loading contacts…</div>
       </div>
     </section>
   `;
@@ -123,12 +113,14 @@ function _rows(res) {
 
 async function _loadOutreach(root) {
   const V = window.TheVine;
-  if (!V) return;
-
   const funnelEl   = root.querySelector('.fish-funnel');
   const contactsEl = root.querySelector('.fish-contacts');
+  if (!V) {
+    if (contactsEl) contactsEl.innerHTML = '<div class="life-empty" style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Outreach backend not loaded.</div>';
+    return;
+  }
   if (contactsEl) {
-    contactsEl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Loading contacts…</div>';
+    contactsEl.innerHTML = '<div class="life-empty" style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Loading contacts…</div>';
   }
 
   try {
@@ -136,7 +128,7 @@ async function _loadOutreach(root) {
     const all  = _rows(res);
 
     if (!all.length) {
-      if (contactsEl) contactsEl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">No gospel contacts on file. Use “Log Contact” to add one.</div>';
+      if (contactsEl) contactsEl.innerHTML = '<div class="life-empty" style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">No gospel contacts on file. Use “Log Contact” to add one.</div>';
       return;
     }
 
@@ -171,7 +163,7 @@ async function _loadOutreach(root) {
       const total = all.length;
       funnelEl.innerHTML = FUNNEL.map(f => {
         const n   = f.stage === 'Gospel Contacts' ? total : (counts[f.stage] || 0);
-        const pct = total > 0 ? Math.max(1, Math.round((n / total) * 100)) : f.pct;
+        const pct = total > 0 ? Math.max(1, Math.round((n / total) * 100)) : 0;
         return `
           <div class="fish-funnel-row">
             <div class="fish-funnel-label">${_e(f.stage)}</div>
@@ -184,7 +176,7 @@ async function _loadOutreach(root) {
     }
   } catch (err) {
     console.error('[FishingForMen] outreach.contacts.list error:', err);
-    if (contactsEl) contactsEl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Could not load contacts right now.</div>';
+    if (contactsEl) contactsEl.innerHTML = '<div class="life-empty" style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Could not load contacts right now.</div>';
   }
 }
 
@@ -216,26 +208,6 @@ function _liveContactRow(c) {
       <span class="fish-stage-badge" style="color:${sc.color};background:${sc.bg}">${_e(stage)}</span>
       <div class="fish-assigned${unassigned ? ' fish-assigned--empty' : ''}">${_e(assigned)}</div>
     </article>`;
-}
-
-function _contactRow(c) {
-  const sc = STAGE_COLOR[c.stage] || { color: 'var(--ink-muted)', bg: 'var(--bg-base)' };
-  const initials = c.name.split(' ').map(w => w[0] || '').slice(0, 2).join('').toUpperCase();
-  const unassigned = c.assigned === 'Unassigned';
-  return /* html */`
-    <article class="fish-contact-row" tabindex="0">
-      <div class="fold-avatar" style="background: linear-gradient(135deg,#0ea5e9,#7c3aed); width:38px; height:38px; font-size:.78rem;">${initials}</div>
-      <div class="fish-contact-body">
-        <div class="fish-contact-name">${_e(c.name)}</div>
-        <div class="fish-contact-meta">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-          ${_e(c.source)} · ${_e(c.date)}
-        </div>
-      </div>
-      <span class="fish-stage-badge" style="color:${sc.color}; background:${sc.bg}">${_e(c.stage)}</span>
-      <div class="fish-assigned${unassigned ? ' fish-assigned--empty' : ''}">${_e(c.assigned)}</div>
-    </article>
-  `;
 }
 
 function _e(s) {
@@ -350,6 +322,7 @@ function _openContactSheet(c, onReload) {
     const errEl     = sheet.querySelector('[data-error]');
     const firstVal  = sheet.querySelector('[data-field="firstName"]').value.trim();
     if (!firstVal) { errEl.textContent = 'First name is required.'; errEl.style.display = ''; return; }
+    if (!V) { errEl.textContent = 'Outreach backend not loaded.'; errEl.style.display = ''; return; }
     errEl.style.display = 'none';
     const btn = sheet.querySelector('[data-save]');
     btn.disabled = true; btn.textContent = isNew ? 'Logging…' : 'Saving…';
@@ -386,7 +359,11 @@ function _openContactSheet(c, onReload) {
       await V.flock.outreach.contacts.update({ id: uid, status: 'Deleted' });
       _closeFishSheet();
       onReload?.();
-    } catch (err) { btn.disabled = false; btn.textContent = 'Delete Contact'; }
+    } catch (err) {
+      console.error('[FishingForMen] contact delete error:', err);
+      btn.disabled = false; btn.textContent = 'Delete Contact';
+      alert(err?.message || 'Could not delete contact.');
+    }
   });
 }
 
