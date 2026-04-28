@@ -2594,13 +2594,13 @@ flock-tabs [role="tablist"], .tabs-bar {
 /* ── Country card grid ─────────────────────────────────────────────────────── */
 .gc-country-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
 }
 .gc-country-card {
-  display: flex; flex-direction: column; gap: 5px;
+  display: flex; flex-direction: column; gap: 7px;
   background: var(--bg-raised, #fff); border: 1px solid var(--line, #e5e7ef);
-  border-radius: 10px; padding: 14px 15px;
+  border-radius: 12px; padding: 18px 20px;
   cursor: pointer;
   transition: border-color 150ms, box-shadow 150ms;
 }
@@ -2612,10 +2612,10 @@ flock-tabs [role="tablist"], .tabs-bar {
   border-color: var(--accent, #5b8fcf);
 }
 .gc-card-top   { display: flex; align-items: center; justify-content: space-between; gap: 4px; }
-.gc-flag       { font-size: 1.3rem; line-height: 1; }
+.gc-flag       { font-size: 1.8rem; line-height: 1; }
 .gc-rank-pill  {
-  font: 800 0.68rem var(--font-ui); color: var(--ink-muted, #7a7f96);
-  background: var(--bg-sunken, #f0f0f5); padding: 2px 7px; border-radius: 10px;
+  font: 800 0.78rem var(--font-ui); color: var(--ink-muted, #7a7f96);
+  background: var(--bg-sunken, #f0f0f5); padding: 3px 9px; border-radius: 10px;
 }
 .gc-edit-btn {
   margin-left: auto; opacity: 0; pointer-events: none; transition: opacity .15s;
@@ -2623,32 +2623,32 @@ flock-tabs [role="tablist"], .tabs-bar {
   border-radius: 6px; color: var(--ink-muted, #7a7f96); line-height: 1;
 }
 .gc-country-card:hover .gc-edit-btn { opacity: 1; pointer-events: auto; }
-.gc-country-name { font: 700 0.88rem var(--font-ui); color: var(--ink, #1b264f); margin-top: 2px; }
-.gc-country-meta { font: 0.70rem var(--font-ui); color: var(--ink-muted, #7a7f96); margin-top: 2px; }
-.gc-badges       { display: flex; flex-wrap: wrap; gap: 4px; margin: 3px 0 1px; }
+.gc-country-name { font: 700 1.05rem var(--font-ui); color: var(--ink, #1b264f); margin-top: 4px; }
+.gc-country-meta { font: 0.82rem var(--font-ui); color: var(--ink-muted, #7a7f96); margin-top: 2px; }
+.gc-badges       { display: flex; flex-wrap: wrap; gap: 5px; margin: 4px 0 2px; }
 .gc-pers-badge, .gc-access-badge {
-  display: inline-block; padding: 2px 8px; border-radius: 10px;
-  font: 700 0.70rem var(--font-ui); letter-spacing: .02em;
+  display: inline-block; padding: 3px 10px; border-radius: 10px;
+  font: 700 0.78rem var(--font-ui); letter-spacing: .02em;
 }
 .gc-1040-badge {
-  display: inline-block; padding: 2px 8px; border-radius: 10px;
-  font: 700 0.70rem var(--font-ui); background: #3730a3; color: #c7d2fe;
+  display: inline-block; padding: 3px 10px; border-radius: 10px;
+  font: 700 0.78rem var(--font-ui); background: #3730a3; color: #c7d2fe;
 }
 
 /* Expandable detail — hidden by default, revealed on click */
 .gc-country-expand {
-  display: none; flex-direction: column; gap: 4px;
-  padding-top: 8px; margin-top: 4px;
+  display: none; flex-direction: column; gap: 6px;
+  padding-top: 10px; margin-top: 6px;
   border-top: 1px solid var(--line, #e5e7ef);
 }
 .gc-country-card.is-open .gc-country-expand { display: flex; }
 .gc-country-detail {
-  display: flex; flex-direction: column; gap: 3px;
-  font: 0.72rem var(--font-ui); color: var(--ink-muted, #7a7f96);
+  display: flex; flex-direction: column; gap: 5px;
+  font: 0.82rem var(--font-ui); color: var(--ink-muted, #7a7f96);
 }
 .gc-profile-link {
-  display: inline-block; padding-top: 4px;
-  font: 0.75rem var(--font-ui); color: var(--accent, #5b8fcf); text-decoration: none;
+  display: inline-block; padding-top: 6px;
+  font: 0.85rem var(--font-ui); color: var(--accent, #5b8fcf); text-decoration: none;
 }
 .gc-profile-link:hover { text-decoration: underline; }
 

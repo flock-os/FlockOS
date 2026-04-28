@@ -171,6 +171,15 @@ function _panePrefs() {
         <button class="bp-btn bp-btn--primary" type="button" data-act="save-prefs">Save preferences</button>
       </div>
     </div>
+
+    <div class="bp-section">
+      <div class="bp-section-title">App &amp; Cache</div>
+      <p class="bp-note">Clear all locally cached data and reload the app. Your account session will be preserved.</p>
+      <div class="bp-row-end">
+        <span class="bp-status" data-bind="cache-status"></span>
+        <button class="bp-btn bp-btn--ghost" type="button" data-act="clear-cache">Clear cache &amp; reload</button>
+      </div>
+    </div>
   `;
 }
 
@@ -213,12 +222,13 @@ function _wire(p) {
     if (!btn) return;
     const act = btn.dataset.act;
 
-    if (act === 'close')      return _close();
-    if (act === 'sign-out')   { _close(); if (_onSignOut) _onSignOut(); return; }
-    if (act === 'save-prefs') return _savePrefs(btn);
-    if (act === 'copy-ical')  return _copyField('ical');
-    if (act === 'copy-card')  return _copyField('card-link');
-    if (act === 'regen-ical') return _regenIcal(btn);
+    if (act === 'close')       return _close();
+    if (act === 'sign-out')    { _close(); if (_onSignOut) _onSignOut(); return; }
+    if (act === 'save-prefs')  return _savePrefs(btn);
+    if (act === 'copy-ical')   return _copyField('ical');
+    if (act === 'copy-card')   return _copyField('card-link');
+    if (act === 'regen-ical')  return _regenIcal(btn);
+    if (act === 'clear-cache') return _clearCache(btn);
   });
 }
 
@@ -308,6 +318,29 @@ async function _regenIcal(btn) {
   } catch (err) {
     _status('ical-status', 'Failed: ' + (err && err.message || 'unknown'), 'err');
   } finally {
+    btn.disabled = false;
+  }
+}
+
+async function _clearCache(btn) {
+  btn.disabled = true;
+  _status('cache-status', 'Clearing…', '');
+  try {
+    // Clear Service Worker caches.
+    if (typeof caches !== 'undefined') {
+      const names = await caches.keys();
+      await Promise.all(names.map((n) => caches.delete(n)));
+    }
+    // Clear IndexedDB cistern (app data cache, not auth).
+    try {
+      const { clear: clearCistern } = await import('../the_cistern.js');
+      if (typeof clearCistern === 'function') await clearCistern();
+    } catch (_) { /* cistern unavailable — continue */ }
+    // Brief pause so the user sees the status before reload.
+    _status('cache-status', 'Done. Reloading…', 'ok');
+    setTimeout(() => location.reload(), 800);
+  } catch (err) {
+    _status('cache-status', 'Failed: ' + (err && err.message || 'unknown'), 'err');
     btn.disabled = false;
   }
 }

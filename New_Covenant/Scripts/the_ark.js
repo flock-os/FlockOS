@@ -57,6 +57,7 @@ const flock = {
       darken(); // fade splash so the modal sits on a clean backdrop
       const result = await enter();
       if (!result || !result.ok) return;
+      await whoAmI(); // re-hydrate _profile now that login has written the session
       kindle(); // splash back on while the shell finishes booting
     }
     // ─────────────────────────────────────────────────────────────────────

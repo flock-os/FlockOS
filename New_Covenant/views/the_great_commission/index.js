@@ -84,8 +84,8 @@ function _kpiCard(label, val, color) {
 function _countryCard(r) {
   const cname  = r.countryName || r.name || '';
   // Rank pill: prefer WWL rank (1–100+), then Bible restrictions rank; skip when 0
-  const rankNum = r.worldWatchListRank > 0 ? r.worldWatchListRank
-                : r.restrictionsRank  > 0 ? r.restrictionsRank
+  const rankNum = r.restrictionsRank   > 0 ? r.restrictionsRank
+                : r.worldWatchListRank > 0 ? r.worldWatchListRank
                 : null;
   const pers   = r.persecutionLevel || r.persecution || '';
   const acc    = r.gospelAccess || r.access || '';
@@ -104,6 +104,7 @@ function _countryCard(r) {
 
   return `
     <article class="gc-country-card"
+      tabindex="0" role="button"
       data-country="${_e(cname.toLowerCase())}"
       data-persecution="${_e(String(pers).toLowerCase())}"
       data-access="${_e(String(acc).toLowerCase())}"
@@ -130,7 +131,9 @@ function _countryCard(r) {
           ${wwl    != null     ? `<span>📋 WWL #${_e(String(wwl))}</span>`                       : ''}
           ${ungroups != null   ? `<span>🔴 ${_e(String(ungroups))} unreached groups</span>`     : ''}
           ${popUnreached       ? `<span>📍 ${popUnreached} in unreached pop.</span>`             : ''}
-          ${r.bibleShortageNeed ? `<span>📖 Bible need: ${_e(r.bibleShortageNeed)}</span>`      : ''}
+          ${r.bibleShortageNeed       ? `<span>📖 Bible need: ${_e(r.bibleShortageNeed)}</span>`                  : ''}
+          ${r.restrictionsRank != null ? `<span>📖 Bible Access Rank #${_e(String(r.restrictionsRank))}</span>` : ''}
+          ${r.notes                   ? `<span>📝 ${_e(String(r.notes).substring(0, 160))}</span>`              : ''}
         </div>
         ${r.profileUrl
           ? `<a class="gc-profile-link" href="${_e(r.profileUrl)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">View Profile ↗</a>`
@@ -199,6 +202,7 @@ function _prayerCard(r) {
           </div>` : ''}
         <div class="gc-prayer-foot">
           <button class="gc-pray-btn" data-id="${_e(r.id || '')}">🙏 I Prayed</button>
+          <button class="gc-edit-prayer-btn" data-prayer-edit="${_e(r.id || '')}" style="margin-left:auto;background:none;border:1px solid var(--line,#e5e7ef);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:0.78rem;color:var(--ink-muted,#7a7f96);" title="Edit prayer need">✏️ Edit</button>
         </div>
       </div>
     </div>`;
@@ -237,6 +241,7 @@ function _teamCard(r) {
         </div>
         <div class="gc-fund-bar"><div class="gc-fund-fill" style="width:${pct}%;"></div></div>` : ''}
       <div class="gc-team-members">👥 ${_e(String(r.memberCount || r.teamMembers || 0))} members · Lead: ${_e(r.teamLeadName || r.leadName || '—')}</div>
+      ${r.notes ? `<div class="gc-team-notes" style="font-size:0.78rem;color:var(--ink-muted,#7a7f96);margin-top:6px;padding-top:6px;border-top:1px solid var(--line,#e5e7ef);">📝 ${_e(String(r.notes).substring(0,160))}</div>` : ''}
     </div>`;
 }
 
@@ -264,6 +269,7 @@ function _partnerCard(r) {
         ${r.workersCount ? `<span>👥 ${_e(String(r.workersCount))} workers</span>` : ''}
         ${r.website ? `<a class="gc-profile-link" href="${_e(r.website)}" target="_blank" rel="noopener noreferrer">🔗 Website</a>` : ''}
       </div>
+      ${r.notes ? `<div style="font-size:0.78rem;color:var(--ink-muted,#7a7f96);margin-top:6px;">📝 ${_e(String(r.notes).substring(0,160))}</div>` : ''}
     </div>`;
 }
 
@@ -284,7 +290,7 @@ function _updateCard(r) {
   const body = (r.body || r.Body || r.description || '').substring(0, 220);
 
   return `
-    <div class="gc-update-card" style="border-left-color:${c};">
+    <div class="gc-update-card" data-id="${_e(String(r.id || ''))}" style="border-left-color:${c};cursor:pointer;">
       <span class="gc-update-icon">${icon}</span>
       <div class="gc-update-content">
         <div class="gc-update-title">${_e(r.title || r.Title || '')}</div>
@@ -293,8 +299,10 @@ function _updateCard(r) {
           : ''}
         ${body ? `<p class="gc-update-body">${_e(body)}</p>` : ''}
         <div class="gc-update-meta">
-          ${r.source    ? `<span>📡 ${_e(r.source)}</span>`                           : ''}
-          ${r.createdAt ? `<span>🕒 ${_e(String(r.createdAt).substring(0, 10))}</span>` : ''}
+          ${r.country || r.countryId ? `<span>📍 ${_e(r.country || r.countryId)}</span>`        : ''}
+          ${r.source                 ? `<span>📡 ${_e(r.source)}</span>`                         : ''}
+          ${r.createdAt              ? `<span>🕒 ${_e(String(r.createdAt).substring(0, 10))}</span>` : ''}
+          ${r.notes                  ? `<span>📝 ${_e(String(r.notes).substring(0,100))}</span>` : ''}
         </div>
       </div>
     </div>`;
@@ -508,8 +516,8 @@ async function _loadWorld(root, V) {
       const pa = PERS_ORDER[String(a.persecutionLevel || '').toLowerCase()] ?? 99;
       const pb = PERS_ORDER[String(b.persecutionLevel || '').toLowerCase()] ?? 99;
       if (pa !== pb) return pa - pb;
-      const ra = parseInt(a.worldWatchListRank ?? a.restrictionsRank ?? 9999, 10);
-      const rb = parseInt(b.worldWatchListRank ?? b.restrictionsRank ?? 9999, 10);
+      const ra = parseInt(a.restrictionsRank ?? a.worldWatchListRank ?? 9999, 10);
+      const rb = parseInt(b.restrictionsRank ?? b.worldWatchListRank ?? 9999, 10);
       if (!isNaN(ra) && !isNaN(rb) && ra !== rb) return ra - rb;
       return String(a.countryName || a.name || '').localeCompare(String(b.countryName || b.name || ''));
     });
@@ -604,6 +612,17 @@ async function _loadPrayer(root, V) {
     }
     html += '</div>';
     content.innerHTML = html;
+    // Build prayer map + wire edit clicks
+    _gcPrayerMap = {};
+    rows.forEach(r => { if (r.id) _gcPrayerMap[String(r.id)] = r; });
+    const reloadPrayer = () => _loadPrayer(root, V);
+    content.querySelectorAll('[data-prayer-edit]').forEach(editBtn => {
+      editBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const rec = _gcPrayerMap[editBtn.dataset.prayerEdit];
+        if (rec) _openMissionsSheet('prayer', V, reloadPrayer, rec);
+      });
+    });
   } catch (err) {
     content.innerHTML = `<div class="gc-empty">Could not load prayer focus. ${_e(String(err.message || err))}</div>`;
   }
@@ -684,6 +703,17 @@ async function _loadUpdates(root, V) {
     content.innerHTML = rows.length
       ? `<div class="gc-updates-list">${rows.map(_updateCard).join('')}</div>`
       : '<div class="gc-empty">No field updates yet. Post situation reports, prayer alerts, and victory reports through FlockOS.</div>';
+    if (rows.length) {
+      _gcUpdatesMap = {};
+      rows.forEach(r => { if (r.id) _gcUpdatesMap[String(r.id)] = r; });
+      const reloadUpdates = () => _loadUpdates(root, V);
+      content.querySelectorAll('.gc-update-card').forEach(card => {
+        card.addEventListener('click', () => {
+          const rec = _gcUpdatesMap[card.dataset.id];
+          if (rec) _openMissionsSheet('updates', V, reloadUpdates, rec);
+        });
+      });
+    }
   } catch (err) {
     content.innerHTML = `<div class="gc-empty">Could not load updates. ${_e(String(err.message || err))}</div>`;
   }
@@ -818,9 +848,47 @@ function _openCountrySheet(rec, onSaved) {
           <div class="life-sheet-label">Profile URL <span class="life-field-hint">Joshua Project or Open Doors</span></div>
           <input class="life-sheet-input" data-field="profileUrl" type="url" value="${val('profileUrl')}" placeholder="https://joshuaproject.net/countries/AF">
         </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Gospel Access</div>
+          <select class="life-sheet-input" data-field="gospelAccess">
+            <option value="">— Unknown —</option>
+            <option value="Unreached"${sel('gospelAccess', 'Unreached')}>Unreached</option>
+            <option value="Limited"${sel('gospelAccess', 'Limited')}>Limited</option>
+            <option value="Restricted"${sel('gospelAccess', 'Restricted')}>Restricted</option>
+            <option value="Partial"${sel('gospelAccess', 'Partial')}>Partial</option>
+            <option value="Open"${sel('gospelAccess', 'Open')}>Open</option>
+          </select>
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Region <span class="life-field-hint">sub-region or area</span></div>
+          <input class="life-sheet-input" data-field="region" type="text" value="${val('region')}" placeholder="e.g. Central Asia, West Africa">
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Bible Access Rank <span class="life-field-hint">from Bible Access List</span></div>
+          <input class="life-sheet-input" data-field="restrictionsRank" type="number" min="0" value="${val('restrictionsRank')}" placeholder="0">
+        </div>
+        <div class="life-sheet-field" style="display:flex;gap:10px;">
+          <div style="flex:1;">
+            <div class="life-sheet-label">Unreached Groups</div>
+            <input class="life-sheet-input" data-field="unreachedGroups" type="number" min="0" value="${val('unreachedGroups')}" placeholder="0">
+          </div>
+          <div style="flex:1;">
+            <div class="life-sheet-label">Unreached Population</div>
+            <input class="life-sheet-input" data-field="populationUnreached" type="number" min="0" value="${val('populationUnreached')}" placeholder="0">
+          </div>
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Bible Shortage Need</div>
+          <input class="life-sheet-input" data-field="bibleShortageNeed" type="text" value="${val('bibleShortageNeed')}" placeholder="e.g. Critical, Severe, Moderate">
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Notes</div>
+          <textarea class="life-sheet-ta" data-field="notes" rows="2" placeholder="Additional notes…">${_e(rec?.notes || '')}</textarea>
+        </div>
         <div class="gc-sheet-err" style="display:none;color:var(--danger,#dc2626);font:0.84rem var(--font-ui);margin-top:8px;"></div>
       </div>
       <div class="life-sheet-foot">
+        ${!isNew ? '<button class="flock-btn flock-btn--danger" data-country-delete style="margin-right:auto">Delete</button>' : ''}
         <button class="flock-btn" data-cancel>Cancel</button>
         <button class="flock-btn flock-btn--primary" data-submit>${isNew ? 'Add Country' : 'Save Changes'}</button>
       </div>
@@ -856,12 +924,19 @@ function _openCountrySheet(rec, onSaved) {
 
     const changes = {
       countryName: get('countryName'),
-      ...(get('continent')        ? { continent:        get('continent')        } : {}),
-      ...(get('persecutionLevel') ? { persecutionLevel: get('persecutionLevel') } : {}),
-      ...(get('dominantReligion') ? { dominantReligion: get('dominantReligion') } : {}),
-      ...(getNum('population')         !== undefined ? { population:         getNum('population')         } : {}),
-      ...(getNum('worldWatchListRank') !== undefined ? { worldWatchListRank: getNum('worldWatchListRank') } : {}),
-      ...(getNum('christianPercent')   !== undefined ? { christianPercent:   getNum('christianPercent')   } : {}),
+      ...(get('continent')         ? { continent:         get('continent')         } : {}),
+      ...(get('persecutionLevel')  ? { persecutionLevel:  get('persecutionLevel')  } : {}),
+      ...(get('dominantReligion')  ? { dominantReligion:  get('dominantReligion')  } : {}),
+      ...(get('gospelAccess')      ? { gospelAccess:      get('gospelAccess')      } : {}),
+      ...(get('region')            ? { region:            get('region')            } : {}),
+      ...(get('bibleShortageNeed') ? { bibleShortageNeed: get('bibleShortageNeed') } : {}),
+      ...(get('notes')             ? { notes:             get('notes')             } : {}),
+      ...(getNum('population')          !== undefined ? { population:          getNum('population')          } : {}),
+      ...(getNum('worldWatchListRank')  !== undefined ? { worldWatchListRank:  getNum('worldWatchListRank')  } : {}),
+      ...(getNum('restrictionsRank')    !== undefined ? { restrictionsRank:    getNum('restrictionsRank')    } : {}),
+      ...(getNum('christianPercent')    !== undefined ? { christianPercent:    getNum('christianPercent')    } : {}),
+      ...(getNum('unreachedGroups')     !== undefined ? { unreachedGroups:     getNum('unreachedGroups')     } : {}),
+      ...(getNum('populationUnreached') !== undefined ? { populationUnreached: getNum('populationUnreached') } : {}),
       ...(get('profileUrl') ? { profileUrl: get('profileUrl') } : {}),
       ...(get('isoCode')    ? { isoCode:    get('isoCode')    } : {}),
       ...(get('icon')       ? { icon:       get('icon')       } : {}),
@@ -882,6 +957,25 @@ function _openCountrySheet(rec, onSaved) {
       btn.disabled = false; btn.textContent = isNew ? 'Add Country' : 'Save Changes';
     }
   });
+
+  // Delete country (edit mode only)
+  sheet.querySelector('[data-country-delete]')?.addEventListener('click', async () => {
+    if (!rec?.id) return;
+    const ok = confirm(`Delete ${rec.countryName || 'this country'} from the registry? This cannot be undone.`);
+    if (!ok) return;
+    const dBtn = sheet.querySelector('[data-country-delete]');
+    dBtn.disabled = true; dBtn.textContent = 'Deleting…';
+    const UR = window.UpperRoom;
+    if (!UR) { showErr('UpperRoom API not available.'); dBtn.disabled = false; dBtn.textContent = 'Delete'; return; }
+    try {
+      await UR.deleteMissionsRegistry({ id: rec.id });
+      _closeMissionsSheet();
+      if (onSaved) onSaved();
+    } catch (err) {
+      showErr('Could not delete: ' + (err?.message || String(err)));
+      dBtn.disabled = false; dBtn.textContent = 'Delete';
+    }
+  });
 }
 
 // ── Missions entry sheet ─────────────────────────────────────────────────────
@@ -890,6 +984,8 @@ let _canEditRegistry     = false;   // set on each _loadWorld call
 let _worldRows           = [];      // cached for edit lookups
 let _gcTeamsMap          = {};
 let _gcPartnersMap       = {};
+let _gcPrayerMap         = {};
+let _gcUpdatesMap        = {};
 
 function _closeMissionsSheet() {
   if (!_activeMissionsSheet) return;
@@ -933,6 +1029,20 @@ function _missionsFormFields(type) {
     <div class="life-sheet-field">
       <div class="life-sheet-label">Prayer Points <span class="life-field-hint">one per line</span></div>
       <textarea class="life-sheet-ta" data-field="prayerPoints" rows="4" placeholder="Pray for open doors…&#10;Pray for protection for church planters…"></textarea>
+    </div>
+    <div class="life-sheet-field" style="display:flex;gap:10px;">
+      <div style="flex:1;">
+        <div class="life-sheet-label">Start Date <span class="life-field-hint">optional</span></div>
+        <input class="life-sheet-input" data-field="startDate" type="date">
+      </div>
+      <div style="flex:1;">
+        <div class="life-sheet-label">End Date <span class="life-field-hint">optional</span></div>
+        <input class="life-sheet-input" data-field="endDate" type="date">
+      </div>
+    </div>
+    <div class="life-sheet-field">
+      <div class="life-sheet-label">Notes</div>
+      <textarea class="life-sheet-ta" data-field="notes" rows="2" placeholder="Additional notes…"></textarea>
     </div>`;
 
   if (type === 'teams') return `
@@ -984,13 +1094,23 @@ function _missionsFormFields(type) {
         <input class="life-sheet-input" data-field="budget" type="number" min="0" placeholder="0">
       </div>
       <div style="flex:1;">
+        <div class="life-sheet-label">Raised ($)</div>
+        <input class="life-sheet-input" data-field="raised" type="number" min="0" placeholder="0">
+      </div>
+    </div>
+    <div class="life-sheet-field" style="display:flex;gap:10px;">
+      <div style="flex:1;">
         <div class="life-sheet-label">Member Count</div>
         <input class="life-sheet-input" data-field="memberCount" type="number" min="1" placeholder="0">
       </div>
+      <div style="flex:1;">
+        <div class="life-sheet-label">Team Lead Name</div>
+        <input class="life-sheet-input" data-field="teamLeadName" type="text" placeholder="Full name">
+      </div>
     </div>
     <div class="life-sheet-field">
-      <div class="life-sheet-label">Team Lead Name</div>
-      <input class="life-sheet-input" data-field="teamLeadName" type="text" placeholder="Full name">
+      <div class="life-sheet-label">Notes</div>
+      <textarea class="life-sheet-ta" data-field="notes" rows="2" placeholder="Additional notes…"></textarea>
     </div>`;
 
   if (type === 'partners') return `
@@ -1034,6 +1154,10 @@ function _missionsFormFields(type) {
     <div class="life-sheet-field">
       <div class="life-sheet-label">Description</div>
       <textarea class="life-sheet-ta" data-field="description" rows="3" placeholder="Brief description of their work and mission…"></textarea>
+    </div>
+    <div class="life-sheet-field">
+      <div class="life-sheet-label">Notes</div>
+      <textarea class="life-sheet-ta" data-field="notes" rows="2" placeholder="Additional notes…"></textarea>
     </div>`;
 
   if (type === 'updates') return `
@@ -1072,6 +1196,10 @@ function _missionsFormFields(type) {
     <div class="life-sheet-field">
       <div class="life-sheet-label">Source</div>
       <input class="life-sheet-input" data-field="source" type="text" placeholder="e.g. Open Doors, VOM, Field Partner">
+    </div>
+    <div class="life-sheet-field">
+      <div class="life-sheet-label">Notes</div>
+      <textarea class="life-sheet-ta" data-field="notes" rows="2" placeholder="Additional notes…"></textarea>
     </div>`;
 
   return '';
@@ -1084,8 +1212,10 @@ const _GC_TITLES = {
   updates:  'Add Field Update',
 };
 const _GC_EDIT_TITLES = {
+  prayer:   'Edit Prayer Need',
   teams:    'Edit Mission Team',
   partners: 'Edit Partner',
+  updates:  'Edit Field Update',
 };
 
 function _openMissionsSheet(type, V, onSaved, rec = null) {
@@ -1138,6 +1268,7 @@ function _openMissionsSheet(type, V, onSaved, rec = null) {
       if (el.tagName === 'SELECT') el.value = String(val);
       else el.value = val;
     };
+    // Teams
     _pf('teamName',           rec.teamName    || rec.name);
     _pf('countryId',          rec.countryId   || rec.country);
     _pf('tripType',           rec.tripType);
@@ -1145,8 +1276,10 @@ function _openMissionsSheet(type, V, onSaved, rec = null) {
     _pf('startDate',          rec.startDate ? String(rec.startDate).substring(0,10) : undefined);
     _pf('endDate',            rec.endDate   ? String(rec.endDate).substring(0,10)   : undefined);
     _pf('budget',             rec.budget);
+    _pf('raised',             rec.raised);
     _pf('memberCount',        rec.memberCount || rec.teamMembers);
     _pf('teamLeadName',       rec.teamLeadName || rec.leadName);
+    // Partners
     _pf('organizationName',   rec.organizationName || rec.name);
     _pf('partnerType',        rec.partnerType || rec.type);
     _pf('focusArea',          rec.focusArea);
@@ -1154,6 +1287,20 @@ function _openMissionsSheet(type, V, onSaved, rec = null) {
     _pf('workersCount',       rec.workersCount);
     _pf('website',            rec.website);
     _pf('description',        rec.description);
+    // Prayer
+    _pf('title',              rec.title || rec.Title);
+    _pf('priority',           rec.priority || rec.Priority);
+    _pf('country',            rec.country || rec.countryId);
+    _pf('peopleGroup',        rec.peopleGroup);
+    _pf('scripture',          rec.scripture || rec.Scripture);
+    _pf('prayerPoints',       Array.isArray(rec.prayerPoints) ? rec.prayerPoints.join('\n') : rec.prayerPoints);
+    // Updates
+    _pf('updateType',         rec.updateType || rec.UpdateType || rec.type);
+    _pf('severity',           rec.severity   || rec.Severity);
+    _pf('body',               rec.body       || rec.Body);
+    _pf('source',             rec.source);
+    // Common
+    _pf('notes',              rec.notes);
   }
 
   sheet.querySelector('.life-sheet-close').addEventListener('click', _closeMissionsSheet);
@@ -1175,6 +1322,9 @@ function _openMissionsSheet(type, V, onSaved, rec = null) {
         ...(get('description')  ? { description:  get('description')  } : {}),
         ...(get('scripture')    ? { scripture:    get('scripture')    } : {}),
         ...(get('prayerPoints') ? { prayerPoints: get('prayerPoints') } : {}),
+        ...(get('startDate')    ? { startDate:    get('startDate')    } : {}),
+        ...(get('endDate')      ? { endDate:      get('endDate')      } : {}),
+        ...(get('notes')        ? { notes:        get('notes')        } : {}),
       };
     } else if (type === 'teams') {
       if (!get('teamName')) { showErr('Team Name is required.'); return; }
@@ -1185,8 +1335,10 @@ function _openMissionsSheet(type, V, onSaved, rec = null) {
         ...(get('startDate')    ? { startDate:    get('startDate')    } : {}),
         ...(get('endDate')      ? { endDate:      get('endDate')      } : {}),
         ...(getNum('budget')      !== undefined ? { budget:      getNum('budget')      } : {}),
+        ...(getNum('raised')      !== undefined ? { raised:      getNum('raised')      } : {}),
         ...(getNum('memberCount') !== undefined ? { memberCount: getNum('memberCount') } : {}),
         ...(get('teamLeadName') ? { teamLeadName: get('teamLeadName') } : {}),
+        ...(get('notes')        ? { notes:        get('notes')        } : {}),
       };
     } else if (type === 'partners') {
       if (!get('organizationName')) { showErr('Organization Name is required.'); return; }
@@ -1197,6 +1349,7 @@ function _openMissionsSheet(type, V, onSaved, rec = null) {
         ...(getNum('workersCount')    !== undefined ? { workersCount: getNum('workersCount') } : {}),
         ...(get('website')            ? { website:            get('website')            } : {}),
         ...(get('description')        ? { description:        get('description')        } : {}),
+        ...(get('notes')              ? { notes:              get('notes')              } : {}),
       };
     } else if (type === 'updates') {
       if (!get('title')) { showErr('Title is required.'); return; }
@@ -1206,6 +1359,7 @@ function _openMissionsSheet(type, V, onSaved, rec = null) {
         ...(get('severity')   ? { severity:   get('severity')   } : {}),
         ...(get('country')    ? { country:    get('country')    } : {}),
         ...(get('source')     ? { source:     get('source')     } : {}),
+        ...(get('notes')      ? { notes:      get('notes')      } : {}),
       };
     }
 
@@ -1234,7 +1388,7 @@ function _openMissionsSheet(type, V, onSaved, rec = null) {
     btn.disabled = true; btn.textContent = 'Deleting…';
     try {
       const nsMap = { prayer: 'prayerFocus', teams: 'teams', partners: 'partners', updates: 'updates' };
-      await V.missions[nsMap[type]].update({ id: rec.id, status: 'Deleted' });
+      await V.missions[nsMap[type]].delete({ id: rec.id });
       _closeMissionsSheet();
       if (onSaved) onSaved();
     } catch (err) {

@@ -47,7 +47,8 @@ export async function depart() {
   location.search = '?covenant=new';
 }
 
-export function openAccountSheet() {
+export async function openAccountSheet() {
+  if (!_profile) await whoAmI();
   if (!_profile) return enter();
   return renderBadge(_profile, { onSignOut: depart });
 }
