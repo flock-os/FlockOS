@@ -37,12 +37,12 @@ export function render() {
 
       <!-- Stats strip -->
       <div class="fold-stats" data-bind="stats">
-        ${_statsStrip()}
+        ${_loadingStats()}
       </div>
 
       <!-- Member grid -->
       <div class="fold-grid" data-bind="members" role="list">
-        ${_demoCards()}
+        <div class="life-empty">Loading members…</div>
       </div>
     </section>
   `;
@@ -85,11 +85,15 @@ let _activeFoldSheet = null;
 
 async function _loadMembers(root) {
   const V = window.TheVine;
-  if (!V) return;
   const grid  = root.querySelector('[data-bind="members"]');
   const stats = root.querySelector('[data-bind="stats"]');
   if (!grid) return;
-  grid.innerHTML = '<div style="padding:32px;text-align:center;color:var(--ink-muted,#7a7f96)">Loading members…</div>';
+  if (!V?.flock?.members?.list) {
+    grid.innerHTML = '<div class="life-empty">Directory backend not loaded.</div>';
+    if (stats) stats.innerHTML = _loadingStats();
+    return;
+  }
+  grid.innerHTML = '<div class="life-empty">Loading members…</div>';
   try {
     const res  = await V.flock.members.list({ limit: 500 });
     const all  = _rows(res);
@@ -99,7 +103,8 @@ async function _loadMembers(root) {
       return s !== 'inactive' && s !== 'false' && s !== '0' && s !== 'archived';
     });
     if (!rows.length) {
-      grid.innerHTML = '<div style="padding:32px;text-align:center;color:var(--ink-muted,#7a7f96)">No members found.</div>';
+      grid.innerHTML = '<div class="life-empty">No members found yet. Click “Add Person” to begin.</div>';
+      if (stats) stats.innerHTML = _loadingStats();
       return;
     }
     // Build lookup map
@@ -123,7 +128,7 @@ async function _loadMembers(root) {
     });
   } catch (err) {
     console.error('[TheFold] members.list error:', err);
-    grid.innerHTML = '<div style="padding:32px;text-align:center;color:var(--ink-muted,#7a7f96)">Could not load members right now.</div>';
+    grid.innerHTML = '<div class="life-empty">Could not load members right now.</div>';
   }
 }
 
@@ -184,50 +189,12 @@ function _applyFilter(root, filter) {
   });
 }
 
-function _statsStrip() {
-  const stats = [
-    { label: 'Total',    n: 247, color: 'var(--c-violet)' },
-    { label: 'Members',  n: 184, color: 'var(--c-sky)' },
-    { label: 'Visitors', n:  43, color: 'var(--c-emerald)' },
-    { label: 'Leaders',  n:  20, color: 'var(--gold)' },
-  ];
-  return stats.map((s) => `
+function _loadingStats() {
+  return ['Total','Members','Visitors','Leaders'].map((label) => `
     <div class="fold-stat-chip">
-      <span class="fold-stat-dot" style="background:${s.color}"></span>
-      <strong>${s.n}</strong> <span>${s.label}</span>
+      <span class="fold-stat-dot" style="background:var(--ink-muted,#7a7f96)"></span>
+      <strong>—</strong> <span>${label}</span>
     </div>
-  `).join('');
-}
-
-const DEMO = [
-  { name: 'Sarah Mitchell',  role: 'leader',  status: 'active',    joined: 'Jan 2019', avatar: 'SM', color: '#7c3aed' },
-  { name: 'James Okafor',    role: 'member',  status: 'active',    joined: 'Mar 2021', avatar: 'JO', color: '#0ea5e9' },
-  { name: 'Priya Nair',      role: 'member',  status: 'active',    joined: 'Aug 2022', avatar: 'PN', color: '#059669' },
-  { name: 'David Chen',      role: 'leader',  status: 'active',    joined: 'Feb 2018', avatar: 'DC', color: '#c05818' },
-  { name: 'Maria Santos',    role: 'member',  status: 'active',    joined: 'Nov 2023', avatar: 'MS', color: '#db2777' },
-  { name: 'Thomas Wright',   role: 'visitor', status: 'new',       joined: 'Apr 2026', avatar: 'TW', color: '#6366f1' },
-  { name: 'Grace Kimura',    role: 'member',  status: 'active',    joined: 'Jun 2020', avatar: 'GK', color: '#0891b2' },
-  { name: 'Elijah Mensah',   role: 'leader',  status: 'active',    joined: 'Sep 2017', avatar: 'EM', color: '#b45309' },
-  { name: 'Leah Andersen',   role: 'member',  status: 'active',    joined: 'Jan 2024', avatar: 'LA', color: '#be185d' },
-  { name: 'Noah Williams',   role: 'visitor', status: 'new',       joined: 'Mar 2026', avatar: 'NW', color: '#4f46e5' },
-  { name: 'Ruth Adebayo',    role: 'member',  status: 'active',    joined: 'Oct 2021', avatar: 'RA', color: '#047857' },
-  { name: 'Caleb Torres',    role: 'member',  status: 'inactive',  joined: 'May 2020', avatar: 'CT', color: '#9ca3af' },
-];
-
-function _demoCards() {
-  return DEMO.map((p) => `
-    <article class="fold-card" role="listitem" tabindex="0"
-             data-name="${_e(p.name.toLowerCase())}" data-role="${_e(p.role)}">
-      <div class="fold-avatar" style="background:${p.color}">${_e(p.avatar)}</div>
-      <div class="fold-card-body">
-        <div class="fold-name">${_e(p.name)}</div>
-        <div class="fold-meta">
-          <span class="fold-role-badge fold-role-${_e(p.role)}">${_e(p.role)}</span>
-          <span class="fold-joined">Since ${_e(p.joined)}</span>
-        </div>
-      </div>
-      <svg class="fold-card-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="m9 18 6-6-6-6"/></svg>
-    </article>
   `).join('');
 }
 
@@ -418,6 +385,7 @@ function _openMemberSheet(person, V, onReload) {
     } catch (err) {
       console.error('[TheFold] member update error:', err);
       btn.disabled = false; btn.textContent = 'Save Changes';
+      alert(err?.message || 'Could not save member changes.');
     }
   });
 
@@ -434,6 +402,7 @@ function _openMemberSheet(person, V, onReload) {
     } catch (err) {
       console.error('[TheFold] member delete error:', err);
       btn.disabled = false; btn.textContent = 'Archive';
+      alert(err?.message || 'Could not archive this person.');
     }
   });
 }
@@ -543,6 +512,7 @@ function _openNewMemberSheet(onReload) {
     const firstName = sheet.querySelector('[data-field="firstName"]').value.trim();
     const errEl     = sheet.querySelector('[data-error]');
     if (!firstName) { errEl.textContent = 'First name is required.'; errEl.style.display = ''; return; }
+    if (!V?.flock?.members?.create) { errEl.textContent = 'Directory backend not loaded — cannot add.'; errEl.style.display = ''; return; }
     errEl.style.display = 'none';
     const btn = sheet.querySelector('[data-save]');
     btn.disabled = true; btn.textContent = 'Adding…';
