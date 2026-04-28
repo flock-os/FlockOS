@@ -3182,52 +3182,18 @@ flock-tabs [role="tablist"], .tabs-bar {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
-  align-items: stretch;
 }
-.pasture-devo-col { min-width: 0; display: flex; flex-direction: column; }
-.pasture-devo-col .devo-dark-card,
-.pasture-devo-col .pray-liturgy-card { flex: 1; box-sizing: border-box; }
-/* Both cards are flex columns so margin-top:auto pushes button to bottom */
-.pasture-devo-col .devo-dark-card {
-  display: flex;
-  flex-direction: column;
-}
-.pasture-devo-col .devo-dark-card .word-body {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-.pasture-devo-col .pray-liturgy-card {
-  display: flex;
-  flex-direction: column;
-}
-.pasture-devo-col .pray-liturgy-card .pray-liturgy-list {
-  flex: 1;
-}
-/* Both buttons — identical: full width, pinned to bottom */
-.pasture-devo-col .devo-dark-card .devo-dark-btn,
-.pasture-devo-col .pray-liturgy-card .devo-dark-btn {
-  display: flex;
-  width: 100%;
-  box-sizing: border-box;
-  justify-content: center;
-  margin-top: 14px;
-  flex-shrink: 0;
-  padding: 10px 20px;
-  font-size: 0.92rem;
-}
+.pasture-devo-col { min-width: 0; }
 @media (max-width: 720px) {
   .pasture-devo-row { grid-template-columns: 1fr; }
 }
 
 /* ─── Devo dark theme — matches pray-liturgy-card ───────────────────────────── */
 .devo-dark-card {
-  background: linear-gradient(135deg, #0f1735 0%, #1b264f 100%) !important;
-  border: 1px solid var(--line, #e5e7ef);
-  border-left: 4px solid var(--gold, #e8a838);
+  background: linear-gradient(135deg, #0f1735 0%, #1b264f 100%);
   border-radius: var(--radius-lg);
   padding: 20px;
-  box-shadow: var(--shadow-sm);
+  color: #fff;
 }
 .devo-dark-card .word-body {
   display: flex;
