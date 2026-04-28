@@ -6,7 +6,8 @@
    renders Scripture / Reflection / Question / Prayer cards, and offers a
    "Save to Journal" capture so the reader can respond in writing.
 
-   Also lists the most recent devotionals (last 14) for quick re-reading.
+   Also lists recent devotionals — yesterday plus the prior 30 days — for
+   quick re-reading.
    ══════════════════════════════════════════════════════════════════════════════ */
 
 import { draw, swr } from '../../Scripts/the_manna.js';
@@ -26,12 +27,16 @@ export function mountDevotional(host, ctx) {
       return;
     }
     const today = _today();
+    const yesterday = _shiftDays(today, -1);
+    const earliest  = _shiftDays(today, -30); // previous day + 30 days back
     const todayDevo = list.find(d => _date(d) === today)
                   || list.slice().sort((a, b) => (_date(b) || '').localeCompare(_date(a) || ''))[0];
     const recent    = list
-      .filter(d => d !== todayDevo)
-      .sort((a, b) => (_date(b) || '').localeCompare(_date(a) || ''))
-      .slice(0, 14);
+      .filter(d => {
+        const dt = _date(d);
+        return dt && dt <= yesterday && dt >= earliest;
+      })
+      .sort((a, b) => (_date(b) || '').localeCompare(_date(a) || ''));
 
     host.innerHTML = `
       <article class="ur-devo-card">
@@ -109,6 +114,14 @@ function _today() {
   const d = new Date();
   const p = (n) => (n < 10 ? '0' + n : '' + n);
   return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+}
+
+function _shiftDays(ymd, delta) {
+  const [y, m, d] = String(ymd).split('-').map(Number);
+  const dt = new Date(y, (m || 1) - 1, (d || 1));
+  dt.setDate(dt.getDate() + delta);
+  const p = (n) => (n < 10 ? '0' + n : '' + n);
+  return dt.getFullYear() + '-' + p(dt.getMonth() + 1) + '-' + p(dt.getDate());
 }
 
 /* ── Render ───────────────────────────────────────────────────────────────── */
