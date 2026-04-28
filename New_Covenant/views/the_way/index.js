@@ -8,38 +8,6 @@ import { pageHero } from '../_frame.js';
 export const name  = 'the_way';
 export const title = 'The Way';
 
-const TRACKS = [
-  {
-    id: 1, title: 'Foundations of Faith', stage: 'New Believer',
-    color: '#059669', enrolled: 14, complete: 3, lessons: 8,
-    desc: 'Core doctrines, prayer, Scripture basics, and first steps in community.',
-  },
-  {
-    id: 2, title: 'Rooted in Grace', stage: 'Growing',
-    color: '#0ea5e9', enrolled: 22, complete: 9, lessons: 12,
-    desc: 'Deeper study of the Gospels, spiritual disciplines, and serving the church.',
-  },
-  {
-    id: 3, title: 'Walking in the Spirit', stage: 'Maturing',
-    color: '#7c3aed', enrolled: 11, complete: 7, lessons: 10,
-    desc: 'Gifts of the Spirit, intercession, spiritual warfare, and mentoring others.',
-  },
-  {
-    id: 4, title: 'Called to Lead', stage: 'Leader Track',
-    color: '#e8a838', enrolled: 7, complete: 2, lessons: 14,
-    desc: 'Leadership theology, preaching basics, pastoral care, and church governance.',
-  },
-];
-
-const GROUPS = [
-  { id: 1, name: 'Young Adults — Eastside',   leader: 'James Okafor',   members: 12, day: 'Tuesday',   time: '7:00 PM', type: 'Small Group'  },
-  { id: 2, name: 'Married Couples Circle',     leader: 'Sarah & David Mitchell', members: 8, day: 'Wednesday', time: '7:30 PM', type: 'Life Group'   },
-  { id: 3, name: 'Men\'s Bible Study',         leader: 'Elijah Mensah',  members: 15, day: 'Saturday',  time: '8:00 AM', type: 'Study Group'  },
-  { id: 4, name: 'Women of the Word',          leader: 'Grace Kimura',   members: 19, day: 'Thursday',  time: '6:30 PM', type: 'Study Group'  },
-  { id: 5, name: 'Teen Discipleship',          leader: 'Priya Nair',     members: 11, day: 'Friday',    time: '6:00 PM', type: 'Youth Group'  },
-  { id: 6, name: 'Senior Fellowship',          leader: 'Ruth Adebayo',   members: 10, day: 'Monday',    time: '2:00 PM', type: 'Life Group'   },
-];
-
 export function render() {
   return /* html */`
     <section class="way-view">
@@ -55,7 +23,7 @@ export function render() {
         <button class="flock-btn flock-btn--ghost way-see-all">View All Tracks</button>
       </div>
       <div class="way-tracks">
-        <div class="way-loading" style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Loading tracks…</div>
+        <div class="life-empty">Loading tracks…</div>
       </div>
 
       <!-- Small Groups -->
@@ -67,7 +35,7 @@ export function render() {
         </button>
       </div>
       <div class="way-groups">
-        <div class="way-loading" style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Loading groups…</div>
+        <div class="life-empty">Loading groups…</div>
       </div>
 
       <!-- Ministries -->
@@ -79,7 +47,7 @@ export function render() {
         </button>
       </div>
       <div data-bind="ministries">
-        <div class="way-loading" style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Loading ministries…</div>
+        <div class="life-empty">Loading ministries…</div>
       </div>
 
       <!-- Volunteers -->
@@ -91,7 +59,7 @@ export function render() {
         </button>
       </div>
       <div data-bind="volunteers">
-        <div class="way-loading" style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Loading volunteers…</div>
+        <div class="life-empty">Loading volunteers…</div>
       </div>
     </section>
   `;
@@ -115,12 +83,19 @@ export function mount(root) {
 
 async function _loadWay(root) {
   const V = window.TheVine;
-  if (!V) return;
+  const tracksEl = root.querySelector('.way-tracks');
+  const groupsEl = root.querySelector('.way-groups');
+  if (!V?.flock) {
+    if (tracksEl) tracksEl.innerHTML = '<div class="life-empty">Discipleship backend not loaded.</div>';
+    if (groupsEl) groupsEl.innerHTML = '<div class="life-empty">Small groups backend not loaded.</div>';
+    _loadMinistries(root);
+    _loadVolunteers(root);
+    return;
+  }
 
   // Discipleship tracks
-  const tracksEl = root.querySelector('.way-tracks');
-  if (tracksEl) {
-    tracksEl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Loading tracks…</div>';
+  if (tracksEl && V.flock.discipleship?.paths?.list) {
+    tracksEl.innerHTML = '<div class="life-empty">Loading tracks…</div>';
     try {
       const res  = await V.flock.discipleship.paths.list({});
       const all  = _rows(res);
@@ -129,23 +104,24 @@ async function _loadWay(root) {
       const rows = all.filter(r => !_DEAD.has((r.status || r.Status || '').toLowerCase()));
       tracksEl.innerHTML = rows.length
         ? rows.map(_liveTrackCard).join('')
-        : '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">No discipleship tracks found.</div>';
+        : '<div class="life-empty">No discipleship tracks yet.</div>';
     } catch (err) {
       console.error('[TheWay] discipleship.paths.list error:', err);
-      tracksEl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Discipleship data unavailable.</div>';
+      tracksEl.innerHTML = '<div class="life-empty">Could not load discipleship tracks right now.</div>';
     }
+  } else if (tracksEl) {
+    tracksEl.innerHTML = '<div class="life-empty">Discipleship paths backend not available.</div>';
   }
 
   // Small groups
-  const groupsEl = root.querySelector('.way-groups');
-  if (groupsEl) {
-    groupsEl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Loading groups…</div>';
+  if (groupsEl && V.flock.groups?.list) {
+    groupsEl.innerHTML = '<div class="life-empty">Loading groups…</div>';
     try {
       const res  = await V.flock.groups.list();
       const rows = _rows(res);
       groupsEl.innerHTML = rows.length
         ? rows.map(_liveGroupRow).join('')
-        : '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">No small groups found.</div>';
+        : '<div class="life-empty">No small groups yet. Use “New Group” to add one.</div>';
 
       // Store map and wire clicks
       _liveGroupsMap = {};
@@ -160,8 +136,10 @@ async function _loadWay(root) {
       });
     } catch (err) {
       console.error('[TheWay] groups.list error:', err);
-      groupsEl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Small groups data unavailable.</div>';
+      groupsEl.innerHTML = '<div class="life-empty">Could not load small groups right now.</div>';
     }
+  } else if (groupsEl) {
+    groupsEl.innerHTML = '<div class="life-empty">Groups backend not available.</div>';
   }
 
   _loadMinistries(root);
@@ -227,48 +205,6 @@ function _liveGroupRow(g) {
       </div>
       ${leader ? `<div class="way-group-leader">Led by ${_e(leader)}</div>` : ''}
     </article>`;
-}
-
-function _trackCard(t) {
-  const pct = Math.round((t.complete / t.enrolled) * 100);
-  return /* html */`
-    <article class="way-track-card" tabindex="0">
-      <div class="way-track-stripe" style="background:${t.color}"></div>
-      <div class="way-track-body">
-        <div class="way-track-stage" style="color:${t.color}">${_e(t.stage)}</div>
-        <div class="way-track-title">${_e(t.title)}</div>
-        <div class="way-track-desc">${_e(t.desc)}</div>
-        <div class="way-track-meta">
-          <span>${t.lessons} lessons</span>
-          <span>${t.enrolled} enrolled</span>
-        </div>
-        <div class="way-progress-bar">
-          <div class="way-progress-fill" style="width:${pct}%; background:${t.color}"></div>
-        </div>
-        <div class="way-progress-label">${t.complete}/${t.enrolled} completed (${pct}%)</div>
-      </div>
-    </article>
-  `;
-}
-
-function _groupRow(g) {
-  const initials = g.leader.split(/\s+/).map(w => w[0] || '').slice(0,2).join('').toUpperCase();
-  return /* html */`
-    <article class="way-group-row" tabindex="0">
-      <div class="way-group-avatar">${initials}</div>
-      <div class="way-group-body">
-        <div class="way-group-name">${_e(g.name)}</div>
-        <div class="way-group-meta">
-          <span>${_e(g.type)}</span>
-          <span>·</span>
-          <span>${_e(g.day)}s ${_e(g.time)}</span>
-          <span>·</span>
-          <span>${g.members} members</span>
-        </div>
-      </div>
-      <div class="way-group-leader">Led by ${_e(g.leader)}</div>
-    </article>
-  `;
 }
 
 function _e(s) {
@@ -374,6 +310,9 @@ function _openGroupSheet(g, onReload) {
     const errEl   = sheet.querySelector('[data-error]');
     const nameVal = sheet.querySelector('[data-field="name"]').value.trim();
     if (!nameVal) { errEl.textContent = 'Group name is required.'; errEl.style.display = ''; return; }
+    if (!V?.flock?.groups) {
+      errEl.textContent = 'Groups backend not loaded.'; errEl.style.display = ''; return;
+    }
     errEl.style.display = 'none';
     const btn = sheet.querySelector('[data-save]');
     btn.disabled = true; btn.textContent = isNew ? 'Creating…' : 'Saving…';
@@ -414,6 +353,7 @@ function _openGroupSheet(g, onReload) {
       onReload?.();
     } catch (err) {
       console.error('[TheWay] group archive error:', err);
+      alert(err?.message || 'Could not archive group.');
       btn.disabled = false; btn.textContent = 'Archive Group';
     }
   });
@@ -437,15 +377,15 @@ async function _loadMinistries(root) {
   if (!host) return;
   const UR = window.UpperRoom;
   if (!UR || typeof UR.listMinistries !== 'function') {
-    host.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Ministries require Firestore (UpperRoom) — not available.</div>';
+    host.innerHTML = '<div class="life-empty">Ministries require Firestore (UpperRoom) — not available.</div>';
     return;
   }
-  host.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Loading ministries…</div>';
+  host.innerHTML = '<div class="life-empty">Loading ministries…</div>';
   try {
     const res  = await UR.listMinistries({ limit: 100 });
     const rows = Array.isArray(res) ? res : (res?.results || res?.rows || []);
     if (!rows.length) {
-      host.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">No ministries on record. Use "New Ministry" to add one.</div>';
+      host.innerHTML = '<div class="life-empty">No ministries on record. Use “New Ministry” to add one.</div>';
       return;
     }
     host.innerHTML = rows.map(m => _ministryRow(m)).join('');
@@ -459,7 +399,7 @@ async function _loadMinistries(root) {
     });
   } catch (err) {
     console.error('[TheWay] listMinistries:', err);
-    host.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Could not load ministries right now.</div>';
+    host.innerHTML = '<div class="life-empty">Could not load ministries right now.</div>';
   }
 }
 
@@ -606,15 +546,15 @@ async function _loadVolunteers(root) {
   if (!host) return;
   const UR = window.UpperRoom;
   if (!UR || typeof UR.listVolunteers !== 'function') {
-    host.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Volunteers require Firestore (UpperRoom) — not available.</div>';
+    host.innerHTML = '<div class="life-empty">Volunteers require Firestore (UpperRoom) — not available.</div>';
     return;
   }
-  host.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Loading volunteers…</div>';
+  host.innerHTML = '<div class="life-empty">Loading volunteers…</div>';
   try {
     const res  = await UR.listVolunteers({ limit: 80 });
     const rows = Array.isArray(res) ? res : (res?.results || res?.rows || []);
     if (!rows.length) {
-      host.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">No volunteer records. Use "Add Volunteer" to log one.</div>';
+      host.innerHTML = '<div class="life-empty">No volunteer records. Use “Add Volunteer” to log one.</div>';
       return;
     }
     host.innerHTML = rows.map(v => _volunteerRow(v)).join('');
@@ -628,7 +568,7 @@ async function _loadVolunteers(root) {
     });
   } catch (err) {
     console.error('[TheWay] listVolunteers:', err);
-    host.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Could not load volunteers right now.</div>';
+    host.innerHTML = '<div class="life-empty">Could not load volunteers right now.</div>';
   }
 }
 
