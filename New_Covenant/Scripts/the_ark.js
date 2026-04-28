@@ -148,6 +148,7 @@ function _preloadViews() {
   import('../views/the_good_shepherd/the_flock_feed.js').catch(() => {});
   import('../views/the_good_shepherd/the_call.js').catch(() => {});
   import('../views/the_good_shepherd/the_word.js').catch(() => {});
+  import('../views/the_good_shepherd/the_prayer_hours.js').catch(() => {});
   // The Upper Room — surfaced from the home dashboard, parse it now.
   import('../views/the_upper_room/index.js').catch(() => {});
   import('../views/the_upper_room/the_devotional.js').catch(() => {});

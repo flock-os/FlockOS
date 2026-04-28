@@ -3175,6 +3175,35 @@ flock-tabs [role="tablist"], .tabs-bar {
   .word-title { font-size: 1.2rem; }
 }
 
+/* ─── Daily Prayer Hours home widget ───────────────────────────────────────── */
+.prayer-hours-card { border-left-color: var(--c-amber, #d4a017); }
+.prayer-hours-card .word-eyebrow { color: var(--c-amber, #d4a017); }
+.prayer-hours-card .word-scrip   { border-left-color: var(--c-amber, #d4a017); color: var(--ink, #1b264f); font-style: italic; }
+
+.prayer-hours-list { display: flex; flex-direction: column; gap: 4px; }
+.prayer-hours-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px; border-radius: 8px; cursor: pointer;
+  transition: background 150ms var(--ease);
+  border: 1px solid transparent;
+}
+.prayer-hours-row:hover { background: rgba(212,160,23,0.08); border-color: rgba(212,160,23,0.2); }
+.prayer-hours-row.is-now {
+  background: rgba(212,160,23,0.12);
+  border-color: rgba(212,160,23,0.35);
+}
+.prayer-hours-icon { font-size: 1.2rem; flex: none; width: 28px; text-align: center; }
+.prayer-hours-body { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.prayer-hours-time {
+  font: 600 0.88rem var(--font-ui); color: var(--ink, #1b264f);
+}
+.prayer-hours-row:not(.is-now) .prayer-hours-time { opacity: 0.75; }
+.prayer-hours-now-pill {
+  font: 700 0.68rem var(--font-ui); letter-spacing: 0.04em; text-transform: uppercase;
+  background: var(--c-amber, #d4a017); color: #fff;
+  padding: 2px 8px; border-radius: 999px;
+}
+
 /* ════════════════════════════════════════════════════════════════════════════
    THE UPPER ROOM — Devotional / Reading / Journal / Prayer
    ════════════════════════════════════════════════════════════════════════════ */

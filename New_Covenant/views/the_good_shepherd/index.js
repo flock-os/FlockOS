@@ -18,7 +18,8 @@ import { mountNextSteps }   from './the_next_steps.js';
 import { mountBirthdays }   from './the_birthdays.js';
 import { mountMyTodos }     from './the_todos.js';
 import { mountTodayEvents } from './the_today_events.js';
-import { mountTodayWord }   from './the_word.js';
+import { mountTodayWord }     from './the_word.js';
+import { mountPrayerHours }  from './the_prayer_hours.js';
 import { renderCall }       from './the_call.js';
 import { profile }          from '../../Scripts/the_priesthood/index.js';
 
@@ -32,6 +33,10 @@ export function render(/* params */) {
       ${renderPasture(me)}
 
       <div data-bind="todays-word">
+        <flock-skeleton rows="3"></flock-skeleton>
+      </div>
+
+      <div data-bind="prayer-hours">
         <flock-skeleton rows="3"></flock-skeleton>
       </div>
 
@@ -101,7 +106,8 @@ export function mount(root, ctx) {
   });
 
   const stops = [];
-  stops.push(mountTodayWord(root.querySelector('[data-bind="todays-word"]'),  ctx));
+  stops.push(mountTodayWord(root.querySelector('[data-bind="todays-word"]'),    ctx));
+  stops.push(mountPrayerHours(root.querySelector('[data-bind="prayer-hours"]'), ctx));
   stops.push(mountCount(root.querySelector('[data-bind="fellowship-summary"]'), 'fellowship'));
   stops.push(mountCount(root.querySelector('[data-bind="care-summary"]'),       'care'));
   stops.push(mountCount(root.querySelector('[data-bind="today"]'),              'today'));
