@@ -108,11 +108,6 @@ function _rows(res) {
   return [];
 }
 
-function _isFB() {
-  const UR = window.UpperRoom;
-  return !!(UR && typeof UR.isReady === 'function' && UR.isReady() && typeof UR.listCareCases === 'function');
-}
-
 async function _loadCases(root, onReload) {
   const V   = window.TheVine;
   const MX  = buildAdapter('flock.care', V);
