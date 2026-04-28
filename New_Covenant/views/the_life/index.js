@@ -2343,6 +2343,7 @@ function _closeComposer() {
   setTimeout(() => { t.remove(); if (_activeComposer === t) _activeComposer = null; }, 240);
 }
 
+export function openContactComposer(opts) { return _openComposer(opts); }
 function _openComposer({ channel, name, recipient, target, caseId, sheet, onLogged }) {
   _closeComposer();
   const isText  = channel === 'text';

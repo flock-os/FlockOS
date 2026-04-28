@@ -1201,6 +1201,17 @@ flock-tabs [role="tablist"], .tabs-bar {
 }
 .fold-card:hover .fold-card-arrow { opacity: 1; transform: translateX(0); }
 
+/* Contact action buttons on fold cards */
+.fold-card-actions {
+  display: flex; gap: 4px; align-items: center; flex: none;
+  margin-right: 4px; opacity: 0; transition: opacity 150ms var(--ease);
+}
+.fold-card:hover .fold-card-actions { opacity: 1; }
+.fold-card-actions .flock-icon-btn--sm {
+  color: var(--ink-muted, #7a7f96); text-decoration: none;
+}
+.fold-card-actions .flock-icon-btn--sm:hover { color: var(--gold, #e8a838); background: rgba(232,168,56,.10); }
+
 
 /* ════════════════════════════════════════════════════════════════════════════
    THE SEASONS — Events calendar

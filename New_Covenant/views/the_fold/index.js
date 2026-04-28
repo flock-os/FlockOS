@@ -4,6 +4,7 @@
    ══════════════════════════════════════════════════════════════════════════════ */
 
 import { pageHero } from '../_frame.js';
+import { openContactComposer } from '../the_life/index.js';
 
 export const name  = 'the_fold';
 export const title = 'The Fold';
@@ -115,8 +116,22 @@ async function _loadMembers(root) {
     });
     grid.innerHTML = rows.map(_liveCard).join('');
     if (stats) stats.innerHTML = _liveStats(rows);
-    // Wire card clicks
+    // Wire card clicks + contact buttons
     grid.querySelectorAll('.fold-card').forEach((card) => {
+      // Contact buttons stop propagation so they don't open the detail sheet
+      card.querySelectorAll('.fold-contact-btn[data-contact]').forEach(btn => {
+        btn.addEventListener('click', (ev) => {
+          ev.stopPropagation();
+          const kind  = btn.dataset.contact;
+          const name  = btn.dataset.name || '';
+          const value = btn.dataset.value || '';
+          const tel   = btn.dataset.tel   || value.replace(/[^\d+]/g, '');
+          if (kind === 'text')  openContactComposer({ channel: 'text',  name, recipient: value, target: tel });
+          if (kind === 'email') openContactComposer({ channel: 'email', name, recipient: value, target: value });
+          // 'call' uses native <a href="tel:">, nothing extra needed
+        });
+      });
+
       const open = () => {
         const person = _personMap[card.dataset.id];
         if (person) _openMemberSheet(person, V, () => _loadMembers(root));
@@ -150,6 +165,9 @@ function _liveCard(p) {
   const yr       = p.joinDate ? new Date(p.joinDate).getFullYear() : (p.createdAt ? new Date(p.createdAt).getFullYear() : '');
   const color    = _AVATAR_COLORS[(name.charCodeAt(0) + (name.charCodeAt(1) || 0)) % _AVATAR_COLORS.length];
   const uid      = p.id || p.memberNumber || p.email || '';
+  const email    = (p.email || p.primaryEmail || '').trim();
+  const phoneRaw = (p.phone || p.primaryPhone || p.mobilePhone || '').trim();
+  const phoneTel = phoneRaw.replace(/[^\d+]/g, '');
   return `
     <article class="fold-card" role="listitem" tabindex="0"
              data-name="${_e(name.toLowerCase())}" data-role="${_e(role)}" data-id="${_e(uid)}">
@@ -161,6 +179,20 @@ function _liveCard(p) {
           ${yr ? `<span class="fold-joined">Since ${yr}</span>` : ''}
         </div>
       </div>
+      ${(phoneTel || email) ? `
+      <div class="fold-card-actions" role="group" aria-label="Contact ${_e(name)}">
+        ${phoneTel ? `
+          <button type="button" class="flock-icon-btn flock-icon-btn--sm fold-contact-btn" data-contact="text" data-name="${_e(name)}" data-value="${_e(phoneRaw)}" data-tel="${_e(phoneTel)}" title="Text ${_e(name)}" aria-label="Text ${_e(name)}">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.5 8.5 0 0 1-3.7-.8L3 21l1.9-5.3A8.4 8.4 0 1 1 21 11.5z"/></svg>
+          </button>
+          <a class="flock-icon-btn flock-icon-btn--sm fold-contact-btn" href="tel:${_e(phoneTel)}" data-contact="call" data-name="${_e(name)}" data-value="${_e(phoneRaw)}" title="Call ${_e(name)}" aria-label="Call ${_e(name)}">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3.1-8.7A2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.3 1.8.6 2.6a2 2 0 0 1-.5 2.1L8 9.6a16 16 0 0 0 6 6l1.2-1.2a2 2 0 0 1 2.1-.5c.8.3 1.7.5 2.6.6a2 2 0 0 1 1.7 2z"/></svg>
+          </a>` : ''}
+        ${email ? `
+          <button type="button" class="flock-icon-btn flock-icon-btn--sm fold-contact-btn" data-contact="email" data-name="${_e(name)}" data-value="${_e(email)}" title="Email ${_e(name)}" aria-label="Email ${_e(name)}">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 6-10 7L2 6"/></svg>
+          </button>` : ''}
+      </div>` : ''}
       <svg class="fold-card-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="m9 18 6-6-6-6"/></svg>
     </article>`;
 }
@@ -228,6 +260,9 @@ function _openMemberSheet(person, V, onReload) {
   const uid     = person.id || person.memberNumber || person.email || '';
   const initials = (first ? first[0] : (name[0] || '')) + (last ? last[0] : (name[1] || ''));
   const color   = _AVATAR_COLORS[(name.charCodeAt(0) + (name.charCodeAt(1) || 0)) % _AVATAR_COLORS.length];
+  const email    = (person.email || person.primaryEmail || '').trim();
+  const phoneRaw = (person.phone || person.primaryPhone || person.mobilePhone || '').trim();
+  const phoneTel = phoneRaw.replace(/[^\d+]/g, '');
 
   const sheet = document.createElement('div');
   sheet.className = 'life-sheet';
@@ -241,6 +276,20 @@ function _openMemberSheet(person, V, onReload) {
           <div class="life-sheet-hd-info">
             <div class="life-sheet-hd-name">${_e(name)}</div>
             <div class="life-sheet-hd-meta">${_e(role)}</div>
+            ${(phoneTel || email) ? `
+            <div class="life-contact-actions" role="group" aria-label="Contact ${_e(name)}">
+              ${phoneTel ? `
+                <button type="button" class="flock-icon-btn life-contact-btn" data-contact="text" data-name="${_e(name)}" data-value="${_e(phoneRaw)}" data-tel="${_e(phoneTel)}" title="Text ${_e(name)} (${_e(phoneRaw)})" aria-label="Text ${_e(name)}">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.5 8.5 0 0 1-3.7-.8L3 21l1.9-5.3A8.4 8.4 0 1 1 21 11.5z"/></svg>
+                </button>
+                <a class="flock-icon-btn life-contact-btn" href="tel:${_e(phoneTel)}" title="Call ${_e(name)} (${_e(phoneRaw)})" aria-label="Call ${_e(name)}">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3.1-8.7A2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.3 1.8.6 2.6a2 2 0 0 1-.5 2.1L8 9.6a16 16 0 0 0 6 6l1.2-1.2a2 2 0 0 1 2.1-.5c.8.3 1.7.5 2.6.6a2 2 0 0 1 1.7 2z"/></svg>
+                </a>` : ''}
+              ${email ? `
+                <button type="button" class="flock-icon-btn life-contact-btn" data-contact="email" data-name="${_e(name)}" data-value="${_e(email)}" title="Email ${_e(name)} (${_e(email)})" aria-label="Email ${_e(name)}">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 6-10 7L2 6"/></svg>
+                </button>` : ''}
+            </div>` : ''}
           </div>
         </div>
         <button class="life-sheet-close" aria-label="Close">
@@ -362,6 +411,19 @@ function _openMemberSheet(person, V, onReload) {
   // Close
   sheet.querySelector('[data-cancel]').addEventListener('click', () => _closeMemberSheet());
   sheet.querySelector('.life-sheet-close').addEventListener('click', () => _closeMemberSheet());
+
+  // Contact buttons in sheet header
+  sheet.querySelectorAll('[data-contact]').forEach(btn => {
+    btn.addEventListener('click', (ev) => {
+      const kind  = btn.dataset.contact;
+      const n     = btn.dataset.name  || name;
+      const value = btn.dataset.value || '';
+      const tel   = btn.dataset.tel   || value.replace(/[^\d+]/g, '');
+      if (kind === 'text')  { ev.preventDefault(); openContactComposer({ channel: 'text',  name: n, recipient: value, target: tel }); }
+      if (kind === 'email') { ev.preventDefault(); openContactComposer({ channel: 'email', name: n, recipient: value, target: value }); }
+      // 'call' uses native <a href="tel:">
+    });
+  });
 
   // Save
   sheet.querySelector('[data-save]').addEventListener('click', async () => {
