@@ -5,14 +5,24 @@
 
 export function renderPasture(me) {
   const greeting = _timeGreeting();
-  const name     = me && (me.firstName || me.preferredName) ? ` ${_e(me.firstName || me.preferredName)}` : '';
+  const first    = _firstName(me);
+  const name     = first ? ` ${_e(first)}` : '';
   return `
     <header class="pasture-hero">
       <div class="pasture-date">${_today()}</div>
-      <h1>${greeting},${name}.</h1>
+      <h1>${greeting}${name}.</h1>
       <p class="pasture-tagline">Be still, and know. The flock is gathered below.</p>
     </header>
   `;
+}
+
+function _firstName(me) {
+  if (!me) return '';
+  const raw = me.firstName || me.preferredName
+           || (me.displayName ? String(me.displayName).trim().split(/\s+/)[0] : '')
+           || (me.name        ? String(me.name).trim().split(/\s+/)[0]        : '')
+           || (me.email       ? String(me.email).split('@')[0]                 : '');
+  return raw || '';
 }
 
 function _timeGreeting() {

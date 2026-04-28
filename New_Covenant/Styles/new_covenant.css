@@ -401,8 +401,8 @@ html, body {
   letter-spacing: 0.01em;
 }
 .pasture-hero h1 {
-  font: 700 2.3rem/1.25 var(--font-ui);
-  letter-spacing: -0.025em; margin: 0 0 8px;
+  font: 700 1.6rem/1.25 var(--font-ui);
+  letter-spacing: -0.02em; margin: 0 0 8px;
   padding-bottom: 4px; overflow: visible;
   background: linear-gradient(135deg, var(--ink, #1b264f) 10%, #7c3aed 90%);
   -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
@@ -2106,7 +2106,7 @@ flock-tabs [role="tablist"], .tabs-bar {
   .veil-search { display: none; }
   .page-hero  { padding: 22px 20px 20px; border-radius: var(--radius-lg); }
   .page-hero h1 { font-size: 1.55rem; }
-  .pasture-hero h1 { font-size: 1.8rem; }
+  .pasture-hero h1 { font-size: 1.35rem; }
 
   /* Seasons */
   .seasons-layout { grid-template-columns: 1fr; }
