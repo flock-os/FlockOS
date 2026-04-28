@@ -220,7 +220,8 @@ function _openPrayerRequestSheet(p, onReload) {
         <div class="fold-form-error" data-error style="display:none;color:#dc2626;font-size:.85rem;margin-top:8px"></div>
       </div>
       <div class="life-sheet-foot">
-        ${!isNew ? '<button class="flock-btn flock-btn--ghost" data-answered style="margin-right:auto">Mark Answered</button>' : ''}
+        ${!isNew ? '<button class="flock-btn flock-btn--ghost" data-answered style="margin-right:8px">Mark Answered</button>' : ''}
+        ${!isNew ? '<button class="flock-btn flock-btn--danger" data-delete style="margin-right:auto">Delete</button>' : ''}
         <button class="flock-btn" data-cancel>Cancel</button>
         <button class="flock-btn flock-btn--primary" data-save>${isNew ? 'Add Request' : 'Save Changes'}</button>
       </div>
@@ -300,5 +301,32 @@ function _openPrayerRequestSheet(p, onReload) {
       _closePCSheet();
       onReload?.();
     } catch (err) { btn.disabled = false; btn.textContent = 'Mark Answered'; }
+  });
+
+  sheet.querySelector('[data-delete]')?.addEventListener('click', async () => {
+    if (!confirm('Delete this prayer request? This cannot be undone.')) return;
+    const btn = sheet.querySelector('[data-delete]');
+    btn.disabled = true; btn.textContent = 'Deleting…';
+    try {
+      const UR = window.UpperRoom;
+      if (UR && typeof UR.deletePrayer === 'function') {
+        await UR.deletePrayer(uid);
+      } else if (UR && typeof UR.updatePrayer === 'function') {
+        // Fallback: soft-delete by setting status to Archived
+        await UR.updatePrayer(uid, { status: 'Archived' });
+      } else if (V?.flock?.prayer?.remove) {
+        await V.flock.prayer.remove(uid);
+      } else if (V?.flock?.prayer?.update) {
+        await V.flock.prayer.update({ id: uid, status: 'Archived' });
+      } else {
+        throw new Error('No prayer backend available.');
+      }
+      _closePCSheet();
+      onReload?.();
+    } catch (err) {
+      console.error('[PrayerChain] delete:', err);
+      alert(err?.message || 'Could not delete prayer request.');
+      btn.disabled = false; btn.textContent = 'Delete';
+    }
   });
 }
