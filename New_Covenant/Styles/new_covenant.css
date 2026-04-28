@@ -3189,6 +3189,32 @@ flock-tabs [role="tablist"], .tabs-bar {
   .pasture-devo-row { grid-template-columns: 1fr; }
 }
 
+/* ─── Devo dark theme — matches pray-liturgy-card ───────────────────────────── */
+.devo-dark-card {
+  background: linear-gradient(135deg, #0f1735 0%, #1b264f 100%) !important;
+  border-left-color: var(--gold, #e8a838) !important;
+}
+.devo-dark-mark {
+  background: rgba(232,168,56,.18) !important;
+}
+.devo-dark-eyebrow { color: var(--gold, #e8a838) !important; }
+.devo-dark-theme {
+  background: rgba(232,168,56,.2) !important;
+  color: var(--gold, #e8a838) !important;
+}
+.devo-dark-title { color: #fff !important; }
+.devo-dark-scrip {
+  color: rgba(255,255,255,.75) !important;
+  border-left-color: var(--gold, #e8a838) !important;
+  background: rgba(255,255,255,.06) !important;
+}
+.devo-dark-tease { color: rgba(255,255,255,.7) !important; }
+.devo-dark-btn {
+  color: #fff !important;
+  border-color: rgba(255,255,255,.25) !important;
+}
+.devo-dark-btn:hover { background: rgba(255,255,255,.08) !important; }
+
 /* ════════════════════════════════════════════════════════════════════════════
    THE UPPER ROOM — Devotional / Reading / Journal / Prayer
    ════════════════════════════════════════════════════════════════════════════ */

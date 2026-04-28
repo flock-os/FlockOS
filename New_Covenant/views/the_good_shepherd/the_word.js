@@ -22,13 +22,13 @@ export function mountTodayWord(host, ctx) {
     const list = Array.isArray(rows) ? rows : [];
     if (!list.length) {
       host.innerHTML = `
-        <div class="word-card word-card--empty">
-          <div class="word-mark">🕯️</div>
+        <div class="word-card word-card--empty devo-dark-card">
+          <div class="word-mark devo-dark-mark">🕯️</div>
           <div class="word-body">
-            <div class="word-eyebrow">Today's Word</div>
-            <div class="word-title">Open the Word together</div>
-            <p class="word-tease">When your church publishes a devotional it will appear here each morning.</p>
-            <button type="button" class="flock-btn flock-btn--ghost" data-word-jump>Visit The Upper Room →</button>
+            <div class="word-eyebrow devo-dark-eyebrow">Today's Word</div>
+            <div class="word-title devo-dark-title">Open the Word together</div>
+            <p class="word-tease devo-dark-tease">When your church publishes a devotional it will appear here each morning.</p>
+            <button type="button" class="flock-btn flock-btn--ghost devo-dark-btn" data-word-jump>Visit The Upper Room →</button>
           </div>
         </div>`;
       _wireJump(host, ctx);
@@ -46,17 +46,17 @@ export function mountTodayWord(host, ctx) {
     const tease = refl.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 200);
 
     host.innerHTML = `
-      <div class="word-card">
-        <div class="word-mark">🕯️</div>
+      <div class="word-card devo-dark-card">
+        <div class="word-mark devo-dark-mark">🕯️</div>
         <div class="word-body">
-          <div class="word-eyebrow">
+          <div class="word-eyebrow devo-dark-eyebrow">
             <span>Today's Word</span>
-            ${theme ? `<span class="word-theme">${_e(theme)}</span>` : ''}
+            ${theme ? `<span class="word-theme devo-dark-theme">${_e(theme)}</span>` : ''}
           </div>
-          <div class="word-title">${_e(title)}</div>
-          ${scrip ? `<div class="word-scrip">${_e(scrip)}</div>` : ''}
-          ${tease ? `<p class="word-tease">${_e(tease)}${refl.length > 200 ? '…' : ''}</p>` : ''}
-          <button type="button" class="flock-btn flock-btn--primary" data-word-jump>Read & reflect →</button>
+          <div class="word-title devo-dark-title">${_e(title)}</div>
+          ${scrip ? `<div class="word-scrip devo-dark-scrip">${_e(scrip)}</div>` : ''}
+          ${tease ? `<p class="word-tease devo-dark-tease">${_e(tease)}${refl.length > 200 ? '…' : ''}</p>` : ''}
+          <button type="button" class="flock-btn flock-btn--ghost devo-dark-btn" data-word-jump>Read &amp; reflect →</button>
         </div>
       </div>`;
     _wireJump(host, ctx);
