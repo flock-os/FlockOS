@@ -3185,6 +3185,21 @@ flock-tabs [role="tablist"], .tabs-bar {
 .pasture-devo-col { min-width: 0; display: flex; flex-direction: column; }
 .pasture-devo-col .word-card,
 .pasture-devo-col .pray-liturgy-card { flex: 1; box-sizing: border-box; }
+/* Force devo card to fill height and push button to bottom */
+.pasture-devo-col .word-card.devo-dark-card {
+  flex-direction: column;
+  align-items: stretch;
+}
+.pasture-devo-col .word-card.devo-dark-card .word-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.pasture-devo-col .word-card.devo-dark-card .devo-dark-btn {
+  margin-top: auto;
+  padding-top: 14px;
+  align-self: stretch;
+}
 @media (max-width: 720px) {
   .pasture-devo-row { grid-template-columns: 1fr; }
 }
