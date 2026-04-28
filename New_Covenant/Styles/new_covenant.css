@@ -423,6 +423,7 @@ html, body {
 .pasture-row {
   display: grid; gap: 18px;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  align-items: start;
 }
 .pasture-cta { display: flex; gap: 12px; flex-wrap: wrap; }
 
@@ -3048,7 +3049,6 @@ flock-tabs [role="tablist"], .tabs-bar {
 .word-card {
   display: flex; gap: 18px; align-items: flex-start;
   padding: 22px 22px 20px;
-  margin: 18px 0 4px;
   background: linear-gradient(135deg,
     rgba(124,58,237,0.06) 0%,
     rgba(14,165,233,0.05) 50%,
