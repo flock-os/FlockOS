@@ -86,8 +86,9 @@ function _row(c) {
       <span style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${_e(c.name || c.id)}</span>
       ${badge}
       <button type="button" data-archive="${_e(c.id)}" data-name="${_e(c.name || c.id)}" title="Archive channel"
-        style="border:0; background:transparent; cursor:pointer; padding:2px 6px;
-               color:var(--ink-muted,#7a7f96); border-radius:6px; font-size:1rem;">×</button>
+        class="flock-icon-btn flock-icon-btn--sm flock-icon-btn--warn">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8"/><path d="M10 12h4"/></svg>
+      </button>
     </div>`;
 }
 function _e(s) {

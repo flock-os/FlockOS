@@ -220,8 +220,12 @@ function _openPrayerRequestSheet(p, onReload) {
         <div class="fold-form-error" data-error style="display:none;color:#dc2626;font-size:.85rem;margin-top:8px"></div>
       </div>
       <div class="life-sheet-foot">
-        ${!isNew ? '<button class="flock-btn flock-btn--ghost" data-answered style="margin-right:8px">Mark Answered</button>' : ''}
-        ${!isNew ? '<button class="flock-btn flock-btn--danger" data-delete style="margin-right:auto">Delete</button>' : ''}
+        ${!isNew ? `<button class="flock-icon-btn flock-icon-btn--warn" data-answered title="Mark answered" aria-label="Mark answered" style="margin-right:6px;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+        </button>` : ''}
+        ${!isNew ? `<button class="flock-icon-btn flock-icon-btn--danger" data-delete title="Delete request" aria-label="Delete request" style="margin-right:auto;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6"/><path d="M10 11v6M14 11v6"/></svg>
+        </button>` : ''}
         <button class="flock-btn" data-cancel>Cancel</button>
         <button class="flock-btn flock-btn--primary" data-save>${isNew ? 'Add Request' : 'Save Changes'}</button>
       </div>
@@ -288,7 +292,7 @@ function _openPrayerRequestSheet(p, onReload) {
     const ok = confirm('Mark this prayer request as answered? Praise God!');
     if (!ok) return;
     const btn = sheet.querySelector('[data-answered]');
-    btn.disabled = true; btn.textContent = 'Saving…';
+    btn.disabled = true;
     try {
       const UR = window.UpperRoom;
       if (UR && typeof UR.updatePrayer === 'function') {
@@ -300,13 +304,14 @@ function _openPrayerRequestSheet(p, onReload) {
       }
       _closePCSheet();
       onReload?.();
-    } catch (err) { btn.disabled = false; btn.textContent = 'Mark Answered'; }
+    } catch (err) { btn.disabled = false; }
   });
 
   sheet.querySelector('[data-delete]')?.addEventListener('click', async () => {
-    if (!confirm('Delete this prayer request? This cannot be undone.')) return;
+    const submitterLabel = (submitter || 'Anonymous').trim();
+    if (!confirm(`Delete this prayer request from ${submitterLabel}?\n\nThis cannot be undone.`)) return;
     const btn = sheet.querySelector('[data-delete]');
-    btn.disabled = true; btn.textContent = 'Deleting…';
+    btn.disabled = true;
     try {
       const UR = window.UpperRoom;
       if (UR && typeof UR.deletePrayer === 'function') {
@@ -326,7 +331,7 @@ function _openPrayerRequestSheet(p, onReload) {
     } catch (err) {
       console.error('[PrayerChain] delete:', err);
       alert(err?.message || 'Could not delete prayer request.');
-      btn.disabled = false; btn.textContent = 'Delete';
+      btn.disabled = false;
     }
   });
 }

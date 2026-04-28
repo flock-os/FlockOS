@@ -610,6 +610,22 @@ flock-button button:active, .flock-btn:active { transform: scale(0.96); }
 .flock-btn--danger { background: #dc2626; color: #fff; border-color: #b91c1c; }
 .flock-btn--danger:hover { background: #b91c1c; }
 .flock-btn--sm { padding: 6px 14px; font-size: 0.82rem; }
+
+/* ── Icon-only action buttons (archive / delete / etc.) ───────────────────── */
+.flock-icon-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; padding: 0;
+  background: transparent; color: var(--ink-muted, #7a7f96);
+  border: 1.5px solid var(--line, #e5e7ef); border-radius: 8px;
+  cursor: pointer; transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+.flock-icon-btn:hover { background: var(--bg-base, #f4f6fb); color: var(--ink, #1b264f); }
+.flock-icon-btn:active { transform: scale(0.94); }
+.flock-icon-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.flock-icon-btn--warn:hover  { background: rgba(245,158,11,0.10); color: #b45309; border-color: #f59e0b; }
+.flock-icon-btn--danger:hover { background: rgba(220,38,38,0.10); color: #b91c1c; border-color: #dc2626; }
+.flock-icon-btn--sm { width: 26px; height: 26px; border-radius: 6px; }
+.flock-icon-btn--sm svg { width: 13px; height: 13px; }
 flock-input input, flock-select select, .flock-field {
   width: 100%; padding: 10px 12px; background: var(--bg-raised, #fff); color: var(--ink, #1b264f);
   border: 1.5px solid var(--line, #e5e7ef); border-radius: var(--radius-sm);

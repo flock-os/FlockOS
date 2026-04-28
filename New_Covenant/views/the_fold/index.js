@@ -317,7 +317,12 @@ function _openMemberSheet(person, V, onReload) {
         </div>
       </div>
       <div class="life-sheet-foot">
-        <button class="flock-btn flock-btn--danger" data-delete style="margin-right:auto">Archive</button>
+        <button class="flock-icon-btn flock-icon-btn--warn" data-archive title="Archive member" aria-label="Archive member" style="margin-right:6px;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8"/><path d="M10 12h4"/></svg>
+        </button>
+        <button class="flock-icon-btn flock-icon-btn--danger" data-delete title="Delete member permanently" aria-label="Delete member permanently" style="margin-right:auto;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6"/><path d="M10 11v6M14 11v6"/></svg>
+        </button>
         <button class="flock-btn" data-cancel>Cancel</button>
         <button class="flock-btn flock-btn--primary" data-save>Save Changes</button>
       </div>
@@ -389,20 +394,45 @@ function _openMemberSheet(person, V, onReload) {
     }
   });
 
-  // Delete / archive
-  sheet.querySelector('[data-delete]').addEventListener('click', async () => {
-    const ok = confirm(`Archive ${name}? They will be hidden from the directory but their records are preserved.`);
+  // Archive (soft — hide from directory)
+  sheet.querySelector('[data-archive]').addEventListener('click', async () => {
+    const ok = confirm(`Archive ${name}?\n\nThey will be hidden from the directory but their records are preserved. You can restore them later.`);
     if (!ok) return;
+    const btn = sheet.querySelector('[data-archive]');
+    btn.disabled = true;
+    try {
+      // Soft archive: flip status to Inactive (preserves all records)
+      await V.flock.members.update({ id: uid, status: 'Inactive' });
+      _closeMemberSheet();
+      onReload?.();
+    } catch (err) {
+      console.error('[TheFold] member archive error:', err);
+      btn.disabled = false;
+      alert(err?.message || 'Could not archive this person.');
+    }
+  });
+
+  // Delete (hard — destructive, type-to-confirm)
+  sheet.querySelector('[data-delete]').addEventListener('click', async () => {
+    const typed = prompt(
+      `⚠️ PERMANENT DELETE\n\nThis will permanently remove ${name} and cannot be undone.\n\nType the first name ("${first || name.split(' ')[0] || name}") to confirm:`
+    );
+    if (typed == null) return;
+    const expected = (first || name.split(' ')[0] || name).trim().toLowerCase();
+    if (typed.trim().toLowerCase() !== expected) {
+      alert('Name did not match. Delete cancelled.');
+      return;
+    }
     const btn = sheet.querySelector('[data-delete]');
-    btn.disabled = true; btn.textContent = 'Archiving…';
+    btn.disabled = true;
     try {
       await V.flock.members.delete({ id: uid });
       _closeMemberSheet();
       onReload?.();
     } catch (err) {
       console.error('[TheFold] member delete error:', err);
-      btn.disabled = false; btn.textContent = 'Archive';
-      alert(err?.message || 'Could not archive this person.');
+      btn.disabled = false;
+      alert(err?.message || 'Could not delete this person.');
     }
   });
 }

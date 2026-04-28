@@ -55,12 +55,12 @@ export function mount(root /*, ctx */) {
       <div class="ann-msg" data-mid="${_e(String(m.id || ''))}" style="position:relative;">
         ${renderMessage(m)}
         <div class="ann-msg-actions" style="position:absolute; top:6px; right:6px; display:flex; gap:4px; opacity:0; transition:opacity 120ms;">
-          <button type="button" data-act="edit" title="Edit"
-            style="border:0; background:var(--bg,#f7f8fb); cursor:pointer; padding:3px 8px;
-                   border-radius:6px; font-size:0.78rem; color:var(--ink-muted,#7a7f96);">Edit</button>
-          <button type="button" data-act="delete" title="Delete"
-            style="border:0; background:var(--bg,#f7f8fb); cursor:pointer; padding:3px 8px;
-                   border-radius:6px; font-size:0.78rem; color:#dc2626;">Delete</button>
+          <button type="button" class="flock-icon-btn flock-icon-btn--sm" data-act="edit" title="Edit" aria-label="Edit announcement">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+          </button>
+          <button type="button" class="flock-icon-btn flock-icon-btn--sm flock-icon-btn--danger" data-act="delete" title="Delete" aria-label="Delete announcement">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6"/><path d="M10 11v6M14 11v6"/></svg>
+          </button>
         </div>
       </div>`).join('');
     stream.querySelectorAll('.ann-msg').forEach((el) => {
