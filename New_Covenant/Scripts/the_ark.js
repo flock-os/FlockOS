@@ -21,6 +21,7 @@ import { whoAmI, enter } from './the_priesthood/index.js';
 import { report } from './the_watchmen.js';
 import * as adornment from './the_adornment.js';
 import * as livingWater from './the_living_water_register.js';
+import { installScriptureLinks } from './the_scrolls/the_bible_link.js';
 
 const flock = {
   /** Boot the new FlockOS shell. Idempotent.
@@ -72,6 +73,7 @@ const flock = {
     await Promise.all([hydratePromise, dressPromise]);
     await _registerViews();
     await go(_initialRoute(), { replace: true });
+    installScriptureLinks(document.body); // auto-linkify all scripture refs to bible.com (ESV)
     darken();               // splash off (with fade via the_oil)
 
     livingWater.register().catch(() => {}); // SW after the first paint
