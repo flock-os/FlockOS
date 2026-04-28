@@ -9,6 +9,35 @@ import { profile } from '../../Scripts/the_priesthood/index.js';
 export const name  = 'the_life';
 export const title = 'Pastoral Care';
 
+const _TERMINAL = new Set(['resolved','closed','archived','cancelled','denied','completed','answered','inactive','deleted']);
+
+/* ── Sidebar badge ────────────────────────────────────────────────────────────
+   the_pillars imports `pendingCount` and shows it next to "Pastoral Care".
+   Counts open (non-terminal) care cases. Cached briefly so the 30-second
+   badge tick doesn't hammer the GAS bridge.                                  */
+let _pendingCache = null;
+let _pendingCachedAt = 0;
+const _PENDING_TTL = 60_000; // 1 min
+
+export async function pendingCount() {
+  const now = Date.now();
+  if (_pendingCache !== null && (now - _pendingCachedAt) < _PENDING_TTL) {
+    return _pendingCache;
+  }
+  const V = window.TheVine;
+  if (!V || !V.flock || !V.flock.care || typeof V.flock.care.list !== 'function') return 0;
+  try {
+    const res = await V.flock.care.list({});
+    const rows = Array.isArray(res) ? res : (res?.rows || res?.data || []);
+    const open = rows.filter(r => !_TERMINAL.has(String(r.status || r.Status || '').toLowerCase())).length;
+    _pendingCache = open;
+    _pendingCachedAt = now;
+    return open;
+  } catch (_) {
+    return _pendingCache || 0;
+  }
+}
+
 const PRIORITY = {
   urgent: { label: 'Urgent', color: '#dc2626', bg: 'rgba(220,38,38,0.10)' },
   high:   { label: 'High',   color: '#e8a838', bg: 'rgba(232,168,56,0.13)' },
@@ -671,8 +700,6 @@ export function mount(root) {
 
   return () => { _closeSheet(); };
 }
-
-const _TERMINAL = new Set(['resolved','closed','archived','cancelled','denied','completed','answered','inactive','deleted']);
 
 async function _loadCare(root, caseMap) {
   const V = window.TheVine;
