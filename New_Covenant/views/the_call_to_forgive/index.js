@@ -227,7 +227,8 @@ function _openCaseSheet(c, onReload) {
         <div class="fold-form-error" data-error style="display:none;color:#dc2626;font-size:.85rem;margin-top:8px"></div>
       </div>
       <div class="life-sheet-foot">
-        ${!isNew ? '<button class="flock-btn flock-btn--ghost" data-close-case style="margin-right:auto">Close Case</button>' : ''}
+        ${!isNew ? '<button class="flock-btn flock-btn--danger" data-delete style="margin-right:auto">Delete Case</button>' : ''}
+        ${!isNew ? '<button class="flock-btn flock-btn--ghost" data-close-case>Close Case</button>' : ''}
         <button class="flock-btn" data-cancel>Cancel</button>
         <button class="flock-btn flock-btn--primary" data-save>${isNew ? 'Open Case' : 'Save Changes'}</button>
       </div>
@@ -282,6 +283,22 @@ function _openCaseSheet(c, onReload) {
       _closeCtfSheet();
       onReload?.();
     } catch (_) { btn.disabled = false; btn.textContent = 'Close Case'; }
+  });
+
+  sheet.querySelector('[data-delete]')?.addEventListener('click', async () => {
+    const party = c?.party1 || 'this case';
+    if (!confirm(`Permanently delete the case for "${party}"? This cannot be undone.`)) return;
+    const btn = sheet.querySelector('[data-delete]');
+    btn.disabled = true; btn.textContent = 'Deleting…';
+    try {
+      if (typeof V.flock.care.delete === 'function') await V.flock.care.delete({ id: uid });
+      else await V.flock.care.update({ id: uid, status: 'Deleted' });
+      _closeCtfSheet();
+      onReload?.();
+    } catch (err) {
+      alert(err?.message || 'Could not delete case.');
+      btn.disabled = false; btn.textContent = 'Delete Case';
+    }
   });
 }
 

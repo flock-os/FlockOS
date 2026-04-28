@@ -20,7 +20,10 @@ export function render() {
       <!-- Discipleship Tracks -->
       <div class="way-section-header">
         <h2 class="way-section-title">Discipleship Tracks</h2>
-        <button class="flock-btn flock-btn--ghost way-see-all">View All Tracks</button>
+        <button class="flock-btn flock-btn--primary" data-new-track>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+          Add Track
+        </button>
       </div>
       <div class="way-tracks">
         <div class="life-empty">Loading tracks…</div>
@@ -70,15 +73,17 @@ const GROUP_DAYS   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday
 
 let _activeWaySheet = null;
 let _liveGroupsMap  = {};
+let _liveTracksMap  = {};
 
 export function mount(root) {
   _loadWay(root);
 
   root.querySelector('[data-new-group]')?.addEventListener('click', () => _openGroupSheet(null, () => _loadWay(root)));
+  root.querySelector('[data-new-track]')?.addEventListener('click', () => _openTrackSheet(null, () => _loadWay(root)));
   root.querySelector('[data-new-ministry]')?.addEventListener('click', () => _openMinistrySheet(null, () => _loadMinistries(root)));
   root.querySelector('[data-new-volunteer]')?.addEventListener('click', () => _openVolunteerSheet(null, () => _loadVolunteers(root)));
 
-  return () => { _closeWaySheet(); _closeMinistrySheet(); _closeVolunteerSheet(); };
+  return () => { _closeWaySheet(); _closeMinistrySheet(); _closeVolunteerSheet(); _closeTrackSheet(); };
 }
 
 async function _loadWay(root) {
@@ -102,9 +107,20 @@ async function _loadWay(root) {
       // Filter client-side: exclude archived/inactive
       const _DEAD = new Set(['archived','inactive','draft']);
       const rows = all.filter(r => !_DEAD.has((r.status || r.Status || '').toLowerCase()));
-      tracksEl.innerHTML = rows.length
-        ? rows.map(_liveTrackCard).join('')
-        : '<div class="life-empty">No discipleship tracks yet.</div>';
+      _liveTracksMap = {};
+      rows.forEach(t => { if (t.id) _liveTracksMap[String(t.id)] = t; });
+      if (rows.length) {
+        tracksEl.innerHTML = rows.map(_liveTrackCard).join('');
+        tracksEl.querySelectorAll('.way-track-card[data-id]').forEach(card => {
+          card.style.cursor = 'pointer';
+          card.addEventListener('click', () => {
+            const t = _liveTracksMap[card.dataset.id];
+            if (t) _openTrackSheet(t, () => _loadWay(root));
+          });
+        });
+      } else {
+        tracksEl.innerHTML = '<div class="life-empty">No discipleship tracks yet. Use "Add Track" to create one.</div>';
+      }
     } catch (err) {
       console.error('[TheWay] discipleship.paths.list error:', err);
       tracksEl.innerHTML = '<div class="life-empty">Could not load discipleship tracks right now.</div>';
@@ -165,7 +181,7 @@ function _liveTrackCard(t, i) {
   const pct      = enrolled ? Math.round((complete / enrolled) * 100) : 0;
   const color    = _TRACK_COLORS[i % _TRACK_COLORS.length];
   return /* html */`
-    <article class="way-track-card" tabindex="0">
+    <article class="way-track-card" tabindex="0" data-id="${_e(String(t.id || ''))}">
       <div class="way-track-stripe" style="background:${color}"></div>
       <div class="way-track-body">
         ${stage ? `<div class="way-track-stage" style="color:${color}">${_e(stage)}</div>` : ''}
@@ -199,7 +215,7 @@ function _liveGroupRow(g) {
         <div class="way-group-name">${_e(name)}</div>
         <div class="way-group-meta">
           <span>${_e(type)}</span>
-          ${(day || time) ? `<span>·</span><span>${_e([day && day + 's', time].filter(Boolean).join(' '))}</span>` : ''}
+          ${(day || time) ? `<span>·</span><span>${_e([day && day + 's', _fmtTime(time)].filter(Boolean).join(' '))}</span>` : ''}
           ${members ? `<span>·</span><span>${members} members</span>` : ''}
         </div>
       </div>
@@ -210,6 +226,14 @@ function _liveGroupRow(g) {
 function _e(s) {
   return String(s ?? '').replace(/[&<>"']/g, (c) =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function _fmtTime(raw) {
+  if (!raw) return '';
+  if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(String(raw))) return String(raw).slice(0, 5);
+  const d = new Date(raw);
+  if (!isNaN(d.getTime())) return d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+  return String(raw);
 }
 
 // ── Group sheet (create / edit) ───────────────────────────────────────────────
@@ -479,6 +503,7 @@ function _openMinistrySheet(item, onSave) {
         <div class="fold-form-error" data-error style="display:none;color:#dc2626;font-size:.85rem;margin-top:8px"></div>
       </div>
       <div class="life-sheet-foot">
+        ${isEdit ? '<button class="flock-btn flock-btn--danger" data-delete style="margin-right:auto">Delete Ministry</button>' : ''}
         <button class="flock-btn" data-cancel>Cancel</button>
         <button class="flock-btn flock-btn--primary" data-save>${isEdit ? 'Save Changes' : 'Create Ministry'}</button>
       </div>
@@ -526,6 +551,22 @@ function _openMinistrySheet(item, onSave) {
       console.error('[TheWay] ministry save:', err);
       errEl.textContent = err?.message || 'Could not save ministry.'; errEl.style.display = '';
       btn.disabled = false; btn.textContent = isEdit ? 'Save Changes' : 'Create Ministry';
+    }
+  });
+
+  sheet.querySelector('[data-delete]')?.addEventListener('click', async () => {
+    if (!confirm(`Delete ministry "${item?.name}"? This cannot be undone.`)) return;
+    const btn = sheet.querySelector('[data-delete]');
+    btn.disabled = true; btn.textContent = 'Deleting…';
+    try {
+      if (typeof UR.deleteMinistry === 'function') await UR.deleteMinistry({ id: item.id });
+      else await UR.updateMinistry({ id: item.id, status: 'Archived' });
+      _closeMinistrySheet();
+      if (onSave) onSave();
+    } catch (err) {
+      console.error('[TheWay] ministry delete:', err);
+      alert(err?.message || 'Could not delete ministry.');
+      btn.disabled = false; btn.textContent = 'Delete Ministry';
     }
   });
 }
@@ -637,6 +678,7 @@ function _openVolunteerSheet(item, onSave) {
         <div class="fold-form-error" data-error style="display:none;color:#dc2626;font-size:.85rem;margin-top:8px"></div>
       </div>
       <div class="life-sheet-foot">
+        ${isEdit ? '<button class="flock-btn flock-btn--danger" data-delete style="margin-right:auto">Delete Record</button>' : ''}
         <button class="flock-btn" data-cancel>Cancel</button>
         <button class="flock-btn flock-btn--primary" data-save>${isEdit ? 'Save Changes' : 'Add Volunteer'}</button>
       </div>
@@ -676,6 +718,145 @@ function _openVolunteerSheet(item, onSave) {
       console.error('[TheWay] volunteer save:', err);
       errEl.textContent = err?.message || 'Could not save volunteer record.'; errEl.style.display = '';
       btn.disabled = false; btn.textContent = isEdit ? 'Save Changes' : 'Add Volunteer';
+    }
+  });
+
+  sheet.querySelector('[data-delete]')?.addEventListener('click', async () => {
+    if (!confirm('Delete this volunteer record? This cannot be undone.')) return;
+    const btn = sheet.querySelector('[data-delete]');
+    btn.disabled = true; btn.textContent = 'Deleting…';
+    try {
+      if (typeof UR.deleteVolunteer === 'function') await UR.deleteVolunteer({ id: item.id });
+      else await UR.updateVolunteer({ id: item.id, status: 'Deleted' });
+      _closeVolunteerSheet();
+      if (onSave) onSave();
+    } catch (err) {
+      console.error('[TheWay] volunteer delete:', err);
+      alert(err?.message || 'Could not delete record.');
+      btn.disabled = false; btn.textContent = 'Delete Record';
+    }
+  });
+}
+
+// ── DISCIPLESHIP TRACKS ────────────────────────────────────────────────────────
+let _activeTrackSheet = null;
+const TRACK_STAGES = ['Foundation', 'Growth', 'Leadership', 'Missions', 'Specialised', 'Other'];
+
+function _closeTrackSheet() {
+  if (!_activeTrackSheet) return;
+  const t = _activeTrackSheet;
+  t.querySelector('.life-sheet-overlay')?.classList.remove('is-open');
+  t.querySelector('.life-sheet-panel')?.classList.remove('is-open');
+  setTimeout(() => { t.remove(); if (_activeTrackSheet === t) _activeTrackSheet = null; }, 320);
+}
+
+function _openTrackSheet(t, onReload) {
+  _closeTrackSheet();
+  const V = window.TheVine;
+  const isNew = !t;
+
+  const sheet = document.createElement('div');
+  sheet.className = 'life-sheet';
+  sheet.innerHTML = /* html */`
+    <div class="life-sheet-overlay"></div>
+    <div class="life-sheet-panel" role="dialog" aria-label="${isNew ? 'Add Track' : 'Edit Track'}">
+      <div class="life-sheet-drag"></div>
+      <div class="life-sheet-hd">
+        <div class="life-sheet-hd-info">
+          <div class="life-sheet-hd-name">${isNew ? 'Add Discipleship Track' : 'Edit Track'}</div>
+          <div class="life-sheet-hd-meta">${isNew ? 'Create a new growth path' : _e(t?.title || t?.name || 'Track')}</div>
+        </div>
+        <button class="life-sheet-close" aria-label="Close">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="life-sheet-body">
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Title <span style="color:#dc2626">*</span></div>
+          <input class="life-sheet-input" data-field="title" type="text" value="${_e(t?.title || t?.name || '')}" placeholder="e.g. Foundations of Faith">
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Stage / Level</div>
+          <select class="life-sheet-input" data-field="stage">
+            <option value="">— Select stage —</option>
+            ${TRACK_STAGES.map(s => `<option value="${_e(s)}"${s === (t?.stage || t?.level || t?.category || '') ? ' selected' : ''}>${_e(s)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="fold-form-row">
+          <div class="life-sheet-field">
+            <div class="life-sheet-label">Lesson Count</div>
+            <input class="life-sheet-input" data-field="lessonCount" type="number" min="0" value="${t?.lessonCount ?? t?.stepCount ?? ''}">
+          </div>
+          <div class="life-sheet-field">
+            <div class="life-sheet-label">Enrolled</div>
+            <input class="life-sheet-input" data-field="enrolledCount" type="number" min="0" value="${t?.enrolledCount ?? t?.enrolled ?? ''}">
+          </div>
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Description</div>
+          <textarea class="life-sheet-input" data-field="description" rows="3" placeholder="What will participants learn?">${_e(t?.description || t?.desc || '')}</textarea>
+        </div>
+        <div class="fold-form-error" data-error style="display:none;color:#dc2626;font-size:.85rem;margin-top:8px"></div>
+      </div>
+      <div class="life-sheet-foot">
+        ${!isNew ? '<button class="flock-btn flock-btn--danger" data-delete style="margin-right:auto">Delete Track</button>' : ''}
+        <button class="flock-btn" data-cancel>Cancel</button>
+        <button class="flock-btn flock-btn--primary" data-save>${isNew ? 'Create Track' : 'Save Changes'}</button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(sheet);
+  _activeTrackSheet = sheet;
+  requestAnimationFrame(() => {
+    sheet.querySelector('.life-sheet-overlay').classList.add('is-open');
+    sheet.querySelector('.life-sheet-panel').classList.add('is-open');
+    sheet.querySelector('[data-field="title"]')?.focus();
+  });
+
+  sheet.querySelector('[data-cancel]').addEventListener('click', _closeTrackSheet);
+  sheet.querySelector('.life-sheet-close').addEventListener('click', _closeTrackSheet);
+
+  sheet.querySelector('[data-save]').addEventListener('click', async () => {
+    const errEl = sheet.querySelector('[data-error]');
+    const title = sheet.querySelector('[data-field="title"]').value.trim();
+    if (!title) { errEl.textContent = 'Title is required.'; errEl.style.display = ''; return; }
+    if (!V?.flock?.discipleship?.paths) {
+      errEl.textContent = 'Discipleship backend not available.'; errEl.style.display = ''; return;
+    }
+    errEl.style.display = 'none';
+    const btn = sheet.querySelector('[data-save]');
+    btn.disabled = true; btn.textContent = isNew ? 'Creating…' : 'Saving…';
+    const payload = {
+      title,
+      name:         title,
+      stage:        sheet.querySelector('[data-field="stage"]').value || undefined,
+      level:        sheet.querySelector('[data-field="stage"]').value || undefined,
+      lessonCount:  parseInt(sheet.querySelector('[data-field="lessonCount"]').value) || undefined,
+      enrolledCount:parseInt(sheet.querySelector('[data-field="enrolledCount"]').value) || undefined,
+      description:  sheet.querySelector('[data-field="description"]').value.trim() || undefined,
+    };
+    if (!isNew) payload.id = String(t.id);
+    try {
+      if (isNew) await V.flock.discipleship.paths.create(payload);
+      else       await V.flock.discipleship.paths.update(payload);
+      _closeTrackSheet(); onReload?.();
+    } catch (err) {
+      errEl.textContent = err?.message || 'Could not save track.'; errEl.style.display = '';
+      btn.disabled = false; btn.textContent = isNew ? 'Create Track' : 'Save Changes';
+    }
+  });
+
+  sheet.querySelector('[data-delete]')?.addEventListener('click', async () => {
+    if (!confirm(`Delete track "${t?.title || t?.name}"? This cannot be undone.`)) return;
+    const btn = sheet.querySelector('[data-delete]');
+    btn.disabled = true; btn.textContent = 'Deleting…';
+    try {
+      if (V?.flock?.discipleship?.paths?.delete) await V.flock.discipleship.paths.delete({ id: String(t.id) });
+      else await V.flock.discipleship.paths.update({ id: String(t.id), status: 'archived' });
+      _closeTrackSheet(); onReload?.();
+    } catch (err) {
+      alert(err?.message || 'Could not delete track.');
+      btn.disabled = false; btn.textContent = 'Delete Track';
     }
   });
 }
