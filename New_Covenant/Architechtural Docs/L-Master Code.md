@@ -5,6 +5,20 @@ As of Covenant v1.0 (April 2026):
 - For canonical architecture, deployment, and build process, see the 'Covenant As-Built v1.0' sections in A-Table of Contents.md, D-Deployment and Connection.md, E-Bezalel Dependencies.md, H-End to End Plan.md, and V-Covenant-v1.0-Release.md.
 - This file is maintained for reference and historical context.
 
+## TOPOLOGY RULE — KEEP GAS WORKING (April 2026)
+
+GAS handlers in this file are AUTHORITATIVE for two cases:
+1. **GAS-only deployments** — churches without Firestore enabled. The full app runs through GAS.
+2. **Firestore deployments** — GAS still owns email send + auth/token issuance. Data writes flow Firestore → Cloud Function → `handleSyncWrite()` (see `N-Master SyncHandler.md`) → Sheet, NOT through these CRUD handlers.
+
+**Rule for every new collection/field/feature:**
+- Add the GAS handler + dispatcher line here (so GAS-only deploys keep working).
+- Add the matching `UpperRoom.*` verb in `the_upper_room.js` (Firestore path).
+- Add the camelCase→Title Case mapping in `O-Master CamelCase.md` / `FIELD_REVERSE_MAP` (so the sync handler mirrors the row correctly).
+- Update Firestore Security Rules to mirror the `requireRole(auth, N)` checks.
+
+**Never delete a GAS handler** without confirming no church is on a GAS-only deployment. The view layer's missions adapter falls back to these GAS routes whenever `window.UpperRoom.isReady()` is false.
+
 // ══════════════════════════════════════════════════════════════════════════════
 //  MASTER DEPLOYMENT — FlockOS
 //

@@ -30,6 +30,51 @@ function _normalize(raw) {
   return [];
 }
 
+// ── Missions data adapter (Firestore-first, GAS-fallback) ─────────────────────
+// Topology rule: when window.UpperRoom is initialized (Firestore mode), all
+// reads/writes go directly to Firestore. The Cloud Function trigger then POSTs
+// `sync.write` to GAS, which mirrors the row into the Sheet via the handler in
+// N-Master SyncHandler.md. When UpperRoom is NOT ready (legacy GAS-only deploy),
+// the adapter transparently falls back to V.missions.* (TheVine GAS routes).
+// This keeps the GAS contract intact — DO NOT remove the GAS handlers from
+// L-Master Code.md; they remain authoritative for GAS-only deployments and for
+// the email/auth side-effects that GAS still owns.
+// ──────────────────────────────────────────────────────────────────────────────
+function _buildMissionsAdapter(V) {
+  const UR = (typeof window !== 'undefined') ? window.UpperRoom : null;
+  const fsReady = () => !!(UR && typeof UR.isReady === 'function' && UR.isReady());
+
+  function _wrap(gasNs, urSuffix) {
+    const gas = V?.missions?.[gasNs] || {};
+    const urList   = UR && UR['listMissions'   + urSuffix];
+    const urGet    = UR && UR['getMissions'    + urSuffix];
+    const urCreate = UR && UR['createMissions' + urSuffix];
+    const urUpdate = UR && UR['updateMissions' + urSuffix];
+    const urDelete = UR && UR['deleteMissions' + urSuffix];
+    return {
+      list:   (p) => (fsReady() && urList)   ? urList(p || {})   : (gas.list   ? gas.list(p)   : Promise.resolve([])),
+      get:    (p) => (fsReady() && urGet)    ? urGet(p)          : (gas.get    ? gas.get(p)    : Promise.reject(new Error('get not supported'))),
+      create: (p) => (fsReady() && urCreate) ? urCreate(p)       : gas.create(p),
+      update: (p) => (fsReady() && urUpdate) ? urUpdate(p)       : gas.update(p),
+      delete: (p) => (fsReady() && urDelete) ? urDelete(p)       : gas.delete(p),
+    };
+  }
+
+  const prayer = _wrap('prayerFocus', 'PrayerFocus');
+  prayer.respond = (p) => (fsReady() && UR.respondMissionsPrayerFocus)
+    ? UR.respondMissionsPrayerFocus(p)
+    : V.missions.prayerFocus.respond(p);
+
+  return {
+    isFirestore: fsReady,
+    registry:    _wrap('registry',  'Registry'),
+    teams:       _wrap('teams',     'Teams'),
+    partners:    _wrap('partners',  'Partners'),
+    updates:     _wrap('updates',   'Updates'),
+    prayerFocus: prayer,
+  };
+}
+
 // ── Tab definitions ────────────────────────────────────────────────────────────
 const TABS = [
   { id: 'world',     icon: '🌍', label: 'World'     },
@@ -399,6 +444,10 @@ export function render() {
 export function mount(root) {
   let _activeTab = 'world';
   const V = window.TheVine;
+  // Firestore-first adapter (falls back to GAS when UpperRoom not ready).
+  // See _buildMissionsAdapter doc-block for the topology rule.
+  const MX = _buildMissionsAdapter(V);
+  root.__MX = MX;
 
   // Tab switching
   root.querySelectorAll('.gc-tab').forEach(btn => {
@@ -454,7 +503,8 @@ export function mount(root) {
       if (!id || !V) return;
       btn.disabled = true;
       try {
-        await V.missions.prayerFocus.respond({ id });
+        const MX = root.__MX;
+        await MX.prayerFocus.respond({ id });
         const card    = btn.closest('.gc-prayer-card');
         const counter = card?.querySelector('.gc-prayer-count');
         if (counter) {
@@ -504,7 +554,7 @@ async function _loadWorld(root, V) {
       const res = await UR.listMissionsRegistry({ limit: 300 });
       rawArr = Array.isArray(res) ? res : _normalize(res);
     } else if (V?.missions?.registry?.list) {
-      rawArr = _normalize(await V.missions.registry.list({ limit: 300 }));
+      rawArr = _normalize(await (root.__MX?.registry || V.missions.registry).list({ limit: 300 }));
     }
 
     // Sort: persecution severity first, then WWL rank ascending, then alphabetical
@@ -584,14 +634,15 @@ async function _loadPrayer(root, V) {
   _setActionBar(root, 'prayer', V, () => _loadPrayer(root, V));
   const content = root.querySelector('#gc-content');
   if (!content) return;
-  if (!V?.missions?.prayerFocus?.list) {
+  const MX = root.__MX;
+  if (!MX?.prayerFocus?.list) {
     content.innerHTML = '<div class="gc-empty">Missions backend not loaded — prayer focus unavailable.</div>';
     return;
   }
   content.innerHTML = '<div class="gc-loading">Loading prayer focus…</div>';
 
   try {
-    const rows = _normalize(await V.missions.prayerFocus.list({ limit: 80 }));
+    const rows = _normalize(await MX.prayerFocus.list({ limit: 80 }));
 
     if (!rows.length) {
       content.innerHTML = '<div class="gc-empty">No prayer focus items yet. Add prayer needs through FlockOS to see them here.</div>';
@@ -633,13 +684,14 @@ async function _loadTeams(root, V) {
   _setActionBar(root, 'teams', V, () => _loadTeams(root, V));
   const content = root.querySelector('#gc-content');
   if (!content) return;
-  if (!V?.missions?.teams?.list) {
+  const MX = root.__MX;
+  if (!MX?.teams?.list) {
     content.innerHTML = '<div class="gc-empty">Missions backend not loaded — mission teams unavailable.</div>';
     return;
   }
   content.innerHTML = '<div class="gc-loading">Loading mission teams…</div>';
   try {
-    const all = _normalize(await V.missions.teams.list({ limit: 60 }));
+    const all = _normalize(await MX.teams.list({ limit: 60 }));
     // Filter out soft-deleted teams (tripStatus 'Cancelled' is used as the
     // delete sentinel because the GAS backend has no hard delete for teams).
     const rows = all.filter(r => {
@@ -669,13 +721,14 @@ async function _loadPartners(root, V) {
   _setActionBar(root, 'partners', V, () => _loadPartners(root, V));
   const content = root.querySelector('#gc-content');
   if (!content) return;
-  if (!V?.missions?.partners?.list) {
+  const MX = root.__MX;
+  if (!MX?.partners?.list) {
     content.innerHTML = '<div class="gc-empty">Missions backend not loaded — partners unavailable.</div>';
     return;
   }
   content.innerHTML = '<div class="gc-loading">Loading mission partners…</div>';
   try {
-    const rows = _normalize(await V.missions.partners.list({ limit: 100 }))
+    const rows = _normalize(await MX.partners.list({ limit: 100 }))
       .filter(r => {
         const s = String(r.status || r.relationshipStatus || '').toLowerCase();
         return s !== 'cancelled' && s !== 'deleted';
@@ -703,13 +756,14 @@ async function _loadUpdates(root, V) {
   _setActionBar(root, 'updates', V, () => _loadUpdates(root, V));
   const content = root.querySelector('#gc-content');
   if (!content) return;
-  if (!V?.missions?.updates?.list) {
+  const MX = root.__MX;
+  if (!MX?.updates?.list) {
     content.innerHTML = '<div class="gc-empty">Missions backend not loaded — field updates unavailable.</div>';
     return;
   }
   content.innerHTML = '<div class="gc-loading">Loading field updates…</div>';
   try {
-    const rows = _normalize(await V.missions.updates.list({ limit: 30 }))
+    const rows = _normalize(await MX.updates.list({ limit: 30 }))
       .filter(r => {
         const s = String(r.status || '').toLowerCase();
         return s !== 'cancelled' && s !== 'deleted';
@@ -1378,12 +1432,13 @@ function _openMissionsSheet(type, V, onSaved, rec = null) {
     }
 
     if (isEdit) payload.id = rec.id;
-    if (!V?.missions) { showErr('Missions backend not loaded — cannot save.'); return; }
+    const MX = _buildMissionsAdapter(V);
+    if (!MX) { showErr('Missions backend not loaded — cannot save.'); return; }
     btn.disabled = true; btn.textContent = 'Saving…';
     try {
       const nsMap = { prayer: 'prayerFocus', teams: 'teams', partners: 'partners', updates: 'updates' };
-      if (isEdit) { await V.missions[nsMap[type]].update(payload); }
-      else        { await V.missions[nsMap[type]].create(payload); }
+      if (isEdit) { await MX[nsMap[type]].update(payload); }
+      else        { await MX[nsMap[type]].create(payload); }
       _closeMissionsSheet();
       if (onSaved) onSaved();
     } catch (err) {
@@ -1403,19 +1458,21 @@ function _openMissionsSheet(type, V, onSaved, rec = null) {
     try {
       const nsMap = { prayer: 'prayerFocus', teams: 'teams', partners: 'partners', updates: 'updates' };
       const ns = nsMap[type];
+      const MX = _buildMissionsAdapter(V);
       try {
-        await V.missions[ns].delete({ id: rec.id });
+        await MX[ns].delete({ id: rec.id });
       } catch (delErr) {
-        // GAS backend may not have a hard delete handler for this resource.
-        // Fall back to soft delete via update: tripStatus/status='Cancelled'.
+        // GAS-only fallback: legacy GAS handlers may not have a hard delete
+        // for this resource yet. Soft-delete via update: tripStatus/status='Cancelled'.
         // The list views filter Cancelled rows out so it appears deleted.
+        // (Firestore path always supports hard delete via UpperRoom.)
         const msg = String(delErr?.message || delErr || '').toLowerCase();
         const isUnknown = msg.includes('unknown action') || msg.includes('not found') || msg.includes('not implemented');
         if (!isUnknown) throw delErr;
         const softPayload = { id: rec.id };
         if (type === 'teams') softPayload.tripStatus = 'Cancelled';
         else                  softPayload.status     = 'Cancelled';
-        await V.missions[ns].update(softPayload);
+        await MX[ns].update(softPayload);
       }
       _closeMissionsSheet();
       if (onSaved) onSaved();
