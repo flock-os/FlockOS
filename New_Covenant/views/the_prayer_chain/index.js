@@ -245,17 +245,35 @@ function _openPrayerRequestSheet(p, onReload) {
     errEl.style.display = 'none';
     const btn = sheet.querySelector('[data-save]');
     btn.disabled = true; btn.textContent = isNew ? 'Submitting…' : 'Saving…';
+    // Convert checkbox boolean → 'TRUE'/'FALSE' string (Firestore createPrayer expects strings)
+    const isConfChecked = sheet.querySelector('[data-field="isConfidential"]').checked;
     const payload = {
       submitterName:   sheet.querySelector('[data-field="submitterName"]').value.trim() || 'Anonymous',
       prayerText:      txtVal,
       category:        sheet.querySelector('[data-field="category"]').value || undefined,
-      isConfidential:  sheet.querySelector('[data-field="isConfidential"]').checked,
+      isConfidential:  isConfChecked ? 'TRUE' : 'FALSE',
       ...(isNew ? { status: 'New' } : { status: sheet.querySelector('[data-field="status"]')?.value || status }),
     };
-    if (!isNew) payload.id = uid;
     try {
-      if (isNew) { await V.flock.prayer.create(payload); }
-      else       { await V.flock.prayer.update(payload); }
+      const UR = window.UpperRoom;
+      // Firestore (UpperRoom) is the source of truth — life.prayerRequests reads from here
+      if (isNew) {
+        if (UR && typeof UR.createPrayer === 'function') {
+          await UR.createPrayer(payload);
+        } else if (V) {
+          await V.flock.prayer.create(payload);
+        } else {
+          throw new Error('No prayer backend available.');
+        }
+      } else {
+        if (UR && typeof UR.updatePrayer === 'function') {
+          await UR.updatePrayer(uid, payload);
+        } else if (V) {
+          await V.flock.prayer.update(Object.assign({ id: uid }, payload));
+        } else {
+          throw new Error('No prayer backend available.');
+        }
+      }
       _closePCSheet();
       onReload?.();
     } catch (err) {
@@ -271,7 +289,14 @@ function _openPrayerRequestSheet(p, onReload) {
     const btn = sheet.querySelector('[data-answered]');
     btn.disabled = true; btn.textContent = 'Saving…';
     try {
-      await V.flock.prayer.update({ id: uid, status: 'Answered' });
+      const UR = window.UpperRoom;
+      if (UR && typeof UR.updatePrayer === 'function') {
+        await UR.updatePrayer(uid, { status: 'Answered' });
+      } else if (V) {
+        await V.flock.prayer.update({ id: uid, status: 'Answered' });
+      } else {
+        throw new Error('No prayer backend available.');
+      }
       _closePCSheet();
       onReload?.();
     } catch (err) { btn.disabled = false; btn.textContent = 'Mark Answered'; }
