@@ -1157,6 +1157,9 @@ function _openSheet(c, memberDir, onSave) {
     } catch (e) { console.error('[the_life] reload interactions failed', e); }
     _renderIx(items, ix);
   }
+  // Expose for the standalone _quickNote sheet (which closes itself on save
+  // and needs to refresh whatever case sheet is underneath it).
+  window.__lifeReloadIx = (forCid) => { if (!forCid || forCid === cid) return _reloadIx(); };
 
   // Contact action buttons — open custom composer (text/email) or native dialer (call)
   sheet.querySelectorAll('[data-contact]').forEach(btn => {
@@ -1351,12 +1354,31 @@ function _quickNote(cid, personName) {
   sheet.querySelector('[data-save]').addEventListener('click', async () => {
     const ta  = sheet.querySelector('.life-note-ta');
     const note = (ta.value || '').trim();
-    if (!note || !V || !cid) return;
+    if (!note || !cid) return;
     const btn = sheet.querySelector('[data-save]');
     btn.disabled = true; btn.textContent = 'Saving…';
+    const UR      = window.UpperRoom;
+    const session = window.TheVine?.session?.();
+    const payload = {
+      caseId: cid,
+      notes: note,
+      interactionType: 'Note',
+      createdBy: session?.email || '',
+      author:    session?.email || '',
+    };
     try {
-      await V.flock.care.interactions.create({ caseId: cid, note });
+      if (UR && typeof UR.createCareInteraction === 'function') {
+        await UR.createCareInteraction(payload);
+      } else if (V) {
+        await V.flock.care.interactions.create(payload);
+      } else {
+        throw new Error('No backend available to save note.');
+      }
       _closeSheet();
+      // Refresh the underlying case sheet's interactions list, if open.
+      try {
+        if (typeof window.__lifeReloadIx === 'function') await window.__lifeReloadIx(cid);
+      } catch (_) { /* ignore */ }
     } catch (err) {
       console.error('[TheLife] quick note error:', err);
       btn.disabled = false; btn.textContent = 'Add Note';
