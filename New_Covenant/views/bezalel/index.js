@@ -46,6 +46,10 @@ export function render() {
     scripture: 'I have called by name Bezalel… and filled him with the Spirit of God. — Exodus 31:2-3',
   })}
 
+  <div class="life-empty" style="padding:10px 14px;margin:8px 0;background:rgba(232,168,56,0.08);border:1px solid rgba(232,168,56,0.25);border-radius:8px;color:var(--ink,#1b264f);font-size:.85rem">
+    📄 <strong>Console preview.</strong> Browsers can’t execute build scripts. Run <code>bash Covenant/Bezalel/Scripts/A-Build_Churches.sh --deploy-comms</code> from the repo root. The simulated log below is for design preview only.
+  </div>
+
   <!-- Build status + trigger -->
   <div class="bz-build-row">
     <div class="bz-card bz-status-card">

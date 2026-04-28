@@ -70,6 +70,10 @@ export function render() {
         scripture: 'I have set watchmen on your walls, O Jerusalem. — Isaiah 62:6',
       })}
 
+      <div class="life-empty" style="padding:10px 14px;margin:8px 0;background:rgba(232,168,56,0.08);border:1px solid rgba(232,168,56,0.25);border-radius:8px;color:var(--ink,#1b264f);font-size:.85rem">
+        📄 <strong>Preview.</strong> Settings shown here are illustrative — the live admin backend is wired through the build pipeline. Save buttons do not yet persist.
+      </div>
+
       <div class="wall-layout">
         <!-- Sidebar nav -->
         <nav class="wall-nav">

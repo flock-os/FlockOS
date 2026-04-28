@@ -13,20 +13,6 @@ let _liveMilestonesMap = {};
 
 const _e = s => String(s ?? '').replace(/[&<>"']/g,(c)=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
-const MILESTONES = [
-  { year: 1987, title: 'Church Founded',           category: 'founding',   desc: 'A small group of 12 families covenanted together to plant this church under Pastor Robert H.' },
-  { year: 1992, title: 'First Building Dedicated',  category: 'building',   desc: 'The congregation moved into the first permanent sanctuary on Oak Avenue after 18 months of fundraising.' },
-  { year: 1998, title: '100 Members Milestone',     category: 'growth',     desc: 'Sunday attendance crossed 100 for the first time. Youth ministry launched.' },
-  { year: 2003, title: 'First Missions Trip',       category: 'missions',   desc: 'Team of 8 traveled to West Africa — the beginning of an ongoing partnership with SIM.' },
-  { year: 2008, title: 'Building Expansion',        category: 'building',   desc: 'Fellowship hall and classrooms added. Seating capacity doubled to 300.' },
-  { year: 2012, title: 'Pastoral Transition',       category: 'leadership', desc: 'Pastor Mike installed as lead pastor following years of mentoring under founding pastor.' },
-  { year: 2015, title: 'New Covenant Platform',     category: 'tech',       desc: 'FlockOS (then GAS-based) launched as the church management system.' },
-  { year: 2019, title: '250 Members',               category: 'growth',     desc: 'Active membership reached 250 with 8 active small groups and 4 ministry departments.' },
-  { year: 2022, title: 'FlockOS 1.0 Launch',        category: 'tech',       desc: 'Full rebuild on Firebase + Google Apps Script. Multiple church deployments go live.' },
-  { year: 2024, title: 'Prison Ministry Launched',  category: 'outreach',   desc: 'Weekly prison ministry at Brookfield CI established. First baptism inside the facility.' },
-  { year: 2026, title: 'New Covenant Era',          category: 'tech',       desc: 'FlockOS 2.0 — New Covenant shell, real-time Firebase comms, global missions registry.' },
-];
-
 const CAT_META = {
   founding:   { color: '#7c3aed', bg: 'rgba(124,58,237,0.11)', icon: '✝️'  },
   building:   { color: '#0ea5e9', bg: 'rgba(14,165,233,0.11)', icon: '⛪'  },
@@ -49,22 +35,22 @@ export function render() {
       })}
 
       <!-- Stats strip -->
-      <div class="gen-stats">
+      <div class="gen-stats" data-bind="stats">
         <div class="gen-stat-card">
-          <div class="gen-stat-n" style="color:var(--c-violet)">${CURRENT_YEAR - 1987}</div>
+          <div class="gen-stat-n" style="color:var(--c-violet)" data-stat="years">—</div>
           <div class="gen-stat-label">Years of Ministry</div>
         </div>
         <div class="gen-stat-card">
-          <div class="gen-stat-n" style="color:var(--c-emerald)">247</div>
-          <div class="gen-stat-label">Active Members</div>
+          <div class="gen-stat-n" style="color:var(--c-emerald)" data-stat="milestones">—</div>
+          <div class="gen-stat-label">Milestones</div>
         </div>
         <div class="gen-stat-card">
-          <div class="gen-stat-n" style="color:var(--gold)">6</div>
-          <div class="gen-stat-label">Lead Pastors</div>
+          <div class="gen-stat-n" style="color:var(--gold)" data-stat="leadership">—</div>
+          <div class="gen-stat-label">Leadership Moments</div>
         </div>
         <div class="gen-stat-card">
-          <div class="gen-stat-n" style="color:var(--c-sky)">4</div>
-          <div class="gen-stat-label">Mission Fields</div>
+          <div class="gen-stat-n" style="color:var(--c-sky)" data-stat="missions">—</div>
+          <div class="gen-stat-label">Missions Moments</div>
         </div>
       </div>
 
@@ -74,7 +60,7 @@ export function render() {
         <button class="flock-btn flock-btn--ghost" data-act="add-milestone">Add Milestone</button>
       </div>
       <div class="gen-timeline" data-bind="timeline">
-        ${MILESTONES.slice().reverse().map(_milestone).join('')}
+        <div class="life-empty" style="padding:24px 8px;color:var(--ink-muted,#7a7f96);text-align:center">Loading church timeline…</div>
       </div>
     </section>
   `;
@@ -95,22 +81,30 @@ function _rows(res) {
 }
 
 async function _loadGenerations(root) {
-  const V = window.TheVine;
-  if (!V) return;
   const tlEl = root.querySelector('[data-bind="timeline"]');
   if (!tlEl) return;
+  const errMsg = (msg) => `<div class="life-empty" style="padding:24px 8px;color:var(--ink-muted,#7a7f96);text-align:center">${msg}</div>`;
+
+  const V = window.TheVine;
+  if (!V) { tlEl.innerHTML = errMsg('Milestones backend not loaded.'); return; }
 
   try {
-    // Try flock milestones
     const res  = await V.flock.milestones.list({ limit: 100 });
     const rows = _rows(res);
-    if (!rows.length) return;
+
+    if (!rows.length) {
+      tlEl.innerHTML = errMsg('No church milestones recorded yet. Click “Add Milestone” to begin the story.');
+      _updateGenStats(root, []);
+      return;
+    }
 
     const sorted = [...rows].sort((a, b) => {
       const ya = a.year || (a.date ? new Date(a.date).getFullYear() : 0);
       const yb = b.year || (b.date ? new Date(b.date).getFullYear() : 0);
       return yb - ya;
     });
+
+    _updateGenStats(root, sorted);
 
     tlEl.innerHTML = sorted.map(m => {
       const year  = m.year || (m.date ? new Date(m.date).getFullYear() : '');
@@ -143,23 +137,22 @@ async function _loadGenerations(root) {
     });
   } catch (err) {
     console.error('[TheGenerations] milestones.list error:', err);
+    tlEl.innerHTML = errMsg('Could not load church timeline.');
   }
 }
 
-function _milestone(m) {
-  const meta = CAT_META[m.category] || CAT_META.growth;
-  return /* html */`
-    <div class="gen-milestone">
-      <div class="gen-milestone-year">${m.year}</div>
-      <div class="gen-milestone-dot" style="background:${meta.color}"></div>
-      <div class="gen-milestone-body">
-        <div class="gen-milestone-head">
-          <span class="gen-milestone-icon" style="background:${meta.bg};color:${meta.color}">${meta.icon}</span>
-          <span class="gen-milestone-title">${_e(m.title)}</span>
-        </div>
-        <div class="gen-milestone-desc">${_e(m.desc)}</div>
-      </div>
-    </div>`;
+function _updateGenStats(root, rows) {
+  const set = (key, val) => {
+    const el = root.querySelector(`[data-stat="${key}"]`);
+    if (el) el.textContent = String(val);
+  };
+  if (!rows.length) { set('years','—'); set('milestones','0'); set('leadership','0'); set('missions','0'); return; }
+  const years = rows.map(m => m.year || (m.date ? new Date(m.date).getFullYear() : 0)).filter(Boolean);
+  const earliest = Math.min(...years);
+  set('years', earliest ? (CURRENT_YEAR - earliest) : '—');
+  set('milestones', rows.length);
+  set('leadership', rows.filter(m => (m.category || m.type || '').toLowerCase() === 'leadership').length);
+  set('missions',   rows.filter(m => (m.category || m.type || '').toLowerCase() === 'missions').length);
 }
 
 // ── Milestone sheet ───────────────────────────────────────────────────────────
@@ -251,6 +244,7 @@ function _openMilestoneSheet(m, onReload) {
     };
     if (!isNew) payload.id = uid;
     try {
+      if (!V) throw new Error('Milestones backend not available.');
       if (isNew) { await V.flock.milestones.create(payload); }
       else       { await V.flock.milestones.update(payload); }
       _closeGenSheet();

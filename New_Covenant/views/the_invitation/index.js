@@ -10,20 +10,6 @@ export const title = 'The Invitation';
 
 const _e = s => String(s ?? '').replace(/[&<>"']/g,(c)=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
-const PENDING = [
-  { name: 'Aaron & Lisa Webb',   email: 'aaron.webb@…',    submitted: 'Apr 25', source: 'Web form',   role: 'visitor' },
-  { name: 'Chloe Osei',          email: 'chloe.osei@…',    submitted: 'Apr 23', source: 'FlockChat',  role: 'visitor' },
-  { name: 'Marcus Delacroix',    email: 'm.delacroix@…',   submitted: 'Apr 20', source: 'QR code',    role: 'visitor' },
-  { name: 'Naomi & Kwame B.',    email: 'naomi.b@…',       submitted: 'Apr 18', source: 'Referral',   role: 'visitor' },
-];
-
-const INVITE_STATS = [
-  { label: 'Pending Approval', n: 4,  color: 'var(--gold)' },
-  { label: 'Approved This Month', n: 12, color: 'var(--c-emerald)' },
-  { label: 'Invites Sent',     n: 28, color: 'var(--c-sky)' },
-  { label: 'Accepted',         n: 19, color: 'var(--c-violet)' },
-];
-
 export function render() {
   return /* html */`
     <section class="inv-view">
@@ -85,14 +71,15 @@ function _rows(res) {
 }
 
 async function _loadPending(root) {
-  const V = window.TheVine;
-  if (!V) return;
   const listEl = root.querySelector('[data-bind="pending"]');
   if (!listEl) return;
+  const errMsg = (msg) => `<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">${msg}</div>`;
 
+  const V = window.TheVine;
+  if (!V) { listEl.innerHTML = errMsg('Admin backend not loaded.'); return; }
+
+  listEl.innerHTML = errMsg('Loading pending requests…');
   try {
-    listEl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Loading pending requests…</div>';
-
     const res  = await V.admin.users.pending();
     const rows = _rows(res);
 
@@ -104,7 +91,7 @@ async function _loadPending(root) {
     }
 
     if (!rows.length) {
-      listEl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">No pending approval requests.</div>';
+      listEl.innerHTML = errMsg('No pending approval requests.');
       return;
     }
 
@@ -132,6 +119,13 @@ async function _loadPending(root) {
         try {
           await V.admin.users.approve({ id: u.id });
           row.remove();
+          // refresh stat
+          if (statsEl) {
+            const remaining = listEl.querySelectorAll('.inv-pending-row').length;
+            const n = statsEl.querySelector('.inv-stat-n');
+            if (n) n.textContent = String(remaining);
+            if (!remaining) listEl.innerHTML = errMsg('No pending approval requests.');
+          }
         } catch (_) { btn.disabled = false; btn.textContent = 'Approve'; }
       });
       row.querySelector('.inv-deny-btn')?.addEventListener('click', async e => {
@@ -142,11 +136,18 @@ async function _loadPending(root) {
         try {
           await V.admin.users.deny({ id: u.id });
           row.remove();
+          if (statsEl) {
+            const remaining = listEl.querySelectorAll('.inv-pending-row').length;
+            const n = statsEl.querySelector('.inv-stat-n');
+            if (n) n.textContent = String(remaining);
+            if (!remaining) listEl.innerHTML = errMsg('No pending approval requests.');
+          }
         } catch (_) { btn.disabled = false; btn.textContent = 'Deny'; }
       });
     });
   } catch (err) {
     console.error('[TheInvitation] users.pending error:', err);
+    listEl.innerHTML = errMsg('Could not load pending requests.');
   }
 }
 

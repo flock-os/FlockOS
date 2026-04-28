@@ -62,6 +62,10 @@ export function render() {
     scripture: 'For I know the thoughts that I think toward you, saith the LORD. \u2014 Jeremiah 29:11',
   })}
 
+  <div class="life-empty" style="padding:10px 14px;margin:8px 0;background:rgba(232,168,56,0.08);border:1px solid rgba(232,168,56,0.25);border-radius:8px;color:var(--ink,#1b264f);font-size:.85rem">
+    📄 <strong>Preview.</strong> The kingdom-goals dashboard is illustrative — a persistent strategic-plan backend is on the roadmap.
+  </div>
+
   <div class="wv-card">
     <div class="wv-card-header">
       <h3 class="wv-card-title">2026 Kingdom Goals</h3>

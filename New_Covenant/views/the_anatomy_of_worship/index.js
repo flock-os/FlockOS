@@ -90,7 +90,10 @@ export function render() {
         <span class="aow-tab-time">${_e(s.time)} · ${_e(s.date)}</span>
       </button>`).join('')}
     </div>
-    <button class="btn btn-primary" style="font-size:.82rem;padding:8px 18px">+ Add Segment</button>
+  </div>
+
+  <div class="life-empty" style="padding:10px 14px;margin:8px 0;background:rgba(232,168,56,0.08);border:1px solid rgba(232,168,56,0.25);border-radius:8px;color:var(--ink,#1b264f);font-size:.85rem">
+    📄 <strong>Template preview.</strong> This is the standard service order — reorder segments locally to plan, but changes are not saved. A persistent service planner is coming with the worship backend.
   </div>
 
   <!-- Time budget bar -->
