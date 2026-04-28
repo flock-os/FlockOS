@@ -32,12 +32,13 @@ export function render(/* params */) {
     <section class="pasture">
       ${renderPasture(me)}
 
-      <div data-bind="todays-word">
-        <flock-skeleton rows="3"></flock-skeleton>
-      </div>
-
-      <div data-bind="prayer-hours">
-        <flock-skeleton rows="3"></flock-skeleton>
+      <div class="pasture-devo-row">
+        <div data-bind="todays-word" class="pasture-devo-col">
+          <flock-skeleton rows="3"></flock-skeleton>
+        </div>
+        <div data-bind="prayer-hours" class="pasture-devo-col">
+          <flock-skeleton rows="3"></flock-skeleton>
+        </div>
       </div>
 
       <div class="pasture-grid pasture-grid-5">
