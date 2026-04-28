@@ -639,7 +639,13 @@ async function _loadTeams(root, V) {
   }
   content.innerHTML = '<div class="gc-loading">Loading mission teams…</div>';
   try {
-    const rows = _normalize(await V.missions.teams.list({ limit: 60 }));
+    const all = _normalize(await V.missions.teams.list({ limit: 60 }));
+    // Filter out soft-deleted teams (tripStatus 'Cancelled' is used as the
+    // delete sentinel because the GAS backend has no hard delete for teams).
+    const rows = all.filter(r => {
+      const s = String(r.tripStatus || r.status || '').toLowerCase();
+      return s !== 'cancelled' && s !== 'deleted';
+    });
     content.innerHTML = rows.length
       ? `<div class="gc-team-grid">${rows.map(_teamCard).join('')}</div>`
       : '<div class="gc-empty">No mission teams found. Add teams through FlockOS to track short-term trips and long-term workers.</div>';
@@ -669,7 +675,11 @@ async function _loadPartners(root, V) {
   }
   content.innerHTML = '<div class="gc-loading">Loading mission partners…</div>';
   try {
-    const rows = _normalize(await V.missions.partners.list({ limit: 100 }));
+    const rows = _normalize(await V.missions.partners.list({ limit: 100 }))
+      .filter(r => {
+        const s = String(r.status || r.relationshipStatus || '').toLowerCase();
+        return s !== 'cancelled' && s !== 'deleted';
+      });
     content.innerHTML = rows.length
       ? `<div class="gc-partner-grid">${rows.map(_partnerCard).join('')}</div>`
       : '<div class="gc-empty">No mission partners found. Add sending agencies and field partners through FlockOS.</div>';
@@ -699,7 +709,11 @@ async function _loadUpdates(root, V) {
   }
   content.innerHTML = '<div class="gc-loading">Loading field updates…</div>';
   try {
-    const rows = _normalize(await V.missions.updates.list({ limit: 30 }));
+    const rows = _normalize(await V.missions.updates.list({ limit: 30 }))
+      .filter(r => {
+        const s = String(r.status || '').toLowerCase();
+        return s !== 'cancelled' && s !== 'deleted';
+      });
     content.innerHTML = rows.length
       ? `<div class="gc-updates-list">${rows.map(_updateCard).join('')}</div>`
       : '<div class="gc-empty">No field updates yet. Post situation reports, prayer alerts, and victory reports through FlockOS.</div>';
@@ -1388,7 +1402,21 @@ function _openMissionsSheet(type, V, onSaved, rec = null) {
     btn.disabled = true; btn.textContent = 'Deleting…';
     try {
       const nsMap = { prayer: 'prayerFocus', teams: 'teams', partners: 'partners', updates: 'updates' };
-      await V.missions[nsMap[type]].delete({ id: rec.id });
+      const ns = nsMap[type];
+      try {
+        await V.missions[ns].delete({ id: rec.id });
+      } catch (delErr) {
+        // GAS backend may not have a hard delete handler for this resource.
+        // Fall back to soft delete via update: tripStatus/status='Cancelled'.
+        // The list views filter Cancelled rows out so it appears deleted.
+        const msg = String(delErr?.message || delErr || '').toLowerCase();
+        const isUnknown = msg.includes('unknown action') || msg.includes('not found') || msg.includes('not implemented');
+        if (!isUnknown) throw delErr;
+        const softPayload = { id: rec.id };
+        if (type === 'teams') softPayload.tripStatus = 'Cancelled';
+        else                  softPayload.status     = 'Cancelled';
+        await V.missions[ns].update(softPayload);
+      }
       _closeMissionsSheet();
       if (onSaved) onSaved();
     } catch (err) {
