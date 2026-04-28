@@ -3185,31 +3185,35 @@ flock-tabs [role="tablist"], .tabs-bar {
   align-items: stretch;
 }
 .pasture-devo-col { min-width: 0; display: flex; flex-direction: column; }
-.pasture-devo-col .word-card,
+.pasture-devo-col .devo-dark-card,
 .pasture-devo-col .pray-liturgy-card { flex: 1; box-sizing: border-box; }
-/* Force devo card to fill height and push button to bottom */
-.pasture-devo-col .word-card.devo-dark-card {
+/* Both cards are flex columns so margin-top:auto pushes button to bottom */
+.pasture-devo-col .devo-dark-card {
+  display: flex;
   flex-direction: column;
-  align-items: stretch;
 }
-.pasture-devo-col .word-card.devo-dark-card .word-body {
+.pasture-devo-col .devo-dark-card .word-body {
   flex: 1;
   display: flex;
   flex-direction: column;
 }
-/* Both buttons — full width, pinned to bottom, identical size */
-.pasture-devo-col .word-card.devo-dark-card .devo-dark-btn,
-.pasture-devo-col .pray-liturgy-card > .flock-btn {
-  display: flex !important;
-  align-self: stretch !important;
+.pasture-devo-col .pray-liturgy-card {
+  display: flex;
+  flex-direction: column;
+}
+.pasture-devo-col .pray-liturgy-card .pray-liturgy-list {
+  flex: 1;
+}
+/* Both buttons — identical: full width, pinned to bottom */
+.pasture-devo-col .devo-dark-card .devo-dark-btn,
+.pasture-devo-col .pray-liturgy-card .devo-dark-btn {
+  display: flex;
   width: 100%;
   box-sizing: border-box;
   justify-content: center;
   margin-top: auto;
+  padding: 10px 20px;
   font-size: 0.92rem;
-}
-.pasture-devo-col .word-card.devo-dark-card .devo-dark-btn {
-  padding-top: 14px;
 }
 @media (max-width: 720px) {
   .pasture-devo-row { grid-template-columns: 1fr; }

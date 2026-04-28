@@ -22,7 +22,7 @@ export function mountTodayWord(host, ctx) {
     const list = Array.isArray(rows) ? rows : [];
     if (!list.length) {
       host.innerHTML = `
-        <div class="word-card word-card--empty devo-dark-card">
+        <div class="devo-dark-card word-card--empty">
           <div class="word-body">
             <div class="word-eyebrow devo-dark-eyebrow">Today's Word</div>
             <div class="word-title devo-dark-title">Open the Word together</div>
@@ -45,7 +45,7 @@ export function mountTodayWord(host, ctx) {
     const tease = refl.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 200);
 
     host.innerHTML = `
-      <div class="word-card devo-dark-card">
+      <div class="devo-dark-card">
         <div class="word-body">
           <div class="word-eyebrow devo-dark-eyebrow">
             <span>Today's Word</span>
