@@ -3117,6 +3117,24 @@ flock-tabs [role="tablist"], .tabs-bar {
   background: linear-gradient(135deg, var(--c-violet, #7c3aed), var(--c-sky, #0ea5e9));
   color: #fff; box-shadow: 0 4px 14px rgba(124,58,237,0.25);
 }
+/* Per-tab gradients drawn from the site's signature rainbow accent
+   (sky → indigo → violet → gold → emerald). Each section gets its own hue. */
+.ur-tab[data-ur-tab="devotional"].is-active {
+  background: linear-gradient(135deg, #fbbf24 0%, #e8a838 55%, #b45309 100%);
+  box-shadow: 0 4px 14px rgba(232,168,56,0.35);
+}
+.ur-tab[data-ur-tab="plan"].is-active {
+  background: linear-gradient(135deg, #818cf8 0%, #7c3aed 60%, #4c1d95 100%);
+  box-shadow: 0 4px 14px rgba(124,58,237,0.32);
+}
+.ur-tab[data-ur-tab="journal"].is-active {
+  background: linear-gradient(135deg, #34d399 0%, #10b981 55%, #047857 100%);
+  box-shadow: 0 4px 14px rgba(16,185,129,0.30);
+}
+.ur-tab[data-ur-tab="prayer"].is-active {
+  background: linear-gradient(135deg, #38bdf8 0%, #6366f1 55%, #a78bfa 100%);
+  box-shadow: 0 4px 14px rgba(99,102,241,0.32);
+}
 .ur-tab-icon { font-size: 1.05rem; }
 
 .ur-panel { display: block; }
