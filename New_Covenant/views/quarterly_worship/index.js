@@ -10,24 +10,13 @@ export const title = 'Quarterly Worship';
 
 const _e = s => String(s ?? '').replace(/[&<>"']/g,(c)=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
-const QUARTER = 'Q2 2026 (Apr–Jun)';
-
-const SERVICE_PLANS = [
-  { date: 'Apr 27', title: 'Kingdom Roots — Week 1', series: 'Kingdom Roots',  theme: 'Abide in the Vine',         preacher: 'Pastor Greg',   songs: ['Come Thou Fount', 'Holy Spirit', 'Abide With Me'] },
-  { date: 'May 4',  title: 'Baptism Sunday',          series: 'Special',        theme: 'New Life in Christ',         preacher: 'Pastor Mike',   songs: ['Amazing Grace (My Chains)', 'Living Water', 'What a Beautiful Name'] },
-  { date: 'May 11', title: 'Kingdom Roots — Week 2',  series: 'Kingdom Roots',  theme: 'Bearing Fruit',             preacher: 'Pastor Greg',   songs: ['Fruitful', 'King of Kings', '10,000 Reasons'] },
-  { date: 'May 18', title: 'Revival Night',            series: 'Special',        theme: 'Outpouring of the Spirit',  preacher: 'Dr. A. Osei',   songs: ['Fire Fall Down', 'Come Holy Spirit', 'Spirit Break Out'] },
-  { date: 'May 25', title: 'Kingdom Roots — Week 3',  series: 'Kingdom Roots',  theme: 'The True Vine',             preacher: 'Elder Sarah',   songs: ['Vine', 'You Are My All in All', 'Cornerstone'] },
-];
-
-const ARTS_CALENDAR = [
-  { date: 'May 2',  item: 'Worship team rehearsal',         team: 'Worship',  type: 'rehearsal' },
-  { date: 'May 4',  item: 'Baptism service music prep',     team: 'Worship',  type: 'rehearsal' },
-  { date: 'May 9',  item: 'Audio/visual crew training',     team: 'Tech',     type: 'training'  },
-  { date: 'May 14', item: 'New songs selection meeting',    team: 'Worship',  type: 'planning'  },
-  { date: 'May 16', item: 'Revival nights sound check',     team: 'Tech',     type: 'rehearsal' },
-  { date: 'May 23', item: 'Quarterly worship review',       team: 'Leadership', type: 'planning' },
-];
+function _quarterLabel(d = new Date()) {
+  const q = Math.floor(d.getMonth() / 3) + 1;
+  const start = new Date(d.getFullYear(), (q - 1) * 3, 1);
+  const end   = new Date(d.getFullYear(), (q - 1) * 3 + 3, 0);
+  const fmt   = (x) => x.toLocaleDateString(undefined, { month: 'short' });
+  return `Q${q} ${d.getFullYear()} (${fmt(start)}–${fmt(end)})`;
+}
 
 const TYPE_META = {
   rehearsal: { color: '#7c3aed', bg: 'rgba(124,58,237,0.10)' },
@@ -36,20 +25,14 @@ const TYPE_META = {
 };
 
 export function render() {
+  const quarter = _quarterLabel();
   return /* html */`
     <section class="qw-view">
       ${pageHero({
         title:    'Quarterly Worship',
-        subtitle: `${QUARTER} — service plans, setlists, and arts calendar.`,
+        subtitle: `${quarter} — service plans, setlists, and arts calendar.`,
         scripture: 'Sing unto the LORD a new song. — Psalm 96:1',
       })}
-
-      <!-- Quarter tabs -->
-      <div class="qw-quarter-tabs">
-        <button class="qw-qtab is-active">Q2 2026</button>
-        <button class="qw-qtab">Q3 2026</button>
-        <button class="qw-qtab">Q4 2026</button>
-      </div>
 
       <div class="qw-layout">
 
@@ -63,7 +46,7 @@ export function render() {
             </button>
           </div>
           <div class="qw-plans" data-bind="plans">
-            ${SERVICE_PLANS.map(_planCard).join('')}
+            <div class="life-empty" style="padding:24px 8px;color:var(--ink-muted,#7a7f96);text-align:center">Loading service plans…</div>
           </div>
         </div>
 
@@ -72,19 +55,8 @@ export function render() {
           <div class="way-section-header">
             <h2 class="way-section-title">Arts Calendar</h2>
           </div>
-          <div class="qw-arts">
-            ${ARTS_CALENDAR.map(a => {
-              const meta = TYPE_META[a.type] || TYPE_META.rehearsal;
-              return `
-              <div class="qw-arts-row">
-                <div class="qw-arts-date">${_e(a.date)}</div>
-                <div class="qw-arts-body">
-                  <div class="qw-arts-item">${_e(a.item)}</div>
-                  <span class="qw-arts-team">${_e(a.team)}</span>
-                </div>
-                <span class="qw-arts-badge" style="color:${meta.color};background:${meta.bg}">${_e(a.type)}</span>
-              </div>`;
-            }).join('')}
+          <div class="qw-arts" data-bind="arts">
+            <div class="life-empty" style="padding:24px 8px;color:var(--ink-muted,#7a7f96);text-align:center">Arts calendar coming soon.</div>
           </div>
         </div>
 
@@ -97,14 +69,6 @@ let _activePlanSheet = null;
 let _livePlansMap    = {};
 
 export function mount(root) {
-  // Quarter tab switching (visual only)
-  root.querySelectorAll('.qw-qtab').forEach(btn => {
-    btn.addEventListener('click', () => {
-      root.querySelectorAll('.qw-qtab').forEach(b => b.classList.remove('is-active'));
-      btn.classList.add('is-active');
-    });
-  });
-
   // New Plan button
   root.querySelectorAll('.flock-btn--primary').forEach(btn => {
     if (btn.textContent.includes('New Plan')) {
@@ -124,15 +88,16 @@ function _rows(res) {
 }
 
 async function _loadPlans(root) {
-  const V = window.TheVine;
-  if (!V) return;
   const plansEl = root.querySelector('[data-bind="plans"]');
   if (!plansEl) return;
+  const errMsg = (msg) => `<div class="life-empty" style="padding:24px 8px;color:var(--ink-muted,#7a7f96);text-align:center">${msg}</div>`;
+
+  const V = window.TheVine;
+  if (!V) { plansEl.innerHTML = errMsg('Service plans backend not loaded.'); return; }
 
   try {
     const res  = await V.flock.servicePlans.list({ limit: 20 });
     const rows = _rows(res);
-    if (!rows.length) return;
 
     // Filter to current quarter
     const now = new Date();
@@ -143,7 +108,9 @@ async function _loadPlans(root) {
       return d >= qStart && d <= qEnd;
     }).sort((a, b) => new Date(a.serviceDate || a.date) - new Date(b.serviceDate || b.date));
 
-    if (!plans.length) return;
+    if (!plans.length) { plansEl.innerHTML = errMsg('No service plans for this quarter yet.'); return; }
+
+    _livePlansMap = {};
     plansEl.innerHTML = plans.map((p, i) => {
       const dateMs = new Date(p.serviceDate || p.date || p.createdAt).getTime();
       const date   = dateMs ? new Date(dateMs).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '';
@@ -167,6 +134,7 @@ async function _loadPlans(root) {
     });
   } catch (err) {
     console.error('[QuarterlyWorship] servicePlans.list error:', err);
+    plansEl.innerHTML = errMsg('Could not load service plans.');
   }
 }
 
@@ -292,6 +260,7 @@ function _openPlanSheet(plan, onReload) {
     };
     if (!isNew) payload.id = uid;
     try {
+      if (!V) throw new Error('Service plans backend not available.');
       if (isNew) { await V.flock.servicePlans.create(payload); }
       else       { await V.flock.servicePlans.update(payload); }
       _closePlanSheet();
