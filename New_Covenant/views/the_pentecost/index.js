@@ -15,15 +15,6 @@ const _e = s => String(s ?? '').replace(/[&<>"']/g,(c)=>({'&':'&amp;','<':'&lt;'
 
 const SPECIAL_TYPES = new Set(['baptism','revival','special','retreat','conference','ordination','communion','memorial','dedication']);
 
-const EVENTS = [
-  { title: 'Baptism Sunday',            date: 'May 4, 2026',    type: 'baptism',    candidates: 7,  status: 'upcoming', notes: '7 candidates prepared — family & friends invited'      },
-  { title: 'Spring Revival Night',      date: 'May 16–18, 2026',type: 'revival',    candidates: 0,  status: 'upcoming', notes: 'Guest speaker: Dr. A. Osei. Evening services 7 PM'       },
-  { title: 'Leadership Retreat',        date: 'May 30, 2026',   type: 'retreat',    candidates: 0,  status: 'upcoming', notes: 'Elder board + deacons. Hosted at Camp Bethel'            },
-  { title: 'Pentecost Sunday Service',  date: 'Jun 1, 2026',    type: 'special',    candidates: 0,  status: 'upcoming', notes: 'Celebration of the outpouring. Joint morning + evening'  },
-  { title: 'Easter Sunday',             date: 'Apr 5, 2026',    type: 'special',    candidates: 0,  status: 'complete', notes: '143 gospel conversations. Largest service this year'     },
-  { title: 'Baptism (Winter)',          date: 'Jan 19, 2026',   type: 'baptism',    candidates: 4,  status: 'complete', notes: '4 baptized — full immersion'                             },
-];
-
 const TYPE_META = {
   baptism:     { color: '#0ea5e9', bg: 'rgba(14,165,233,0.11)',  icon: '💧', label: 'Baptism'      },
   revival:     { color: '#7c3aed', bg: 'rgba(124,58,237,0.11)', icon: '🔥', label: 'Revival'      },
@@ -35,9 +26,6 @@ const TYPE_META = {
   memorial:    { color: '#6b7280', bg: 'rgba(107,114,128,0.10)',icon: '🕯️', label: 'Memorial'     },
   dedication:  { color: '#c05818', bg: 'rgba(192,88,24,0.11)',  icon: '🌹', label: 'Dedication'   },
 };
-
-const UPCOMING = EVENTS.filter(e => e.status === 'upcoming');
-const PAST     = EVENTS.filter(e => e.status === 'complete');
 
 export function render() {
   return /* html */`
@@ -57,7 +45,7 @@ export function render() {
         </button>
       </div>
       <div class="pent-list" data-bind="upcoming">
-        ${UPCOMING.map(_eventCard).join('')}
+        <div class="life-empty" style="padding:24px 8px;color:var(--ink-muted,#7a7f96);text-align:center">Loading upcoming services…</div>
       </div>
 
       <!-- Past milestones -->
@@ -65,7 +53,7 @@ export function render() {
         <h2 class="way-section-title">Past Milestones</h2>
       </div>
       <div class="pent-list pent-list--past" data-bind="past">
-        ${PAST.map(_eventCard).join('')}
+        <div class="life-empty" style="padding:24px 8px;color:var(--ink-muted,#7a7f96);text-align:center">Loading past milestones…</div>
       </div>
     </section>
   `;
@@ -90,8 +78,16 @@ function _rows(res) {
 }
 
 async function _loadPentecost(root) {
+  const upEl   = root.querySelector('[data-bind="upcoming"]');
+  const pastEl = root.querySelector('[data-bind="past"]');
+  const errMsg = (msg) => `<div class="life-empty" style="padding:24px 8px;color:var(--ink-muted,#7a7f96);text-align:center">${msg}</div>`;
+
   const V = window.TheVine;
-  if (!V) return;
+  if (!V) {
+    if (upEl)   upEl.innerHTML   = errMsg('Events backend not loaded.');
+    if (pastEl) pastEl.innerHTML = errMsg('Events backend not loaded.');
+    return;
+  }
 
   try {
     const res  = await V.flock.events.list({ limit: 100 });
@@ -100,17 +96,15 @@ async function _loadPentecost(root) {
       const t = (ev.type || ev.eventType || ev.category || '').toLowerCase();
       return SPECIAL_TYPES.has(t) || t.includes('baptism') || t.includes('revival') || t.includes('retreat') || t.includes('special');
     });
-    if (!special.length) return;
 
     const now = new Date(); now.setHours(0,0,0,0);
     special.sort((a, b) => new Date(a.startDate || a.date) - new Date(b.startDate || b.date));
     const upcoming = special.filter(ev => new Date(ev.startDate || ev.date) >= now);
     const past     = special.filter(ev => new Date(ev.startDate || ev.date) < now).reverse();
 
-    const upEl  = root.querySelector('[data-bind="upcoming"]');
-    const pastEl = root.querySelector('[data-bind="past"]');
-    if (upEl && upcoming.length)  upEl.innerHTML  = upcoming.map(_liveEventCard).join('');
-    if (pastEl && past.length)    pastEl.innerHTML = past.map(_liveEventCard).join('');
+    if (upEl)   upEl.innerHTML   = upcoming.length ? upcoming.map(_liveEventCard).join('') : errMsg('No upcoming special services scheduled.');
+    if (pastEl) pastEl.innerHTML = past.length     ? past.map(_liveEventCard).join('')     : errMsg('No past milestones on record.');
+
     // Build map + wire edit clicks
     _livePentMap = {};
     [...upcoming, ...past].forEach(ev => { if (ev.id) _livePentMap[String(ev.id)] = ev; });
@@ -124,6 +118,8 @@ async function _loadPentecost(root) {
     });
   } catch (err) {
     console.error('[ThePentecost] events.list error:', err);
+    if (upEl)   upEl.innerHTML   = errMsg('Could not load upcoming services.');
+    if (pastEl) pastEl.innerHTML = errMsg('Could not load past milestones.');
   }
 }
 
@@ -138,12 +134,6 @@ function _liveEventCard(ev) {
   const now      = new Date(); now.setHours(0,0,0,0);
   const isPast   = dateMs && new Date(dateMs) < now;
   return _cardHTML({ id: ev.id ? String(ev.id) : undefined, title, date, type, meta, notes, candidates: 0, isPast });
-}
-
-function _eventCard(ev) {
-  const meta  = TYPE_META[ev.type] || TYPE_META.special;
-  const isPast = ev.status === 'complete';
-  return _cardHTML({ id: undefined, title: ev.title, date: ev.date, type: ev.type, meta, notes: ev.notes, candidates: ev.candidates, isPast });
 }
 
 function _cardHTML({ id, title, date, type, meta, notes, candidates, isPast }) {
@@ -255,6 +245,7 @@ function _openPentEventSheet(ev, onReload) {
     };
     if (!isNew) payload.id = uid;
     try {
+      if (!V) throw new Error('Events backend not available.');
       if (isNew) { await V.flock.events.create(payload); }
       else       { await V.flock.events.update(payload); }
       _closePentSheet();
