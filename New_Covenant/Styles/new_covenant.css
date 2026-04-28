@@ -2195,6 +2195,22 @@ flock-tabs [role="tablist"], .tabs-bar {
   font: 600 0.65rem var(--font-ui); text-transform: uppercase; letter-spacing: .04em;
   margin-right: 6px; vertical-align: middle;
 }
+
+/* Contact composer (text/email) */
+.life-composer-panel { max-width: 560px; }
+.life-composer-body { gap: 12px; }
+.life-composer-ta {
+  width: 100%; padding: 12px 14px;
+  background: var(--bg-soft, #f5f6fa); color: var(--ink, #1b264f);
+  border: 1.5px solid var(--line, #e5e7ef); border-radius: 12px;
+  font: 0.95rem var(--font-ui); line-height: 1.55; resize: vertical; min-height: 160px;
+  box-sizing: border-box; transition: border-color 140ms; appearance: none;
+}
+.life-composer-ta:focus { outline: none; border-color: var(--gold, #e8a838); background: #fff; }
+.life-composer-hint {
+  font: 0.74rem var(--font-ui); color: var(--ink-muted, #7a7f96);
+  margin-top: 6px; line-height: 1.45;
+}
 .life-sheet-close {
   background: none; border: none; cursor: pointer; padding: 4px;
   color: var(--ink-muted, #7a7f96); line-height: 1;

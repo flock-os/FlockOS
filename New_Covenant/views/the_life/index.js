@@ -976,16 +976,16 @@ function _openSheet(c, memberDir, onSave) {
           ${(memberPhoneTel || memberEmail) ? `
           <div class="life-contact-actions" role="group" aria-label="Contact ${_e(name)}">
             ${memberPhoneTel ? `
-              <a class="flock-icon-btn life-contact-btn" href="sms:${_e(memberPhoneTel)}" data-contact="text" data-contact-value="${_e(memberPhoneRaw)}" title="Text ${_e(name)} (${_e(memberPhoneRaw)})" aria-label="Text ${_e(name)}">
+              <button type="button" class="flock-icon-btn life-contact-btn" data-contact="text" data-contact-value="${_e(memberPhoneRaw)}" data-contact-tel="${_e(memberPhoneTel)}" title="Text ${_e(name)} (${_e(memberPhoneRaw)})" aria-label="Text ${_e(name)}">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.5 8.5 0 0 1-3.7-.8L3 21l1.9-5.3A8.4 8.4 0 1 1 21 11.5z"/></svg>
-              </a>
+              </button>
               <a class="flock-icon-btn life-contact-btn" href="tel:${_e(memberPhoneTel)}" data-contact="call" data-contact-value="${_e(memberPhoneRaw)}" title="Call ${_e(name)} (${_e(memberPhoneRaw)})" aria-label="Call ${_e(name)}">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3.1-8.7A2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.3 1.8.6 2.6a2 2 0 0 1-.5 2.1L8 9.6a16 16 0 0 0 6 6l1.2-1.2a2 2 0 0 1 2.1-.5c.8.3 1.7.5 2.6.6a2 2 0 0 1 1.7 2z"/></svg>
               </a>` : ''}
             ${memberEmail ? `
-              <a class="flock-icon-btn life-contact-btn" href="mailto:${_e(memberEmail)}" data-contact="email" data-contact-value="${_e(memberEmail)}" title="Email ${_e(name)} (${_e(memberEmail)})" aria-label="Email ${_e(name)}">
+              <button type="button" class="flock-icon-btn life-contact-btn" data-contact="email" data-contact-value="${_e(memberEmail)}" title="Email ${_e(name)} (${_e(memberEmail)})" aria-label="Email ${_e(name)}">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 6-10 7L2 6"/></svg>
-              </a>` : ''}
+              </button>` : ''}
           </div>` : ''}
         </div>
         <button class="life-sheet-close" aria-label="Close">
@@ -1076,8 +1076,11 @@ function _openSheet(c, memberDir, onSave) {
     const _renderIx = (items, ix) => {
       if (!items.length) { ix.innerHTML = '<div class="life-ix-empty">No interactions yet.</div>'; return; }
       ix.innerHTML = items.map(i => {
-        const ts = _ixTs(i.createdAt || i.timestamp || i.date);
-        return `<div class="life-ix-item"><div class="life-ix-note">${_e(i.note || i.content || i.body || i.text || '')}</div><div class="life-ix-meta">${_e(i.author || i.authorName || i.createdBy || '')}${ts ? ' &bull; ' + _e(ts) : ''}</div></div>`;
+        const ts = _ixTs(i.createdAt || i.timestamp || i.date || i.interactionDate);
+        const noteText = i.notes || i.note || i.content || i.body || i.text || i.summary || i.message || '';
+        const channel  = i.interactionType || i.channel || i.type || '';
+        const channelTag = channel ? `<span class="life-ix-tag">${_e(channel)}</span> ` : '';
+        return `<div class="life-ix-item"><div class="life-ix-note">${channelTag}${_e(noteText)}</div><div class="life-ix-meta">${_e(i.author || i.authorName || i.createdBy || '')}${ts ? ' &bull; ' + _e(ts) : ''}</div></div>`;
       }).join('');
     };
 
@@ -1149,46 +1152,49 @@ function _openSheet(c, memberDir, onSave) {
         items = Array.isArray(res) ? res : (res?.rows || res?.data || []);
       }
     } catch (e) { console.error('[the_life] reload interactions failed', e); }
-    ix.innerHTML = items.length
-      ? items.map(i => {
-          const ts = i.createdAt?.seconds ? new Date(i.createdAt.seconds * 1000).toLocaleString() : (i.createdAt ? new Date(i.createdAt).toLocaleString() : '');
-          const noteText = i.note || i.content || i.body || i.text || i.summary || '';
-          const channel = i.channel || i.type || '';
-          const channelTag = channel ? `<span class="life-ix-tag">${_e(channel)}</span> ` : '';
-          return `<div class="life-ix-item"><div class="life-ix-note">${channelTag}${_e(noteText)}</div><div class="life-ix-meta">${_e(i.author || i.authorName || i.createdBy || '')}${ts ? ' &bull; ' + _e(ts) : ''}</div></div>`;
-        }).join('')
-      : '<div class="life-ix-empty">No interactions yet.</div>';
+    _renderIx(items, ix);
   }
 
-  // Contact action buttons (text/call/email) — auto-log as interaction
+  // Contact action buttons — open custom composer (text/email) or native dialer (call)
   sheet.querySelectorAll('[data-contact]').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      // Let the native href navigate (sms:/tel:/mailto:) — log in parallel.
-      if (!cid) return;
+    btn.addEventListener('click', async (ev) => {
       const kind  = btn.dataset.contact;
       const value = btn.dataset.contactValue || '';
-      const verb  = kind === 'text' ? 'Texted' : kind === 'call' ? 'Called' : 'Emailed';
-      const icon  = kind === 'text' ? '📱' : kind === 'call' ? '📞' : '✉️';
-      const note  = `${icon} ${verb} ${name}${value ? ' (' + value + ')' : ''} via app`;
-      const session = window.TheVine?.session?.();
-      const payload = {
-        caseId: cid,
-        note,
-        type:    kind,
-        channel: kind,
-        createdBy: session?.email || '',
-        author:    session?.email || '',
-      };
-      const UR = window.UpperRoom;
-      try {
-        if (UR && typeof UR.createCareInteraction === 'function') {
-          await UR.createCareInteraction(payload);
-        } else if (V) {
-          await V.flock.care.interactions.create({ caseId: cid, note, type: kind });
-        }
-        _reloadIx();
-      } catch (e) {
-        console.error('[the_life] log contact interaction failed', e);
+
+      // Phone calls: log immediately, let the <a href="tel:"> navigate.
+      if (kind === 'call') {
+        if (!cid) return;
+        const session = window.TheVine?.session?.();
+        const note = `📞 Called ${name}${value ? ' (' + value + ')' : ''} via app`;
+        try {
+          const UR = window.UpperRoom;
+          const payload = { caseId: cid, notes: note, interactionType: 'Phone Call', createdBy: session?.email || '', author: session?.email || '' };
+          if (UR && typeof UR.createCareInteraction === 'function') {
+            await UR.createCareInteraction(payload);
+          } else if (V) {
+            await V.flock.care.interactions.create(payload);
+          }
+          _reloadIx();
+        } catch (e) { console.error('[the_life] log call failed', e); }
+        return;
+      }
+
+      // Text / Email: open custom composer (no native href to follow)
+      ev.preventDefault();
+      if (kind === 'text') {
+        _openComposer({
+          channel: 'text',
+          name, recipient: value, target: btn.dataset.contactTel || value,
+          caseId: cid, sheet,
+          onLogged: _reloadIx,
+        });
+      } else if (kind === 'email') {
+        _openComposer({
+          channel: 'email',
+          name, recipient: value, target: value,
+          caseId: cid, sheet,
+          onLogged: _reloadIx,
+        });
       }
     });
   });
@@ -1205,9 +1211,8 @@ function _openSheet(c, memberDir, onSave) {
     const session = window.TheVine?.session?.();
     const payload = {
       caseId: cid,
-      note,
-      type:    'note',
-      channel: 'note',
+      notes: note,
+      interactionType: 'Note',
       createdBy: session?.email || '',
       author:    session?.email || '',
     };
@@ -1215,7 +1220,7 @@ function _openSheet(c, memberDir, onSave) {
       if (UR && typeof UR.createCareInteraction === 'function') {
         await UR.createCareInteraction(payload);
       } else if (V) {
-        await V.flock.care.interactions.create({ caseId: cid, note });
+        await V.flock.care.interactions.create(payload);
       }
       ta.value = '';
       await _reloadIx();
@@ -2322,5 +2327,130 @@ function _wireMemberPicker(sheet) {
     chipEl.style.display    = 'none';
     searchWrap.style.display = '';
     searchInput?.focus();
+  });
+}
+
+// ── Contact Composer ─────────────────────────────────────────────────────────
+// Custom-styled compose sheet for text/email outreach. Captures the message,
+// logs it as a careInteraction, then hands off to the device's native app
+// (sms: or mailto:) pre-filled with the composed body.
+let _activeComposer = null;
+function _closeComposer() {
+  if (!_activeComposer) return;
+  const t = _activeComposer;
+  t.querySelector('.life-sheet-overlay')?.classList.remove('is-open');
+  t.querySelector('.life-sheet-panel')?.classList.remove('is-open');
+  setTimeout(() => { t.remove(); if (_activeComposer === t) _activeComposer = null; }, 240);
+}
+
+function _openComposer({ channel, name, recipient, target, caseId, sheet, onLogged }) {
+  _closeComposer();
+  const isText  = channel === 'text';
+  const title   = isText ? 'Text Message' : 'Email Message';
+  const verbPast= isText ? 'Texted' : 'Emailed';
+  const icon    = isText ? '📱' : '✉️';
+  const subjectDefault = isText ? '' : `Checking in — from your church family`;
+
+  const wrap = document.createElement('div');
+  wrap.className = 'life-sheet life-composer';
+  wrap.innerHTML = /* html */`
+    <div class="life-sheet-overlay"></div>
+    <div class="life-sheet-panel life-composer-panel" role="dialog" aria-label="${_e(title)} to ${_e(name)}">
+      <div class="life-sheet-drag"></div>
+      <div class="life-sheet-hd">
+        <div class="life-sheet-hd-info">
+          <div class="life-sheet-hd-name">${_e(title)}</div>
+          <div class="life-sheet-hd-meta">To ${_e(name)} &bull; ${_e(recipient || '')}</div>
+        </div>
+        <button class="life-sheet-close" type="button" aria-label="Close">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="life-sheet-body life-composer-body">
+        ${!isText ? `
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Subject</div>
+          <input class="life-sheet-input" data-field="subject" type="text" value="${_e(subjectDefault)}" placeholder="Subject line">
+        </div>` : ''}
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Message</div>
+          <textarea class="life-sheet-ta life-composer-ta" data-field="body" rows="8" placeholder="${isText ? 'Type your text…' : 'Write your note…'}" autofocus></textarea>
+          <div class="life-composer-hint">This message will be logged on the case and opened in your device's ${isText ? 'Messages' : 'Mail'} app, pre-filled and ready to send.</div>
+        </div>
+      </div>
+      <div class="life-sheet-foot">
+        <button class="flock-btn" type="button" data-cancel>Cancel</button>
+        <button class="flock-btn flock-btn--primary" type="button" data-send>
+          ${isText ? 'Open in Messages' : 'Open in Mail'}
+        </button>
+      </div>
+    </div>`;
+  document.body.appendChild(wrap);
+  _activeComposer = wrap;
+  requestAnimationFrame(() => {
+    wrap.querySelector('.life-sheet-overlay').classList.add('is-open');
+    wrap.querySelector('.life-sheet-panel').classList.add('is-open');
+    wrap.querySelector('.life-composer-ta')?.focus();
+  });
+
+  const close = () => _closeComposer();
+  wrap.querySelector('.life-sheet-overlay').addEventListener('click', close);
+  wrap.querySelector('.life-sheet-close').addEventListener('click', close);
+  wrap.querySelector('[data-cancel]').addEventListener('click', close);
+
+  wrap.querySelector('[data-send]').addEventListener('click', async () => {
+    const body    = (wrap.querySelector('[data-field="body"]')?.value || '').trim();
+    const subject = (wrap.querySelector('[data-field="subject"]')?.value || subjectDefault).trim();
+    if (!body) {
+      wrap.querySelector('[data-field="body"]')?.focus();
+      return;
+    }
+    const sendBtn = wrap.querySelector('[data-send]');
+    sendBtn.disabled = true;
+    sendBtn.textContent = 'Logging…';
+
+    // 1) Log the interaction (canonical schema: notes + interactionType)
+    if (caseId) {
+      const session = window.TheVine?.session?.();
+      const header  = `${icon} ${verbPast} ${name}${recipient ? ' (' + recipient + ')' : ''}${!isText && subject ? ' — Subject: ' + subject : ''}`;
+      const payload = {
+        caseId,
+        notes:           `${header}\n\n${body}`,
+        interactionType: isText ? 'Text' : 'Email',
+        createdBy:       session?.email || '',
+        author:          session?.email || '',
+      };
+      try {
+        const UR = window.UpperRoom;
+        if (UR && typeof UR.createCareInteraction === 'function') {
+          await UR.createCareInteraction(payload);
+        } else if (window.TheVine?.flock?.care?.interactions) {
+          await window.TheVine.flock.care.interactions.create(payload);
+        }
+        if (typeof onLogged === 'function') onLogged();
+      } catch (e) {
+        console.error('[the_life] composer: log failed', e);
+      }
+    }
+
+    // 2) Hand off to native app, pre-filled with composed body
+    try {
+      const enc = encodeURIComponent;
+      let url;
+      if (isText) {
+        // iOS uses ?&body=, Android uses ?body=. ?&body= works on both.
+        url = `sms:${target || ''}?&body=${enc(body)}`;
+      } else {
+        const params = [];
+        if (subject) params.push('subject=' + enc(subject));
+        params.push('body=' + enc(body));
+        url = `mailto:${target || ''}?${params.join('&')}`;
+      }
+      window.location.href = url;
+    } catch (e) {
+      console.error('[the_life] composer: handoff failed', e);
+    }
+
+    close();
   });
 }
