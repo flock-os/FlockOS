@@ -4,6 +4,7 @@
    ══════════════════════════════════════════════════════════════════════════════ */
 
 import { pageHero } from '../_frame.js';
+import { buildAdapter } from '../../Scripts/the_living_water_adapter.js';
 
 export const name  = 'the_call_to_forgive';
 export const title = 'The Call to Forgive';
@@ -113,12 +114,12 @@ function _isFB() {
 }
 
 async function _loadCases(root, onReload) {
-  const V  = window.TheVine;
-  const UR = window.UpperRoom;
-  const useFB = _isFB();
+  const V   = window.TheVine;
+  const MX  = buildAdapter('flock.care', V);
+  const UR  = window.UpperRoom;
   const casesEl = root.querySelector('[data-bind="cases"]');
   if (!casesEl) return;
-  if (!useFB && !V) {
+  if (!UR && !V) {
     casesEl.innerHTML = '<div class="life-empty" style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Reconciliation data is unavailable right now.</div>';
     return;
   }
@@ -126,10 +127,10 @@ async function _loadCases(root, onReload) {
   try {
     // Fetch all care cases then filter client-side by careType=reconciliation
     let allRows;
-    if (useFB) {
+    if (UR && typeof UR.listCareCases === 'function' && UR.isReady?.()) {
       allRows = _rows(await UR.listCareCases({}));
     } else {
-      allRows = _rows(await V.flock.care.list({ careType: 'reconciliation', limit: 50 }));
+      allRows = _rows(await MX.list({ careType: 'reconciliation', limit: 50 }));
     }
     const rows = allRows.filter(r => String(r.careType || r.type || '').toLowerCase() === 'reconciliation').slice(0, 12);
     if (!rows.length) {
@@ -198,9 +199,10 @@ function _closeCtfSheet() {
 
 function _openCaseSheet(c, onReload) {
   _closeCtfSheet();
-  const V     = window.TheVine;
-  const UR    = window.UpperRoom;
-  const useFB = _isFB();
+  const V   = window.TheVine;
+  const MX  = buildAdapter('flock.care', V);
+  const UR  = window.UpperRoom;
+  const useFB = !!(UR && typeof UR.isReady === 'function' && UR.isReady() && typeof UR.createCareCase === 'function');
   const isNew = !c;
   const uid   = c?.id ? String(c.id) : '';
 
@@ -277,9 +279,9 @@ function _openCaseSheet(c, onReload) {
     if (!isNew) payload.id = uid;
     try {
       if (isNew) {
-        await (useFB ? UR.createCareCase(payload) : V.flock.care.create(payload));
+        await (useFB ? UR.createCareCase(payload) : MX.create(payload));
       } else {
-        await (useFB ? UR.updateCareCase(payload) : V.flock.care.update(payload));
+        await (useFB ? UR.updateCareCase(payload) : MX.update(payload));
       }
       _closeCtfSheet();
       onReload?.();
@@ -296,7 +298,7 @@ function _openCaseSheet(c, onReload) {
     const btn = sheet.querySelector('[data-close-case]');
     btn.disabled = true; btn.textContent = 'Closing…';
     try {
-      await (useFB ? UR.updateCareCase({ id: uid, status: 'Closed' }) : V.flock.care.update({ id: uid, status: 'Closed' }));
+      await (useFB ? UR.updateCareCase({ id: uid, status: 'Closed' }) : MX.update({ id: uid, status: 'Closed' }));
       _closeCtfSheet();
       onReload?.();
     } catch (_) { btn.disabled = false; btn.textContent = 'Close Case'; }
@@ -309,7 +311,7 @@ function _openCaseSheet(c, onReload) {
     btn.disabled = true; btn.textContent = 'Deleting…';
     try {
       // care.delete does not exist in the API — always soft-delete via status update
-      await (useFB ? UR.updateCareCase({ id: uid, status: 'Deleted' }) : V.flock.care.update({ id: uid, status: 'Deleted' }));
+      await (useFB ? UR.updateCareCase({ id: uid, status: 'Deleted' }) : MX.update({ id: uid, status: 'Deleted' }));
       _closeCtfSheet();
       onReload?.();
     } catch (err) {

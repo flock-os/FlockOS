@@ -4,6 +4,7 @@
    ══════════════════════════════════════════════════════════════════════════════ */
 
 import { pageHero } from '../_frame.js';
+import { buildAdapter } from '../../Scripts/the_living_water_adapter.js';
 
 export const name  = 'quarterly_worship';
 export const title = 'Quarterly Worship';
@@ -94,9 +95,10 @@ async function _loadPlans(root) {
 
   const V = window.TheVine;
   if (!V) { plansEl.innerHTML = errMsg('Service plans backend not loaded.'); return; }
+  const MX = buildAdapter('flock.servicePlans', V);
 
   try {
-    const res  = await V.flock.servicePlans.list({ limit: 20 });
+    const res  = await MX.list({ limit: 20 });
     const rows = _rows(res);
 
     // Filter to current quarter
@@ -169,6 +171,7 @@ function _closePlanSheet() {
 function _openPlanSheet(plan, onReload) {
   _closePlanSheet();
   const V     = window.TheVine;
+  const MX    = buildAdapter('flock.servicePlans', V);
   const isNew = !plan;
   const uid   = plan?.id ? String(plan.id) : '';
   const title = plan?.title || plan?.name || '';
@@ -261,8 +264,8 @@ function _openPlanSheet(plan, onReload) {
     if (!isNew) payload.id = uid;
     try {
       if (!V) throw new Error('Service plans backend not available.');
-      if (isNew) { await V.flock.servicePlans.create(payload); }
-      else       { await V.flock.servicePlans.update(payload); }
+      if (isNew) { await MX.create(payload); }
+      else       { await MX.update(payload); }
       _closePlanSheet();
       onReload?.();
     } catch (err) {
@@ -279,7 +282,7 @@ function _openPlanSheet(plan, onReload) {
     const btn = sheet.querySelector('[data-delete]');
     btn.disabled = true; btn.textContent = 'Deleting…';
     try {
-      await V.flock.servicePlans.update({ id: uid, status: 'Deleted' });
+      await MX.update({ id: uid, status: 'Deleted' });
       _closePlanSheet();
       onReload?.();
     } catch (err) {

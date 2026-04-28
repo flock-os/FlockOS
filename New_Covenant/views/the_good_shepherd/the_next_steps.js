@@ -7,6 +7,7 @@
    ══════════════════════════════════════════════════════════════════════════════ */
 
 import { draw, swr } from '../../Scripts/the_manna.js';
+import { buildAdapter } from '../../Scripts/the_living_water_adapter.js';
 import { careCases, compassionList } from '../../Scripts/the_life/index.js';
 import { read, write } from '../../Scripts/the_cistern.js';
 
@@ -22,8 +23,9 @@ async function _getNameMap() {
   } catch (_) {}
   const V = window.TheVine;
   if (!V) return {};
+  const MX = buildAdapter('flock.members', V);
   try {
-    const res     = await V.flock.members.list({ limit: 500 });
+    const res     = await MX.list({ limit: 500 });
     const members = Array.isArray(res) ? res : (res?.rows ?? res?.data ?? []);
     const map     = {};
     for (const m of members) {

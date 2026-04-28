@@ -4,6 +4,7 @@
    ══════════════════════════════════════════════════════════════════════════════ */
 
 import { pageHero } from '../_frame.js';
+import { buildAdapter } from '../../Scripts/the_living_water_adapter.js';
 
 export const name  = 'the_harvest';
 export const title = 'Harvest';
@@ -84,7 +85,10 @@ export function mount(root) {
 }
 
 async function _loadHarvest(root) {
-  const V = window.TheVine;
+  const V   = window.TheVine;
+  const MXP = buildAdapter('missions.partners', V);
+  const MXR = buildAdapter('missions.registry', V);
+  const MXE = buildAdapter('flock.events', V);
   const missionEl  = root.querySelector('.harvest-missionaries');
   const outreachEl = root.querySelector('.harvest-outreach');
   const statsEl    = root.querySelector('[data-bind="stats"]');
@@ -105,8 +109,8 @@ async function _loadHarvest(root) {
       // then fall back to registry records that look like personal missionary profiles.
       let missionaries = [];
       const [partnersRes, registryRes] = await Promise.allSettled([
-        V.missions.partners.list({ limit: 100 }),
-        V.missions.registry.list().catch(() => null),
+        MXP.list({ limit: 100 }),
+        MXR.list().catch(() => null),
       ]);
       if (partnersRes.status === 'fulfilled') {
         const all = _rows(partnersRes.value);
@@ -151,7 +155,7 @@ async function _loadHarvest(root) {
   if (outreachEl) {
     outreachEl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Loading outreach…</div>';
     try {
-      const res  = await V.flock.events.list({ limit: 200 });
+      const res  = await MXE.list({ limit: 200 });
       const all  = _rows(res);
       // Filter client-side — field may be 'type' or 'eventType'
       const rows = all.filter(r => {
@@ -322,7 +326,8 @@ const OUTREACH_STATUSES = ['upcoming', 'active', 'complete', 'cancelled'];
 
 function _openOutreachSheet(ev, onReload) {
   _closeHarvestSheet();
-  const V     = window.TheVine;
+  const V   = window.TheVine;
+  const MXE = buildAdapter('flock.events', V);
   const isNew = !ev;
   const uid   = ev?.id ? String(ev.id) : '';
   const title = ev?.title || ev?.name || '';
@@ -415,8 +420,8 @@ function _openOutreachSheet(ev, onReload) {
     };
     if (!isNew) payload.id = uid;
     try {
-      if (isNew) { await V.flock.events.create(payload); }
-      else       { await V.flock.events.update(payload); }
+      if (isNew) { await MXE.create(payload); }
+      else       { await MXE.update(payload); }
       _closeHarvestSheet();
       onReload?.();
     } catch (err) {
@@ -433,7 +438,7 @@ function _openOutreachSheet(ev, onReload) {
     const btn = sheet.querySelector('[data-delete]');
     btn.disabled = true; btn.textContent = 'Deleting…';
     try {
-      await V.flock.events.cancel({ id: uid });
+      await MXE.cancel({ id: uid });
       _closeHarvestSheet();
       onReload?.();
     } catch (err) {
@@ -449,6 +454,7 @@ const PARTNER_TYPES = ['Sending Agency', 'Field Partner', 'Training Ministry', '
 function _openMissionarySheet(m, onReload) {
   _closeHarvestSheet();
   const V     = window.TheVine;
+  const MXP   = buildAdapter('missions.partners', V);
   const isNew = !m;
   const uid   = m?.id ? String(m.id) : '';
   const name  = m ? (m.missionaryName || m.name || '') : '';
@@ -547,8 +553,8 @@ function _openMissionarySheet(m, onReload) {
     };
     if (!isNew) payload.id = uid;
     try {
-      if (isNew) { await V.missions.partners.create(payload); }
-      else       { await V.missions.partners.update(payload); }
+      if (isNew) { await MXP.create(payload); }
+      else       { await MXP.update(payload); }
       _closeHarvestSheet();
       onReload?.();
     } catch (err) {
@@ -565,7 +571,7 @@ function _openMissionarySheet(m, onReload) {
     const btn = sheet.querySelector('[data-delete]');
     btn.disabled = true; btn.textContent = 'Removing…';
     try {
-      await V.missions.partners.update({ id: uid, status: 'Deleted' });
+      await MXP.update({ id: uid, status: 'Deleted' });
       _closeHarvestSheet();
       onReload?.();
     } catch (err) {

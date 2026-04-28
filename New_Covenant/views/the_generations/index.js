@@ -4,6 +4,7 @@
    ══════════════════════════════════════════════════════════════════════════════ */
 
 import { pageHero } from '../_frame.js';
+import { buildAdapter } from '../../Scripts/the_living_water_adapter.js';
 
 export const name  = 'the_generations';
 export const title = 'The Generations';
@@ -87,9 +88,10 @@ async function _loadGenerations(root) {
 
   const V = window.TheVine;
   if (!V) { tlEl.innerHTML = errMsg('Milestones backend not loaded.'); return; }
+  const MX = buildAdapter('flock.milestones', V);
 
   try {
-    const res  = await V.flock.milestones.list({ limit: 100 });
+    const res  = await MX.list({ limit: 100 });
     const rows = _rows(res);
 
     if (!rows.length) {
@@ -169,6 +171,7 @@ function _closeGenSheet() {
 function _openMilestoneSheet(m, onReload) {
   _closeGenSheet();
   const V     = window.TheVine;
+  const MX    = buildAdapter('flock.milestones', V);
   const isNew = !m;
   const uid   = m?.id ? String(m.id) : '';
 
@@ -245,8 +248,8 @@ function _openMilestoneSheet(m, onReload) {
     if (!isNew) payload.id = uid;
     try {
       if (!V) throw new Error('Milestones backend not available.');
-      if (isNew) { await V.flock.milestones.create(payload); }
-      else       { await V.flock.milestones.update(payload); }
+      if (isNew) { await MX.create(payload); }
+      else       { await MX.update(payload); }
       _closeGenSheet();
       onReload?.();
     } catch (err) {
@@ -262,7 +265,7 @@ function _openMilestoneSheet(m, onReload) {
     const btn = sheet.querySelector('[data-delete]');
     btn.disabled = true; btn.textContent = 'Deleting…';
     try {
-      await V.flock.milestones.delete({ id: uid });
+      await MX.delete({ id: uid });
       _closeGenSheet();
       onReload?.();
     } catch (_) { btn.disabled = false; btn.textContent = 'Delete'; }

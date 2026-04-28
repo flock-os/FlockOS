@@ -11,8 +11,7 @@
    ══════════════════════════════════════════════════════════════════════════════ */
 
 import { draw, swr } from '../../Scripts/the_manna.js';
-
-const KEY = 'upperRoom:devotionals';
+import { buildAdapter } from '../../Scripts/the_living_water_adapter.js';
 const TTL = 30 * 60_000; // 30 min — devotionals change once a day
 
 export function mountDevotional(host, ctx) {
@@ -94,13 +93,12 @@ async function _fetch() {
   }
   // 2. GAS fallback.
   const V = window.TheVine;
-  if (V && V.app && typeof V.app.devotionals === 'function') {
-    try {
-      const res  = await V.app.devotionals();
-      const rows = Array.isArray(res) ? res : (res?.rows ?? res?.data ?? []);
-      return rows;
-    } catch (_) { /* fall through */ }
-  }
+  const MX = buildAdapter('app.devotionals', V);
+  try {
+    const res  = await MX.list();
+    const rows = Array.isArray(res) ? res : (res?.rows ?? res?.data ?? []);
+    return rows;
+  } catch (_) { /* fall through */ }
   return [];
 }
 

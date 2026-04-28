@@ -35,7 +35,7 @@ function _normalize(raw) {
 // reads/writes go directly to Firestore. The Cloud Function trigger then POSTs
 // `sync.write` to GAS, which mirrors the row into the Sheet via the handler in
 // N-Master SyncHandler.md. When UpperRoom is NOT ready (legacy GAS-only deploy),
-// the adapter transparently falls back to V.missions.* (TheVine GAS routes).
+// the adapter transparently falls back to the TheVine GAS missions routes.
 // This keeps the GAS contract intact — DO NOT remove the GAS handlers from
 // L-Master Code.md; they remain authoritative for GAS-only deployments and for
 // the email/auth side-effects that GAS still owns.
@@ -61,9 +61,11 @@ function _buildMissionsAdapter(V) {
   }
 
   const prayer = _wrap('prayerFocus', 'PrayerFocus');
-  prayer.respond = (p) => (fsReady() && UR.respondMissionsPrayerFocus)
-    ? UR.respondMissionsPrayerFocus(p)
-    : V.missions.prayerFocus.respond(p);
+  prayer.respond = (p) => {
+    if (fsReady() && UR.respondMissionsPrayerFocus) return UR.respondMissionsPrayerFocus(p);
+    const pf = V?.missions?.prayerFocus;
+    return (pf?.respond) ? pf.respond(p) : Promise.resolve(null);
+  };
 
   return {
     isFirestore: fsReady,
@@ -554,7 +556,7 @@ async function _loadWorld(root, V) {
       const res = await UR.listMissionsRegistry({ limit: 300 });
       rawArr = Array.isArray(res) ? res : _normalize(res);
     } else if (V?.missions?.registry?.list) {
-      rawArr = _normalize(await (root.__MX?.registry || V.missions.registry).list({ limit: 300 }));
+      rawArr = _normalize(await (root.__MX?.registry || V?.missions?.registry).list({ limit: 300 }));
     }
 
     // Sort: persecution severity first, then WWL rank ascending, then alphabetical

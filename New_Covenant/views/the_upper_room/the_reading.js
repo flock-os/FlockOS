@@ -9,8 +9,7 @@
    ══════════════════════════════════════════════════════════════════════════════ */
 
 import { draw, swr } from '../../Scripts/the_manna.js';
-
-const KEY = 'upperRoom:reading';
+import { buildAdapter } from '../../Scripts/the_living_water_adapter.js';
 const TTL = 60 * 60_000; // 1 hour — reading plan rarely changes
 
 export function mountReading(host /*, ctx */) {
@@ -90,13 +89,12 @@ async function _fetch() {
     } catch (_) { /* fall through */ }
   }
   const V = window.TheVine;
-  if (V && V.app && typeof V.app.reading === 'function') {
-    try {
-      const res = await V.app.reading();
-      const rows = Array.isArray(res) ? res : (res?.rows ?? res?.data ?? []);
-      return _normalise(rows);
-    } catch (_) {}
-  }
+  const MX = buildAdapter('app.reading', V);
+  try {
+    const res = await MX.list();
+    const rows = Array.isArray(res) ? res : (res?.rows ?? res?.data ?? []);
+    return _normalise(rows);
+  } catch (_) {}
   return [];
 }
 

@@ -4,6 +4,7 @@
    ══════════════════════════════════════════════════════════════════════════════ */
 
 import { pageHero } from '../_frame.js';
+import { buildAdapter } from '../../Scripts/the_living_water_adapter.js';
 
 export const name  = 'prayerful_action';
 export const title = 'Prayerful Action';
@@ -328,6 +329,7 @@ function _fmtDate(ts) {
 
 async function _loadPrayer(root, filterBtns) {
   const V  = window.TheVine;
+  const MX = buildAdapter('flock.prayer', V);
   const UR = window.UpperRoom;
 
   // Loading state
@@ -345,10 +347,10 @@ async function _loadPrayer(root, filterBtns) {
         all = Array.isArray(r) ? r : (r?.rows ?? r?.data ?? []);
       } catch (_) {}
     }
-    // Fallback to TheVine GAS
-    if (!all.length && V) {
+    // Fallback to TheVine GAS via adapter
+    if (!all.length) {
       try {
-        const res = await V.flock.prayer.list({ limit: 50 });
+        const res = await MX.list({ limit: 50 });
         all = Array.isArray(res) ? res : (res?.rows ?? res?.data ?? []);
       } catch (_) {}
     }
@@ -420,7 +422,8 @@ function _closePraySheet() {
 
 function _openAddRequestSheet(onReload) {
   _closePraySheet();
-  const V = window.TheVine;
+  const V  = window.TheVine;
+  const MX = buildAdapter('flock.prayer', V);
   const sheet = document.createElement('div');
   sheet.className = 'life-sheet';
   sheet.innerHTML = /* html */`
@@ -510,11 +513,9 @@ function _openAddRequestSheet(onReload) {
       // Firestore (UpperRoom) is the source of truth — reads come from here
       if (UR && typeof UR.createPrayer === 'function') {
         await UR.createPrayer(payload);
-      } else if (V) {
-        // Legacy GAS fallback if Firestore isn't available
-        await V.flock.prayer.create(payload);
       } else {
-        throw new Error('No prayer backend available.');
+        // Legacy GAS fallback via adapter if Firestore isn't available
+        await MX.create(payload);
       }
       _closePraySheet();
       onReload?.();

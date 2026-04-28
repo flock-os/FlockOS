@@ -13,6 +13,7 @@ import { messages } from '../../Scripts/the_upper_room/index.js';
 import * as life     from '../../Scripts/the_life/index.js';
 import { renderMessage }  from '../the_fellowship/the_message.js';
 import { renderComposer } from '../the_fellowship/the_composer.js';
+import { buildAdapter } from '../../Scripts/the_living_water_adapter.js';
 
 export const name  = 'the_prayer_chain';
 export const title = 'Prayer Chain';
@@ -179,6 +180,7 @@ const PR_STATUSES   = ['New', 'In Progress', 'Follow-up', 'Answered', 'Closed'];
 function _openPrayerRequestSheet(p, onReload) {
   _closePCSheet();
   const V     = window.TheVine;
+  const MX    = buildAdapter('flock.prayer', V);
   const isNew = !p;
   const uid   = p?.id ? String(p.id) : '';
   const submitter = p?.submitterName || p?.['Submitter Name'] || '';
@@ -276,18 +278,14 @@ function _openPrayerRequestSheet(p, onReload) {
       if (isNew) {
         if (UR && typeof UR.createPrayer === 'function') {
           await UR.createPrayer(payload);
-        } else if (V) {
-          await V.flock.prayer.create(payload);
         } else {
-          throw new Error('No prayer backend available.');
+          await MX.create(payload);
         }
       } else {
         if (UR && typeof UR.updatePrayer === 'function') {
           await UR.updatePrayer(uid, payload);
-        } else if (V) {
-          await V.flock.prayer.update(Object.assign({ id: uid }, payload));
         } else {
-          throw new Error('No prayer backend available.');
+          await MX.update(Object.assign({ id: uid }, payload));
         }
       }
       _closePCSheet();
@@ -308,10 +306,8 @@ function _openPrayerRequestSheet(p, onReload) {
       const UR = window.UpperRoom;
       if (UR && typeof UR.updatePrayer === 'function') {
         await UR.updatePrayer(uid, { status: 'Answered' });
-      } else if (V) {
-        await V.flock.prayer.update({ id: uid, status: 'Answered' });
       } else {
-        throw new Error('No prayer backend available.');
+        await MX.update({ id: uid, status: 'Answered' });
       }
       _closePCSheet();
       onReload?.();
@@ -330,12 +326,8 @@ function _openPrayerRequestSheet(p, onReload) {
       } else if (UR && typeof UR.updatePrayer === 'function') {
         // Fallback: soft-delete by setting status to Archived
         await UR.updatePrayer(uid, { status: 'Archived' });
-      } else if (V?.flock?.prayer?.remove) {
-        await V.flock.prayer.remove(uid);
-      } else if (V?.flock?.prayer?.update) {
-        await V.flock.prayer.update({ id: uid, status: 'Archived' });
       } else {
-        throw new Error('No prayer backend available.');
+        await MX.delete(uid);
       }
       _closePCSheet();
       onReload?.();

@@ -4,6 +4,7 @@
    ══════════════════════════════════════════════════════════════════════════════ */
 
 import { pageHero } from '../_frame.js';
+import { buildAdapter } from '../../Scripts/the_living_water_adapter.js';
 
 export const name  = 'the_way';
 export const title = 'The Way';
@@ -87,10 +88,12 @@ export function mount(root) {
 }
 
 async function _loadWay(root) {
-  const V = window.TheVine;
+  const V   = window.TheVine;
+  const MXG = buildAdapter('flock.groups', V);
+  const MXD = buildAdapter('flock.discipleship.paths', V);
   const tracksEl = root.querySelector('.way-tracks');
   const groupsEl = root.querySelector('.way-groups');
-  if (!V?.flock) {
+  if (!V) {
     if (tracksEl) tracksEl.innerHTML = '<div class="life-empty">Discipleship backend not loaded.</div>';
     if (groupsEl) groupsEl.innerHTML = '<div class="life-empty">Small groups backend not loaded.</div>';
     _loadMinistries(root);
@@ -99,10 +102,10 @@ async function _loadWay(root) {
   }
 
   // Discipleship tracks
-  if (tracksEl && V.flock.discipleship?.paths?.list) {
+  if (tracksEl) {
     tracksEl.innerHTML = '<div class="life-empty">Loading tracks…</div>';
     try {
-      const res  = await V.flock.discipleship.paths.list({});
+      const res  = await MXD.list({});
       const all  = _rows(res);
       // Filter client-side: exclude archived/inactive
       const _DEAD = new Set(['archived','inactive','draft']);
@@ -130,10 +133,10 @@ async function _loadWay(root) {
   }
 
   // Small groups
-  if (groupsEl && V.flock.groups?.list) {
+  if (groupsEl) {
     groupsEl.innerHTML = '<div class="life-empty">Loading groups…</div>';
     try {
-      const res  = await V.flock.groups.list();
+      const res  = await MXG.list();
       const rows = _rows(res);
       groupsEl.innerHTML = rows.length
         ? rows.map(_liveGroupRow).join('')
@@ -154,8 +157,6 @@ async function _loadWay(root) {
       console.error('[TheWay] groups.list error:', err);
       groupsEl.innerHTML = '<div class="life-empty">Could not load small groups right now.</div>';
     }
-  } else if (groupsEl) {
-    groupsEl.innerHTML = '<div class="life-empty">Groups backend not available.</div>';
   }
 
   _loadMinistries(root);
@@ -247,7 +248,8 @@ function _closeWaySheet() {
 
 function _openGroupSheet(g, onReload) {
   _closeWaySheet();
-  const V     = window.TheVine;
+  const V   = window.TheVine;
+  const MXG = buildAdapter('flock.groups', V);
   const isNew = !g;
   const uid   = g?.id ? String(g.id) : '';
   const name  = g?.name  || '';
@@ -354,8 +356,8 @@ function _openGroupSheet(g, onReload) {
     };
     if (!isNew) payload.id = uid;
     try {
-      if (isNew) { await V.flock.groups.create(payload); }
-      else       { await V.flock.groups.update(payload); }
+      if (isNew) { await MXG.create(payload); }
+      else       { await MXG.update(payload); }
       _closeWaySheet();
       onReload?.();
     } catch (err) {
@@ -372,7 +374,7 @@ function _openGroupSheet(g, onReload) {
     const btn = sheet.querySelector('[data-delete]');
     btn.disabled = true; btn.textContent = 'Archiving…';
     try {
-      await V.flock.groups.update({ id: uid, status: 'Archived' });
+      await MXG.update({ id: uid, status: 'Archived' });
       _closeWaySheet();
       onReload?.();
     } catch (err) {
@@ -752,7 +754,8 @@ function _closeTrackSheet() {
 
 function _openTrackSheet(t, onReload) {
   _closeTrackSheet();
-  const V = window.TheVine;
+  const V   = window.TheVine;
+  const MXD = buildAdapter('flock.discipleship.paths', V);
   const isNew = !t;
 
   const sheet = document.createElement('div');
@@ -820,7 +823,7 @@ function _openTrackSheet(t, onReload) {
     const errEl = sheet.querySelector('[data-error]');
     const title = sheet.querySelector('[data-field="title"]').value.trim();
     if (!title) { errEl.textContent = 'Title is required.'; errEl.style.display = ''; return; }
-    if (!V?.flock?.discipleship?.paths) {
+    if (!V) {
       errEl.textContent = 'Discipleship backend not available.'; errEl.style.display = ''; return;
     }
     errEl.style.display = 'none';
@@ -837,8 +840,8 @@ function _openTrackSheet(t, onReload) {
     };
     if (!isNew) payload.id = String(t.id);
     try {
-      if (isNew) await V.flock.discipleship.paths.create(payload);
-      else       await V.flock.discipleship.paths.update(payload);
+      if (isNew) await MXD.create(payload);
+      else       await MXD.update(payload);
       _closeTrackSheet(); onReload?.();
     } catch (err) {
       errEl.textContent = err?.message || 'Could not save track.'; errEl.style.display = '';
@@ -851,8 +854,7 @@ function _openTrackSheet(t, onReload) {
     const btn = sheet.querySelector('[data-delete]');
     btn.disabled = true; btn.textContent = 'Deleting…';
     try {
-      if (V?.flock?.discipleship?.paths?.delete) await V.flock.discipleship.paths.delete({ id: String(t.id) });
-      else await V.flock.discipleship.paths.update({ id: String(t.id), status: 'archived' });
+      await MXD.delete({ id: String(t.id) });
       _closeTrackSheet(); onReload?.();
     } catch (err) {
       alert(err?.message || 'Could not delete track.');

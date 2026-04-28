@@ -5,6 +5,7 @@
 
 import { pageHero } from '../_frame.js';
 import { profile } from '../../Scripts/the_priesthood/index.js';
+import { buildAdapter } from '../../Scripts/the_living_water_adapter.js';
 
 export const name  = 'the_life';
 export const title = 'Pastoral Care';
@@ -24,10 +25,11 @@ export async function pendingCount() {
   if (_pendingCache !== null && (now - _pendingCachedAt) < _PENDING_TTL) {
     return _pendingCache;
   }
-  const V = window.TheVine;
-  if (!V || !V.flock || !V.flock.care || typeof V.flock.care.list !== 'function') return 0;
+  const V  = window.TheVine;
+  const MX = buildAdapter('flock.care', V);
+  if (!V) return 0;
   try {
-    const res = await V.flock.care.list({});
+    const res = await MX.list({});
     const rows = Array.isArray(res) ? res : (res?.rows || res?.data || []);
     const open = rows.filter(r => !_TERMINAL.has(String(r.status || r.Status || '').toLowerCase())).length;
     _pendingCache = open;
@@ -702,7 +704,9 @@ export function mount(root) {
 }
 
 async function _loadCare(root, caseMap) {
-  const V = window.TheVine;
+  const V   = window.TheVine;
+  const MXC = buildAdapter('flock.care', V);
+  const MXM = buildAdapter('flock.members', V);
   if (!V) return null;
   const queue = root.querySelector('[data-bind="queue"]');
   if (!queue) return null;
@@ -710,8 +714,8 @@ async function _loadCare(root, caseMap) {
   try {
     const UR = window.UpperRoom;
     const [careRes, gasMembersRes, fbMembersRes] = await Promise.all([
-      V.flock.care.list({}),
-      V.flock.members.list({ limit: 500 }).catch(() => []),
+      MXC.list({}),
+      MXM.list({ limit: 500 }).catch(() => []),
       // Firestore is the source of truth for care-assignment memberIds, so we MUST
       // include UpperRoom members in the directory or those IDs won't resolve.
       (UR && typeof UR.listMembers === 'function')
@@ -908,12 +912,13 @@ function _e(s) {
 
 // ── Resolve a case ────────────────────────────────────────────────────────────
 async function _resolveCase(cid, card, root) {
-  const V = window.TheVine;
-  if (!V || !cid) return;
+  const V  = window.TheVine;
+  const MX = buildAdapter('flock.care', V);
+  if (!cid) return;
   try {
-    await V.flock.care.resolve({ id: cid });
+    await MX.resolve({ id: cid });
   } catch {
-    try { await V.flock.care.update({ id: cid, status: 'Resolved' }); } catch (err) {
+    try { await MX.update({ id: cid, status: 'Resolved' }); } catch (err) {
       console.error('[TheLife] resolve error:', err);
       return;
     }
@@ -948,7 +953,9 @@ function _findMemberRec(idOrEmail, memberDir) {
 
 function _openSheet(c, memberDir, onSave) {
   _closeSheet();
-  const V = window.TheVine;
+  const V    = window.TheVine;
+  const MXC  = buildAdapter('flock.care', V);
+  const MXCI = buildAdapter('flock.care.interactions', V);
   const cid = String(c.id || c.caseId || '');
   const name = c.memberName || c.name || _resolveName(c.memberId, memberDir) || c.memberId || 'Unknown';
   const memberRec     = _findMemberRec(c.memberId, memberDir);
@@ -1098,7 +1105,7 @@ function _openSheet(c, memberDir, onSave) {
           if (rows.length) { _renderIx(rows, ix); return; }
           // If Firestore had none, fall back to TheVine GAS
           if (!V) { _renderIx([], ix); return; }
-          V.flock.care.interactions.list({ caseId: cid })
+          MXCI.list({ caseId: cid })
             .then(r => _renderIx(_ixRows(r), ix))
             .catch(() => _renderIx([], ix));
         })
@@ -1106,12 +1113,12 @@ function _openSheet(c, memberDir, onSave) {
           const ix = sheet.querySelector('[data-ix]');
           if (ix) ix.innerHTML = '<div class="life-ix-empty">Could not load interactions.</div>';
         });
-    } else if (V) {
-      V.flock.care.interactions.list({ caseId: cid })
+    } else {
+      MXCI.list({ caseId: cid })
         .then(res => {
           const items = _ixRows(res);
           if (items.length) return items;
-          return V.flock.care.interactions.list({ id: cid }).then(_ixRows).catch(() => []);
+          return MXCI.list({ id: cid }).then(_ixRows).catch(() => []);
         })
         .then((items) => {
           const ix = sheet.querySelector('[data-ix]');
@@ -1146,12 +1153,12 @@ function _openSheet(c, memberDir, onSave) {
       if (UR && typeof UR.listCareInteractions === 'function') {
         const res = await UR.listCareInteractions({ caseId: cid });
         items = Array.isArray(res) ? res : (res?.rows || res?.data || res?.items || []);
-        if (!items.length && V) {
-          const r2 = await V.flock.care.interactions.list({ caseId: cid }).catch(() => []);
+        if (!items.length) {
+          const r2 = await MXCI.list({ caseId: cid }).catch(() => []);
           items = Array.isArray(r2) ? r2 : (r2?.rows || r2?.data || []);
         }
-      } else if (V) {
-        const res = await V.flock.care.interactions.list({ caseId: cid });
+      } else {
+        const res = await MXCI.list({ caseId: cid });
         items = Array.isArray(res) ? res : (res?.rows || res?.data || []);
       }
     } catch (e) { console.error('[the_life] reload interactions failed', e); }
@@ -1177,8 +1184,8 @@ function _openSheet(c, memberDir, onSave) {
           const payload = { caseId: cid, notes: note, interactionType: 'Phone Call', createdBy: session?.email || '', author: session?.email || '' };
           if (UR && typeof UR.createCareInteraction === 'function') {
             await UR.createCareInteraction(payload);
-          } else if (V) {
-            await V.flock.care.interactions.create(payload);
+          } else {
+            await MXCI.create(payload);
           }
           _reloadIx();
         } catch (e) { console.error('[the_life] log call failed', e); }
@@ -1225,8 +1232,8 @@ function _openSheet(c, memberDir, onSave) {
     try {
       if (UR && typeof UR.createCareInteraction === 'function') {
         await UR.createCareInteraction(payload);
-      } else if (V) {
-        await V.flock.care.interactions.create(payload);
+      } else {
+        await MXCI.create(payload);
       }
       ta.value = '';
       await _reloadIx();
@@ -1246,7 +1253,7 @@ function _openSheet(c, memberDir, onSave) {
     const summaryVal    = sheet.querySelector('[data-field="summary"]').value.trim();
     const pastoralVal   = isPastoral ? (sheet.querySelector('[data-field="pastoralNotes"]')?.value ?? null) : undefined;
     try {
-      await V.flock.care.update({
+      await MXC.update({
         id:                   cid,
         status:               activeStatus,
         primaryCaregiverId:   assigneeVal  || undefined,
@@ -1269,9 +1276,9 @@ function _openSheet(c, memberDir, onSave) {
     btn.disabled = true;
     btn.textContent = 'Resolving…';
     try {
-      await V.flock.care.resolve({ id: cid });
+      await MXC.resolve({ id: cid });
     } catch {
-      try { await V.flock.care.update({ id: cid, status: 'Resolved' }); } catch (err) {
+      try { await MXC.update({ id: cid, status: 'Resolved' }); } catch (err) {
         console.error('[TheLife] resolve error:', err);
         btn.disabled = false; btn.textContent = 'Resolve Case'; return;
       }
@@ -1287,9 +1294,9 @@ function _openSheet(c, memberDir, onSave) {
     const btn = sheet.querySelector('[data-delete]');
     btn.disabled = true; btn.textContent = 'Deleting…';
     try {
-      await V.flock.care.update({ id: cid, status: 'Deleted' });
+      await MXC.update({ id: cid, status: 'Deleted' });
     } catch {
-      try { await V.flock.care.update({ id: cid, status: 'Archived' }); } catch (err) {
+      try { await MXC.update({ id: cid, status: 'Archived' }); } catch (err) {
         console.error('[TheLife] delete error:', err);
         btn.disabled = false; btn.textContent = 'Delete Case'; return;
       }
@@ -1316,7 +1323,8 @@ function _closeSheet(el) {
 // ── Quick note sheet ─────────────────────────────────────────────────────────
 function _quickNote(cid, personName) {
   _closeSheet();
-  const V = window.TheVine;
+  const V    = window.TheVine;
+  const MXCI = buildAdapter('flock.care.interactions', V);
   const sheet = document.createElement('div');
   sheet.className = 'life-sheet';
   sheet.innerHTML = /* html */`
@@ -1369,10 +1377,8 @@ function _quickNote(cid, personName) {
     try {
       if (UR && typeof UR.createCareInteraction === 'function') {
         await UR.createCareInteraction(payload);
-      } else if (V) {
-        await V.flock.care.interactions.create(payload);
       } else {
-        throw new Error('No backend available to save note.');
+        await MXCI.create(payload);
       }
       _closeSheet();
       // Refresh the underlying case sheet's interactions list, if open.
@@ -1516,7 +1522,8 @@ function _memberPickerHtml(members, fieldName) {
 
 function _newCareModal(memberDir, onSave) {
   _closeSheet();
-  const V = window.TheVine;
+  const V   = window.TheVine;
+  const MXC = buildAdapter('flock.care', V);
   const hasMemberDir = memberDir && memberDir.length > 0;
   const leadPastor   = _findLeadPastor(memberDir || []);
   const lpId         = leadPastor ? (leadPastor.id || leadPastor.uid || leadPastor.docId || leadPastor.memberNumber || leadPastor.email || '') : '';
@@ -1739,7 +1746,7 @@ function _newCareModal(memberDir, onSave) {
     const btn = sheet.querySelector('[data-save]');
     btn.disabled = true; btn.textContent = 'Creating…';
     try {
-      await V.flock.care.create({
+      await MXC.create({
         memberId,
         careType,
         priority,

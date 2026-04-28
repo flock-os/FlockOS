@@ -9,8 +9,7 @@
    ══════════════════════════════════════════════════════════════════════════════ */
 
 import { draw, swr } from '../../Scripts/the_manna.js';
-
-const KEY = 'upperRoom:devotionals';      // shared with the_upper_room/the_devotional.js
+import { buildAdapter } from '../../Scripts/the_living_water_adapter.js';
 const TTL = 30 * 60_000;
 
 export function mountTodayWord(host, ctx) {
@@ -99,13 +98,13 @@ async function _fetch() {
       if (Array.isArray(fsRows) && fsRows.length) return fsRows;
     } catch (_) { /* fall through */ }
   }
+  // 2. GAS fallback.
   const V = window.TheVine;
-  if (V && V.app && typeof V.app.devotionals === 'function') {
-    try {
-      const res  = await V.app.devotionals();
-      return Array.isArray(res) ? res : (res?.rows ?? res?.data ?? []);
-    } catch (_) {}
-  }
+  const MX = buildAdapter('app.devotionals', V);
+  try {
+    const res  = await MX.list();
+    return Array.isArray(res) ? res : (res?.rows ?? res?.data ?? []);
+  } catch (_) {}
   return [];
 }
 

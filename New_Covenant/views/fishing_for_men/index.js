@@ -4,6 +4,7 @@
    ══════════════════════════════════════════════════════════════════════════════ */
 
 import { pageHero } from '../_frame.js';
+import { buildAdapter } from '../../Scripts/the_living_water_adapter.js';
 
 export const name  = 'fishing_for_men';
 export const title = 'Outreach';
@@ -113,6 +114,7 @@ function _rows(res) {
 
 async function _loadOutreach(root) {
   const V = window.TheVine;
+  const MX = buildAdapter('flock.outreach.contacts', V);
   const funnelEl   = root.querySelector('.fish-funnel');
   const contactsEl = root.querySelector('.fish-contacts');
   if (!V) {
@@ -124,7 +126,7 @@ async function _loadOutreach(root) {
   }
 
   try {
-    const res  = await V.flock.outreach.contacts.list({ limit: 100 });
+    const res  = await MX.list({ limit: 100 });
     const all  = _rows(res);
 
     if (!all.length) {
@@ -230,6 +232,7 @@ const SOURCES = ['Street Outreach', 'Friend Referral', 'Community Event', 'Flock
 function _openContactSheet(c, onReload) {
   _closeFishSheet();
   const V     = window.TheVine;
+  const MX    = buildAdapter('flock.outreach.contacts', V);
   const isNew = !c;
   const uid   = c?.id ? String(c.id) : '';
   const first   = c?.firstName || (c?.name ? c.name.split(' ')[0] : '') || '';
@@ -338,8 +341,8 @@ function _openContactSheet(c, onReload) {
     };
     if (!isNew) payload.id = uid;
     try {
-      if (isNew) { await V.flock.outreach.contacts.create(payload); }
-      else       { await V.flock.outreach.contacts.update(payload); }
+      if (isNew) { await MX.create(payload); }
+      else       { await MX.update(payload); }
       _closeFishSheet();
       onReload?.();
     } catch (err) {
@@ -356,7 +359,7 @@ function _openContactSheet(c, onReload) {
     const btn = sheet.querySelector('[data-delete]');
     btn.disabled = true; btn.textContent = 'Deleting…';
     try {
-      await V.flock.outreach.contacts.update({ id: uid, status: 'Deleted' });
+      await MX.update({ id: uid, status: 'Deleted' });
       _closeFishSheet();
       onReload?.();
     } catch (err) {

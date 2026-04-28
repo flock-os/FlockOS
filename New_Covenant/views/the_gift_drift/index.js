@@ -4,6 +4,7 @@
    ══════════════════════════════════════════════════════════════════════════════ */
 
 import { pageHero } from '../_frame.js';
+import { buildAdapter } from '../../Scripts/the_living_water_adapter.js';
 
 export const name  = 'the_gift_drift';
 export const title = 'The Gift Drift';
@@ -123,10 +124,11 @@ function _rows(res) {
 
 async function _loadGiving(root) {
   const V = window.TheVine;
+  const MX = buildAdapter('flock.giving', V);
   const txEl    = root.querySelector('[data-bind="transactions"]');
   const barEl   = root.querySelector('.gift-bar-chart');
   const fundsEl = root.querySelector('.gift-funds');
-  if (!V?.flock?.giving) {
+  if (!V) {
     if (txEl)    txEl.innerHTML    = '<div class="life-empty">Giving backend not loaded.</div>';
     if (barEl)   barEl.innerHTML   = '<div class="life-empty">Giving backend not loaded.</div>';
     if (fundsEl) fundsEl.innerHTML = '<div class="life-empty">Giving backend not loaded.</div>';
@@ -134,8 +136,8 @@ async function _loadGiving(root) {
   }
 
   const [summaryRes, listRes] = await Promise.allSettled([
-    V.flock.giving.summary(),
-    V.flock.giving.list({ limit: 20 }),
+    MX.summary(),
+    MX.list({ limit: 20 }),
   ]);
 
   // ── KPI strip ───────────────────────────────────────────────────────────
@@ -259,6 +261,7 @@ function _closeGiftSheet() {
 function _openGiftSheet(g, onReload) {
   _closeGiftSheet();
   const V     = window.TheVine;
+  const MX    = buildAdapter('flock.giving', V);
   const isNew = !g;
   const uid   = g?.id ? String(g.id) : '';
 
@@ -348,10 +351,10 @@ function _openGiftSheet(g, onReload) {
       notes:      sheet.querySelector('[data-field="notes"]').value.trim() || undefined,
     };
     if (!isNew) payload.id = uid;
-    if (!V?.flock?.giving) { errEl.textContent = 'Giving backend not loaded — cannot save.'; errEl.style.display = ''; btn.disabled = false; btn.textContent = isNew ? 'Record Gift' : 'Save Changes'; return; }
+    if (!V) { errEl.textContent = 'Giving backend not loaded — cannot save.'; errEl.style.display = ''; btn.disabled = false; btn.textContent = isNew ? 'Record Gift' : 'Save Changes'; return; }
     try {
-      if (isNew) { await V.flock.giving.create(payload); }
-      else       { await V.flock.giving.update(payload); }
+      if (isNew) { await MX.create(payload); }
+      else       { await MX.update(payload); }
       _closeGiftSheet();
       onReload?.();
     } catch (err) {
@@ -367,7 +370,7 @@ function _openGiftSheet(g, onReload) {
     const btn = sheet.querySelector('[data-delete]');
     btn.disabled = true; btn.textContent = 'Deleting…';
     try {
-      await V.flock.giving.update({ id: uid, status: 'Deleted' });
+      await MX.update({ id: uid, status: 'Deleted' });
       _closeGiftSheet();
       onReload?.();
     } catch (err) {

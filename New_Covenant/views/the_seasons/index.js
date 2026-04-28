@@ -5,6 +5,7 @@
    ══════════════════════════════════════════════════════════════════════════════ */
 
 import { pageHero } from '../_frame.js';
+import { buildAdapter } from '../../Scripts/the_living_water_adapter.js';
 
 export const name  = 'the_seasons';
 export const title = 'Seasons';
@@ -105,17 +106,18 @@ export function mount(root) {
 
 async function _loadEvents(root) {
   const V = window.TheVine;
+  const MX = buildAdapter('flock.events', V);
   const listEl = root.querySelector('.seasons-list');
   const calCol = root.querySelector('.seasons-calendar-col');
   if (!listEl) return;
-  if (!V?.flock?.events?.list) {
+  if (!V) {
     listEl.innerHTML = '<div class="life-empty">Events backend not loaded.</div>';
     return;
   }
 
   listEl.innerHTML = '<div class="life-empty">Loading events…</div>';
   try {
-    const res  = await V.flock.events.list();
+    const res  = await MX.list();
     const rows = _rows(res);
     if (!rows.length) {
       listEl.innerHTML = '<div class="life-empty">No events yet. Click “New Event” to add one.</div>';
@@ -259,6 +261,7 @@ function _isoDate(d) {
 function _openEventSheet(ev, onReload) {
   _closeEventSheet();
   const V      = window.TheVine;
+  const MX     = buildAdapter('flock.events', V);
   const isNew  = !ev;
   const uid    = ev?.id   ? String(ev.id) : '';
   const title  = ev?.title || ev?.name    || '';
@@ -379,8 +382,8 @@ function _openEventSheet(ev, onReload) {
     };
     if (!isNew) payload.id = uid;
     try {
-      if (isNew) { await V.flock.events.create(payload); }
-      else       { await V.flock.events.update(payload); }
+      if (isNew) { await MX.create(payload); }
+      else       { await MX.update(payload); }
       _closeEventSheet();
       onReload?.();
     } catch (err) {
@@ -398,7 +401,7 @@ function _openEventSheet(ev, onReload) {
     const btn = sheet.querySelector('[data-delete]');
     btn.disabled = true; btn.textContent = 'Cancelling…';
     try {
-      await V.flock.events.cancel({ id: uid });
+      await MX.cancel({ id: uid });
       _closeEventSheet();
       onReload?.();
     } catch (err) {

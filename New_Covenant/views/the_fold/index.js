@@ -5,6 +5,7 @@
 
 import { pageHero } from '../_frame.js';
 import { openContactComposer } from '../the_life/index.js';
+import { buildAdapter } from '../../Scripts/the_living_water_adapter.js';
 
 export const name  = 'the_fold';
 export const title = 'The Fold';
@@ -85,18 +86,19 @@ let _personMap = {};
 let _activeFoldSheet = null;
 
 async function _loadMembers(root) {
-  const V = window.TheVine;
+  const V   = window.TheVine;
+  const MXM = buildAdapter('flock.members', V);
   const grid  = root.querySelector('[data-bind="members"]');
   const stats = root.querySelector('[data-bind="stats"]');
   if (!grid) return;
-  if (!V?.flock?.members?.list) {
+  if (!V) {
     grid.innerHTML = '<div class="life-empty">Directory backend not loaded.</div>';
     if (stats) stats.innerHTML = _loadingStats();
     return;
   }
   grid.innerHTML = '<div class="life-empty">Loading members…</div>';
   try {
-    const res  = await V.flock.members.list({ limit: 500 });
+    const res  = await MXM.list({ limit: 500 });
     const all  = _rows(res);
     // Filter client-side: keep active/non-inactive members
     const rows = all.filter(r => {
@@ -253,6 +255,8 @@ function _closeMemberSheet(el) {
 
 function _openMemberSheet(person, V, onReload) {
   _closeMemberSheet();
+  const MXM = buildAdapter('flock.members', V);
+  const MXP = buildAdapter('flock.permissions', V);
   const first   = person.firstName || '';
   const last    = person.lastName  || '';
   const name    = person.displayName || person.name || `${first} ${last}`.trim() || 'Unknown';
@@ -386,7 +390,7 @@ function _openMemberSheet(person, V, onReload) {
 
   // Load current permissions
   if (V && uid) {
-    V.flock.permissions.get({ memberId: uid }).then(res => {
+    MXP.get({ memberId: uid }).then(res => {
       const currentRole = (res && (res.role || res.accessRole || res.level || '')) || '';
       const sel = sheet.querySelector('[data-field="accessRole"]');
       if (sel && currentRole) sel.value = currentRole.toLowerCase();
@@ -443,9 +447,9 @@ function _openMemberSheet(person, V, onReload) {
     };
     const accessRole = sheet.querySelector('[data-field="accessRole"]').value;
     try {
-      await V.flock.members.update(updates);
+      await MXM.update(updates);
       if (accessRole && uid) {
-        await V.flock.permissions.set({ memberId: uid, role: accessRole }).catch(() => {});
+        await MXP.set({ memberId: uid, role: accessRole }).catch(() => {});
       }
       _closeMemberSheet();
       onReload?.();
@@ -464,7 +468,7 @@ function _openMemberSheet(person, V, onReload) {
     btn.disabled = true;
     try {
       // Soft archive: flip status to Inactive (preserves all records)
-      await V.flock.members.update({ id: uid, status: 'Inactive' });
+      await MXM.update({ id: uid, status: 'Inactive' });
       _closeMemberSheet();
       onReload?.();
     } catch (err) {
@@ -488,7 +492,7 @@ function _openMemberSheet(person, V, onReload) {
     const btn = sheet.querySelector('[data-delete]');
     btn.disabled = true;
     try {
-      await V.flock.members.delete({ id: uid });
+      await MXM.delete({ id: uid });
       _closeMemberSheet();
       onReload?.();
     } catch (err) {
@@ -507,7 +511,9 @@ function _e(s) {
 // ── Add new member sheet ──────────────────────────────────────────────────────
 function _openNewMemberSheet(onReload) {
   _closeMemberSheet();
-  const V = window.TheVine;
+  const V   = window.TheVine;
+  const MXM = buildAdapter('flock.members', V);
+  const MXP = buildAdapter('flock.permissions', V);
   const sheet = document.createElement('div');
   sheet.className = 'life-sheet';
   sheet.innerHTML = /* html */`
@@ -604,7 +610,7 @@ function _openNewMemberSheet(onReload) {
     const firstName = sheet.querySelector('[data-field="firstName"]').value.trim();
     const errEl     = sheet.querySelector('[data-error]');
     if (!firstName) { errEl.textContent = 'First name is required.'; errEl.style.display = ''; return; }
-    if (!V?.flock?.members?.create) { errEl.textContent = 'Directory backend not loaded — cannot add.'; errEl.style.display = ''; return; }
+    if (!V) { errEl.textContent = 'Directory backend not loaded — cannot add.'; errEl.style.display = ''; return; }
     errEl.style.display = 'none';
     const btn = sheet.querySelector('[data-save]');
     btn.disabled = true; btn.textContent = 'Adding…';
@@ -620,10 +626,10 @@ function _openNewMemberSheet(onReload) {
     };
     const accessRole = sheet.querySelector('[data-field="accessRole"]').value;
     try {
-      const res = await V.flock.members.create(payload);
+      const res = await MXM.create(payload);
       const newId = res?.id || res?.memberId || res?.memberNumber;
       if (accessRole && newId) {
-        await V.flock.permissions.set({ memberId: newId, role: accessRole }).catch(() => {});
+        await MXP.set({ memberId: newId, role: accessRole }).catch(() => {});
       }
       _closeMemberSheet();
       onReload?.();

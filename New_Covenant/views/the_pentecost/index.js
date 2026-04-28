@@ -4,6 +4,7 @@
    ══════════════════════════════════════════════════════════════════════════════ */
 
 import { pageHero } from '../_frame.js';
+import { buildAdapter } from '../../Scripts/the_living_water_adapter.js';
 
 export const name  = 'the_pentecost';
 export const title = 'The Pentecost';
@@ -83,6 +84,7 @@ async function _loadPentecost(root) {
   const errMsg = (msg) => `<div class="life-empty" style="padding:24px 8px;color:var(--ink-muted,#7a7f96);text-align:center">${msg}</div>`;
 
   const V = window.TheVine;
+  const MX = buildAdapter('flock.events', V);
   if (!V) {
     if (upEl)   upEl.innerHTML   = errMsg('Events backend not loaded.');
     if (pastEl) pastEl.innerHTML = errMsg('Events backend not loaded.');
@@ -90,7 +92,7 @@ async function _loadPentecost(root) {
   }
 
   try {
-    const res  = await V.flock.events.list({ limit: 100 });
+    const res  = await MX.list({ limit: 100 });
     const all  = _rows(res);
     const special = all.filter(ev => {
       const t = (ev.type || ev.eventType || ev.category || '').toLowerCase();
@@ -167,6 +169,7 @@ const PENT_TYPES = Object.keys(TYPE_META);
 function _openPentEventSheet(ev, onReload) {
   _closePentSheet();
   const V     = window.TheVine;
+  const MX    = buildAdapter('flock.events', V);
   const isNew = !ev;
   const uid   = ev?.id ? String(ev.id) : '';
   const title   = ev?.title || ev?.name || '';
@@ -246,8 +249,8 @@ function _openPentEventSheet(ev, onReload) {
     if (!isNew) payload.id = uid;
     try {
       if (!V) throw new Error('Events backend not available.');
-      if (isNew) { await V.flock.events.create(payload); }
-      else       { await V.flock.events.update(payload); }
+      if (isNew) { await MX.create(payload); }
+      else       { await MX.update(payload); }
       _closePentSheet();
       onReload?.();
     } catch (err) {
@@ -263,7 +266,7 @@ function _openPentEventSheet(ev, onReload) {
     const btn = sheet.querySelector('[data-delete]');
     btn.disabled = true; btn.textContent = 'Cancelling…';
     try {
-      await V.flock.events.cancel({ id: uid });
+      await MX.cancel({ id: uid });
       _closePentSheet();
       onReload?.();
     } catch (err) { btn.disabled = false; btn.textContent = 'Cancel Event'; }

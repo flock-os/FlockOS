@@ -4,6 +4,7 @@
    ══════════════════════════════════════════════════════════════════════════════ */
 
 import { pageHero } from '../_frame.js';
+import { buildAdapter } from '../../Scripts/the_living_water_adapter.js';
 
 export const name  = 'the_weavers_plan';
 export const title = 'The Weaver\u2019s Plan';
@@ -111,7 +112,8 @@ async function _urList(colName) {
   if (colName === 'strategicInitiatives' && typeof UR?.listStrategicInitiatives  === 'function') return UR.listStrategicInitiatives();
   if (colName === 'strategicKeyDates'    && typeof UR?.listStrategicKeyDates     === 'function') return UR.listStrategicKeyDates();
   const V = window.TheVine;
-  if (V?.flock?.strategicPlan?.list) return V.flock.strategicPlan.list({ collection: colName });
+  const MX = buildAdapter('flock.strategicPlan', V);
+  if (V?.flock?.strategicPlan?.list) return MX.list({ collection: colName });
   if (UR?._churchDoc) {
     const snap = await UR._churchDoc().collection(colName).orderBy('createdAt','desc').limit(200).get();
     return snap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -125,7 +127,8 @@ async function _urCreate(colName, data) {
   if (colName === 'strategicInitiatives' && typeof UR?.createStrategicInitiative  === 'function') return UR.createStrategicInitiative(data);
   if (colName === 'strategicKeyDates'    && typeof UR?.createStrategicKeyDate     === 'function') return UR.createStrategicKeyDate(data);
   const V = window.TheVine;
-  if (V?.flock?.strategicPlan?.create) return V.flock.strategicPlan.create({ collection: colName, ...data });
+  const MX = buildAdapter('flock.strategicPlan', V);
+  if (V?.flock?.strategicPlan?.create) return MX.create({ collection: colName, ...data });
   if (UR?._churchDoc) {
     const ref = await UR._churchDoc().collection(colName).add({ ...data, createdAt: new Date().toISOString() });
     return { id: ref.id, ...data };
@@ -140,7 +143,8 @@ async function _urUpdate(colName, data) {
   if (colName === 'strategicInitiatives' && typeof UR?.updateStrategicInitiative  === 'function') return UR.updateStrategicInitiative(data);
   if (colName === 'strategicKeyDates'    && typeof UR?.updateStrategicKeyDate     === 'function') return UR.updateStrategicKeyDate(data);
   const V = window.TheVine;
-  if (V?.flock?.strategicPlan?.update) return V.flock.strategicPlan.update({ collection: colName, ...data });
+  const MX = buildAdapter('flock.strategicPlan', V);
+  if (V?.flock?.strategicPlan?.update) return MX.update({ collection: colName, ...data });
   if (UR?._churchDoc) {
     const { id, ...rest } = data;
     await UR._churchDoc().collection(colName).doc(id).update({ ...rest, updatedAt: new Date().toISOString() });
@@ -155,7 +159,8 @@ async function _urDelete(colName, id) {
   if (colName === 'strategicInitiatives' && typeof UR?.deleteStrategicInitiative  === 'function') return UR.deleteStrategicInitiative({ id });
   if (colName === 'strategicKeyDates'    && typeof UR?.deleteStrategicKeyDate     === 'function') return UR.deleteStrategicKeyDate({ id });
   const V = window.TheVine;
-  if (V?.flock?.strategicPlan?.delete) return V.flock.strategicPlan.delete({ collection: colName, id });
+  const MX = buildAdapter('flock.strategicPlan', V);
+  if (V?.flock?.strategicPlan?.delete) return MX.delete({ collection: colName, id });
   if (UR?._churchDoc) { await UR._churchDoc().collection(colName).doc(id).delete(); return; }
   throw new Error('Strategic plan backend not available.');
 }

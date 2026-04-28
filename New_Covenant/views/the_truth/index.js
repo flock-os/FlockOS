@@ -4,6 +4,7 @@
    ══════════════════════════════════════════════════════════════════════════════ */
 
 import { pageHero } from '../_frame.js';
+import { buildAdapter } from '../../Scripts/the_living_water_adapter.js';
 
 export const name  = 'the_truth';
 export const title = 'Content';
@@ -90,6 +91,8 @@ export function mount(root) {
 
 async function _loadTruth(root) {
   const V = window.TheVine;
+  const MX  = buildAdapter('flock.sermons', V);
+  const MXS = buildAdapter('flock.sermonSeries', V);
   const seriesEl = root.querySelector('.truth-series-grid');
   const msgsEl   = root.querySelector('.truth-messages');
   if (!V) {
@@ -97,11 +100,10 @@ async function _loadTruth(root) {
     if (msgsEl)   msgsEl.innerHTML   = '<div class="life-empty" style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Content backend not loaded.</div>';
     return;
   }
-  if (!V) return;
   if (seriesEl) {
     seriesEl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Loading series…</div>';
     try {
-      const res  = await V.flock.sermonSeries.list();
+      const res  = await MXS.list();
       const rows = _rows(res);
       seriesEl.innerHTML = rows.length
         ? rows.map(_liveSeriesCard).join('')
@@ -127,7 +129,7 @@ async function _loadTruth(root) {
   if (msgsEl) {
     msgsEl.innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Loading messages…</div>';
     try {
-      const res  = await V.flock.sermons.list();
+      const res  = await MX.list();
       const rows = _rows(res);
       msgsEl.innerHTML = rows.length
         ? rows.map(_liveMsgRow).join('')
@@ -237,6 +239,7 @@ const CONTENT_TYPES = ['sermon', 'study', 'devotional', 'teaching', 'testimony']
 function _openMsgSheet(m, onReload) {
   _closeTruthSheet();
   const V     = window.TheVine;
+  const MX    = buildAdapter('flock.sermons', V);
   const isNew = !m;
   const uid   = m?.id ? String(m.id) : '';
   const sheet = document.createElement('div');
@@ -333,8 +336,8 @@ function _openMsgSheet(m, onReload) {
     };
     if (!isNew) payload.id = uid;
     try {
-      if (isNew) { await V.flock.sermons.create(payload); }
-      else       { await V.flock.sermons.update(payload); }
+      if (isNew) { await MX.create(payload); }
+      else       { await MX.update(payload); }
       _closeTruthSheet();
       onReload?.();
     } catch (err) {
@@ -350,7 +353,7 @@ function _openMsgSheet(m, onReload) {
     const btn = sheet.querySelector('[data-delete]');
     btn.disabled = true; btn.textContent = 'Deleting…';
     try {
-      await V.flock.sermons.update({ id: uid, status: 'Deleted' });
+      await MX.update({ id: uid, status: 'Deleted' });
       _closeTruthSheet();
       onReload?.();
     } catch (err) {
@@ -364,6 +367,7 @@ function _openMsgSheet(m, onReload) {
 function _openSeriesSheet(s, onReload) {
   _closeTruthSheet();
   const V     = window.TheVine;
+  const MXS   = buildAdapter('flock.sermonSeries', V);
   const isNew = !s;
   const uid   = s?.id ? String(s.id) : '';
   const title   = s?.title || s?.name || '';
@@ -442,8 +446,8 @@ function _openSeriesSheet(s, onReload) {
     };
     if (!isNew) payload.id = uid;
     try {
-      if (isNew) { await V.flock.sermonSeries.create(payload); }
-      else       { await V.flock.sermonSeries.update(payload); }
+      if (isNew) { await MXS.create(payload); }
+      else       { await MXS.update(payload); }
       _closeTruthSheet();
       onReload?.();
     } catch (err) {
@@ -459,7 +463,7 @@ function _openSeriesSheet(s, onReload) {
     const btn = sheet.querySelector('[data-delete]');
     btn.disabled = true; btn.textContent = 'Archiving…';
     try {
-      await V.flock.sermonSeries.update({ id: uid, status: 'Archived' });
+      await MXS.update({ id: uid, status: 'Archived' });
       _closeTruthSheet();
       onReload?.();
     } catch (err) {
