@@ -3211,7 +3211,8 @@ flock-tabs [role="tablist"], .tabs-bar {
   width: 100%;
   box-sizing: border-box;
   justify-content: center;
-  margin-top: auto;
+  margin-top: 14px;
+  flex-shrink: 0;
   padding: 10px 20px;
   font-size: 0.92rem;
 }
