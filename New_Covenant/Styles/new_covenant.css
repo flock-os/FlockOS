@@ -397,11 +397,13 @@ html, body {
 /* ─── Home pasture / greeting ──────────────────────────────────────────────── */
 .pasture-hero { padding: 6px 0 0; }
 .pasture-date {
-  font: 0.9rem var(--font-ui); color: var(--ink-muted, #7a7f96); margin-bottom: 10px;
+  font: italic 600 1.05rem var(--font-serif); color: var(--ink-muted, #7a7f96); margin-bottom: 8px;
+  letter-spacing: 0.01em;
 }
 .pasture-hero h1 {
-  font: 700 2.3rem/1.1 var(--font-serif);
+  font: 700 2.3rem/1.2 var(--font-serif);
   letter-spacing: -0.025em; margin: 0 0 8px;
+  padding-bottom: 4px; overflow: visible;
   background: linear-gradient(135deg, var(--ink, #1b264f) 10%, #7c3aed 90%);
   -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
 }
@@ -3199,6 +3201,14 @@ flock-tabs [role="tablist"], .tabs-bar {
   margin-top: auto;
   padding-top: 14px;
   align-self: stretch;
+  width: 100%;
+  text-align: center;
+}
+/* Prayer hours Begin button — match devo button width/style */
+.pasture-devo-col .pray-liturgy-card > .flock-btn {
+  width: 100%;
+  text-align: center;
+  box-sizing: border-box;
 }
 @media (max-width: 720px) {
   .pasture-devo-row { grid-template-columns: 1fr; }
