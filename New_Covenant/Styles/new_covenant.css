@@ -2102,6 +2102,14 @@ flock-tabs [role="tablist"], .tabs-bar {
   #the-veil-side { display: none !important; }
   .veil-menu { display: inline-flex !important; }
 
+  /* Footer is desktop-only chrome — on mobile it just wraps over content
+     and steals real estate. Hide it and shrink main's bottom clearance to
+     just the iOS safe-area + 30px breathing room. */
+  .veil-foot { display: none !important; }
+  .veil-main, .veil-side {
+    padding-bottom: calc(var(--safe-bottom, 0px) + 30px) !important;
+  }
+
   /* Sidebar slides in as fixed overlay when hamburger is clicked.
      Top must include the iOS PWA safe-area inset so the first nav item
      ("Home") doesn't slide up under the notch / Dynamic Island portion of
