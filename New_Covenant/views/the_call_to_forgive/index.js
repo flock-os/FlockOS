@@ -28,12 +28,6 @@ const SCRIPTURES = [
   { ref: 'Ephesians 4:32', text: 'Be kind to one another, tenderhearted, forgiving one another, as God in Christ forgave you.' },
 ];
 
-const CASES = [
-  { id: 1, party1: 'James O.',   party2: 'David C.',      issue: 'Financial dispute — leadership role',    stage: 'Mediation',    date: 'Apr 20' },
-  { id: 2, party1: 'Anonymous', party2: 'Church Board',   issue: 'Hurt from past leadership decision',     stage: 'Processing',   date: 'Apr 15' },
-  { id: 3, party1: 'M. & S. T.', party2: 'Extended fam.', issue: 'Family estrangement — prodigal child',   stage: 'Reconciled',   date: 'Mar 28' },
-];
-
 const STAGE_META = {
   Processing:   { color: '#0ea5e9', bg: 'rgba(14,165,233,0.10)'  },
   Mediation:    { color: '#e8a838', bg: 'rgba(232,168,56,0.13)'  },
@@ -100,8 +94,8 @@ export function render() {
 }
 
 export function mount(root) {
-  const reload = () => _loadCases(root);
-  _loadCases(root);
+  const reload = () => _loadCases(root, reload);
+  reload();
   root.querySelector('[data-act="open-case"]')?.addEventListener('click', () => _openCaseSheet(null, reload));
   return () => { _closeCtfSheet(); };
 }
@@ -113,17 +107,24 @@ function _rows(res) {
   return [];
 }
 
-async function _loadCases(root) {
+async function _loadCases(root, onReload) {
   const V = window.TheVine;
-  if (!V) return;
   const casesEl = root.querySelector('[data-bind="cases"]');
   if (!casesEl) return;
+  if (!V) {
+    casesEl.innerHTML = '<div class="life-empty" style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Reconciliation data is unavailable right now.</div>';
+    return;
+  }
 
   try {
     // Reconciliation cases come from care items tagged with reconciliation type
-    const res  = await V.flock.care.list({ type: 'reconciliation', limit: 7 });
-    const rows = _rows(res).slice(0, 7);
-    if (!rows.length) return;
+    const res  = await V.flock.care.list({ type: 'reconciliation', limit: 25 });
+    const rows = _rows(res).filter(r => String(r.type || r.careType || '').toLowerCase() === 'reconciliation' || !r.type).slice(0, 12);
+    if (!rows.length) {
+      casesEl.innerHTML = '<div class="life-empty" style="padding:32px;text-align:center;color:var(--ink-muted,#7a7f96)">No reconciliation cases on file. Use "Open Case" to begin one.</div>';
+      _liveCasesMap = {};
+      return;
+    }
 
     casesEl.innerHTML = rows.map(c => {
       const party1   = c.memberName || c.party1 || c.submitterName || 'Member';
@@ -146,11 +147,12 @@ async function _loadCases(root) {
           party2: rec.party2 || rec.otherParty || '',
           issue:  rec.title || rec.description || rec.issue || '',
           stage:  rec.status || rec.stage || 'Processing',
-        }, reload);
+        }, onReload);
       });
     });
   } catch (err) {
     console.error('[TheCallToForgive] care.list error:', err);
+    casesEl.innerHTML = '<div class="life-empty" style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">Could not load reconciliation cases right now.</div>';
   }
 }
 
