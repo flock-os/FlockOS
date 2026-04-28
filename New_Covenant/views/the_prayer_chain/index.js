@@ -64,7 +64,18 @@ export function mount(root) {
       : `<div class="pc-stream-empty">Begin the chain. Pray a word.</div>`;
     stream.scrollTop = stream.scrollHeight;
   }).then((u) => { unwatch = u; }).catch(() => {
-    stream.innerHTML = `<div class="pc-stream-empty">Live prayer channel unavailable.</div>`;
+    stream.innerHTML = `
+      <div class="pc-stream-empty">
+        Prayer Chain channel hasn't been created yet.
+        <div style="margin-top:10px"><button type="button" class="flock-btn flock-btn--primary" data-act="init-pc-channel">Create #prayer-chain</button></div>
+      </div>`;
+    stream.querySelector('[data-act="init-pc-channel"]')?.addEventListener('click', async () => {
+      const UR = window.UpperRoom;
+      if (!UR || !UR.initializeDirectory) return;
+      stream.innerHTML = `<div class="pc-stream-empty">Creating channel…</div>`;
+      try { await UR.initializeDirectory('channel:prayer-chain'); location.reload(); }
+      catch (err) { stream.innerHTML = `<div class="pc-stream-empty" style="color:#b91c1c">${_e(err?.message || 'Could not create channel.')}</div>`; }
+    });
   });
 
   const stopComposer = renderComposer(compose, { channelId: CHANNEL_ID });

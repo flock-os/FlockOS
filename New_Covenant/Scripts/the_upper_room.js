@@ -3204,6 +3204,137 @@
   function deleteStrategicKeyDate(o)   { return _spDelete(_strategicKeyDatesRef(), o); }
 
   /* ══════════════════════════════════════════════════════════════════
+     AUDIT & INITIALIZE — Detect missing well-known docs/collections
+     and let the admin create them on demand. Used by the_wall.
+     ══════════════════════════════════════════════════════════════════ */
+
+  // Each audit item: id, label, exists() → Promise<boolean>, init() → Promise.
+  function _auditItems() {
+    var nowIso = _now;
+    return [
+      {
+        id: 'channel:announcements',
+        label: 'Announcements channel',
+        kind: 'channel',
+        exists: function() {
+          return _convosRef().doc('announcements').get().then(function(d) { return d.exists; });
+        },
+        init: function() {
+          return _convosRef().doc('announcements').set({
+            type: 'channel',
+            name: 'Announcements',
+            createdAt: nowIso(),
+            createdBy: _userEmail,
+            lastMessageAt: nowIso(),
+            lastSnippet: 'Channel created.',
+            lastSenderName: _userName || 'System'
+          }, { merge: true });
+        }
+      },
+      {
+        id: 'channel:prayer-chain',
+        label: 'Prayer Chain channel',
+        kind: 'channel',
+        exists: function() {
+          return _convosRef().doc('prayer-chain').get().then(function(d) { return d.exists; });
+        },
+        init: function() {
+          return _convosRef().doc('prayer-chain').set({
+            type: 'channel',
+            name: 'Prayer Chain',
+            createdAt: nowIso(),
+            createdBy: _userEmail,
+            lastMessageAt: nowIso(),
+            lastSnippet: 'Channel created.',
+            lastSenderName: _userName || 'System'
+          }, { merge: true });
+        }
+      },
+      {
+        id: 'collection:strategicGoals',
+        label: 'Strategic Plan — Goals',
+        kind: 'collection',
+        exists: function() {
+          return _strategicGoalsRef().limit(1).get().then(function(s) { return !s.empty; });
+        },
+        init: function() {
+          return _strategicGoalsRef().doc('_init').set({
+            _placeholder: true,
+            createdAt: nowIso(),
+            createdBy: _userEmail
+          }, { merge: true });
+        }
+      },
+      {
+        id: 'collection:strategicInitiatives',
+        label: 'Strategic Plan — Initiatives',
+        kind: 'collection',
+        exists: function() {
+          return _strategicInitiativesRef().limit(1).get().then(function(s) { return !s.empty; });
+        },
+        init: function() {
+          return _strategicInitiativesRef().doc('_init').set({
+            _placeholder: true,
+            createdAt: nowIso(),
+            createdBy: _userEmail
+          }, { merge: true });
+        }
+      },
+      {
+        id: 'collection:strategicKeyDates',
+        label: 'Strategic Plan — Key Dates',
+        kind: 'collection',
+        exists: function() {
+          return _strategicKeyDatesRef().limit(1).get().then(function(s) { return !s.empty; });
+        },
+        init: function() {
+          return _strategicKeyDatesRef().doc('_init').set({
+            _placeholder: true,
+            createdAt: nowIso(),
+            createdBy: _userEmail
+          }, { merge: true });
+        }
+      }
+    ];
+  }
+
+  // Public — returns [{id, label, kind, exists:boolean}]
+  function auditDirectories() {
+    if (!_ready) return Promise.resolve([]);
+    var items = _auditItems();
+    return Promise.all(items.map(function(it) {
+      return it.exists().then(
+        function(ok) { return { id: it.id, label: it.label, kind: it.kind, exists: !!ok }; },
+        function()   { return { id: it.id, label: it.label, kind: it.kind, exists: false }; }
+      );
+    }));
+  }
+
+  // Public — initialize a single item by id. Returns the new audit row.
+  function initializeDirectory(id) {
+    var items = _auditItems();
+    var hit = null;
+    for (var i = 0; i < items.length; i++) { if (items[i].id === id) { hit = items[i]; break; } }
+    if (!hit) return Promise.reject(new Error('Unknown directory: ' + id));
+    return hit.init().then(function() {
+      return { id: hit.id, label: hit.label, kind: hit.kind, exists: true };
+    });
+  }
+
+  // Public — initialize EVERY missing item. Returns the post-init audit list.
+  function initializeAllMissing() {
+    return auditDirectories().then(function(rows) {
+      var missing = rows.filter(function(r) { return !r.exists; });
+      var items = _auditItems();
+      var byId = {};
+      items.forEach(function(it) { byId[it.id] = it; });
+      return Promise.all(missing.map(function(r) {
+        return byId[r.id].init().catch(function() {});
+      })).then(auditDirectories);
+    });
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
      DISCIPLESHIP — Paths
      ══════════════════════════════════════════════════════════════════ */
 
@@ -4951,6 +5082,11 @@
     createStrategicKeyDate:    createStrategicKeyDate,
     updateStrategicKeyDate:    updateStrategicKeyDate,
     deleteStrategicKeyDate:    deleteStrategicKeyDate,
+
+    // Audit & Initialize (the_wall)
+    auditDirectories:     auditDirectories,
+    initializeDirectory:  initializeDirectory,
+    initializeAllMissing: initializeAllMissing,
 
     // Discipleship — Paths
     listDiscPaths:    listDiscPaths,

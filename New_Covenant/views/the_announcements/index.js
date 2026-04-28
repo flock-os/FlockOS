@@ -86,7 +86,12 @@ export function mount(root /*, ctx */) {
   }
 
   messages.watch(CHANNEL_ID, paint, { limit: 200 }).then((u) => { unwatch = u; }).catch(() => {
-    stream.innerHTML = `<div style="color:var(--ink-muted,#7a7f96); padding:24px 8px;">Comms backend not loaded.</div>`;
+    stream.innerHTML = `
+      <div style="color:var(--ink-muted,#7a7f96); padding:24px 8px; text-align:center;">
+        Announcements channel hasn't been created yet.
+        <div style="margin-top:10px"><button type="button" class="flock-btn flock-btn--primary" data-act="init-channel">Create #announcements</button></div>
+      </div>`;
+    stream.querySelector('[data-act="init-channel"]')?.addEventListener('click', () => _initChannel(stream, root));
   });
 
   async function _post() {
@@ -110,6 +115,19 @@ export function mount(root /*, ctx */) {
   });
 
   return () => { try { unwatch(); } catch (_) {} };
+}
+
+async function _initChannel(stream, root) {
+  const UR = window.UpperRoom;
+  if (!UR || !UR.initializeDirectory) return;
+  stream.innerHTML = `<div style="color:var(--ink-muted,#7a7f96); padding:24px 8px; text-align:center;">Creating channel…</div>`;
+  try {
+    await UR.initializeDirectory('channel:announcements');
+    // Re-mount this view to re-run watch with the now-existing doc.
+    location.reload();
+  } catch (err) {
+    stream.innerHTML = `<div style="color:#b91c1c; padding:24px 8px; text-align:center;">${_e(err?.message || 'Could not create channel.')}</div>`;
+  }
 }
 
 function _e(s) {
