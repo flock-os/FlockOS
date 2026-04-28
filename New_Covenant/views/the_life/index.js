@@ -708,11 +708,17 @@ async function _loadCare(root, caseMap) {
   if (!queue) return null;
   queue.innerHTML = '<div class="life-loading">Loading care queue…</div>';
   try {
-    const [careRes, membersRes] = await Promise.all([
+    const UR = window.UpperRoom;
+    const [careRes, gasMembersRes, fbMembersRes] = await Promise.all([
       V.flock.care.list({}),
       V.flock.members.list({ limit: 500 }).catch(() => []),
+      // Firestore is the source of truth for care-assignment memberIds, so we MUST
+      // include UpperRoom members in the directory or those IDs won't resolve.
+      (UR && typeof UR.listMembers === 'function')
+        ? UR.listMembers({ limit: 500 }).catch(() => [])
+        : Promise.resolve([]),
     ]);
-    const memberDir = _rows(membersRes);
+    const memberDir = _mergeMemberDirs(_rows(gasMembersRes), _rows(fbMembersRes));
     const all  = _rows(careRes);
     const rows = all.filter(r => !_TERMINAL.has((r.status || r.Status || '').toLowerCase()));
     // Populate caseMap
@@ -773,12 +779,43 @@ function _normalizeType(rawType) {
 function _buildMemberIndex(memberDir) {
   const map = new Map();
   for (const m of memberDir) {
-    const name = m.preferredName || ((m.firstName || '') + ' ' + (m.lastName || '')).trim() || m.displayName || '';
+    const name = m.preferredName
+      || ((m.firstName || '') + ' ' + (m.lastName || '')).trim()
+      || m.displayName
+      || m.name
+      || m.fullName
+      || '';
+    if (!name) continue;
     for (const k of [m.email, m.primaryEmail, m.id, m.uid, m.docId, m.memberNumber, m.memberPin]) {
       if (k) { const s = String(k); map.set(s, name); map.set(s.toLowerCase(), name); }
     }
   }
   return map;
+}
+
+// Merge two member directories (e.g. GAS + Firestore). Keeps both rows even
+// when emails match — they may have distinct IDs (Firestore docId vs GAS id),
+// and we need BOTH IDs to resolve to the same name. _buildMemberIndex de-dupes
+// at the Map level by overwriting with the same name string, which is fine.
+function _mergeMemberDirs(a = [], b = []) {
+  return [].concat(a || [], b || []);
+}
+
+// Dedupe a member list for display purposes (pickers/dropdowns).
+// Same person may appear twice when GAS+Firestore directories are merged.
+// Keys on lowercased email when present, else lowercased name.
+function _dedupeMembers(members) {
+  const seen = new Set();
+  const out  = [];
+  for (const m of (members || [])) {
+    const e = (m.email || m.primaryEmail || '').toLowerCase();
+    const n = _memberName(m).toLowerCase();
+    const key = e || n;
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(m);
+  }
+  return out;
 }
 
 // Resolve a memberId/email to a display name — accepts a member array or a pre-built Map
@@ -1338,7 +1375,7 @@ function _isLeadPastorGroup(members) {
 
 // ── Build a caregiver <select> (all members, sorted) ────────────────────────
 function _caregiverSelect(members, fieldName, defaultId, placeholder) {
-  const sorted = (members || []).slice().sort((a, b) => _memberName(a).localeCompare(_memberName(b)));
+  const sorted = _dedupeMembers(members).sort((a, b) => _memberName(a).localeCompare(_memberName(b)));
   // Resolve ID: try several common field names
   function _mid(m) { return m.id || m.uid || m.docId || m.memberNumber || m.email || ''; }
   return `<select class="life-sheet-input" data-field="${_e(fieldName)}">
@@ -1354,7 +1391,7 @@ function _caregiverSelect(members, fieldName, defaultId, placeholder) {
 
 // ── Build a member picker: search + select that collapses to a chip ──────────
 function _memberPickerHtml(members, fieldName) {
-  const sorted = (members || []).slice().sort((a, b) => _memberName(a).localeCompare(_memberName(b)));
+  const sorted = _dedupeMembers(members).sort((a, b) => _memberName(a).localeCompare(_memberName(b)));
   function _mid(m) { return m.id || m.uid || m.docId || m.memberNumber || m.email || ''; }
   return `
     <div class="life-member-picker" data-picker-for="${_e(fieldName)}">
