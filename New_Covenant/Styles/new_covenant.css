@@ -3222,7 +3222,16 @@ flock-tabs [role="tablist"], .tabs-bar {
 /* ─── Devo dark theme — matches pray-liturgy-card ───────────────────────────── */
 .devo-dark-card {
   background: linear-gradient(135deg, #0f1735 0%, #1b264f 100%) !important;
-  border-left-color: var(--gold, #e8a838) !important;
+  border: 1px solid var(--line, #e5e7ef);
+  border-left: 4px solid var(--gold, #e8a838);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  box-shadow: var(--shadow-sm);
+}
+.devo-dark-card .word-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 .devo-dark-mark {
   background: rgba(232,168,56,.18) !important;
