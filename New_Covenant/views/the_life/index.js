@@ -1058,31 +1058,34 @@ function _openSheet(c, memberDir, onSave) {
     sheet.querySelector('.life-sheet-panel').classList.add('is-open');
   });
 
+  // Shared helpers — must be at _openSheet scope so _reloadIx can call them
+  const _ixRows = (res) => {
+    if (!res) return [];
+    if (Array.isArray(res)) return res;
+    for (const k of ['rows', 'data', 'interactions', 'items', 'results', 'records']) {
+      if (Array.isArray(res[k])) return res[k];
+    }
+    return [];
+  };
+  const _ixTs = (v) => {
+    if (!v) return '';
+    const ms = v?.seconds ? v.seconds * 1000 : new Date(v).getTime();
+    return ms && !isNaN(ms) ? new Date(ms).toLocaleString() : '';
+  };
+  const _renderIx = (items, ix) => {
+    if (!items.length) { ix.innerHTML = '<div class="life-ix-empty">No interactions yet.</div>'; return; }
+    ix.innerHTML = items.map(i => {
+      const ts = _ixTs(i.createdAt || i.timestamp || i.date || i.interactionDate);
+      const noteText = i.notes || i.note || i.content || i.body || i.text || i.summary || i.message || '';
+      const channel  = i.interactionType || i.channel || i.type || '';
+      const channelTag = channel ? `<span class="life-ix-tag">${_e(channel)}</span> ` : '';
+      return `<div class="life-ix-item"><div class="life-ix-note">${channelTag}${_e(noteText)}</div><div class="life-ix-meta">${_e(i.author || i.authorName || i.createdBy || '')}${ts ? ' &bull; ' + _e(ts) : ''}</div></div>`;
+    }).join('');
+  };
+
   // Load interactions — UpperRoom (Firestore) first, then TheVine GAS fallback
   if (cid) {
-    const _ixRows = (res) => {
-      if (!res) return [];
-      if (Array.isArray(res)) return res;
-      for (const k of ['rows', 'data', 'interactions', 'items', 'results', 'records']) {
-        if (Array.isArray(res[k])) return res[k];
-      }
-      return [];
-    };
-    const _ixTs = (v) => {
-      if (!v) return '';
-      const ms = v?.seconds ? v.seconds * 1000 : new Date(v).getTime();
-      return ms && !isNaN(ms) ? new Date(ms).toLocaleString() : '';
-    };
-    const _renderIx = (items, ix) => {
-      if (!items.length) { ix.innerHTML = '<div class="life-ix-empty">No interactions yet.</div>'; return; }
-      ix.innerHTML = items.map(i => {
-        const ts = _ixTs(i.createdAt || i.timestamp || i.date || i.interactionDate);
-        const noteText = i.notes || i.note || i.content || i.body || i.text || i.summary || i.message || '';
-        const channel  = i.interactionType || i.channel || i.type || '';
-        const channelTag = channel ? `<span class="life-ix-tag">${_e(channel)}</span> ` : '';
-        return `<div class="life-ix-item"><div class="life-ix-note">${channelTag}${_e(noteText)}</div><div class="life-ix-meta">${_e(i.author || i.authorName || i.createdBy || '')}${ts ? ' &bull; ' + _e(ts) : ''}</div></div>`;
-      }).join('');
-    };
+    const _ixRows2 = _ixRows; // alias keeps block below working without changes
 
     // Try UpperRoom (Firestore careInteractions) first — authoritative source
     const UR = window.UpperRoom;
