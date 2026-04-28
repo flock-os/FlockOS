@@ -32,7 +32,9 @@ export function renderDmsPane(host /*, ctx */) {
         stop = renderThread(thread, { channelId: el.dataset.tid });
       });
     });
-  }).then((u) => { unwatch = u; }).catch(() => {});
+  }).then((u) => { unwatch = u; }).catch(() => {
+    list.innerHTML = `<div style="color:var(--ink-muted,#7a7f96); padding:8px;">DM backend unavailable.</div>`;
+  });
 
   return () => { try { unwatch(); } catch (_) {} if (stop) try { stop(); } catch (_) {} };
 }
