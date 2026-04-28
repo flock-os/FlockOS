@@ -2186,6 +2186,15 @@ flock-tabs [role="tablist"], .tabs-bar {
 }
 .life-sheet-hd-name { font: 700 1rem var(--font-ui); color: var(--ink, #1b264f); }
 .life-sheet-hd-meta { font: 0.8rem var(--font-ui); color: var(--ink-muted, #7a7f96); margin-top: 2px; }
+.life-contact-actions { display: flex; gap: 6px; margin-top: 8px; }
+.life-contact-btn { color: var(--ink-muted, #7a7f96); text-decoration: none; }
+.life-contact-btn:hover { color: var(--gold, #e8a838); background: rgba(232,168,56,.10); }
+.life-ix-tag {
+  display: inline-block; padding: 1px 7px; border-radius: 999px;
+  background: var(--bg-soft,#f5f6fa); color: var(--ink-muted,#7a7f96);
+  font: 600 0.65rem var(--font-ui); text-transform: uppercase; letter-spacing: .04em;
+  margin-right: 6px; vertical-align: middle;
+}
 .life-sheet-close {
   background: none; border: none; cursor: pointer; padding: 4px;
   color: var(--ink-muted, #7a7f96); line-height: 1;

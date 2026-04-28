@@ -933,11 +933,28 @@ function _decrementTotal(root) {
 // ── Detail sheet ─────────────────────────────────────────────────────────────
 let _activeSheet = null;
 
+function _findMemberRec(idOrEmail, memberDir) {
+  if (!idOrEmail || !Array.isArray(memberDir)) return null;
+  const k = String(idOrEmail).toLowerCase();
+  return memberDir.find(m =>
+       (m.id          && String(m.id).toLowerCase()          === k)
+    || (m.uid         && String(m.uid).toLowerCase()         === k)
+    || (m.docId       && String(m.docId).toLowerCase()       === k)
+    || (m.memberNumber&& String(m.memberNumber).toLowerCase()=== k)
+    || (m.email        && m.email.toLowerCase()        === k)
+    || (m.primaryEmail && m.primaryEmail.toLowerCase() === k)
+  ) || null;
+}
+
 function _openSheet(c, memberDir, onSave) {
   _closeSheet();
   const V = window.TheVine;
   const cid = String(c.id || c.caseId || '');
   const name = c.memberName || c.name || _resolveName(c.memberId, memberDir) || c.memberId || 'Unknown';
+  const memberRec     = _findMemberRec(c.memberId, memberDir);
+  const memberEmail   = (memberRec?.email || memberRec?.primaryEmail || c.memberEmail || '').trim();
+  const memberPhoneRaw= (memberRec?.phone || memberRec?.primaryPhone || memberRec?.mobilePhone || memberRec?.cellPhone || c.memberPhone || '').trim();
+  const memberPhoneTel= memberPhoneRaw.replace(/[^\d+]/g, '');
   const assigneeRaw   = c.primaryCaregiverId   || c.assignedTo || c.assignedName || '';
   const secondaryRaw  = c.secondaryCaregiverId || c.secondaryCaregiver || '';
   const currentStatus = c.status || 'Open';
@@ -956,6 +973,20 @@ function _openSheet(c, memberDir, onSave) {
         <div class="life-sheet-hd-info">
           <div class="life-sheet-hd-name">${_e(name)}</div>
           <div class="life-sheet-hd-meta">${_e(rawType)} &bull; ${_e(currentStatus)}</div>
+          ${(memberPhoneTel || memberEmail) ? `
+          <div class="life-contact-actions" role="group" aria-label="Contact ${_e(name)}">
+            ${memberPhoneTel ? `
+              <a class="flock-icon-btn life-contact-btn" href="sms:${_e(memberPhoneTel)}" data-contact="text" data-contact-value="${_e(memberPhoneRaw)}" title="Text ${_e(name)} (${_e(memberPhoneRaw)})" aria-label="Text ${_e(name)}">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.5 8.5 0 0 1-3.7-.8L3 21l1.9-5.3A8.4 8.4 0 1 1 21 11.5z"/></svg>
+              </a>
+              <a class="flock-icon-btn life-contact-btn" href="tel:${_e(memberPhoneTel)}" data-contact="call" data-contact-value="${_e(memberPhoneRaw)}" title="Call ${_e(name)} (${_e(memberPhoneRaw)})" aria-label="Call ${_e(name)}">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3.1-8.7A2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.3 1.8.6 2.6a2 2 0 0 1-.5 2.1L8 9.6a16 16 0 0 0 6 6l1.2-1.2a2 2 0 0 1 2.1-.5c.8.3 1.7.5 2.6.6a2 2 0 0 1 1.7 2z"/></svg>
+              </a>` : ''}
+            ${memberEmail ? `
+              <a class="flock-icon-btn life-contact-btn" href="mailto:${_e(memberEmail)}" data-contact="email" data-contact-value="${_e(memberEmail)}" title="Email ${_e(name)} (${_e(memberEmail)})" aria-label="Email ${_e(name)}">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 6-10 7L2 6"/></svg>
+              </a>` : ''}
+          </div>` : ''}
         </div>
         <button class="life-sheet-close" aria-label="Close">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
@@ -1098,6 +1129,70 @@ function _openSheet(c, memberDir, onSave) {
     });
   });
 
+  // Reload interactions from whichever backend is available
+  async function _reloadIx() {
+    if (!cid) return;
+    const ix = sheet.querySelector('[data-ix]');
+    if (!ix) return;
+    const UR = window.UpperRoom;
+    let items = [];
+    try {
+      if (UR && typeof UR.listCareInteractions === 'function') {
+        const res = await UR.listCareInteractions({ caseId: cid });
+        items = Array.isArray(res) ? res : (res?.rows || res?.data || res?.items || []);
+        if (!items.length && V) {
+          const r2 = await V.flock.care.interactions.list({ caseId: cid }).catch(() => []);
+          items = Array.isArray(r2) ? r2 : (r2?.rows || r2?.data || []);
+        }
+      } else if (V) {
+        const res = await V.flock.care.interactions.list({ caseId: cid });
+        items = Array.isArray(res) ? res : (res?.rows || res?.data || []);
+      }
+    } catch (e) { console.error('[the_life] reload interactions failed', e); }
+    ix.innerHTML = items.length
+      ? items.map(i => {
+          const ts = i.createdAt?.seconds ? new Date(i.createdAt.seconds * 1000).toLocaleString() : (i.createdAt ? new Date(i.createdAt).toLocaleString() : '');
+          const noteText = i.note || i.content || i.body || i.text || i.summary || '';
+          const channel = i.channel || i.type || '';
+          const channelTag = channel ? `<span class="life-ix-tag">${_e(channel)}</span> ` : '';
+          return `<div class="life-ix-item"><div class="life-ix-note">${channelTag}${_e(noteText)}</div><div class="life-ix-meta">${_e(i.author || i.authorName || i.createdBy || '')}${ts ? ' &bull; ' + _e(ts) : ''}</div></div>`;
+        }).join('')
+      : '<div class="life-ix-empty">No interactions yet.</div>';
+  }
+
+  // Contact action buttons (text/call/email) — auto-log as interaction
+  sheet.querySelectorAll('[data-contact]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      // Let the native href navigate (sms:/tel:/mailto:) — log in parallel.
+      if (!cid) return;
+      const kind  = btn.dataset.contact;
+      const value = btn.dataset.contactValue || '';
+      const verb  = kind === 'text' ? 'Texted' : kind === 'call' ? 'Called' : 'Emailed';
+      const icon  = kind === 'text' ? '📱' : kind === 'call' ? '📞' : '✉️';
+      const note  = `${icon} ${verb} ${name}${value ? ' (' + value + ')' : ''} via app`;
+      const session = window.TheVine?.session?.();
+      const payload = {
+        caseId: cid,
+        note,
+        type:    kind,
+        channel: kind,
+        createdBy: session?.email || '',
+        author:    session?.email || '',
+      };
+      const UR = window.UpperRoom;
+      try {
+        if (UR && typeof UR.createCareInteraction === 'function') {
+          await UR.createCareInteraction(payload);
+        } else if (V) {
+          await V.flock.care.interactions.create({ caseId: cid, note, type: kind });
+        }
+        _reloadIx();
+      } catch (e) {
+        console.error('[the_life] log contact interaction failed', e);
+      }
+    });
+  });
+
   // Add note — UpperRoom (Firestore) first, then TheVine fallback
   sheet.querySelector('[data-add-note]').addEventListener('click', async () => {
     const ta = sheet.querySelector('.life-note-ta');
@@ -1109,8 +1204,10 @@ function _openSheet(c, memberDir, onSave) {
     const UR = window.UpperRoom;
     const session = window.TheVine?.session?.();
     const payload = {
-      caseId,
+      caseId: cid,
       note,
+      type:    'note',
+      channel: 'note',
       createdBy: session?.email || '',
       author:    session?.email || '',
     };
@@ -1121,23 +1218,7 @@ function _openSheet(c, memberDir, onSave) {
         await V.flock.care.interactions.create({ caseId: cid, note });
       }
       ta.value = '';
-      // Refresh interactions from UpperRoom
-      const ix = sheet.querySelector('[data-ix]');
-      if (!ix) return;
-      let items = [];
-      if (UR && typeof UR.listCareInteractions === 'function') {
-        items = (await UR.listCareInteractions({ caseId: cid })) || [];
-        if (!Array.isArray(items)) items = items?.rows || items?.data || [];
-      } else if (V) {
-        const res = await V.flock.care.interactions.list({ caseId: cid });
-        items = Array.isArray(res) ? res : (res?.rows || res?.data || []);
-      }
-      ix.innerHTML = items.length
-        ? items.map(i => {
-            const ts = i.createdAt?.seconds ? new Date(i.createdAt.seconds * 1000).toLocaleString() : (i.createdAt ? new Date(i.createdAt).toLocaleString() : '');
-            return `<div class="life-ix-item"><div class="life-ix-note">${_e(i.note || i.content || i.body || '')}</div><div class="life-ix-meta">${_e(i.author || i.authorName || i.createdBy || '')}${ts ? ' &bull; ' + _e(ts) : ''}</div></div>`;
-          }).join('')
-        : '<div class="life-ix-empty">No interactions yet.</div>';
+      await _reloadIx();
     } catch (err) { console.error('[TheLife] add note error:', err); }
     btn.disabled = false;
     btn.textContent = 'Add Note';
