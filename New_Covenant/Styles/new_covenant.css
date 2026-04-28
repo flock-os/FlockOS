@@ -1830,11 +1830,37 @@ flock-tabs [role="tablist"], .tabs-bar {
 .pray-liturgy-title { font: 700 0.96rem var(--font-ui); color: #fff; margin-bottom: 6px; }
 .pray-liturgy-verse { font: 0.76rem var(--font-serif); color: rgba(255,255,255,.65); margin-bottom: 16px; line-height: 1.5; font-style: italic; }
 .pray-liturgy-list  { display: flex; flex-direction: column; gap: 12px; }
-.pray-liturgy-row   { display: flex; gap: 10px; align-items: flex-start; }
+.pray-liturgy-row   {
+  display: flex; gap: 10px; align-items: flex-start;
+  padding: 8px 10px; margin: -8px -10px;
+  border-radius: 10px; cursor: pointer;
+  transition: background 120ms ease;
+}
+.pray-liturgy-row:hover  { background: rgba(255,255,255,.06); }
+.pray-liturgy-row:focus-visible { outline: 2px solid var(--gold,#e8a838); outline-offset: 2px; }
+.pray-liturgy-row.is-now { background: rgba(232,168,56,.16); border-left: 3px solid var(--gold,#e8a838); padding-left: 7px; }
+.pray-liturgy-row.is-now .pray-lit-time { color: #fff; }
 .pray-lit-icon      { font-size: 1.1rem; flex: none; }
 .pray-lit-body      {}
 .pray-lit-time      { font: 700 0.78rem var(--font-ui); color: rgba(255,255,255,.9); }
+.pray-lit-now-pill  { display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 999px; background: var(--gold,#e8a838); color: #1b264f; font: 700 0.62rem var(--font-ui); text-transform: uppercase; letter-spacing: .05em; vertical-align: middle; }
 .pray-lit-text      { font: 0.72rem var(--font-ui); color: rgba(255,255,255,.55); line-height: 1.4; margin-top: 2px; }
+
+/* Liturgy guided sheet */
+.pray-liturgy-sheet .life-sheet-body { padding-top: 4px; }
+.pray-lit-step { padding: 14px 0; border-bottom: 1px solid var(--line,#e5e7ef); }
+.pray-lit-step:last-child { border-bottom: 0; }
+.pray-lit-step-label { font: 700 0.72rem var(--font-ui); text-transform: uppercase; letter-spacing: .08em; color: var(--gold,#e8a838); margin-bottom: 8px; }
+.pray-lit-call { font: italic 1.02rem var(--font-serif); color: var(--ink,#1b264f); line-height: 1.55; }
+.pray-lit-scripture-ref { font: 700 0.92rem var(--font-ui); color: var(--ink,#1b264f); margin-bottom: 6px; }
+.pray-lit-scripture-text { font: 0.92rem var(--font-serif); color: var(--ink,#1b264f); line-height: 1.65; font-style: italic; }
+.pray-lit-intercession { display: flex; flex-direction: column; gap: 8px; }
+.pray-lit-prompt { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; padding: 6px 8px; border-radius: 8px; transition: background 120ms; }
+.pray-lit-prompt:hover { background: var(--bg,#f7f8fb); }
+.pray-lit-prompt input { margin-top: 3px; flex: none; cursor: pointer; }
+.pray-lit-prompt input:checked + span { color: var(--ink-muted,#7a7f96); text-decoration: line-through; }
+.pray-lit-prompt span { font: 0.92rem var(--font-serif); color: var(--ink,#1b264f); line-height: 1.5; }
+.pray-lit-closing { font: italic 0.95rem var(--font-serif); color: var(--ink,#1b264f); line-height: 1.6; padding: 8px 12px; border-left: 3px solid var(--gold,#e8a838); background: rgba(232,168,56,.06); border-radius: 6px; }
 
 /* Scripture of the day */
 .pray-scripture-card {

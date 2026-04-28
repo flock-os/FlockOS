@@ -21,11 +21,93 @@ const STATS = [
 const FILTERS = ['All', 'Intercession', 'Praise', 'Personal', 'Urgent'];
 
 const LITURGY = [
-  { time: 'Dawn',      label: 'Morning Watch',    text: '"O LORD, in the morning you hear my voice." — Psalm 5:3',    icon: '🌅' },
-  { time: '12:00 PM',  label: 'Midday Pause',     text: '"Seven times a day I praise you." — Psalm 119:164',          icon: '☀️' },
-  { time: '3:00 PM',   label: 'Hour of Prayer',   text: '"Now Peter and John went up together into the temple at the hour of prayer." — Acts 3:1', icon: '⛪' },
-  { time: 'Evening',   label: 'Evening Vespers',  text: '"Let my prayer be set forth before thee as incense." — Psalm 141:2', icon: '🌙' },
+  {
+    id: 'dawn',
+    time: 'Dawn',
+    label: 'Morning Watch',
+    icon: '🌅',
+    text: '"O LORD, in the morning you hear my voice." — Psalm 5:3',
+    range: [4, 11],   // 4:00am – 10:59am
+    callToPrayer: 'Lord, open my lips, and my mouth shall declare Your praise.',
+    scripture: {
+      ref: 'Psalm 5:1-3',
+      text: 'Give ear to my words, O LORD; consider my meditation. Hearken unto the voice of my cry, my King, and my God: for unto thee will I pray. My voice shalt thou hear in the morning, O LORD; in the morning will I direct my prayer unto thee, and will look up.'
+    },
+    intercession: [
+      'For the work of my hands today — may it be done as unto the Lord.',
+      'For my family, that the Lord would go before them.',
+      'For my pastors, elders, and the church.',
+      'For one person who does not yet know Christ.',
+    ],
+    closing: 'Direct, control, suggest this day all I design, do, or say; that all my powers, with all their might, in Thy sole glory may unite. Amen.'
+  },
+  {
+    id: 'midday',
+    time: '12:00 PM',
+    label: 'Midday Pause',
+    icon: '☀️',
+    text: '"Seven times a day I praise you." — Psalm 119:164',
+    range: [11, 14],
+    callToPrayer: 'In the middle of the day, I lift my eyes to the hills.',
+    scripture: {
+      ref: 'Psalm 121:1-2',
+      text: 'I will lift up mine eyes unto the hills, from whence cometh my help. My help cometh from the LORD, which made heaven and earth.'
+    },
+    intercession: [
+      'A pause of thanksgiving for what God has already done today.',
+      'For wisdom in this afternoon’s decisions and conversations.',
+      'For the poor, the hungry, and the weary.',
+      'For peace where there is conflict.',
+    ],
+    closing: 'Father, You who never slumber nor sleep, sustain me through this day. Amen.'
+  },
+  {
+    id: 'three',
+    time: '3:00 PM',
+    label: 'Hour of Prayer',
+    icon: '⛪',
+    text: '"Now Peter and John went up together into the temple at the hour of prayer." — Acts 3:1',
+    range: [14, 17],
+    callToPrayer: 'At the ninth hour, the hour our Savior bowed His head and gave up His Spirit.',
+    scripture: {
+      ref: 'Luke 23:44-46',
+      text: 'And it was about the sixth hour, and there was a darkness over all the earth until the ninth hour. And the sun was darkened, and the veil of the temple was rent in the midst. And when Jesus had cried with a loud voice, he said, Father, into thy hands I commend my spirit: and having said thus, he gave up the ghost.'
+    },
+    intercession: [
+      'Thanksgiving for the cross, the empty tomb, the open way.',
+      'For the lost — that the Lord would send laborers into His harvest.',
+      'For the sick, the dying, and those who tend them.',
+      'For my own soul — search me, O God, and know my heart.',
+    ],
+    closing: 'Jesus, by Your death You have abolished death; by Your rising again You have restored to us everlasting life. Amen.'
+  },
+  {
+    id: 'vespers',
+    time: 'Evening',
+    label: 'Evening Vespers',
+    icon: '🌙',
+    text: '"Let my prayer be set forth before thee as incense." — Psalm 141:2',
+    range: [17, 23],
+    callToPrayer: 'O God, make speed to save me; O Lord, make haste to help me.',
+    scripture: {
+      ref: 'Psalm 141:1-2',
+      text: 'LORD, I cry unto thee: make haste unto me; give ear unto my voice, when I cry unto thee. Let my prayer be set forth before thee as incense; and the lifting up of my hands as the evening sacrifice.'
+    },
+    intercession: [
+      'A confession of today’s failures — in thought, word, and deed.',
+      'Thanksgiving for the mercies of this day.',
+      'For all who travel, who labor through the night, who cannot sleep.',
+      'For peaceful rest, and waking to serve You again.',
+    ],
+    closing: 'Lighten our darkness, we beseech thee, O Lord; and by thy great mercy defend us from all perils and dangers of this night. Amen.'
+  },
 ];
+
+// Pick the current liturgical hour from local clock time. Defaults to Dawn.
+function _currentHour() {
+  const h = new Date().getHours();
+  return LITURGY.find(l => h >= l.range[0] && h < l.range[1]) || LITURGY[0];
+}
 
 /* ── Helpers ──────────────────────────────────────────────────────────────── */
 function typeBadge(t) {
@@ -88,16 +170,19 @@ export function render() {
         <div class="pray-liturgy-title">Daily Prayer Hours</div>
         <div class="pray-liturgy-verse">"Evening, morning and noon I cry out in distress, and he hears my voice." — Psalm 55:17</div>
         <div class="pray-liturgy-list">
-          ${LITURGY.map(l => `
-          <div class="pray-liturgy-row">
-            <div class="pray-lit-icon">${l.icon}</div>
-            <div class="pray-lit-body">
-              <div class="pray-lit-time">${_e(l.time)} — ${_e(l.label)}</div>
-              <div class="pray-lit-text">${_e(l.text)}</div>
-            </div>
-          </div>`).join('')}
+          ${LITURGY.map(l => {
+            const isNow = l.id === _currentHour().id;
+            return `
+            <div class="pray-liturgy-row${isNow ? ' is-now' : ''}" data-hour="${_e(l.id)}" tabindex="0" role="button" aria-label="Begin ${_e(l.label)}">
+              <div class="pray-lit-icon">${l.icon}</div>
+              <div class="pray-lit-body">
+                <div class="pray-lit-time">${_e(l.time)} — ${_e(l.label)}${isNow ? ' <span class="pray-lit-now-pill">Now</span>' : ''}</div>
+                <div class="pray-lit-text">${_e(l.text)}</div>
+              </div>
+            </div>`;
+          }).join('')}
         </div>
-        <button class="btn btn-outline" style="width:100%;margin-top:16px;font-size:.82rem">Begin Morning Watch</button>
+        <button class="btn btn-outline" id="pray-begin-btn" style="width:100%;margin-top:16px;font-size:.82rem">Begin ${_e(_currentHour().label)}</button>
       </div>
 
       <!-- Scripture of the day -->
@@ -133,7 +218,20 @@ export function mount(root) {
   // Add Request button
   root.querySelector('#pray-add-btn')?.addEventListener('click', () => _openAddRequestSheet(() => _loadPrayer(root, filters)));
 
-  return () => { _closePraySheet(); };
+  // Daily Prayer Hours — click any row, or the main Begin button, to open guided liturgy
+  root.querySelector('#pray-begin-btn')?.addEventListener('click', () => _openLiturgySheet(_currentHour(), root));
+  root.querySelectorAll('.pray-liturgy-row').forEach((row) => {
+    const open = () => {
+      const hour = LITURGY.find(l => l.id === row.dataset.hour);
+      if (hour) _openLiturgySheet(hour, root);
+    };
+    row.addEventListener('click', open);
+    row.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); }
+    });
+  });
+
+  return () => { _closePraySheet(); _closeLiturgySheet(); };
 }
 
 function _wireInteractiveButtons(root) {
@@ -427,4 +525,117 @@ function _openAddRequestSheet(onReload) {
       btn.disabled = false; btn.textContent = 'Submit Request';
     }
   });
+}
+
+// ── Daily Prayer Hours — guided liturgy sheet ────────────────────────────────
+let _activeLiturgySheet = null;
+
+function _closeLiturgySheet() {
+  if (!_activeLiturgySheet) return;
+  const t = _activeLiturgySheet;
+  t.querySelector('.life-sheet-overlay')?.classList.remove('is-open');
+  t.querySelector('.life-sheet-panel')?.classList.remove('is-open');
+  setTimeout(() => { t.remove(); if (_activeLiturgySheet === t) _activeLiturgySheet = null; }, 320);
+}
+
+function _openLiturgySheet(hour, root) {
+  _closeLiturgySheet();
+  if (!hour) return;
+
+  const sheet = document.createElement('div');
+  sheet.className = 'life-sheet';
+  sheet.innerHTML = /* html */`
+    <div class="life-sheet-overlay"></div>
+    <div class="life-sheet-panel pray-liturgy-sheet" role="dialog" aria-label="${_e(hour.label)}">
+      <div class="life-sheet-drag"></div>
+      <div class="life-sheet-hd">
+        <div class="life-sheet-hd-info">
+          <div class="life-sheet-hd-name">${hour.icon} ${_e(hour.label)}</div>
+          <div class="life-sheet-hd-meta">${_e(hour.time)} — Daily Prayer Hours</div>
+        </div>
+        <button class="life-sheet-close" aria-label="Close">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="life-sheet-body">
+
+        <!-- Step 1: Call to Prayer -->
+        <div class="pray-lit-step" data-step="1">
+          <div class="pray-lit-step-label">Step 1 — Call to Prayer</div>
+          <div class="pray-lit-call">${_e(hour.callToPrayer)}</div>
+        </div>
+
+        <!-- Step 2: Scripture -->
+        <div class="pray-lit-step" data-step="2">
+          <div class="pray-lit-step-label">Step 2 — Scripture Reading</div>
+          <div class="pray-lit-scripture-ref">${_e(hour.scripture.ref)}</div>
+          <div class="pray-lit-scripture-text">${_e(hour.scripture.text)}</div>
+        </div>
+
+        <!-- Step 3: Intercession -->
+        <div class="pray-lit-step" data-step="3">
+          <div class="pray-lit-step-label">Step 3 — Intercession</div>
+          <div class="pray-lit-intercession">
+            ${hour.intercession.map((line, i) => `
+              <label class="pray-lit-prompt">
+                <input type="checkbox" data-prompt="${i}">
+                <span>${_e(line)}</span>
+              </label>`).join('')}
+          </div>
+        </div>
+
+        <!-- Step 4: Closing -->
+        <div class="pray-lit-step" data-step="4">
+          <div class="pray-lit-step-label">Step 4 — Closing Prayer</div>
+          <div class="pray-lit-closing">${_e(hour.closing)}</div>
+        </div>
+
+      </div>
+      <div class="life-sheet-foot">
+        <button class="flock-btn" data-cancel>Close</button>
+        <button class="flock-btn flock-btn--primary" data-complete>Mark Complete (Amen)</button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(sheet);
+  _activeLiturgySheet = sheet;
+  requestAnimationFrame(() => {
+    sheet.querySelector('.life-sheet-overlay').classList.add('is-open');
+    sheet.querySelector('.life-sheet-panel').classList.add('is-open');
+  });
+
+  const close = () => _closeLiturgySheet();
+  sheet.querySelector('[data-cancel]').addEventListener('click', close);
+  sheet.querySelector('.life-sheet-close').addEventListener('click', close);
+  sheet.querySelector('.life-sheet-overlay').addEventListener('click', close);
+
+  sheet.querySelector('[data-complete]').addEventListener('click', () => {
+    // Local-only completion log so the streak stat can react. UpperRoom backend
+    // hook can be added later — the schema isn't defined yet.
+    try {
+      const key = 'flockos:liturgy:' + new Date().toISOString().slice(0, 10);
+      const done = JSON.parse(localStorage.getItem(key) || '[]');
+      if (!done.includes(hour.id)) done.push(hour.id);
+      localStorage.setItem(key, JSON.stringify(done));
+      _updateStreakStat(root);
+    } catch (_) {}
+    _closeLiturgySheet();
+  });
+}
+
+// Compute consecutive-day streak from local liturgy completion log.
+function _updateStreakStat(root) {
+  let streak = 0;
+  try {
+    const today = new Date(); today.setHours(0,0,0,0);
+    for (let i = 0; i < 365; i++) {
+      const d = new Date(today); d.setDate(today.getDate() - i);
+      const key = 'flockos:liturgy:' + d.toISOString().slice(0, 10);
+      const done = JSON.parse(localStorage.getItem(key) || '[]');
+      if (done.length > 0) streak++; else break;
+    }
+  } catch (_) {}
+  const cards = root.querySelectorAll('.pray-stat-card');
+  const el = cards[3]?.querySelector('.pray-stat-val');
+  if (el) el.textContent = streak ? String(streak) : '—';
 }
