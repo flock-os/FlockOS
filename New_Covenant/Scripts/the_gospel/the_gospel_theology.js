@@ -46,17 +46,70 @@ export function mount(root) {
 async function _load(root) {
   const catEl = root.querySelector('[data-bind="cats"]');
   const U = ur(); const V = vine();
-  if (!U && !V) { catEl.innerHTML = backendOffline('Theology library not loaded.'); return; }
+
+  // Try the live backend first
   try {
-    const res = U
-      ? (typeof U.theologyFull === 'function' ? await U.theologyFull() : await U.listTheologyCategories({ limit: 200 }))
-      : await V.flock.call('theology.full', {}, { skipAuth: true });
-    _state.tree = _normalize(res);
-    _paint(root);
+    if (U || V) {
+      const res = U
+        ? (typeof U.theologyFull === 'function' ? await U.theologyFull() : await U.listTheologyCategories({ limit: 200 }))
+        : await V.flock.call('theology.full', {}, { skipAuth: true });
+      _state.tree = _normalize(res);
+    }
   } catch (e) {
-    console.error('[gospel/theology] load:', e);
-    catEl.innerHTML = emptyState({ icon: '⚠️', title: 'Could not load theology', body: e.message || String(e) });
+    console.warn('[gospel/theology] live backend failed, will try static bundle:', e.message);
   }
+
+  // ── Fallback: static bundle (New_Covenant/Data/theology.js) ─────────
+  if (!_state.tree.length) {
+    try {
+      const mod = await import('../../Data/theology.js');
+      _state.tree = _treeFromFlat(mod.default || []);
+    } catch (e) {
+      console.error('[gospel/theology] static bundle failed:', e);
+    }
+  }
+
+  if (!_state.tree.length) {
+    if (!U && !V) { catEl.innerHTML = backendOffline('Theology library not loaded.'); return; }
+    catEl.innerHTML = emptyState({ icon: '☩', title: 'No theology entries yet', body: 'Ask your shepherd to seed the doctrine map.' });
+    return;
+  }
+  _paint(root);
+}
+
+/** Build the categories tree from the flat static-bundle row shape. */
+function _treeFromFlat(rows) {
+  const map = new Map();
+  rows.forEach((r) => {
+    const catTitle = r.categoryTitle || r['Category Title'] || 'General';
+    if (!map.has(catTitle)) {
+      map.set(catTitle, {
+        id:          catTitle,
+        title:       catTitle,
+        subtitle:    r.categorySubtitle || r['Category Subtitle'] || '',
+        description: r.categoryIntro || r['Category Intro'] || '',
+        icon:        r.categoryIcon || r['Category Icon'] || '',
+        colorVar:    r.categoryColor || r['Category Color'] || '',
+        sections:    [],
+      });
+    }
+    map.get(catTitle).sections.push({
+      title:        r.sectionTitle || r['Section Title'] || '',
+      description:  r.content || r['Content'] || '',
+      summary:      r.summary || '',
+      scriptures:   _refsToList(r.scriptureRefs || r['Scripture Refs'] || ''),
+    });
+  });
+  // Sort sections by sortOrder if present, else title
+  return Array.from(map.values()).map((c) => {
+    c.sections.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+    return c;
+  });
+}
+
+function _refsToList(s) {
+  if (!s) return [];
+  return String(s).split(/[,;]\s*/).filter(Boolean);
 }
 
 function _normalize(res) {

@@ -1784,7 +1784,12 @@ flock-tabs [role="tablist"], .tabs-bar {
   border-color: var(--accent, #5b8fcf);
   box-shadow: 0 0 0 3px rgba(91,143,207,.12);
 }
-
+.wall-field-hint {
+  margin-top: 5px;
+  font-size: .8rem;
+  color: var(--ink-muted, #7a7f96);
+  line-height: 1.4;
+}
 
 /* ════════════════════════════════════════════════════════════════════════════
    THE GIFT DRIFT — Giving dashboard
@@ -4101,8 +4106,18 @@ flock-tabs [role="tablist"], .tabs-bar {
 .grow-card--apo:hover { transform:none; }
 
 /* counseling */
-.grow-grid--counseling { grid-template-columns:repeat(auto-fill, minmax(180px, 1fr)); }
-.grow-card--counsel { padding:18px 14px; text-align:center; align-items:center; }
+.grow-grid--counseling { grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); }
+.grow-card--counsel { padding:18px 14px; text-align:center; align-items:center; transition:grid-column .2s; }
+.grow-card--counsel.is-open {
+  grid-column: 1 / -1;
+  text-align: left;
+  align-items: stretch;
+  cursor: default;
+  background: color-mix(in srgb, var(--grow-accent, #16a34a) 4%, var(--surface, rgba(255,255,255,.04)));
+}
+.grow-card--counsel.is-open .coun-card-head { padding: 16px 18px 12px; }
+.grow-card--counsel.is-open .grow-card-title { font-size: 16px; }
+.grow-card--counsel.is-open .coun-card-body { padding: 4px 18px 18px; max-width: 760px; }
 .grow-counsel-icon { font-size:32px; margin-bottom:8px; }
 .grow-detail { margin-top:18px; padding:20px; border:1px solid var(--border, rgba(255,255,255,.08)); border-radius:12px; background:var(--surface, rgba(255,255,255,.03)); }
 

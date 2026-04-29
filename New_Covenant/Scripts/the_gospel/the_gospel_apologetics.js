@@ -42,18 +42,30 @@ async function _load(list) {
     if (U && typeof U.listAppContent === 'function')        res = await U.listAppContent('apologetics');
     else if (V && V.app && V.app.apologetics)               res = await V.app.apologetics();
   } catch (e) {
-    console.error('[gospel/apologetics] load:', e);
-    list.innerHTML = emptyState({ icon: '⚠️', title: 'Could not load apologetics', body: e.message || String(e) });
+    console.warn('[gospel/apologetics] live backend failed, will try static bundle:', e.message);
+  }
+  _state.rows = rows(res);
+
+  // ── Fallback: static bundle (New_Covenant/Data/apologetics.js) ─────────
+  if (!_state.rows.length) {
+    try {
+      const mod = await import('../../Data/apologetics.js');
+      _state.rows = mod.default || [];
+    } catch (e) {
+      console.error('[gospel/apologetics] static bundle failed:', e);
+    }
+  }
+
+  if (!_state.rows.length) {
+    if (!U && !V) { list.innerHTML = backendOffline('Apologetics not loaded.'); return; }
+    list.innerHTML = emptyState({ icon: '⚖️', title: 'No apologetics yet' });
     return;
   }
-  if (!U && !V) { list.innerHTML = backendOffline('Apologetics not loaded.'); return; }
-  _state.rows = rows(res);
-  if (!_state.rows.length) { list.innerHTML = emptyState({ icon: '⚖️', title: 'No apologetics yet' }); return; }
 
-  // Group by category
+  // Group by category (handle both bundle and live shapes)
   const groups = {};
   _state.rows.forEach((q) => {
-    const k = q['Category Title'] || q.category || 'General';
+    const k = q['Category Title'] || q.categoryTitle || q.category || 'General';
     (groups[k] = groups[k] || []).push(q);
   });
   list.innerHTML = Object.entries(groups).map(([cat, items]) => /* html */`
@@ -65,11 +77,15 @@ async function _load(list) {
 }
 
 function _card(q) {
+  const title  = q['Question Title']  || q.questionTitle || q.question || '';
+  const answer = q['Answer Content']  || q.answerContent || '';
+  const quote  = q['Quote Text']      || q.quoteText     || '';
+  const refTxt = q['Reference Text']  || q.referenceText || '';
   return /* html */`
     <article class="grow-card grow-card--apo">
-      <h3 class="grow-card-title">${esc(q['Question Title'] || q.question || '')}</h3>
-      ${q['Answer Content'] ? `<p class="grow-card-desc">${esc(snip(q['Answer Content'], 700))}</p>` : ''}
-      ${q['Quote Text'] ? `<blockquote class="grow-quote">${esc(q['Quote Text'])}${q['Reference Text'] ? ` <cite>— ${esc(q['Reference Text'])}</cite>` : ''}</blockquote>` : ''}
+      <h3 class="grow-card-title">${esc(title)}</h3>
+      ${answer ? `<p class="grow-card-desc">${esc(snip(answer, 700))}</p>` : ''}
+      ${quote ? `<blockquote class="grow-quote">${esc(quote)}${refTxt ? ` <cite>— ${esc(refTxt)}</cite>` : ''}</blockquote>` : ''}
     </article>
   `;
 }

@@ -52,7 +52,6 @@ export function mount(root) {
 async function _load(root) {
   const grid = root.querySelector('[data-bind="grid"]');
   const U = ur(); const V = vine();
-  if (!U && !V) { grid.innerHTML = backendOffline('Counseling library not loaded.'); return; }
 
   _stubs = [];
   try {
@@ -90,12 +89,32 @@ async function _load(root) {
       });
     }
   } catch (e) {
-    console.error('[gospel/counseling] load:', e);
-    grid.innerHTML = emptyState({ icon: '⚠️', title: 'Could not load counseling', body: e.message || String(e) });
-    return;
+    console.warn('[gospel/counseling] live backend failed, will try static bundle:', e.message);
+  }
+
+  // ── Fallback: static bundle (New_Covenant/Data/counseling.js) ─────────
+  if (!_stubs.length) {
+    try {
+      const mod = await import('../../Data/counseling.js');
+      const arr = mod.default || [];
+      arr.forEach((d) => {
+        const id = d._id || d.id || d.topicId;
+        if (!id) return;
+        _cache[id] = d;
+        _stubs.push({
+          id,
+          title: d.title || d.Title || id,
+          icon:  d.icon  || d.Icon  || '🌿',
+          color: d.color || d.Color || accent,
+        });
+      });
+    } catch (e) {
+      console.error('[gospel/counseling] static bundle failed:', e);
+    }
   }
 
   if (!_stubs.length) {
+    if (!U && !V) { grid.innerHTML = backendOffline('Counseling library not loaded.'); return; }
     grid.innerHTML = emptyState({ icon: '💚', title: 'Counseling resources coming soon', body: 'Biblical counseling wisdom and protocols will appear here.' });
     return;
   }
@@ -133,9 +152,20 @@ async function _toggle(cardEl, id) {
   if (!body) return;
   if (body.style.display !== 'none') {
     body.style.display = 'none';
+    cardEl.classList.remove('is-open');
     if (chev) chev.textContent = '▼';
     return;
   }
+  // Close any other open card first (so only one is full-width at a time)
+  cardEl.parentElement.querySelectorAll('.coun-card.is-open').forEach((other) => {
+    if (other === cardEl) return;
+    other.classList.remove('is-open');
+    const ob = other.querySelector('.coun-card-body');
+    const oc = other.querySelector('.coun-card-chevron');
+    if (ob) ob.style.display = 'none';
+    if (oc) oc.textContent = '▼';
+  });
+  cardEl.classList.add('is-open');
   if (chev) chev.textContent = '▲';
   body.style.display = 'block';
 

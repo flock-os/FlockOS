@@ -1128,9 +1128,6 @@ function _openSheet(c, memberDir, onSave) {
           const ix = sheet.querySelector('[data-ix]');
           if (ix) ix.innerHTML = '<div class="life-ix-empty">Could not load interactions.</div>';
         });
-    } else {
-      const ix = sheet.querySelector('[data-ix]');
-      if (ix) ix.innerHTML = '<div class="life-ix-empty">No interactions yet.</div>';
     }
   }
 

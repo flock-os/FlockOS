@@ -149,7 +149,9 @@ const _CHURCH_FIELDS = [
   { key: 'church_address',  label: 'Address',          type: 'text',   placeholder: 'Street address'         },
   { key: 'church_phone',    label: 'Phone',            type: 'tel',    placeholder: '+1 (555) 000-0000'      },
   { key: 'church_email',    label: 'Contact Email',    type: 'email',  placeholder: 'info@church.org'        },
-  { key: 'church_pastor',   label: 'Lead Pastor',      type: 'text',   placeholder: 'Full name'              },
+  { key: 'church_pastor',        label: 'Lead Pastor',            type: 'text',   placeholder: 'Full name'              },
+  { key: 'LEAD_PASTOR_MEMBER_ID', label: 'Lead Pastor Member PIN',  type: 'text',   placeholder: 'e.g. M-00123',
+    hint: 'The member PIN of the lead pastor. Used to auto-assign care cases and prayer requests.' },
 ];
 
 const _TZ_OPTIONS = [
@@ -175,11 +177,14 @@ function _churchPanelMarkup() {
               </select>
             </div>`;
           return `
-            <div class="wall-setting-row" style="align-items:center">
+            <div class="wall-setting-row" style="align-items:${f.hint ? 'flex-start' : 'center'}">
               <label class="wall-setting-label" for="church-field-${f.key}">${_e(f.label)}</label>
-              <input class="wall-church-input" id="church-field-${f.key}"
-                type="${f.type === 'tel' ? 'tel' : f.type === 'email' ? 'email' : f.type === 'url' ? 'url' : 'text'}"
-                data-church-key="${f.key}" placeholder="${_e(f.placeholder)}" value="">
+              <div style="flex:1;min-width:0">
+                <input class="wall-church-input" id="church-field-${f.key}"
+                  type="${f.type === 'tel' ? 'tel' : f.type === 'email' ? 'email' : f.type === 'url' ? 'url' : 'text'}"
+                  data-church-key="${f.key}" placeholder="${_e(f.placeholder)}" value="">
+                ${f.hint ? `<div class="wall-field-hint">${_e(f.hint)}</div>` : ''}
+              </div>
             </div>`;
         }).join('')}
       </div>
