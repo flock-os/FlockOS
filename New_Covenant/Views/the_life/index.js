@@ -773,8 +773,41 @@ export function mount(root) {
 
       const resolveBtn = card.querySelector('[data-care-complete]');
       if (resolveBtn) {
+        // Two-step confirm: first click arms the button (turns red, label
+        // changes to "Confirm?"); second click within 4s actually resolves.
+        // Clicking anywhere else, or the timeout, disarms.
+        let armed = false;
+        let armTimer = 0;
+        const _disarm = () => {
+          armed = false;
+          if (armTimer) { clearTimeout(armTimer); armTimer = 0; }
+          resolveBtn.classList.remove('is-armed');
+          resolveBtn.setAttribute('title', 'Mark complete');
+          resolveBtn.setAttribute('aria-label', 'Complete');
+        };
+        const _onOutside = (ev) => {
+          if (!armed) return;
+          if (ev.target === resolveBtn || resolveBtn.contains(ev.target)) return;
+          _disarm();
+          document.removeEventListener('click', _onOutside, true);
+        };
         resolveBtn.addEventListener('click', async (e) => {
           e.stopPropagation();
+          if (!armed) {
+            armed = true;
+            resolveBtn.classList.add('is-armed');
+            resolveBtn.setAttribute('title', 'Tap again to confirm resolved');
+            resolveBtn.setAttribute('aria-label', 'Tap again to confirm resolved');
+            document.addEventListener('click', _onOutside, true);
+            armTimer = setTimeout(() => {
+              _disarm();
+              document.removeEventListener('click', _onOutside, true);
+            }, 4000);
+            return;
+          }
+          // Second click — actually resolve.
+          _disarm();
+          document.removeEventListener('click', _onOutside, true);
           await _resolveCase(cid, card, root);
         });
       }

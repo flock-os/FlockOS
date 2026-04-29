@@ -1375,6 +1375,22 @@ flock-tabs [role="tablist"], .tabs-bar {
   cursor: pointer; transition: all 120ms var(--ease);
 }
 .life-action-btn:hover { background: var(--bg-raised, #fff); color: var(--ink, #1b264f); box-shadow: var(--shadow-sm); }
+/* Armed state — first click on the resolve check turns the button red and
+   pulses to make accidental dismissal obvious; second click within 4s
+   actually closes the case. */
+.life-action-btn.is-armed {
+  background: #dc2626;
+  border-color: #b91c1c;
+  color: #fff;
+  box-shadow: 0 0 0 4px rgba(220,38,38,0.18);
+  transform: scale(1.08);
+  animation: lifeArmedPulse 1.1s ease-in-out infinite;
+}
+.life-action-btn.is-armed:hover { background: #b91c1c; color: #fff; }
+@keyframes lifeArmedPulse {
+  0%, 100% { box-shadow: 0 0 0 4px rgba(220,38,38,0.18); }
+  50%      { box-shadow: 0 0 0 7px rgba(220,38,38,0.32); }
+}
 
 /* Demo / example cards */
 .life-demo-notice {
