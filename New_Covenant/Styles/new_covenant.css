@@ -2780,6 +2780,39 @@ flock-tabs [role="tablist"], .tabs-bar {
 }
 .gc-profile-link:hover { text-decoration: underline; }
 
+/* ── Operation World prayer block (inside expanded country card) ───────────── */
+.gc-country-prompt {
+  margin-top: 10px; padding: 10px 12px;
+  background: rgba(91, 143, 207, 0.08);
+  border-left: 3px solid var(--accent, #5b8fcf);
+  border-radius: 6px;
+  font: italic 0.88rem var(--font-ui); color: var(--ink, #1b264f);
+}
+.gc-country-ow {
+  margin-top: 10px; padding: 12px 14px;
+  background: var(--bg-soft, #f7f8fb);
+  border: 1px solid var(--line, #e5e7ef);
+  border-radius: 8px;
+}
+.gc-ow-summary {
+  margin: 0 0 10px; font: 0.88rem/1.45 var(--font-ui); color: var(--ink, #1b264f);
+}
+.gc-ow-section { margin-top: 8px; }
+.gc-ow-label {
+  font: 700 0.74rem var(--font-ui); color: var(--ink-muted, #7a7f96);
+  text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px;
+}
+.gc-ow-list {
+  margin: 0; padding-left: 18px;
+  font: 0.85rem/1.5 var(--font-ui); color: var(--ink, #1b264f);
+}
+.gc-ow-list li { margin-bottom: 4px; }
+.gc-ow-credit {
+  margin-top: 10px; font: 0.74rem var(--font-ui); color: var(--ink-muted, #7a7f96);
+}
+.gc-ow-credit a { color: var(--accent, #5b8fcf); text-decoration: none; }
+.gc-ow-credit a:hover { text-decoration: underline; }
+
 /* ── Prayer focus ──────────────────────────────────────────────────────────── */
 .gc-prayer-list { display: flex; flex-direction: column; gap: 10px; }
 .gc-prayer-group-hd {

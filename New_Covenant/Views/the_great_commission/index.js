@@ -12,6 +12,8 @@
    ══════════════════════════════════════════════════════════════════════════════ */
 
 import { pageHero } from '../_frame.js';
+import { BAL_RANKS, balLookup, balTierForRank, balShortageLookup, balShortageTierForRange } from './bal_data.js';
+import { owLookup } from './ow_data.js';
 
 export const name  = 'the_great_commission';
 export const title = 'The Great Commission';
@@ -111,7 +113,7 @@ const _FIPS_TO_ISO2 = {
   IC: 'IS', IN: 'IN', IZ: 'IQ', JA: 'JP', KE: 'KE', KN: 'KP', KS: 'KR',
   KU: 'KW', KZ: 'KZ', LE: 'LB', LG: 'LV', LH: 'LT', LO: 'SK', LS: 'LI',
   LT: 'LS', LY: 'LY', MA: 'MG', MC: 'MO', MG: 'MN', MH: 'MS', MI: 'MW',
-  MJ: 'ME', MK: 'MK', MO: 'MA', MP: 'MU', MR: 'MR', MV: 'MD', MX: 'MX',
+  MJ: 'ME', MK: 'MK', MO: 'MA', MP: 'MU', MR: 'MR', MV: 'MV', MX: 'MX',
   MY: 'MY', NH: 'VU', NI: 'NG', NL: 'NL', NS: 'SR', NU: 'NI', NZ: 'NZ',
   PA: 'PY', PK: 'PK', PM: 'PA', PO: 'PT', PP: 'PG', PU: 'GW', RB: 'RS',
   RM: 'MH', RP: 'PH', RQ: 'PR', RS: 'RU', SA: 'SA', SF: 'ZA', SG: 'SN',
@@ -163,33 +165,133 @@ function _jpDerivePersecution(c) {
   return '';
 }
 
+// Normalize JP's country names so the slug-based doc id (`createMissionsRegistry`)
+// targets the SAME Firestore doc on every re-sync. JP uses a few unfortunate
+// spellings ("Côte d'Ivoire", "Viet nam", "Türkiye (Turkey)") that produce ugly
+// or unstable slugs; map them to the canonical UI names already in the registry.
+const _JP_NAME_NORMALIZE = {
+  "Côte d'Ivoire":                 'Ivory Coast',
+  'Cote d\'Ivoire':                'Ivory Coast',
+  'Congo, Democratic Republic of': 'DR Congo',
+  'Congo, Republic of the':        'Republic of the Congo',
+  'Korea, North':                  'North Korea',
+  'Korea, South':                  'South Korea',
+  'Myanmar (Burma)':               'Myanmar',
+  'West Bank / Gaza':              'Palestinian Territories',
+  'Türkiye (Turkey)':              'Türkiye',
+  'Viet nam':                      'Vietnam',
+};
+function _jpNormalizeCountryName(name) {
+  const n = String(name || '').trim();
+  return _JP_NAME_NORMALIZE[n] || n;
+}
+
 function _jpMapCountry(c) {
   const iso2 = _jpIso2(c);
+  const cname = _jpNormalizeCountryName(c.Ctry);
+  // Bible Access List (bibleaccesslist.org) is the CHIEF authority for
+  // persecution tier and restrictions rank. Falls back to JP-derived heuristic
+  // only when the country is not on the BAL (e.g., low-restriction nations).
+  const bal  = balLookup(iso2, cname);
   const obj = {
-    countryName:      c.Ctry || '',
+    countryName:      cname,
     isoCode:          iso2,
     continent:        c.Continent || '',
     region:           c.RegionName || '',
     dominantReligion: c.PrimaryReligion || '',
     gospelAccess:     _jpScaleToAccess(c.JPScale) || 'Limited',
-    persecutionLevel: _jpDerivePersecution(c),
+    persecutionLevel: bal ? balTierForRank(bal.rank) : _jpDerivePersecution(c),
     tenFortyWindow:   c.Window1040 === 'Y' || c.Window1040 === true,
     profileUrl:       c.CountryURL || (iso2 ? `https://joshuaproject.net/countries/${iso2}` : ''),
     icon:             iso2 ? _isoToFlag(iso2) : '🌍',
     jpUpdatedAt:      new Date().toISOString().slice(0, 10),
   };
+  if (bal) {
+    obj.restrictionsRank   = bal.rank;
+    obj.restrictionsSource = 'BibleAccessList.org';
+  }
+  // Bible Access List — SHORTAGE/Need rank (separate BAL tab from restrictions).
+  // Ranks 76 countries by absolute number of people without a Bible. Many
+  // large nations rank high here even with low restrictions.
+  const balShort = balShortageLookup(iso2, cname);
+  if (balShort) {
+    obj.bibleShortageRank   = balShort.rank;
+    obj.bibleShortageRange  = balShort.range;
+    obj.bibleShortageTier   = balShortageTierForRange(balShort.range);
+    obj.bibleShortageSource = 'BibleAccessList.org';
+  }
+  // Layer Operation World narrative (Answers to Prayer + Challenges for Prayer)
+  // when curated for this country. OW data lives in ./ow_data.js — see file
+  // for license/citation notes.
+  const ow = owLookup(iso2, cname);
+  if (ow) {
+    if (ow.prayerAnswers?.length)    obj.owPrayerAnswers    = ow.prayerAnswers;
+    if (ow.prayerChallenges?.length) obj.owPrayerChallenges = ow.prayerChallenges;
+    if (ow.summary)                  obj.owSummary          = ow.summary;
+    obj.owSource = 'OperationWorld.org';
+  }
+  // ── Core demographics ──────────────────────────────────────────────────────
   if (c.Population != null)            obj.population         = Number(c.Population);
-  if (c.PopulationUnreached != null)   obj.populationUnreached = Number(c.PopulationUnreached);
-  if (c.PercentChristianPC != null)    obj.christianPercent   = parseFloat(c.PercentChristianPC);
-  if (c.PercentEvangelical != null)    obj.evangelicalPercent = parseFloat(c.PercentEvangelical);
-  else if (c.PercentEvangelicalPC != null) obj.evangelicalPercent = parseFloat(c.PercentEvangelicalPC);
+  if (c.Capital)                       obj.capital            = String(c.Capital);
+  if (c.AreaSquareMiles != null)       obj.areaSquareMiles    = Number(c.AreaSquareMiles);
+  if (c.LiteracyRate != null)          obj.literacyRate       = parseFloat(c.LiteracyRate);
+  else if (c.PercentLiteracy != null)  obj.literacyRate       = parseFloat(c.PercentLiteracy);
+  if (c.PercentUrbanized != null)      obj.urbanizedPercent   = parseFloat(c.PercentUrbanized);
+  if (c.HDIYear != null)               obj.hdiYear            = Number(c.HDIYear);
+  if (c.HDIValue != null)              obj.hdiValue           = parseFloat(c.HDIValue);
+
+  // ── Unreached / least-reached signals ──────────────────────────────────────
+  // JP v1 actually returns `PoplLR` (least-reached pop) and `PeopleGroupsLR`
+  // (count). Older code looked for non-existent `PopulationUnreached` /
+  // `LeastReached` and silently lost the data — fix.
+  const popLR = c.PoplLR ?? c.PopulationUnreached ?? c.PoplLeastReached;
+  if (popLR != null && popLR !== '')   obj.populationUnreached = Number(popLR);
+  const grpsLR = c.PeopleGroupsLR ?? c.LeastReached ?? c.CntPeoplesLR;
+  if (grpsLR != null && grpsLR !== '') obj.unreachedGroups    = Number(grpsLR);
   if (c.PeopleGroups != null)          obj.peopleGroups       = Number(c.PeopleGroups);
-  if (c.LeastReached != null)          obj.unreachedGroups    = Number(c.LeastReached);
-  else if (c.PeopleGroupsLR != null)   obj.unreachedGroups    = Number(c.PeopleGroupsLR);
+  if (c.JPScalePC != null)             obj.jpScale            = parseFloat(c.JPScalePC);
+  else if (c.JPScale != null)          obj.jpScale            = parseFloat(c.JPScale);
+
+  // ── Christianity & evangelical share ───────────────────────────────────────
+  const pctChr = c.PercentChristianity ?? c.PercentChristianPC ?? c.PercentChristian;
+  if (pctChr != null)                  obj.christianPercent   = parseFloat(pctChr);
+  const pctEv  = c.PercentEvangelical ?? c.PercentEvangelicalPC;
+  if (pctEv != null)                   obj.evangelicalPercent = parseFloat(pctEv);
+  // OW-derived growth trajectories (re-exposed via JP).
+  if (c.PCEvangelicalRate != null)     obj.evangelicalGrowthRate = parseFloat(c.PCEvangelicalRate);
+  if (c.PCChristianityRate != null)    obj.christianGrowthRate   = parseFloat(c.PCChristianityRate);
+
+  // ── Religion breakdown (all percentages 0–100) ─────────────────────────────
+  const rel = {};
+  if (c.PercentIslam        != null) rel.islam        = parseFloat(c.PercentIslam);
+  if (c.PercentHindu        != null) rel.hindu        = parseFloat(c.PercentHindu);
+  if (c.PercentBuddhist     != null) rel.buddhist     = parseFloat(c.PercentBuddhist);
+  if (c.PercentEthnicReligions != null) rel.ethnic    = parseFloat(c.PercentEthnicReligions);
+  if (c.PercentNonReligious != null) rel.nonReligious = parseFloat(c.PercentNonReligious);
+  if (c.PercentOtherSmall   != null) rel.other        = parseFloat(c.PercentOtherSmall);
+  if (c.PercentUnknown      != null) rel.unknown      = parseFloat(c.PercentUnknown);
+  if (Object.keys(rel).length)         obj.religionBreakdown = rel;
+
+  // ── Denominational breakdown (all percentages 0–100) ───────────────────────
+  const den = {};
+  if (c.PCAnglican      != null) den.anglican      = parseFloat(c.PCAnglican);
+  if (c.PCIndependent   != null) den.independent   = parseFloat(c.PCIndependent);
+  if (c.PCProtestant    != null) den.protestant    = parseFloat(c.PCProtestant);
+  if (c.PCOrthodox      != null) den.orthodox      = parseFloat(c.PCOrthodox);
+  if (c.PCRomanCatholic != null) den.romanCatholic = parseFloat(c.PCRomanCatholic);
+  if (c.PCOther         != null) den.otherChristian = parseFloat(c.PCOther);
+  if (Object.keys(den).length)        obj.denominationBreakdown = den;
+
+  // ── Languages & Bible status ───────────────────────────────────────────────
   if (c.PrimaryLanguageName)           obj.primaryLanguage    = String(c.PrimaryLanguageName);
   if (c.BibleStatus != null)           obj.bibleStatus        = String(c.BibleStatus);
-  if (c.PercentUrbanized != null)      obj.urbanizedPercent   = parseFloat(c.PercentUrbanized);
-  if (c.LiteracyRate != null)          obj.literacyRate       = parseFloat(c.LiteracyRate);
+  if (c.BibleYear != null)             obj.bibleYear          = Number(c.BibleYear);
+  if (c.TranslationNeedQuestionable != null) obj.translationNeed = String(c.TranslationNeedQuestionable);
+
+  // ── Single-line prayer prompt (JP re-exports OW's "Pray for…" string) ──────
+  const prompt = c.PrayForCountry ?? c.CntPrayForCountry;
+  if (prompt) obj.prayerPrompt = String(prompt);
+
   return obj;
 }
 
@@ -347,10 +449,21 @@ function _countryCard(r) {
           ${popUnreached       ? `<span>📍 ${popUnreached} in unreached pop.</span>`             : ''}
           ${r.primaryLanguage  ? `<span>🗣️ ${_e(r.primaryLanguage)}</span>`                     : ''}
           ${r.bibleStatus      ? `<span>📖 Bible: ${_e(r.bibleStatus)}</span>`                  : ''}
-          ${r.bibleShortageNeed       ? `<span>📖 Bible need: ${_e(r.bibleShortageNeed)}</span>`                  : ''}
-          ${r.restrictionsRank != null ? `<span>📖 Bible Access Rank #${_e(String(r.restrictionsRank))}</span>` : ''}
+          ${r.restrictionsRank != null ? `<span>🔒 BAL Restrictions #${_e(String(r.restrictionsRank))}</span>` : ''}
+          ${r.bibleShortageRank != null ? `<span>📖 BAL Shortage #${_e(String(r.bibleShortageRank))}${r.bibleShortageRange ? ` · ${_e(r.bibleShortageRange)} need Bibles` : ''}</span>` : ''}
+          ${r.evangelicalGrowthRate != null ? `<span>📈 Evangelical growth ${(r.evangelicalGrowthRate >= 0 ? '+' : '')}${r.evangelicalGrowthRate.toFixed(2)}%/yr</span>` : ''}
           ${r.notes                   ? `<span>📝 ${_e(String(r.notes).substring(0, 160))}</span>`              : ''}
         </div>
+        ${r.prayerPrompt ? `<div class="gc-country-prompt">🙏 ${_e(r.prayerPrompt)}</div>` : ''}
+        ${(r.owPrayerAnswers && r.owPrayerAnswers.length) || (r.owPrayerChallenges && r.owPrayerChallenges.length)
+          ? `<div class="gc-country-ow">
+              ${r.owSummary ? `<p class="gc-ow-summary">${_e(r.owSummary)}</p>` : ''}
+              ${r.owPrayerChallenges && r.owPrayerChallenges.length
+                ? `<div class="gc-ow-section"><div class="gc-ow-label">🙏 Prayer Points (Operation World)</div>
+                    <ul class="gc-ow-list">${r.owPrayerChallenges.slice(0, 6).map(p => `<li>${_e(p)}</li>`).join('')}</ul>
+                  </div>` : ''}
+              <div class="gc-ow-credit">Source: <a href="https://operationworld.org" target="_blank" rel="noopener">Operation World</a></div>
+            </div>` : ''}
         ${r.profileUrl
           ? `<a class="gc-profile-link" href="${_e(r.profileUrl)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">View Profile ↗</a>`
           : ''}
@@ -703,6 +816,57 @@ export function mount(root) {
   return () => { /* nothing to clean up */ };
 }
 
+// ── Heal existing registry rows with BAL + Operation World data ───────────────
+// Called once per `_loadWorld()`. For any Firestore record matching a BAL
+// country (1–88), stamp canonical `restrictionsRank` + `persecutionLevel`.
+// Likewise, for any record matching an Operation World entry, stamp the
+// `owPrayerAnswers`, `owPrayerChallenges`, and `owSummary` fields.
+// Rows already up-to-date are skipped. Writes back in the background so
+// future loads come from Firestore already correct without a re-import.
+function _healRowsWithReferenceData(rows) {
+  if (!Array.isArray(rows) || !rows.length) return;
+  const UR = window.UpperRoom;
+  const canWrite = !!(UR && typeof UR.updateMissionsRegistry === 'function');
+  const writes = [];
+
+  for (const r of rows) {
+    const bal      = balLookup(r.isoCode, r.countryName || r.name);
+    const balShort = balShortageLookup(r.isoCode, r.countryName || r.name);
+    const ow       = owLookup(r.isoCode,  r.countryName || r.name);
+    const patch = {};
+
+    if (bal) {
+      const tier = balTierForRank(bal.rank);
+      if (parseInt(r.restrictionsRank, 10) !== bal.rank) patch.restrictionsRank = bal.rank;
+      if (String(r.persecutionLevel || '').toLowerCase() !== tier.toLowerCase()) patch.persecutionLevel = tier;
+      if (r.restrictionsSource !== 'BibleAccessList.org') patch.restrictionsSource = 'BibleAccessList.org';
+    }
+    if (balShort) {
+      const sTier = balShortageTierForRange(balShort.range);
+      if (parseInt(r.bibleShortageRank, 10) !== balShort.rank) patch.bibleShortageRank = balShort.rank;
+      if (r.bibleShortageRange !== balShort.range) patch.bibleShortageRange = balShort.range;
+      if (r.bibleShortageTier !== sTier) patch.bibleShortageTier = sTier;
+      if (r.bibleShortageSource !== 'BibleAccessList.org') patch.bibleShortageSource = 'BibleAccessList.org';
+    }
+    if (ow) {
+      // Only stamp OW prayer arrays if missing or shorter than the curated set.
+      if (ow.prayerAnswers?.length    && (!Array.isArray(r.owPrayerAnswers)    || r.owPrayerAnswers.length    < ow.prayerAnswers.length))    patch.owPrayerAnswers    = ow.prayerAnswers;
+      if (ow.prayerChallenges?.length && (!Array.isArray(r.owPrayerChallenges) || r.owPrayerChallenges.length < ow.prayerChallenges.length)) patch.owPrayerChallenges = ow.prayerChallenges;
+      if (ow.summary && r.owSummary !== ow.summary) patch.owSummary = ow.summary;
+      if (r.owSource !== 'OperationWorld.org') patch.owSource = 'OperationWorld.org';
+    }
+    if (!Object.keys(patch).length) continue;
+
+    // Patch in-memory immediately so the current render uses correct values.
+    Object.assign(r, patch);
+
+    if (canWrite && r.id) {
+      writes.push(UR.updateMissionsRegistry({ id: r.id, ...patch }).catch(() => null));
+    }
+  }
+  if (writes.length) Promise.allSettled(writes);
+}
+
 // ── World: country registry ────────────────────────────────────────────────────
 async function _loadWorld(root, V) {
   _canEditRegistry = typeof window.Nehemiah !== 'undefined'
@@ -733,18 +897,36 @@ async function _loadWorld(root, V) {
       rawArr = _normalize(await (root.__MX?.registry || V?.missions?.registry).list({ limit: 300 }));
     }
 
-    // Sort: persecution severity first, then WWL rank ascending, then alphabetical
+    // Heal existing rows in-memory: stamp Bible Access List rank + tier onto
+    // any record where it's missing or stale. The CHIEF DRIVER of sort order is
+    // BAL's restrictionsRank (1 = Somalia, 88 = Brazil, 99999 = not on list).
+    // Fires a best-effort write-back so future loads come from Firestore clean.
+    _healRowsWithReferenceData(rawArr);
+
+    // Sort: BAL restrictions rank ASCENDING (chief driver), then JP unreached
+    // pressure (UPGs / unreached population) for non-BAL countries, then
+    // persecution tier label, then alphabetical.
     const PERS_ORDER = {
       extreme: 0, severe: 1, 'very high': 1, considerable: 2, high: 2,
       moderate: 3, some: 4, minimal: 5, low: 6,
     };
+    const rankOf = (r) => {
+      const n = parseInt(r.restrictionsRank ?? r.worldWatchListRank, 10);
+      return Number.isFinite(n) && n > 0 ? n : 99999;
+    };
     const rows = rawArr.slice().sort((a, b) => {
+      // 1. CHIEF DRIVER: Bible Access List restrictions rank.
+      const ra = rankOf(a);
+      const rb = rankOf(b);
+      if (ra !== rb) return ra - rb;
+      // 2. JP signal: more unreached groups first (for off-list countries).
+      const ua = parseInt(a.unreachedGroups ?? a.populationUnreached ?? 0, 10) || 0;
+      const ub = parseInt(b.unreachedGroups ?? b.populationUnreached ?? 0, 10) || 0;
+      if (ua !== ub) return ub - ua;
+      // 3. Persecution tier label (legacy fallback).
       const pa = PERS_ORDER[String(a.persecutionLevel || '').toLowerCase()] ?? 99;
       const pb = PERS_ORDER[String(b.persecutionLevel || '').toLowerCase()] ?? 99;
       if (pa !== pb) return pa - pb;
-      const ra = parseInt(a.restrictionsRank ?? a.worldWatchListRank ?? 9999, 10);
-      const rb = parseInt(b.restrictionsRank ?? b.worldWatchListRank ?? 9999, 10);
-      if (!isNaN(ra) && !isNaN(rb) && ra !== rb) return ra - rb;
       return String(a.countryName || a.name || '').localeCompare(String(b.countryName || b.name || ''));
     });
     _worldRows = rows;
