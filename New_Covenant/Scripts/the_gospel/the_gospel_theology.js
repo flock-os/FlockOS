@@ -112,6 +112,34 @@ function _refsToList(s) {
   return String(s).split(/[,;]\s*/).filter(Boolean);
 }
 
+/** Plain-English display names for academic theological category titles. */
+const _FRIENDLY = {
+  // Academic → Plain
+  'Theology Proper':            'Who God Is',
+  'Bibliology':                 'The Bible',
+  'Christology':                'Who Jesus Is',
+  'Pneumatology':               'The Holy Spirit',
+  'Soteriology':                'Salvation',
+  'Salvation & Soteriology':    'Salvation',
+  'Ecclesiology':               'The Church',
+  'Eschatology':                'End Times',
+  'Anthropology':               'Who We Are',
+  'Hamartiology':               'Sin',
+  'Angelology':                 'Angels & Demons',
+  'Demonology':                 'Angels & Demons',
+  'Pneumatology & Gifts':       'The Holy Spirit & His Gifts',
+  'Applied Theology':           'Living Out Your Faith',
+  'Core Doctrine':              'What We Believe',
+  'Marriage & Covenant':        'Marriage',
+  'Marriage as Christ and the Church': 'Marriage',
+  'The Word of God':            'The Bible',
+  'Other Matters':              'Other Topics',
+};
+
+function _friendlyTitle(raw) {
+  return _FRIENDLY[raw] || raw;
+}
+
 function _normalize(res) {
   // Accept either {categories:[{...sections:[]}]}, full tree, or flat list
   if (res && Array.isArray(res.categories)) return res.categories;
@@ -129,7 +157,7 @@ function _paint(root) {
   }
   catEl.innerHTML = _state.tree.map((c) => `
     <button class="grow-cat ${_state.openId === c.id ? 'is-active' : ''}" data-cat="${esc(c.id)}">
-      <span class="grow-cat-title">${esc(c.title || c.name || 'Untitled')}</span>
+      <span class="grow-cat-title">${esc(_friendlyTitle(c.title || c.name || 'Untitled'))}</span>
       ${c.sections ? `<span class="grow-cat-count">${c.sections.length}</span>` : ''}
     </button>
   `).join('');
@@ -146,7 +174,7 @@ function _paintDetail(root) {
   if (!cat) { detEl.innerHTML = `<p class="grow-muted">Category not found.</p>`; return; }
   const sections = cat.sections || [];
   detEl.innerHTML = /* html */`
-    <h2 class="grow-detail-title">${esc(cat.title || cat.name || '')}</h2>
+    <h2 class="grow-detail-title">${esc(_friendlyTitle(cat.title || cat.name || ''))}</h2>
     ${cat.description ? `<p class="grow-detail-sub">${esc(cat.description)}</p>` : ''}
     ${sections.length ? sections.map(_section).join('') : `<p class="grow-muted">No sections in this category yet.</p>`}
   `;
