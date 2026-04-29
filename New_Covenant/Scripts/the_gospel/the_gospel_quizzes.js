@@ -5,7 +5,6 @@
 
 import {
   esc, snip, emptyState, loadingCards, chip,
-} from './the_gospel_shared.js';
   helpButton, wireHelp,
 } from './the_gospel_shared.js';
 
