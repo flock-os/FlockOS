@@ -9,7 +9,7 @@
 
 import { go, current } from '../the_scribes/index.js';
 import { unreadTotal } from '../the_upper_room/index.js';
-import { pendingCount } from '../the_life/index.js';
+import { pendingCount, subscribeOpenCareCount } from '../the_life/index.js';
 
 const I = (path) =>
   `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${path}</svg>`;
@@ -168,11 +168,21 @@ export function mountPillars(host) {
   // update immediately instead of waiting up to 2 minutes.
   const onBadgeRefresh = () => _refreshBadges(host);
   window.addEventListener('flockos:badges:refresh', onBadgeRefresh);
+  // Real-time open-care-case count via Firestore onSnapshot. Updates the
+  // badge immediately on any case create/resolve/reassign — no cache, no
+  // off-by-one, no waiting for the 2-minute tick.
+  const careUnsub = subscribeOpenCareCount((n) => {
+    const el = host.querySelector('[data-badge="care"]');
+    if (!el) return;
+    if (n && n > 0) { el.textContent = n > 99 ? '99+' : String(n); el.hidden = false; }
+    else { el.hidden = true; }
+  });
 
   return () => {
     clearInterval(tick);
     clearInterval(badgeTick);
     window.removeEventListener('flockos:badges:refresh', onBadgeRefresh);
+    try { careUnsub(); } catch (_) {}
   };
 }
 

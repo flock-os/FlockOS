@@ -56,10 +56,16 @@ async function _loadLpConfigId() {
 }
 
 /* ── Sidebar badge ────────────────────────────────────────────────────────────
-   the_pillars imports `pendingCount` and shows it next to "Pastoral Care".
-   Counts open (non-terminal) care cases. Cached briefly so the badge tick
-   (every 2 min) doesn't hammer the backend. Cache is busted any time we
-   know the open-case count changed (resolve, create, reassign).            */
+   the_pillars imports `pendingCount` and `subscribeOpenCareCount` and shows
+   the open-case count next to "Pastoral Care".
+
+   Two paths:
+   • pendingCount() — one-shot count. Awaits backend readiness so the badge
+     appears as soon as auth completes (was returning 0 immediately on fresh
+     login, leaving the badge hidden until the next 2-minute tick).
+   • subscribeOpenCareCount(cb) — Firestore real-time listener. Once a backend
+     is ready, the badge auto-updates whenever a case is created, resolved,
+     reassigned, etc. — no cache, no off-by-one, no waiting.                 */
 let _pendingCache = null;
 let _pendingCachedAt = 0;
 const _PENDING_TTL = 30_000; // 30 sec
@@ -73,19 +79,32 @@ export function bustPendingCache() {
   try { window.dispatchEvent(new CustomEvent('flockos:badges:refresh')); } catch (_) {}
 }
 
+// Wait up to `ms` for either Firestore (UpperRoom) or GAS (TheVine) to be ready.
+function _awaitBackend(ms = 15_000) {
+  return new Promise((resolve) => {
+    const t0 = Date.now();
+    const check = () => {
+      const UR = (typeof window !== 'undefined') ? window.UpperRoom : null;
+      const V  = (typeof window !== 'undefined') ? window.TheVine   : null;
+      const fsReady = !!(UR && typeof UR.isReady === 'function' && UR.isReady());
+      if (fsReady || V) return resolve({ UR, V, fsReady });
+      if (Date.now() - t0 >= ms) return resolve({ UR, V, fsReady: false });
+      setTimeout(check, 200);
+    };
+    check();
+  });
+}
+
 export async function pendingCount() {
   const now = Date.now();
   if (_pendingCache !== null && (now - _pendingCachedAt) < _PENDING_TTL) {
     return _pendingCache;
   }
-  // Firestore-first via the adapter. Works even when window.TheVine is null
-  // (Firestore-only deploys / before GAS finishes loading) — the previous
-  // `if (!V) return 0` guard caused the badge to silently report 0 in those
-  // sessions, which is why it "only worked after running maintenance".
-  const V  = (typeof window !== 'undefined') ? window.TheVine   : null;
-  const UR = (typeof window !== 'undefined') ? window.UpperRoom : null;
-  const fsReady = !!(UR && typeof UR.isReady === 'function' && UR.isReady());
-  if (!V && !fsReady) return 0; // neither backend ready yet — try again next tick
+  // Wait briefly for a backend to come online so the very first call after
+  // a fresh login doesn't silently return 0 and leave the badge hidden until
+  // the next 2-minute tick.
+  const { V, fsReady } = await _awaitBackend(15_000);
+  if (!V && !fsReady) return 0;
   const MX = buildAdapter('flock.care', V);
   try {
     const res = await MX.list({});
@@ -101,6 +120,53 @@ export async function pendingCount() {
     return _pendingCache || 0;
   }
 }
+
+/* Real-time open-case count via Firestore onSnapshot.
+   Returns an unsubscribe function. Falls back to a one-shot count + polling
+   if Firestore isn't available. The_pillars subscribes once at mount so the
+   badge is always accurate without polling.                                  */
+export function subscribeOpenCareCount(cb) {
+  if (typeof cb !== 'function') return () => {};
+  let unsub = () => {};
+  let cancelled = false;
+
+  (async () => {
+    const { UR, fsReady } = await _awaitBackend(15_000);
+    if (cancelled) return;
+
+    // Firestore real-time path
+    if (fsReady && UR && typeof UR.careCasesRef === 'function') {
+      try {
+        unsub = UR.careCasesRef().onSnapshot((snap) => {
+          let open = 0;
+          snap.forEach((doc) => {
+            const d = doc.data() || {};
+            const s = String(d.status || d.Status || '').trim().toLowerCase();
+            if (!_TERMINAL.has(s)) open++;
+          });
+          _pendingCache = open;
+          _pendingCachedAt = Date.now();
+          try { cb(open); } catch (_) {}
+        }, (_err) => { /* swallow — fallback below covers it */ });
+        return;
+      } catch (_) { /* fall through to polling */ }
+    }
+
+    // Polling fallback (GAS-only deploys or Firestore listener unavailable)
+    try { cb(await pendingCount()); } catch (_) {}
+    const tick = setInterval(async () => {
+      if (cancelled) return clearInterval(tick);
+      try {
+        bustPendingCache();
+        cb(await pendingCount());
+      } catch (_) {}
+    }, 60_000);
+    unsub = () => clearInterval(tick);
+  })();
+
+  return () => { cancelled = true; try { unsub(); } catch (_) {} };
+}
+
 
 const PRIORITY = {
   urgent: { label: 'Urgent', color: '#dc2626', bg: 'rgba(220,38,38,0.10)' },

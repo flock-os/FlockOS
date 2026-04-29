@@ -4760,6 +4760,9 @@
     updateCareCase:        updateCareCase,
     resolveCareCase:       resolveCareCase,
     careDashboard:         careDashboard,
+    // Raw Firestore CollectionReference for callers that need to attach an
+    // onSnapshot listener (e.g. the open-care-case badge in the_pillars).
+    careCasesRef:          _careCasesRef,
 
     // Care Interactions
     listCareInteractions:       listCareInteractions,
