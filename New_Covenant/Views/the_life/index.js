@@ -6,7 +6,7 @@
 import { pageHero } from '../_frame.js';
 import { profile } from '../../Scripts/the_priesthood/index.js';
 import { buildAdapter } from '../../Scripts/the_living_water_adapter.js';
-import { getWarmCareRows, subscribeOpenCareRows } from '../../Scripts/the_life/index.js';
+import { getWarmCareRows, subscribeOpenCareRows, setOpenCareCount } from '../../Scripts/the_life/index.js';
 
 export const name  = 'the_life';
 export const title = 'Pastoral Care';
@@ -918,6 +918,9 @@ function _updateStats(root, rows) {
   set('.life-stat--high .life-stat-n',   high);
   set('.life-stat--normal .life-stat-n', normal);
   set('.life-stat--total .life-stat-n',  rows.length);
+  // The visible tiles are the source of truth — push that exact count to
+  // the sidebar badge so the two CANNOT disagree.
+  try { setOpenCareCount(rows.length, rows); } catch (_) {}
 }
 
 function _normalizeType(rawType) {

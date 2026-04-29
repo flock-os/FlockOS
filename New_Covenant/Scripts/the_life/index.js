@@ -178,11 +178,21 @@ function _awaitBackend(ms = 15_000) {
   return new Promise((resolve) => {
     const t0 = Date.now();
     let prodded = false;
+    // If Firebase config is present, this is a Firestore church and we MUST
+    // wait for it specifically — TheVine becoming available first would
+    // otherwise short-circuit us into the 60s GAS polling path.
+    const isFirestoreChurch = !!(
+      typeof window !== 'undefined' &&
+      (window.FLOCK_FIREBASE_CONFIG || window.UpperRoom)
+    );
     const check = () => {
       const UR = window.UpperRoom;
       const V  = window.TheVine;
       const fsReady = !!(UR && typeof UR.isReady === 'function' && UR.isReady());
-      if (fsReady || V) return resolve();
+      if (fsReady) return resolve();
+      // Only accept TheVine as "ready" on GAS-only churches that have no
+      // Firebase config at all.
+      if (!isFirestoreChurch && V) return resolve();
       // Once UpperRoom appears, actively prod it. (Firebase SDK scripts use
       // `defer` so UpperRoom may not exist on the very first poll.) We only
       // need to do this once — _ensureUpperRoomAuth is memoized.
@@ -212,6 +222,19 @@ let _warmStarted = false;
 function _emitWarm(n) {
   _warmCount = n;
   _warmSubscribers.forEach((cb) => { try { cb(n); } catch (_) {} });
+}
+
+/* Public: authoritative override — when the Pastoral Care view tallies the
+   exact rows it's about to render, it calls this so the sidebar badge is
+   guaranteed to match the on-screen tiles. Single source of truth. */
+export function setOpenCareCount(n, rows) {
+  if (typeof n !== 'number' || n < 0) return;
+  _warmCount = n;
+  if (Array.isArray(rows)) _warmRows = rows;
+  _warmSubscribers.forEach((cb) => { try { cb(n); } catch (_) {} });
+  if (Array.isArray(rows)) {
+    _warmRowSubscribers.forEach((rcb) => { try { rcb(rows); } catch (_) {} });
+  }
 }
 
 /* Public: read the cached open-care rows (may be null until first snapshot). */
