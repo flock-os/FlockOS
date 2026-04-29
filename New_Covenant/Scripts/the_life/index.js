@@ -106,40 +106,28 @@ export function subscribeOpenCareCount(cb) {
     if (cancelled) return;
     const UR = window.UpperRoom;
     const fsReady = !!(UR && typeof UR.isReady === 'function' && UR.isReady());
-    console.log('[CARE-BADGE] _awaitBackend resolved in ' + (Date.now() - _t0) + 'ms — fsReady=' + fsReady + ', hasUR=' + !!UR + ', hasCareCasesRef=' + !!(UR && UR.careCasesRef));
+    console.log('[CARE-BADGE] _awaitBackend resolved in ' + (Date.now() - _t0) + 'ms — fsReady=' + fsReady + ', hasUR=' + !!UR + ', hasListCareCases=' + !!(UR && typeof UR.listCareCases === 'function'));
 
-    // Firestore real-time path
-    if (fsReady && typeof UR.careCasesRef === 'function') {
-      try {
-        console.log('[CARE-BADGE] attaching onSnapshot…');
-        // IMPORTANT: order by createdAt to match the query used by the
-        // Pastoral Care view (UR.listCareCases → orderBy('createdAt','desc')).
-        // Without this, the badge counts docs missing `createdAt` that the
-        // view's ordered query silently excludes — producing a count that
-        // disagrees with the visible queue (e.g. badge=21, tiles=19).
-        const ref = UR.careCasesRef();
-        const refType = Object.prototype.toString.call(ref);
-        const refKeys = ref ? Object.keys(ref).slice(0, 10).join(',') : '(null)';
-        const refProto = ref ? Object.getPrototypeOf(ref) : null;
-        const refProtoKeys = refProto ? Object.getOwnPropertyNames(refProto).slice(0, 20).join(',') : '(none)';
-        console.log('[CARE-BADGE] PROBE-A ref ' + refType + ' | keys: ' + refKeys + ' | proto methods: ' + refProtoKeys);
-        console.log('[CARE-BADGE] PROBE-B ref typeof orderBy=' + (ref && typeof ref.orderBy) + ' onSnapshot=' + (ref && typeof ref.onSnapshot) + ' get=' + (ref && typeof ref.get) + ' where=' + (ref && typeof ref.where));
-        // Try onSnapshot directly on the collection ref (skip orderBy) to
-        // isolate whether orderBy is what strips the listener method.
-        const query = ref;
-        console.log('[CARE-BADGE] PROBE-C using bare ref (no orderBy) — typeof onSnapshot=' + (query && typeof query.onSnapshot));
-        unsub = query.onSnapshot((snap) => {
+    // Use UR.listCareCases — the SAME call the Pastoral Care view uses to
+    // produce its on-screen tile count. By definition this guarantees the
+    // badge agrees with the view. Pull a generous limit so we don't drop
+    // older open cases (the view uses { limit: 500 }).
+    if (fsReady && UR && typeof UR.listCareCases === 'function') {
+      const _refresh = async () => {
+        if (cancelled) return;
+        try {
+          const rows = await UR.listCareCases({ limit: 500 });
+          const list = Array.isArray(rows) ? rows : (rows && rows.results) || [];
           let open = 0;
           const openRows = [];
           const openSummary = [];
-          snap.forEach((doc) => {
-            const d = doc.data() || {};
-            const s = String(d.status || d.Status || '').trim().toLowerCase();
+          list.forEach((d) => {
+            const s = String((d && (d.status || d.Status)) || '').trim().toLowerCase();
             if (!_TERMINAL.has(s)) {
               open++;
-              openRows.push(Object.assign({ id: doc.id }, d));
+              openRows.push(d);
               openSummary.push({
-                id: doc.id,
+                id: d.id,
                 status: d.status || d.Status || '(none)',
                 memberId: d.memberId || d.member || '(none)',
                 title: d.title || d.subject || d.summary || '(none)',
@@ -147,30 +135,34 @@ export function subscribeOpenCareCount(cb) {
               });
             }
           });
-          console.log('[CARE-BADGE] snapshot fired: ' + snap.size + ' total docs, ' + open + ' open (' + (Date.now() - _t0) + 'ms since subscribe)');
-          // One-shot dump of all open rows so we can identify ghosts
-          // (cases the user resolved that aren't actually closed in Firestore).
+          console.log('[CARE-BADGE] listCareCases returned: ' + list.length + ' total, ' + open + ' open (' + (Date.now() - _t0) + 'ms)');
           if (!_dumpedOnce) {
             _dumpedOnce = true;
             console.log('[CARE-BADGE] open docs:');
-            console.table(openSummary);
+            try { console.table(openSummary); } catch (_) {}
           }
-          // Keep the warm row cache in sync so the Pastoral Care view can
-          // render instantly on first mount (no 2-second listMembers+listCases
-          // round-trip blocking paint).
           _warmRows = openRows;
           _warmRowSubscribers.forEach((rcb) => { try { rcb(openRows); } catch (_) {} });
           try { cb(open); } catch (_) {}
-        }, (err) => { console.error('[CARE-BADGE] onSnapshot ERROR callback:', err && (err.code || err.name), err && err.message, err); });
-        // Emit an initial value immediately so the badge isn't blank while
-        // the first snapshot is in-flight (Firestore listener fires within
-        // a tick, but onSnapshot doesn't guarantee a synchronous initial cb).
-        return;
-      } catch (e) { console.error('[CARE-BADGE] onSnapshot SYNC threw — falling through to polling:', e && (e.code || e.name), e && e.message, e); }
+        } catch (e) {
+          console.error('[CARE-BADGE] listCareCases threw:', e && (e.code || e.name), e && e.message);
+        }
+      };
+      // Fire immediately, then refresh every 60s while subscribed. Also
+      // refresh on demand when the view dispatches flockos:badges:refresh.
+      _refresh();
+      const tick = setInterval(_refresh, 60_000);
+      const onEvt = () => _refresh();
+      try { window.addEventListener('flockos:badges:refresh', onEvt); } catch (_) {}
+      unsub = () => {
+        clearInterval(tick);
+        try { window.removeEventListener('flockos:badges:refresh', onEvt); } catch (_) {}
+      };
+      return;
     }
 
-    // Polling fallback (GAS-only deploys or Firestore listener unavailable)
-    console.warn('[CARE-BADGE] FALLING THROUGH TO POLLING (pendingCount). fsReady was ' + (UR && UR.isReady && UR.isReady()));
+    // Last-resort polling fallback (GAS-only deploys without UpperRoom)
+    console.warn('[CARE-BADGE] FALLING THROUGH TO LEGACY POLLING. fsReady was ' + fsReady);
     try { const _pc = await pendingCount(); console.warn('[CARE-BADGE] polling pendingCount returned ' + _pc); cb(_pc); } catch (e) { console.error('[CARE-BADGE] polling pendingCount threw:', e); }
     const tick = setInterval(async () => {
       if (cancelled) return clearInterval(tick);
