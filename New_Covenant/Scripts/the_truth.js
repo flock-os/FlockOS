@@ -76,7 +76,7 @@ const TheTruth = (() => {
   // the_way.js renderers call TheTruth.liveBundle(key) to get fresh data.
 
   var BUNDLE_STALE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
-  var BUNDLE_TABS = ['devotionals', 'counseling', 'quiz', 'words', 'apologetics', 'books', 'genealogy', 'theology', 'teachingPlans', 'missionsRegistry'];
+  var BUNDLE_TABS = ['devotionals', 'counseling', 'quiz', 'words', 'apologetics', 'books', 'genealogy', 'theology', 'teachingPlans', 'missionsRegistry', 'lexiconGreek', 'lexiconHebrew'];
 
   function _bundleKey(k)   { return 'flock_bundle_' + k; }
   function _bundleTsKey(k) { return 'flock_bundle_' + k + '_ts'; }
@@ -356,6 +356,32 @@ const TheTruth = (() => {
         { k: 'owPrayerAnswers',      label: 'Operation World \u2014 Prayer Answers',  type: 'list' },
         { k: 'owPrayerChallenges',   label: 'Operation World \u2014 Challenges',      type: 'list' },
         { k: 'owSource',             label: 'Operation World Source',                type: 'text' },
+      ]
+    },
+    { key: 'lexiconGreek', name: 'Greek Lexicon', idField: 'strongs',
+      listCols: ['strongs', 'lemma', 'xlit', 'kjv_def'],
+      fields: [
+        { k: 'strongs',     label: "Strong\u2019s Number (e.g. G3056)", type: 'text',     required: true },
+        { k: 'lemma',       label: 'Lemma (Greek)',                     type: 'text',     required: true },
+        { k: 'xlit',        label: 'Transliteration',                   type: 'text' },
+        { k: 'pron',        label: 'Pronunciation',                     type: 'text' },
+        { k: 'derivation',  label: 'Derivation',                        type: 'textarea' },
+        { k: 'strongs_def', label: "Strong\u2019s Definition",          type: 'textarea' },
+        { k: 'kjv_def',     label: 'KJV Definition',                    type: 'textarea' },
+        { k: 'language',    label: 'Language',                          type: 'select',   opts: ['greek'] },
+      ]
+    },
+    { key: 'lexiconHebrew', name: 'Hebrew Lexicon', idField: 'strongs',
+      listCols: ['strongs', 'lemma', 'xlit', 'kjv_def'],
+      fields: [
+        { k: 'strongs',     label: "Strong\u2019s Number (e.g. H1234)", type: 'text',     required: true },
+        { k: 'lemma',       label: 'Lemma (Hebrew)',                    type: 'text',     required: true },
+        { k: 'xlit',        label: 'Transliteration',                   type: 'text' },
+        { k: 'pron',        label: 'Pronunciation',                     type: 'text' },
+        { k: 'derivation',  label: 'Derivation',                        type: 'textarea' },
+        { k: 'strongs_def', label: "Strong\u2019s Definition",          type: 'textarea' },
+        { k: 'kjv_def',     label: 'KJV Definition',                    type: 'textarea' },
+        { k: 'language',    label: 'Language',                          type: 'select',   opts: ['hebrew'] },
       ]
     },
   ];
