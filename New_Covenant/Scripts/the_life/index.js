@@ -73,7 +73,12 @@ export async function pendingCount() {
   // queue, which is often slower / stale on fresh sessions.
   if (UR && typeof UR.isReady === 'function' && UR.isReady() && typeof UR.careCasesRef === 'function') {
     try {
-      const snap = await UR.careCasesRef().get();
+      // Match the view's ordered query so the count agrees with the queue.
+      const ref = UR.careCasesRef();
+      const query = (typeof ref.orderBy === 'function')
+        ? ref.orderBy('createdAt', 'desc')
+        : ref;
+      const snap = await query.get();
       let open = 0;
       snap.forEach((doc) => {
         const d = doc.data() || {};
@@ -105,7 +110,16 @@ export function subscribeOpenCareCount(cb) {
     // Firestore real-time path
     if (fsReady && typeof UR.careCasesRef === 'function') {
       try {
-        unsub = UR.careCasesRef().onSnapshot((snap) => {
+        // IMPORTANT: order by createdAt to match the query used by the
+        // Pastoral Care view (UR.listCareCases → orderBy('createdAt','desc')).
+        // Without this, the badge counts docs missing `createdAt` that the
+        // view's ordered query silently excludes — producing a count that
+        // disagrees with the visible queue (e.g. badge=21, tiles=19).
+        const ref = UR.careCasesRef();
+        const query = (typeof ref.orderBy === 'function')
+          ? ref.orderBy('createdAt', 'desc')
+          : ref;
+        unsub = query.onSnapshot((snap) => {
           let open = 0;
           const openRows = [];
           snap.forEach((doc) => {
