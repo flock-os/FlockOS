@@ -67,25 +67,27 @@ export async function pendingCount() {
   // Wait for Firestore (no timeout on Firestore churches \u2014 see _awaitBackend).
   await _awaitBackend();
   const UR = window.UpperRoom;
-  // Firestore-first: use the dedicated careCasesRef so we don't pull the GAS
-  // queue, which is often slower / stale on fresh sessions.
-  if (UR && typeof UR.isReady === 'function' && UR.isReady() && typeof UR.careCasesRef === 'function') {
+  // Use the SAME call as the on-screen tiles (UR.listCareCases) so the
+  // count agrees with the queue. NEVER fall back to GAS \u2014 GAS returned
+  // 21 here while Firestore (and the view) returned 19 (the user had
+  // resolved 2 cases that GAS still considered open).
+  if (UR && typeof UR.isReady === 'function' && UR.isReady() && typeof UR.listCareCases === 'function') {
     try {
-      // Match the view's ordered query so the count agrees with the queue.
-      const ref = UR.careCasesRef();
-      const query = (typeof ref.orderBy === 'function')
-        ? ref.orderBy('createdAt', 'desc')
-        : ref;
-      const snap = await query.get();
+      const rows = await UR.listCareCases({ limit: 500 });
+      const list = Array.isArray(rows) ? rows : (rows && rows.results) || [];
       let open = 0;
-      snap.forEach((doc) => {
-        const d = doc.data() || {};
-        const s = String(d.status || d.Status || '').trim().toLowerCase();
+      list.forEach((d) => {
+        const s = String((d && (d.status || d.Status)) || '').trim().toLowerCase();
         if (!_TERMINAL.has(s)) open++;
       });
+      console.log('[CARE-BADGE] pendingCount via listCareCases: ' + list.length + ' total, ' + open + ' open');
       return open;
-    } catch (_) { /* fall through to GAS */ }
+    } catch (e) {
+      console.error('[CARE-BADGE] pendingCount listCareCases threw:', e && e.message);
+    }
   }
+  // Last-resort GAS path \u2014 may be stale; only used if UR isn't ready at all.
+  console.warn('[CARE-BADGE] pendingCount falling back to GAS careCases() \u2014 may be stale');
   const rows = await careCases();
   return rows.length;
 }
