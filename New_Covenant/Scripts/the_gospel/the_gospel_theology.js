@@ -4,7 +4,7 @@
     blessed God." — 1 Timothy 1:10-11
    ══════════════════════════════════════════════════════════════════════════════ */
 
-import { ur, vine, rows, esc, snip, emptyState, backendOffline, loadingCards, sectionHead } from './the_gospel_shared.js';
+import { esc, snip, emptyState, loadingCards, sectionHead } from './the_gospel_shared.js';
 
 export const name        = 'the_gospel_theology';
 export const title       = 'Theology';
@@ -45,34 +45,16 @@ export function mount(root) {
 
 async function _load(root) {
   const catEl = root.querySelector('[data-bind="cats"]');
-  const U = ur(); const V = vine();
 
-  // Try the live backend first
+  // Load from static bundle (regenerated from Firestore via export_theology_to_js.py)
   try {
-    if (U || V) {
-      const res = U
-        ? (typeof U.theologyFull === 'function' ? await U.theologyFull() : await U.listTheologyCategories({ limit: 200 }))
-        : await V.flock.call('theology.full', {}, { skipAuth: true });
-      _state.tree = _normalize(res);
-    }
+    const mod = await import('../../Data/theology.js');
+    _state.tree = _treeFromFlat(mod.default || []);
   } catch (e) {
-    console.warn('[gospel/theology] live backend failed, will try static bundle:', e.message);
-  }
-
-  // ── Fallback: static bundle (New_Covenant/Data/theology.js) ─────────
-  // Also fall back if live returned categories but all sections are empty (not yet seeded)
-  const _hasSections = _state.tree.length && _state.tree.some((c) => (c.sections || []).length > 0);
-  if (!_hasSections) {
-    try {
-      const mod = await import('../../Data/theology.js');
-      _state.tree = _treeFromFlat(mod.default || []);
-    } catch (e) {
-      console.error('[gospel/theology] static bundle failed:', e);
-    }
+    console.error('[gospel/theology] static bundle failed:', e);
   }
 
   if (!_state.tree.length) {
-    if (!U && !V) { catEl.innerHTML = backendOffline('Theology library not loaded.'); return; }
     catEl.innerHTML = emptyState({ icon: '☩', title: 'No theology entries yet', body: 'Ask your shepherd to seed the doctrine map.' });
     return;
   }

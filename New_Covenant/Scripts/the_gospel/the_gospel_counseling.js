@@ -4,7 +4,7 @@
    ══════════════════════════════════════════════════════════════════════════════ */
 
 import {
-  ur, vine, rows, esc, emptyState, backendOffline, loadingCards,
+  esc, emptyState, loadingCards,
   bibleLink, helpButton, wireHelp,
 } from './the_gospel_shared.js';
 
@@ -51,70 +51,28 @@ export function mount(root) {
 
 async function _load(root) {
   const grid = root.querySelector('[data-bind="grid"]');
-  const U = ur(); const V = vine();
 
+  // Load from static bundle (regenerated from Firestore via export_counseling_to_js.py)
   _stubs = [];
   try {
-    if (U && typeof U.getAppContent === 'function') {
-      // Try the catalog stub first (1 read, all titles+icons+colors)
-      const cat = await U.getAppContent('counseling', '_catalog').catch(() => null);
-      if (cat && Array.isArray(cat.items)) {
-        _stubs = cat.items.map((s) => ({
-          id:    s.id,
-          title: s.title || s.Title || s.id,
-          icon:  s.icon  || s.Icon  || '🌿',
-          color: s.color || s.Color || accent,
-        }));
-      } else {
-        const all = rows(await U.listAppContent('counseling'));
-        all.forEach((d) => {
-          if (d.id === '_catalog') return;
-          _cache[d.id] = d;
-          _stubs.push({
-            id: d.id,
-            title: d.Title || d.title || d.id,
-            icon:  d.Icon  || d.icon  || '🌿',
-            color: d.Color || d.color || accent,
-          });
-        });
-      }
-    } else if (V && V.app && V.app.counseling) {
-      const all = rows(await V.app.counseling());
-      all.forEach((d) => {
-        const id = d.id || d.ID;
-        _cache[id] = d;
-        _stubs.push({
-          id, title: d.Title || 'Topic', icon: d.Icon || '🌿', color: d.Color || accent,
-        });
+    const mod = await import('../../Data/counseling.js');
+    const arr = mod.default || [];
+    arr.forEach((d) => {
+      const id = d._id || d.id || d.topicId;
+      if (!id) return;
+      _cache[id] = d;
+      _stubs.push({
+        id,
+        title: d.title || d.Title || id,
+        icon:  d.icon  || d.Icon  || '🌿',
+        color: d.color || d.Color || accent,
       });
-    }
+    });
   } catch (e) {
-    console.warn('[gospel/counseling] live backend failed, will try static bundle:', e.message);
-  }
-
-  // ── Fallback: static bundle (New_Covenant/Data/counseling.js) ─────────
-  if (!_stubs.length) {
-    try {
-      const mod = await import('../../Data/counseling.js');
-      const arr = mod.default || [];
-      arr.forEach((d) => {
-        const id = d._id || d.id || d.topicId;
-        if (!id) return;
-        _cache[id] = d;
-        _stubs.push({
-          id,
-          title: d.title || d.Title || id,
-          icon:  d.icon  || d.Icon  || '🌿',
-          color: d.color || d.Color || accent,
-        });
-      });
-    } catch (e) {
-      console.error('[gospel/counseling] static bundle failed:', e);
-    }
+    console.error('[gospel/counseling] static bundle failed:', e);
   }
 
   if (!_stubs.length) {
-    if (!U && !V) { grid.innerHTML = backendOffline('Counseling library not loaded.'); return; }
     grid.innerHTML = emptyState({ icon: '💚', title: 'Counseling resources coming soon', body: 'Biblical counseling wisdom and protocols will appear here.' });
     return;
   }
@@ -170,14 +128,8 @@ async function _toggle(cardEl, id) {
   body.style.display = 'block';
 
   if (!_cache[id]) {
-    body.innerHTML = `<div class="grow-muted" style="padding:8px 0;">Loading…</div>`;
-    try {
-      const U = ur();
-      if (U && typeof U.getAppContent === 'function') {
-        const doc = await U.getAppContent('counseling', id);
-        if (doc) _cache[id] = doc;
-      }
-    } catch (_) {}
+    body.innerHTML = `<div class="grow-muted" style="color:var(--err, #c0392b); padding:8px 0;">Content not found in bundle.</div>`;
+    return;
   }
   const item = _cache[id];
   if (!item) {

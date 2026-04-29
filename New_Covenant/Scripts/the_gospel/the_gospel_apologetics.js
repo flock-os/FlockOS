@@ -4,7 +4,7 @@
     reason for the hope that you have." — 1 Peter 3:15
    ══════════════════════════════════════════════════════════════════════════════ */
 
-import { ur, vine, rows, esc, snip, emptyState, backendOffline, loadingCards, chip } from './the_gospel_shared.js';
+import { esc, snip, emptyState, loadingCards, chip } from './the_gospel_shared.js';
 
 export const name        = 'the_gospel_apologetics';
 export const title       = 'Apologetics';
@@ -36,28 +36,15 @@ export function mount(root) {
 }
 
 async function _load(list) {
-  const U = ur(); const V = vine();
-  let res = null;
+  // Load from static bundle (regenerated from Firestore via export_apologetics_to_js.py)
   try {
-    if (U && typeof U.listAppContent === 'function')        res = await U.listAppContent('apologetics');
-    else if (V && V.app && V.app.apologetics)               res = await V.app.apologetics();
+    const mod = await import('../../Data/apologetics.js');
+    _state.rows = mod.default || [];
   } catch (e) {
-    console.warn('[gospel/apologetics] live backend failed, will try static bundle:', e.message);
-  }
-  _state.rows = rows(res);
-
-  // ── Fallback: static bundle (New_Covenant/Data/apologetics.js) ─────────
-  if (!_state.rows.length) {
-    try {
-      const mod = await import('../../Data/apologetics.js');
-      _state.rows = mod.default || [];
-    } catch (e) {
-      console.error('[gospel/apologetics] static bundle failed:', e);
-    }
+    console.error('[gospel/apologetics] static bundle failed:', e);
   }
 
   if (!_state.rows.length) {
-    if (!U && !V) { list.innerHTML = backendOffline('Apologetics not loaded.'); return; }
     list.innerHTML = emptyState({ icon: '⚖️', title: 'No apologetics yet' });
     return;
   }
