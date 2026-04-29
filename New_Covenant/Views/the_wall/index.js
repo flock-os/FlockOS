@@ -887,6 +887,16 @@ function _maintenancePanelMarkup() {
       </div>
       <button class="flock-btn flock-btn--primary" data-act="reassign-to-lp" type="button" style="flex-shrink:0">Reassign now</button>
     </div>
+    <div class="wall-setting-row" style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:14px;border:1px solid var(--line,#e5e7ef);border-radius:10px;margin-bottom:10px;background:var(--bg-raised,#fff);flex-wrap:wrap">
+      <div style="flex:1;min-width:240px">
+        <div style="font-weight:600;color:var(--ink,#1b264f);margin-bottom:2px">Assign Lead Pastor as caregiver for all members</div>
+        <div style="font-size:.82rem;color:var(--ink-muted,#7a7f96);line-height:1.5">
+          Creates an <strong>Active</strong> care assignment (role: Shepherd) linking every member to the Lead Pastor. Members who already have an active assignment to the LP are skipped. Existing assignments to other shepherds are left intact.
+        </div>
+        <div class="wall-maint-status" data-bind="assign-all-status" style="margin-top:8px;font-size:.82rem;color:var(--ink-muted,#7a7f96)"></div>
+      </div>
+      <button class="flock-btn flock-btn--primary" data-act="assign-all-to-lp" type="button" style="flex-shrink:0">Assign now</button>
+    </div>
   `;
 }
 
@@ -894,10 +904,16 @@ function _wireMaintenancePanel(root) {
   const panel = root.querySelector('[data-wall-panel="maintenance"]');
   if (!panel) return;
   panel.addEventListener('click', async (e) => {
-    const btn = e.target.closest('[data-act="reassign-to-lp"]');
-    if (!btn) return;
-    if (!confirm('Reassign all open care cases and active prayer requests to the Lead Pastor?\n\nThis cannot be undone automatically.')) return;
-    await _reassignAllToLeadPastor(root, btn);
+    const reassignBtn = e.target.closest('[data-act="reassign-to-lp"]');
+    if (reassignBtn) {
+      if (!confirm('Reassign all open care cases and active prayer requests to the Lead Pastor?\n\nThis cannot be undone automatically.')) return;
+      return _reassignAllToLeadPastor(root, reassignBtn);
+    }
+    const assignAllBtn = e.target.closest('[data-act="assign-all-to-lp"]');
+    if (assignAllBtn) {
+      if (!confirm('Create an Active care assignment to the Lead Pastor for every member who does not already have one?\n\nThis cannot be undone automatically.')) return;
+      return _assignAllMembersToLeadPastor(root, assignAllBtn);
+    }
   });
 }
 
@@ -1002,6 +1018,101 @@ async function _reassignAllToLeadPastor(root, btn) {
     );
   } catch (err) {
     console.error('[wall] reassignAllToLeadPastor error', err);
+    setStatus(`Failed: ${err?.message || String(err)}`, '#b91c1c');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = origLabel;
+  }
+}
+
+async function _assignAllMembersToLeadPastor(root, btn) {
+  const status = root.querySelector('[data-bind="assign-all-status"]');
+  const setStatus = (msg, color) => {
+    if (!status) return;
+    status.textContent = msg;
+    status.style.color = color || 'var(--ink-muted,#7a7f96)';
+  };
+  btn.disabled = true;
+  const origLabel = btn.textContent;
+  btn.textContent = 'Working…';
+  setStatus('Looking up Lead Pastor…');
+
+  const UR = await _waitForUpperRoom(10000);
+  if (!UR || !UR.getAppConfig || !UR.listMembers || !UR.listCareAssignments || !UR.createCareAssignment) {
+    setStatus('Backend not ready (or care-assignment APIs missing).', '#b91c1c');
+    btn.disabled = false; btn.textContent = origLabel;
+    return;
+  }
+
+  try {
+    const cfg = await UR.getAppConfig({ key: 'LEAD_PASTOR_MEMBER_ID' });
+    const lpId = String((cfg && cfg.value) || '').trim();
+    if (!lpId) {
+      setStatus('No Lead Pastor Member PIN is configured under Church Settings.', '#b91c1c');
+      btn.disabled = false; btn.textContent = origLabel;
+      return;
+    }
+    console.log('[wall/assign-all] lpId =', JSON.stringify(lpId));
+
+    setStatus('Loading members and existing assignments…');
+    const [members, existing] = await Promise.all([
+      UR.listMembers({ limit: 5000 }).catch((e) => { console.error('[wall/assign-all] listMembers failed', e); return []; }),
+      UR.listCareAssignments({ limit: 5000 }).catch((e) => { console.error('[wall/assign-all] listCareAssignments failed', e); return []; }),
+    ]);
+    const memberRows = Array.isArray(members) ? members : (members?.results || []);
+    const assignRows = Array.isArray(existing) ? existing : (existing?.results || []);
+    console.log('[wall/assign-all] members=' + memberRows.length + ', existing assignments=' + assignRows.length);
+
+    // Index existing Active assignments by memberId where caregiverId === lpId
+    const alreadyAssigned = new Set();
+    for (const a of assignRows) {
+      const st = String(a.status || '').toLowerCase();
+      if (st && st !== 'active') continue;
+      if (String(a.caregiverId || '') === lpId && a.memberId) {
+        alreadyAssigned.add(String(a.memberId));
+      }
+    }
+
+    setStatus(`Assigning Lead Pastor as caregiver for ${memberRows.length} members…`);
+
+    let checked = 0, created = 0, skipped = 0, failed = 0;
+    for (const m of memberRows) {
+      checked++;
+      const memberId = m.id || m.docId || m.uid || m.memberPin || m.memberNumber || '';
+      if (!memberId) { skipped++; continue; }
+      // Don't re-assign the lead pastor to themselves
+      if (String(memberId) === lpId
+          || String(m.memberPin || '') === lpId
+          || String(m.memberNumber || '') === lpId) {
+        skipped++;
+        continue;
+      }
+      if (alreadyAssigned.has(String(memberId))) {
+        skipped++;
+        continue;
+      }
+      try {
+        await UR.createCareAssignment({
+          memberId: String(memberId),
+          caregiverId: lpId,
+          role: 'Shepherd',
+          status: 'Active',
+          notes: 'Bulk-assigned via Admin → Maintenance',
+        });
+        created++;
+      } catch (err) {
+        failed++;
+        console.error('[wall/assign-all] create failed for member', memberId, err);
+      }
+    }
+
+    const failMsg = failed ? ` · ${failed} failed (see console)` : '';
+    setStatus(
+      `Done. ${created} created, ${skipped} skipped (already LP / no id / is the LP), of ${checked} members.${failMsg}`,
+      failed ? '#b45309' : '#16a34a'
+    );
+  } catch (err) {
+    console.error('[wall] assignAllMembersToLeadPastor error', err);
     setStatus(`Failed: ${err?.message || String(err)}`, '#b91c1c');
   } finally {
     btn.disabled = false;
