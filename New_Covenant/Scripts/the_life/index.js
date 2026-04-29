@@ -124,15 +124,30 @@ export function subscribeOpenCareCount(cb) {
         unsub = query.onSnapshot((snap) => {
           let open = 0;
           const openRows = [];
+          const openSummary = [];
           snap.forEach((doc) => {
             const d = doc.data() || {};
             const s = String(d.status || d.Status || '').trim().toLowerCase();
             if (!_TERMINAL.has(s)) {
               open++;
               openRows.push(Object.assign({ id: doc.id }, d));
+              openSummary.push({
+                id: doc.id,
+                status: d.status || d.Status || '(none)',
+                memberId: d.memberId || d.member || '(none)',
+                title: d.title || d.subject || d.summary || '(none)',
+                createdAt: d.createdAt || '(missing)'
+              });
             }
           });
           console.log('[CARE-BADGE] snapshot fired: ' + snap.size + ' total docs, ' + open + ' open (' + (Date.now() - _t0) + 'ms since subscribe)');
+          // One-shot dump of all open rows so we can identify ghosts
+          // (cases the user resolved that aren't actually closed in Firestore).
+          if (!_dumpedOnce) {
+            _dumpedOnce = true;
+            console.log('[CARE-BADGE] open docs:');
+            console.table(openSummary);
+          }
           // Keep the warm row cache in sync so the Pastoral Care view can
           // render instantly on first mount (no 2-second listMembers+listCases
           // round-trip blocking paint).
@@ -230,6 +245,7 @@ function _awaitBackend(_legacyMs) {
    from the warmed cache instead of waiting on a fresh round-trip.            */
 let _warmCount = null;
 let _warmRows = null;             // last-seen array of open care rows
+let _dumpedOnce = false;          // one-shot console.table of open docs
 const _warmSubscribers = new Set();
 const _warmRowSubscribers = new Set();
 let _warmStarted = false;
