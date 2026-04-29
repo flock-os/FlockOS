@@ -133,9 +133,9 @@ function _prescriptionsHtml() {
     const rx  = q.Prescription || q.prescription || '';
     const ref = q['Verse Reference'] || q.verseReference || '';
     h += `<div style="padding:8px 10px; margin:6px 0; background:var(--bg-base, #f7f8fb); border-left:3px solid ${accent}; border-radius:6px;">
-      <p style="margin:0; font-size:13px; color:var(--ink, #1b264f);">${esc(q.Question || '')}</p>
-      ${rx  ? `<p style="margin:4px 0 0; font-size:13px; color:var(--ink, #1b264f);"><strong>Step:</strong> ${esc(rx)}</p>` : ''}
-      ${ref ? `<p style="margin:2px 0 0; font-size:12px; font-style:italic; color:var(--ink-muted, #7a7f96);">${bibleLink(ref)}</p>` : ''}
+      <p style="margin:0; font-size:15px; line-height:1.5; color:var(--ink, #1b264f);">${esc(q.Question || '')}</p>
+      ${rx  ? `<p style="margin:6px 0 0; font-size:14px; line-height:1.5; color:var(--ink, #1b264f);"><strong>Step:</strong> ${esc(rx)}</p>` : ''}
+      ${ref ? `<p style="margin:4px 0 0; font-size:13px; font-style:italic; color:var(--ink-muted, #7a7f96);">${bibleLink(ref)}</p>` : ''}
     </div>`;
   });
   return h;

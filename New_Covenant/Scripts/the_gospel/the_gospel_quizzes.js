@@ -132,7 +132,7 @@ function _paintQ(root) {
 
   let html = '';
   html += `<div style="margin-bottom:14px;">
-    <div style="display:flex; justify-content:space-between; font-size:12px; color:var(--ink-muted, #7a7f96); margin-bottom:4px;">
+    <div style="display:flex; justify-content:space-between; font-size:13px; color:var(--ink-muted, #7a7f96); margin-bottom:4px;">
       <span>Question ${i + 1} of ${total}</span><span>${Object.keys(_state.answers).length} answered</span>
     </div>
     <div class="grow-progress"><div class="grow-progress-fill" style="width:${pct}%; background:${accent};"></div></div>

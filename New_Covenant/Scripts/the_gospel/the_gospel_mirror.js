@@ -109,7 +109,7 @@ function _paint(root) {
     const yesN  = items.filter((q) => _state.answers[q.__qid] === 'yes').length;
     const pct   = items.length ? Math.round((yesN / items.length) * 100) : 0;
     p += `<div style="margin:10px 0;">
-      <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:3px;">
+      <div style="display:flex; justify-content:space-between; font-size:13px; margin-bottom:3px;">
         <span style="color:var(--ink, #1b264f);">${esc(cat)}</span>
         <span class="grow-muted">${yesN}/${items.length} (${ansN}/${items.length} answered)</span>
       </div>
@@ -125,10 +125,10 @@ function _paint(root) {
       const rx    = q.Prescription || q.prescription || '';
       const ref   = q.Scripture || q.scripture || q['Verse Reference'] || '';
       p += `<div style="border-left:3px solid ${esc(color)}; padding:8px 10px; margin:8px 0; background:var(--bg-base, #f7f8fb); border-radius:6px;">
-        <div style="font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:${esc(color)}; font-weight:700;">${esc(cat)}</div>
-        <p style="margin:4px 0; font-size:13px; color:var(--ink, #1b264f);">${esc(q.Question || '')}</p>
-        ${rx  ? `<p style="margin:4px 0; font-size:13px; color:var(--ink, #1b264f);"><strong>Step:</strong> ${esc(rx)}</p>` : ''}
-        ${ref ? `<p style="margin:2px 0 0; font-size:12px; font-style:italic; color:var(--ink-muted, #7a7f96);">${bibleLink(ref)}</p>` : ''}
+        <div style="font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:${esc(color)}; font-weight:700;">${esc(cat)}</div>
+        <p style="margin:6px 0; font-size:15px; line-height:1.5; color:var(--ink, #1b264f);">${esc(q.Question || '')}</p>
+        ${rx  ? `<p style="margin:6px 0; font-size:14px; line-height:1.5; color:var(--ink, #1b264f);"><strong>Step:</strong> ${esc(rx)}</p>` : ''}
+        ${ref ? `<p style="margin:4px 0 0; font-size:13px; font-style:italic; color:var(--ink-muted, #7a7f96);">${bibleLink(ref)}</p>` : ''}
       </div>`;
     });
     p += helpButton({ label: 'Send this triage to my pastor', dataAttr: 'help-mirror' });

@@ -166,7 +166,7 @@ function _oybTodayCard(e) {
       </div>
     </div>
     <div style="text-align:center; margin: 12px 0 4px;">
-      <button class="grow-btn grow-btn--ghost" data-oyb-toggle style="font-size:13px;">See all 365 days ▼</button>
+      <button class="grow-btn grow-btn--ghost" data-oyb-toggle style="font-size:14px;">See all 365 days ▼</button>
     </div>
   `;
 }
