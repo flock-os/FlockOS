@@ -1616,14 +1616,31 @@ function _isLeadPastorGroup(members) {
 function _caregiverSelect(members, fieldName, defaultId, placeholder) {
   const sorted = _dedupeMembers(members).sort((a, b) => _memberName(a).localeCompare(_memberName(b)));
   // Resolve ID: try several common field names
-  function _mid(m) { return m.id || m.uid || m.docId || m.memberNumber || m.email || ''; }
+  function _mid(m) { return m.memberPin || m.memberNumber || m.id || m.uid || m.docId || m.email || ''; }
+  // Match defaultId against EVERY identifier we know about — care cases store
+  // memberPin (SSN-style) here, but other surfaces may store docId/uid/email.
+  // If any field matches, render the option value AS defaultId so an unchanged
+  // submit doesn't silently rewrite the stored id format.
+  const dRaw = defaultId == null ? '' : String(defaultId).trim();
+  const dLow = dRaw.toLowerCase();
+  function _matchesDefault(m) {
+    if (!dRaw) return false;
+    return m.memberPin    === dRaw
+        || m.memberNumber === dRaw
+        || m.id           === dRaw
+        || m.uid          === dRaw
+        || m.docId        === dRaw
+        || (m.email        && m.email.toLowerCase()        === dLow)
+        || (m.primaryEmail && m.primaryEmail.toLowerCase() === dLow);
+  }
   return `<select class="life-sheet-input" data-field="${_e(fieldName)}">
     <option value="">${_e(placeholder || '— None —')}</option>
     ${sorted.map(m => {
-      const id  = _mid(m);
-      const sel = (defaultId && (id === defaultId || m.email === defaultId || m.uid === defaultId)) ? ' selected' : '';
+      const matches = _matchesDefault(m);
+      const value   = matches ? dRaw : _mid(m);
+      const sel     = matches ? ' selected' : '';
       const role = m.role || m.memberType || '';
-      return `<option value="${_e(id)}"${sel}>${_e(_memberName(m))}${role ? '  (' + role + ')' : ''}</option>`;
+      return `<option value="${_e(value)}"${sel}>${_e(_memberName(m))}${role ? '  (' + role + ')' : ''}</option>`;
     }).join('')}
   </select>`;
 }
