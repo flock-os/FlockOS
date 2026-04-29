@@ -12,6 +12,20 @@ export const title = 'Pastoral Care';
 
 const _TERMINAL = new Set(['resolved','closed','archived','cancelled','denied','completed','answered','inactive','deleted']);
 
+// Cached AppConfig: SSN-style member id of the Lead Pastor (set in The Wall ▸ Admin).
+// Loaded once during _loadCare; consulted by _findLeadPastor() and the new-case modal
+// so cases auto-default to the configured Lead Pastor as primary caregiver.
+let _lpConfigId = '';
+async function _loadLpConfigId() {
+  try {
+    const UR = window.UpperRoom;
+    if (!UR || typeof UR.getAppConfig !== 'function') return '';
+    const cfg = await UR.getAppConfig({ key: 'LEAD_PASTOR_MEMBER_ID' });
+    _lpConfigId = String((cfg && (cfg.value || cfg.val)) || '').trim();
+    return _lpConfigId;
+  } catch { return ''; }
+}
+
 /* ── Sidebar badge ────────────────────────────────────────────────────────────
    the_pillars imports `pendingCount` and shows it next to "Pastoral Care".
    Counts open (non-terminal) care cases. Cached briefly so the 30-second
@@ -722,6 +736,8 @@ async function _loadCare(root, caseMap) {
         ? UR.listMembers({ limit: 500 }).catch(() => [])
         : Promise.resolve([]),
     ]);
+    // Refresh Lead Pastor AppConfig in the background; non-blocking for the queue.
+    _loadLpConfigId();
     const memberDir = _mergeMemberDirs(_rows(gasMembersRes), _rows(fbMembersRes));
     const all  = _rows(careRes);
     const rows = all.filter(r => !_TERMINAL.has((r.status || r.Status || '').toLowerCase()));
@@ -861,7 +877,7 @@ function _liveCareCard(c, memberDirOrMap, isDemo = false) {
   if (assigneeRaw) {
     assignee = _resolveName(assigneeRaw, memberDirOrMap) || assigneeRaw;
   } else {
-    const lp = _findLeadPastor(Array.isArray(memberDirOrMap) ? memberDirOrMap : []);
+    const lp = _findLeadPastor(Array.isArray(memberDirOrMap) ? memberDirOrMap : [], _lpConfigId);
     if (lp) { assignee = _memberName(lp); assigneeIsLP = true; }
     else    { assignee = 'Unassigned'; }
   }
@@ -1445,9 +1461,24 @@ function _memberName(m) {
 }
 
 // ── Find Lead Pastor from member directory ────────────────────────────────────
-function _findLeadPastor(members) {
+// Priority: (1) match by configured LEAD_PASTOR_MEMBER_ID AppConfig (memberPin/id/
+// memberNumber/uid/email), (2) fall back to role/memberType containing "pastor".
+function _findLeadPastor(members, lpConfigId) {
+  const list = Array.isArray(members) ? members : [];
+  const cfgId = String(lpConfigId || _lpConfigId || '').trim();
+  if (cfgId) {
+    const byId = list.find(m =>
+      m.memberPin === cfgId
+      || m.memberNumber === cfgId
+      || m.id === cfgId
+      || m.uid === cfgId
+      || m.docId === cfgId
+      || (m.email && m.email.toLowerCase() === cfgId.toLowerCase())
+    );
+    if (byId) return byId;
+  }
   const PASTOR_ROLES = ['lead pastor','senior pastor','lead','pastor'];
-  return members.find(m => {
+  return list.find(m => {
     const r = String(m.role || m.memberType || '').toLowerCase();
     return PASTOR_ROLES.some(pr => r === pr || r.startsWith(pr));
   });
@@ -1530,7 +1561,7 @@ function _newCareModal(memberDir, onSave) {
   const V   = window.TheVine;
   const MXC = buildAdapter('flock.care', V);
   const hasMemberDir = memberDir && memberDir.length > 0;
-  const leadPastor   = _findLeadPastor(memberDir || []);
+  const leadPastor   = _findLeadPastor(memberDir || [], _lpConfigId);
   const lpId         = leadPastor ? (leadPastor.id || leadPastor.uid || leadPastor.docId || leadPastor.memberNumber || leadPastor.email || '') : '';
 
   const sheet = document.createElement('div');
@@ -1751,15 +1782,18 @@ function _newCareModal(memberDir, onSave) {
     const btn = sheet.querySelector('[data-save]');
     btn.disabled = true; btn.textContent = 'Creating…';
     try {
-      await MXC.create({
+      // Auto-assign to the configured Lead Pastor when no caregiver was picked.
+      const finalAssignee = assignee || lpId || '';
+      const payload = {
         memberId,
         careType,
         priority,
         status: 'Open',
-        primaryCaregiverId:   assignee  || undefined,
-        secondaryCaregiverId: secondary || undefined,
-        summary:              summary   || undefined,
-      });
+      };
+      if (finalAssignee) payload.primaryCaregiverId   = finalAssignee;
+      if (secondary)     payload.secondaryCaregiverId = secondary;
+      if (summary)       payload.summary              = summary;
+      await MXC.create(payload);
       _closeSheet();
       if (onSave) onSave();
     } catch (err) {
