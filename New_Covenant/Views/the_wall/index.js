@@ -45,6 +45,11 @@ const SECTIONS = [
     icon: '<path d="M9 11l3 3 8-8"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>',
     custom: 'audit',
   },
+  {
+    key: 'maintenance', label: 'Maintenance',
+    icon: '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>',
+    custom: 'maintenance',
+  },
 ];
 
 export function render() {
@@ -73,6 +78,7 @@ export function render() {
             <div class="wall-panel${i === 0 ? '' : ' wall-panel--hidden'}" data-wall-panel="${s.key}">
               <h2 class="wall-panel-title">${_e(s.label)}</h2>
               ${s.custom === 'audit'         ? _auditPanelMarkup()         :
+                s.custom === 'maintenance'   ? _maintenancePanelMarkup()   :
                 s.custom === 'church'        ? _churchPanelMarkup()        :
                 s.custom === 'members'       ? _membersPanelMarkup()       :
                 s.custom === 'roles'         ? _rolesPanelMarkup()         :
@@ -122,6 +128,9 @@ export function mount(root) {
 
   // Audit panel wiring
   _wireAuditPanel(root);
+
+  // Maintenance panel wiring
+  _wireMaintenancePanel(root);
 
   // JP API panel wiring — load status immediately
   _wireIntegrationsPanel(root);
@@ -855,6 +864,128 @@ async function _initAllMissing(root) {
     _renderAuditRows(host, rows);
   } catch (err) {
     if (host) host.innerHTML = `<div class="life-empty" style="color:#b91c1c">Initialization failed: ${_e(err?.message || String(err))}</div>`;
+  }
+}
+
+/* ── Maintenance panel ──────────────────────────────────────────────────
+   One-shot utilities for after-the-fact data fixes (e.g. lead pastor
+   handoff, lost assignments). Each action operates over the live
+   Firestore collections via UpperRoom — no GAS bridge needed.          */
+function _maintenancePanelMarkup() {
+  return /* html */`
+    <p class="wall-audit-intro" style="margin:0 0 14px;color:var(--ink-muted,#7a7f96);font-size:.9rem">
+      Utilities for one-time data fixes. Use these when the lead pastor changes,
+      after a data import, or if care assignments need to be reset.
+    </p>
+    <div class="wall-setting-row" style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:14px;border:1px solid var(--line,#e5e7ef);border-radius:10px;margin-bottom:10px;background:var(--bg-raised,#fff);flex-wrap:wrap">
+      <div style="flex:1;min-width:240px">
+        <div style="font-weight:600;color:var(--ink,#1b264f);margin-bottom:2px">Reassign all to Lead Pastor</div>
+        <div style="font-size:.82rem;color:var(--ink-muted,#7a7f96);line-height:1.5">
+          Sets the primary caregiver on every <strong>open</strong> care case and the assignee on every <strong>active</strong> prayer request to the Lead Pastor (configured under Church Settings). Resolved cases and answered prayers are skipped.
+        </div>
+        <div class="wall-maint-status" data-bind="reassign-status" style="margin-top:8px;font-size:.82rem;color:var(--ink-muted,#7a7f96)"></div>
+      </div>
+      <button class="flock-btn flock-btn--primary" data-act="reassign-to-lp" type="button" style="flex-shrink:0">Reassign now</button>
+    </div>
+  `;
+}
+
+function _wireMaintenancePanel(root) {
+  const panel = root.querySelector('[data-wall-panel="maintenance"]');
+  if (!panel) return;
+  panel.addEventListener('click', async (e) => {
+    const btn = e.target.closest('[data-act="reassign-to-lp"]');
+    if (!btn) return;
+    if (!confirm('Reassign all open care cases and active prayer requests to the Lead Pastor?\n\nThis cannot be undone automatically.')) return;
+    await _reassignAllToLeadPastor(root, btn);
+  });
+}
+
+async function _reassignAllToLeadPastor(root, btn) {
+  const status = root.querySelector('[data-bind="reassign-status"]');
+  const setStatus = (msg, color) => {
+    if (!status) return;
+    status.textContent = msg;
+    status.style.color = color || 'var(--ink-muted,#7a7f96)';
+  };
+  btn.disabled = true;
+  const origLabel = btn.textContent;
+  btn.textContent = 'Working…';
+  setStatus('Looking up Lead Pastor…');
+
+  const UR = await _waitForUpperRoom(10000);
+  if (!UR || !UR.getAppConfig) {
+    setStatus('Backend not ready.', '#b91c1c');
+    btn.disabled = false; btn.textContent = origLabel;
+    return;
+  }
+
+  try {
+    const cfg = await UR.getAppConfig({ key: 'LEAD_PASTOR_MEMBER_ID' });
+    const lpId = String((cfg && cfg.value) || '').trim();
+    if (!lpId) {
+      setStatus('No Lead Pastor Member PIN is configured under Church Settings.', '#b91c1c');
+      btn.disabled = false; btn.textContent = origLabel;
+      return;
+    }
+
+    setStatus(`Reassigning open cases and prayers to ${lpId}…`);
+
+    // ── Care cases ────────────────────────────────────────────────
+    let caseChecked = 0, caseUpdated = 0, caseFailed = 0;
+    if (UR.listCareCases && UR.updateCareCase) {
+      const TERMINAL = new Set(['resolved','closed','archived','cancelled','completed','denied']);
+      const allCases = await UR.listCareCases({ limit: 1000 });
+      const cases = Array.isArray(allCases) ? allCases : (allCases?.results || []);
+      for (const c of cases) {
+        caseChecked++;
+        const st = String(c.status || '').toLowerCase();
+        if (TERMINAL.has(st)) continue;
+        if (c.primaryCaregiverId === lpId) continue;
+        try {
+          await UR.updateCareCase({ id: c.id, primaryCaregiverId: lpId });
+          caseUpdated++;
+        } catch (err) {
+          caseFailed++;
+          console.error('[wall] reassign care case failed', c.id, err);
+        }
+      }
+    }
+
+    // ── Prayers ───────────────────────────────────────────────────
+    let prayerChecked = 0, prayerUpdated = 0, prayerFailed = 0;
+    if (UR.listPrayers && UR.updatePrayer) {
+      const TERMINAL_P = new Set(['answered','closed','archived','resolved']);
+      const all = await UR.listPrayers({ allUsers: true, limit: 1000 });
+      const prayers = Array.isArray(all) ? all : (all?.results || []);
+      for (const p of prayers) {
+        prayerChecked++;
+        const st = String(p.status || '').toLowerCase();
+        if (TERMINAL_P.has(st)) continue;
+        if (p.assignedTo === lpId) continue;
+        try {
+          await UR.updatePrayer(p.id, { assignedTo: lpId });
+          prayerUpdated++;
+        } catch (err) {
+          prayerFailed++;
+          console.error('[wall] reassign prayer failed', p.id, err);
+        }
+      }
+    }
+
+    const failMsg = (caseFailed || prayerFailed)
+      ? ` · ${caseFailed + prayerFailed} failed (see console)`
+      : '';
+    setStatus(
+      `Done. Cases: ${caseUpdated} reassigned of ${caseChecked} checked. Prayers: ${prayerUpdated} reassigned of ${prayerChecked} checked.${failMsg}`,
+      (caseFailed || prayerFailed) ? '#b45309' : '#16a34a'
+    );
+  } catch (err) {
+    console.error('[wall] reassignAllToLeadPastor error', err);
+    setStatus(`Failed: ${err?.message || String(err)}`, '#b91c1c');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = origLabel;
   }
 }
 
