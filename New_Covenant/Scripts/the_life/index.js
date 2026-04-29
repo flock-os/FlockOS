@@ -154,16 +154,17 @@ export function subscribeOpenCareCount(cb) {
           _warmRows = openRows;
           _warmRowSubscribers.forEach((rcb) => { try { rcb(openRows); } catch (_) {} });
           try { cb(open); } catch (_) {}
-        }, (_err) => { /* swallow — listener may be torn down on logout */ });
+        }, (err) => { console.error('[CARE-BADGE] onSnapshot ERROR callback:', err && (err.code || err.name), err && err.message, err); });
         // Emit an initial value immediately so the badge isn't blank while
         // the first snapshot is in-flight (Firestore listener fires within
         // a tick, but onSnapshot doesn't guarantee a synchronous initial cb).
         return;
-      } catch (_) { /* fall through to polling */ }
+      } catch (e) { console.error('[CARE-BADGE] onSnapshot SYNC threw — falling through to polling:', e && (e.code || e.name), e && e.message, e); }
     }
 
     // Polling fallback (GAS-only deploys or Firestore listener unavailable)
-    try { cb(await pendingCount()); } catch (_) {}
+    console.warn('[CARE-BADGE] FALLING THROUGH TO POLLING (pendingCount). fsReady was ' + (UR && UR.isReady && UR.isReady()));
+    try { const _pc = await pendingCount(); console.warn('[CARE-BADGE] polling pendingCount returned ' + _pc); cb(_pc); } catch (e) { console.error('[CARE-BADGE] polling pendingCount threw:', e); }
     const tick = setInterval(async () => {
       if (cancelled) return clearInterval(tick);
       try { cb(await pendingCount()); } catch (_) {}

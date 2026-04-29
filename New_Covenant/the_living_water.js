@@ -10,7 +10,7 @@
    • PUSH        → Show notification; click → focus or open app
    ══════════════════════════════════════════════════════════════════════════════ */
 
-const CACHE_NAME = 'flockos-new-covenant-v1.08';
+const CACHE_NAME = 'flockos-new-covenant-v1.09';
 
 /* Derive base path from SW location (works at root or any subpath) */
 const SW_BASE = self.location.pathname.replace(/\/[^\/]+$/, '/');
