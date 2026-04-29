@@ -3864,7 +3864,8 @@ flock-tabs [role="tablist"], .tabs-bar {
 
 .grow-toolbar { display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
 .grow-search {
-  flex:1 1 240px; min-width:200px;
+  display:block; width:100%; box-sizing:border-box;
+  flex:0 0 auto;
   padding:10px 14px;
   border:1px solid var(--border, rgba(255,255,255,.08));
   border-radius:10px;
@@ -4134,7 +4135,11 @@ flock-tabs [role="tablist"], .tabs-bar {
 
 /* counseling */
 .grow-grid--counseling { grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); }
-.grow-card--counsel { padding:18px 14px; text-align:center; align-items:center; transition:grid-column .2s; }
+.grow-card--counsel {
+  padding:0; text-align:left; align-items:stretch;
+  transition:grid-column .2s, box-shadow .15s ease, transform .15s ease;
+  border-left:4px solid var(--grow-accent, #16a34a);
+}
 .grow-card--counsel.is-open {
   grid-column: 1 / -1;
   text-align: left;
