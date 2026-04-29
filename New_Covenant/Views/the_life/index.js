@@ -2034,23 +2034,16 @@ function _newCareModal(memberDir, onSave) {
   let _lastAppliedType = null;
   function _applyModalType(val) {
     if (!val) return;
-    const cfg = _cfgFor(val);
-    const t   = CARE_TYPES[val] || {};
+    const t = CARE_TYPES[val] || {};
     // Auto-set priority pill
     const pri = t.priority || 'normal';
     sheet.querySelectorAll('[data-priority]').forEach(btn => {
       btn.classList.toggle('is-active', btn.dataset.priority === pri);
     });
-    // Fill notes template if summary is empty OR if it still contains the previous auto-filled template
-    if (cfg?.notes && summaryTa) {
-      const prevCfg    = _lastAppliedType ? _cfgFor(_lastAppliedType) : null;
-      const isEmpty    = !summaryTa.value.trim();
-      const hasOldTmpl = prevCfg?.notes && summaryTa.value === prevCfg.notes;
-      if (isEmpty || hasOldTmpl) {
-        summaryTa.value = cfg.notes;
-        summaryTa.rows  = Math.max(4, Math.min(14, (cfg.notes.match(/\n/g) || []).length + 2));
-      }
-    }
+    // NOTE: do NOT pre-fill the Summary textarea with the care-type notes
+    // template. That template is meant to populate the case notes for the
+    // Lead Pastor AFTER the case is created \u2014 not to overwrite the
+    // intake summary the reporter is typing in this modal.
     // Update workflow guide
     if (wgPlaceholder) wgPlaceholder.innerHTML = _workflowGuideHtml(val);
     _lastAppliedType = val;
