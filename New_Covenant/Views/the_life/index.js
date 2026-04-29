@@ -1099,13 +1099,17 @@ function _decrementTotal(root) {
 let _activeSheet = null;
 
 function _findMemberRec(idOrEmail, memberDir) {
-  if (!idOrEmail || !Array.isArray(memberDir)) return null;
+  if (!idOrEmail) return null;
+  // Accept a name-lookup Map by falling back to the cached array directory.
+  const dir = Array.isArray(memberDir) ? memberDir : _memberDirCache;
+  if (!Array.isArray(dir) || !dir.length) return null;
   const k = String(idOrEmail).toLowerCase();
-  return memberDir.find(m =>
-       (m.id          && String(m.id).toLowerCase()          === k)
+  return dir.find(m =>
+       (m.memberPin   && String(m.memberPin).toLowerCase()   === k)
+    || (m.memberNumber&& String(m.memberNumber).toLowerCase()=== k)
+    || (m.id          && String(m.id).toLowerCase()          === k)
     || (m.uid         && String(m.uid).toLowerCase()         === k)
     || (m.docId       && String(m.docId).toLowerCase()       === k)
-    || (m.memberNumber&& String(m.memberNumber).toLowerCase()=== k)
     || (m.email        && m.email.toLowerCase()        === k)
     || (m.primaryEmail && m.primaryEmail.toLowerCase() === k)
   ) || null;
