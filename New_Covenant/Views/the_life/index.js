@@ -854,13 +854,21 @@ function _liveCareCard(c, memberDirOrMap, isDemo = false) {
                 || _resolveName(c.memberId, memberDirOrMap)
                 || c.memberId
                 || 'Unknown';
-  // Assigned: primaryCaregiverId is the canonical field; assignedTo is a fallback
+  // Assigned: primaryCaregiverId is the canonical field; assignedTo is a fallback.
+  // When NOTHING is set, fall back to the Lead Pastor so cases never look orphaned.
   const assigneeRaw = c.primaryCaregiverId || c.assignedTo || c.assignedName || c.assignee || '';
-  const assignee = _resolveName(assigneeRaw, memberDirOrMap) || assigneeRaw || 'Unassigned';
+  let assignee, assigneeIsLP = false;
+  if (assigneeRaw) {
+    assignee = _resolveName(assigneeRaw, memberDirOrMap) || assigneeRaw;
+  } else {
+    const lp = _findLeadPastor(Array.isArray(memberDirOrMap) ? memberDirOrMap : []);
+    if (lp) { assignee = _memberName(lp); assigneeIsLP = true; }
+    else    { assignee = 'Unassigned'; }
+  }
   const note     = c.summary || c.description || c.notes || c.note || '';
   const p        = PRIORITY[priority]  || PRIORITY.normal;
   const t        = CARE_TYPES[rawTypeOrig] || CARE_TYPES[type] || CARE_TYPES[rawType] || { icon: '🫱', label: rawTypeOrig || 'Other' };
-  const unassigned = !assigneeRaw || assignee === 'Unassigned';
+  const unassigned = !assigneeRaw && !assigneeIsLP;
   const ts       = c.updatedAt || c.createdAt;
   const daysStr  = ts ? _daysAgo(ts) : '';
   const cid      = _e(String(c.id || c.caseId || ''));

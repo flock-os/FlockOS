@@ -166,7 +166,7 @@ function _liveCard(p) {
   const initials = (first ? first[0] : (name[0] || '')) + (last ? last[0] : (name[1] || ''));
   const yr       = p.joinDate ? new Date(p.joinDate).getFullYear() : (p.createdAt ? new Date(p.createdAt).getFullYear() : '');
   const color    = _AVATAR_COLORS[(name.charCodeAt(0) + (name.charCodeAt(1) || 0)) % _AVATAR_COLORS.length];
-  const uid      = p.id || p.memberNumber || p.email || '';
+  const uid      = p.memberNumber || p.memberPin || p.id || p.email || '';
   const email    = (p.email || p.primaryEmail || '').trim();
   const phoneRaw = (p.phone || p.primaryPhone || p.mobilePhone || '').trim();
   const phoneTel = phoneRaw.replace(/[^\d+]/g, '');
@@ -261,7 +261,7 @@ function _openMemberSheet(person, V, onReload) {
   const last    = person.lastName  || '';
   const name    = person.displayName || person.name || `${first} ${last}`.trim() || 'Unknown';
   const role    = (person.role || person.memberType || 'member');
-  const uid     = person.id || person.memberNumber || person.email || '';
+  const uid     = person.memberNumber || person.memberPin || person.id || person.email || '';
   const initials = (first ? first[0] : (name[0] || '')) + (last ? last[0] : (name[1] || ''));
   const color   = _AVATAR_COLORS[(name.charCodeAt(0) + (name.charCodeAt(1) || 0)) % _AVATAR_COLORS.length];
   const email    = (person.email || person.primaryEmail || '').trim();
