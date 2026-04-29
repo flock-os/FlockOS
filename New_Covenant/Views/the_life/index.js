@@ -735,9 +735,10 @@ async function _loadCare(root, caseMap) {
       (UR && typeof UR.listMembers === 'function')
         ? UR.listMembers({ limit: 500 }).catch(() => [])
         : Promise.resolve([]),
+      // Refresh Lead Pastor AppConfig BEFORE we render cards so the fallback
+      // ("default to LP when no caregiver assigned") works on first paint.
+      _loadLpConfigId(),
     ]);
-    // Refresh Lead Pastor AppConfig in the background; non-blocking for the queue.
-    _loadLpConfigId();
     const memberDir = _mergeMemberDirs(_rows(gasMembersRes), _rows(fbMembersRes));
     const all  = _rows(careRes);
     const rows = all.filter(r => !_TERMINAL.has((r.status || r.Status || '').toLowerCase()));
