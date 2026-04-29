@@ -6,6 +6,7 @@
 import { pageHero } from '../_frame.js';
 import { profile } from '../../Scripts/the_priesthood/index.js';
 import { buildAdapter } from '../../Scripts/the_living_water_adapter.js';
+import { getWarmCareRows, subscribeOpenCareRows } from '../../Scripts/the_life/index.js';
 
 export const name  = 'the_life';
 export const title = 'Pastoral Care';
@@ -828,7 +829,14 @@ export function mount(root) {
   _wireSecondaryNewBtns();
   _reload();
 
-  return () => { _closeSheet(); };
+  // Keep stats live while view is mounted — the warm Firestore listener
+  // already pushes every change in careCases, so subscribing here means
+  // a brand-new case shows up in the tiles without waiting for _reload.
+  const _unsubLiveRows = subscribeOpenCareRows((openRows) => {
+    try { _updateStats(root, openRows); } catch (_) {}
+  });
+
+  return () => { _closeSheet(); try { _unsubLiveRows(); } catch (_) {} };
 }
 
 async function _loadCare(root, caseMap) {
@@ -838,7 +846,18 @@ async function _loadCare(root, caseMap) {
   if (!V) return null;
   const queue = root.querySelector('[data-bind="queue"]');
   if (!queue) return null;
-  queue.innerHTML = '<div class="life-loading">Loading care queue…</div>';
+
+  // Instant paint from the warm cache (populated by the_life/index.js's
+  // eager Firestore listener that started at login). Stats fill in the
+  // moment the page renders, even before listMembers/listCases finish.
+  const warmRows = getWarmCareRows();
+  if (Array.isArray(warmRows) && warmRows.length) {
+    _updateStats(root, warmRows);
+    queue.innerHTML = '<div class="life-loading">Loading care queue…</div>';
+  } else {
+    queue.innerHTML = '<div class="life-loading">Loading care queue…</div>';
+  }
+
   try {
     const UR = window.UpperRoom;
     const [careRes, gasMembersRes, fbMembersRes] = await Promise.all([

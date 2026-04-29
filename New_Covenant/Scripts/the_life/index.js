@@ -107,11 +107,20 @@ export function subscribeOpenCareCount(cb) {
       try {
         unsub = UR.careCasesRef().onSnapshot((snap) => {
           let open = 0;
+          const openRows = [];
           snap.forEach((doc) => {
             const d = doc.data() || {};
             const s = String(d.status || d.Status || '').trim().toLowerCase();
-            if (!_TERMINAL.has(s)) open++;
+            if (!_TERMINAL.has(s)) {
+              open++;
+              openRows.push(Object.assign({ id: doc.id }, d));
+            }
           });
+          // Keep the warm row cache in sync so the Pastoral Care view can
+          // render instantly on first mount (no 2-second listMembers+listCases
+          // round-trip blocking paint).
+          _warmRows = openRows;
+          _warmRowSubscribers.forEach((rcb) => { try { rcb(openRows); } catch (_) {} });
           try { cb(open); } catch (_) {}
         }, (_err) => { /* swallow — listener may be torn down on logout */ });
         // Emit an initial value immediately so the badge isn't blank while
@@ -181,12 +190,28 @@ function _awaitBackend(ms = 15_000) {
    is cached. By the time the_pillars subscribes, it gets an immediate hit
    from the warmed cache instead of waiting on a fresh round-trip.            */
 let _warmCount = null;
+let _warmRows = null;             // last-seen array of open care rows
 const _warmSubscribers = new Set();
+const _warmRowSubscribers = new Set();
 let _warmStarted = false;
 
 function _emitWarm(n) {
   _warmCount = n;
   _warmSubscribers.forEach((cb) => { try { cb(n); } catch (_) {} });
+}
+
+/* Public: read the cached open-care rows (may be null until first snapshot). */
+export function getWarmCareRows() {
+  return _warmRows;
+}
+
+/* Public: subscribe to live open-care rows. Emits the current cache on
+   subscribe (if available) and again every snapshot. Returns unsubscribe. */
+export function subscribeOpenCareRows(cb) {
+  if (typeof cb !== 'function') return () => {};
+  _warmRowSubscribers.add(cb);
+  if (_warmRows) { try { cb(_warmRows); } catch (_) {} }
+  return () => { _warmRowSubscribers.delete(cb); };
 }
 
 function _startWarmUp() {
