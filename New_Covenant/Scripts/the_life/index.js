@@ -118,11 +118,16 @@ export function subscribeOpenCareCount(cb) {
         // view's ordered query silently excludes — producing a count that
         // disagrees with the visible queue (e.g. badge=21, tiles=19).
         const ref = UR.careCasesRef();
-        console.log('[CARE-BADGE] careCasesRef returned:', ref, 'typeof orderBy=' + (ref && typeof ref.orderBy), 'typeof onSnapshot=' + (ref && typeof ref.onSnapshot), 'typeof get=' + (ref && typeof ref.get));
-        const query = (typeof ref.orderBy === 'function')
-          ? ref.orderBy('createdAt', 'desc')
-          : ref;
-        console.log('[CARE-BADGE] query after orderBy:', query, 'typeof onSnapshot=' + (query && typeof query.onSnapshot), 'typeof get=' + (query && typeof query.get));
+        const refType = Object.prototype.toString.call(ref);
+        const refKeys = ref ? Object.keys(ref).slice(0, 10).join(',') : '(null)';
+        const refProto = ref ? Object.getPrototypeOf(ref) : null;
+        const refProtoKeys = refProto ? Object.getOwnPropertyNames(refProto).slice(0, 20).join(',') : '(none)';
+        console.log('[CARE-BADGE] PROBE-A ref ' + refType + ' | keys: ' + refKeys + ' | proto methods: ' + refProtoKeys);
+        console.log('[CARE-BADGE] PROBE-B ref typeof orderBy=' + (ref && typeof ref.orderBy) + ' onSnapshot=' + (ref && typeof ref.onSnapshot) + ' get=' + (ref && typeof ref.get) + ' where=' + (ref && typeof ref.where));
+        // Try onSnapshot directly on the collection ref (skip orderBy) to
+        // isolate whether orderBy is what strips the listener method.
+        const query = ref;
+        console.log('[CARE-BADGE] PROBE-C using bare ref (no orderBy) — typeof onSnapshot=' + (query && typeof query.onSnapshot));
         unsub = query.onSnapshot((snap) => {
           let open = 0;
           const openRows = [];
