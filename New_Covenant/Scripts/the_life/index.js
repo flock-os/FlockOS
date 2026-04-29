@@ -60,6 +60,10 @@ export async function compassionList() {
 }
 
 export async function pendingCount() {
+  // If the eager warm-up has already received a count, return it instantly
+  // — no awaiting backend, no round-trip. This is what makes the badge
+  // appear the moment the sidebar paints after login.
+  if (_warmCount !== null) return _warmCount;
   // Wait briefly for a backend (Firestore via UpperRoom, or GAS via TheVine)
   // so a fresh login doesn't return 0 and leave the badge hidden until the
   // next sidebar tick.
@@ -144,6 +148,35 @@ function _awaitBackend(ms = 15_000) {
     check();
   });
 }
+
+/* ── Eager warm-up ───────────────────────────────────────────────────────────
+   Start watching the open-case count the moment this module loads — well
+   before the sidebar mounts. The instant auth completes (whether persisted
+   session or post-login mint), the Firestore listener fires and the count
+   is cached. By the time the_pillars subscribes, it gets an immediate hit
+   from the warmed cache instead of waiting on a fresh round-trip.            */
+let _warmCount = null;
+const _warmSubscribers = new Set();
+let _warmStarted = false;
+
+function _emitWarm(n) {
+  _warmCount = n;
+  _warmSubscribers.forEach((cb) => { try { cb(n); } catch (_) {} });
+}
+
+function _startWarmUp() {
+  if (_warmStarted) return;
+  _warmStarted = true;
+  // Deliberately fire-and-forget; subscribeOpenCareCount handles the
+  // backend-readiness wait and Firestore subscription.
+  subscribeOpenCareCount(_emitWarm);
+}
+
+// Kick it off as soon as the module loads. If UpperRoom isn't ready yet,
+// _awaitBackend polls until it is — so this cost nothing when run early
+// and is ready the instant the user finishes login.
+if (typeof window !== 'undefined') _startWarmUp();
+
 
 /* ── Legacy bridge stubs (used when window global supports them) ─────────── */
 export const outreachList    = (...a) => callWhen(NAME, 'outreachList', ...a);
