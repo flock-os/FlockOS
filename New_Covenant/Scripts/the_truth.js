@@ -76,7 +76,7 @@ const TheTruth = (() => {
   // the_way.js renderers call TheTruth.liveBundle(key) to get fresh data.
 
   var BUNDLE_STALE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
-  var BUNDLE_TABS = ['devotionals', 'counseling', 'quiz', 'words', 'apologetics', 'books', 'genealogy', 'theology', 'teachingPlans', 'missionsRegistry', 'lexiconGreek', 'lexiconHebrew'];
+  var BUNDLE_TABS = ['devotionals', 'counseling', 'quiz', 'apologetics', 'books', 'genealogy', 'theology', 'teachingPlans', 'missionsRegistry', 'lexiconGreek', 'lexiconHebrew'];
 
   function _bundleKey(k)   { return 'flock_bundle_' + k; }
   function _bundleTsKey(k) { return 'flock_bundle_' + k + '_ts'; }
@@ -268,19 +268,6 @@ const TheTruth = (() => {
         { k: 'newTestament', label: 'New Testament',      type: 'text' },
         { k: 'psalms',       label: 'Psalms',             type: 'text' },
         { k: 'proverbs',     label: 'Proverbs',           type: 'text' },
-      ]
-    },
-    { key: 'words', name: 'Lexicon', idField: 'original',
-      listCols: ['original', 'english', 'theme'],
-      fields: [
-        { k: 'original',        label: 'Original Word (Hebrew/Greek)', type: 'text',     required: true },
-        { k: 'english',         label: 'English Translation',          type: 'text' },
-        { k: 'strongs',         label: "Strong\u2019s Number",         type: 'text' },
-        { k: 'transliteration', label: 'Transliteration',              type: 'text' },
-        { k: 'definition',      label: 'Definition',                   type: 'textarea' },
-        { k: 'nuance',          label: 'Nuance',                       type: 'textarea' },
-        { k: 'theme',           label: 'Theme / Category',             type: 'text' },
-        { k: 'testament',       label: 'Testament',                    type: 'select',   opts: ['Old', 'New'] },
       ]
     },
     { key: 'heart', name: 'Heart Check', idField: 'questionId',
