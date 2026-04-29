@@ -118,9 +118,11 @@ export function subscribeOpenCareCount(cb) {
         // view's ordered query silently excludes — producing a count that
         // disagrees with the visible queue (e.g. badge=21, tiles=19).
         const ref = UR.careCasesRef();
+        console.log('[CARE-BADGE] careCasesRef returned:', ref, 'typeof orderBy=' + (ref && typeof ref.orderBy), 'typeof onSnapshot=' + (ref && typeof ref.onSnapshot), 'typeof get=' + (ref && typeof ref.get));
         const query = (typeof ref.orderBy === 'function')
           ? ref.orderBy('createdAt', 'desc')
           : ref;
+        console.log('[CARE-BADGE] query after orderBy:', query, 'typeof onSnapshot=' + (query && typeof query.onSnapshot), 'typeof get=' + (query && typeof query.get));
         unsub = query.onSnapshot((snap) => {
           let open = 0;
           const openRows = [];
