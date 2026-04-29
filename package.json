@@ -1,0 +1,32 @@
+{
+  "name": "flockos",
+  "version": "3.0.0",
+  "description": "Ministry Operating System — Free. Offline-capable. Built for every church.",
+  "private": true,
+  "scripts": {
+    "build:churches": "bash 'Running to Jesus/Bezalel/Scripts/A-Build_Churches.sh'",
+    "bcp": "bash 'Running to Jesus/Bezalel/Scripts/A-Build_Churches.sh' --deploy-comms",
+    "build:www": "rm -rf www && mkdir -p www && cp -R FlockOS www/FlockOS && cp index.html manifest.json the_living_water.js www/ && cp -R FlockOS/Images www/FlockOS/Images",
+    "cap:sync": "npm run build:www && npx cap sync",
+    "cap:ios": "npm run cap:sync && npx cap open ios",
+    "cap:android": "npm run cap:sync && npx cap open android"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/flock-os/FlockOS.git"
+  },
+  "license": "SEE LICENSE IN LICENSE",
+  "bugs": {
+    "url": "https://github.com/flock-os/FlockOS/issues"
+  },
+  "homepage": "https://github.com/flock-os/FlockOS#readme",
+  "dependencies": {
+    "@capacitor/cli": "^8.3.0",
+    "@capacitor/core": "^8.3.0",
+    "@capacitor/ios": "^8.3.0",
+    "firebase-admin": "^13.8.0"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.2"
+  }
+}

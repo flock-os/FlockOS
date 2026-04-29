@@ -1,0 +1,102 @@
+# ══════════════════════════════════════════════════════════════════════════
+# FlockOS .gitignore
+# ══════════════════════════════════════════════════════════════════════════
+
+# ── OS / Editor artifacts ─────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# ── Backup / temp files ──────────────────────────────────────────────────
+*.bak
+*.tmp
+*.log
+*.md.bak
+
+# ── Google Apps Script backend files ─────────────────────────────────────
+# .gs files are deployed via the Apps Script editor, not git.
+*.gs
+
+# ── Documentation text files ─────────────────────────────────────────────
+# Internal docs with sensitive references; not for public repos.
+
+# ── Sensitive docs / architecture (Covenant-era) ────────────────────────
+# Keep architecture and runbook material local-only by default.
+Covenant/Testimony/
+Covenant/Storehouse/
+Testimony/Architecture/
+Testimony/Runbooks/
+Testimony/Migration/
+Storehouse/
+FlockOS/Tools/Build Documents/Flock Docs/
+
+# ── Internal tools folder — never publish ────────────────────────────────
+# Contains deployment guides, admin credentials, API URLs, build scripts.
+FlockOS/Tools/Flock Secrets/
+FlockOS/Tools/Flock Deployments/
+FlockOS/Tools/Production Notes/
+FlockOS/Planning/
+# Canonical path after Covenant migration
+Covenant/Courts/TheTabernacle/Tools/Flock Secrets/
+# Catch-all for per-church tool secrets folders
+**/Tools/Flock Secrets/
+# ── Internal reference docs ───────────────────────────────────────────────
+# Large citation/reference markdown — useful locally, not for the repo.
+\#\ Code\ Citations.md
+\#\ Code\ References.md
+
+# ── Firebase CLI artifacts ───────────────────────────────────────────────
+.firebase/
+flockchat-public/
+
+# ── Node / build artifacts (future-proofing) ─────────────────────────────
+node_modules/
+FlockChat-Functions/node_modules/
+.env
+.env.*
+
+# ── Capacitor build output ───────────────────────────────────────────────
+www/
+ios/
+android/
+
+# ── Python build tools ───────────────────────────────────────────────────
+.venv/
+__pycache__/
+*.pyc
+CurrentFBPW.json
+
+# ── Security hardening (explicit secret patterns) ───────────────────────
+# Catch secret files even if moved outside expected folders.
+**/*firebase-adminsdk-*.json
+**/*service-account*.json
+**/*private-key*.json
+**/CurrentFBPW.json
+
+# Keep secret vaults local-only across any future folder reshuffles.
+**/Secrets/**
+
+# Architecture split safety: keep heavy local archives out of commits.
+Architechtural Docs/Storehouse/**
+
+# Planning / operational docs are local-only by default.
+**/*-Runbook*.md
+**/*-Plan*.md
+**/*Action Items*.md
+
+# ── Local-only utility scripts ───────────────────────────────────────────
+# One-off scripts (e.g. Firestore checks, data migrations) — local only.
+FlockOS/Tools/Flock Scripts/H-Check_Firestore.py
+check_*.py
+migrate_*.py
+Icon
+
+# New Covenant — local-only architectural notes
+New_Covenant/Architechtural Docs/
+
+# Entire architecture split tree is local-only and should never be tracked.
+Architechtural Docs/

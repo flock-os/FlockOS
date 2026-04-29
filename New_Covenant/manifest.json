@@ -1,0 +1,52 @@
+{
+  "name": "FlockOS",
+  "short_name": "FlockOS",
+  "description": "Ministry Operating System — Free. Offline-capable. Built for every church.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0c1445",
+  "theme_color": "#e8a838",
+  "lang": "en",
+  "dir": "ltr",
+  "categories": ["productivity", "utilities"],
+  "icons": [
+    {
+      "src": "Images/NewCovenant.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "Images/flockos-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Home",
+      "short_name": "Home",
+      "description": "Go to the Good Shepherd dashboard",
+      "url": "./index.html?view=the_good_shepherd",
+      "icons": [{ "src": "Images/NewCovenant.png", "sizes": "512x512" }]
+    },
+    {
+      "name": "Fellowship",
+      "short_name": "Fellowship",
+      "description": "Open messaging and channels",
+      "url": "./index.html?view=the_fellowship",
+      "icons": [{ "src": "Images/flockos-icon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "Pastoral Care",
+      "short_name": "Care",
+      "description": "Open pastoral care follow-ups",
+      "url": "./index.html?view=the_life",
+      "icons": [{ "src": "Images/flockos-icon.svg", "sizes": "any" }]
+    }
+  ],
+  "prefer_related_applications": false
+}

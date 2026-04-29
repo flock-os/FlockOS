@@ -1,0 +1,10 @@
+{
+  "projects": {
+    "default": "flockos-notify",
+    "flockos": "flockos-notify",
+    "theforest": "flockos-theforest",
+    "tbc": "flockos-trinity"
+  },
+  "targets": {},
+  "etags": {}
+}
