@@ -100,16 +100,20 @@ export function subscribeOpenCareCount(cb) {
   if (typeof cb !== 'function') return () => {};
   let unsub = () => {};
   let cancelled = false;
+  const _t0 = Date.now();
+  console.log('[CARE-BADGE] subscribeOpenCareCount() entry');
 
   (async () => {
     await _awaitBackend(15_000);
     if (cancelled) return;
     const UR = window.UpperRoom;
     const fsReady = !!(UR && typeof UR.isReady === 'function' && UR.isReady());
+    console.log('[CARE-BADGE] _awaitBackend resolved in ' + (Date.now() - _t0) + 'ms — fsReady=' + fsReady + ', hasUR=' + !!UR + ', hasCareCasesRef=' + !!(UR && UR.careCasesRef));
 
     // Firestore real-time path
     if (fsReady && typeof UR.careCasesRef === 'function') {
       try {
+        console.log('[CARE-BADGE] attaching onSnapshot…');
         // IMPORTANT: order by createdAt to match the query used by the
         // Pastoral Care view (UR.listCareCases → orderBy('createdAt','desc')).
         // Without this, the badge counts docs missing `createdAt` that the
@@ -130,6 +134,7 @@ export function subscribeOpenCareCount(cb) {
               openRows.push(Object.assign({ id: doc.id }, d));
             }
           });
+          console.log('[CARE-BADGE] snapshot fired: ' + snap.size + ' total docs, ' + open + ' open (' + (Date.now() - _t0) + 'ms since subscribe)');
           // Keep the warm row cache in sync so the Pastoral Care view can
           // render instantly on first mount (no 2-second listMembers+listCases
           // round-trip blocking paint).
@@ -254,15 +259,22 @@ export function subscribeOpenCareRows(cb) {
 function _startWarmUp() {
   if (_warmStarted) return;
   _warmStarted = true;
+  console.log('[CARE-BADGE] warm-up starting at module load');
   // Deliberately fire-and-forget; subscribeOpenCareCount handles the
   // backend-readiness wait and Firestore subscription.
-  subscribeOpenCareCount(_emitWarm);
+  subscribeOpenCareCount((n) => {
+    console.log('[CARE-BADGE] warm-up emit: ' + n);
+    _emitWarm(n);
+  });
 }
 
 // Kick it off as soon as the module loads. If UpperRoom isn't ready yet,
 // _awaitBackend polls until it is — so this cost nothing when run early
 // and is ready the instant the user finishes login.
-if (typeof window !== 'undefined') _startWarmUp();
+if (typeof window !== 'undefined') {
+  console.log('[CARE-BADGE] Scripts/the_life/index.js module loaded — invoking _startWarmUp()');
+  _startWarmUp();
+}
 
 
 /* ── Legacy bridge stubs (used when window global supports them) ─────────── */
