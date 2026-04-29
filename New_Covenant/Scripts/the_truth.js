@@ -151,7 +151,7 @@ const TheTruth = (() => {
   // the_way.js renderers call TheTruth.liveBundle(key) to get fresh data.
 
   var BUNDLE_STALE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
-  var BUNDLE_TABS = ['devotionals', 'counseling', 'quiz', 'words', 'apologetics', 'books', 'genealogy', 'theology'];
+  var BUNDLE_TABS = ['devotionals', 'counseling', 'quiz', 'words', 'apologetics', 'books', 'genealogy', 'theology', 'teachingPlans'];
 
   function _bundleKey(k)   { return 'flock_bundle_' + k; }
   function _bundleTsKey(k) { return 'flock_bundle_' + k + '_ts'; }
