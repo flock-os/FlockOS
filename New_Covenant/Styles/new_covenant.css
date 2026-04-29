@@ -951,9 +951,11 @@ flock-tabs [role="tablist"], .tabs-bar {
 /* Scripture footer */
 .garments-scripture {
   text-align: center;
-  font: italic 0.76rem var(--font-serif, 'Noto Serif', Georgia, serif);
-  color: rgba(255,255,255,0.20);
-  margin-top: 20px;
+  font: italic 0.95rem/1.5 var(--font-serif, 'Noto Serif', Georgia, serif);
+  color: rgba(255,255,255,0.62);
+  letter-spacing: 0.01em;
+  margin-top: 22px;
+  padding: 0 8px;
 }
 
 /* ════════════════════════════════════════════════════════════════════════════

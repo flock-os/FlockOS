@@ -1,6 +1,6 @@
 /* ══════════════════════════════════════════════════════════════════════════════
    THE GARMENTS — Sign-in form UI
-   "Let thy priests be clothed with righteousness." — Psalm 132:9
+   "Let your priests be clothed with righteousness." — Psalm 132:9 (ESV)
 
    A proper, branded sign-in experience — dark and royal, matching the
    lampstand's visual language. CSS lives in new_covenant.css (.garments-*).
@@ -42,7 +42,7 @@ export async function renderGarments(/* { mode } */) {
         </div>
 
         <p class="garments-scripture">
-          "Let thy priests be clothed with righteousness." — Psalm 132:9
+          "Let your priests be clothed with righteousness." — Psalm 132:9 (ESV)
         </p>
       </form>
     `;
