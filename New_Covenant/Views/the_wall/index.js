@@ -930,45 +930,64 @@ async function _reassignAllToLeadPastor(root, btn) {
     }
 
     setStatus(`Reassigning open cases and prayers to ${lpId}…`);
+    console.log('[wall/reassign] lpId from AppConfig =', JSON.stringify(lpId));
 
     // ── Care cases ────────────────────────────────────────────────
-    let caseChecked = 0, caseUpdated = 0, caseFailed = 0;
+    let caseChecked = 0, caseUpdated = 0, caseFailed = 0, caseSkipped = 0;
     if (UR.listCareCases && UR.updateCareCase) {
       const TERMINAL = new Set(['resolved','closed','archived','cancelled','completed','denied']);
       const allCases = await UR.listCareCases({ limit: 1000 });
       const cases = Array.isArray(allCases) ? allCases : (allCases?.results || []);
+      console.log('[wall/reassign] loaded ' + cases.length + ' care cases');
       for (const c of cases) {
         caseChecked++;
         const st = String(c.status || '').toLowerCase();
-        if (TERMINAL.has(st)) continue;
-        if (c.primaryCaregiverId === lpId) continue;
+        if (TERMINAL.has(st)) { caseSkipped++; continue; }
+        // Only skip if the existing primaryCaregiverId is a real, non-empty,
+        // non-"undefined"/"null" string that matches the lpId. Older save bugs
+        // wrote literal strings "undefined" / "null" into Firestore — we must
+        // still rewrite those.
+        const cur = c.primaryCaregiverId;
+        const curStr = (cur === undefined || cur === null) ? '' : String(cur).trim();
+        if (curStr && curStr.toLowerCase() !== 'undefined' && curStr.toLowerCase() !== 'null' && curStr === lpId) {
+          caseSkipped++;
+          continue;
+        }
+        console.log('[wall/reassign] case', c.id, 'status=' + st, 'cur=' + JSON.stringify(cur), '→', lpId);
         try {
           await UR.updateCareCase({ id: c.id, primaryCaregiverId: lpId });
           caseUpdated++;
         } catch (err) {
           caseFailed++;
-          console.error('[wall] reassign care case failed', c.id, err);
+          console.error('[wall/reassign] case update failed', c.id, err);
         }
       }
     }
 
     // ── Prayers ───────────────────────────────────────────────────
-    let prayerChecked = 0, prayerUpdated = 0, prayerFailed = 0;
+    let prayerChecked = 0, prayerUpdated = 0, prayerFailed = 0, prayerSkipped = 0;
     if (UR.listPrayers && UR.updatePrayer) {
       const TERMINAL_P = new Set(['answered','closed','archived','resolved']);
       const all = await UR.listPrayers({ allUsers: true, limit: 1000 });
       const prayers = Array.isArray(all) ? all : (all?.results || []);
+      console.log('[wall/reassign] loaded ' + prayers.length + ' prayers');
       for (const p of prayers) {
         prayerChecked++;
         const st = String(p.status || '').toLowerCase();
-        if (TERMINAL_P.has(st)) continue;
-        if (p.assignedTo === lpId) continue;
+        if (TERMINAL_P.has(st)) { prayerSkipped++; continue; }
+        const cur = p.assignedTo;
+        const curStr = (cur === undefined || cur === null) ? '' : String(cur).trim();
+        if (curStr && curStr.toLowerCase() !== 'undefined' && curStr.toLowerCase() !== 'null' && curStr === lpId) {
+          prayerSkipped++;
+          continue;
+        }
+        console.log('[wall/reassign] prayer', p.id, 'status=' + st, 'cur=' + JSON.stringify(cur), '→', lpId);
         try {
           await UR.updatePrayer(p.id, { assignedTo: lpId });
           prayerUpdated++;
         } catch (err) {
           prayerFailed++;
-          console.error('[wall] reassign prayer failed', p.id, err);
+          console.error('[wall/reassign] prayer update failed', p.id, err);
         }
       }
     }
@@ -977,7 +996,8 @@ async function _reassignAllToLeadPastor(root, btn) {
       ? ` · ${caseFailed + prayerFailed} failed (see console)`
       : '';
     setStatus(
-      `Done. Cases: ${caseUpdated} reassigned of ${caseChecked} checked. Prayers: ${prayerUpdated} reassigned of ${prayerChecked} checked.${failMsg}`,
+      `Done. Cases: ${caseUpdated} reassigned, ${caseSkipped} already-LP/terminal, of ${caseChecked} total. ` +
+      `Prayers: ${prayerUpdated} reassigned, ${prayerSkipped} already-LP/terminal, of ${prayerChecked} total.${failMsg}`,
       (caseFailed || prayerFailed) ? '#b45309' : '#16a34a'
     );
   } catch (err) {

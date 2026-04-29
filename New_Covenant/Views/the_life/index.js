@@ -873,10 +873,22 @@ function _liveCareCard(c, memberDirOrMap, isDemo = false) {
                 || 'Unknown';
   // Assigned: primaryCaregiverId is the canonical field; assignedTo is a fallback.
   // When NOTHING is set, fall back to the Lead Pastor so cases never look orphaned.
-  const assigneeRaw = c.primaryCaregiverId || c.assignedTo || c.assignedName || c.assignee || '';
+  // Treat literal "undefined"/"null" strings (older save-bug residue) as empty.
+  let assigneeRaw = c.primaryCaregiverId || c.assignedTo || c.assignedName || c.assignee || '';
+  if (typeof assigneeRaw === 'string') {
+    const t = assigneeRaw.trim().toLowerCase();
+    if (t === 'undefined' || t === 'null') assigneeRaw = '';
+  }
   let assignee, assigneeIsLP = false;
   if (assigneeRaw) {
-    assignee = _resolveName(assigneeRaw, memberDirOrMap) || assigneeRaw;
+    // If assigneeRaw matches the configured LP id, prefer the LP's full name.
+    if (_lpConfigId && String(assigneeRaw) === String(_lpConfigId)) {
+      const lp = _findLeadPastor(Array.isArray(memberDirOrMap) ? memberDirOrMap : [], _lpConfigId);
+      assignee = lp ? _memberName(lp) : (_resolveName(assigneeRaw, memberDirOrMap) || assigneeRaw);
+      assigneeIsLP = !!lp;
+    } else {
+      assignee = _resolveName(assigneeRaw, memberDirOrMap) || assigneeRaw;
+    }
   } else {
     const lp = _findLeadPastor(Array.isArray(memberDirOrMap) ? memberDirOrMap : [], _lpConfigId);
     if (lp) { assignee = _memberName(lp); assigneeIsLP = true; }
