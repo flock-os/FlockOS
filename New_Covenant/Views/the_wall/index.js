@@ -877,6 +877,23 @@ function _maintenancePanelMarkup() {
       Utilities for one-time data fixes. Use these when the lead pastor changes,
       after a data import, or if care assignments need to be reset.
     </p>
+    <div class="wall-setting-row" style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:16px;border:2px solid #b45309;border-radius:10px;margin-bottom:14px;background:linear-gradient(180deg,#fff7ed,#fffbf3);flex-wrap:wrap">
+      <div style="flex:1;min-width:240px">
+        <div style="font-weight:700;color:#7c2d12;margin-bottom:2px;display:flex;align-items:center;gap:8px">
+          <span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:#b45309;color:#fff;font-size:.75rem;font-weight:700">!</span>
+          Reset Care to Lead Pastor (master override)
+        </div>
+        <div style="font-size:.82rem;color:#7c2d12;line-height:1.5;margin-top:4px">
+          Performs the full reset in one step:
+          <strong>(1)</strong> reassigns every open care case and active prayer to the LP,
+          <strong>(2)</strong> reassigns every existing Active care assignment to the LP, and
+          <strong>(3)</strong> creates an Active assignment (role: Shepherd) for any member who still has none.
+          Use this whenever spiritual oversight changes — secondary caregivers can be re-added afterward.
+        </div>
+        <div class="wall-maint-status" data-bind="reset-status" style="margin-top:8px;font-size:.82rem;color:#7c2d12"></div>
+      </div>
+      <button class="flock-btn flock-btn--primary" data-act="reset-care-to-lp" type="button" style="flex-shrink:0;background:#b45309;border-color:#b45309">Reset now</button>
+    </div>
     <div class="wall-setting-row" style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:14px;border:1px solid var(--line,#e5e7ef);border-radius:10px;margin-bottom:10px;background:var(--bg-raised,#fff);flex-wrap:wrap">
       <div style="flex:1;min-width:240px">
         <div style="font-weight:600;color:var(--ink,#1b264f);margin-bottom:2px">Reassign all to Lead Pastor</div>
@@ -904,6 +921,11 @@ function _wireMaintenancePanel(root) {
   const panel = root.querySelector('[data-wall-panel="maintenance"]');
   if (!panel) return;
   panel.addEventListener('click', async (e) => {
+    const resetBtn = e.target.closest('[data-act="reset-care-to-lp"]');
+    if (resetBtn) {
+      if (!confirm('RESET CARE TO LEAD PASTOR\n\nThis will:\n  • Reassign every open care case and active prayer to the LP\n  • Reassign every existing Active care assignment to the LP\n  • Create an Active LP assignment for any member without one\n\nSecondary caregivers will need to be re-added manually afterward.\n\nProceed?')) return;
+      return _resetCareToLeadPastor(root, resetBtn);
+    }
     const reassignBtn = e.target.closest('[data-act="reassign-to-lp"]');
     if (reassignBtn) {
       if (!confirm('Reassign all open care cases and active prayer requests to the Lead Pastor?\n\nThis cannot be undone automatically.')) return;
@@ -1113,6 +1135,161 @@ async function _assignAllMembersToLeadPastor(root, btn) {
     );
   } catch (err) {
     console.error('[wall] assignAllMembersToLeadPastor error', err);
+    setStatus(`Failed: ${err?.message || String(err)}`, '#b91c1c');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = origLabel;
+  }
+}
+
+async function _resetCareToLeadPastor(root, btn) {
+  const status = root.querySelector('[data-bind="reset-status"]');
+  const setStatus = (msg, color) => {
+    if (!status) return;
+    status.textContent = msg;
+    status.style.color = color || '#7c2d12';
+  };
+  btn.disabled = true;
+  const origLabel = btn.textContent;
+  btn.textContent = 'Resetting…';
+  setStatus('Looking up Lead Pastor…');
+
+  const UR = await _waitForUpperRoom(10000);
+  if (!UR || !UR.getAppConfig) {
+    setStatus('Backend not ready.', '#b91c1c');
+    btn.disabled = false; btn.textContent = origLabel;
+    return;
+  }
+
+  const isGarbage = (v) => {
+    if (v === undefined || v === null) return true;
+    const s = String(v).trim().toLowerCase();
+    return !s || s === 'undefined' || s === 'null';
+  };
+
+  try {
+    const cfg = await UR.getAppConfig({ key: 'LEAD_PASTOR_MEMBER_ID' });
+    const lpId = String((cfg && cfg.value) || '').trim();
+    if (!lpId) {
+      setStatus('No Lead Pastor Member PIN is configured under Church Settings.', '#b91c1c');
+      btn.disabled = false; btn.textContent = origLabel;
+      return;
+    }
+    console.log('[wall/reset] lpId =', JSON.stringify(lpId));
+
+    // ── Step 1: Care cases ───────────────────────────────────────
+    setStatus('Step 1/4: Reassigning open care cases…');
+    const TERMINAL_C = new Set(['resolved','closed','archived','cancelled','completed','denied']);
+    let caseChecked = 0, caseUpdated = 0, caseSkipped = 0, caseFailed = 0;
+    if (UR.listCareCases && UR.updateCareCase) {
+      const all = await UR.listCareCases({ limit: 1000 }).catch(() => []);
+      const cases = Array.isArray(all) ? all : (all?.results || []);
+      for (const c of cases) {
+        caseChecked++;
+        const st = String(c.status || '').toLowerCase();
+        if (TERMINAL_C.has(st)) { caseSkipped++; continue; }
+        const cur = c.primaryCaregiverId;
+        if (!isGarbage(cur) && String(cur).trim() === lpId) { caseSkipped++; continue; }
+        try {
+          await UR.updateCareCase({ id: c.id, primaryCaregiverId: lpId });
+          caseUpdated++;
+        } catch (err) { caseFailed++; console.error('[wall/reset] case', c.id, err); }
+      }
+    }
+
+    // ── Step 2: Prayers ──────────────────────────────────────────
+    setStatus(`Step 2/4: Reassigning active prayers… (${caseUpdated} cases done)`);
+    const TERMINAL_P = new Set(['answered','closed','archived','resolved']);
+    let prayerChecked = 0, prayerUpdated = 0, prayerSkipped = 0, prayerFailed = 0;
+    if (UR.listPrayers && UR.updatePrayer) {
+      const all = await UR.listPrayers({ allUsers: true, limit: 1000 }).catch(() => []);
+      const prayers = Array.isArray(all) ? all : (all?.results || []);
+      for (const p of prayers) {
+        prayerChecked++;
+        const st = String(p.status || '').toLowerCase();
+        if (TERMINAL_P.has(st)) { prayerSkipped++; continue; }
+        const cur = p.assignedTo;
+        if (!isGarbage(cur) && String(cur).trim() === lpId) { prayerSkipped++; continue; }
+        try {
+          await UR.updatePrayer(p.id, { assignedTo: lpId });
+          prayerUpdated++;
+        } catch (err) { prayerFailed++; console.error('[wall/reset] prayer', p.id, err); }
+      }
+    }
+
+    // ── Step 3: Reassign existing Active careAssignments ─────────
+    setStatus(`Step 3/4: Reassigning existing care assignments to LP…`);
+    let asgChecked = 0, asgReassigned = 0, asgSkipped = 0, asgFailed = 0;
+    let existingAssignments = [];
+    if (UR.listCareAssignments && UR.reassignCareAssignment) {
+      const all = await UR.listCareAssignments({ limit: 5000 }).catch(() => []);
+      existingAssignments = Array.isArray(all) ? all : (all?.results || []);
+      for (const a of existingAssignments) {
+        asgChecked++;
+        const st = String(a.status || '').toLowerCase();
+        if (st && st !== 'active') { asgSkipped++; continue; }
+        const cur = a.caregiverId;
+        if (!isGarbage(cur) && String(cur).trim() === lpId) { asgSkipped++; continue; }
+        try {
+          await UR.reassignCareAssignment({
+            id: a.id,
+            newCaregiverId: lpId,
+            notes: 'Reset to Lead Pastor via Admin → Maintenance',
+          });
+          asgReassigned++;
+        } catch (err) { asgFailed++; console.error('[wall/reset] assignment', a.id, err); }
+      }
+    }
+
+    // ── Step 4: Create LP assignment for members without one ─────
+    setStatus(`Step 4/4: Creating LP assignments for members without one…`);
+    let memChecked = 0, memCreated = 0, memSkipped = 0, memFailed = 0;
+    if (UR.listMembers && UR.createCareAssignment) {
+      // Build set of memberIds already covered by an Active LP assignment
+      // (after Step 3 they should all be LP, but re-derive defensively)
+      const covered = new Set();
+      for (const a of existingAssignments) {
+        const st = String(a.status || '').toLowerCase();
+        if (st && st !== 'active') continue;
+        // Account for the reassign we just did: any prior Active row is now LP
+        if (a.memberId) covered.add(String(a.memberId));
+      }
+      const all = await UR.listMembers({ limit: 5000 }).catch(() => []);
+      const members = Array.isArray(all) ? all : (all?.results || []);
+      for (const m of members) {
+        memChecked++;
+        const memberId = m.id || m.docId || m.uid || m.memberPin || m.memberNumber || '';
+        if (!memberId) { memSkipped++; continue; }
+        // Skip the LP themselves
+        if (String(memberId) === lpId
+            || String(m.memberPin || '') === lpId
+            || String(m.memberNumber || '') === lpId) { memSkipped++; continue; }
+        if (covered.has(String(memberId))) { memSkipped++; continue; }
+        try {
+          await UR.createCareAssignment({
+            memberId: String(memberId),
+            caregiverId: lpId,
+            role: 'Shepherd',
+            status: 'Active',
+            notes: 'Created during Reset to Lead Pastor',
+          });
+          memCreated++;
+        } catch (err) { memFailed++; console.error('[wall/reset] member', memberId, err); }
+      }
+    }
+
+    const totalFailed = caseFailed + prayerFailed + asgFailed + memFailed;
+    const failMsg = totalFailed ? ` · ${totalFailed} failed (see console)` : '';
+    setStatus(
+      `Reset complete. ` +
+      `Cases: ${caseUpdated}/${caseChecked} reassigned · ` +
+      `Prayers: ${prayerUpdated}/${prayerChecked} reassigned · ` +
+      `Assignments: ${asgReassigned}/${asgChecked} reassigned · ` +
+      `New LP assignments: ${memCreated} created (of ${memChecked} members).${failMsg}`,
+      totalFailed ? '#b45309' : '#16a34a'
+    );
+  } catch (err) {
+    console.error('[wall] resetCareToLeadPastor error', err);
     setStatus(`Failed: ${err?.message || String(err)}`, '#b91c1c');
   } finally {
     btn.disabled = false;
