@@ -37,7 +37,10 @@ import * as upper   from './the_upper_room/index.js';
 import * as life    from './the_life/index.js';
 
 /* ── 3) FlockChat embed surface ──────────────────────────────────────────── */
-const FLOCKCHAT_BASE = 'https://flockchat.com/';
+// Deployed FlockChat PWA (Firebase Hosting / flockos-comms project).
+// flockchat.com is reserved for future custom-domain mapping; use the canonical
+// hosting URL until that's wired so the iframe doesn't time out on DNS.
+const FLOCKCHAT_BASE = 'https://flockos-comms.web.app/';
 
 function _flockchatUrl({ church, channel, dm } = {}) {
   const cid = church || (upper.tenant && upper.tenant.churchId && upper.tenant.churchId());

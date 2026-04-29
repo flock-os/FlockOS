@@ -24,17 +24,35 @@ export function threadIdFor(uidA, uidB) {
   return [String(uidA), String(uidB)].sort().join('_');
 }
 
-export const list      = (...a) => callWhen(NAME, 'dms', ...a);
-export const messages  = (threadId, opts) => callWhen(NAME, 'dmMessages', threadId, opts);
-export const send      = (threadId, body) => callWhen(NAME, 'sendDm', threadId, body);
-export const openWith  = (uid)  => callWhen(NAME, 'openDm', uid);
+/** List DM threads I'm part of. Backed by listConversations('dm'). */
+export const list      = () => callWhen(NAME, 'listConversations', 'dm');
+/** Messages in a DM thread are stored under conversations/{id}/messages
+ *  — same shape as channel messages. */
+export const messages  = (threadId, limit) => callWhen(NAME, 'getMessages', threadId, limit);
+/** Send a DM message — sendMessage handles all conversation types. */
+export const send      = (threadId, body)  => callWhen(NAME, 'sendMessage', threadId, body);
+/** Ensure a DM thread exists with the given peer (email/uid). */
+export const openWith  = (peerEmail) => callWhen(NAME, 'createDM', peerEmail);
 
 export async function watch(onChange) {
   const M = await when(NAME);
-  if (typeof M.watchDms === 'function') return M.watchDms(onChange);
+
+  if (typeof M.listenConversations === 'function') {
+    M.listenConversations('dm', (rows) => {
+      try { onChange(Array.isArray(rows) ? rows : []); } catch (_) {}
+    });
+    return () => {
+      try {
+        const unsub = M._listeners && M._listeners['list_dm'];
+        if (typeof unsub === 'function') unsub();
+        if (M._listeners) delete M._listeners['list_dm'];
+      } catch (_) {}
+    };
+  }
+
   let cancelled = false;
   (async function tick() {
-    try { onChange(await M.dms()); } catch (_) {}
+    try { onChange(await list()); } catch (_) {}
     if (!cancelled) setTimeout(tick, 8000);
   })();
   return () => { cancelled = true; };

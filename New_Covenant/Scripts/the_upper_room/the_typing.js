@@ -18,12 +18,24 @@ export async function ping(channelId) {
   const last = _lastPing.get(channelId) || 0;
   if (now - last < PING_GAP) return;
   _lastPing.set(channelId, now);
-  try { await callWhen(NAME, 'typing', channelId); } catch (_) {}
+  try { await callWhen(NAME, 'setTyping', channelId, true); } catch (_) {}
 }
 
 export async function watch(channelId, onChange) {
   const M = await when(NAME);
-  if (typeof M.watchTyping === 'function') return M.watchTyping(channelId, onChange);
+  if (typeof M.listenTyping === 'function') {
+    M.listenTyping(channelId, (uids) => {
+      try { onChange(Array.isArray(uids) ? uids : []); } catch (_) {}
+    });
+    return () => {
+      try {
+        const key = 'typing_' + channelId;
+        const unsub = M._listeners && M._listeners[key];
+        if (typeof unsub === 'function') unsub();
+        if (M._listeners) delete M._listeners[key];
+      } catch (_) {}
+    };
+  }
   onChange([]);
   return () => {};
 }

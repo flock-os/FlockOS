@@ -14,6 +14,50 @@ export const description = 'Biblical counsel for the trials we all face — anxi
 export const icon        = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.6a5.5 5.5 0 0 0-7.78 0L12 5.66l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21l8.84-8.62a5.5 5.5 0 0 0 0-7.78z"/></svg>`;
 export const accent      = '#16a34a';
 
+// Map Tailwind palette names (and other casual color words used in the
+// counseling bundle) to readable hex values that have sufficient contrast on
+// a light background. Anything else is returned as-is so explicit hex values
+// in the data still work. Unknown / pale CSS color words (cyan, yellow, lime,
+// aqua, etc.) are normalized so they never render as unreadable neon.
+const _COLOR_MAP = {
+  // Tailwind 600/700-ish — accessible on white
+  slate:   '#475569',
+  gray:    '#4b5563',
+  zinc:    '#52525b',
+  stone:   '#57534e',
+  red:     '#dc2626',
+  orange:  '#ea580c',
+  amber:   '#b45309',
+  yellow:  '#a16207',
+  lime:    '#4d7c0f',
+  green:   '#16a34a',
+  emerald: '#059669',
+  teal:    '#0f766e',
+  cyan:    '#0e7490',
+  sky:     '#0369a1',
+  blue:    '#2563eb',
+  indigo:  '#4f46e5',
+  violet:  '#7c3aed',
+  purple:  '#9333ea',
+  fuchsia: '#c026d3',
+  pink:    '#db2777',
+  rose:    '#e11d48',
+  // Plain CSS color words that are too pale on white
+  aqua:    '#0e7490',
+  gold:    '#b45309',
+  silver:  '#6b7280',
+};
+
+function _safeColor(c) {
+  if (!c) return accent;
+  const s = String(c).trim();
+  if (!s) return accent;
+  // Honor explicit hex / rgb / hsl / var(--…) / CSS custom values as-is.
+  if (/^(#|rgb|hsl|var\()/i.test(s)) return s;
+  const key = s.toLowerCase();
+  return _COLOR_MAP[key] || s;
+}
+
 const _cache = {};      // id → full doc
 let _stubs   = [];      // catalog stubs
 
@@ -65,7 +109,7 @@ async function _load(root) {
         id,
         title: d.title || d.Title || id,
         icon:  d.icon  || d.Icon  || '🌿',
-        color: d.color || d.Color || accent,
+        color: _safeColor(d.color || d.Color || accent),
       });
     });
   } catch (e) {
@@ -142,7 +186,7 @@ async function _toggle(cardEl, id) {
 }
 
 function _detailHtml(item) {
-  const color   = item.Color || item.color || accent;
+  const color   = _safeColor(item.Color || item.color || accent);
   const def     = item.Definition || item.definition || '';
   const scrips  = _parseScriptures(item.Scriptures || item.scriptures || '');
   const steps   = _parseSteps(item.Steps || item.steps || '');

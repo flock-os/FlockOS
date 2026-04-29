@@ -3154,7 +3154,28 @@ const TheWay = (() => {
     }
     function parseSteps(raw) {
       if (!raw) return [];
-      return raw.split(/[;\n]+/).map(function(s) { return s.trim(); }).filter(Boolean);
+      // Split on explicit separators OR sentence boundaries (period + space + cap letter)
+      // so the bundled "steps" string renders as one numbered item per sentence.
+      var text = String(raw).trim();
+      var parts = text.split(/(?:[;\n]+|(?<=\.)\s+(?=[A-Z(]))/);
+      return parts.map(function(s) {
+        return s.trim().replace(/^[-\u2022\d.\s]+/, '').trim();
+      }).filter(Boolean);
+    }
+    var _COUNS_COLOR_MAP = {
+      slate:'#475569',gray:'#4b5563',zinc:'#52525b',stone:'#57534e',
+      red:'#dc2626',orange:'#ea580c',amber:'#b45309',yellow:'#a16207',
+      lime:'#4d7c0f',green:'#16a34a',emerald:'#059669',teal:'#0f766e',
+      cyan:'#0e7490',sky:'#0369a1',blue:'#2563eb',indigo:'#4f46e5',
+      violet:'#7c3aed',purple:'#9333ea',fuchsia:'#c026d3',pink:'#db2777',
+      rose:'#e11d48',aqua:'#0e7490',gold:'#b45309',silver:'#6b7280'
+    };
+    function _safeCounsColor(c) {
+      if (!c) return 'var(--mint)';
+      var s = String(c).trim();
+      if (!s) return 'var(--mint)';
+      if (/^(#|rgb|hsl|var\()/i.test(s)) return s;
+      return _COUNS_COLOR_MAP[s.toLowerCase()] || s;
     }
     function linkifyStep(text) {
       return text.replace(/\(([123]?\s?[A-Za-z]+\s+\d+:\d+(?:-\d+)?)\)/g, function(_, ref) {
@@ -3162,7 +3183,7 @@ const TheWay = (() => {
       });
     }
 
-    var color      = item['Color'] || item.color || 'var(--mint)';
+    var color      = _safeCounsColor(item['Color'] || item.color || 'var(--mint)');
     var definition = item['Definition'] || item.definition || '';
     var scriptures = parseScriptures(item['Scriptures'] || item.scriptures || '');
     var steps      = parseSteps(item['Steps'] || item.steps || '');

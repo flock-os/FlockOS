@@ -15,18 +15,34 @@ export const ready = () => when(NAME);
  *  Returns an unsubscribe function. */
 export async function watch(channelId, onChange, { limit = 100 } = {}) {
   const M = await when(NAME);
-  if (typeof M.watchMessages === 'function') return M.watchMessages(channelId, onChange, { limit });
-  // Polling fallback.
+
+  if (typeof M.listenMessages === 'function') {
+    M.listenMessages(channelId, (rows) => {
+      try { onChange(Array.isArray(rows) ? rows : []); } catch (_) {}
+    });
+    return () => {
+      try {
+        const key = 'msgs_' + channelId;
+        const unsub = M._listeners && M._listeners[key];
+        if (typeof unsub === 'function') unsub();
+        if (M._listeners) delete M._listeners[key];
+      } catch (_) {}
+    };
+  }
+
+  // Polling fallback (one-shot via getMessages).
   let cancelled = false;
   (async function tick() {
-    try { onChange(await M.messages(channelId, { limit })); } catch (_) {}
+    try { onChange(await list(channelId, limit)); } catch (_) {}
     if (!cancelled) setTimeout(tick, 4000);
   })();
   return () => { cancelled = true; };
 }
 
-export const list   = (channelId, opts) => callWhen(NAME, 'messages', channelId, opts);
+export const list   = (channelId, limit) => callWhen(NAME, 'getMessages', channelId, limit);
 export const send   = (channelId, body) => callWhen(NAME, 'sendMessage', channelId, body);
-export const edit   = (channelId, messageId, patch) => callWhen(NAME, 'editMessage', channelId, messageId, patch);
 export const remove = (channelId, messageId) => callWhen(NAME, 'deleteMessage', channelId, messageId);
-export const react  = (channelId, messageId, emoji) => callWhen(NAME, 'reactToMessage', channelId, messageId, emoji);
+// edit / react are not in the legacy surface yet — expose stubs that throw
+// rather than silently no-op so callers get a clear error.
+export const edit   = () => { throw new Error('editMessage not implemented'); };
+export const react  = () => { throw new Error('reactToMessage not implemented'); };

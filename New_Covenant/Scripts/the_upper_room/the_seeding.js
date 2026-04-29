@@ -5,21 +5,30 @@
    On first comms touch in a church, ensure these channels exist. Idempotent.
    ══════════════════════════════════════════════════════════════════════════════ */
 
-import { callWhen, when } from '../the_legacy_bridge.js';
+import { when } from '../the_legacy_bridge.js';
 
 const NAME = 'TheUpperRoom';
 
 export const SEEDS = [
-  { id: 'general',        name: 'general',        description: 'For everyone in the church.' },
-  { id: 'announcements',  name: 'announcements',  description: 'Read-only firehose.', readOnly: true },
-  { id: 'prayer-chain',   name: 'prayer-chain',   description: 'Lift one another up.' },
+  { name: 'general',       description: 'For everyone in the church.' },
+  { name: 'announcements', description: 'Read-only firehose.' },
+  { name: 'prayer-chain',  description: 'Lift one another up.' },
 ];
 
+/** Idempotent: list existing channels by name; create only the seeds that
+ *  don't yet exist. Safe to call on every Fellowship mount. */
 export async function ensureSeeds() {
   const M = await when(NAME);
-  if (typeof M.ensureChannel !== 'function') return;
+  if (typeof M.browseChannels !== 'function' || typeof M.createChannel !== 'function') return;
+
+  let existing = [];
+  try { existing = (await M.browseChannels()) || []; } catch (_) { return; }
+  const have = new Set(existing.map((c) => String(c && c.name || '').toLowerCase()));
+
   for (const s of SEEDS) {
-    try { await M.ensureChannel(s); } catch (_) { /* graceful */ }
+    if (have.has(s.name.toLowerCase())) continue;
+    try { await M.createChannel(s.name, s.description); }
+    catch (_) { /* graceful — e.g. permission denied for non-admins */ }
   }
 }
 
