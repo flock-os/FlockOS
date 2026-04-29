@@ -60,7 +60,9 @@ async function _load(root) {
   }
 
   // ── Fallback: static bundle (New_Covenant/Data/theology.js) ─────────
-  if (!_state.tree.length) {
+  // Also fall back if live returned categories but all sections are empty (not yet seeded)
+  const _hasSections = _state.tree.length && _state.tree.some((c) => (c.sections || []).length > 0);
+  if (!_hasSections) {
     try {
       const mod = await import('../../Data/theology.js');
       _state.tree = _treeFromFlat(mod.default || []);
