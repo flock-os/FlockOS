@@ -842,7 +842,10 @@ async function _loadCare(root, caseMap) {
   try {
     const UR = window.UpperRoom;
     const [careRes, gasMembersRes, fbMembersRes] = await Promise.all([
-      MXC.list({}),
+      // limit:500 — listCareCases defaults to 25 (page-1 only), which silently
+      // hides older open cases and makes the queue disagree with the sidebar
+      // badge (which reads the full collection). Always pull a full page.
+      MXC.list({ limit: 500 }),
       MXM.list({ limit: 500 }).catch(() => []),
       // Firestore is the source of truth for care-assignment memberIds, so we MUST
       // include UpperRoom members in the directory or those IDs won't resolve.
