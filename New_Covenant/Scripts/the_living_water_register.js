@@ -38,9 +38,37 @@ export async function register() {
       // Pre-flight: skip URLs that 404 to keep the console clean
       const probe = await fetch(url, { method: 'HEAD', cache: 'no-store' }).catch(() => null);
       if (!probe || !probe.ok) continue;
-      // No explicit scope — defaults to the SW file's directory, which (because
-      // the SW is a sibling of index.html) covers the entire app shell.
-      const reg = await navigator.serviceWorker.register(url);
+      // updateViaCache:'none' so the browser ALWAYS revalidates the SW script
+      // itself (otherwise the HTTP cache can serve a stale SW for hours).
+      const reg = await navigator.serviceWorker.register(url, { updateViaCache: 'none' });
+
+      // ── Auto-update flow ────────────────────────────────────────────────
+      // Force a check on every page load so a fresh deploy installs the new
+      // SW within seconds instead of waiting for the browser's lazy 24h check.
+      try { reg.update(); } catch (_) {}
+
+      // When the new SW finishes installing, tell it to skipWaiting so it
+      // becomes the active SW immediately (without requiring a tab close).
+      reg.addEventListener('updatefound', () => {
+        const sw = reg.installing;
+        if (!sw) return;
+        sw.addEventListener('statechange', () => {
+          if (sw.state === 'installed' && navigator.serviceWorker.controller) {
+            // A previous SW is controlling — politely ask the new one to take over.
+            try { sw.postMessage({ type: 'SKIP_WAITING' }); } catch (_) {}
+          }
+        });
+      });
+
+      // When the controller actually swaps to the new SW, force a one-time
+      // page reload so the user runs the new bundle, not the cached one.
+      let _reloaded = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (_reloaded) return;
+        _reloaded = true;
+        window.location.reload();
+      });
+
       return { ok: true, url, scope: reg.scope };
     } catch (err) { lastErr = err; }
   }

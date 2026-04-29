@@ -10,7 +10,7 @@
    • PUSH        → Show notification; click → focus or open app
    ══════════════════════════════════════════════════════════════════════════════ */
 
-const CACHE_NAME = 'flockos-new-covenant-v1.05';
+const CACHE_NAME = 'flockos-new-covenant-v1.06';
 
 /* Derive base path from SW location (works at root or any subpath) */
 const SW_BASE = self.location.pathname.replace(/\/[^\/]+$/, '/');
@@ -52,16 +52,20 @@ self.addEventListener('install', (event) => {
 
 /* ─── Activate: purge old caches ────────────────────────────────────────────── */
 self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(
-        keys
-          .filter((k) => k !== CACHE_NAME)
-          .map((k) => caches.delete(k))
-      )
-    )
-  );
-  return self.clients.claim();
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(
+      keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))
+    );
+    await self.clients.claim();
+  })());
+});
+
+/* ─── Listen for SKIP_WAITING from the page (forces immediate activation) ──── */
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
 
 /* ─── Fetch: routing strategies ─────────────────────────────────────────────── */
