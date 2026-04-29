@@ -64,10 +64,8 @@ export async function pendingCount() {
   // — no awaiting backend, no round-trip. This is what makes the badge
   // appear the moment the sidebar paints after login.
   if (_warmCount !== null) return _warmCount;
-  // Wait briefly for a backend (Firestore via UpperRoom, or GAS via TheVine)
-  // so a fresh login doesn't return 0 and leave the badge hidden until the
-  // next sidebar tick.
-  await _awaitBackend(15_000);
+  // Wait for Firestore (no timeout on Firestore churches \u2014 see _awaitBackend).
+  await _awaitBackend();
   const UR = window.UpperRoom;
   // Firestore-first: use the dedicated careCasesRef so we don't pull the GAS
   // queue, which is often slower / stale on fresh sessions.
@@ -104,7 +102,7 @@ export function subscribeOpenCareCount(cb) {
   console.log('[CARE-BADGE] subscribeOpenCareCount() entry');
 
   (async () => {
-    await _awaitBackend(15_000);
+    await _awaitBackend();
     if (cancelled) return;
     const UR = window.UpperRoom;
     const fsReady = !!(UR && typeof UR.isReady === 'function' && UR.isReady());
@@ -161,11 +159,12 @@ export function subscribeOpenCareCount(cb) {
   return () => { cancelled = true; try { unsub(); } catch (_) {} };
 }
 
-// Wait up to `ms` for either Firestore (UpperRoom) or GAS (TheVine) to be ready.
-// Actively kicks off UpperRoom.init() + .authenticate() if Firebase is loaded
-// but nothing else has triggered them yet — without this, the badge waits
-// passively for some other module (Tabernacle) to lazy-init UpperRoom, which
-// can take a long time on a fresh login.
+// Memoized auth-prod. Retries on rejection (up to 5 attempts with backoff)
+// because the first call commonly happens before the session exists (e.g.
+// the warm-up runs on the login wall page where authenticate() rejects with
+// 'NO SESSION'). On retry success the next caller benefits without firing
+// duplicate token mints.
+let _ensureAuthAttempts = 0;
 let _ensureAuthPromise = null;
 function _ensureUpperRoomAuth() {
   if (_ensureAuthPromise) return _ensureAuthPromise;
@@ -174,39 +173,50 @@ function _ensureUpperRoomAuth() {
     if (!UR || typeof UR.init !== 'function' || typeof UR.authenticate !== 'function') return;
     if (typeof UR.isReady === 'function' && UR.isReady()) return;
     try { await UR.init(); } catch (_) {}
-    try { await UR.authenticate(); } catch (_) {}
+    try {
+      await UR.authenticate();
+    } catch (e) {
+      // Don't permanently memoize the failure — reset so a later caller
+      // (e.g. once the user has actually logged in) can try again.
+      _ensureAuthAttempts++;
+      _ensureAuthPromise = null;
+      throw e;
+    }
   })();
+  // Swallow rejection at the outer level so this can be safely awaited.
+  _ensureAuthPromise.catch(() => {});
   return _ensureAuthPromise;
 }
 
-function _awaitBackend(ms = 15_000) {
+// Wait until Firestore (UpperRoom) is genuinely ready. NO timeout on
+// Firestore churches — we wait forever because some other module will
+// eventually authenticate (Tabernacle, Prayer Chain, Pastoral Care view).
+// Giving up and switching to GAS polling was the original 60s+wrong-count
+// bug: pendingCount would then go through V.flock.care.list, which returns
+// docs that the Firestore-ordered query excludes.
+function _awaitBackend(_legacyMs) {
   return new Promise((resolve) => {
-    const t0 = Date.now();
-    let prodded = false;
-    // If Firebase config is present, this is a Firestore church and we MUST
-    // wait for it specifically — TheVine becoming available first would
-    // otherwise short-circuit us into the 60s GAS polling path.
     const isFirestoreChurch = !!(
       typeof window !== 'undefined' &&
       (window.FLOCK_FIREBASE_CONFIG || window.UpperRoom)
     );
+    let prodTries = 0;
+    let lastProd = 0;
     const check = () => {
       const UR = window.UpperRoom;
       const V  = window.TheVine;
       const fsReady = !!(UR && typeof UR.isReady === 'function' && UR.isReady());
       if (fsReady) return resolve();
-      // Only accept TheVine as "ready" on GAS-only churches that have no
-      // Firebase config at all.
+      // Only accept TheVine on GAS-only churches with no Firebase config.
       if (!isFirestoreChurch && V) return resolve();
-      // Once UpperRoom appears, actively prod it. (Firebase SDK scripts use
-      // `defer` so UpperRoom may not exist on the very first poll.) We only
-      // need to do this once — _ensureUpperRoomAuth is memoized.
-      if (!prodded && UR && typeof UR.init === 'function') {
-        prodded = true;
-        _ensureUpperRoomAuth();
+      // Periodically prod auth (every ~5s, max 5 tries) in case nothing
+      // else is going to trigger it.
+      if (UR && typeof UR.init === 'function' && prodTries < 5 && (Date.now() - lastProd) > 5_000) {
+        prodTries++;
+        lastProd = Date.now();
+        _ensureUpperRoomAuth().catch(() => {});
       }
-      if (Date.now() - t0 >= ms) return resolve();
-      setTimeout(check, 100);
+      setTimeout(check, 250);
     };
     check();
   });
