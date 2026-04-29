@@ -3983,6 +3983,33 @@ flock-tabs [role="tablist"], .tabs-bar {
 .grow-today  { padding:12px 14px; border-radius:10px; background:var(--surface, rgba(255,255,255,.03)); }
 .grow-muted { color:var(--muted, #888); font-size:13px; margin:0; }
 
+/* ── Tabs (Reading Plans) ──────────────────────────────────────────────── */
+.grow-tabs { display:flex; gap:4px; margin:16px 0 12px; border-bottom:1px solid var(--border, rgba(255,255,255,.08)); }
+.grow-tab  { padding:9px 20px; border:none; background:none; cursor:pointer; font:inherit; font-size:14px; font-weight:500;
+             color:var(--muted, #888); border-bottom:2px solid transparent; margin-bottom:-1px; transition:color .15s; }
+.grow-tab:hover { color:var(--text, #f5f5f7); }
+.grow-tab.is-active { color:var(--grow-accent, #059669); border-bottom-color:var(--grow-accent, #059669); }
+
+/* ── One Year Bible card ──────────────────────────────────────────────── */
+.grow-oyb-card { border:1px solid var(--border, rgba(255,255,255,.08)); border-radius:14px; padding:20px; background:var(--surface, rgba(255,255,255,.03)); margin-bottom:4px; }
+.grow-oyb-card-head { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:16px; }
+.grow-oyb-day  { font-size:22px; font-weight:700; color:var(--text, #f5f5f7); }
+.grow-oyb-date { font-size:14px; color:var(--muted, #888); }
+.grow-oyb-streams { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+@media (max-width:600px) { .grow-oyb-streams { grid-template-columns:1fr; } }
+.grow-oyb-stream { display:flex; flex-direction:column; gap:3px; padding:12px; border-radius:10px; background:var(--bg-base, rgba(255,255,255,.04)); }
+.grow-oyb-stream-label { font-size:11px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; }
+.grow-oyb-stream-val   { font-size:15px; font-weight:500; color:var(--text, #f5f5f7); }
+
+/* ── One Year Bible full-year table ──────────────────────────────────── */
+.grow-oyb-table { width:100%; border-collapse:collapse; font-size:12px; color:var(--text, #f5f5f7); }
+.grow-oyb-table th { text-align:left; padding:7px 10px; border-bottom:1px solid var(--border, rgba(255,255,255,.12)); color:var(--muted, #888); font-size:11px; letter-spacing:.04em; text-transform:uppercase; white-space:nowrap; }
+.grow-oyb-table td { padding:6px 10px; border-bottom:1px solid var(--border, rgba(255,255,255,.05)); vertical-align:top; white-space:nowrap; }
+.grow-oyb-row:hover td { background:var(--bg-base, rgba(255,255,255,.03)); }
+.grow-oyb-col-day  { width:36px; color:var(--muted, #888); }
+.grow-oyb-col-date { width:90px; color:var(--muted, #aaa); }
+.grow-oyb-col-pass { max-width:200px; white-space:normal; }
+
 /* split-panel layouts */
 .grow-split { display:grid; grid-template-columns:280px 1fr; gap:20px; }
 .grow-split--lex .grow-split-aside,
