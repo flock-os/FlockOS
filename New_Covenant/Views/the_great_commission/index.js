@@ -94,6 +94,39 @@ function _isoToFlag(iso2) {
   return String.fromCodePoint(...[...iso2.toUpperCase()].map(c => 0x1F1E6 - 65 + c.charCodeAt(0)));
 }
 
+// Joshua Project's ROG3 field is the FIPS 10-4 country code, NOT ISO 3166-1
+// alpha-2. They match for most countries but diverge for ~30 (e.g., FIPS TX
+// vs. ISO TM for Turkmenistan), which breaks the Regional Indicator flag
+// emoji. Prefer JP's ISO2 field; fall back to a FIPS→ISO patch table; last
+// resort is the raw ROG3 (which will still render letters-in-boxes if invalid,
+// matching pre-fix behavior).
+const _FIPS_TO_ISO2 = {
+  AG: 'DZ', AJ: 'AZ', BA: 'BH', BC: 'BW', BF: 'BS', BH: 'BZ', BK: 'BA',
+  BM: 'MM', BO: 'BY', BP: 'SB', BU: 'BG', BX: 'BN', BY: 'BI', CB: 'KH',
+  CD: 'TD', CE: 'LK', CF: 'CG', CG: 'CD', CH: 'CN', CI: 'CL', CJ: 'KY',
+  CK: 'KH', CS: 'CR', CT: 'CF', CU: 'CU', DA: 'DK', DJ: 'DJ', DO: 'DM',
+  EI: 'IE', EK: 'GQ', ER: 'ER', ES: 'SV', ET: 'ET', EZ: 'CZ', FJ: 'FJ',
+  FM: 'FM', FP: 'PF', GA: 'GM', GB: 'GA', GG: 'GE', GJ: 'GD', GL: 'GL',
+  GM: 'DE', GR: 'GR', GT: 'GT', GV: 'GN', HA: 'HT', HO: 'HN', HR: 'HR',
+  IC: 'IS', IN: 'IN', IZ: 'IQ', JA: 'JP', KE: 'KE', KN: 'KP', KS: 'KR',
+  KU: 'KW', KZ: 'KZ', LE: 'LB', LG: 'LV', LH: 'LT', LO: 'SK', LS: 'LI',
+  LT: 'LS', LY: 'LY', MA: 'MG', MC: 'MO', MG: 'MN', MH: 'MS', MI: 'MW',
+  MJ: 'ME', MK: 'MK', MO: 'MA', MP: 'MU', MR: 'MR', MV: 'MD', MX: 'MX',
+  MY: 'MY', NH: 'VU', NI: 'NG', NL: 'NL', NS: 'SR', NU: 'NI', NZ: 'NZ',
+  PA: 'PY', PK: 'PK', PM: 'PA', PO: 'PT', PP: 'PG', PU: 'GW', RB: 'RS',
+  RM: 'MH', RP: 'PH', RQ: 'PR', RS: 'RU', SA: 'SA', SF: 'ZA', SG: 'SN',
+  SI: 'SI', SL: 'SL', SP: 'ES', SU: 'SD', SW: 'SE', SY: 'SY', SZ: 'CH',
+  TI: 'TJ', TO: 'TG', TS: 'TN', TU: 'TR', TX: 'TM', UG: 'UG', UK: 'GB',
+  UP: 'UA', UV: 'BF', UY: 'UY', UZ: 'UZ', VE: 'VE', VM: 'VN', WA: 'NA',
+  WI: 'EH', WZ: 'SZ', YM: 'YE', ZA: 'ZM', ZI: 'ZW',
+};
+function _jpIso2(c) {
+  const iso2 = (c.ISO2 || '').trim().toUpperCase();
+  if (iso2.length === 2) return iso2;
+  const rog3 = (c.ROG3 || '').trim().toUpperCase();
+  return _FIPS_TO_ISO2[rog3] || rog3;
+}
+
 function _jpScaleToAccess(scale) {
   const s = parseInt(scale, 10);
   if (s === 1) return 'Unreached';
@@ -103,23 +136,60 @@ function _jpScaleToAccess(scale) {
   return '';
 }
 
+// JP doesn't publish Open Doors WWL data directly, but it does expose
+// `RLG3` (primary religion code) + `JPScale` which together approximate the
+// gospel-restriction climate well enough to drive a persecution badge for
+// every imported country. This keeps cards visually consistent until a real
+// WWL feed is wired in. A country with an explicit WWL/restrictionsRank set
+// elsewhere will always override this in `_countryCard`.
+function _jpDerivePersecution(c) {
+  const scale = parseInt(c.JPScale, 10);
+  const rel   = String(c.PrimaryReligion || '').toLowerCase();
+  const pctEv = parseFloat(c.PercentEvangelical || c.PercentEvangelicalPC || 0);
+  // JPScale 1 = Unreached. Combined with restrictive religious context →
+  // generally Severe to Extreme. Christian-majority unreached pockets are
+  // rare; treat them as Moderate.
+  if (scale === 1) {
+    if (rel.includes('islam') || rel.includes('hindu') || rel.includes('buddh')) {
+      return pctEv < 0.5 ? 'Extreme' : 'Severe';
+    }
+    if (rel.includes('non-religious') || rel.includes('ethnic')) return 'High';
+    return 'Moderate';
+  }
+  if (scale === 2) return 'High';
+  if (scale === 3) return 'Considerable';
+  if (scale === 4) return 'Moderate';
+  if (scale >= 5) return 'Low';
+  return '';
+}
+
 function _jpMapCountry(c) {
-  const iso2 = (c.ROG3 || '').trim();
+  const iso2 = _jpIso2(c);
   const obj = {
     countryName:      c.Ctry || '',
     isoCode:          iso2,
     continent:        c.Continent || '',
     region:           c.RegionName || '',
     dominantReligion: c.PrimaryReligion || '',
-    gospelAccess:     _jpScaleToAccess(c.JPScale),
-    tenFortyWindow:   c.Window1040 === 'Y',
+    gospelAccess:     _jpScaleToAccess(c.JPScale) || 'Limited',
+    persecutionLevel: _jpDerivePersecution(c),
+    tenFortyWindow:   c.Window1040 === 'Y' || c.Window1040 === true,
     profileUrl:       c.CountryURL || (iso2 ? `https://joshuaproject.net/countries/${iso2}` : ''),
     icon:             iso2 ? _isoToFlag(iso2) : '🌍',
     jpUpdatedAt:      new Date().toISOString().slice(0, 10),
   };
-  if (c.Population != null)         obj.population       = Number(c.Population);
-  if (c.PercentChristianPC != null) obj.christianPercent = parseFloat(c.PercentChristianPC);
-  if (c.PeopleGroups != null)       obj.unreachedGroups  = Number(c.PeopleGroups);
+  if (c.Population != null)            obj.population         = Number(c.Population);
+  if (c.PopulationUnreached != null)   obj.populationUnreached = Number(c.PopulationUnreached);
+  if (c.PercentChristianPC != null)    obj.christianPercent   = parseFloat(c.PercentChristianPC);
+  if (c.PercentEvangelical != null)    obj.evangelicalPercent = parseFloat(c.PercentEvangelical);
+  else if (c.PercentEvangelicalPC != null) obj.evangelicalPercent = parseFloat(c.PercentEvangelicalPC);
+  if (c.PeopleGroups != null)          obj.peopleGroups       = Number(c.PeopleGroups);
+  if (c.LeastReached != null)          obj.unreachedGroups    = Number(c.LeastReached);
+  else if (c.PeopleGroupsLR != null)   obj.unreachedGroups    = Number(c.PeopleGroupsLR);
+  if (c.PrimaryLanguageName)           obj.primaryLanguage    = String(c.PrimaryLanguageName);
+  if (c.BibleStatus != null)           obj.bibleStatus        = String(c.BibleStatus);
+  if (c.PercentUrbanized != null)      obj.urbanizedPercent   = parseFloat(c.PercentUrbanized);
+  if (c.LiteracyRate != null)          obj.literacyRate       = parseFloat(c.LiteracyRate);
   return obj;
 }
 
@@ -217,6 +287,14 @@ function _kpiCard(label, val, color) {
 // ── Country card (grid tile) ───────────────────────────────────────────────────
 function _countryCard(r) {
   const cname  = r.countryName || r.name || '';
+  // Heal flag emoji at render time: older imports stored JP's FIPS code
+  // (ROG3) as `isoCode`, which produces letters-in-boxes for ~30 countries.
+  // Recompute from a valid ISO 3166-1 alpha-2 when possible.
+  const isoRaw = String(r.isoCode || '').trim().toUpperCase();
+  const isoFix = _FIPS_TO_ISO2[isoRaw] || isoRaw;
+  const flag   = (isoFix.length === 2)
+    ? _isoToFlag(isoFix)
+    : (r.icon || '🌍');
   // Rank pill: prefer WWL rank (1–100+), then Bible restrictions rank; skip when 0
   const rankNum = r.restrictionsRank   > 0 ? r.restrictionsRank
                 : r.worldWatchListRank > 0 ? r.worldWatchListRank
@@ -244,7 +322,7 @@ function _countryCard(r) {
       data-access="${_e(String(acc).toLowerCase())}"
       data-1040="${is1040 ? 'yes' : 'no'}">
       <div class="gc-card-top">
-        <span class="gc-flag">${_e(r.icon || '🌍')}</span>
+        <span class="gc-flag">${_e(flag)}</span>
         ${rankNum !== null ? `<span class="gc-rank-pill">#${_e(String(rankNum))}</span>` : ''}
         ${_canEditRegistry
           ? `<button class="gc-edit-btn" data-edit-id="${_e(r.id || '')}" aria-label="Edit country" title="Edit">✏️</button>`
@@ -252,7 +330,7 @@ function _countryCard(r) {
       </div>
       <div class="gc-country-name">${_e(cname)}</div>
       <div class="gc-badges">
-        ${_persLevel(pers)}
+        ${pers ? _persLevel(pers) : ''}
         ${acc ? _gospelAccess(acc) : ''}
         ${is1040 ? '<span class="gc-1040-badge">10/40</span>' : ''}
       </div>
@@ -262,9 +340,13 @@ function _countryCard(r) {
           ${r.region           ? `<span>📍 ${_e(r.region)}</span>`                              : ''}
           ${pop                ? `<span>👥 ${pop}</span>`                                        : ''}
           ${pctChrist          ? `<span>✝️ ${pctChrist} Christian</span>`                        : ''}
+          ${r.evangelicalPercent != null ? `<span>🕊️ ${(r.evangelicalPercent < 1 ? r.evangelicalPercent.toFixed(2) : r.evangelicalPercent.toFixed(1))}% Evangelical</span>` : ''}
           ${wwl    != null     ? `<span>📋 WWL #${_e(String(wwl))}</span>`                       : ''}
           ${ungroups != null   ? `<span>🔴 ${_e(String(ungroups))} unreached groups</span>`     : ''}
+          ${r.peopleGroups != null && ungroups == null ? `<span>👥 ${_e(String(r.peopleGroups))} people groups</span>` : ''}
           ${popUnreached       ? `<span>📍 ${popUnreached} in unreached pop.</span>`             : ''}
+          ${r.primaryLanguage  ? `<span>🗣️ ${_e(r.primaryLanguage)}</span>`                     : ''}
+          ${r.bibleStatus      ? `<span>📖 Bible: ${_e(r.bibleStatus)}</span>`                  : ''}
           ${r.bibleShortageNeed       ? `<span>📖 Bible need: ${_e(r.bibleShortageNeed)}</span>`                  : ''}
           ${r.restrictionsRank != null ? `<span>📖 Bible Access Rank #${_e(String(r.restrictionsRank))}</span>` : ''}
           ${r.notes                   ? `<span>📝 ${_e(String(r.notes).substring(0, 160))}</span>`              : ''}
