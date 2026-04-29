@@ -43,6 +43,26 @@ export function esc(s) {
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
+/** Render a tiny markdown subset (**bold**, *italic*, paragraph breaks) safely.
+ *  HTML-escapes first, then replaces markdown markers — never injects raw HTML. */
+export function mdInline(s) {
+  let out = esc(s);
+  // Bold: **text**  (run before italic so * doesn't gobble it)
+  out = out.replace(/\*\*([^*\n]+?)\*\*/g, '<strong>$1</strong>');
+  // Italic: *text*
+  out = out.replace(/(^|[^*])\*([^*\n]+?)\*(?!\*)/g, '$1<em>$2</em>');
+  // Paragraph breaks on blank lines, single \n → <br>
+  out = out.split(/\n{2,}/).map((p) => p.replace(/\n/g, '<br>')).join('</p><p>');
+  return '<p>' + out + '</p>';
+}
+
+/** Strip markdown markers (for previews / card snippets where we don't want HTML). */
+export function stripMd(s) {
+  return String(s == null ? '' : s)
+    .replace(/\*\*([^*\n]+?)\*\*/g, '$1')
+    .replace(/(^|[^*])\*([^*\n]+?)\*(?!\*)/g, '$1$2');
+}
+
 /** Strip basic HTML for previews. */
 export function stripHtml(s) {
   return String(s == null ? '' : s).replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();

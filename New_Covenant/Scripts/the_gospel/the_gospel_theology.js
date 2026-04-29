@@ -4,7 +4,7 @@
     blessed God." — 1 Timothy 1:10-11
    ══════════════════════════════════════════════════════════════════════════════ */
 
-import { esc, snip, emptyState, loadingCards, sectionHead } from './the_gospel_shared.js';
+import { esc, snip, emptyState, loadingCards, sectionHead, mdInline } from './the_gospel_shared.js';
 
 export const name        = 'the_gospel_theology';
 export const title       = 'Theology';
@@ -159,7 +159,7 @@ function _paintDetail(root) {
   const sections = cat.sections || [];
   detEl.innerHTML = /* html */`
     <h2 class="grow-detail-title">${esc(_friendlyTitle(cat.title || cat.name || ''))}</h2>
-    ${cat.description ? `<p class="grow-detail-sub">${esc(cat.description)}</p>` : ''}
+    ${cat.description ? `<div class="grow-detail-sub">${mdInline(cat.description)}</div>` : ''}
     ${sections.length ? sections.map(_section).join('') : `<p class="grow-muted">No sections in this category yet.</p>`}
   `;
 }
@@ -169,7 +169,7 @@ function _section(s) {
   return /* html */`
     <article class="grow-doctrine">
       <h3 class="grow-doctrine-title">${esc(s.title || '')}</h3>
-      ${s.description ? `<p class="grow-doctrine-body">${esc(snip(s.description, 600))}</p>` : ''}
+      ${s.description ? `<div class="grow-doctrine-body">${mdInline(snip(s.description, 600))}</div>` : ''}
       ${scriptures ? `<div class="grow-scriptures">${scriptures}</div>` : ''}
     </article>
   `;

@@ -3,24 +3,13 @@
    "All Scripture is breathed out by God." — 2 Timothy 3:16
    ══════════════════════════════════════════════════════════════════════════════ */
 
-import { vine, rows, esc, snip, emptyState, sectionHead, chip } from './the_gospel_shared.js';
+import { esc, snip, emptyState, sectionHead, chip } from './the_gospel_shared.js';
 
 export const name        = 'the_gospel_library';
 export const title       = 'The Word';
 export const description = 'A guided tour of the 66 books — author, summary, theology, and how each book points to Christ.';
 export const icon        = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V6a2 2 0 0 1 2-2h13v15"/><path d="M6 17h13"/><path d="M6 21h13a2 2 0 0 0 0-4H6a2 2 0 0 0 0 4z"/></svg>`;
 export const accent      = '#9333ea';
-
-const FALLBACK_BOOKS = [
-  { Book: 'Genesis', Testament: 'Old', Genre: 'Law',     Summary: 'Creation, fall, covenant — the seed of redemption.' },
-  { Book: 'Exodus',  Testament: 'Old', Genre: 'Law',     Summary: 'God rescues His people and makes them a nation.' },
-  { Book: 'Psalms',  Testament: 'Old', Genre: 'Wisdom',  Summary: 'The prayer-book of the redeemed.' },
-  { Book: 'Isaiah',  Testament: 'Old', Genre: 'Prophet', Summary: 'A vision of the suffering Servant who saves.' },
-  { Book: 'Matthew', Testament: 'New', Genre: 'Gospel',  Summary: 'Jesus, the long-promised King.' },
-  { Book: 'John',    Testament: 'New', Genre: 'Gospel',  Summary: 'The Word made flesh, full of grace and truth.' },
-  { Book: 'Romans',  Testament: 'New', Genre: 'Letter',  Summary: 'The gospel of God in Jesus Christ — explained.' },
-  { Book: 'Revelation', Testament: 'New', Genre: 'Apocalypse', Summary: 'The Lamb who was slain reigns forever.' },
-];
 
 let _state = { rows: [], selected: null, test: 'all', q: '' };
 
@@ -70,12 +59,12 @@ export function mount(root) {
 }
 
 async function _load(root) {
-  const V = vine();
   try {
-    const res = (V && V.app && V.app.books) ? await V.app.books() : null;
-    _state.rows = rows(res).length ? rows(res) : FALLBACK_BOOKS;
-  } catch (_) {
-    _state.rows = FALLBACK_BOOKS;
+    const mod = await import('../../Data/library.js');
+    _state.rows = mod.default || [];
+  } catch (e) {
+    console.error('[gospel/library] static bundle failed:', e);
+    _state.rows = [];
   }
   _paint(root);
 }
