@@ -27,12 +27,12 @@ const LITURGY = [
     time: 'Dawn',
     label: 'Morning Watch',
     icon: '🌅',
-    text: '"O LORD, in the morning you hear my voice." — Psalm 5:3',
+    text: '"O LORD, in the morning you hear my voice." — Psalm 5:3 (ESV)',
     range: [4, 11],   // 4:00am – 10:59am
     callToPrayer: 'Lord, open my lips, and my mouth shall declare Your praise.',
     scripture: {
-      ref: 'Psalm 5:1-3',
-      text: 'Give ear to my words, O LORD; consider my meditation. Hearken unto the voice of my cry, my King, and my God: for unto thee will I pray. My voice shalt thou hear in the morning, O LORD; in the morning will I direct my prayer unto thee, and will look up.'
+      ref: 'Psalm 5:1-3 (ESV)',
+      text: 'Give ear to my words, O LORD; consider my groaning. Give attention to the sound of my cry, my King and my God, for to you do I pray. O LORD, in the morning you hear my voice; in the morning I prepare a sacrifice for you and watch.'
     },
     intercession: [
       'For the work of my hands today — may it be done as unto the Lord.',
@@ -47,12 +47,12 @@ const LITURGY = [
     time: '12:00 PM',
     label: 'Midday Pause',
     icon: '☀️',
-    text: '"Seven times a day I praise you." — Psalm 119:164',
+    text: '"Seven times a day I praise you." — Psalm 119:164 (ESV)',
     range: [11, 14],
     callToPrayer: 'In the middle of the day, I lift my eyes to the hills.',
     scripture: {
-      ref: 'Psalm 121:1-2',
-      text: 'I will lift up mine eyes unto the hills, from whence cometh my help. My help cometh from the LORD, which made heaven and earth.'
+      ref: 'Psalm 121:1-2 (ESV)',
+      text: 'I lift up my eyes to the hills. From where does my help come? My help comes from the LORD, who made heaven and earth.'
     },
     intercession: [
       'A pause of thanksgiving for what God has already done today.',
@@ -67,12 +67,12 @@ const LITURGY = [
     time: '3:00 PM',
     label: 'Hour of Prayer',
     icon: '⛪',
-    text: '"Now Peter and John went up together into the temple at the hour of prayer." — Acts 3:1',
+    text: '"Now Peter and John were going up to the temple at the hour of prayer." — Acts 3:1 (ESV)',
     range: [14, 17],
     callToPrayer: 'At the ninth hour, the hour our Savior bowed His head and gave up His Spirit.',
     scripture: {
-      ref: 'Luke 23:44-46',
-      text: 'And it was about the sixth hour, and there was a darkness over all the earth until the ninth hour. And the sun was darkened, and the veil of the temple was rent in the midst. And when Jesus had cried with a loud voice, he said, Father, into thy hands I commend my spirit: and having said thus, he gave up the ghost.'
+      ref: 'Luke 23:44-46 (ESV)',
+      text: 'It was now about the sixth hour, and there was darkness over the whole land until the ninth hour, while the sun’s light failed. And the curtain of the temple was torn in two. Then Jesus, calling out with a loud voice, said, “Father, into your hands I commit my spirit!” And having said this he breathed his last.'
     },
     intercession: [
       'Thanksgiving for the cross, the empty tomb, the open way.',
@@ -87,12 +87,12 @@ const LITURGY = [
     time: 'Evening',
     label: 'Evening Vespers',
     icon: '🌙',
-    text: '"Let my prayer be set forth before thee as incense." — Psalm 141:2',
+    text: '"Let my prayer be counted as incense before you." — Psalm 141:2 (ESV)',
     range: [17, 23],
     callToPrayer: 'O God, make speed to save me; O Lord, make haste to help me.',
     scripture: {
-      ref: 'Psalm 141:1-2',
-      text: 'LORD, I cry unto thee: make haste unto me; give ear unto my voice, when I cry unto thee. Let my prayer be set forth before thee as incense; and the lifting up of my hands as the evening sacrifice.'
+      ref: 'Psalm 141:1-2 (ESV)',
+      text: 'O LORD, I call upon you; hasten to me! Give ear to my voice when I call to you! Let my prayer be counted as incense before you, and the lifting up of my hands as the evening sacrifice!'
     },
     intercession: [
       'A confession of today’s failures — in thought, word, and deed.',

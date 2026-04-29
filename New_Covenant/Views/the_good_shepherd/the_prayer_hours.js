@@ -10,10 +10,10 @@
 const _e = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
 const LITURGY = [
-  { id: 'dawn',    time: 'Dawn',     label: 'Morning Watch',   icon: '🌅', range: [4,  11], text: '"O LORD, in the morning you hear my voice." — Psalm 5:3' },
-  { id: 'midday',  time: '12:00 PM', label: 'Midday Pause',    icon: '☀️',  range: [11, 14], text: '"Seven times a day I praise you." — Psalm 119:164' },
-  { id: 'three',   time: '3:00 PM',  label: 'Hour of Prayer',  icon: '⛪',  range: [14, 17], text: '"Now Peter and John went up together into the temple at the hour of prayer." — Acts 3:1' },
-  { id: 'vespers', time: 'Evening',  label: 'Evening Vespers', icon: '🌙', range: [17, 23], text: '"Let my prayer be set forth before thee as incense." — Psalm 141:2' },
+  { id: 'dawn',    time: 'Dawn',     label: 'Morning Watch',   icon: '🌅', range: [4,  11], text: '"O LORD, in the morning you hear my voice." — Psalm 5:3 (ESV)' },
+  { id: 'midday',  time: '12:00 PM', label: 'Midday Pause',    icon: '☀️',  range: [11, 14], text: '"Seven times a day I praise you." — Psalm 119:164 (ESV)' },
+  { id: 'three',   time: '3:00 PM',  label: 'Hour of Prayer',  icon: '⛪',  range: [14, 17], text: '"Now Peter and John were going up to the temple at the hour of prayer." — Acts 3:1 (ESV)' },
+  { id: 'vespers', time: 'Evening',  label: 'Evening Vespers', icon: '🌙', range: [17, 23], text: '"Let my prayer be counted as incense before you." — Psalm 141:2 (ESV)' },
 ];
 
 function _currentHour() {
