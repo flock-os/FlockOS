@@ -1144,20 +1144,21 @@ function _openSheet(c, memberDir, onSave) {
         <div class="life-sheet-hd-info">
           <div class="life-sheet-hd-name">${_e(name)}</div>
           <div class="life-sheet-hd-meta">${_e(rawType)} &bull; ${_e(currentStatus)}</div>
-          ${(memberPhoneTel || memberEmail) ? `
+          <!-- Contact buttons are ALWAYS rendered. The click handler resolves
+               the member's phone/email at click-time from the latest member
+               directory (or prompts) so the row never disappears just because
+               the directory hadn't finished loading at sheet-render time. -->
           <div class="life-contact-actions" role="group" aria-label="Contact ${_e(name)}">
-            ${memberPhoneTel ? `
-              <button type="button" class="flock-icon-btn life-contact-btn" data-contact="text" data-contact-value="${_e(memberPhoneRaw)}" data-contact-tel="${_e(memberPhoneTel)}" title="Text ${_e(name)} (${_e(memberPhoneRaw)})" aria-label="Text ${_e(name)}">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.5 8.5 0 0 1-3.7-.8L3 21l1.9-5.3A8.4 8.4 0 1 1 21 11.5z"/></svg>
-              </button>
-              <a class="flock-icon-btn life-contact-btn" href="tel:${_e(memberPhoneTel)}" data-contact="call" data-contact-value="${_e(memberPhoneRaw)}" title="Call ${_e(name)} (${_e(memberPhoneRaw)})" aria-label="Call ${_e(name)}">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3.1-8.7A2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.3 1.8.6 2.6a2 2 0 0 1-.5 2.1L8 9.6a16 16 0 0 0 6 6l1.2-1.2a2 2 0 0 1 2.1-.5c.8.3 1.7.5 2.6.6a2 2 0 0 1 1.7 2z"/></svg>
-              </a>` : ''}
-            ${memberEmail ? `
-              <button type="button" class="flock-icon-btn life-contact-btn" data-contact="email" data-contact-value="${_e(memberEmail)}" title="Email ${_e(name)} (${_e(memberEmail)})" aria-label="Email ${_e(name)}">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 6-10 7L2 6"/></svg>
-              </button>` : ''}
-          </div>` : ''}
+            <button type="button" class="flock-icon-btn life-contact-btn" data-contact="text" data-contact-value="${_e(memberPhoneRaw)}" data-contact-tel="${_e(memberPhoneTel)}" title="Text ${_e(name)}${memberPhoneRaw ? ' (' + _e(memberPhoneRaw) + ')' : ''}" aria-label="Text ${_e(name)}">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.5 8.5 0 0 1-3.7-.8L3 21l1.9-5.3A8.4 8.4 0 1 1 21 11.5z"/></svg>
+            </button>
+            <a class="flock-icon-btn life-contact-btn" href="${memberPhoneTel ? 'tel:' + _e(memberPhoneTel) : '#'}" data-contact="call" data-contact-value="${_e(memberPhoneRaw)}" title="Call ${_e(name)}${memberPhoneRaw ? ' (' + _e(memberPhoneRaw) + ')' : ''}" aria-label="Call ${_e(name)}">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3.1-8.7A2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.3 1.8.6 2.6a2 2 0 0 1-.5 2.1L8 9.6a16 16 0 0 0 6 6l1.2-1.2a2 2 0 0 1 2.1-.5c.8.3 1.7.5 2.6.6a2 2 0 0 1 1.7 2z"/></svg>
+            </a>
+            <button type="button" class="flock-icon-btn life-contact-btn" data-contact="email" data-contact-value="${_e(memberEmail)}" title="Email ${_e(name)}${memberEmail ? ' (' + _e(memberEmail) + ')' : ''}" aria-label="Email ${_e(name)}">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 6-10 7L2 6"/></svg>
+            </button>
+          </div>
         </div>
         <button class="life-sheet-close" aria-label="Close">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
@@ -1333,7 +1334,33 @@ function _openSheet(c, memberDir, onSave) {
   sheet.querySelectorAll('[data-contact]').forEach(btn => {
     btn.addEventListener('click', async (ev) => {
       const kind  = btn.dataset.contact;
-      const value = btn.dataset.contactValue || '';
+      // Resolve contact info LAZILY at click time. If the directory wasn't
+      // loaded when the sheet was rendered, look it up now from the cached
+      // directory using the case's memberId. This way the buttons are always
+      // present and just-work the moment the directory is available.
+      let value = btn.dataset.contactValue || '';
+      let tel   = btn.dataset.contactTel   || '';
+      if (!value || (kind === 'text' && !tel) || (kind === 'call' && !tel)) {
+        const rec = _findMemberRec(c.memberId, _memberDirCache);
+        if (rec) {
+          if (kind === 'email') {
+            value = (rec.email || rec.primaryEmail || value || '').trim();
+          } else {
+            const raw = (rec.phone || rec.primaryPhone || rec.mobilePhone || rec.cellPhone || value || '').trim();
+            value = raw;
+            tel   = raw.replace(/[^\d+]/g, '');
+          }
+          // Update dataset so subsequent clicks are instant.
+          btn.dataset.contactValue = value;
+          if (tel) btn.dataset.contactTel = tel;
+          if (kind === 'call' && tel) btn.setAttribute('href', 'tel:' + tel);
+        }
+      }
+      if (!value || (kind !== 'email' && !tel)) {
+        ev.preventDefault();
+        alert(`No ${kind === 'email' ? 'email address' : 'phone number'} on file for ${name}.`);
+        return;
+      }
 
       // Phone calls: log immediately, let the <a href="tel:"> navigate.
       if (kind === 'call') {
@@ -1358,7 +1385,7 @@ function _openSheet(c, memberDir, onSave) {
       if (kind === 'text') {
         _openComposer({
           channel: 'text',
-          name, recipient: value, target: btn.dataset.contactTel || value,
+          name, recipient: value, target: tel || value,
           caseId: cid, sheet,
           onLogged: _reloadIx,
         });
