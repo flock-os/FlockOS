@@ -147,23 +147,23 @@ function _detailHtml(item) {
   const scrips  = _parseScriptures(item.Scriptures || item.scriptures || '');
   const steps   = _parseSteps(item.Steps || item.steps || '');
   let h = '';
-  if (def) h += `<p class="grow-detail-body" style="margin:8px 0 14px;">${esc(def)}</p>`;
+  if (def) h += `<p class="grow-detail-body" style="margin:8px 0 16px;font-size:15px;line-height:1.55;">${esc(def)}</p>`;
   if (scrips.length) {
-    h += `<div class="grow-detail-h4" style="color:${esc(color)};">📖 Scripture Foundation</div>`;
+    h += `<div class="grow-detail-h4" style="color:${esc(color)};font-size:14px;letter-spacing:.04em;">📖 Scripture Foundation</div>`;
     scrips.forEach((s) => {
-      h += `<div style="padding:6px 0; border-top:1px solid var(--line, #e5e7ef);">`;
-      if (s.ref)  h += `<div style="font-weight:600; color:${esc(color)}; font-size:13px;">${bibleLink(s.ref)}</div>`;
-      if (s.text) h += `<div style="font-style:italic; color:var(--ink, #1b264f); font-size:13px; margin-top:2px;">“${esc(s.text)}”</div>`;
+      h += `<div style="padding:8px 0; border-top:1px solid var(--line, #e5e7ef);">`;
+      if (s.ref)  h += `<div style="font-weight:600; color:${esc(color)}; font-size:15px;">${bibleLink(s.ref)}</div>`;
+      if (s.text) h += `<div style="font-style:italic; color:var(--ink, #1b264f); font-size:15px; line-height:1.5; margin-top:3px;">“${esc(s.text)}”</div>`;
       h += `</div>`;
     });
   }
   if (steps.length) {
-    h += `<div class="grow-detail-h4" style="color:${esc(color)}; margin-top:14px;">💡 Faith Response Steps</div>`;
-    h += `<ol style="padding-left:18px; margin:6px 0; color:var(--ink, #1b264f); font-size:13px; line-height:1.6;">`;
-    steps.forEach((s) => { h += `<li style="margin:4px 0;">${esc(s)}</li>`; });
+    h += `<div class="grow-detail-h4" style="color:${esc(color)}; margin-top:18px;font-size:14px;letter-spacing:.04em;">💡 Faith Response Steps</div>`;
+    h += `<ol style="padding-left:22px; margin:8px 0; color:var(--ink, #1b264f); font-size:15px; line-height:1.6;">`;
+    steps.forEach((s) => { h += `<li style="margin:6px 0;">${esc(s)}</li>`; });
     h += `</ol>`;
   }
-  if (!h) h = `<div class="grow-muted" style="padding:8px 0;">No details available.</div>`;
+  if (!h) h = `<div class="grow-muted" style="padding:8px 0;font-size:15px;">No details available.</div>`;
   return h;
 }
 
@@ -181,7 +181,15 @@ function _parseScriptures(raw) {
 }
 function _parseSteps(raw) {
   if (!raw) return [];
-  return String(raw).split(/[;\n]+/).map((s) => s.trim()).filter(Boolean);
+  // Split on explicit separators first (semicolons, newlines), then on
+  // sentence boundaries: a period followed by a space and a capital letter.
+  // This turns the single "steps" string in the bundle (sentences joined by
+  // ". ") into one numbered item per sentence — much easier to read on mobile.
+  const text = String(raw).trim();
+  const parts = text.split(/(?:[;\n]+|(?<=\.)\s+(?=[A-Z(]))/);
+  return parts
+    .map((s) => s.trim().replace(/^[-•\d.\s]+/, '').trim())
+    .filter(Boolean);
 }
 
 function _summary(stub, item) {

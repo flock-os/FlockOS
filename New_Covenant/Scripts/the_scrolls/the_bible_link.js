@@ -174,8 +174,8 @@ export function installScriptureLinks(root = document.body) {
   if (!document.getElementById('scripture-link-style')) {
     const s = document.createElement('style');
     s.id = 'scripture-link-style';
-    s.textContent = `.scripture-link{color:inherit;border-bottom:1px dotted currentColor;text-decoration:none;}
-.scripture-link:hover{color:var(--gold,#e8a838);border-bottom-color:var(--gold,#e8a838);}`;
+    s.textContent = `.scripture-link{color:inherit;text-decoration:underline;text-decoration-thickness:1px;text-decoration-color:rgba(127,127,127,0.35);text-underline-offset:2px;cursor:pointer;}
+.scripture-link:hover{color:var(--gold,#e8a838);text-decoration-color:var(--gold,#e8a838);}`;
     document.head.appendChild(s);
   }
   // Watch for any added subtrees and linkify them.
