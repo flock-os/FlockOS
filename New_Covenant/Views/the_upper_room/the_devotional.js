@@ -6,8 +6,8 @@
    renders Scripture / Reflection / Question / Prayer cards, and offers a
    "Save to Journal" capture so the reader can respond in writing.
 
-   Also lists recent devotionals — yesterday plus the prior 30 days — for
-   quick re-reading.
+   Also lists recent devotionals — up to the 30 most recent entries dated on
+   or before yesterday — for quick re-reading.
    ══════════════════════════════════════════════════════════════════════════════ */
 
 import { draw, swr } from '../../Scripts/the_manna.js';
@@ -28,15 +28,16 @@ export function mountDevotional(host, ctx) {
     }
     const today = _today();
     const yesterday = _shiftDays(today, -1);
-    const earliest  = _shiftDays(today, -30); // previous day + 30 days back
     const todayDevo = list.find(d => _date(d) === today)
                   || list.slice().sort((a, b) => (_date(b) || '').localeCompare(_date(a) || ''))[0];
+    // Recent = up to the 30 most recent devotionals dated on or before yesterday.
     const recent    = list
       .filter(d => {
         const dt = _date(d);
-        return dt && dt <= yesterday && dt >= earliest;
+        return dt && dt <= yesterday;
       })
-      .sort((a, b) => (_date(b) || '').localeCompare(_date(a) || ''));
+      .sort((a, b) => (_date(b) || '').localeCompare(_date(a) || ''))
+      .slice(0, 30);
 
     host.innerHTML = `
       <article class="ur-devo-card">
