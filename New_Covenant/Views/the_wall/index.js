@@ -886,8 +886,9 @@ function _maintenancePanelMarkup() {
         <div style="font-size:.82rem;color:#7c2d12;line-height:1.5;margin-top:4px">
           Performs the full reset in one step:
           <strong>(1)</strong> reassigns every open care case and active prayer to the LP,
-          <strong>(2)</strong> reassigns every existing Active care assignment to the LP, and
-          <strong>(3)</strong> creates an Active assignment (role: Shepherd) for any member who still has none.
+          <strong>(2)</strong> reassigns every active outreach contact to the LP,
+          <strong>(3)</strong> reassigns every existing Active care assignment to the LP, and
+          <strong>(4)</strong> creates an Active assignment (role: Shepherd) for any member who still has none.
           Use this whenever spiritual oversight changes — secondary caregivers can be re-added afterward.
         </div>
         <div class="wall-maint-status" data-bind="reset-status" style="margin-top:8px;font-size:.82rem;color:#7c2d12"></div>
@@ -923,7 +924,7 @@ function _wireMaintenancePanel(root) {
   panel.addEventListener('click', async (e) => {
     const resetBtn = e.target.closest('[data-act="reset-care-to-lp"]');
     if (resetBtn) {
-      if (!confirm('RESET CARE TO LEAD PASTOR\n\nThis will:\n  • Reassign every open care case and active prayer to the LP\n  • Reassign every existing Active care assignment to the LP\n  • Create an Active LP assignment for any member without one\n\nSecondary caregivers will need to be re-added manually afterward.\n\nProceed?')) return;
+      if (!confirm('RESET CARE TO LEAD PASTOR\n\nThis will:\n  • Reassign every open care case and active prayer to the LP\n  • Reassign every active outreach contact to the LP\n  • Reassign every existing Active care assignment to the LP\n  • Create an Active LP assignment for any member without one\n\nSecondary caregivers will need to be re-added manually afterward.\n\nProceed?')) return;
       return _resetCareToLeadPastor(root, resetBtn);
     }
     const reassignBtn = e.target.closest('[data-act="reassign-to-lp"]');
@@ -1178,7 +1179,7 @@ async function _resetCareToLeadPastor(root, btn) {
     console.log('[wall/reset] lpId =', JSON.stringify(lpId));
 
     // ── Step 1: Care cases ───────────────────────────────────────
-    setStatus('Step 1/4: Reassigning open care cases…');
+    setStatus('Step 1/5: Reassigning open care cases…');
     const TERMINAL_C = new Set(['resolved','closed','archived','cancelled','completed','denied']);
     let caseChecked = 0, caseUpdated = 0, caseSkipped = 0, caseFailed = 0;
     if (UR.listCareCases && UR.updateCareCase) {
@@ -1198,7 +1199,7 @@ async function _resetCareToLeadPastor(root, btn) {
     }
 
     // ── Step 2: Prayers ──────────────────────────────────────────
-    setStatus(`Step 2/4: Reassigning active prayers… (${caseUpdated} cases done)`);
+    setStatus(`Step 2/5: Reassigning active prayers… (${caseUpdated} cases done)`);
     const TERMINAL_P = new Set(['answered','closed','archived','resolved']);
     let prayerChecked = 0, prayerUpdated = 0, prayerSkipped = 0, prayerFailed = 0;
     if (UR.listPrayers && UR.updatePrayer) {
@@ -1217,8 +1218,28 @@ async function _resetCareToLeadPastor(root, btn) {
       }
     }
 
-    // ── Step 3: Reassign existing Active careAssignments ─────────
-    setStatus(`Step 3/4: Reassigning existing care assignments to LP…`);
+    // ── Step 3: Outreach contacts ────────────────────────────────
+    setStatus(`Step 3/5: Reassigning active outreach contacts…`);
+    const TERMINAL_O = new Set(['converted','closed','archived','rejected','dropped']);
+    let outChecked = 0, outUpdated = 0, outSkipped = 0, outFailed = 0;
+    if (UR.listOutreachContacts && UR.updateOutreachContact) {
+      const all = await UR.listOutreachContacts({ limit: 5000 }).catch(() => []);
+      const contacts = Array.isArray(all) ? all : (all?.results || []);
+      for (const o of contacts) {
+        outChecked++;
+        const st = String(o.status || '').toLowerCase();
+        if (TERMINAL_O.has(st)) { outSkipped++; continue; }
+        const cur = o.assignedTo;
+        if (!isGarbage(cur) && String(cur).trim() === lpId) { outSkipped++; continue; }
+        try {
+          await UR.updateOutreachContact({ id: o.id, assignedTo: lpId });
+          outUpdated++;
+        } catch (err) { outFailed++; console.error('[wall/reset] outreach', o.id, err); }
+      }
+    }
+
+    // ── Step 4: Reassign existing Active careAssignments ─────────
+    setStatus(`Step 4/5: Reassigning existing care assignments to LP…`);
     let asgChecked = 0, asgReassigned = 0, asgSkipped = 0, asgFailed = 0;
     let existingAssignments = [];
     if (UR.listCareAssignments && UR.reassignCareAssignment) {
@@ -1241,8 +1262,8 @@ async function _resetCareToLeadPastor(root, btn) {
       }
     }
 
-    // ── Step 4: Create LP assignment for members without one ─────
-    setStatus(`Step 4/4: Creating LP assignments for members without one…`);
+    // ── Step 5: Create LP assignment for members without one ─────
+    setStatus(`Step 5/5: Creating LP assignments for members without one…`);
     let memChecked = 0, memCreated = 0, memSkipped = 0, memFailed = 0;
     if (UR.listMembers && UR.createCareAssignment) {
       // Build set of memberIds already covered by an Active LP assignment
@@ -1278,12 +1299,13 @@ async function _resetCareToLeadPastor(root, btn) {
       }
     }
 
-    const totalFailed = caseFailed + prayerFailed + asgFailed + memFailed;
+    const totalFailed = caseFailed + prayerFailed + outFailed + asgFailed + memFailed;
     const failMsg = totalFailed ? ` · ${totalFailed} failed (see console)` : '';
     setStatus(
       `Reset complete. ` +
       `Cases: ${caseUpdated}/${caseChecked} reassigned · ` +
       `Prayers: ${prayerUpdated}/${prayerChecked} reassigned · ` +
+      `Outreach: ${outUpdated}/${outChecked} reassigned · ` +
       `Assignments: ${asgReassigned}/${asgChecked} reassigned · ` +
       `New LP assignments: ${memCreated} created (of ${memChecked} members).${failMsg}`,
       totalFailed ? '#b45309' : '#16a34a'
