@@ -16,12 +16,41 @@ const _TERMINAL = new Set(['resolved','closed','archived','cancelled','denied','
 // Loaded once during _loadCare; consulted by _findLeadPastor() and the new-case modal
 // so cases auto-default to the configured Lead Pastor as primary caregiver.
 let _lpConfigId = '';
+// Cached merged member directory (GAS + Firestore). Set by _loadCare so that
+// _liveCareCard's Lead-Pastor fallback can search the directory even when its
+// own argument is a name-lookup Map rather than the raw array.
+let _memberDirCache = [];
+// Cached resolved Lead Pastor record (memory + localStorage). Once we resolve
+// the LP from any directory we persist it so subsequent renders never have to
+// re-resolve — even if the member directory is empty/slow on a later load.
+// localStorage key includes the lpConfigId so changing the LP auto-busts it.
+let _lpRecordCache = null;
+const _LP_LS_KEY = 'theLife.lpRecord.v1';
+function _loadLpFromLocalStorage(cfgId) {
+  try {
+    const raw = localStorage.getItem(_LP_LS_KEY);
+    if (!raw) return null;
+    const obj = JSON.parse(raw);
+    if (!obj || obj.cfgId !== cfgId || !obj.record) return null;
+    return obj.record;
+  } catch { return null; }
+}
+function _saveLpToLocalStorage(cfgId, record) {
+  try { localStorage.setItem(_LP_LS_KEY, JSON.stringify({ cfgId, record })); } catch (_) {}
+}
 async function _loadLpConfigId() {
   try {
     const UR = window.UpperRoom;
     if (!UR || typeof UR.getAppConfig !== 'function') return '';
     const cfg = await UR.getAppConfig({ key: 'LEAD_PASTOR_MEMBER_ID' });
     _lpConfigId = String((cfg && (cfg.value || cfg.val)) || '').trim();
+    // Hydrate the LP record cache from localStorage on first config load so the
+    // very first paint after navigation has a name to render even before the
+    // member directory finishes resolving.
+    if (_lpConfigId && !_lpRecordCache) {
+      const persisted = _loadLpFromLocalStorage(_lpConfigId);
+      if (persisted) _lpRecordCache = persisted;
+    }
     return _lpConfigId;
   } catch { return ''; }
 }
@@ -740,6 +769,7 @@ async function _loadCare(root, caseMap) {
       _loadLpConfigId(),
     ]);
     const memberDir = _mergeMemberDirs(_rows(gasMembersRes), _rows(fbMembersRes));
+    _memberDirCache = memberDir;
     const all  = _rows(careRes);
     const rows = all.filter(r => !_TERMINAL.has((r.status || r.Status || '').toLowerCase()));
     // Populate caseMap
@@ -880,17 +910,21 @@ function _liveCareCard(c, memberDirOrMap, isDemo = false) {
     if (t === 'undefined' || t === 'null') assigneeRaw = '';
   }
   let assignee, assigneeIsLP = false;
+  // _liveCareCard is often called with a name-lookup Map rather than the raw
+  // member array. Always search the cached directory array for the LP fallback,
+  // otherwise _findLeadPastor receives [] and we wrongly render "Unassigned".
+  const lpSearchDir = Array.isArray(memberDirOrMap) ? memberDirOrMap : _memberDirCache;
   if (assigneeRaw) {
     // If assigneeRaw matches the configured LP id, prefer the LP's full name.
     if (_lpConfigId && String(assigneeRaw) === String(_lpConfigId)) {
-      const lp = _findLeadPastor(Array.isArray(memberDirOrMap) ? memberDirOrMap : [], _lpConfigId);
+      const lp = _findLeadPastor(lpSearchDir, _lpConfigId);
       assignee = lp ? _memberName(lp) : (_resolveName(assigneeRaw, memberDirOrMap) || assigneeRaw);
       assigneeIsLP = !!lp;
     } else {
       assignee = _resolveName(assigneeRaw, memberDirOrMap) || assigneeRaw;
     }
   } else {
-    const lp = _findLeadPastor(Array.isArray(memberDirOrMap) ? memberDirOrMap : [], _lpConfigId);
+    const lp = _findLeadPastor(lpSearchDir, _lpConfigId);
     if (lp) { assignee = _memberName(lp); assigneeIsLP = true; }
     else    { assignee = 'Unassigned'; }
   }
@@ -1474,11 +1508,52 @@ function _memberName(m) {
 }
 
 // ── Find Lead Pastor from member directory ────────────────────────────────────
-// Priority: (1) match by configured LEAD_PASTOR_MEMBER_ID AppConfig (memberPin/id/
-// memberNumber/uid/email), (2) fall back to role/memberType containing "pastor".
+// Self-healing resolver. Priority:
+//   (0) Cached LP record (in-memory + localStorage) — survives empty member
+//       directory loads, Map-vs-array param confusion, and view re-mounts.
+//   (1) Match by configured LEAD_PASTOR_MEMBER_ID AppConfig (memberPin/id/
+//       memberNumber/uid/email) inside the supplied directory.
+//   (2) Fall back to role/memberType containing "pastor".
+// On every successful resolution we update the cache so the next call cannot
+// regress to "Unassigned" even if upstream loads fail.
 function _findLeadPastor(members, lpConfigId) {
   const list = Array.isArray(members) ? members : [];
   const cfgId = String(lpConfigId || _lpConfigId || '').trim();
+
+  // (0) Cached record — verify it still belongs to the current LP config.
+  if (_lpRecordCache) {
+    const r = _lpRecordCache;
+    const matchesCfg = !cfgId
+      || r.memberPin === cfgId
+      || r.memberNumber === cfgId
+      || r.id === cfgId
+      || r.uid === cfgId
+      || r.docId === cfgId
+      || (r.email && r.email.toLowerCase() === cfgId.toLowerCase());
+    if (matchesCfg) {
+      // Refresh from directory if a fresher copy exists, but always succeed.
+      if (cfgId && list.length) {
+        const fresh = list.find(m =>
+          m.memberPin === cfgId
+          || m.memberNumber === cfgId
+          || m.id === cfgId
+          || m.uid === cfgId
+          || m.docId === cfgId
+          || (m.email && m.email.toLowerCase() === cfgId.toLowerCase())
+        );
+        if (fresh) {
+          _lpRecordCache = fresh;
+          _saveLpToLocalStorage(cfgId, fresh);
+          return fresh;
+        }
+      }
+      return _lpRecordCache;
+    }
+    // Cache no longer matches the configured LP — invalidate it.
+    _lpRecordCache = null;
+  }
+
+  // (1) Resolve from directory by configured id.
   if (cfgId) {
     const byId = list.find(m =>
       m.memberPin === cfgId
@@ -1488,13 +1563,24 @@ function _findLeadPastor(members, lpConfigId) {
       || m.docId === cfgId
       || (m.email && m.email.toLowerCase() === cfgId.toLowerCase())
     );
-    if (byId) return byId;
+    if (byId) {
+      _lpRecordCache = byId;
+      _saveLpToLocalStorage(cfgId, byId);
+      return byId;
+    }
   }
+
+  // (2) Last resort: role-based lookup.
   const PASTOR_ROLES = ['lead pastor','senior pastor','lead','pastor'];
-  return list.find(m => {
+  const byRole = list.find(m => {
     const r = String(m.role || m.memberType || '').toLowerCase();
     return PASTOR_ROLES.some(pr => r === pr || r.startsWith(pr));
   });
+  if (byRole) {
+    _lpRecordCache = byRole;
+    if (cfgId) _saveLpToLocalStorage(cfgId, byRole);
+  }
+  return byRole;
 }
 
 // Returns true if the currently signed-in user is in the Lead Pastor Group
