@@ -293,6 +293,28 @@ const TheTruth = (() => {
         { k: 'approvedAt',       label: 'Approved At',              type: 'text' },
       ]
     },
+    { key: 'teachingPlans', name: 'Teaching Plans', idField: 'sessionTitle',
+      listCols: ['planTitle', 'sessionNumber', 'sessionTitle', 'status'],
+      fields: [
+        { k: 'planId',          label: 'Plan ID (slug)',                       type: 'text',     required: true },
+        { k: 'planTitle',       label: 'Plan Title',                           type: 'text',     required: true },
+        { k: 'planDescription', label: 'Plan Description / Format',            type: 'textarea' },
+        { k: 'planAudience',    label: 'Plan Audience',                        type: 'text' },
+        { k: 'planGoal',        label: 'Plan Goal',                            type: 'textarea' },
+        { k: 'sessionNumber',   label: 'Session Number',                       type: 'text',     required: true },
+        { k: 'sessionTitle',    label: 'Session Title',                        type: 'text',     required: true },
+        { k: 'memoryVerse',     label: 'Memory Verse',                         type: 'textarea' },
+        { k: 'memoryVerseRef',  label: 'Memory Verse Reference',               type: 'text' },
+        { k: 'outcome',         label: 'Outcome',                              type: 'textarea' },
+        { k: 'durationMinutes', label: 'Duration (minutes)',                   type: 'text' },
+        { k: 'segments',        label: 'Segments (JSON — prefer the importer)', type: 'textarea' },
+        { k: 'scriptureRefs',   label: 'Scripture References',                 type: 'text' },
+        { k: 'tags',            label: 'Tags (comma-separated)',               type: 'text' },
+        { k: 'status',          label: 'Status',                               type: 'select',   opts: ['Draft', 'Approved', 'Review'] },
+        { k: 'approvedBy',      label: 'Approved By',                          type: 'text' },
+        { k: 'approvedAt',      label: 'Approved At',                          type: 'text' },
+      ]
+    },
     { key: 'genealogy', name: 'Genealogy', idField: 'name',
       listCols: ['name', 'title', 'lifespan'],
       fields: [

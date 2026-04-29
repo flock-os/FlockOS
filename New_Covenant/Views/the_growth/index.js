@@ -7,8 +7,9 @@
 import * as Courses      from '../../Scripts/the_gospel/the_gospel_courses.js';
 import * as Quizzes      from '../../Scripts/the_gospel/the_gospel_quizzes.js';
 import * as Reading      from '../../Scripts/the_gospel/the_gospel_reading.js';
-import * as Theology     from '../../Scripts/the_gospel/the_gospel_theology.js';
-import * as Lexicon      from '../../Scripts/the_gospel/the_gospel_lexicon.js';
+import * as Theology      from '../../Scripts/the_gospel/the_gospel_theology.js';
+import * as TeachingPlans from '../../Scripts/the_gospel/the_gospel_teaching_plans.js';
+import * as Lexicon       from '../../Scripts/the_gospel/the_gospel_lexicon.js';
 import * as Library      from '../../Scripts/the_gospel/the_gospel_library.js';
 import * as Devotionals  from '../../Scripts/the_gospel/the_gospel_devotionals.js';
 import * as Apologetics  from '../../Scripts/the_gospel/the_gospel_apologetics.js';
@@ -32,7 +33,7 @@ const SECTIONS = [
   {
     title:   'Study & Discipleship',
     blurb:   'Go deep — courses, doctrine, words, and lives.',
-    modules: [Courses, Quizzes, Theology, Lexicon, Library, Apologetics, Counseling, Genealogy],
+    modules: [Courses, Quizzes, Theology, TeachingPlans, Lexicon, Library, Apologetics, Counseling, Genealogy],
   },
   {
     title:   'Your Walk',

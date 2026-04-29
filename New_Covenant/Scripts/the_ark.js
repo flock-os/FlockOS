@@ -133,6 +133,7 @@ async function _registerViews() {
   register('the_gospel_quizzes',       V('the_gospel_quizzes'),       { command: 'Go to: Quizzes' });
   register('the_gospel_reading',       V('the_gospel_reading'),       { command: 'Go to: Reading Plans' });
   register('the_gospel_theology',      V('the_gospel_theology'),      { command: 'Go to: Theology' });
+  register('the_gospel_teaching_plans', V('the_gospel_teaching_plans'), { command: 'Go to: Teaching Plans' });
   register('the_gospel_lexicon',       V('the_gospel_lexicon'),       { command: 'Go to: Lexicon' });
   register('the_gospel_library',       V('the_gospel_library'),       { command: 'Go to: The Word library' });
   register('the_gospel_devotionals',   V('the_gospel_devotionals'),   { command: 'Go to: Devotionals' });
