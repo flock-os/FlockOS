@@ -134,16 +134,41 @@ export function subscribeOpenCareCount(cb) {
 }
 
 // Wait up to `ms` for either Firestore (UpperRoom) or GAS (TheVine) to be ready.
+// Actively kicks off UpperRoom.init() + .authenticate() if Firebase is loaded
+// but nothing else has triggered them yet — without this, the badge waits
+// passively for some other module (Tabernacle) to lazy-init UpperRoom, which
+// can take a long time on a fresh login.
+let _ensureAuthPromise = null;
+function _ensureUpperRoomAuth() {
+  if (_ensureAuthPromise) return _ensureAuthPromise;
+  _ensureAuthPromise = (async () => {
+    const UR = window.UpperRoom;
+    if (!UR || typeof UR.init !== 'function' || typeof UR.authenticate !== 'function') return;
+    if (typeof UR.isReady === 'function' && UR.isReady()) return;
+    try { await UR.init(); } catch (_) {}
+    try { await UR.authenticate(); } catch (_) {}
+  })();
+  return _ensureAuthPromise;
+}
+
 function _awaitBackend(ms = 15_000) {
   return new Promise((resolve) => {
     const t0 = Date.now();
+    let prodded = false;
     const check = () => {
       const UR = window.UpperRoom;
       const V  = window.TheVine;
       const fsReady = !!(UR && typeof UR.isReady === 'function' && UR.isReady());
       if (fsReady || V) return resolve();
+      // Once UpperRoom appears, actively prod it. (Firebase SDK scripts use
+      // `defer` so UpperRoom may not exist on the very first poll.) We only
+      // need to do this once — _ensureUpperRoomAuth is memoized.
+      if (!prodded && UR && typeof UR.init === 'function') {
+        prodded = true;
+        _ensureUpperRoomAuth();
+      }
       if (Date.now() - t0 >= ms) return resolve();
-      setTimeout(check, 200);
+      setTimeout(check, 100);
     };
     check();
   });
