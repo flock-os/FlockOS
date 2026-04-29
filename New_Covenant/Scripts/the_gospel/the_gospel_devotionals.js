@@ -3,7 +3,7 @@
    "Man shall not live by bread alone, but by every word from God." — Matthew 4:4
    ══════════════════════════════════════════════════════════════════════════════ */
 
-import { ur, vine, rows, esc, snip, fmtDate, emptyState, backendOffline, loadingCards, chip } from './the_gospel_shared.js';
+import { esc, snip, fmtDate, emptyState, loadingCards, chip } from './the_gospel_shared.js';
 
 export const name        = 'the_gospel_devotionals';
 export const title       = 'Devotionals';
@@ -35,18 +35,15 @@ export function mount(root) {
 }
 
 async function _load(list) {
-  const U = ur(); const V = vine();
-  let res = null;
+  // Load from static bundle (regenerated from Firestore via export_devotionals_to_js.py)
   try {
-    if (U && typeof U.listAppContent === 'function')      res = await U.listAppContent('devotionals');
-    else if (V && V.app && V.app.devotionals)             res = await V.app.devotionals();
+    const mod = await import('../../Data/devotionals.js');
+    _state.rows = mod.default || [];
   } catch (e) {
-    console.error('[gospel/devotionals] load:', e);
+    console.error('[gospel/devotionals] static bundle failed:', e);
     list.innerHTML = emptyState({ icon: '⚠️', title: 'Could not load devotionals', body: e.message || String(e) });
     return;
   }
-  if (!U && !V) { list.innerHTML = backendOffline('Devotionals not loaded.'); return; }
-  _state.rows = rows(res);
   if (!_state.rows.length) { list.innerHTML = emptyState({ icon: '🌅', title: 'No devotionals yet' }); return; }
   list.innerHTML = _state.rows.map(_card).join('');
 }

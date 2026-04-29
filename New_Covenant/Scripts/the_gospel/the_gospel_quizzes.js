@@ -4,7 +4,8 @@
    ══════════════════════════════════════════════════════════════════════════════ */
 
 import {
-  ur, vine, rows, esc, snip, emptyState, backendOffline, loadingCards, chip,
+  esc, snip, emptyState, loadingCards, chip,
+} from './the_gospel_shared.js';
   helpButton, wireHelp,
 } from './the_gospel_shared.js';
 
@@ -45,27 +46,14 @@ export function mount(root) {
 
 async function _load(root) {
   const view = root.querySelector('[data-bind="root"]');
-  const U = ur(); const V = vine();
-  if (!U && !V) { view.innerHTML = backendOffline('Quiz catalogue not loaded.'); return; }
-
+  // Load bible quiz questions from static bundle (regenerated via export_quiz_to_js.py)
+  // Course/structured quizzes are user-created content — not yet bundled
   try {
-    if (U) {
-      const [course, bible] = await Promise.all([
-        U.listLrnQuizzes ? U.listLrnQuizzes({ status: 'Published' }).catch(() => null) : null,
-        U.listAppContent ? U.listAppContent('quiz').catch(() => null) : null,
-      ]);
-      _state.course = rows(course);
-      _state.bible  = rows(bible);
-    } else if (V) {
-      const [course, bible] = await Promise.all([
-        V.flock.call('learning.quizzes.list', { status: 'Published' }).catch(() => null),
-        V.app && V.app.quiz ? V.app.quiz().catch(() => null) : null,
-      ]);
-      _state.course = rows(course);
-      _state.bible  = rows(bible);
-    }
+    const mod = await import('../../Data/quiz.js');
+    _state.bible  = mod.default || [];
+    _state.course = [];
   } catch (e) {
-    console.error('[gospel/quizzes] load:', e);
+    console.error('[gospel/quizzes] static bundle failed:', e);
     view.innerHTML = emptyState({ icon: '⚠️', title: 'Could not load quizzes', body: e.message || String(e) });
     return;
   }

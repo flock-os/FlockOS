@@ -3,7 +3,7 @@
    "These are the generations…" — Genesis 5:1
    ══════════════════════════════════════════════════════════════════════════════ */
 
-import { vine, rows, esc, snip, emptyState, backendOffline, loadingCards, chip } from './the_gospel_shared.js';
+import { esc, snip, emptyState, loadingCards, chip } from './the_gospel_shared.js';
 
 export const name        = 'the_gospel_genealogy';
 export const title       = 'Genealogy';
@@ -49,14 +49,13 @@ export function mount(root) {
 
 async function _load(root) {
   const list = root.querySelector('[data-bind="list"]');
-  const V = vine();
-  if (!V || !V.app || !V.app.genealogy) { list.innerHTML = backendOffline('Genealogy not loaded.'); return; }
+  // Load from static bundle (regenerated from Firestore via export_genealogy_to_js.py)
   try {
-    const res = await V.app.genealogy();
-    _state.rows = rows(res);
+    const mod = await import('../../Data/genealogy.js');
+    _state.rows = mod.default || [];
     _paint(root);
   } catch (e) {
-    console.error('[gospel/genealogy] load:', e);
+    console.error('[gospel/genealogy] static bundle failed:', e);
     list.innerHTML = emptyState({ icon: '⚠️', title: 'Could not load genealogy', body: e.message || String(e) });
   }
 }
