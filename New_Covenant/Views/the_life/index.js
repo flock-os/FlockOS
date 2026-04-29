@@ -57,24 +57,43 @@ async function _loadLpConfigId() {
 
 /* ── Sidebar badge ────────────────────────────────────────────────────────────
    the_pillars imports `pendingCount` and shows it next to "Pastoral Care".
-   Counts open (non-terminal) care cases. Cached briefly so the 30-second
-   badge tick doesn't hammer the GAS bridge.                                  */
+   Counts open (non-terminal) care cases. Cached briefly so the badge tick
+   (every 2 min) doesn't hammer the backend. Cache is busted any time we
+   know the open-case count changed (resolve, create, reassign).            */
 let _pendingCache = null;
 let _pendingCachedAt = 0;
-const _PENDING_TTL = 60_000; // 1 min
+const _PENDING_TTL = 30_000; // 30 sec
+
+// Public: invalidate the badge cache so the next pendingCount() call refetches.
+// Also dispatches a global event so the_pillars can refresh badges immediately
+// instead of waiting for its 2-minute tick.
+export function bustPendingCache() {
+  _pendingCache = null;
+  _pendingCachedAt = 0;
+  try { window.dispatchEvent(new CustomEvent('flockos:badges:refresh')); } catch (_) {}
+}
 
 export async function pendingCount() {
   const now = Date.now();
   if (_pendingCache !== null && (now - _pendingCachedAt) < _PENDING_TTL) {
     return _pendingCache;
   }
-  const V  = window.TheVine;
+  // Firestore-first via the adapter. Works even when window.TheVine is null
+  // (Firestore-only deploys / before GAS finishes loading) — the previous
+  // `if (!V) return 0` guard caused the badge to silently report 0 in those
+  // sessions, which is why it "only worked after running maintenance".
+  const V  = (typeof window !== 'undefined') ? window.TheVine   : null;
+  const UR = (typeof window !== 'undefined') ? window.UpperRoom : null;
+  const fsReady = !!(UR && typeof UR.isReady === 'function' && UR.isReady());
+  if (!V && !fsReady) return 0; // neither backend ready yet — try again next tick
   const MX = buildAdapter('flock.care', V);
-  if (!V) return 0;
   try {
     const res = await MX.list({});
     const rows = Array.isArray(res) ? res : (res?.rows || res?.data || []);
-    const open = rows.filter(r => !_TERMINAL.has(String(r.status || r.Status || '').toLowerCase())).length;
+    const open = rows.filter(r => {
+      const s = String(r.status || r.Status || '').trim().toLowerCase();
+      return !_TERMINAL.has(s);
+    }).length;
     _pendingCache = open;
     _pendingCachedAt = now;
     return open;
@@ -998,6 +1017,10 @@ async function _resolveCase(cid, card, root) {
   card.style.opacity = '0';
   card.style.transform = 'scale(0.96)';
   setTimeout(() => { card.remove(); _decrementTotal(root); }, 320);
+  // Open-case count just changed — invalidate the badge cache and ping the
+  // sidebar so the badge updates immediately instead of waiting up to 2 min
+  // (or until the next session, which is what was happening before).
+  bustPendingCache();
 }
 
 function _decrementTotal(root) {

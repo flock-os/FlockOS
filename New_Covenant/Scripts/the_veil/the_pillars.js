@@ -164,8 +164,16 @@ export function mountPillars(host) {
   // Refresh badges every 2 minutes — counts don't need real-time freshness
   // and this is the single biggest idle-cost reduction in the app.
   const badgeTick = setInterval(() => _refreshBadges(host), 120_000);
+  // Allow views (the_life resolve, the_fellowship read) to ping us so badges
+  // update immediately instead of waiting up to 2 minutes.
+  const onBadgeRefresh = () => _refreshBadges(host);
+  window.addEventListener('flockos:badges:refresh', onBadgeRefresh);
 
-  return () => { clearInterval(tick); clearInterval(badgeTick); };
+  return () => {
+    clearInterval(tick);
+    clearInterval(badgeTick);
+    window.removeEventListener('flockos:badges:refresh', onBadgeRefresh);
+  };
 }
 
 function _section(s) {
