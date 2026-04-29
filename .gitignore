@@ -100,3 +100,7 @@ New_Covenant/Architechtural Docs/
 
 # Entire architecture split tree is local-only and should never be tracked.
 Architechtural Docs/
+
+# Pages bloat — Nation deployments served via Firebase, not GitHub Pages
+Covenant/Nations/FlockOS/
+Covenant/Nations/GAS/
