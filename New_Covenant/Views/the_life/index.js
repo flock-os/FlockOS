@@ -1258,14 +1258,14 @@ function _openSheet(c, memberDir, onSave) {
     const summaryVal    = sheet.querySelector('[data-field="summary"]').value.trim();
     const pastoralVal   = isPastoral ? (sheet.querySelector('[data-field="pastoralNotes"]')?.value ?? null) : undefined;
     try {
-      await MXC.update({
-        id:                   cid,
-        status:               activeStatus,
-        primaryCaregiverId:   assigneeVal  || undefined,
-        secondaryCaregiverId: secondaryVal || undefined,
-        summary:              summaryVal   || undefined,
-        ...(isPastoral && pastoralVal !== null ? { pastoralNotes: pastoralVal } : {}),
-      });
+      const patch = { id: cid, status: activeStatus };
+      if (assigneeVal)  patch.primaryCaregiverId   = assigneeVal;
+      if (secondaryVal) patch.secondaryCaregiverId = secondaryVal;
+      if (summaryVal)   patch.summary              = summaryVal;
+      if (isPastoral && pastoralVal !== null && pastoralVal !== undefined) {
+        patch.pastoralNotes = pastoralVal;
+      }
+      await MXC.update(patch);
       _closeSheet();
       if (onSave) onSave();
     } catch (err) {
