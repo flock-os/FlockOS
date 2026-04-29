@@ -84,7 +84,13 @@ export function mountDevotional(host, ctx) {
 /* ── Data ─────────────────────────────────────────────────────────────────── */
 
 async function _fetch() {
-  // 1. Firestore preferred.
+  // 1. Static bundle (regenerated from Firestore via export_devotionals_to_js.py).
+  try {
+    const mod = await import('../../Data/devotionals.js');
+    const rows = mod.default || [];
+    if (Array.isArray(rows) && rows.length) return rows;
+  } catch (_) { /* fall through */ }
+  // 2. Firestore fallback (only if bundle missing/empty).
   const UR = window.UpperRoom;
   if (UR && UR.isReady && UR.isReady() && typeof UR.listAppContent === 'function') {
     try {
@@ -92,7 +98,7 @@ async function _fetch() {
       if (Array.isArray(fsRows) && fsRows.length) return fsRows;
     } catch (_) { /* fall through */ }
   }
-  // 2. GAS fallback.
+  // 3. GAS fallback.
   const V = window.TheVine;
   const MX = buildAdapter('app.devotionals', V);
   try {

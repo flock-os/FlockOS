@@ -1974,8 +1974,10 @@ flock-tabs [role="tablist"], .tabs-bar {
   background: linear-gradient(135deg, #0f1735 0%, #1b264f 100%);
   border-radius: var(--radius-lg); padding: 20px; color: #fff;
 }
-.pray-liturgy-title { font: 700 0.96rem var(--font-ui); color: #fff; margin-bottom: 6px; }
-.pray-liturgy-verse { font: 0.76rem var(--font-serif); color: rgba(255,255,255,.65); margin-bottom: 16px; line-height: 1.5; font-style: italic; }
+/* Sized to match the Today's Word card (.word-title / .word-scrip / .word-tease)
+   so the two side-by-side dashboard cards share a consistent type scale. */
+.pray-liturgy-title { font: 700 1.4rem/1.15 var(--font-serif); color: #fff; margin-bottom: 8px; }
+.pray-liturgy-verse { font: italic 600 0.95rem/1.5 var(--font-serif); color: rgba(255,255,255,.7); margin-bottom: 16px; }
 .pray-liturgy-list  { display: flex; flex-direction: column; gap: 12px; }
 .pray-liturgy-row   {
   display: flex; gap: 10px; align-items: flex-start;
@@ -1987,11 +1989,15 @@ flock-tabs [role="tablist"], .tabs-bar {
 .pray-liturgy-row:focus-visible { outline: 2px solid var(--gold,#e8a838); outline-offset: 2px; }
 .pray-liturgy-row.is-now { background: rgba(232,168,56,.16); border-left: 3px solid var(--gold,#e8a838); padding-left: 7px; }
 .pray-liturgy-row.is-now .pray-lit-time { color: #fff; }
-.pray-lit-icon      { font-size: 1.1rem; flex: none; }
+.pray-lit-icon      { font-size: 1.25rem; flex: none; }
 .pray-lit-body      {}
-.pray-lit-time      { font: 700 0.78rem var(--font-ui); color: rgba(255,255,255,.9); }
-.pray-lit-now-pill  { display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 999px; background: var(--gold,#e8a838); color: #1b264f; font: 700 0.62rem var(--font-ui); text-transform: uppercase; letter-spacing: .05em; vertical-align: middle; }
-.pray-lit-text      { font: 0.72rem var(--font-ui); color: rgba(255,255,255,.55); line-height: 1.4; margin-top: 2px; }
+.pray-lit-time      { font: 700 0.95rem var(--font-ui); color: rgba(255,255,255,.92); }
+.pray-lit-now-pill  { display: inline-block; margin-left: 6px; padding: 2px 8px; border-radius: 999px; background: var(--gold,#e8a838); color: #1b264f; font: 700 0.68rem var(--font-ui); text-transform: uppercase; letter-spacing: .05em; vertical-align: middle; }
+.pray-lit-text      { font: 0.88rem/1.5 var(--font-ui); color: rgba(255,255,255,.6); margin-top: 3px; }
+
+@media (max-width: 720px) {
+  .pray-liturgy-title { font-size: 1.2rem; }
+}
 
 /* Liturgy guided sheet */
 .pray-liturgy-sheet .life-sheet-body { padding-top: 4px; }

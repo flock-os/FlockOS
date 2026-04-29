@@ -30,8 +30,22 @@ export function render() {
 }
 
 export function mount(root) {
-  _load(root.querySelector('[data-bind="list"]'));
-  return () => {};
+  const list = root.querySelector('[data-bind="list"]');
+  _load(list);
+  // Mobile WebViews (iOS Capacitor) sometimes don't toggle <details> when the
+  // click lands on a block descendant of <summary> (e.g. an <h3>). Wire a
+  // delegated handler so taps anywhere on the head reliably toggle the card.
+  const onTap = (e) => {
+    const head = e.target.closest('.grow-devo-head');
+    if (!head) return;
+    const det = head.parentElement;
+    if (!det || det.tagName !== 'DETAILS') return;
+    e.preventDefault();
+    if (det.hasAttribute('open')) det.removeAttribute('open');
+    else det.setAttribute('open', '');
+  };
+  list.addEventListener('click', onTap);
+  return () => { list.removeEventListener('click', onTap); };
 }
 
 async function _load(list) {
@@ -49,18 +63,24 @@ async function _load(list) {
 }
 
 function _card(d) {
-  const date = fmtDate(d.Date || d.date);
+  const date       = fmtDate(d.Date || d.date);
+  const theme      = d.Theme      || d.theme;
+  const title      = d.Title      || d.title || 'Devotional';
+  const scripture  = d.Scripture  || d.scripture;
+  const reflection = d.Reflection || d.reflection;
+  const question   = d.Question   || d.question;
+  const prayer     = d.Prayer     || d.prayer;
   return /* html */`
     <details class="grow-devo">
       <summary class="grow-devo-head">
-        <div class="grow-devo-meta">${date ? chip(date, 'neutral') : ''}${d.Theme ? chip(d.Theme, 'topic') : ''}</div>
-        <h3 class="grow-devo-title">${esc(d.Title || d.title || 'Devotional')}</h3>
-        ${d.Scripture ? `<p class="grow-devo-scripture">${esc(d.Scripture)}</p>` : ''}
+        <div class="grow-devo-meta">${date ? chip(date, 'neutral') : ''}${theme ? chip(theme, 'topic') : ''}</div>
+        <h3 class="grow-devo-title">${esc(title)}</h3>
+        ${scripture ? `<p class="grow-devo-scripture">${esc(scripture)}</p>` : ''}
       </summary>
       <div class="grow-devo-body">
-        ${d.Reflection ? `<p>${esc(snip(d.Reflection, 1200))}</p>` : ''}
-        ${d.Question   ? `<blockquote class="grow-quote">${esc(d.Question)}</blockquote>` : ''}
-        ${d.Prayer     ? `<p class="grow-prayer"><em>${esc(d.Prayer)}</em></p>` : ''}
+        ${reflection ? `<p>${esc(snip(reflection, 1200))}</p>` : ''}
+        ${question   ? `<blockquote class="grow-quote">${esc(question)}</blockquote>` : ''}
+        ${prayer     ? `<p class="grow-prayer"><em>${esc(prayer)}</em></p>` : ''}
       </div>
     </details>
   `;
