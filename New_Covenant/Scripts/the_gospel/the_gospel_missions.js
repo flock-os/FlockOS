@@ -151,10 +151,19 @@ function _paint(view) {
     </div>
     <div class="ms-jp-wrap">
       <div class="ms-jp-label">📍 Joshua Project · Daily People Group</div>
-      <div class="ms-jp-inner" id="ms-jp-widget"></div>
+      <div class="ms-jp-inner">
+        <iframe
+          src="https://joshuaproject.net/widget/widget.php?wpw=280&ori=P&cbg=ffffff&cfc=1a1d2e&chc=059669&clc=059669&fbg=f4f5f9&ffc=4a4f68&flc=059669&bbg=059669&bhc=047857&blc=ffffff&bdw=0&bdrtl=12&bdrtr=12&bdrbl=12&bdrbr=12&bdc=e5e7ef&pop=1&relg=1&stat=1&dlang=eng&oft=Arial,Helvetica,sans-serif&tfsz=13px&pfsz=12px&ifsz=11px&ffsz=11px"
+          frameborder="0" scrolling="no"
+          style="width:280px;height:420px;border:none;border-radius:12px;display:block;"
+          title="Joshua Project Unreached of the Day">
+        </iframe>
+      </div>
     </div>
 
     <div class="grow-section-head">
+      <span class="grow-section-title">Nation of the Day</span>
+    </div>
 
     <div class="ms-focus">
       <span class="ms-focus-flag">${featured.icon || '🌍'}</span>
@@ -194,8 +203,9 @@ function _paint(view) {
 
   _renderGrid(view);
   _wireControls(view);
-  _injectJpWidget(view);
 }
+
+/* _injectJpWidget removed — widget now uses a static <iframe> in _paint() HTML */
 
 /* ─── Grid ────────────────────────────────────────────────────────────────── */
 function _renderGrid(view) {
@@ -214,15 +224,17 @@ function _renderGrid(view) {
     </div>
   `;
 
-  // Toggle expand on card click
+  // Toggle expand on card click (ignore clicks on the pray button)
   gridEl.querySelectorAll('.ms-card').forEach(card => {
-    card.addEventListener('click', () => {
+    const _toggle = () => {
       const id = card.dataset.id;
       _state.openId = _state.openId === id ? null : id;
       gridEl.querySelectorAll('.ms-card').forEach(c =>
         c.classList.toggle('is-open', c.dataset.id === _state.openId)
       );
-    });
+    };
+    card.addEventListener('click', (e) => { if (!e.target.closest('[data-help-btn]')) _toggle(); });
+    card.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); _toggle(); } });
   });
 }
 
@@ -232,7 +244,7 @@ function _cardHTML(n) {
   const isOpen  = _state.openId === (n._id || n.countryName);
 
   return /* html */`
-    <button class="ms-card${isOpen ? ' is-open' : ''}" data-id="${esc(n._id || n.countryName)}">
+    <div class="ms-card${isOpen ? ' is-open' : ''}" data-id="${esc(n._id || n.countryName)}" role="button" tabindex="0">
       <span class="ms-card-flag">${n.icon || '🌍'}</span>
       <div class="ms-card-name">${esc(n.countryName)}</div>
       <div class="ms-card-region">${esc(n.region || '')}</div>
@@ -251,7 +263,7 @@ function _cardHTML(n) {
           🙏 Pray with a Shepherd
         </button>
       </div>
-    </button>
+    </div>
   `;
 }
 
@@ -273,56 +285,4 @@ function _wireControls(view) {
   });
 }
 
-/* ─── Joshua Project "Unreached of the Day" widget (public, no API key) ──── */
-function _injectJpWidget(view) {
-  const container = view.querySelector('#ms-jp-widget');
-  if (!container) return;
 
-  // JP widget parameters:
-  //   wpw  = width in px
-  //   ori  = orientation (P=portrait, L=landscape)
-  //   cbg  = center background color (hex, no #)
-  //   cfc  = center font color
-  //   chc  = center heading color
-  //   clc  = center link color
-  //   fbg  = footer background color
-  //   ffc  = footer font color
-  //   flc  = footer link color
-  //   bbg  = button/header background
-  //   bhc  = button/header hover color
-  //   blc  = button link color
-  //   bdw  = border width (0 = none)
-  //   pop  = show population (1/0)
-  //   relg = show religion   (1/0)
-  //   stat = show status     (1/0)
-  //   dlang = display language code (eng)
-  const params = new URLSearchParams({
-    wpw:   '280',
-    ori:   'P',
-    cbg:   'ffffff',
-    cfc:   '1a1d2e',
-    chc:   '059669',
-    clc:   '059669',
-    fbg:   'f4f5f9',
-    ffc:   '4a4f68',
-    flc:   '059669',
-    bbg:   '059669',
-    bhc:   '047857',
-    blc:   'ffffff',
-    bdw:   '0',
-    bdrtl: '12', bdrtr: '12', bdrbl: '12', bdrbr: '12',
-    bdc:   'e5e7ef',
-    pop:   '1',
-    relg:  '1',
-    stat:  '1',
-    dlang: 'eng',
-    oft:   'Arial,Helvetica,sans-serif',
-    tfsz:  '13', pfsz: '12', ifsz: '11', ffsz: '11',
-  });
-
-  const script = document.createElement('script');
-  script.src   = `https://joshuaproject.net/widget/upgotd_customizer.php?${params.toString()}`;
-  script.type  = 'text/javascript';
-  script.charset = 'utf-8';
-  container.appendChild(script);
-}
