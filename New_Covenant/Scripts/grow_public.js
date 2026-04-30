@@ -19,6 +19,13 @@ const NAV = [
       { name: 'the_gospel_mirror',        title: "Shepherd's Mirror",  icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="2" width="18" height="20" rx="3"/><path d="M9 22v-4h6v4"/><path d="M8 7h8M8 11h8M8 15h5"/></svg>`,                             accent: '#7c3aed' },
     ],
   },
+  /* Global Outreach */
+  {
+    section: 'Global Outreach',
+    items: [
+      { name: 'the_gospel_missions', title: 'World Missions', icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>`, accent: '#059669' },
+    ],
+  },
   /* Study & Discipleship */
   {
     section: 'Study & Discipleship',
