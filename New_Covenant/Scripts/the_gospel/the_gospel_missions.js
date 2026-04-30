@@ -99,13 +99,7 @@ export function render() {
         .ms-prayer-cta-text strong { display:block; font-size:0.95rem; margin-bottom:2px; }
         .ms-prayer-cta-btn { display:inline-flex; align-items:center; gap:6px; padding:9px 20px; background:#059669; color:#fff; border:none; border-radius:20px; font:700 0.85rem var(--font-ui); cursor:pointer; white-space:nowrap; transition:background .15s; flex-shrink:0; }
         .ms-prayer-cta-btn:hover { background:#047857; }
-        /* ── Top row: JP widget + Nation of the Day side-by-side ── */
-        .ms-top-row { display:flex; gap:20px; align-items:flex-start; margin:0 0 28px; flex-wrap:wrap; }
-        .ms-jp-col { display:flex; flex-direction:column; align-items:center; flex:0 0 auto; }
-        .ms-jp-label { font:600 0.7rem var(--font-ui); letter-spacing:.07em; text-transform:uppercase; color:#059669; margin:0 0 10px; text-align:center; }
-        .ms-jp-inner { border-radius:12px; overflow:hidden; box-shadow:0 2px 14px rgba(0,0,0,0.1); }
-        .ms-nation-col { flex:1; min-width:220px; display:flex; flex-direction:column; gap:0; }
-        .ms-nation-col-title { font:700 1rem var(--font-ui); color:var(--ink,#1a1d2e); margin:0 0 12px; }
+
       </style>
       <header class="grow-hero" style="--grow-accent:${accent}">
         <div class="grow-hero-icon">${icon}</div>
@@ -156,21 +150,6 @@ function _paint(view) {
   const evPct    = _pct(featured.evangelicalPercent);
 
   view.innerHTML = /* html */`
-    <div class="grow-section-head">
-      <span class="grow-section-title">Unreached of the Day</span>
-    </div>
-    <div class="ms-jp-wrap">
-      <div class="ms-jp-label">📍 Joshua Project · Daily People Group</div>
-      <div class="ms-jp-inner">
-        <iframe
-          src="https://joshuaproject.net/widget/widget.php?wpw=280&ori=P&cbg=ffffff&cfc=1a1d2e&chc=059669&clc=059669&fbg=f4f5f9&ffc=4a4f68&flc=059669&bbg=059669&bhc=047857&blc=ffffff&bdw=0&bdrtl=12&bdrtr=12&bdrbl=12&bdrbr=12&bdc=e5e7ef&pop=1&relg=1&stat=1&dlang=eng&oft=Arial,Helvetica,sans-serif&tfsz=13px&pfsz=12px&ifsz=11px&ffsz=11px"
-          frameborder="0" scrolling="no"
-          style="width:280px;height:420px;border:none;border-radius:12px;display:block;"
-          title="Joshua Project Unreached of the Day">
-        </iframe>
-      </div>
-    </div>
-
     <div class="grow-section-head">
       <span class="grow-section-title">Nation of the Day</span>
     </div>
