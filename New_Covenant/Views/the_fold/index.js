@@ -301,6 +301,21 @@ function _openMemberSheet(person, V, onReload) {
         </button>
       </div>
       <div class="life-sheet-body">
+        <!-- Quick Care Actions -->
+        <div style="display:flex;gap:8px;flex-wrap:wrap;padding:10px 0 14px;border-bottom:1px solid var(--border,#e5e7eb);margin-bottom:14px;">
+          <button type="button" class="flock-btn flock-btn--sm" data-care-act="new-case" style="flex:1;min-width:100px;gap:5px;display:flex;align-items:center;justify-content:center;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M12 8v8M8 12h8"/></svg>
+            New Case
+          </button>
+          <button type="button" class="flock-btn flock-btn--sm" data-care-act="new-prayer" style="flex:1;min-width:100px;gap:5px;display:flex;align-items:center;justify-content:center;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            New Prayer
+          </button>
+          <button type="button" class="flock-btn flock-btn--sm" data-care-act="new-connected" style="flex:1;min-width:100px;gap:5px;display:flex;align-items:center;justify-content:center;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+            New Connected Case
+          </button>
+        </div>
         <!-- ID row -->
         <div class="fold-id-row">
           <span class="fold-id-label">Member ID</span>
@@ -412,6 +427,16 @@ function _openMemberSheet(person, V, onReload) {
     }
   });
 
+  // Quick Care Action buttons
+  sheet.querySelectorAll('[data-care-act]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const act = btn.dataset.careAct;
+      if (act === 'new-case')       _openFoldCareSheet(person, { connected: false });
+      if (act === 'new-prayer')     _openFoldPrayerSheet(person);
+      if (act === 'new-connected')  _openFoldCareSheet(person, { connected: true });
+    });
+  });
+
   // Close
   sheet.querySelector('[data-cancel]').addEventListener('click', () => _closeMemberSheet());
   sheet.querySelector('.life-sheet-close').addEventListener('click', () => _closeMemberSheet());
@@ -510,7 +535,318 @@ function _e(s) {
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
-// ── Add new member sheet ──────────────────────────────────────────────────────
+// ── Quick-access Care Case sheet (New Case + New Connected Case) ─────────────
+let _activeFoldCareSheet = null;
+
+function _closeFoldCareSheet() {
+  const t = _activeFoldCareSheet;
+  if (!t) return;
+  t.querySelector('.life-sheet-overlay')?.classList.remove('is-open');
+  t.querySelector('.life-sheet-panel')?.classList.remove('is-open');
+  setTimeout(() => { t.remove(); if (_activeFoldCareSheet === t) _activeFoldCareSheet = null; }, 320);
+}
+
+const _FOLD_CARE_TYPES = [
+  { group: 'Crisis & Safety',            options: [['Crisis','🚨 Crisis'],['Abuse / Domestic Violence','🛡️ Abuse / DV']] },
+  { group: 'Medical & Physical',         options: [['Hospital Visit','🏥 Hospital Visit'],['Medical','🩺 Medical'],['Elder Care','🧓 Elder Care'],['Terminal Illness / End of Life','🕯️ Terminal / End of Life']] },
+  { group: 'Grief & Loss',               options: [['Grief','🤍 Grief'],['Pregnancy & Infant Loss','🕊️ Pregnancy & Infant Loss']] },
+  { group: 'Relationships',              options: [['Marriage','💍 Marriage'],['Pre-Marriage','💑 Pre-Marriage'],['Family','👨‍👩‍👧 Family']] },
+  { group: 'Addiction & Recovery',       options: [['Addiction','🔗 Addiction'],['Pornography / Sexual Addiction','🔒 Sexual Addiction']] },
+  { group: 'Mental & Emotional Health',  options: [['Mental Health','🧠 Mental Health'],['Counseling','💬 Counseling']] },
+  { group: 'Discipleship & Growth',      options: [['New Believer','✨ New Believer'],['New Member Integration','🤝 New Member Integration'],['Discipleship','📚 Discipleship'],['Shepherding','🐑 Shepherding'],['Restoration','🔄 Restoration']] },
+  { group: 'Life Situations',            options: [['Financial','💰 Financial'],['Immigration / Deportation','✈️ Immigration / Deportation'],['Incarceration & Re-Entry','🔑 Incarceration & Re-Entry'],['Gender Identity / Sexuality','✝️ Gender Identity / Sexuality']] },
+  { group: 'General',                    options: [['Prayer Request','🙏 Prayer Request'],['Follow-Up','📞 Follow-Up'],['Life Milestone','🎉 Life Milestone'],['Other','🫱 Other']] },
+];
+
+const _FOLD_PRIORITIES = ['urgent', 'high', 'normal', 'low'];
+const _FOLD_PRIORITY_LABELS = { urgent: '🚨 Urgent', high: '🔴 High', normal: '🟡 Normal', low: '🟢 Low' };
+
+function _openFoldCareSheet(person, { connected = false } = {}) {
+  _closeFoldCareSheet();
+  const V   = window.TheVine;
+  const MXC = buildAdapter('flock.care', V);
+  const first = person.firstName || '';
+  const last  = person.lastName  || '';
+  const name  = person.displayName || person.name || `${first} ${last}`.trim() || 'Unknown';
+  const uid   = person.id || person.memberNumber || person.memberPin || person.email || '';
+  const color = _AVATAR_COLORS[(name.charCodeAt(0) + (name.charCodeAt(1) || 0)) % _AVATAR_COLORS.length];
+  const initials = (first ? first[0] : (name[0] || '')) + (last ? last[0] : (name[1] || ''));
+
+  const title = connected ? 'New Connected Case' : 'New Care Case';
+
+  const careTypeOptions = _FOLD_CARE_TYPES.map(g =>
+    `<optgroup label="${_e(g.group)}">${g.options.map(([v,l]) => `<option value="${_e(v)}">${_e(l)}</option>`).join('')}</optgroup>`
+  ).join('');
+
+  const sheet = document.createElement('div');
+  sheet.className = 'life-sheet';
+  sheet.innerHTML = /* html */`
+    <div class="life-sheet-overlay"></div>
+    <div class="life-sheet-panel" role="dialog" aria-label="${_e(title)} — ${_e(name)}">
+      <div class="life-sheet-drag"></div>
+      <div class="life-sheet-hd">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div class="fold-avatar" style="background:${color};width:34px;height:34px;font-size:0.82rem;flex-shrink:0;">${_e(initials.toUpperCase().slice(0,2))}</div>
+          <div class="life-sheet-hd-info">
+            <div class="life-sheet-hd-name">${_e(title)}</div>
+            <div class="life-sheet-hd-meta">${_e(name)}</div>
+          </div>
+        </div>
+        <button class="life-sheet-close" aria-label="Close">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="life-sheet-body">
+        <!-- Care Type -->
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Care Type <span style="color:#dc2626">*</span></div>
+          <select class="life-sheet-input" data-field="careType" autofocus>
+            <option value="">— Select a care type —</option>
+            ${careTypeOptions}
+          </select>
+        </div>
+        <!-- Priority pills -->
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Priority</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;">
+            ${_FOLD_PRIORITIES.map(p => `<button type="button" class="life-status-pill${p === 'normal' ? ' is-active' : ''}" data-priority="${_e(p)}" style="cursor:pointer">${_e(_FOLD_PRIORITY_LABELS[p])}</button>`).join('')}
+          </div>
+        </div>
+        ${connected ? `
+        <!-- Link to existing case -->
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Linked Case ID <span style="color:#6b7280;font-weight:400">(optional)</span></div>
+          <input class="life-sheet-input" data-field="connectedCaseId" type="text" placeholder="Parent or related case ID">
+          <div data-cases-loading style="font-size:.8rem;color:var(--ink-muted,#7a7f96);margin-top:4px;">Loading existing cases…</div>
+          <select class="life-sheet-input" data-case-select style="margin-top:6px;display:none;">
+            <option value="">— Pick an existing case —</option>
+          </select>
+        </div>` : ''}
+        <!-- Summary -->
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Summary</div>
+          <textarea class="life-sheet-input" data-field="summary" rows="3" placeholder="What's the situation?"></textarea>
+        </div>
+        <!-- Error -->
+        <div data-error style="display:none;color:#dc2626;font-size:.85rem;margin-top:4px;"></div>
+      </div>
+      <div class="life-sheet-foot">
+        <button class="flock-btn" data-cancel>Cancel</button>
+        <button class="flock-btn flock-btn--primary" data-save>${connected ? 'Create Connected Case' : 'Create Case'}</button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(sheet);
+  _activeFoldCareSheet = sheet;
+  requestAnimationFrame(() => {
+    sheet.querySelector('.life-sheet-overlay').classList.add('is-open');
+    sheet.querySelector('.life-sheet-panel').classList.add('is-open');
+    sheet.querySelector('[data-field="careType"]')?.focus();
+  });
+
+  // Priority pills
+  sheet.querySelectorAll('[data-priority]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      sheet.querySelectorAll('[data-priority]').forEach(b => b.classList.remove('is-active'));
+      btn.classList.add('is-active');
+    });
+  });
+
+  // If connected case mode: load this person's existing cases for quick linking
+  if (connected && uid) {
+    const UR = window.UpperRoom;
+    const caseInput  = sheet.querySelector('[data-field="connectedCaseId"]');
+    const caseSel    = sheet.querySelector('[data-case-select]');
+    const caseLoader = sheet.querySelector('[data-cases-loading]');
+    const loadCases = async () => {
+      try {
+        let rows = [];
+        if (UR && typeof UR.listCareCases === 'function') {
+          const res = await UR.listCareCases({ memberId: uid });
+          rows = Array.isArray(res) ? res : (res?.cases || []);
+        } else {
+          const res = await MXC.list({ memberId: uid, limit: 50 });
+          rows = Array.isArray(res) ? res : (res?.rows || res?.data || []);
+        }
+        if (caseLoader) caseLoader.style.display = 'none';
+        if (rows.length && caseSel) {
+          rows.forEach(c => {
+            const opt = document.createElement('option');
+            opt.value       = c.id || '';
+            const label     = [c.careType || c.type || 'Case', c.summary ? `— ${c.summary.slice(0, 40)}` : '', c.status ? `[${c.status}]` : ''].filter(Boolean).join(' ');
+            opt.textContent = label;
+            caseSel.appendChild(opt);
+          });
+          caseSel.style.display = '';
+          caseSel.addEventListener('change', () => {
+            if (caseSel.value && caseInput) caseInput.value = caseSel.value;
+          });
+        } else if (caseLoader) {
+          caseLoader.textContent = 'No existing cases found — enter a case ID manually.';
+          caseLoader.style.display = '';
+        }
+      } catch {
+        if (caseLoader) { caseLoader.textContent = 'Could not load existing cases.'; caseLoader.style.display = ''; }
+      }
+    };
+    loadCases();
+  } else {
+    const caseLoader = sheet.querySelector('[data-cases-loading]');
+    if (caseLoader) caseLoader.style.display = 'none';
+  }
+
+  sheet.querySelector('[data-cancel]').addEventListener('click', () => _closeFoldCareSheet());
+  sheet.querySelector('.life-sheet-close').addEventListener('click', () => _closeFoldCareSheet());
+
+  sheet.querySelector('[data-save]').addEventListener('click', async () => {
+    const errEl    = sheet.querySelector('[data-error]');
+    const careType = sheet.querySelector('[data-field="careType"]').value;
+    if (!careType) {
+      errEl.textContent = 'Please select a care type.';
+      errEl.style.display = '';
+      sheet.querySelector('[data-field="careType"]')?.focus();
+      return;
+    }
+    errEl.style.display = 'none';
+    const btn = sheet.querySelector('[data-save]');
+    btn.disabled = true; btn.textContent = 'Creating…';
+    const priority = sheet.querySelector('[data-priority].is-active')?.dataset.priority || 'normal';
+    const summary  = sheet.querySelector('[data-field="summary"]')?.value.trim() || '';
+    const connectedCaseId = connected ? (sheet.querySelector('[data-field="connectedCaseId"]')?.value.trim() || '') : '';
+    const payload = { memberId: uid, careType, priority, status: 'Open' };
+    if (summary)         payload.summary         = summary;
+    if (connectedCaseId) payload.connectedCaseId = connectedCaseId;
+    try {
+      const UR = window.UpperRoom;
+      if (UR && typeof UR.createCareCase === 'function') {
+        await UR.createCareCase(payload);
+      } else {
+        await MXC.create(payload);
+      }
+      _closeFoldCareSheet();
+    } catch (err) {
+      console.error('[TheFold] care case create error:', err);
+      errEl.textContent = err?.message || 'Could not create case. Please try again.';
+      errEl.style.display = '';
+      btn.disabled = false;
+      btn.textContent = connected ? 'Create Connected Case' : 'Create Case';
+    }
+  });
+}
+
+// ── Quick-access Prayer Request sheet ────────────────────────────────────────
+let _activeFoldPrayerSheet = null;
+
+function _closeFoldPrayerSheet() {
+  const t = _activeFoldPrayerSheet;
+  if (!t) return;
+  t.querySelector('.life-sheet-overlay')?.classList.remove('is-open');
+  t.querySelector('.life-sheet-panel')?.classList.remove('is-open');
+  setTimeout(() => { t.remove(); if (_activeFoldPrayerSheet === t) _activeFoldPrayerSheet = null; }, 320);
+}
+
+const _FOLD_PR_CATEGORIES = ['Intercession','Praise','Personal','Urgent','Healing','Guidance','Family'];
+
+function _openFoldPrayerSheet(person) {
+  _closeFoldPrayerSheet();
+  const V  = window.TheVine;
+  const MX = buildAdapter('flock.prayer', V);
+  const first = person.firstName || '';
+  const last  = person.lastName  || '';
+  const name  = person.displayName || person.name || `${first} ${last}`.trim() || 'Unknown';
+  const color = _AVATAR_COLORS[(name.charCodeAt(0) + (name.charCodeAt(1) || 0)) % _AVATAR_COLORS.length];
+  const initials = (first ? first[0] : (name[0] || '')) + (last ? last[0] : (name[1] || ''));
+
+  const sheet = document.createElement('div');
+  sheet.className = 'life-sheet';
+  sheet.innerHTML = /* html */`
+    <div class="life-sheet-overlay"></div>
+    <div class="life-sheet-panel" role="dialog" aria-label="New Prayer Request — ${_e(name)}">
+      <div class="life-sheet-drag"></div>
+      <div class="life-sheet-hd">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div class="fold-avatar" style="background:${color};width:34px;height:34px;font-size:0.82rem;flex-shrink:0;">${_e(initials.toUpperCase().slice(0,2))}</div>
+          <div class="life-sheet-hd-info">
+            <div class="life-sheet-hd-name">New Prayer Request</div>
+            <div class="life-sheet-hd-meta">${_e(name)}</div>
+          </div>
+        </div>
+        <button class="life-sheet-close" aria-label="Close">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="life-sheet-body">
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Prayer Request <span style="color:#dc2626">*</span></div>
+          <textarea class="life-sheet-input" data-field="prayerText" rows="4" style="resize:vertical" placeholder="Share the prayer need…"></textarea>
+        </div>
+        <div class="life-sheet-field">
+          <div class="life-sheet-label">Category</div>
+          <select class="life-sheet-input" data-field="category">
+            <option value="">— select —</option>
+            ${_FOLD_PR_CATEGORIES.map(c => `<option value="${_e(c)}">${_e(c)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="life-sheet-field" style="display:flex;align-items:center;gap:10px;">
+          <input type="checkbox" data-field="isConfidential" id="fold-pr-conf" style="width:auto">
+          <label for="fold-pr-conf" class="life-sheet-label" style="margin:0">🔒 Mark as confidential (pastoral eyes only)</label>
+        </div>
+        <div data-error style="display:none;color:#dc2626;font-size:.85rem;margin-top:4px;"></div>
+      </div>
+      <div class="life-sheet-foot">
+        <button class="flock-btn" data-cancel>Cancel</button>
+        <button class="flock-btn flock-btn--primary" data-save>Add Prayer</button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(sheet);
+  _activeFoldPrayerSheet = sheet;
+  requestAnimationFrame(() => {
+    sheet.querySelector('.life-sheet-overlay').classList.add('is-open');
+    sheet.querySelector('.life-sheet-panel').classList.add('is-open');
+    sheet.querySelector('[data-field="prayerText"]')?.focus();
+  });
+
+  sheet.querySelector('[data-cancel]').addEventListener('click', () => _closeFoldPrayerSheet());
+  sheet.querySelector('.life-sheet-close').addEventListener('click', () => _closeFoldPrayerSheet());
+
+  sheet.querySelector('[data-save]').addEventListener('click', async () => {
+    const errEl   = sheet.querySelector('[data-error]');
+    const txtVal  = sheet.querySelector('[data-field="prayerText"]').value.trim();
+    if (!txtVal) {
+      errEl.textContent = 'Prayer request text is required.';
+      errEl.style.display = '';
+      sheet.querySelector('[data-field="prayerText"]')?.focus();
+      return;
+    }
+    errEl.style.display = 'none';
+    const btn = sheet.querySelector('[data-save]');
+    btn.disabled = true; btn.textContent = 'Submitting…';
+    const isConf  = sheet.querySelector('[data-field="isConfidential"]').checked;
+    const payload = {
+      submitterName:  name,
+      prayerText:     txtVal,
+      category:       sheet.querySelector('[data-field="category"]').value || undefined,
+      isConfidential: isConf ? 'TRUE' : 'FALSE',
+      status:         'New',
+    };
+    Object.keys(payload).forEach(k => { if (payload[k] === undefined) delete payload[k]; });
+    try {
+      const UR = window.UpperRoom;
+      if (UR && typeof UR.createPrayer === 'function') {
+        await UR.createPrayer(payload);
+      } else {
+        await MX.create(payload);
+      }
+      _closeFoldPrayerSheet();
+    } catch (err) {
+      console.error('[TheFold] prayer create error:', err);
+      errEl.textContent = err?.message || 'Could not submit prayer request. Please try again.';
+      errEl.style.display = '';
+      btn.disabled = false; btn.textContent = 'Add Prayer';
+    }
+  });
+}
 function _openNewMemberSheet(onReload) {
   _closeMemberSheet();
   const V   = window.TheVine;
