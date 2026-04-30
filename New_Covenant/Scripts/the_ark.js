@@ -95,6 +95,7 @@ async function _registerViews() {
   register('the_invitation',             V('the_invitation'),             { command: 'Go to: Sign in' });
   register('the_pentecost',              V('the_pentecost'),              { command: 'Go to: Events' });
   register('the_wall',                   V('the_wall'),                   { command: 'Go to: Admin' });
+  register('content-admin',              V('content-admin'),              { command: 'Go to: Truth Editor' });
   register('the_generations',            V('the_generations'),            { command: 'Go to: History' });
   register('the_anatomy_of_worship',     V('the_anatomy_of_worship'),     { command: 'Go to: Worship' });
   register('the_call_to_forgive',        V('the_call_to_forgive'),        { command: 'Go to: Reconciliation' });
