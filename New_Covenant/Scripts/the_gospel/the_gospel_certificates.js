@@ -78,8 +78,16 @@ function _print(c) {
       .who{font-size:36px;font-style:italic;margin:24px 0;}
       .for{font-size:16px;color:#5a5040;margin-bottom:24px;}
       .course{font-size:24px;font-weight:600;margin-bottom:48px;}
-      .meta{display:flex;justify-content:space-between;border-top:1px solid #d8c8a8;padding-top:16px;font-size:13px;color:#7a6a4f;}
+      .meta{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;border-top:1px solid #d8c8a8;padding-top:16px;font-size:13px;color:#7a6a4f;}
       @media print { body{padding:0;} .cert{border-width:6px;} }
+      @media screen and (max-width:720px) {
+        body{padding:16px;}
+        .cert{padding:24px 16px;border-width:3px;}
+        h1{font-size:26px;letter-spacing:.12em;}
+        h2{font-size:13px;letter-spacing:.2em;margin-bottom:20px;}
+        .who{font-size:22px;margin:16px 0;}
+        .course{font-size:16px;margin-bottom:28px;}
+      }
     </style></head><body><div class="cert">
       <h1>Certificate</h1><h2>of Completion</h2>
       <p class="for">This certifies that</p>

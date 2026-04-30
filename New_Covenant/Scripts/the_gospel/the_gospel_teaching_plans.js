@@ -223,7 +223,7 @@ function _mdToHtml(md) {
     const head = cells(lines[0]).map((c) => `<th>${c}</th>`).join('');
     const body = lines.slice(2).map((row) =>
       `<tr>${cells(row).map((c) => `<td>${c}</td>`).join('')}</tr>`).join('');
-    return `<table class="grow-table"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
+    return `<div class="grow-table-wrap"><table class="grow-table"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
   });
 
   // Headings
