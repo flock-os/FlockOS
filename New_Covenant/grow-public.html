@@ -208,8 +208,11 @@
   <!--
     grow_public.js bootstraps the full page:
     sidebar, topbar CTA, hash-based module routing.
-    No Firebase, no auth — just the GROW learning modules.
+    Firebase compat SDK loaded here so prayer/outreach submissions can write
+    to Firestore without requiring the user to sign in.
   -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
   <script type="module" src="Scripts/grow_public.js"></script>
 </body>
 </html>

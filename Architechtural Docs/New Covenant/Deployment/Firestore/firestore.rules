@@ -414,8 +414,19 @@ service cloud.firestore {
         // Read: leader+
         allow read: if isSignedIn() && isLeaderOrAbove();
 
-        // Create: any church member (public form submissions too)
-        allow create: if isSignedIn();
+        // Create: any church member OR unauthenticated public form submission.
+        // Public submissions must set source='PublicGROW' and include email or phone
+        // so pastoral staff can follow up. Only a limited field set is permitted.
+        allow create: if isSignedIn()
+          || (
+            request.resource.data.get('source', '') == 'PublicGROW'
+            && (request.resource.data.get('email', '') != ''
+                || request.resource.data.get('phone', '') != '')
+            && request.resource.data.keys().hasOnly([
+              'source', 'firstName', 'lastName', 'email', 'phone',
+              'message', 'requestType', 'urgency', 'status', 'createdAt'
+            ])
+          );
 
         // Update: creator, assignee, or leader+
         allow update: if isSignedIn() && (

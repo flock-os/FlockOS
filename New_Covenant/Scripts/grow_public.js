@@ -295,76 +295,291 @@ sidePanel.addEventListener('click', (e) => {
   if (e.target === sidePanel) _toggleSidebar(false);
 });
 
-/* ─── Public prayer-request modal ──────────────────────────────────────────────── */
-/* Inject styles for the prayer modal once */
-const _prayerStyle = document.createElement('style');
-_prayerStyle.textContent = `
+/* ─── Firebase / Outreach submission ─────────────────────────────────────────
+   Lazy-init Firebase compat SDK (loaded from CDN in grow-public.html).
+   Writes go to outreachContacts at root of the project — same collection
+   the admin's My Flock → Outreach Contacts panel reads.
+   ────────────────────────────────────────────────────────────────────────── */
+const _OUTREACH_FB_CONFIG = (typeof window.FLOCK_FIREBASE_CONFIG === 'object' && window.FLOCK_FIREBASE_CONFIG)
+  ? window.FLOCK_FIREBASE_CONFIG
+  : {
+      apiKey:    'AIzaSyBA-fkxjABbwIHn0i6MPiXbGwahfJmuJeo',
+      authDomain:'flockos-notify.firebaseapp.com',
+      projectId: 'flockos-notify',
+    };
+
+let _outreachDB = null;
+function _getDB() {
+  if (_outreachDB) return _outreachDB;
+  try {
+    const fb = window.firebase;
+    if (!fb) return null;
+    const app = fb.apps.length ? fb.app() : fb.initializeApp(_OUTREACH_FB_CONFIG, 'grow-public');
+    _outreachDB = app.firestore();
+  } catch (e) {
+    console.warn('[grow-public] Firebase init failed:', e.message);
+  }
+  return _outreachDB;
+}
+
+/** Submit an outreach contact to Firestore without requiring auth. */
+async function _submitOutreachContact(data) {
+  const db = _getDB();
+  if (!db) throw new Error('Firebase not available');
+  await db.collection('outreachContacts').add({
+    source:      'PublicGROW',
+    firstName:   data.firstName  || '',
+    lastName:    data.lastName   || '',
+    email:       data.email      || '',
+    phone:       data.phone      || '',
+    requestType: data.requestType|| 'Prayer Request',
+    message:     data.message    || '',
+    urgency:     data.urgency    || 'Normal',
+    status:      'New',
+    createdAt:   window.firebase.firestore.FieldValue.serverTimestamp(),
+  });
+}
+
+/* ─── Outreach / prayer-request modal ───────────────────────────────────── */
+const _outreachStyle = document.createElement('style');
+_outreachStyle.textContent = `
 .gp-prayer-overlay {
-  position: fixed; inset: 0; z-index: 900;
-  background: rgba(12,20,69,0.72); backdrop-filter: blur(4px);
-  display: flex; align-items: center; justify-content: center;
-  padding: 16px;
-  animation: gp-overlay-in 180ms ease;
+  position:fixed; inset:0; z-index:900;
+  background:rgba(12,20,69,0.75); backdrop-filter:blur(5px);
+  display:flex; align-items:center; justify-content:center; padding:16px;
+  animation:gp-overlay-in 180ms ease;
 }
-@keyframes gp-overlay-in { from { opacity:0; } to { opacity:1; } }
+@keyframes gp-overlay-in { from{opacity:0} to{opacity:1} }
 .gp-prayer-card {
-  background: var(--bg-raised, #fff);
-  border: 1px solid var(--line, #e5e7ef);
-  border-radius: 20px;
-  box-shadow: 0 24px 72px rgba(15,23,42,0.30);
-  width: 100%; max-width: 540px; max-height: 90vh;
-  overflow-y: auto; padding: 28px 28px 24px;
-  animation: gp-card-in 200ms cubic-bezier(.2,.8,.2,1);
+  background:var(--bg-raised,#fff); border:1px solid var(--line,#e5e7ef);
+  border-radius:20px; box-shadow:0 24px 72px rgba(15,23,42,.30);
+  width:100%; max-width:520px; max-height:90vh; overflow-y:auto;
+  padding:28px 28px 24px;
+  animation:gp-card-in 200ms cubic-bezier(.2,.8,.2,1);
 }
-@keyframes gp-card-in { from { transform: translateY(12px) scale(0.97); opacity:0; } to { transform: none; opacity:1; } }
-.gp-prayer-title {
-  font: 700 1.2rem var(--font-ui, sans-serif);
-  color: var(--ink, #1b264f); margin: 0 0 4px;
-}
-.gp-prayer-sub {
-  font: 0.85rem var(--font-ui, sans-serif);
-  color: var(--ink-muted, #7a7f96); margin: 0 0 20px;
-}
-.gp-prayer-field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 14px; }
-.gp-prayer-label { font: 600 0.8rem var(--font-ui, sans-serif); color: var(--ink, #1b264f); }
+@keyframes gp-card-in { from{transform:translateY(12px) scale(.97);opacity:0} to{transform:none;opacity:1} }
+.gp-prayer-head { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:16px; gap:12px; }
+.gp-prayer-title { font:700 1.15rem var(--font-ui,sans-serif); color:var(--ink,#1b264f); margin:0 0 3px; }
+.gp-prayer-sub   { font:0.84rem var(--font-ui,sans-serif); color:var(--ink-muted,#7a7f96); margin:0; line-height:1.4; }
+.gp-prayer-field { display:flex; flex-direction:column; gap:4px; margin-bottom:13px; }
+.gp-prayer-label { font:600 0.78rem var(--font-ui,sans-serif); color:var(--ink,#1b264f); }
 .gp-prayer-input {
-  padding: 9px 12px; border-radius: 10px;
-  border: 1.5px solid var(--line, #e5e7ef);
-  font: 0.9rem var(--font-ui, sans-serif);
-  color: var(--ink, #1b264f); background: var(--bg, #f7f8fb);
-  outline: none; transition: border-color 140ms;
+  padding:9px 12px; border-radius:10px; border:1.5px solid var(--line,#e5e7ef);
+  font:0.9rem var(--font-ui,sans-serif); color:var(--ink,#1b264f);
+  background:var(--bg,#f7f8fb); outline:none; transition:border-color 130ms;
+  width:100%; box-sizing:border-box;
 }
-.gp-prayer-input:focus { border-color: var(--gold, #e8a838); }
-textarea.gp-prayer-input { resize: vertical; min-height: 120px; font-size: 0.82rem; line-height: 1.5; }
-.gp-prayer-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 6px; }
-.gp-prayer-email-btn {
-  flex: 1; padding: 11px 18px; border-radius: 10px;
-  background: var(--gold, #e8a838); color: #0c1445;
-  border: 0; font: 700 0.88rem var(--font-ui, sans-serif);
-  cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 7px;
-  transition: background 140ms, transform 100ms;
+.gp-prayer-input:focus { border-color:var(--gold,#e8a838); }
+textarea.gp-prayer-input { resize:vertical; min-height:100px; font-size:.85rem; line-height:1.5; }
+.gp-prayer-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+@media(max-width:480px) { .gp-prayer-row { grid-template-columns:1fr; } }
+.gp-prayer-actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:6px; }
+.gp-prayer-submit {
+  flex:1; padding:12px 18px; border-radius:10px;
+  background:var(--gold,#e8a838); color:#0c1445; border:0;
+  font:700 0.9rem var(--font-ui,sans-serif); cursor:pointer;
+  display:inline-flex; align-items:center; justify-content:center; gap:8px;
+  transition:background 130ms, transform 100ms;
 }
-.gp-prayer-email-btn:hover { background: #f0b534; transform: translateY(-1px); }
-.gp-prayer-copy-btn, .gp-prayer-cancel-btn {
-  padding: 11px 16px; border-radius: 10px;
-  background: transparent;
-  border: 1.5px solid var(--line, #e5e7ef);
-  font: 600 0.85rem var(--font-ui, sans-serif);
-  color: var(--ink-muted, #7a7f96); cursor: pointer;
-  transition: border-color 140ms, color 140ms;
+.gp-prayer-submit:hover:not(:disabled) { background:#f0b534; transform:translateY(-1px); }
+.gp-prayer-submit:disabled { opacity:.6; cursor:not-allowed; }
+.gp-prayer-cancel {
+  padding:12px 16px; border-radius:10px; background:transparent;
+  border:1.5px solid var(--line,#e5e7ef);
+  font:600 0.85rem var(--font-ui,sans-serif); color:var(--ink-muted,#7a7f96);
+  cursor:pointer; transition:border-color 130ms,color 130ms;
 }
-.gp-prayer-copy-btn:hover, .gp-prayer-cancel-btn:hover {
-  border-color: var(--ink, #1b264f); color: var(--ink, #1b264f);
+.gp-prayer-cancel:hover { border-color:var(--ink,#1b264f); color:var(--ink,#1b264f); }
+.gp-prayer-privacy {
+  margin-top:14px; padding:10px 14px; border-radius:10px;
+  background:rgba(232,168,56,.10);
+  font:0.76rem var(--font-ui,sans-serif); color:var(--ink-muted,#7a7f96); line-height:1.5;
 }
-.gp-prayer-note {
-  margin-top: 14px; padding: 10px 14px;
-  background: rgba(232,168,56,0.10); border-radius: 10px;
-  font: 0.78rem var(--font-ui, sans-serif); color: var(--ink-muted, #7a7f96);
-  line-height: 1.5;
+.gp-prayer-success {
+  text-align:center; padding:12px 0 4px;
 }
-@media (max-width: 500px) { .gp-prayer-card { padding: 20px 16px 18px; } }
+.gp-prayer-success-icon {
+  width:56px; height:56px; border-radius:50%; margin:0 auto 14px;
+  background:rgba(5,150,105,.15); display:flex; align-items:center; justify-content:center;
+}
+.gp-prayer-success-icon svg { color:#059669; }
+.gp-prayer-success-title { font:700 1.15rem var(--font-ui,sans-serif); color:var(--ink,#1b264f); margin:0 0 8px; }
+.gp-prayer-success-sub   { font:0.88rem var(--font-ui,sans-serif); color:var(--ink-muted,#7a7f96); margin:0 0 20px; line-height:1.5; }
+.gp-prayer-err { margin-top:8px; font:0.82rem var(--font-ui,sans-serif); color:#b91c1c; }
+@media(max-width:500px) { .gp-prayer-card { padding:20px 16px 18px; } }
 `;
-document.head.appendChild(_prayerStyle);
+document.head.appendChild(_outreachStyle);
+
+/** Open the public outreach / prayer-request modal. */
+function _openOutreachModal(prefillSummary) {
+  document.getElementById('gp-prayer-overlay')?.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'gp-prayer-overlay';
+  overlay.className = 'gp-prayer-overlay';
+  overlay.setAttribute('role', 'dialog');
+  overlay.setAttribute('aria-modal', 'true');
+  overlay.setAttribute('aria-labelledby', 'gp-pr-title');
+
+  function _renderForm() {
+    return /* html */`
+      <div class="gp-prayer-head">
+        <div>
+          <p class="gp-prayer-title" id="gp-pr-title">🙏 Send a Request to Your Pastor</p>
+          <p class="gp-prayer-sub">Fill in your information so pastoral staff can follow up with you personally.</p>
+        </div>
+      </div>
+
+      <div class="gp-prayer-row">
+        <div class="gp-prayer-field">
+          <label class="gp-prayer-label" for="gp-pr-fn">First Name</label>
+          <input class="gp-prayer-input" id="gp-pr-fn" type="text" placeholder="First" autocomplete="given-name">
+        </div>
+        <div class="gp-prayer-field">
+          <label class="gp-prayer-label" for="gp-pr-ln">Last Name</label>
+          <input class="gp-prayer-input" id="gp-pr-ln" type="text" placeholder="Last" autocomplete="family-name">
+        </div>
+      </div>
+
+      <div class="gp-prayer-row">
+        <div class="gp-prayer-field">
+          <label class="gp-prayer-label" for="gp-pr-email">Email <span style="color:#b91c1c">*</span></label>
+          <input class="gp-prayer-input" id="gp-pr-email" type="email" placeholder="you@example.com" autocomplete="email">
+        </div>
+        <div class="gp-prayer-field">
+          <label class="gp-prayer-label" for="gp-pr-phone">Phone (optional)</label>
+          <input class="gp-prayer-input" id="gp-pr-phone" type="tel" placeholder="(555) 000-0000" autocomplete="tel">
+        </div>
+      </div>
+
+      <div class="gp-prayer-row">
+        <div class="gp-prayer-field">
+          <label class="gp-prayer-label" for="gp-pr-type">Request Type</label>
+          <select class="gp-prayer-input" id="gp-pr-type">
+            <option value="Prayer Request">Prayer Request</option>
+            <option value="Pastoral Care">Pastoral Care</option>
+            <option value="Counseling">Counseling</option>
+            <option value="General Contact">General Contact</option>
+          </select>
+        </div>
+        <div class="gp-prayer-field">
+          <label class="gp-prayer-label" for="gp-pr-urgency">Urgency</label>
+          <select class="gp-prayer-input" id="gp-pr-urgency">
+            <option value="Normal">Normal</option>
+            <option value="Urgent">Urgent — please respond soon</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="gp-prayer-field">
+        <label class="gp-prayer-label" for="gp-pr-msg">Your Message <span style="color:#b91c1c">*</span></label>
+        <textarea class="gp-prayer-input" id="gp-pr-msg" placeholder="Share what's on your heart…"></textarea>
+      </div>
+
+      <div id="gp-pr-err" class="gp-prayer-err" hidden></div>
+
+      <div class="gp-prayer-actions">
+        <button class="gp-prayer-submit" id="gp-pr-send">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          Send to Pastoral Team
+        </button>
+        <button class="gp-prayer-cancel" id="gp-pr-cancel">Cancel</button>
+      </div>
+
+      <p class="gp-prayer-privacy">🔒 Your information is shared only with your pastoral staff. Nothing is sold or shared externally.</p>
+    `;
+  }
+
+  function _renderSuccess(name) {
+    return /* html */`
+      <div class="gp-prayer-success">
+        <div class="gp-prayer-success-icon">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <p class="gp-prayer-success-title">Request Received${name ? `, ${name}` : ''}!</p>
+        <p class="gp-prayer-success-sub">Your request has been sent to the pastoral team. Someone will be reaching out to you soon. We're praying for you.</p>
+        <button class="gp-prayer-submit" id="gp-pr-done" style="max-width:200px;margin:0 auto;">Done</button>
+      </div>
+    `;
+  }
+
+  overlay.innerHTML = `<div class="gp-prayer-card" id="gp-pr-card">${_renderForm()}</div>`;
+  document.body.appendChild(overlay);
+
+  function _close() { overlay.remove(); }
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) _close(); });
+  document.getElementById('gp-pr-cancel')?.addEventListener('click', _close);
+
+  const _esc = (ev) => { if (ev.key === 'Escape') { _close(); document.removeEventListener('keydown', _esc); } };
+  document.addEventListener('keydown', _esc);
+
+  document.getElementById('gp-pr-send')?.addEventListener('click', async () => {
+    const fn      = document.getElementById('gp-pr-fn')?.value.trim()      || '';
+    const ln      = document.getElementById('gp-pr-ln')?.value.trim()      || '';
+    const email   = document.getElementById('gp-pr-email')?.value.trim()   || '';
+    const phone   = document.getElementById('gp-pr-phone')?.value.trim()   || '';
+    const type    = document.getElementById('gp-pr-type')?.value           || 'Prayer Request';
+    const urgency = document.getElementById('gp-pr-urgency')?.value        || 'Normal';
+    const msg     = document.getElementById('gp-pr-msg')?.value.trim()     || '';
+    const errEl   = document.getElementById('gp-pr-err');
+
+    /* Validate */
+    if (!email && !phone) {
+      if (errEl) { errEl.textContent = 'Please enter an email address or phone number so we can reach you.'; errEl.hidden = false; }
+      document.getElementById('gp-pr-email')?.focus();
+      return;
+    }
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      if (errEl) { errEl.textContent = 'Please enter a valid email address.'; errEl.hidden = false; }
+      document.getElementById('gp-pr-email')?.focus();
+      return;
+    }
+    if (!msg) {
+      if (errEl) { errEl.textContent = 'Please add a message so we know how to help.'; errEl.hidden = false; }
+      document.getElementById('gp-pr-msg')?.focus();
+      return;
+    }
+    if (errEl) errEl.hidden = true;
+
+    const btn = document.getElementById('gp-pr-send');
+    if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
+
+    try {
+      await _submitOutreachContact({ firstName: fn, lastName: ln, email, phone, requestType: type, urgency, message: msg });
+      const card = document.getElementById('gp-pr-card');
+      if (card) card.innerHTML = _renderSuccess(fn);
+      document.getElementById('gp-pr-done')?.addEventListener('click', _close);
+    } catch (err) {
+      console.warn('[grow-public] outreach submit failed:', err);
+      /* Fallback: copy to clipboard so user isn't left empty-handed */
+      const fallbackText = [
+        `Name: ${fn} ${ln}`.trim(),
+        `Email: ${email}`,
+        `Phone: ${phone}`,
+        `Type: ${type}`,
+        `Urgency: ${urgency}`,
+        `\nMessage:\n${msg}`,
+      ].filter(l => l.trim()).join('\n');
+
+      try { await navigator.clipboard.writeText(fallbackText); } catch (_) {}
+
+      if (btn) { btn.disabled = false; btn.textContent = 'Send to Pastoral Team'; }
+      if (errEl) {
+        errEl.textContent = 'We couldn\'t reach the server right now. Your message has been copied to your clipboard — please email or text it to your pastoral team directly.';
+        errEl.hidden = false;
+      }
+    }
+  });
+
+  /* Prefill message if diagnostic summary was passed in */
+  if (prefillSummary) {
+    const msgEl = document.getElementById('gp-pr-msg');
+    if (msgEl) msgEl.value = prefillSummary;
+  }
+
+  /* Focus first name field */
+  setTimeout(() => document.getElementById('gp-pr-fn')?.focus(), 80);
+}
 
 /**
  * Gather a human-readable summary from the module's diagnostic output.
@@ -372,10 +587,8 @@ document.head.appendChild(_prayerStyle);
  */
 function _gatherDiagnosticSummary(root) {
   const lines = [];
-  /* Hero title */
   const heroTitle = root.querySelector('.grow-hero-title');
   if (heroTitle) lines.push(`=== ${heroTitle.textContent.trim()} Results ===\n`);
-  /* Prescription / action-plan cards */
   root.querySelectorAll('.grow-split-aside, [data-bind="scan"], [data-bind="plan"]').forEach(panel => {
     panel.querySelectorAll('[style*="border-left"]').forEach(card => {
       const cat  = card.querySelector('[style*="text-transform"]');
@@ -387,114 +600,15 @@ function _gatherDiagnosticSummary(root) {
       if (step) lines.push(`→ ${step.textContent.trim()}`);
       if (ref)  lines.push(`   ${ref.textContent.trim()}`);
     });
-    /* Scan percentage */
     const pct = panel.querySelector('.grow-scan-pct');
     if (pct) lines.push(`\nCompletion: ${pct.textContent.trim()}`);
   });
-  return lines.join('\n').trim() || '(No results captured — please describe your situation below.)';
-}
-
-/** Open the prayer request modal. */
-function _openPrayerModal(summary) {
-  /* Tear down any existing modal */
-  document.getElementById('gp-prayer-overlay')?.remove();
-
-  const overlay = document.createElement('div');
-  overlay.id = 'gp-prayer-overlay';
-  overlay.className = 'gp-prayer-overlay';
-  overlay.setAttribute('role', 'dialog');
-  overlay.setAttribute('aria-modal', 'true');
-  overlay.setAttribute('aria-labelledby', 'gp-prayer-dlg-title');
-
-  overlay.innerHTML = /* html */`
-    <div class="gp-prayer-card">
-      <h2 class="gp-prayer-title" id="gp-prayer-dlg-title">🙏 Send a Private Prayer Request</h2>
-      <p class="gp-prayer-sub">Your results and a personal note will be composed into an email to your pastor. Nothing is sent automatically — you control what goes.</p>
-
-      <div class="gp-prayer-field">
-        <label class="gp-prayer-label" for="gp-pr-name">Your name (optional)</label>
-        <input class="gp-prayer-input" id="gp-pr-name" type="text" placeholder="First name or anonymous" autocomplete="name">
-      </div>
-
-      <div class="gp-prayer-field">
-        <label class="gp-prayer-label" for="gp-pr-pastor">Pastor’s email address</label>
-        <input class="gp-prayer-input" id="gp-pr-pastor" type="email" placeholder="pastor@yourchurch.com" autocomplete="off">
-      </div>
-
-      <div class="gp-prayer-field">
-        <label class="gp-prayer-label" for="gp-pr-note">Personal note to your pastor (optional)</label>
-        <textarea class="gp-prayer-input" id="gp-pr-note" placeholder="Anything you want to add…"></textarea>
-      </div>
-
-      <div class="gp-prayer-field">
-        <label class="gp-prayer-label" for="gp-pr-results">Your diagnostic results (edit freely)</label>
-        <textarea class="gp-prayer-input" id="gp-pr-results" style="min-height:150px;">${summary.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</textarea>
-      </div>
-
-      <div class="gp-prayer-actions">
-        <button class="gp-prayer-email-btn" id="gp-pr-send">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-          Open in Email App
-        </button>
-        <button class="gp-prayer-copy-btn" id="gp-pr-copy">Copy to clipboard</button>
-        <button class="gp-prayer-cancel-btn" id="gp-pr-cancel">Cancel</button>
-      </div>
-
-      <p class="gp-prayer-note">🔒 This stays between you and your pastor. Nothing is stored or sent by FlockOS — your email app handles delivery.</p>
-    </div>
-  `;
-
-  document.body.appendChild(overlay);
-
-  function _body() {
-    const name    = document.getElementById('gp-pr-name').value.trim();
-    const note    = document.getElementById('gp-pr-note').value.trim();
-    const results = document.getElementById('gp-pr-results').value.trim();
-    const parts   = [];
-    if (name)    parts.push(`From: ${name}\n`);
-    if (note)    parts.push(`Note:\n${note}\n`);
-    if (results) parts.push(`\nDiagnostic Results:\n${results}`);
-    return parts.join('\n').trim();
-  }
-
-  function _close() { overlay.remove(); }
-
-  /* Close on backdrop click */
-  overlay.addEventListener('click', (e) => { if (e.target === overlay) _close(); });
-  document.getElementById('gp-pr-cancel').addEventListener('click', _close);
-
-  /* Open email app */
-  document.getElementById('gp-pr-send').addEventListener('click', () => {
-    const to      = document.getElementById('gp-pr-pastor').value.trim();
-    const heroTitle = document.querySelector('[data-grow] .grow-hero-title');
-    const subject = encodeURIComponent(`Private Prayer Request — ${heroTitle ? heroTitle.textContent : 'GROW'}`);
-    const body    = encodeURIComponent(_body());
-    window.location.href = `mailto:${encodeURIComponent(to)}?subject=${subject}&body=${body}`;
-  });
-
-  /* Copy to clipboard */
-  document.getElementById('gp-pr-copy').addEventListener('click', async (e) => {
-    try {
-      await navigator.clipboard.writeText(_body());
-      e.target.textContent = 'Copied!';
-      setTimeout(() => { e.target.textContent = 'Copy to clipboard'; }, 2000);
-    } catch (_) {
-      e.target.textContent = 'Could not copy';
-    }
-  });
-
-  /* Trap Escape */
-  const _esc = (ev) => { if (ev.key === 'Escape') { _close(); document.removeEventListener('keydown', _esc); } };
-  document.addEventListener('keydown', _esc);
-
-  /* Focus pastor email field */
-  setTimeout(() => document.getElementById('gp-pr-pastor')?.focus(), 80);
+  return lines.join('\n').trim() || '';
 }
 
 /**
  * Install a capture-phase listener on `root` that intercepts any
- * [data-help-btn] click BEFORE wireHelp's bubble-phase handler fires.
- * Opens the public prayer modal with the current module's results.
+ * [data-help-btn] click and opens the public outreach modal.
  */
 function _installPrayerHook(root) {
   root.addEventListener('click', (e) => {
@@ -503,7 +617,7 @@ function _installPrayerHook(root) {
     e.stopImmediatePropagation();
     e.preventDefault();
     const summary = _gatherDiagnosticSummary(root);
-    _openPrayerModal(summary);
+    _openOutreachModal(summary);
   }, true /* capture */);
 }
 
