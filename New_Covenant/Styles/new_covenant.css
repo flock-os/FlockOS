@@ -3049,6 +3049,22 @@ flock-tabs [role="tablist"], .tabs-bar {
   .gc-team-grid, .gc-partner-grid, .gc-resources-grid { grid-template-columns: 1fr; }
 }
 
+/* Narrow phones — single column for country cards so expanded detail fits */
+@media (max-width: 540px) {
+  .gc-country-grid    { grid-template-columns: 1fr; gap: 12px; }
+  .gc-country-card    { padding: 14px 14px; }
+  .gc-country-name    { font-size: 1rem; }
+  .gc-country-detail  { font-size: 0.8rem; }
+  .gc-country-prompt  { font-size: 0.85rem; padding: 9px 11px; }
+  .gc-pers-badge,
+  .gc-access-badge,
+  .gc-1040-badge      { font-size: 0.72rem; padding: 2px 8px; }
+  .gc-flag            { font-size: 1.5rem; }
+  .gc-rank-pill       { font-size: 0.72rem; padding: 2px 7px; }
+  /* Keep edit button visible on touch (no hover) */
+  .gc-edit-btn        { opacity: 1; pointer-events: auto; }
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════════
    THE GENERATIONS — Church History Timeline
    ═══════════════════════════════════════════════════════════════════════════════ */
