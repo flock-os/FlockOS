@@ -166,7 +166,7 @@ function _liveCard(p) {
   const initials = (first ? first[0] : (name[0] || '')) + (last ? last[0] : (name[1] || ''));
   const yr       = p.joinDate ? new Date(p.joinDate).getFullYear() : (p.createdAt ? new Date(p.createdAt).getFullYear() : '');
   const color    = _AVATAR_COLORS[(name.charCodeAt(0) + (name.charCodeAt(1) || 0)) % _AVATAR_COLORS.length];
-  const uid      = p.memberNumber || p.memberPin || p.id || p.email || '';
+  const uid      = p.id || p.memberNumber || p.memberPin || p.email || '';
   const email    = (p.email || p.primaryEmail || '').trim();
   const phoneRaw = (p.phone || p.primaryPhone || p.mobilePhone || '').trim();
   const phoneTel = phoneRaw.replace(/[^\d+]/g, '');
