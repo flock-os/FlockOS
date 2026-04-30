@@ -67,7 +67,6 @@ topbar.innerHTML = /* html */`
     </svg>
   </button>
   <a class="veil-brand" href="#" aria-label="GROW home">
-    <img src="Images/GrowIcon.png" alt="GROW" width="30" height="30" style="border-radius:8px;">
     <span class="veil-brand-text">GROW</span>
   </a>
   <span class="veil-spacer"></span>
