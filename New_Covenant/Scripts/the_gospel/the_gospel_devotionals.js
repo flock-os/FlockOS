@@ -76,13 +76,13 @@ async function _load(root) {
 
 function _paint(view) {
   const today = _todayISO();
-  const cutoff = new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().slice(0, 10);
+  const future30 = new Date(new Date().setDate(new Date().getDate() + 30)).toISOString().slice(0, 10);
   // Pick the most recent entry that is on or before today
   const todayDevo = _state.rows.find((d) => (d.date || d.Date || '') <= today) || _state.rows[_state.rows.length - 1];
-  // "Previous" = strictly before today, within the last 30 days
+  // "Upcoming" = after today, within the next 30 days
   const rest = _state.rows.filter((d) => {
     const dt = d.date || d.Date || '';
-    return d !== todayDevo && dt < today && dt >= cutoff;
+    return d !== todayDevo && dt > today && dt <= future30;
   });
 
   view.innerHTML = `
@@ -91,7 +91,7 @@ function _paint(view) {
     </div>
     ${rest.length ? `
     <div class="grow-devo-feed-head">
-      <span class="grow-section-title">Previous Devotionals</span>
+      <span class="grow-section-title">Upcoming Devotionals</span>
     </div>
     <div class="grow-devo-feed">
       ${rest.map((d) => _feedCard(d)).join('')}
