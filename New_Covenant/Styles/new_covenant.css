@@ -2774,6 +2774,58 @@ flock-tabs [role="tablist"], .tabs-bar {
   display: flex; flex-direction: column; gap: 5px;
   font: 0.82rem var(--font-ui); color: var(--ink-muted, #7a7f96);
 }
+
+/* Stat grid inside expanded country card */
+.gc-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+}
+.gc-stat-grid + .gc-stat-grid { margin-top: 4px; }
+.gc-stat {
+  display: flex; align-items: center; gap: 9px;
+  padding: 8px 10px;
+  background: var(--bg-soft, #f7f8fb);
+  border: 1px solid var(--line, #e5e7ef);
+  border-radius: 8px;
+  min-width: 0;
+}
+.gc-stat-icon {
+  flex: 0 0 28px;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px;
+  border-radius: 8px;
+  background: var(--bg-raised, #fff);
+  font-size: 0.95rem; line-height: 1;
+}
+.gc-stat-body { min-width: 0; flex: 1 1 auto; }
+.gc-stat-label {
+  font: 600 0.68rem var(--font-ui);
+  color: var(--ink-muted, #7a7f96);
+  text-transform: uppercase; letter-spacing: .05em;
+  line-height: 1.2;
+}
+.gc-stat-value {
+  font: 700 0.85rem var(--font-ui);
+  color: var(--ink, #1b264f);
+  line-height: 1.25;
+  margin-top: 2px;
+  overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.gc-stat.tone-slate   .gc-stat-icon { background: rgba(100,116,139,0.12); color: #475569; }
+.gc-stat.tone-violet  .gc-stat-icon { background: rgba(124,58,237,0.12);  color: #7c3aed; }
+.gc-stat.tone-emerald .gc-stat-icon { background: rgba(16,185,129,0.12);  color: #059669; }
+.gc-stat.tone-rose    .gc-stat-icon { background: rgba(225,29,72,0.12);   color: #be123c; }
+.gc-stat.tone-amber   .gc-stat-icon { background: rgba(245,158,11,0.14);  color: #b45309; }
+.gc-country-notes {
+  margin-top: 4px; padding: 8px 10px;
+  background: var(--bg-soft, #f7f8fb);
+  border: 1px dashed var(--line, #e5e7ef);
+  border-radius: 8px;
+  font: 0.8rem/1.45 var(--font-ui); color: var(--ink-muted, #7a7f96);
+}
+
 .gc-profile-link {
   display: inline-block; padding-top: 6px;
   font: 0.85rem var(--font-ui); color: var(--accent, #5b8fcf); text-decoration: none;

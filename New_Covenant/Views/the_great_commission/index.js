@@ -438,22 +438,68 @@ function _countryCard(r) {
       </div>
       ${footerMeta ? `<div class="gc-country-meta">${_e(footerMeta)}</div>` : ''}
       <div class="gc-country-expand">
-        <div class="gc-country-detail">
-          ${r.region           ? `<span>📍 ${_e(r.region)}</span>`                              : ''}
-          ${pop                ? `<span>👥 ${pop}</span>`                                        : ''}
-          ${pctChrist          ? `<span>✝️ ${pctChrist} Christian</span>`                        : ''}
-          ${r.evangelicalPercent != null ? `<span>🕊️ ${(r.evangelicalPercent < 1 ? r.evangelicalPercent.toFixed(2) : r.evangelicalPercent.toFixed(1))}% Evangelical</span>` : ''}
-          ${wwl    != null     ? `<span>📋 WWL #${_e(String(wwl))}</span>`                       : ''}
-          ${ungroups != null   ? `<span>🔴 ${_e(String(ungroups))} unreached groups</span>`     : ''}
-          ${r.peopleGroups != null && ungroups == null ? `<span>👥 ${_e(String(r.peopleGroups))} people groups</span>` : ''}
-          ${popUnreached       ? `<span>📍 ${popUnreached} in unreached pop.</span>`             : ''}
-          ${r.primaryLanguage  ? `<span>🗣️ ${_e(r.primaryLanguage)}</span>`                     : ''}
-          ${r.bibleStatus      ? `<span>📖 Bible: ${_e(r.bibleStatus)}</span>`                  : ''}
-          ${r.restrictionsRank != null ? `<span>🔒 BAL Restrictions #${_e(String(r.restrictionsRank))}</span>` : ''}
-          ${r.bibleShortageRank != null ? `<span>📖 BAL Shortage #${_e(String(r.bibleShortageRank))}${r.bibleShortageRange ? ` · ${_e(r.bibleShortageRange)} need Bibles` : ''}</span>` : ''}
-          ${r.evangelicalGrowthRate != null ? `<span>📈 Evangelical growth ${(r.evangelicalGrowthRate >= 0 ? '+' : '')}${r.evangelicalGrowthRate.toFixed(2)}%/yr</span>` : ''}
-          ${r.notes                   ? `<span>📝 ${_e(String(r.notes).substring(0, 160))}</span>`              : ''}
-        </div>
+        ${(() => {
+          const evgPct = r.evangelicalPercent != null
+            ? (r.evangelicalPercent < 1 ? r.evangelicalPercent.toFixed(2) : r.evangelicalPercent.toFixed(1)) + '%'
+            : null;
+          const evgGrowth = r.evangelicalGrowthRate != null
+            ? `${r.evangelicalGrowthRate >= 0 ? '+' : ''}${r.evangelicalGrowthRate.toFixed(2)}%/yr`
+            : null;
+          const bibleShortage = r.bibleShortageRank != null
+            ? `#${r.bibleShortageRank}${r.bibleShortageRange ? ` · ${_e(r.bibleShortageRange)} need Bibles` : ''}`
+            : null;
+
+          const stat = (icon, label, value, tone = '') => value
+            ? `<div class="gc-stat ${tone}">
+                <span class="gc-stat-icon" aria-hidden="true">${icon}</span>
+                <div class="gc-stat-body">
+                  <div class="gc-stat-label">${_e(label)}</div>
+                  <div class="gc-stat-value">${value}</div>
+                </div>
+              </div>`
+            : '';
+
+          const sections = [];
+
+          // People & Place
+          const place = [
+            stat('📍', 'Region',     r.region ? _e(r.region) : null,      'tone-slate'),
+            stat('👥', 'Population', pop,                                  'tone-slate'),
+            stat('🗣️', 'Language',   r.primaryLanguage ? _e(r.primaryLanguage) : null, 'tone-slate'),
+          ].filter(Boolean).join('');
+          if (place) sections.push(`<div class="gc-stat-grid">${place}</div>`);
+
+          // Faith
+          const faith = [
+            stat('✝️', 'Christian',         pctChrist,  'tone-violet'),
+            stat('🕊️', 'Evangelical',       evgPct,     'tone-violet'),
+            stat('📈', 'Evg. Growth',       evgGrowth,  'tone-emerald'),
+          ].filter(Boolean).join('');
+          if (faith) sections.push(`<div class="gc-stat-grid">${faith}</div>`);
+
+          // Reach
+          const reach = [
+            stat('🔴', 'Unreached Groups', ungroups != null ? _e(String(ungroups)) : null, 'tone-rose'),
+            stat('👥', 'People Groups',    (r.peopleGroups != null && ungroups == null) ? _e(String(r.peopleGroups)) : null, 'tone-rose'),
+            stat('🌐', 'Unreached Pop.',   popUnreached, 'tone-rose'),
+          ].filter(Boolean).join('');
+          if (reach) sections.push(`<div class="gc-stat-grid">${reach}</div>`);
+
+          // Bible Access & Persecution
+          const access = [
+            stat('📋', 'WWL Rank',         wwl != null ? `#${_e(String(wwl))}` : null,                     'tone-amber'),
+            stat('🔒', 'BAL Restrictions', r.restrictionsRank != null ? `#${_e(String(r.restrictionsRank))}` : null, 'tone-amber'),
+            stat('📖', 'BAL Shortage',     bibleShortage,                                                  'tone-amber'),
+            stat('📖', 'Bible',            r.bibleStatus ? _e(r.bibleStatus) : null,                       'tone-amber'),
+          ].filter(Boolean).join('');
+          if (access) sections.push(`<div class="gc-stat-grid">${access}</div>`);
+
+          let html = sections.join('');
+          if (r.notes) {
+            html += `<div class="gc-country-notes">📝 ${_e(String(r.notes).substring(0, 200))}</div>`;
+          }
+          return html;
+        })()}
         ${r.prayerPrompt ? `<div class="gc-country-prompt">🙏 ${_e(r.prayerPrompt)}</div>` : ''}
         ${(r.owPrayerAnswers && r.owPrayerAnswers.length) || (r.owPrayerChallenges && r.owPrayerChallenges.length)
           ? `<div class="gc-country-ow">
