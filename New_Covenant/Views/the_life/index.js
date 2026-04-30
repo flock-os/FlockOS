@@ -692,28 +692,28 @@ export function render() {
           <button class="fold-filter" data-life-filter="prayer">Prayer</button>
           <button class="fold-filter" data-life-filter="visit">Visits</button>
           <button class="fold-filter" data-life-filter="followup">Follow-ups</button>
+          <button class="fold-filter" data-life-filter="assignments">Care Assignments</button>
         </div>
         <button class="flock-btn flock-btn--primary" data-care-new style="margin-left:auto;">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
           New Care Item
         </button>
-      </div>
-
-      <!-- Queue -->
-      <div class="life-queue" data-bind="queue">
-        <div class="life-loading">Loading care queue…</div>
-      </div>
-
-      <!-- Care Assignments -->
-      <div class="way-section-header" style="margin-top:32px;">
-        <h2 class="way-section-title">Care Assignments</h2>
-        <button class="flock-btn flock-btn--primary" data-new-assign>
+        <button class="flock-btn flock-btn--primary" data-new-assign style="margin-left:auto;display:none;">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
           Assign
         </button>
       </div>
-      <div data-bind="assignments">
-        <div class="life-loading">Loading assignments…</div>
+
+      <!-- Queue (hidden when Assignments tab is active) -->
+      <div class="life-queue" data-bind="queue">
+        <div class="life-loading">Loading care queue…</div>
+      </div>
+
+      <!-- Care Assignments panel (shown when Assignments tab is active) -->
+      <div data-tab-panel="assignments" style="display:none;">
+        <div data-bind="assignments">
+          <div class="life-loading">Loading assignments…</div>
+        </div>
       </div>
 
       <!-- Compassion Requests -->
@@ -748,15 +748,35 @@ export function mount(root) {
   const _caseMap = {};
 
   function _wireFilters() {
+    const queueEl    = root.querySelector('[data-bind="queue"]');
+    const assignPanel = root.querySelector('[data-tab-panel="assignments"]');
+    const newCareBtn  = root.querySelector('[data-care-new]');
+    const newAssignBtn = root.querySelector('[data-new-assign]');
+
     root.querySelectorAll('[data-life-filter]').forEach((btn) => {
       btn.addEventListener('click', () => {
         root.querySelectorAll('[data-life-filter]').forEach(b => b.classList.remove('is-active'));
         btn.classList.add('is-active');
         const f = btn.dataset.lifeFilter;
-        root.querySelectorAll('.life-card').forEach((card) => {
-          const show = f === 'all' || card.dataset.type === f || card.dataset.priority === f;
-          card.style.display = show ? '' : 'none';
-        });
+
+        if (f === 'assignments') {
+          // Show assignments panel, hide queue and New Care Item
+          if (queueEl)     queueEl.style.display    = 'none';
+          if (assignPanel) assignPanel.style.display = '';
+          if (newCareBtn)  newCareBtn.style.display  = 'none';
+          if (newAssignBtn) newAssignBtn.style.display = '';
+        } else {
+          // Show queue, hide assignments panel
+          if (queueEl)     queueEl.style.display    = '';
+          if (assignPanel) assignPanel.style.display = 'none';
+          if (newCareBtn)  newCareBtn.style.display  = '';
+          if (newAssignBtn) newAssignBtn.style.display = 'none';
+          // Apply card-level filter
+          root.querySelectorAll('.life-card').forEach((card) => {
+            const show = f === 'all' || card.dataset.type === f || card.dataset.priority === f;
+            card.style.display = show ? '' : 'none';
+          });
+        }
       });
     });
   }
@@ -840,7 +860,12 @@ export function mount(root) {
       btn.replaceWith(fresh);
       fresh.addEventListener('click', () => openFn(null, _memberDir, reloadFn));
     };
-    wireOnce('[data-new-assign]',     _openAssignSheet,     () => _loadAssignments(root, _memberDir));
+    // [data-new-assign] may appear in the toolbar (tab view) — wire both
+    root.querySelectorAll('[data-new-assign]').forEach((btn) => {
+      const fresh = btn.cloneNode(true);
+      btn.replaceWith(fresh);
+      fresh.addEventListener('click', () => _openAssignSheet(null, _memberDir, () => _loadAssignments(root, _memberDir)));
+    });
     wireOnce('[data-new-compassion]', _openCompassionSheet, () => _loadCompassion(root, _memberDir));
     wireOnce('[data-new-todo]',       _openTodoSheet,       () => _loadTodos(root, _memberDir));
   }
