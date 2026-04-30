@@ -31,6 +31,13 @@ export function render() {
           <button class="fold-filter" data-filter="visitor">Visitors</button>
           <button class="fold-filter" data-filter="leader">Leaders</button>
         </div>
+        <div class="fold-sorts" aria-label="Sort members by">
+          <span class="fold-sort-label">Sort:</span>
+          <button class="fold-sort" data-sort="firstName">First Name</button>
+          <button class="fold-sort" data-sort="lastName">Last Name</button>
+          <button class="fold-sort" data-sort="role">Role</button>
+          <button class="fold-sort" data-sort="joinDate">Joined</button>
+        </div>
         <button class="flock-btn flock-btn--primary fold-add-btn" data-act="add-person">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
           Add Person
@@ -51,6 +58,24 @@ export function render() {
 }
 
 export function mount(root) {
+  // Restore saved sort and mark active button
+  _paintSortButtons(root);
+
+  // Sort buttons — re-sort in place without a network round-trip
+  root.querySelectorAll('.fold-sort').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      _currentSort = btn.dataset.sort;
+      try { localStorage.setItem('flock_fold_sort', _currentSort); } catch (_) {}
+      _paintSortButtons(root);
+      const grid = root.querySelector('[data-bind="members"]');
+      if (grid && Object.keys(_personMap).length) {
+        const sorted = _sortRows(Object.values(_personMap));
+        grid.innerHTML = sorted.map(_liveCard).join('');
+        _wireCards(grid, root);
+      }
+    });
+  });
+
   // Filter buttons
   root.querySelectorAll('.fold-filter').forEach((btn) => {
     btn.addEventListener('click', () => {
@@ -85,6 +110,72 @@ export function mount(root) {
 let _personMap = {};
 let _activeFoldSheet = null;
 
+// Sort state — persists across view switches via localStorage
+let _currentSort = (() => {
+  try { return localStorage.getItem('flock_fold_sort') || 'firstName'; } catch (_) { return 'firstName'; }
+})();
+
+function _paintSortButtons(root) {
+  root.querySelectorAll('.fold-sort').forEach((b) => {
+    b.classList.toggle('is-active', b.dataset.sort === _currentSort);
+  });
+}
+
+function _sortRows(rows) {
+  const sorted = rows.slice();
+  sorted.sort((a, b) => {
+    switch (_currentSort) {
+      case 'lastName': {
+        const la = (a.lastName  || a.displayName || '').toLowerCase();
+        const lb = (b.lastName  || b.displayName || '').toLowerCase();
+        return la < lb ? -1 : la > lb ? 1 : 0;
+      }
+      case 'role': {
+        const ra = (a.role || a.memberType || '').toLowerCase();
+        const rb = (b.role || b.memberType || '').toLowerCase();
+        return ra < rb ? -1 : ra > rb ? 1 : 0;
+      }
+      case 'joinDate': {
+        const da = a.joinDate || a.memberSince || a.createdAt || '';
+        const db = b.joinDate || b.memberSince || b.createdAt || '';
+        return da < db ? -1 : da > db ? 1 : 0;
+      }
+      case 'firstName':
+      default: {
+        const fa = (a.firstName || a.displayName || '').toLowerCase();
+        const fb = (b.firstName || b.displayName || '').toLowerCase();
+        return fa < fb ? -1 : fa > fb ? 1 : 0;
+      }
+    }
+  });
+  return sorted;
+}
+
+function _wireCards(grid, root) {
+  const V = window.TheVine;
+  grid.querySelectorAll('.fold-card').forEach((card) => {
+    card.querySelectorAll('.fold-contact-btn[data-contact]').forEach(btn => {
+      btn.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        const kind  = btn.dataset.contact;
+        const name  = btn.dataset.name || '';
+        const value = btn.dataset.value || '';
+        const tel   = btn.dataset.tel   || value.replace(/[^\d+]/g, '');
+        if (kind === 'text')  openContactComposer({ channel: 'text',  name, recipient: value, target: tel });
+        if (kind === 'email') openContactComposer({ channel: 'email', name, recipient: value, target: value });
+      });
+    });
+    const open = () => {
+      const person = _personMap[card.dataset.id];
+      if (person) _openMemberSheet(person, V, () => _loadMembers(root));
+    };
+    card.addEventListener('click', open);
+    card.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); }
+    });
+  });
+}
+
 async function _loadMembers(root) {
   const V   = window.TheVine;
   const MXM = buildAdapter('flock.members', V);
@@ -116,33 +207,10 @@ async function _loadMembers(root) {
       const key = r.id || r.memberNumber || r.email || '';
       if (key) _personMap[key] = r;
     });
-    grid.innerHTML = rows.map(_liveCard).join('');
+    const sorted = _sortRows(rows);
+    grid.innerHTML = sorted.map(_liveCard).join('');
     if (stats) stats.innerHTML = _liveStats(rows);
-    // Wire card clicks + contact buttons
-    grid.querySelectorAll('.fold-card').forEach((card) => {
-      // Contact buttons stop propagation so they don't open the detail sheet
-      card.querySelectorAll('.fold-contact-btn[data-contact]').forEach(btn => {
-        btn.addEventListener('click', (ev) => {
-          ev.stopPropagation();
-          const kind  = btn.dataset.contact;
-          const name  = btn.dataset.name || '';
-          const value = btn.dataset.value || '';
-          const tel   = btn.dataset.tel   || value.replace(/[^\d+]/g, '');
-          if (kind === 'text')  openContactComposer({ channel: 'text',  name, recipient: value, target: tel });
-          if (kind === 'email') openContactComposer({ channel: 'email', name, recipient: value, target: value });
-          // 'call' uses native <a href="tel:">, nothing extra needed
-        });
-      });
-
-      const open = () => {
-        const person = _personMap[card.dataset.id];
-        if (person) _openMemberSheet(person, V, () => _loadMembers(root));
-      };
-      card.addEventListener('click', open);
-      card.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); }
-      });
-    });
+    _wireCards(grid, root);
   } catch (err) {
     console.error('[TheFold] members.list error:', err);
     grid.innerHTML = '<div class="life-empty">Could not load members right now.</div>';

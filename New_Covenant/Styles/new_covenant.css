@@ -1177,6 +1177,25 @@ flock-tabs [role="tablist"], .tabs-bar {
   background: linear-gradient(135deg, rgba(232,168,56,0.16), rgba(108,63,168,0.10));
   border-color: var(--gold, #e8a838); color: var(--ink, #1b264f);
 }
+.fold-sorts {
+  display: flex; align-items: center; gap: 4px; flex-wrap: wrap;
+}
+.fold-sort-label {
+  font: 600 0.78rem var(--font-ui); color: var(--ink-muted, #7a7f96);
+  text-transform: uppercase; letter-spacing: .04em; margin-right: 2px;
+}
+.fold-sort {
+  padding: 5px 11px; border-radius: var(--radius-md);
+  border: 1.5px solid var(--line, #e5e7ef);
+  background: var(--bg-raised, #fff); color: var(--ink-muted, #7a7f96);
+  font: 600 0.79rem var(--font-ui); cursor: pointer;
+  transition: all 130ms var(--ease);
+}
+.fold-sort:hover { border-color: var(--gold); color: var(--ink, #1b264f); }
+.fold-sort.is-active {
+  background: linear-gradient(135deg, rgba(232,168,56,0.16), rgba(108,63,168,0.10));
+  border-color: var(--gold, #e8a838); color: var(--ink, #1b264f);
+}
 .fold-add-btn {
   display: flex; align-items: center; gap: 6px; white-space: nowrap;
   padding: 9px 18px; border-radius: var(--radius-md);
