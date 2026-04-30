@@ -261,7 +261,8 @@ function _openMemberSheet(person, V, onReload) {
   const last    = person.lastName  || '';
   const name    = person.displayName || person.name || `${first} ${last}`.trim() || 'Unknown';
   const role    = (person.role || person.memberType || 'member');
-  const uid     = person.memberNumber || person.memberPin || person.id || person.email || '';
+  const docId   = person.id || '';                                               // Firestore document ID — always use for writes
+  const uid     = person.memberNumber || person.memberPin || person.id || person.email || ''; // display / copy ID
   const initials = (first ? first[0] : (name[0] || '')) + (last ? last[0] : (name[1] || ''));
   const color   = _AVATAR_COLORS[(name.charCodeAt(0) + (name.charCodeAt(1) || 0)) % _AVATAR_COLORS.length];
   const email    = (person.email || person.primaryEmail || '').trim();
@@ -459,7 +460,7 @@ function _openMemberSheet(person, V, onReload) {
     const btn = sheet.querySelector('[data-save]');
     btn.disabled = true; btn.textContent = 'Saving…';
     const updates = {
-      id:         uid,
+      id:         docId || uid,
       firstName:  sheet.querySelector('[data-field="firstName"]').value.trim(),
       lastName:   sheet.querySelector('[data-field="lastName"]').value.trim(),
       email:      sheet.querySelector('[data-field="email"]').value.trim(),
@@ -495,7 +496,7 @@ function _openMemberSheet(person, V, onReload) {
     btn.disabled = true;
     try {
       // Soft archive: flip status to Inactive (preserves all records)
-      await MXM.update({ id: uid, status: 'Inactive' });
+      await MXM.update({ id: docId || uid, status: 'Inactive' });
       _closeMemberSheet();
       onReload?.();
     } catch (err) {
@@ -519,7 +520,7 @@ function _openMemberSheet(person, V, onReload) {
     const btn = sheet.querySelector('[data-delete]');
     btn.disabled = true;
     try {
-      await MXM.delete({ id: uid });
+      await MXM.delete({ id: docId || uid });
       _closeMemberSheet();
       onReload?.();
     } catch (err) {
