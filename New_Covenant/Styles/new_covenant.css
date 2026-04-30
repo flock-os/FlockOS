@@ -1782,8 +1782,18 @@ flock-tabs [role="tablist"], .tabs-bar {
 }
 .gc-uotd-link:hover { text-decoration: underline; }
 
-/* Sync from JP button */
-.gc-sync-jp-btn { gap: 6px; }
+/* Sync from JP button – ghost-outline pill */
+.gc-sync-jp-btn {
+  background: transparent;
+  color: var(--ink-muted, #7a7f96);
+  border: 1.5px solid var(--line, #e5e7ef);
+  box-shadow: none;
+}
+.gc-sync-jp-btn:hover {
+  background: var(--bg-hover, rgba(0,0,0,0.04));
+  color: var(--ink, #1b264f);
+  border-color: var(--accent, #7eaacc);
+}
 
 /* ── Admin: Church settings form inputs ─────────────────────────────────────── */
 .wall-church-input {
@@ -2950,7 +2960,17 @@ flock-tabs [role="tablist"], .tabs-bar {
 
 /* ── Action bar (Add buttons) ──────────────────────────────────────────────── */
 .gc-action-bar { display: flex; justify-content: flex-end; }
-.gc-action-hd  { display: flex; justify-content: flex-end; }
+.gc-action-hd  { display: flex; justify-content: flex-end; gap: 8px; align-items: center; }
+
+/* ── Compact pill buttons in section headers & action bars ─────────────────── */
+.way-section-header .flock-btn,
+.gc-action-hd .flock-btn,
+.life-toolbar .flock-btn {
+  padding: 5px 13px;
+  font-size: 0.79rem;
+  border-radius: 20px;
+  letter-spacing: 0.01em;
+}
 
 /* ── Mission partners ──────────────────────────────────────────────────────── */
 .gc-partner-grid {
