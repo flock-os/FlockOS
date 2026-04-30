@@ -693,6 +693,7 @@ export function render() {
           <button class="fold-filter" data-life-filter="visit">Visits</button>
           <button class="fold-filter" data-life-filter="followup">Follow-ups</button>
           <button class="fold-filter" data-life-filter="assignments">Care Assignments</button>
+          <button class="fold-filter" data-life-filter="compassion">Compassion Requests</button>
         </div>
         <button class="flock-btn flock-btn--primary" data-care-new style="margin-left:auto;">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
@@ -702,30 +703,29 @@ export function render() {
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
           Assign
         </button>
+        <button class="flock-btn flock-btn--primary" data-new-compassion style="margin-left:auto;display:none;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+          New Request
+        </button>
       </div>
 
-      <!-- Queue (hidden when Assignments tab is active) -->
+      <!-- Queue (hidden when a tab panel is active) -->
       <div class="life-queue" data-bind="queue">
         <div class="life-loading">Loading care queue…</div>
       </div>
 
-      <!-- Care Assignments panel (shown when Assignments tab is active) -->
+      <!-- Care Assignments panel -->
       <div data-tab-panel="assignments" style="display:none;">
         <div data-bind="assignments">
           <div class="life-loading">Loading assignments…</div>
         </div>
       </div>
 
-      <!-- Compassion Requests -->
-      <div class="way-section-header" style="margin-top:32px;">
-        <h2 class="way-section-title">Compassion Requests</h2>
-        <button class="flock-btn flock-btn--primary" data-new-compassion>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
-          New Request
-        </button>
-      </div>
-      <div data-bind="compassion">
-        <div class="life-loading">Loading compassion requests…</div>
+      <!-- Compassion Requests panel -->
+      <div data-tab-panel="compassion" style="display:none;">
+        <div data-bind="compassion">
+          <div class="life-loading">Loading compassion requests…</div>
+        </div>
       </div>
 
       <!-- Todos -->
@@ -748,10 +748,18 @@ export function mount(root) {
   const _caseMap = {};
 
   function _wireFilters() {
-    const queueEl    = root.querySelector('[data-bind="queue"]');
-    const assignPanel = root.querySelector('[data-tab-panel="assignments"]');
-    const newCareBtn  = root.querySelector('[data-care-new]');
-    const newAssignBtn = root.querySelector('[data-new-assign]');
+    const queueEl        = root.querySelector('[data-bind="queue"]');
+    const assignPanel    = root.querySelector('[data-tab-panel="assignments"]');
+    const compassionPanel = root.querySelector('[data-tab-panel="compassion"]');
+    const newCareBtn      = root.querySelector('[data-care-new]');
+    const newAssignBtn    = root.querySelector('[data-new-assign]');
+    const newCompassionBtn = root.querySelector('[data-new-compassion]');
+
+    // Map filter key → { panel, actionBtn }
+    const _PANELS = {
+      assignments: { panel: assignPanel,     btn: newAssignBtn },
+      compassion:  { panel: compassionPanel, btn: newCompassionBtn },
+    };
 
     root.querySelectorAll('[data-life-filter]').forEach((btn) => {
       btn.addEventListener('click', () => {
@@ -759,18 +767,22 @@ export function mount(root) {
         btn.classList.add('is-active');
         const f = btn.dataset.lifeFilter;
 
-        if (f === 'assignments') {
-          // Show assignments panel, hide queue and New Care Item
-          if (queueEl)     queueEl.style.display    = 'none';
-          if (assignPanel) assignPanel.style.display = '';
-          if (newCareBtn)  newCareBtn.style.display  = 'none';
-          if (newAssignBtn) newAssignBtn.style.display = '';
+        if (_PANELS[f]) {
+          // Show the matching tab panel; hide queue + New Care Item
+          if (queueEl)   queueEl.style.display  = 'none';
+          if (newCareBtn) newCareBtn.style.display = 'none';
+          Object.entries(_PANELS).forEach(([key, { panel, btn: ab }]) => {
+            if (panel) panel.style.display = (key === f) ? '' : 'none';
+            if (ab)    ab.style.display    = (key === f) ? '' : 'none';
+          });
         } else {
-          // Show queue, hide assignments panel
-          if (queueEl)     queueEl.style.display    = '';
-          if (assignPanel) assignPanel.style.display = 'none';
-          if (newCareBtn)  newCareBtn.style.display  = '';
-          if (newAssignBtn) newAssignBtn.style.display = 'none';
+          // Queue view — hide all panels and their action buttons
+          if (queueEl)   queueEl.style.display  = '';
+          if (newCareBtn) newCareBtn.style.display = '';
+          Object.values(_PANELS).forEach(({ panel, btn: ab }) => {
+            if (panel) panel.style.display = 'none';
+            if (ab)    ab.style.display    = 'none';
+          });
           // Apply card-level filter
           root.querySelectorAll('.life-card').forEach((card) => {
             const show = f === 'all' || card.dataset.type === f || card.dataset.priority === f;
@@ -866,7 +878,12 @@ export function mount(root) {
       btn.replaceWith(fresh);
       fresh.addEventListener('click', () => _openAssignSheet(null, _memberDir, () => _loadAssignments(root, _memberDir)));
     });
-    wireOnce('[data-new-compassion]', _openCompassionSheet, () => _loadCompassion(root, _memberDir));
+    // [data-new-compassion] may appear in the toolbar (tab view)
+    root.querySelectorAll('[data-new-compassion]').forEach((btn) => {
+      const fresh = btn.cloneNode(true);
+      btn.replaceWith(fresh);
+      fresh.addEventListener('click', () => _openCompassionSheet(null, _memberDir, () => _loadCompassion(root, _memberDir)));
+    });
     wireOnce('[data-new-todo]',       _openTodoSheet,       () => _loadTodos(root, _memberDir));
   }
 
