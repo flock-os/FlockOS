@@ -472,6 +472,32 @@ function _openMemberSheet(person, V, onReload) {
     sheet.querySelector('.life-sheet-panel').classList.add('is-open');
   });
 
+  // ── Fresh-data fetch — backfill form with latest Firestore values ──────────
+  // The sheet opened with data from _personMap (built from list()). If that
+  // list used the GAS fallback or had stale cache, fields may be wrong/empty.
+  // A direct getMember() read always returns the current Firestore document.
+  const _freshId = docId || uid;
+  if (_freshId) {
+    MXM.get(_freshId).then(fresh => {
+      if (!fresh || !_activeFoldSheet) return;
+      const _set = (field, val) => {
+        if (val == null || val === '') return;
+        const el = sheet.querySelector(`[data-field="${field}"]`);
+        if (el) el.value = val;
+      };
+      _set('firstName',  fresh.firstName);
+      _set('lastName',   fresh.lastName);
+      _set('email',      fresh.email || fresh.primaryEmail);
+      _set('phone',      fresh.phone || fresh.primaryPhone || fresh.mobilePhone);
+      _set('memberType', (fresh.memberType || fresh.role || '').toLowerCase());
+      _set('birthDate',  fresh.birthDate || fresh.birthdate);
+      _set('gender',     fresh.gender);
+      _set('joinDate',   fresh.joinDate || fresh.memberSince);
+      const notesEl = sheet.querySelector('[data-field="notes"]');
+      if (notesEl && fresh.notes != null) notesEl.value = fresh.notes;
+    }).catch(() => { /* keep cached data on error */ });
+  }
+
   // Load current permissions
   if (V && uid) {
     MXP.get({ memberId: uid }).then(res => {
@@ -543,7 +569,14 @@ function _openMemberSheet(person, V, onReload) {
     Object.keys(updates).forEach(k => { if (updates[k] === undefined) delete updates[k]; });
     const accessRole = sheet.querySelector('[data-field="accessRole"]').value;
     try {
-      await MXM.update(updates);
+      if (!MXM.isFirestore() && !window.TheVine?.flock?.members?.update) {
+        throw new Error('Directory sync is not ready yet. Please wait a moment and try again.');
+      }
+      const result = await MXM.update(updates);
+      // Guard against silent GAS no-op (adapter returns null when verb is unimplemented)
+      if (result === null && !MXM.isFirestore()) {
+        throw new Error('Member could not be saved — directory sync unavailable. Please try again.');
+      }
       if (accessRole && uid) {
         await MXP.set({ memberId: uid, role: accessRole });
       }
