@@ -173,6 +173,33 @@ const TheTruth = (() => {
   // ── Tab definitions (Firestore field names) ───────────────────────────────
   // Each field's `k` matches the Firestore document field name exactly.
 
+  // Canonical Bible book order (66 books, KJV/Protestant canon).
+  var CANONICAL_BOOKS = [
+    'Genesis','Exodus','Leviticus','Numbers','Deuteronomy',
+    'Joshua','Judges','Ruth','1 Samuel','2 Samuel','1 Kings','2 Kings',
+    '1 Chronicles','2 Chronicles','Ezra','Nehemiah','Esther',
+    'Job','Psalms','Proverbs','Ecclesiastes','Song of Solomon',
+    'Isaiah','Jeremiah','Lamentations','Ezekiel','Daniel',
+    'Hosea','Joel','Amos','Obadiah','Jonah','Micah','Nahum','Habakkuk','Zephaniah','Haggai','Zechariah','Malachi',
+    'Matthew','Mark','Luke','John','Acts',
+    'Romans','1 Corinthians','2 Corinthians','Galatians','Ephesians','Philippians','Colossians',
+    '1 Thessalonians','2 Thessalonians','1 Timothy','2 Timothy','Titus','Philemon',
+    'Hebrews','James','1 Peter','2 Peter','1 John','2 John','3 John','Jude','Revelation'
+  ];
+  var _canonIndex = {};
+  CANONICAL_BOOKS.forEach(function(n, i) { _canonIndex[n.toLowerCase()] = i; });
+  function _bookCanonRank(name) {
+    var key = String(name || '').trim().toLowerCase();
+    if (key in _canonIndex) return _canonIndex[key];
+    // Common variants
+    var alt = key
+      .replace(/^song of songs$/, 'song of solomon')
+      .replace(/^canticles$/, 'song of solomon')
+      .replace(/^psalm$/, 'psalms')
+      .replace(/^revelations$/, 'revelation');
+    return (alt in _canonIndex) ? _canonIndex[alt] : 999;
+  }
+
   var TABS = [
     { key: 'books', name: 'Books', idField: 'bookName',
       listCols: ['bookName', 'testament', 'genre'],
@@ -679,6 +706,15 @@ const TheTruth = (() => {
           }
           return d;
         });
+        // Sort books canonically (Genesis → Revelation)
+        if (tab.key === 'books') {
+          _allRows[tab.key].sort(function(a, b) {
+            var ra = _bookCanonRank(a.bookName);
+            var rb = _bookCanonRank(b.bookName);
+            if (ra !== rb) return ra - rb;
+            return String(a.bookName || '').localeCompare(String(b.bookName || ''));
+          });
+        }
       } catch (e) {
         container.innerHTML = _errHtml(e.message);
         return;
