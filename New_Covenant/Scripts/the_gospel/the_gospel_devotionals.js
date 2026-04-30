@@ -76,10 +76,14 @@ async function _load(root) {
 
 function _paint(view) {
   const today = _todayISO();
+  const cutoff = new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().slice(0, 10);
   // Pick the most recent entry that is on or before today
   const todayDevo = _state.rows.find((d) => (d.date || d.Date || '') <= today) || _state.rows[_state.rows.length - 1];
-  // "Previous" = strictly before today (no future entries)
-  const rest = _state.rows.filter((d) => d !== todayDevo && (d.date || d.Date || '') < today);
+  // "Previous" = strictly before today, within the last 30 days
+  const rest = _state.rows.filter((d) => {
+    const dt = d.date || d.Date || '';
+    return d !== todayDevo && dt < today && dt >= cutoff;
+  });
 
   view.innerHTML = `
     <div class="grow-devo-featured" data-featured="${esc(todayDevo._id || todayDevo.date || '')}">
