@@ -187,6 +187,18 @@
     @media (min-width: 861px) {
       .gp-hamburger { display: none !important; }
     }
+
+    /* ── Pull-to-Refresh ─────────────────────────────────────────────── */
+    @media (max-width: 860px) {
+      .ptr-indicator {
+        display: none; position: fixed; top: calc(var(--topbar-h, 60px) + var(--safe-top, 0px) + 8px);
+        left: 50%; transform: translateX(-50%);
+        z-index: 9998; background: var(--bg-raised, #fff); border: 1px solid var(--line, #e5e7ef);
+        border-radius: 20px; padding: 6px 14px; font-size: 0.75rem; color: var(--ink-muted, #7a7f96);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.18); white-space: nowrap;
+      }
+      .ptr-indicator.visible { display: block; }
+    }
   </style>
 </head>
 <body>
@@ -211,8 +223,52 @@
     Firebase compat SDK loaded here so prayer/outreach submissions can write
     to Firestore without requiring the user to sign in.
   -->
+  <!-- Pull-to-Refresh indicator -->
+  <div class="ptr-indicator" id="ptrIndicator">&#8635; Release to refresh</div>
+
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
   <script type="module" src="Scripts/grow_public.js"></script>
+
+  <script>
+  // ── Pull-to-Refresh ────────────────────────────────────────────────────────
+  (function () {
+    if (window.innerWidth > 860) return; // desktop — skip
+    var mainEl  = document.getElementById('gp-main');
+    var ptr     = document.getElementById('ptrIndicator');
+    if (!mainEl || !ptr) return;
+    var startY = 0, pulling = false, triggered = false;
+
+    mainEl.addEventListener('touchstart', function (e) {
+      if (mainEl.scrollTop > 5) return; // only trigger at top
+      startY   = e.touches[0].clientY;
+      pulling  = true;
+      triggered = false;
+    }, { passive: true });
+
+    mainEl.addEventListener('touchmove', function (e) {
+      if (!pulling) return;
+      var dy = e.touches[0].clientY - startY;
+      if (dy > 60 && !triggered) {
+        triggered = true;
+        ptr.classList.add('visible');
+      } else if (dy < 30) {
+        triggered = false;
+        ptr.classList.remove('visible');
+      }
+    }, { passive: true });
+
+    mainEl.addEventListener('touchend', function () {
+      if (triggered) {
+        ptr.textContent = 'Refreshing\u2026';
+        setTimeout(function () { location.reload(); }, 300);
+      } else {
+        ptr.classList.remove('visible');
+      }
+      pulling   = false;
+      triggered = false;
+    }, { passive: true });
+  })();
+  </script>
 </body>
 </html>
