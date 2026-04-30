@@ -439,7 +439,7 @@ function _openOutreachModal(prefillSummary, ctx) {
           <p class="gp-prayer-sub">Fill in your information so pastoral staff can follow up with you personally.</p>
           ${_ctxLabel ? `<p style="margin:6px 0 0;font:600 0.74rem var(--font-ui,sans-serif);color:var(--gold,#e8a838);letter-spacing:.04em;">📍 ${_ctxLabel}</p>` : ''}
         </div>
-      </div>`;
+      </div>
 
       <div class="gp-prayer-row">
         <div class="gp-prayer-field">
