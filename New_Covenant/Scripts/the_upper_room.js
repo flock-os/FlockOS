@@ -818,11 +818,14 @@
   }
 
   function createPrayer(data) {
-    var id = _uid();
+    // Prayer IDs use XXX-XX-XXXX (uppercase alpha) as both the Firestore doc ID
+    // and the human-readable prayerNumber displayed in the UI.
+    var id = _genPrayerId();
     // Auto-assign to lead pastor from AppConfig if not explicitly assigned
     return getAppConfig({ key: 'LEAD_PASTOR_MEMBER_ID' }).then(function(cfg) {
       var defaultAssignee = (cfg && cfg.value) ? String(cfg.value).trim() : '';
       return _prayersRef().doc(id).set({
+        prayerNumber:      id,
         submitterName:     data.submitterName || 'Anonymous',
         submitterEmail:    data.submitterEmail || _userEmail,
         submitterPhone:    data.submitterPhone || '',
@@ -841,6 +844,7 @@
     }).catch(function() {
       // If AppConfig lookup fails, still create the prayer (unassigned)
       return _prayersRef().doc(id).set({
+        prayerNumber:      id,
         submitterName:     data.submitterName || 'Anonymous',
         submitterEmail:    data.submitterEmail || _userEmail,
         submitterPhone:    data.submitterPhone || '',
@@ -1220,10 +1224,47 @@
     });
   }
 
+  /* ══════════════════════════════════════════════════════════════════
+     ID GENERATORS — FlockOS human-readable ID conventions
+     ── Member Numbers  000-00-000   (3-2-3 digits)
+     ── Case IDs        xxx-xx-xxxx  (3-2-4 lowercase alpha)
+     ── Prayer IDs      XXX-XX-XXXX  (3-2-4 uppercase alpha)
+     ── All Others      X00-X0-X00X  (mixed upper + digit)
+     ══════════════════════════════════════════════════════════════════ */
+
+  // Ambiguous characters removed: no i/I, l/L, o/O, 0 (zero) to avoid misreads.
+  var _ALPHA_LOWER = 'abcdefghjkmnpqrstuvwxyz';
+  var _ALPHA_UPPER = 'ABCDEFGHJKMNPQRSTUVWXYZ';
+  var _DIGITS      = '123456789';   // leading zeros excluded from all positions
+
+  function _rL(n) {
+    var s = ''; for (var i = 0; i < n; i++) s += _ALPHA_LOWER[Math.floor(Math.random() * _ALPHA_LOWER.length)]; return s;
+  }
+  function _rU(n) {
+    var s = ''; for (var i = 0; i < n; i++) s += _ALPHA_UPPER[Math.floor(Math.random() * _ALPHA_UPPER.length)]; return s;
+  }
+  function _rD(n) {
+    var s = ''; for (var i = 0; i < n; i++) s += _DIGITS[Math.floor(Math.random() * _DIGITS.length)]; return s;
+  }
+
   function _genMemberPin() {
-    // 9 random digits always starting with 1–9, formatted xxx-xx-xxxx
-    var n = String(Math.floor(Math.random() * 900000000) + 100000000);
-    return n.slice(0, 3) + '-' + n.slice(3, 5) + '-' + n.slice(5);
+    // 000-00-000 : 3 digits – 2 digits – 3 digits (8 digits total)
+    return _rD(3) + '-' + _rD(2) + '-' + _rD(3);
+  }
+
+  function _genCaseId() {
+    // xxx-xx-xxxx : 3 lowercase – 2 lowercase – 4 lowercase (9 alpha total)
+    return _rL(3) + '-' + _rL(2) + '-' + _rL(4);
+  }
+
+  function _genPrayerId() {
+    // XXX-XX-XXXX : 3 uppercase – 2 uppercase – 4 uppercase (9 alpha total)
+    return _rU(3) + '-' + _rU(2) + '-' + _rU(4);
+  }
+
+  function _genDisplayId() {
+    // X00-X0-X00X : uppercase+2digits – uppercase+digit – uppercase+2digits+uppercase
+    return _rU(1)+_rD(2) + '-' + _rU(1)+_rD(1) + '-' + _rU(1)+_rD(2)+_rU(1);
   }
 
   function createMember(data) {
@@ -1560,12 +1601,16 @@
   }
 
   function createCareCase(data) {
+    // Case IDs use xxx-xx-xxxx (lowercase alpha) as both the Firestore doc ID
+    // and the human-readable caseNumber displayed in the UI.
+    var caseId = _genCaseId();
+    data.caseNumber = caseId;
     data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
     data.createdBy = data.createdBy || _userEmail;
     data.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
     data.status = data.status || 'Open';
-    return _careCasesRef().add(data).then(function(ref) {
-      data.id = ref.id; return data;
+    return _careCasesRef().doc(caseId).set(data).then(function() {
+      data.id = caseId; return data;
     });
   }
 
