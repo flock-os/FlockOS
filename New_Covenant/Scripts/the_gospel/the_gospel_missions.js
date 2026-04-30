@@ -90,12 +90,22 @@ export function render() {
         .ms-card.is-open .ms-expand { display:block; }
         .ms-expand-stat { font:0.83rem/1.5 var(--font-ui); color:var(--ink-sub,#4a4f68); margin:0 0 5px; }
         .ms-expand-prayer { font:0.82rem/1.6 var(--font-body,sans-serif); color:var(--ink,#1a1d2e); margin:8px 0 12px; }
-        .ms-expand-pray-btn { display:inline-flex; align-items:center; gap:5px; padding:6px 14px; background:#059669; color:#fff; border:none; border-radius:16px; font:600 0.78rem var(--font-ui); cursor:pointer; }
+        .ms-expand-pray-btn { display:inline-flex; align-items:center; gap:5px; padding:6px 14px; background:#059669; color:#fff; border:none; border-radius:16px; font:600 0.78rem var(--font-ui); cursor:pointer; transition:background .15s; }
         .ms-expand-pray-btn:hover { background:#047857; }
-        /* ── JP Widget wrapper ── */
-        .ms-jp-wrap { display:flex; flex-direction:column; align-items:center; margin:0 0 28px; }
+        .ms-expand-pray-btn.prayed { background:#047857; }
+        /* ── Prayer CTA (single, before nations grid) ── */
+        .ms-prayer-cta { display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap; background:linear-gradient(135deg,rgba(5,150,105,.08),rgba(5,150,105,.02)); border:1.5px solid rgba(5,150,105,.25); border-radius:14px; padding:16px 20px; margin:0 0 22px; }
+        .ms-prayer-cta-text { font:0.88rem/1.5 var(--font-ui); color:var(--ink,#1a1d2e); }
+        .ms-prayer-cta-text strong { display:block; font-size:0.95rem; margin-bottom:2px; }
+        .ms-prayer-cta-btn { display:inline-flex; align-items:center; gap:6px; padding:9px 20px; background:#059669; color:#fff; border:none; border-radius:20px; font:700 0.85rem var(--font-ui); cursor:pointer; white-space:nowrap; transition:background .15s; flex-shrink:0; }
+        .ms-prayer-cta-btn:hover { background:#047857; }
+        /* ── Top row: JP widget + Nation of the Day side-by-side ── */
+        .ms-top-row { display:flex; gap:20px; align-items:flex-start; margin:0 0 28px; flex-wrap:wrap; }
+        .ms-jp-col { display:flex; flex-direction:column; align-items:center; flex:0 0 auto; }
         .ms-jp-label { font:600 0.7rem var(--font-ui); letter-spacing:.07em; text-transform:uppercase; color:#059669; margin:0 0 10px; text-align:center; }
         .ms-jp-inner { border-radius:12px; overflow:hidden; box-shadow:0 2px 14px rgba(0,0,0,0.1); }
+        .ms-nation-col { flex:1; min-width:220px; display:flex; flex-direction:column; gap:0; }
+        .ms-nation-col-title { font:700 1rem var(--font-ui); color:var(--ink,#1a1d2e); margin:0 0 12px; }
       </style>
       <header class="grow-hero" style="--grow-accent:${accent}">
         <div class="grow-hero-icon">${icon}</div>
@@ -181,13 +191,21 @@ function _paint(view) {
           ${esc(prayer)}
         </div>
       ` : ''}
-      <button class="ms-pray-btn" data-help-btn>
-        🙏 Pray with a Shepherd
+      <button class="ms-pray-btn" data-pray-btn data-nation-id="${esc(featured._id || featured.countryName)}">
+        🙏 Pray with Us${_prayCount(featured._id || featured.countryName) ? ` · ${_prayCount(featured._id || featured.countryName)}` : ''}
       </button>
     </div>
 
     <div class="grow-section-head">
       <span class="grow-section-title">Nations</span>
+    </div>
+
+    <div class="ms-prayer-cta">
+      <div class="ms-prayer-cta-text">
+        <strong>Need prayer or want to connect?</strong>
+        Share a request — a shepherd will follow up with you personally.
+      </div>
+      <button class="ms-prayer-cta-btn" data-help-btn>✉️ Send a Prayer Request</button>
     </div>
 
     <div class="ms-filters">
@@ -233,7 +251,7 @@ function _renderGrid(view) {
         c.classList.toggle('is-open', c.dataset.id === _state.openId)
       );
     };
-    card.addEventListener('click', (e) => { if (!e.target.closest('[data-help-btn]')) _toggle(); });
+    card.addEventListener('click', (e) => { if (!e.target.closest('[data-pray-btn]')) _toggle(); });
     card.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); _toggle(); } });
   });
 }
@@ -259,21 +277,33 @@ function _cardHTML(n) {
           <div class="ms-prayer-label" style="margin-top:10px;">Prayer Point</div>
           <p class="ms-expand-prayer">${esc(prayer)}</p>
         ` : ''}
-        <button class="ms-expand-pray-btn" data-help-btn>
-          🙏 Pray with a Shepherd
+        <button class="ms-expand-pray-btn${_prayCount(n._id || n.countryName) ? ' prayed' : ''}" data-pray-btn data-nation-id="${esc(n._id || n.countryName)}">
+          🙏 Pray with Us${_prayCount(n._id || n.countryName) ? ` · ${_prayCount(n._id || n.countryName)}` : ''}
         </button>
       </div>
     </div>
   `;
 }
 
+/* ─── Prayer counter (localStorage) ──────────────────────────────────────── */
+function _prayCount(id) {
+  return parseInt(localStorage.getItem(`pray_${id}`) || '0', 10) || 0;
+}
+function _prayBump(id) {
+  const n = _prayCount(id) + 1;
+  localStorage.setItem(`pray_${id}`, n);
+  return n;
+}
+
 /* ─── Controls ────────────────────────────────────────────────────────────── */
 function _wireControls(view) {
+  // Search
   view.querySelector('[data-bind="search"]').addEventListener('input', function () {
     _state.query = this.value;
     _renderGrid(view);
   });
 
+  // Filter buttons
   view.querySelectorAll('[data-filter]').forEach(btn => {
     btn.addEventListener('click', () => {
       _state.filter = btn.dataset.filter;
@@ -282,6 +312,16 @@ function _wireControls(view) {
       );
       _renderGrid(view);
     });
+  });
+
+  // Delegated pray-counter (all [data-pray-btn] anywhere in view)
+  view.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-pray-btn]');
+    if (!btn) return;
+    const id = btn.dataset.nationId;
+    const count = _prayBump(id);
+    btn.textContent = `🙏 Pray with Us · ${count}`;
+    btn.classList.add('prayed');
   });
 }
 
