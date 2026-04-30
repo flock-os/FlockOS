@@ -40,6 +40,20 @@ export function mount(root) {
 async function _load(root) {
   const quiz = root.querySelector('[data-bind="quiz"]');
   const U = ur(); const V = vine();
+
+  /* No backend available — try static bundle before showing offline state. */
+  if (!U && !V) {
+    try {
+      const mod = await import('../../Data/heart.js');
+      _state.rows = mod.default || [];
+    } catch (e) {
+      console.error('[gospel/heart] static bundle failed:', e);
+    }
+    if (!_state.rows.length) { quiz.innerHTML = backendOffline('Heart check not loaded.'); return; }
+    _paint(root);
+    return;
+  }
+
   let res = null;
   try {
     if (U && typeof U.listAppContent === 'function')   res = await U.listAppContent('heart');
@@ -49,7 +63,6 @@ async function _load(root) {
     quiz.innerHTML = emptyState({ icon: '⚠️', title: 'Could not load heart check', body: e.message || String(e) });
     return;
   }
-  if (!U && !V) { quiz.innerHTML = backendOffline('Heart check not loaded.'); return; }
   _state.rows = rows(res);
   if (!_state.rows.length) { quiz.innerHTML = emptyState({ icon: '❤️', title: 'No questions yet' }); return; }
   _paint(root);

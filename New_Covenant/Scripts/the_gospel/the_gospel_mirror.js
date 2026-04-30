@@ -40,7 +40,27 @@ export function mount(root) { _load(root); return () => {}; }
 async function _load(root) {
   const quiz = root.querySelector('[data-bind="quiz"]');
   const U = ur(); const V = vine();
-  if (!U && !V) { quiz.innerHTML = backendOffline('Mirror not loaded.'); return; }
+
+  /* No backend available — try static bundle before showing offline state. */
+  if (!U && !V) {
+    try {
+      const mod = await import('../../Data/mirror.js');
+      _state.rows = mod.default || [];
+    } catch (e) {
+      console.error('[gospel/mirror] static bundle failed:', e);
+    }
+    if (!_state.rows.length) { quiz.innerHTML = backendOffline('Mirror not loaded.'); return; }
+    _state.cats = {};
+    _state.rows.forEach((r) => {
+      const cat = r['Category Title'] || r.categoryTitle || 'General';
+      if (!_state.cats[cat]) _state.cats[cat] = { color: r.Color || r.color || accent, questions: [] };
+      _state.cats[cat].questions.push(r);
+    });
+    _state.answers = {};
+    _paint(root);
+    return;
+  }
+
   let res = null;
   try {
     if (U && typeof U.listAppContent === 'function') res = await U.listAppContent('mirror');
