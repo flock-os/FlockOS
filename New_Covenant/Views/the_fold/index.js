@@ -445,6 +445,8 @@ function _openMemberSheet(person, V, onReload) {
       joinDate:   sheet.querySelector('[data-field="joinDate"]').value || undefined,
       notes:      sheet.querySelector('[data-field="notes"]').value.trim() || undefined,
     };
+    // Firestore rejects `undefined` field values — strip empty optional fields.
+    Object.keys(updates).forEach(k => { if (updates[k] === undefined) delete updates[k]; });
     const accessRole = sheet.querySelector('[data-field="accessRole"]').value;
     try {
       await MXM.update(updates);
@@ -624,6 +626,8 @@ function _openNewMemberSheet(onReload) {
       gender:     sheet.querySelector('[data-field="gender"]').value || undefined,
       notes:      sheet.querySelector('[data-field="notes"]').value.trim() || undefined,
     };
+    // Firestore rejects `undefined` field values — strip empty optional fields.
+    Object.keys(payload).forEach(k => { if (payload[k] === undefined) delete payload[k]; });
     const accessRole = sheet.querySelector('[data-field="accessRole"]').value;
     try {
       const res = await MXM.create(payload);
