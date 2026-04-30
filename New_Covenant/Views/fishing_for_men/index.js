@@ -339,6 +339,7 @@ function _openContactSheet(c, onReload) {
       assignedTo:  sheet.querySelector('[data-field="assignedTo"]').value.trim() || undefined,
       notes:       sheet.querySelector('[data-field="notes"]').value.trim()     || undefined,
     };
+    Object.keys(payload).forEach(k => { if (payload[k] === undefined) delete payload[k]; });
     if (!isNew) payload.id = uid;
     try {
       if (isNew) { await MX.create(payload); }

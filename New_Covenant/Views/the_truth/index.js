@@ -334,6 +334,7 @@ function _openMsgSheet(m, onReload) {
       series:      sheet.querySelector('[data-field="series"]').value.trim() || undefined,
       description: sheet.querySelector('[data-field="description"]').value.trim() || undefined,
     };
+    Object.keys(payload).forEach(k => { if (payload[k] === undefined) delete payload[k]; });
     if (!isNew) payload.id = uid;
     try {
       if (isNew) { await MX.create(payload); }
@@ -444,6 +445,7 @@ function _openSeriesSheet(s, onReload) {
       current:     isCurrent,
       status:      isCurrent ? 'Active' : 'Complete',
     };
+    Object.keys(payload).forEach(k => { if (payload[k] === undefined) delete payload[k]; });
     if (!isNew) payload.id = uid;
     try {
       if (isNew) { await MXS.create(payload); }

@@ -418,6 +418,7 @@ function _openOutreachSheet(ev, onReload) {
       status:    sheet.querySelector('[data-field="status"]').value,
       description: sheet.querySelector('[data-field="description"]').value.trim() || undefined,
     };
+    Object.keys(payload).forEach(k => { if (payload[k] === undefined) delete payload[k]; });
     if (!isNew) payload.id = uid;
     try {
       if (isNew) { await MXE.create(payload); }
@@ -551,6 +552,7 @@ function _openMissionarySheet(m, onReload) {
       website:     sheet.querySelector('[data-field="website"]').value.trim() || undefined,
       description: sheet.querySelector('[data-field="description"]').value.trim() || undefined,
     };
+    Object.keys(payload).forEach(k => { if (payload[k] === undefined) delete payload[k]; });
     if (!isNew) payload.id = uid;
     try {
       if (isNew) { await MXP.create(payload); }

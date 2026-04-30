@@ -387,6 +387,7 @@ function _openGoalSheet(g, onReload) {
         owner:    sheet.querySelector('[data-field="owner"]').value.trim() || undefined,
         notes:    sheet.querySelector('[data-field="notes"]').value.trim() || undefined,
       };
+      Object.keys(payload).forEach(k => { if (payload[k] === undefined) delete payload[k]; });
       if (!isNew) payload.id = String(g.id);
       try {
         if (isNew) await _urCreate('strategicGoals', payload);
@@ -461,6 +462,7 @@ function _openInitSheet(item, onReload) {
         status:      sheet.querySelector('[data-status].is-active')?.dataset.status || 'Planning',
         description: sheet.querySelector('[data-field="description"]').value.trim() || undefined,
       };
+      Object.keys(payload).forEach(k => { if (payload[k] === undefined) delete payload[k]; });
       if (!isNew) payload.id = String(item.id);
       try {
         if (isNew) await _urCreate('strategicInitiatives', payload);
@@ -515,6 +517,7 @@ function _openKeyDateSheet(m, onReload) {
         done:  sheet.querySelector('[data-status].is-active')?.dataset.status === 'done',
         notes: sheet.querySelector('[data-field="notes"]').value.trim() || undefined,
       };
+      Object.keys(payload).forEach(k => { if (payload[k] === undefined) delete payload[k]; });
       if (!isNew) payload.id = String(m.id);
       try {
         if (isNew) await _urCreate('strategicKeyDates', payload);

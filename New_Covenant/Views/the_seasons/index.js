@@ -380,6 +380,7 @@ function _openEventSheet(ev, onReload) {
       description:  sheet.querySelector('[data-field="description"]').value.trim() || undefined,
       rsvpRequired: sheet.querySelector('[data-field="rsvpRequired"]').checked,
     };
+    Object.keys(payload).forEach(k => { if (payload[k] === undefined) delete payload[k]; });
     if (!isNew) payload.id = uid;
     try {
       if (isNew) { await MX.create(payload); }

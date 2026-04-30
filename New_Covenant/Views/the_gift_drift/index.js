@@ -350,6 +350,7 @@ function _openGiftSheet(g, onReload) {
       giftDate:   sheet.querySelector('[data-field="giftDate"]').value || undefined, // GAS fallback
       notes:      sheet.querySelector('[data-field="notes"]').value.trim() || undefined,
     };
+    Object.keys(payload).forEach(k => { if (payload[k] === undefined) delete payload[k]; });
     if (!isNew) payload.id = uid;
     if (!V) { errEl.textContent = 'Giving backend not loaded — cannot save.'; errEl.style.display = ''; btn.disabled = false; btn.textContent = isNew ? 'Record Gift' : 'Save Changes'; return; }
     try {
@@ -564,6 +565,7 @@ function _openPledgeSheet(item, onReload) {
       fulfillmentDate: sheet.querySelector('[data-field="fulfillmentDate"]').value || undefined,
       notes:           sheet.querySelector('[data-field="notes"]').value.trim() || undefined,
     };
+    Object.keys(payload).forEach(k => { if (payload[k] === undefined) delete payload[k]; });
     try {
       if (isNew) {
         await UR.createPledge(payload);

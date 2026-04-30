@@ -272,6 +272,7 @@ function _openPrayerRequestSheet(p, onReload) {
       isConfidential:  isConfChecked ? 'TRUE' : 'FALSE',
       ...(isNew ? { status: 'New' } : { status: sheet.querySelector('[data-field="status"]')?.value || status }),
     };
+    Object.keys(payload).forEach(k => { if (payload[k] === undefined) delete payload[k]; });
     try {
       const UR = window.UpperRoom;
       // Firestore (UpperRoom) is the source of truth — life.prayerRequests reads from here

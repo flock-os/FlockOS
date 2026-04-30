@@ -271,6 +271,7 @@ function _openCaseSheet(c, onReload) {
       summary:  sheet.querySelector('[data-field="issue"]').value.trim() || undefined,
       status:   isNew ? 'Processing' : (sheet.querySelector('[data-field="stage"]')?.value || 'Processing'),
     };
+    Object.keys(payload).forEach(k => { if (payload[k] === undefined) delete payload[k]; });
     if (!isNew) payload.id = uid;
     try {
       if (isNew) {

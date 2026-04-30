@@ -246,6 +246,7 @@ function _openPentEventSheet(ev, onReload) {
       startDate:   sheet.querySelector('[data-field="startDate"]').value || undefined,
       description: sheet.querySelector('[data-field="description"]').value.trim() || undefined,
     };
+    Object.keys(payload).forEach(k => { if (payload[k] === undefined) delete payload[k]; });
     if (!isNew) payload.id = uid;
     try {
       if (!V) throw new Error('Events backend not available.');

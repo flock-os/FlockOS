@@ -297,14 +297,16 @@ function _openEntrySheet(r, onSave) {
     errEl.style.display = 'none';
     const btn = sheet.querySelector('[data-save]');
     btn.disabled = true; btn.textContent = 'Saving\u2026';
-    try {
-      await onSave({
+    const payload = {
         title,
         entry,
         category:  sheet.querySelector('[data-field="category"]').value,
         scripture: sheet.querySelector('[data-field="scripture"]').value.trim() || undefined,
         private:   sheet.querySelector('[data-field="private"]').checked,
-      });
+      };
+    Object.keys(payload).forEach(k => { if (payload[k] === undefined) delete payload[k]; });
+    try {
+      await onSave(payload);
       _closeEntrySheet();
     } catch (err) {
       errEl.textContent = err?.message || 'Could not save entry.'; errEl.style.display = '';

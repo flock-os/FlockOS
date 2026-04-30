@@ -571,6 +571,7 @@ function _openMinistrySheet(item, onSave) {
       memberCount: parseInt(sheet.querySelector('[data-field="memberCount"]').value, 10) || 0,
       description: sheet.querySelector('[data-field="description"]').value.trim() || undefined,
     };
+    Object.keys(payload).forEach(k => { if (payload[k] === undefined) delete payload[k]; });
     try {
       if (isEdit) { await UR.updateMinistry(Object.assign({ id: item.id }, payload)); }
       else        { await UR.createMinistry(payload); }
@@ -738,6 +739,7 @@ function _openVolunteerSheet(item, onSave) {
       serviceDate: sheet.querySelector('[data-field="serviceDate"]').value || undefined,
       notes:       sheet.querySelector('[data-field="notes"]').value.trim() || undefined,
     };
+    Object.keys(payload).forEach(k => { if (payload[k] === undefined) delete payload[k]; });
     try {
       if (isEdit) { await UR.updateVolunteer(Object.assign({ id: item.id }, payload)); }
       else        { await UR.createVolunteer(payload); }
@@ -865,6 +867,7 @@ function _openTrackSheet(t, onReload) {
       enrolledCount:parseInt(sheet.querySelector('[data-field="enrolledCount"]').value) || undefined,
       description:  sheet.querySelector('[data-field="description"]').value.trim() || undefined,
     };
+    Object.keys(payload).forEach(k => { if (payload[k] === undefined) delete payload[k]; });
     if (!isNew) payload.id = String(t.id);
     try {
       if (isNew) await MXD.create(payload);

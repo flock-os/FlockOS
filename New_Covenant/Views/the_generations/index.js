@@ -245,6 +245,7 @@ function _openMilestoneSheet(m, onReload) {
       category:    sheet.querySelector('[data-field="category"]').value,
       description: sheet.querySelector('[data-field="description"]').value.trim() || undefined,
     };
+    Object.keys(payload).forEach(k => { if (payload[k] === undefined) delete payload[k]; });
     if (!isNew) payload.id = uid;
     try {
       if (!V) throw new Error('Milestones backend not available.');
