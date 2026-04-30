@@ -161,8 +161,8 @@ function _qRow(q) {
     <div class="grow-heart-q">
       <p class="grow-heart-text">${esc(q.Question || q.question || '')}</p>
       <div class="grow-heart-ans">
-        <button class="grow-ans-btn grow-ans-btn--pos ${ans === 'yes' ? 'is-active' : ''}" data-q="${esc(String(id))}" data-ans="yes">Yes</button>
-        <button class="grow-ans-btn grow-ans-btn--neg ${ans === 'no'  ? 'is-active' : ''}" data-q="${esc(String(id))}" data-ans="no">No</button>
+        <button class="grow-ans-btn grow-ans-btn--neg ${ans === 'yes' ? 'is-active' : ''}" data-q="${esc(String(id))}" data-ans="yes">Yes</button>
+        <button class="grow-ans-btn grow-ans-btn--pos ${ans === 'no'  ? 'is-active' : ''}" data-q="${esc(String(id))}" data-ans="no">No</button>
       </div>
     </div>
   `;
