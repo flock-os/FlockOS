@@ -4162,6 +4162,27 @@ flock-tabs [role="tablist"], .tabs-bar {
 .grow-btn--ghost:hover { background:var(--surface, rgba(255,255,255,.04)); }
 .grow-btn.is-active { background:var(--grow-accent, #2563eb); color:#fff; border-color:var(--grow-accent, #2563eb); }
 
+/* Yes / No answer buttons — Heart Check & Mirror */
+.grow-ans-btn {
+  padding:7px 16px; border-radius:8px;
+  border:1px solid var(--border, rgba(0,0,0,.12));
+  background:rgba(0,0,0,.04); color:var(--muted, #7a7f96);
+  font-size:13px; font-weight:500; font-family:inherit;
+  cursor:pointer; transition:background .15s, border-color .15s, color .15s;
+  white-space:nowrap;
+}
+.grow-ans-btn:hover:not(.is-active) {
+  background:rgba(0,0,0,.08); color:var(--ink, #1b264f);
+}
+/* Positive = green (Heart: Yes / Mirror: No) */
+.grow-ans-btn--pos.is-active {
+  background:rgba(22,163,74,.14); border-color:#16a34a; color:#16a34a;
+}
+/* Negative = red (Heart: No / Mirror: Yes) */
+.grow-ans-btn--neg.is-active {
+  background:rgba(220,38,38,.14); border-color:#dc2626; color:#dc2626;
+}
+
 .grow-streak { padding:14px; border:1px solid var(--border, rgba(255,255,255,.08)); border-radius:12px; background:var(--surface, rgba(255,255,255,.03)); }
 .grow-heat-grid { display:grid; grid-template-columns:repeat(12, 1fr); gap:4px; max-width:340px; }
 .grow-heat { display:block; aspect-ratio:1; border-radius:3px; background:var(--line, #e5e7ef); }

@@ -83,8 +83,8 @@ function _paint(root) {
       h += `<div class="grow-heart-q">
         <p class="grow-heart-text">${esc(q.Question || q.question || '')}</p>
         <div class="grow-heart-ans">
-          <button class="grow-btn ${ans === 'yes' ? 'is-active' : 'grow-btn--ghost'}" data-q="${esc(qid)}" data-ans="yes">Yes</button>
-          <button class="grow-btn ${ans === 'no'  ? 'is-active' : 'grow-btn--ghost'}" data-q="${esc(qid)}" data-ans="no">No</button>
+          <button class="grow-ans-btn grow-ans-btn--neg ${ans === 'yes' ? 'is-active' : ''}" data-q="${esc(qid)}" data-ans="yes">Yes</button>
+          <button class="grow-ans-btn grow-ans-btn--pos ${ans === 'no'  ? 'is-active' : ''}" data-q="${esc(qid)}" data-ans="no">No</button>
         </div>
       </div>`;
     });
