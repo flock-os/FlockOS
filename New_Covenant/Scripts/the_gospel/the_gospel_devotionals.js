@@ -76,8 +76,10 @@ async function _load(root) {
 
 function _paint(view) {
   const today = _todayISO();
-  const todayDevo = _state.rows.find((d) => (d.date || d.Date || '') === today) || _state.rows[0];
-  const rest = _state.rows.filter((d) => d !== todayDevo);
+  // Pick the most recent entry that is on or before today
+  const todayDevo = _state.rows.find((d) => (d.date || d.Date || '') <= today) || _state.rows[_state.rows.length - 1];
+  // "Previous" = strictly before today (no future entries)
+  const rest = _state.rows.filter((d) => d !== todayDevo && (d.date || d.Date || '') < today);
 
   view.innerHTML = `
     <div class="grow-devo-featured" data-featured="${esc(todayDevo._id || todayDevo.date || '')}">
