@@ -2,12 +2,12 @@
    THE TRUTH — FlockOS Content Editor (Firestore-backed)
    Full CRUD interface for all public-content tabs:
    Books, Theology, Genealogy, Counseling, Devotionals, Reading Plan, Lexicon,
-   Heart Check, Mirror, Quiz, Apologetics, Missions.
+   Heart Check, Mirror, Quiz, Apologetics.
 
    Data source:
-     Always the church's own Firestore project (the same Firebase app used by
-     UpperRoom). For GAS-only deployments the editor shows a graceful notice;
-     editing flows through GAS once that bridge lands.
+     ROOT deployment → flockos-truth Firestore (the seed database)
+     Church deployments → each church's own Firestore project
+       (set window.FLOCK_TRUTH_USE_LOCAL = true before loading this script)
 
    Restricted to: Pastor + Admin roles only.
 
@@ -62,12 +62,87 @@ const TheTruth = (() => {
   var PAGE_SIZE = 50;
 
   // ── Firestore connection ──────────────────────────────────────────────────
-  // Always uses the church's own Firebase app (the same one UpperRoom uses).
-  // For GAS-only deployments firebase.firestore is unavailable and the editor
-  // shows a graceful notice in render().
+  // ROOT: connects to flockos-truth (the seed database) via secondary Firebase app.
+  // Churches: set window.FLOCK_TRUTH_USE_LOCAL = true to reuse UpperRoom's Firebase.
+
+  var TRUTH_CONFIG = {
+    apiKey:            'AIzaSyBZIZpYixNDpeRagDF_SozCvC8lJKTubHY',
+    authDomain:        'flockos-truth.firebaseapp.com',
+    projectId:         'flockos-truth',
+    storageBucket:     'flockos-truth.firebasestorage.app',
+    messagingSenderId: '102743161422',
+    appId:             '1:102743161422:web:a81ca3c70b13546962611f'
+  };
 
   var _truthDb    = null;
   var _truthReady = false;
+
+  // ── Truth cache — weekly refresh every Monday at 6AM Pacific ─────────────
+  // Offline persistence stores all truth reads in IndexedDB. Subsequent loads
+  // serve from cache (zero Firestore reads) until the weekly refresh window.
+  // Only applies to the ROOT flockos-truth database (not church-local deployments).
+
+  var TRUTH_CACHE_KEY = 'flock_truth_refreshed';
+
+  // Returns the UTC millisecond timestamp of the most recent Monday 6:00 AM Pacific.
+  // DST-aware via Intl.DateTimeFormat with America/Los_Angeles.
+  function _lastMonday6amPacificMs() {
+    var now = Date.now();
+    var fmt = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/Los_Angeles',
+      weekday: 'short', year: 'numeric', month: '2-digit',
+      day: '2-digit', hour: '2-digit', hour12: false
+    });
+    var parts = fmt.formatToParts(new Date(now));
+    var get = function(type) {
+      var p = parts.find(function(x) { return x.type === type; });
+      return p ? p.value : '0';
+    };
+    var wd = get('weekday'); // 'Mon', 'Tue', etc.
+    var yr = +get('year');
+    var mo = +get('month') - 1;
+    var dy = +get('day');
+    var hr = +get('hour'); // 0-23
+
+    // Days since last Monday (Mon=0, Tue=1, ..., Sun=6)
+    var wdMap = { Mon: 0, Tue: 1, Wed: 2, Thu: 3, Fri: 4, Sat: 5, Sun: 6 };
+    var daysBack = (wdMap[wd] != null) ? wdMap[wd] : 0;
+    // If today IS Monday but before 6AM, roll back 7 more days to previous Monday
+    if (daysBack === 0 && hr < 6) daysBack = 7;
+
+    // Calendar date of last Monday in Pacific time
+    var monUTC = Date.UTC(yr, mo, dy - daysBack);
+    var monDate = new Date(monUTC);
+    var monYr = monDate.getUTCFullYear();
+    var monMo = monDate.getUTCMonth();
+    var monDy = monDate.getUTCDate();
+
+    // Find UTC equivalent of Pacific 6:00 AM on that Monday.
+    // Sample noon UTC on that day, read back as Pacific hour to get DST offset.
+    var noonUTC = Date.UTC(monYr, monMo, monDy, 12, 0, 0);
+    var noonFmt = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/Los_Angeles', hour: '2-digit', hour12: false
+    });
+    var noonPacHr = +noonFmt.format(new Date(noonUTC)); // how many Pacific hours from midnight noon is
+    var offsetHrs = noonPacHr - 12; // Pacific is UTC + offsetHrs (negative, e.g. -7 or -8)
+    // Pacific 6AM → UTC = 6 - offsetHrs
+    return Date.UTC(monYr, monMo, monDy, 6 - offsetHrs, 0, 0);
+  }
+
+  // Returns 'server' if a weekly refresh is due, 'cache' if still fresh.
+  // Call setTruthRefreshed() after a successful server fetch.
+  function _truthFetchSource() {
+    try {
+      var last = parseInt(localStorage.getItem(TRUTH_CACHE_KEY) || '0', 10);
+      return (last < _lastMonday6amPacificMs()) ? 'server' : 'cache';
+    } catch (_) {
+      return 'server'; // localStorage unavailable (private browsing edge case)
+    }
+  }
+
+  function _markTruthRefreshed() {
+    try { localStorage.setItem(TRUTH_CACHE_KEY, String(Date.now())); } catch (_) {}
+  }
 
   // ── Live bundle cache — for app renderers (the_way.js) ───────────────────
   // After each save/delete the record is merged into a localStorage bundle so
@@ -76,7 +151,7 @@ const TheTruth = (() => {
   // the_way.js renderers call TheTruth.liveBundle(key) to get fresh data.
 
   var BUNDLE_STALE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
-  var BUNDLE_TABS = ['devotionals', 'counseling', 'quiz', 'apologetics', 'books', 'genealogy', 'theology', 'teachingPlans', 'missionsRegistry', 'lexiconGreek', 'lexiconHebrew'];
+  var BUNDLE_TABS = ['devotionals', 'counseling', 'quiz', 'words', 'apologetics', 'books', 'genealogy', 'theology', 'teachingPlans'];
 
   function _bundleKey(k)   { return 'flock_bundle_' + k; }
   function _bundleTsKey(k) { return 'flock_bundle_' + k + '_ts'; }
@@ -159,46 +234,34 @@ const TheTruth = (() => {
 
   async function _initTruth() {
     if (_truthReady) return;
-    if (typeof firebase === 'undefined' || !firebase.firestore) {
-      throw new Error('Firebase SDK not loaded — content editor requires Firestore.');
-    }
-    _truthDb    = firebase.firestore();
-    _truthReady = true;
-  }
+    if (typeof firebase === 'undefined') throw new Error('Firebase SDK not loaded');
 
-  function _firebaseAvailable() {
-    return typeof firebase !== 'undefined' && !!firebase.firestore;
+    if (window.FLOCK_TRUTH_USE_LOCAL) {
+      // Church deployment: reuse the existing Firebase app (UpperRoom's project)
+      _truthDb = firebase.firestore();
+    } else {
+      // ROOT: secondary Firebase app for flockos-truth (the seed database)
+      var truthApp = null;
+      try { truthApp = firebase.app('truth'); } catch (_) {}
+      if (!truthApp) truthApp = firebase.initializeApp(TRUTH_CONFIG, 'truth');
+      _truthDb = firebase.firestore(truthApp);
+      try { _truthDb.settings({ experimentalAutoDetectLongPolling: true, merge: true }); } catch (_) {}
+
+      // Enable offline persistence so reads are served from IndexedDB when cache is fresh.
+      // synchronizeTabs: false — truth data is read-only for most users; single-tab is fine.
+      try { await _truthDb.enablePersistence({ synchronizeTabs: false }); } catch (_) {}
+
+      // Sign in anonymously for write access
+      var truthAuth = firebase.auth(truthApp);
+      if (!truthAuth.currentUser) {
+        await truthAuth.signInAnonymously();
+      }
+    }
+    _truthReady = true;
   }
 
   // ── Tab definitions (Firestore field names) ───────────────────────────────
   // Each field's `k` matches the Firestore document field name exactly.
-
-  // Canonical Bible book order (66 books, KJV/Protestant canon).
-  var CANONICAL_BOOKS = [
-    'Genesis','Exodus','Leviticus','Numbers','Deuteronomy',
-    'Joshua','Judges','Ruth','1 Samuel','2 Samuel','1 Kings','2 Kings',
-    '1 Chronicles','2 Chronicles','Ezra','Nehemiah','Esther',
-    'Job','Psalms','Proverbs','Ecclesiastes','Song of Solomon',
-    'Isaiah','Jeremiah','Lamentations','Ezekiel','Daniel',
-    'Hosea','Joel','Amos','Obadiah','Jonah','Micah','Nahum','Habakkuk','Zephaniah','Haggai','Zechariah','Malachi',
-    'Matthew','Mark','Luke','John','Acts',
-    'Romans','1 Corinthians','2 Corinthians','Galatians','Ephesians','Philippians','Colossians',
-    '1 Thessalonians','2 Thessalonians','1 Timothy','2 Timothy','Titus','Philemon',
-    'Hebrews','James','1 Peter','2 Peter','1 John','2 John','3 John','Jude','Revelation'
-  ];
-  var _canonIndex = {};
-  CANONICAL_BOOKS.forEach(function(n, i) { _canonIndex[n.toLowerCase()] = i; });
-  function _bookCanonRank(name) {
-    var key = String(name || '').trim().toLowerCase();
-    if (key in _canonIndex) return _canonIndex[key];
-    // Common variants
-    var alt = key
-      .replace(/^song of songs$/, 'song of solomon')
-      .replace(/^canticles$/, 'song of solomon')
-      .replace(/^psalm$/, 'psalms')
-      .replace(/^revelations$/, 'revelation');
-    return (alt in _canonIndex) ? _canonIndex[alt] : 999;
-  }
 
   var TABS = [
     { key: 'books', name: 'Books', idField: 'bookName',
@@ -297,6 +360,19 @@ const TheTruth = (() => {
         { k: 'proverbs',     label: 'Proverbs',           type: 'text' },
       ]
     },
+    { key: 'words', name: 'Lexicon', idField: 'original',
+      listCols: ['original', 'english', 'theme'],
+      fields: [
+        { k: 'original',        label: 'Original Word (Hebrew/Greek)', type: 'text',     required: true },
+        { k: 'english',         label: 'English Translation',          type: 'text' },
+        { k: 'strongs',         label: "Strong\u2019s Number",         type: 'text' },
+        { k: 'transliteration', label: 'Transliteration',              type: 'text' },
+        { k: 'definition',      label: 'Definition',                   type: 'textarea' },
+        { k: 'nuance',          label: 'Nuance',                       type: 'textarea' },
+        { k: 'theme',           label: 'Theme / Category',             type: 'text' },
+        { k: 'testament',       label: 'Testament',                    type: 'select',   opts: ['Old', 'New'] },
+      ]
+    },
     { key: 'heart', name: 'Heart Check', idField: 'questionId',
       listCols: ['questionId', 'category', 'question'],
       fields: [
@@ -347,57 +423,6 @@ const TheTruth = (() => {
         { k: 'answerContent', label: 'Answer / Response', type: 'textarea' },
       ]
     },
-    { key: 'missionsRegistry', name: 'Missions', idField: 'countryName',
-      listCols: ['countryName', 'restrictionsRank', 'bibleShortageRank', 'persecutionLevel'],
-      fields: [
-        { k: 'countryName',          label: 'Country Name',                          type: 'text',     required: true },
-        { k: 'iso2',                 label: 'ISO 3166-1 alpha-2',                    type: 'text' },
-        { k: 'iso3',                 label: 'ISO 3166-1 alpha-3',                    type: 'text' },
-        { k: 'capital',              label: 'Capital',                               type: 'text' },
-        { k: 'population',           label: 'Population',                            type: 'number' },
-        { k: 'tenFortyWindow',       label: '10/40 Window country',                  type: 'checkbox' },
-        { k: 'dominantReligion',     label: 'Dominant Religion',                     type: 'text' },
-        { k: 'percentChristian',     label: 'Christian %',                           type: 'number' },
-        { k: 'percentEvangelical',   label: 'Evangelical %',                         type: 'number' },
-        { k: 'christianPercent',     label: 'Christian Percent (JP)',                type: 'number' },
-        { k: 'unreachedGroups',      label: 'Unreached People Groups',               type: 'number' },
-        { k: 'restrictionsRank',     label: 'BAL Restrictions Rank (1\u201388)',     type: 'number' },
-        { k: 'bibleShortageRank',    label: 'BAL Shortage Rank (1\u201376)',         type: 'number' },
-        { k: 'bibleShortageRange',   label: 'BAL Shortage Range (e.g. "1 in 50")',   type: 'text' },
-        { k: 'persecutionLevel',     label: 'Persecution Level',                     type: 'select',   opts: ['Extreme', 'Severe', 'High', 'Moderate', 'Low'] },
-        { k: 'persecutionLabel',     label: 'Persecution Label',                     type: 'text' },
-        { k: 'owSummary',            label: 'Operation World \u2014 Summary',         type: 'textarea' },
-        { k: 'owPrayerAnswers',      label: 'Operation World \u2014 Prayer Answers',  type: 'list' },
-        { k: 'owPrayerChallenges',   label: 'Operation World \u2014 Challenges',      type: 'list' },
-        { k: 'owSource',             label: 'Operation World Source',                type: 'text' },
-      ]
-    },
-    { key: 'lexiconGreek', name: 'Greek Lexicon', idField: 'strongs',
-      listCols: ['strongs', 'lemma', 'xlit', 'kjv_def'],
-      fields: [
-        { k: 'strongs',     label: "Strong\u2019s Number (e.g. G3056)", type: 'text',     required: true },
-        { k: 'lemma',       label: 'Lemma (Greek)',                     type: 'text',     required: true },
-        { k: 'xlit',        label: 'Transliteration',                   type: 'text' },
-        { k: 'pron',        label: 'Pronunciation',                     type: 'text' },
-        { k: 'derivation',  label: 'Derivation',                        type: 'textarea' },
-        { k: 'strongs_def', label: "Strong\u2019s Definition",          type: 'textarea' },
-        { k: 'kjv_def',     label: 'KJV Definition',                    type: 'textarea' },
-        { k: 'language',    label: 'Language',                          type: 'select',   opts: ['greek'] },
-      ]
-    },
-    { key: 'lexiconHebrew', name: 'Hebrew Lexicon', idField: 'strongs',
-      listCols: ['strongs', 'lemma', 'xlit', 'kjv_def'],
-      fields: [
-        { k: 'strongs',     label: "Strong\u2019s Number (e.g. H1234)", type: 'text',     required: true },
-        { k: 'lemma',       label: 'Lemma (Hebrew)',                    type: 'text',     required: true },
-        { k: 'xlit',        label: 'Transliteration',                   type: 'text' },
-        { k: 'pron',        label: 'Pronunciation',                     type: 'text' },
-        { k: 'derivation',  label: 'Derivation',                        type: 'textarea' },
-        { k: 'strongs_def', label: "Strong\u2019s Definition",          type: 'textarea' },
-        { k: 'kjv_def',     label: 'KJV Definition',                    type: 'textarea' },
-        { k: 'language',    label: 'Language',                          type: 'select',   opts: ['hebrew'] },
-      ]
-    },
   ];
 
   // ── Private helpers ───────────────────────────────────────────────────────
@@ -419,18 +444,6 @@ const TheTruth = (() => {
     var inp;
     if (f.type === 'textarea') {
       inp = '<textarea id="' + fid + '" rows="4" placeholder="' + _e(f.label) + '\u2026" style="' + INP + 'resize:vertical;line-height:1.6;">' + _e(v) + '</textarea>';
-    } else if (f.type === 'list') {
-      // Array values rendered as one item per line. _readField joins back to array.
-      var listVal = Array.isArray(v) ? v.join('\n') : String(v || '');
-      inp = '<textarea id="' + fid + '" rows="5" placeholder="One item per line\u2026" style="' + INP + 'resize:vertical;line-height:1.6;font-family:ui-monospace,monospace;font-size:0.82rem;">' + _e(listVal) + '</textarea>'
-          + '<div style="font-size:0.7rem;color:var(--ink-muted);margin-top:3px;">One item per line</div>';
-    } else if (f.type === 'checkbox') {
-      var checked = (v === true || v === 'true' || v === 1 || v === '1') ? ' checked' : '';
-      inp = '<label style="display:inline-flex;align-items:center;gap:8px;padding:8px 0;color:var(--ink);font-size:0.9rem;cursor:pointer;">'
-          + '<input type="checkbox" id="' + fid + '"' + checked + ' style="width:18px;height:18px;cursor:pointer;" />'
-          + '<span>' + _e(f.label) + '</span></label>';
-      // For checkbox, swap order: don't repeat the uppercase label above.
-      return '<div style="margin-bottom:14px;">' + inp + '</div>';
     } else if (f.type === 'select') {
       inp = '<select id="' + fid + '" style="' + INP + '"><option value="">\u2014 select \u2014</option>';
       (f.opts || []).forEach(function(o) {
@@ -447,19 +460,7 @@ const TheTruth = (() => {
 
   function _readField(f) {
     var el = document.getElementById(_fieldId(f));
-    if (!el) return f.type === 'list' ? [] : (f.type === 'checkbox' ? false : '');
-    if (f.type === 'checkbox') return !!el.checked;
-    if (f.type === 'list') {
-      return String(el.value || '')
-        .split(/\r?\n/)
-        .map(function(s) { return s.trim(); })
-        .filter(function(s) { return s.length > 0; });
-    }
-    if (f.type === 'number') {
-      var n = el.value === '' ? null : Number(el.value);
-      return (n != null && !isNaN(n)) ? n : el.value;
-    }
-    return el.value;
+    return el ? el.value : '';
   }
 
   // ── Firestore document ID helpers ─────────────────────────────────────────
@@ -694,8 +695,22 @@ const TheTruth = (() => {
       container.innerHTML = _spinner();
       try {
         await _initTruth();
-        // Church deployment — always fetch live from local Firestore.
-        var snap = await _truthDb.collection(tab.key).get();
+        var snap;
+        if (window.FLOCK_TRUTH_USE_LOCAL) {
+          // Church deployment — always fetch live (church data changes frequently)
+          snap = await _truthDb.collection(tab.key).get();
+        } else {
+          // ROOT truth database — serve from IndexedDB cache unless weekly refresh is due
+          var src = _truthFetchSource();
+          try {
+            snap = await _truthDb.collection(tab.key).get({ source: src });
+            if (src === 'server') _markTruthRefreshed();
+          } catch (_cacheErr) {
+            // Cache miss (first load, cleared browser data, etc.) — fall back to server
+            snap = await _truthDb.collection(tab.key).get({ source: 'server' });
+            _markTruthRefreshed();
+          }
+        }
         _allRows[tab.key] = snap.docs.map(function(doc, i) {
           var d = doc.data();
           d._docId = doc.id;
@@ -706,15 +721,6 @@ const TheTruth = (() => {
           }
           return d;
         });
-        // Sort books canonically (Genesis → Revelation)
-        if (tab.key === 'books') {
-          _allRows[tab.key].sort(function(a, b) {
-            var ra = _bookCanonRank(a.bookName);
-            var rb = _bookCanonRank(b.bookName);
-            if (ra !== rb) return ra - rb;
-            return String(a.bookName || '').localeCompare(String(b.bookName || ''));
-          });
-        }
       } catch (e) {
         container.innerHTML = _errHtml(e.message);
         return;
@@ -831,20 +837,12 @@ const TheTruth = (() => {
       return;
     }
 
-    if (!_firebaseAvailable()) {
-      el.innerHTML = '<div style="text-align:center;padding:80px 20px;">'
-        + '<div style="font-size:3rem;margin-bottom:12px;">&#9881;</div>'
-        + '<h2 style="font-size:1.1rem;color:var(--ink);margin-bottom:6px;">Content Editor unavailable</h2>'
-        + '<p style="font-size:0.9rem;color:var(--ink-muted);max-width:420px;margin:0 auto;">'
-        + 'This deployment is GAS-only. The content editor requires Firestore. '
-        + 'Bridge support is on the roadmap.</p></div>';
-      return;
-    }
-
     // Background sync: silently refresh any stale app-data bundles
     _syncStaleInBackground().catch(function() {});
 
+    // Header — show project indicator for ROOT so admin knows they're editing the seed
     var tab = _getTab(_tab);
+    var projectLabel = window.FLOCK_TRUTH_USE_LOCAL ? '' : ' <span style="font-size:0.72rem;color:var(--ink-muted);font-weight:500;">(flockos-truth seed)</span>';
 
     // Sync status line — show last time all bundles were synced to the app cache
     var oldestSync = null;
@@ -860,7 +858,7 @@ const TheTruth = (() => {
 
     el.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:8px;">'
       + '<div>'
-      + '<h1 style="font-size:1.4rem;font-weight:800;margin:0 0 2px;color:var(--ink);">&#9998; Content Editor</h1>'
+      + '<h1 style="font-size:1.4rem;font-weight:800;margin:0 0 2px;color:var(--ink);">&#9998; Content Editor' + projectLabel + '</h1>'
       + '<p style="font-size:0.82rem;color:var(--ink-muted);margin:0;">Add, edit, and update truth content across all categories.</p>'
       + '</div>'
       + '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">'

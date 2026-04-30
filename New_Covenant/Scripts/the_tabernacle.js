@@ -5341,29 +5341,6 @@ const Modules = (() => {
         });
       }
 
-      const _COUNS_COLOR_MAP = {
-        slate:'#475569',gray:'#4b5563',zinc:'#52525b',stone:'#57534e',
-        red:'#dc2626',orange:'#ea580c',amber:'#b45309',yellow:'#a16207',
-        lime:'#4d7c0f',green:'#16a34a',emerald:'#059669',teal:'#0f766e',
-        cyan:'#0e7490',sky:'#0369a1',blue:'#2563eb',indigo:'#4f46e5',
-        violet:'#7c3aed',purple:'#9333ea',fuchsia:'#c026d3',pink:'#db2777',
-        rose:'#e11d48',aqua:'#0e7490',gold:'#b45309',silver:'#6b7280'
-      };
-      const _safeCounsColor = (c) => {
-        if (!c) return '#6366f1';
-        const s = String(c).trim();
-        if (!s) return '#6366f1';
-        if (/^(#|rgb|hsl|var\()/i.test(s)) return s;
-        return _COUNS_COLOR_MAP[s.toLowerCase()] || s;
-      };
-      const _splitSteps = (raw) => {
-        if (!raw) return [];
-        return String(raw).trim()
-          .split(/(?:[;\n]+|(?<=\.)\s+(?=[A-Z(]))/)
-          .map(s => s.trim().replace(/^[-\u2022\d.\s]+/, '').trim())
-          .filter(Boolean);
-      };
-
       let html = '<div class="browse-search">';
       html += '<span class="browse-search-icon">&#128269;</span>';
       html += '<input type="text" class="browse-search-input" placeholder="Search topics\u2026" oninput="Modules._filterBrowse(\'counsel\',this.value)">';
@@ -5371,12 +5348,12 @@ const Modules = (() => {
 
       html += '<div class="coun-grid" id="counsel-grid">';
       rows.forEach(r => {
-        const color = _safeCounsColor(r['Color'] || '#6366f1');
+        const color = r['Color'] || '#6366f1';
         const icon  = r['Icon']  || '&#9878;';
         const title = r['Title'] || '';
         const defn  = r['Definition'] || '';
         const scriptures = _parseScriptures(r['Scriptures'] || '');
-        const steps = _splitSteps(r['Steps'] || '');
+        const steps = (r['Steps'] || '').split(/[;\n]+/).map(s => s.trim()).filter(Boolean);
         const searchText = (title + ' ' + defn + ' ' + (r['Scriptures'] || '') + ' ' + (r['Steps'] || '')).toLowerCase();
 
         html += '<div class="browse-item coun-card" data-search="' + _e(searchText) + '">';

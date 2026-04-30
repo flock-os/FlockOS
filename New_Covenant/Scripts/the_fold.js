@@ -202,7 +202,7 @@ const TheFold = (() => {
       var dayTime = (r.meetingDay || '') + (r.meetingTime ? ' ' + r.meetingTime : '');
       var search = ((r.name || '') + ' ' + (r.type || r.groupType || '') + ' ' + leaderName + ' ' + (r.meetingDay || '') + ' ' + (r.location || r.meetingLocation || '')).toLowerCase();
       h += '<tr class="fold-row" data-search="' + _e(search) + '">';
-      h += '<td data-label="Name"><strong style="cursor:pointer;color:var(--accent);" onclick="Modules.viewGroupDetail(\'' + _e(r.id) + '\')">' + _e(r.name || r.groupName || '') + '</strong></td>';
+      h += '<td data-label="Name"><strong>' + _e(r.name || r.groupName || '') + '</strong></td>';
       h += '<td data-label="Type">' + _e(r.type || r.groupType || '') + '</td>';
       h += '<td data-label="Leader">' + _e(leaderName) + '</td>';
       h += '<td data-label="Day / Time">' + _e(dayTime) + '</td>';

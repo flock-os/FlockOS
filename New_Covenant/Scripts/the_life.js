@@ -2435,32 +2435,6 @@ const TheLife = (() => {
       html += _fpSec('Quick Contact', 'out-contact', qSec);
     }
 
-    // ── Section: Member Connection ──
-    if (id) {
-      var memSec = '';
-      if (rec.memberId) {
-        // Already linked — show the connected member with option to change
-        var memLabel = _memberName(rec.memberId) || rec.memberId || 'Member';
-        memSec += '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">';
-        memSec += '<div style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:rgba(5,150,105,0.08);border:1px solid rgba(5,150,105,0.22);border-radius:10px;flex:1;min-width:180px;">'
-          + '<span style="font-size:1.1rem;">\uD83D\uDC64</span>'
-          + '<span style="font:600 0.9rem var(--font-ui);color:var(--ink);">' + _e(memLabel) + '</span>'
-          + '<span style="font:0.75rem var(--font-ui);color:var(--ink-muted);margin-left:4px;">linked</span>'
-          + '</div>';
-        memSec += '<button type="button" onclick="TheLife.viewMemberFromCase(\'' + _e(rec.memberId) + '\')" class="fp-action-btn">\uD83D\uDC64 View Member</button>';
-        memSec += '<button type="button" onclick="TheLife._unlinkOutreachMember(\'' + _e(id) + '\')" class="fp-action-btn" style="color:var(--ink-muted);">Unlink</button>';
-        memSec += '</div>';
-      } else {
-        // Not yet linked
-        memSec += '<p style="font:0.85rem var(--font-ui);color:var(--ink-muted);margin:0 0 14px;line-height:1.5;">Connect this contact to an existing member profile, or create a new member record pre-filled with their information.</p>';
-        memSec += '<div style="display:flex;gap:10px;flex-wrap:wrap;">';
-        memSec += '<button type="button" onclick="TheLife._linkOutreachToMember(\'' + _e(id) + '\')" class="fp-action-btn" style="background:rgba(37,99,235,0.10);border-color:rgba(37,99,235,0.3);color:#2563eb;">\uD83D\uDD17 Link to Existing Member</button>';
-        memSec += '<button type="button" onclick="TheLife._convertOutreachToNewMember(\'' + _e(id) + '\')" class="fp-action-btn" style="background:rgba(5,150,105,0.10);border-color:rgba(5,150,105,0.3);color:#059669;">\u2795 Create as New Member</button>';
-        memSec += '</div>';
-      }
-      html += _fpSec('Member Connection', 'out-member', memSec);
-    }
-
     // Bottom save + archive (edit mode only)
     html += '<div class="fp-bottom-bar">'
       + '<button type="button" onclick="TheLife.saveOutreach()" class="fp-save-btn">\uD83D\uDCBE Save Contact</button>'
@@ -2537,78 +2511,6 @@ const TheLife = (() => {
       _toast('Follow-up logged!', 'success');
       openOutreach(contactId);
     });
-  }
-
-  /* Link an outreach contact to an existing member via a searchable dropdown. */
-  async function _linkOutreachToMember(contactId) {
-    contactId = contactId || _fpOutId;
-    if (!contactId) return;
-    var dir = _cache.memberDir || [];
-    if (!dir.length) {
-      try { dir = _rows(await (_isFB() ? UpperRoom.listMembers({}) : TheVine.flock.call('members.list', {}))); _cache.memberDir = dir; } catch (_) {}
-    }
-    var opts = dir.map(function(m) {
-      var name = [m.firstName || m.first_name, m.lastName || m.last_name].filter(Boolean).join(' ') || m.displayName || m.name || m.email || m.id;
-      return { name: 'memberId', label: name, value: m.id || m.email };
-    });
-    _miniModal('Link to Existing Member', [
-      { name: 'memberId', label: 'Member', type: 'select', options: opts, required: true },
-    ], async function(data) {
-      if (!data.memberId) return;
-      await (_isFB()
-        ? UpperRoom.updateOutreachContact({ id: contactId, memberId: data.memberId, status: 'Converted' })
-        : TheVine.flock.outreach.contacts.update({ id: contactId, memberId: data.memberId, status: 'Converted' }));
-      delete _cache.allOutreach;
-      if (typeof TheVine !== 'undefined' && TheVine.cache) { TheVine.cache.invalidate('life:outreach'); TheVine.cache.invalidate('tab:outreach'); }
-      _toast('Contact linked to member!', 'success');
-      openOutreach(contactId);
-    });
-  }
-
-  /* Open the Add Member form pre-filled with data from an outreach contact. */
-  async function _convertOutreachToNewMember(contactId) {
-    contactId = contactId || _fpOutId;
-    if (!contactId) return;
-    var rec = (_cache.allOutreach || []).find(function(c) { return c.id === contactId; }) || {};
-    if (!rec.firstName && !rec.email) {
-      try { rec = (await (_isFB() ? UpperRoom.getOutreachContact(contactId) : TheVine.flock.outreach.contacts.get({ contactId: contactId }))) || rec; } catch (_) {}
-    }
-    var prefill = {
-      firstName:    rec.firstName   || '',
-      lastName:     rec.lastName    || '',
-      primaryEmail: rec.email       || '',
-      phone:        rec.phone       || '',
-      address:      rec.address     || '',
-      city:         rec.city        || '',
-      state:        rec.state       || '',
-      zip:          rec.zip         || '',
-      // Tag the source so we know where this member came from
-      notes:        rec.message
-        ? 'Converted from outreach contact.\n\nOriginal message: ' + rec.message
-        : 'Converted from outreach contact (' + (rec.source || 'PublicGROW') + ').',
-    };
-    /* After the member is created, mark the outreach contact as Converted */
-    _fpOutId = '';  // reset so openAddMember doesn't treat this as "edit"
-    await openAddMember('', prefill);
-    /* Record the source contact ID on the member form as a hidden note
-       so saveOutreach can mark it Converted once the member save succeeds. */
-    var notesEl = document.getElementById('fp-notes') || document.querySelector('[data-field="notes"]');
-    if (notesEl && !notesEl.value.includes(contactId)) {
-      notesEl.setAttribute('data-outreach-source', contactId);
-    }
-  }
-
-  /* Unlink a member from an outreach contact (back to unlinked state). */
-  async function _unlinkOutreachMember(contactId) {
-    contactId = contactId || _fpOutId;
-    if (!contactId) return;
-    if (!confirm('Remove the member link from this outreach contact? The member record will not be deleted.')) return;
-    await (_isFB()
-      ? UpperRoom.updateOutreachContact({ id: contactId, memberId: '', status: 'Follow-Up' })
-      : TheVine.flock.outreach.contacts.update({ id: contactId, memberId: '', status: 'Follow-Up' }));
-    delete _cache.allOutreach;
-    _toast('Member link removed.', 'success');
-    openOutreach(contactId);
   }
 
   async function archiveOutreach() {
@@ -5075,9 +4977,6 @@ const TheLife = (() => {
     saveOutreach:    saveOutreach,
     archiveOutreach: archiveOutreach,
     addOutreachFollowUp: addOutreachFollowUp,
-    _linkOutreachToMember:    _linkOutreachToMember,
-    _convertOutreachToNewMember: _convertOutreachToNewMember,
-    _unlinkOutreachMember:    _unlinkOutreachMember,
 
     // Utilities (exposed for onclick)
     _callPhone:  _callPhone,
