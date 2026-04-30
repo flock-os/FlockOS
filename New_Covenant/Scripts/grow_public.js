@@ -221,6 +221,9 @@ async function _loadModule(name) {
     main.innerHTML = mod.render();
     const unmount = mod.mount(main, { go });
     _currentUnmount = typeof unmount === 'function' ? unmount : null;
+    // Wire any "Send to Pastor" buttons inside this module
+    const modTitle = ALL_MODULES.find(m => m.name === name)?.title || name.replace(/_/g,' ');
+    _installPrayerHook(main, { name, title: modTitle });
   } catch (err) {
     console.error('[grow-public] module load failed:', name, err);
     main.innerHTML = /* html */`
@@ -335,6 +338,7 @@ async function _submitOutreachContact(data) {
     requestType: data.requestType|| 'Prayer Request',
     message:     data.message    || '',
     urgency:     data.urgency    || 'Normal',
+    context:     data.context    || '',
     status:      'New',
     createdAt:   window.firebase.firestore.FieldValue.serverTimestamp(),
   });
@@ -410,8 +414,11 @@ textarea.gp-prayer-input { resize:vertical; min-height:100px; font-size:.85rem; 
 `;
 document.head.appendChild(_outreachStyle);
 
-/** Open the public outreach / prayer-request modal. */
-function _openOutreachModal(prefillSummary) {
+/** Open the public outreach / prayer-request modal.
+ * @param {string} prefillSummary  — pre-filled message text
+ * @param {{name:string,title:string}} [ctx] — module context (where button was pressed)
+ */
+function _openOutreachModal(prefillSummary, ctx) {
   document.getElementById('gp-prayer-overlay')?.remove();
 
   const overlay = document.createElement('div');
@@ -421,14 +428,18 @@ function _openOutreachModal(prefillSummary) {
   overlay.setAttribute('aria-modal', 'true');
   overlay.setAttribute('aria-labelledby', 'gp-pr-title');
 
+  const _ctxLabel = ctx?.title || '';
+  const _ctxNote  = _ctxLabel ? `Sent from: ${_ctxLabel}` : '';
+
   function _renderForm() {
     return /* html */`
       <div class="gp-prayer-head">
         <div>
           <p class="gp-prayer-title" id="gp-pr-title">🙏 Send a Request to Your Pastor</p>
           <p class="gp-prayer-sub">Fill in your information so pastoral staff can follow up with you personally.</p>
+          ${_ctxLabel ? `<p style="margin:6px 0 0;font:600 0.74rem var(--font-ui,sans-serif);color:var(--gold,#e8a838);letter-spacing:.04em;">📍 ${_ctxLabel}</p>` : ''}
         </div>
-      </div>
+      </div>`;
 
       <div class="gp-prayer-row">
         <div class="gp-prayer-field">
@@ -545,7 +556,7 @@ function _openOutreachModal(prefillSummary) {
     if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
 
     try {
-      await _submitOutreachContact({ firstName: fn, lastName: ln, email, phone, requestType: type, urgency, message: msg });
+      await _submitOutreachContact({ firstName: fn, lastName: ln, email, phone, requestType: type, urgency, message: msg, context: _ctxNote });
       const card = document.getElementById('gp-pr-card');
       if (card) card.innerHTML = _renderSuccess(fn);
       document.getElementById('gp-pr-done')?.addEventListener('click', _close);
@@ -571,7 +582,7 @@ function _openOutreachModal(prefillSummary) {
     }
   });
 
-  /* Prefill message if diagnostic summary was passed in */
+  /* Prefill message with any diagnostic summary */
   if (prefillSummary) {
     const msgEl = document.getElementById('gp-pr-msg');
     if (msgEl) msgEl.value = prefillSummary;
@@ -584,11 +595,14 @@ function _openOutreachModal(prefillSummary) {
 /**
  * Gather a human-readable summary from the module's diagnostic output.
  * Reads from the visible prescriptions/scan/plan panel rendered in `root`.
+ * @param {Element} root
+ * @param {{name:string,title:string}} [ctx]
  */
-function _gatherDiagnosticSummary(root) {
+function _gatherDiagnosticSummary(root, ctx) {
   const lines = [];
   const heroTitle = root.querySelector('.grow-hero-title');
-  if (heroTitle) lines.push(`=== ${heroTitle.textContent.trim()} Results ===\n`);
+  const label = ctx?.title || heroTitle?.textContent.trim() || '';
+  if (label) lines.push(`=== ${label} Results ===\n`);
   root.querySelectorAll('.grow-split-aside, [data-bind="scan"], [data-bind="plan"]').forEach(panel => {
     panel.querySelectorAll('[style*="border-left"]').forEach(card => {
       const cat  = card.querySelector('[style*="text-transform"]');
@@ -609,15 +623,17 @@ function _gatherDiagnosticSummary(root) {
 /**
  * Install a capture-phase listener on `root` that intercepts any
  * [data-help-btn] click and opens the public outreach modal.
+ * @param {Element} root
+ * @param {{name:string,title:string}} [ctx] — module context
  */
-function _installPrayerHook(root) {
+function _installPrayerHook(root, ctx) {
   root.addEventListener('click', (e) => {
     const btn = e.target.closest('[data-help-btn]');
     if (!btn) return;
     e.stopImmediatePropagation();
     e.preventDefault();
-    const summary = _gatherDiagnosticSummary(root);
-    _openOutreachModal(summary);
+    const summary = _gatherDiagnosticSummary(root, ctx);
+    _openOutreachModal(summary, ctx);
   }, true /* capture */);
 }
 
