@@ -67,15 +67,50 @@ topbar.innerHTML = /* html */`
     </svg>
   </button>
   <a class="veil-brand" href="#" aria-label="GROW home">
-    <img src="Images/NewCovenant.png" alt="FlockOS" width="30" height="30">
+    <img src="Images/GrowIcon.png" alt="GROW" width="30" height="30" style="border-radius:8px;">
     <span class="veil-brand-text">GROW</span>
   </a>
   <span class="veil-spacer"></span>
-  <a href="index.html" class="gp-cta" title="Sign in to FlockOS for the full experience">
-    Sign in for full access
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-  </a>
+  <div class="gp-avatar-wrap" style="position:relative;">
+    <button class="veil-avatar" id="gp-signin-btn" aria-label="Sign in to FlockOS" aria-haspopup="true" aria-expanded="false">
+      <img class="veil-avatar-logo" alt="GROW" src="Images/GrowIcon.png" style="border-radius:10px;">
+    </button>
+    <div id="gp-signin-dropdown" class="gp-signin-dropdown" role="menu" hidden>
+      <div class="gp-signin-dropdown-inner">
+        <img src="Images/GrowIcon.png" alt="GROW" width="44" height="44" style="border-radius:12px;display:block;margin:0 auto 10px;">
+        <p class="gp-signin-title">Sign in to FlockOS</p>
+        <p class="gp-signin-sub">Unlock your journal, certificates, fellowship channels, and progress tracking.</p>
+        <a href="index.html" class="gp-cta gp-signin-cta">
+          Sign in
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </a>
+        <p class="gp-signin-foot">Powered by <strong>FlockOS</strong></p>
+      </div>
+    </div>
+  </div>
 `;
+
+/* ─── Sign-in dropdown toggle ─────────────────────────────────────────────── */
+function _initSigninDropdown() {
+  const btn      = document.getElementById('gp-signin-btn');
+  const dropdown = document.getElementById('gp-signin-dropdown');
+  if (!btn || !dropdown) return;
+
+  function _open()  { dropdown.hidden = false; btn.setAttribute('aria-expanded','true'); }
+  function _close() { dropdown.hidden = true;  btn.setAttribute('aria-expanded','false'); }
+  function _toggle() { dropdown.hidden ? _open() : _close(); }
+
+  btn.addEventListener('click', (e) => { e.stopPropagation(); _toggle(); });
+
+  /* Close on outside click */
+  document.addEventListener('click', (e) => {
+    if (!dropdown.hidden && !dropdown.contains(e.target) && e.target !== btn) _close();
+  });
+
+  /* Close on Escape */
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') _close(); });
+}
+_initSigninDropdown();
 
 /* ─── Sidebar ────────────────────────────────────────────────────────────── */
 function _sidebarHTML() {

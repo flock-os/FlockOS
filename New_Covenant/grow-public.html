@@ -7,8 +7,8 @@
   <title>GROW — FlockOS</title>
 
   <!-- Icons -->
-  <link rel="icon" type="image/png" href="Images/NewCovenant.png">
-  <link rel="apple-touch-icon" href="Images/NewCovenant.png">
+  <link rel="icon" type="image/png" href="Images/GrowIcon.png">
+  <link rel="apple-touch-icon" href="Images/GrowIcon.png">
 
   <!-- PWA meta -->
   <meta name="theme-color" content="#e8a838">
@@ -80,7 +80,7 @@
     @keyframes gp-rainbow { from { background-position: 0% 0; } to { background-position: 200% 0; } }
     @media (prefers-reduced-motion: reduce) { #gp-topbar::after { animation: none; opacity: 0.5; } }
 
-    /* ── CTA button in topbar ────────────────────────────────────────────── */
+    /* ── CTA button / sign-in dropdown ────────────────────────────────────── */
     .gp-cta {
       display: inline-flex; align-items: center; gap: 6px;
       padding: 8px 16px; border-radius: 999px;
@@ -92,6 +92,38 @@
     }
     .gp-cta:hover { background: #f0b534; transform: translateY(-1px); box-shadow: 0 4px 16px rgba(232,168,56,0.50); }
     .gp-cta:active { transform: scale(0.97); }
+
+    /* Sign-in dropdown */
+    .gp-signin-dropdown {
+      position: absolute; top: calc(100% + 10px); right: 0;
+      width: 260px;
+      background: var(--bg-raised, #fff);
+      border: 1px solid var(--line, #e5e7ef);
+      border-radius: 16px;
+      box-shadow: 0 12px 40px rgba(15,23,42,0.16), 0 4px 12px rgba(15,23,42,0.08);
+      z-index: 500;
+      overflow: hidden;
+      animation: gp-dropdown-in 160ms cubic-bezier(.2,.8,.2,1);
+    }
+    @keyframes gp-dropdown-in {
+      from { opacity: 0; transform: translateY(-6px) scale(0.97); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .gp-signin-dropdown-inner { padding: 22px 20px 18px; text-align: center; }
+    .gp-signin-title {
+      font: 700 1rem var(--font-ui, sans-serif); color: var(--ink, #1b264f);
+      margin: 0 0 6px;
+    }
+    .gp-signin-sub {
+      font: 0.82rem var(--font-ui, sans-serif); color: var(--ink-muted, #7a7f96);
+      margin: 0 0 18px; line-height: 1.5;
+    }
+    .gp-signin-cta { width: 100%; justify-content: center; border-radius: 10px; padding: 10px 18px; }
+    .gp-signin-foot {
+      margin: 14px 0 0;
+      font: 0.74rem var(--font-ui, sans-serif); color: var(--ink-muted, #7a7f96);
+    }
+    .gp-signin-foot strong { color: var(--ink, #1b264f); font-weight: 600; }
 
     /* ── Sidebar wrapper — mobile overlay behaviour ───────────────────────── */
     #gp-sidebar-wrap {
