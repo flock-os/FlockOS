@@ -711,6 +711,15 @@ flock-tabs [role="tablist"], .tabs-bar {
   color: var(--ink, #1b264f);
 }
 
+/* Fellowship panels — full-width by default, let channel grid adapt */
+.fellowship-panel { min-height: 60vh; }
+.ch-grid { display: grid; grid-template-columns: 220px 1fr; gap: 16px; flex: 1; min-height: 0; }
+@media (max-width: 680px) {
+  .ch-grid { grid-template-columns: 1fr; }
+  .ch-list { border-right: none !important; border-bottom: 1px solid var(--line, #e5e7ef);
+             padding-right: 0 !important; padding-bottom: 10px; max-height: 200px; overflow-y: auto; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   flock-skeleton .skeleton-row { animation: none; }
 }

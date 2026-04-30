@@ -7,8 +7,10 @@ import { render as renderMentions } from '../../Scripts/the_upper_room/the_menti
 
 export function renderMessage(m) {
   if (!m) return '';
-  const author = _e(m.authorName || m.author || 'Unknown');
-  const ts     = m.ts ? _time(m.ts) : '';
+  // Firestore stores senderName/sentAt; legacy/GAS uses authorName/author/ts
+  const author = _e(m.senderName || m.authorName || m.author || 'Unknown');
+  const rawTs  = m.sentAt || m.ts;
+  const ts     = rawTs ? _time(rawTs) : '';
   const initials = _initials(author);
   const body  = renderMentions(String(m.body || m.text || ''), m.knownMembers || []);
   return `
@@ -31,7 +33,12 @@ function _initials(s) {
   return String(s).trim().split(/\s+/).slice(0, 2).map((p) => p[0] || '').join('').toUpperCase() || '?';
 }
 function _time(ts) {
-  try { return new Date(ts).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }); }
+  try {
+    // Firestore Timestamp objects have a .seconds property
+    const ms = ts?.seconds ? ts.seconds * 1000 : new Date(ts).getTime();
+    if (!ms || isNaN(ms)) return '';
+    return new Date(ms).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+  }
   catch (_) { return ''; }
 }
 function _e(s) {

@@ -99,7 +99,7 @@ export function mount(root /*, ctx */) {
     if (!body) return;
     post.disabled = true; post.textContent = 'Posting…';
     try {
-      await messages.send(CHANNEL_ID, { body });
+      await messages.send(CHANNEL_ID, body);
       input.value = '';
     } catch (err) {
       console.error('[Announcements] send:', err);

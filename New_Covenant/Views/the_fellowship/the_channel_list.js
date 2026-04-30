@@ -14,8 +14,8 @@ export function renderChannelsPane(host /*, ctx */) {
         <strong style="flex:1; font:600 0.95rem 'Noto Sans',sans-serif; color:var(--ink,#1b264f);">Channels</strong>
         <button type="button" class="flock-btn flock-btn--primary flock-btn--sm" data-act="new-channel">+ New Channel</button>
       </header>
-      <div class="ch-grid" style="display:grid; grid-template-columns:220px 1fr; gap:16px; flex:1; min-height:0;">
-        <aside class="ch-list" style="border-right:1px solid var(--line,#e5e7ef); padding-right:10px; overflow:auto;"></aside>
+      <div class="ch-grid">
+        <aside class="ch-list" style="overflow:auto;"></aside>
         <div class="ch-thread" style="min-width:0;"></div>
       </div>
     </div>

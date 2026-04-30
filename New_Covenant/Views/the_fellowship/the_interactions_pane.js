@@ -14,12 +14,16 @@ export function renderInteractionsPane(host /*, ctx */) {
   if (!host) return () => {};
   host.innerHTML = `
     <div class="ix-pane" style="display:flex; flex-direction:column; gap:10px; min-height:60vh;">
-      <div style="display:flex; gap:8px; align-items:center;">
-        <flock-select label="Type" id="ix-type"></flock-select>
+      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+        <select id="ix-type" style="padding:8px 10px; border:1px solid var(--line,#e5e7ef);
+                border-radius:8px; font:inherit; background:var(--bg-raised,#fff);
+                color:var(--ink,#1b264f); min-width:130px;">
+          <option value="">All types</option>
+        </select>
         <input type="search" placeholder="Search…" id="ix-q"
-          style="flex:1; padding:9px 12px; border:1px solid var(--line,#e5e7ef);
+          style="flex:1; min-width:120px; padding:9px 12px; border:1px solid var(--line,#e5e7ef);
                  border-radius:8px; font:inherit; background:var(--bg-raised,#fff); color:var(--ink,#1b264f);">
-        <flock-button data-act="refresh">Refresh</flock-button>
+        <button type="button" data-act="refresh" class="flock-btn" style="white-space:nowrap;">Refresh</button>
       </div>
       <div data-bind="list" style="display:flex; flex-direction:column; gap:6px;">
         <flock-skeleton rows="6"></flock-skeleton>
@@ -32,17 +36,21 @@ export function renderInteractionsPane(host /*, ctx */) {
   const q    = host.querySelector('#ix-q');
 
   scrolls.types().then((t = {}) => {
-    const opts = [{ value: '', label: 'All types' }]
-      .concat(Object.keys(t).map((k) => ({ value: k, label: t[k].label || k })));
-    sel.options = opts;
-  }).catch(() => { sel.options = [{ value: '', label: 'All types' }]; });
+    const types = Object.keys(t);
+    types.forEach((k) => {
+      const opt = document.createElement('option');
+      opt.value = k;
+      opt.textContent = t[k].label || k;
+      sel.appendChild(opt);
+    });
+  }).catch(() => {});
 
   async function refresh() {
     list.innerHTML = `<flock-skeleton rows="6"></flock-skeleton>`;
     try {
       const rows = await scrolls.timeline(null, 100);
       const filtered = (rows || [])
-        .filter((r) => !sel.getAttribute('value') || r.type === sel.getAttribute('value'))
+        .filter((r) => !sel.value || r.type === sel.value)
         .filter((r) => !q.value.trim() || JSON.stringify(r).toLowerCase().includes(q.value.toLowerCase()));
       list.innerHTML = filtered.length
         ? filtered.map(_row).join('')
