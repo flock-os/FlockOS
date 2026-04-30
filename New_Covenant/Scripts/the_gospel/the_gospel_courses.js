@@ -58,7 +58,30 @@ export function mount(root) {
 
 async function _load(grid) {
   const U = ur(); const V = vine();
-  if (!U && !V) { grid.innerHTML = backendOffline('Course catalogue not loaded.'); return; }
+  if (!U && !V) {
+    grid.innerHTML = `
+      <div class="grow-courses-gate">
+        <div class="grow-courses-gate-icon" style="--grow-accent:${accent}">${icon}</div>
+        <h3 class="grow-courses-gate-title">Member Content</h3>
+        <p class="grow-courses-gate-desc">Guided discipleship tracks, theology playlists, and curated study paths live here. Sign in to access the full course library.</p>
+        <div class="grow-courses-gate-features">
+          <div class="grow-courses-gate-feat">
+            <svg viewBox="0 0 20 20" fill="currentColor" width="18" height="18"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd"/></svg>
+            <span>Sermon series tracks</span>
+          </div>
+          <div class="grow-courses-gate-feat">
+            <svg viewBox="0 0 20 20" fill="currentColor" width="18" height="18"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd"/></svg>
+            <span>Theology playlists</span>
+          </div>
+          <div class="grow-courses-gate-feat">
+            <svg viewBox="0 0 20 20" fill="currentColor" width="18" height="18"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd"/></svg>
+            <span>Member-curated learning paths</span>
+          </div>
+        </div>
+      </div>
+    `;
+    return;
+  }
   try {
     const res = U
       ? await U.listLrnPlaylists({ limit: 200 })

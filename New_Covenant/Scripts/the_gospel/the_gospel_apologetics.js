@@ -12,7 +12,7 @@ export const description = 'Common objections to the faith — answered with scr
 export const icon        = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18"/><path d="M3 7l9 3 9-3"/><path d="M3 17l9-3 9 3"/></svg>`;
 export const accent      = '#475569';
 
-let _state = { rows: [] };
+let _state = { rows: [], q: '' };
 
 export function render() {
   return /* html */`
@@ -25,54 +25,74 @@ export function render() {
         </div>
       </header>
 
-      <div class="grow-list" data-bind="list">${loadingCards(3)}</div>
+      <div class="grow-toolbar">
+        <input class="grow-search" data-q placeholder="Search questions…" type="search">
+      </div>
+
+      <div class="grow-apo-list" data-bind="list">${loadingCards(3)}</div>
     </section>
   `;
 }
 
 export function mount(root) {
-  _load(root.querySelector('[data-bind="list"]'));
+  const qEl = root.querySelector('[data-q]');
+  qEl.addEventListener('input', () => { _state.q = qEl.value.trim().toLowerCase(); _paint(root); });
+  _load(root);
   return () => {};
 }
 
-async function _load(list) {
-  // Load from static bundle (regenerated from Firestore via export_apologetics_to_js.py)
+async function _load(root) {
   try {
     const mod = await import('../../Data/apologetics.js');
-    _state.rows = mod.default || [];
+    // Sort by sortOrder ascending — this is the canonical 1–N sequence
+    _state.rows = (mod.default || []).slice().sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
   } catch (e) {
     console.error('[gospel/apologetics] static bundle failed:', e);
   }
+  _paint(root);
+}
 
-  if (!_state.rows.length) {
-    list.innerHTML = emptyState({ icon: '⚖️', title: 'No apologetics yet' });
+function _paint(root) {
+  const list = root.querySelector('[data-bind="list"]');
+  const q = _state.q;
+  const rows = q
+    ? _state.rows.filter((r) => ((r.questionTitle || '') + ' ' + (r.answerContent || '') + ' ' + (r.categoryTitle || '')).toLowerCase().includes(q))
+    : _state.rows;
+
+  if (!rows.length) {
+    list.innerHTML = emptyState({ icon: '⚖️', title: q ? 'No matches' : 'No apologetics yet' });
     return;
   }
-
-  // Group by category (handle both bundle and live shapes)
-  const groups = {};
-  _state.rows.forEach((q) => {
-    const k = q['Category Title'] || q.categoryTitle || q.category || 'General';
-    (groups[k] = groups[k] || []).push(q);
+  list.innerHTML = rows.map((q, idx) => _item(q, idx)).join('');
+  // Accordion: click to expand/collapse
+  list.querySelectorAll('.grow-apo-item').forEach((item) => {
+    item.querySelector('.grow-apo-q').addEventListener('click', () => {
+      const open = item.classList.toggle('is-open');
+      item.querySelector('.grow-apo-body').style.display = open ? '' : 'none';
+    });
   });
-  list.innerHTML = Object.entries(groups).map(([cat, items]) => /* html */`
-    <details class="grow-apo-group" open>
-      <summary class="grow-apo-cat">${esc(cat)} <span class="grow-apo-count">${items.length}</span></summary>
-      <div class="grow-list">${items.map(_card).join('')}</div>
-    </details>
-  `).join('');
 }
 
-function _card(q) {
-  const title  = q['Question Title']  || q.questionTitle || q.question || '';
-  const answer = q['Answer Content']  || q.answerContent || '';
-  const quote  = q['Quote Text']      || q.quoteText     || '';
-  const refTxt = q['Reference Text']  || q.referenceText || '';
+function _item(q, idx) {
+  const num    = q.sortOrder || (idx + 1);
+  const qtitle = q.questionTitle || q.question || '';
+  const answer = q.answerContent || '';
+  const quote  = q.quoteText || '';
+  const ref    = q.referenceText || '';
+  const cat    = (q.categoryTitle || '').replace(/^[^\w\s]+\s*/, ''); // strip leading emoji
   return /* html */`
-    <article class="grow-card grow-card--apo">
-      <h3 class="grow-card-title">${esc(title)}</h3>
-      ${answer ? `<p class="grow-card-desc">${esc(snip(answer, 700))}</p>` : ''}
-      ${quote ? `<blockquote class="grow-quote">${esc(quote)}${refTxt ? ` <cite>— ${esc(refTxt)}</cite>` : ''}</blockquote>` : ''}
-    </article>
+    <div class="grow-apo-item">
+      <button class="grow-apo-q" type="button" aria-expanded="false">
+        <span class="grow-apo-num">${num}</span>
+        <span class="grow-apo-qtext">${esc(qtitle)}</span>
+        <svg class="grow-apo-chevron" viewBox="0 0 20 20" fill="currentColor" width="16" height="16"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
+      </button>
+      <div class="grow-apo-body" style="display:none;">
+        ${cat ? `<div class="grow-apo-catbadge">${esc(cat)}</div>` : ''}
+        ${answer ? `<p class="grow-apo-answer">${esc(answer)}</p>` : ''}
+        ${quote  ? `<blockquote class="grow-quote">${esc(quote)}${ref ? `<cite>— ${esc(ref)}</cite>` : ''}</blockquote>` : ''}
+      </div>
+    </div>
   `;
 }
+

@@ -62,14 +62,28 @@ async function _load(root) {
 
 function _paintLobby(root) {
   const view = root.querySelector('[data-bind="root"]');
-  let html = '';
 
+  // Gather category stats
+  const catCounts = {};
+  _state.bible.forEach((q) => { const c = q.category || q.Category || 'General'; catCounts[c] = (catCounts[c] || 0) + 1; });
+  const cats = Object.entries(catCounts).slice(0, 6);
+
+  let html = '';
   if (_state.bible.length) {
     html += `
-      <div class="grow-section-head"><h2 class="grow-section-title">Bible Quiz Challenge</h2></div>
-      <div class="grow-card" style="padding:18px; cursor:default; --grow-accent:${accent};">
-        <p class="grow-card-desc" style="margin:0 0 10px;">${_state.bible.length} questions from across the Bible. Test your knowledge!</p>
-        <button type="button" class="grow-btn" data-start-bible>▶ Start Bible Quiz</button>
+      <div class="grow-quiz-lobby">
+        <div class="grow-quiz-lobby-left">
+          <div class="grow-quiz-big-num">${_state.bible.length}</div>
+          <div class="grow-quiz-big-label">Bible Questions</div>
+          <p class="grow-quiz-lobby-desc">Test your knowledge of scripture — 10 random questions drawn from ${cats.length} categories.</p>
+          <button type="button" class="grow-quiz-launch" data-start-bible>
+            <svg viewBox="0 0 20 20" fill="currentColor" width="20" height="20"><path d="M6.3 2.841A1.5 1.5 0 004 4.11v11.78a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z"/></svg>
+            Start Bible Quiz
+          </button>
+        </div>
+        <div class="grow-quiz-cats">
+          ${cats.map(([cat, n]) => `<div class="grow-quiz-cat-chip"><span class="grow-quiz-cat-name">${esc(cat)}</span><span class="grow-quiz-cat-n">${n}</span></div>`).join('')}
+        </div>
       </div>
     `;
   }
@@ -126,61 +140,53 @@ function _paintQ(root) {
   const q     = _state.picked[i];
   if (!q) return;
 
-  const opts = ['A', 'B', 'C', 'D'].map((k) => q['Option ' + k]).filter(Boolean);
-  const saved = _state.answers[i] || '';
-  const pct   = Math.round(((i + 1) / total) * 100);
+  const opts   = ['A', 'B', 'C', 'D'].map((k) => ({ key: k.toLowerCase(), text: q['option' + k] || q['Option ' + k] })).filter((o) => o.text);
+  const saved  = _state.answers[i] || '';
+  const pct    = Math.round(((i + 1) / total) * 100);
 
-  let html = '';
-  html += `<div style="margin-bottom:14px;">
-    <div style="display:flex; justify-content:space-between; font-size:13px; color:var(--ink-muted, #7a7f96); margin-bottom:4px;">
-      <span>Question ${i + 1} of ${total}</span><span>${Object.keys(_state.answers).length} answered</span>
+  let html = `
+    <div class="grow-quiz-progress-bar">
+      <div class="grow-quiz-progress-meta">
+        <span>Question ${i + 1} of ${total}</span>
+        <span>${pct}% through</span>
+      </div>
+      <div class="grow-progress"><div class="grow-progress-fill" style="width:${pct}%; background:${accent};"></div></div>
     </div>
-    <div class="grow-progress"><div class="grow-progress-fill" style="width:${pct}%; background:${accent};"></div></div>
-  </div>`;
-
-  html += `<div class="grow-card" style="padding:18px; cursor:default; --grow-accent:${accent};">
-    <h3 class="grow-card-title" style="margin:0 0 12px;">${i + 1}. ${esc(q.Question || '')}</h3>`;
-  if (q.Category || q.Difficulty) {
-    html += `<div style="margin-bottom:10px;">`;
-    if (q.Category)   html += chip(q.Category, 'neutral') + ' ';
-    if (q.Difficulty) html += chip(q.Difficulty, q.Difficulty === 'Hard' ? 'danger' : q.Difficulty === 'Medium' ? 'warn' : 'good');
-    html += `</div>`;
-  }
-  opts.forEach((opt, oi) => {
-    const letter = String.fromCharCode(97 + oi);
-    const checked = saved === letter;
-    html += `<label style="display:block; padding:10px 12px; margin:4px 0; border-radius:8px; cursor:pointer; border:1px solid var(--line, #e5e7ef); background:${checked ? 'color-mix(in srgb,' + accent + ' 12%, transparent)' : 'var(--bg-raised,#fff)'}; color:var(--ink,#1b264f); font-size:14px;">
-      <input type="radio" name="q_current" value="${letter}" ${checked ? 'checked' : ''} style="margin-right:10px;">
-      <strong>${letter.toUpperCase()}.</strong> ${esc(opt)}
-    </label>`;
-  });
-  html += `</div>`;
-
-  html += `<div style="display:flex; justify-content:space-between; gap:12px; margin-top:16px;">
-    ${i > 0 ? '<button type="button" class="grow-btn grow-btn--ghost" data-nav="-1">◀ Previous</button>' : '<span></span>'}
-    ${i < total - 1
-      ? '<button type="button" class="grow-btn" data-nav="1">Next ▶</button>'
-      : '<button type="button" class="grow-btn" data-score>Score Quiz ✓</button>'}
-  </div>`;
+    <div class="grow-quiz-q-card">
+      <div class="grow-quiz-q-num">${i + 1}</div>
+      <h3 class="grow-quiz-q-text">${esc(q.question || q.Question || '')}</h3>
+      ${q.category || q.Category ? `<div class="grow-quiz-q-meta">${chip(q.category || q.Category, 'topic')}${q.difficulty || q.Difficulty ? ' ' + chip(q.difficulty || q.Difficulty, (q.difficulty || q.Difficulty) === 'Hard' ? 'danger' : (q.difficulty || q.Difficulty) === 'Medium' ? 'warn' : 'good') : ''}</div>` : ''}
+      <div class="grow-quiz-opts">
+        ${opts.map((o) => `
+          <button type="button" class="grow-quiz-opt ${saved === o.key ? 'is-selected' : ''}" data-val="${esc(o.key)}">
+            <span class="grow-quiz-opt-letter">${o.key.toUpperCase()}</span>
+            <span class="grow-quiz-opt-text">${esc(o.text)}</span>
+          </button>
+        `).join('')}
+      </div>
+    </div>
+    <div class="grow-quiz-nav">
+      ${i > 0 ? '<button type="button" class="grow-btn grow-btn--ghost" data-nav="-1">◀ Prev</button>' : '<span></span>'}
+      ${i < total - 1
+        ? '<button type="button" class="grow-btn" data-nav="1">Next ▶</button>'
+        : '<button type="button" class="grow-btn" data-score>Score Quiz ✓</button>'}
+    </div>`;
 
   view.innerHTML = html;
-  view.querySelectorAll('input[name="q_current"]').forEach((inp) => {
-    inp.addEventListener('change', () => { _state.answers[i] = inp.value; });
+  view.querySelectorAll('.grow-quiz-opt').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      _state.answers[i] = btn.dataset.val;
+      view.querySelectorAll('.grow-quiz-opt').forEach((b) => b.classList.toggle('is-selected', b === btn));
+    });
   });
   view.querySelectorAll('[data-nav]').forEach((b) => {
     b.addEventListener('click', () => {
-      const sel = view.querySelector('input[name="q_current"]:checked');
-      if (sel) _state.answers[i] = sel.value;
       _state.idx = Math.max(0, Math.min(total - 1, i + Number(b.dataset.nav)));
       _paintQ(root);
     });
   });
   const scoreBtn = view.querySelector('[data-score]');
-  if (scoreBtn) scoreBtn.addEventListener('click', () => {
-    const sel = view.querySelector('input[name="q_current"]:checked');
-    if (sel) _state.answers[i] = sel.value;
-    _paintResults(root);
-  });
+  if (scoreBtn) scoreBtn.addEventListener('click', () => _paintResults(root));
 }
 
 function _paintResults(root) {
@@ -188,32 +194,48 @@ function _paintResults(root) {
   let correct = 0;
   const wrong = [];
   _state.picked.forEach((q, i) => {
-    const ans = String(_state.answers[i] || '').toLowerCase().trim();
-    const right = String(q['Correct Answer'] || '').toLowerCase().trim();
+    const ans   = String(_state.answers[i] || '').toLowerCase().trim();
+    const right = String(q.correctAnswer || q['Correct Answer'] || '').toLowerCase().trim();
     if (ans && ans === right) correct++;
-    else wrong.push({ q, ans });
+    else wrong.push({ q, ans, right });
   });
-  const pct = Math.round((correct / _state.picked.length) * 100);
-  const tone = pct >= 80 ? '#0a7c3e' : pct >= 60 ? '#8a5a00' : '#9a2317';
+  const pct  = Math.round((correct / _state.picked.length) * 100);
+  const tone = pct >= 80 ? '#059669' : pct >= 60 ? '#d97706' : '#dc2626';
+  const msg  = pct >= 80 ? 'Well done!' : pct >= 60 ? 'Good effort!' : 'Keep studying!';
+  const r = 52; const circ = 2 * Math.PI * r; const dash = circ - (pct / 100) * circ;
 
-  let html = `<div class="grow-card" style="padding:24px; text-align:center; cursor:default; --grow-accent:${accent};">
-    <div style="font-size:48px; font-weight:700; color:${tone};">${pct}%</div>
-    <p class="grow-muted" style="margin:6px 0 0;">${correct} of ${_state.picked.length} correct</p>
-    <div style="display:flex; gap:8px; justify-content:center; margin-top:16px;">
-      <button type="button" class="grow-btn" data-retry>Take another</button>
-      <button type="button" class="grow-btn grow-btn--ghost" data-back>Back to lobby</button>
-    </div>
-  </div>`;
+  let html = `
+    <div class="grow-quiz-results">
+      <div class="grow-quiz-score-ring">
+        <svg viewBox="0 0 120 120" width="120" height="120">
+          <circle cx="60" cy="60" r="${r}" fill="none" stroke="var(--border,rgba(0,0,0,.1))" stroke-width="8"/>
+          <circle cx="60" cy="60" r="${r}" fill="none" stroke="${tone}" stroke-width="8"
+            stroke-dasharray="${circ.toFixed(1)}" stroke-dashoffset="${dash.toFixed(1)}"
+            stroke-linecap="round" transform="rotate(-90 60 60)"/>
+        </svg>
+        <div class="grow-quiz-score-inner">
+          <div class="grow-quiz-score-pct" style="color:${tone};">${pct}%</div>
+          <div class="grow-quiz-score-msg">${msg}</div>
+        </div>
+      </div>
+      <p class="grow-quiz-score-detail">${correct} of ${_state.picked.length} correct</p>
+      <div class="grow-quiz-results-btns">
+        <button type="button" class="grow-btn" data-retry>Try another</button>
+        <button type="button" class="grow-btn grow-btn--ghost" data-back>Back</button>
+      </div>
+    </div>`;
 
   if (wrong.length) {
-    html += `<div class="grow-section-head" style="margin-top:18px;"><h2 class="grow-section-title">Review</h2></div>`;
+    html += `<div class="grow-section-head" style="margin-top:20px;"><h2 class="grow-section-title">Review missed questions</h2></div>`;
     html += `<div class="grow-list">`;
-    wrong.forEach(({ q, ans }) => {
-      const right = String(q['Correct Answer'] || '').toUpperCase();
-      html += `<div class="grow-card" style="padding:14px; cursor:default;">
-        <p style="margin:0 0 6px; font-weight:600;">${esc(q.Question || '')}</p>
-        <p class="grow-muted" style="margin:0;">Your answer: <strong>${esc((ans || '—').toUpperCase())}</strong> · Correct: <strong style="color:#0a7c3e;">${esc(right)}</strong></p>
-        ${q.Reference ? `<p class="grow-muted" style="margin:6px 0 0; font-style:italic;">${esc(q.Reference)}</p>` : ''}
+    wrong.forEach(({ q, ans, right }) => {
+      html += `<div class="grow-quiz-review-card">
+        <p class="grow-quiz-review-q">${esc(q.question || q.Question || '')}</p>
+        <div class="grow-quiz-review-answers">
+          <span class="grow-quiz-review-wrong">Your answer: ${esc((ans || '—').toUpperCase())}</span>
+          <span class="grow-quiz-review-right">Correct: ${esc(right.toUpperCase())}</span>
+        </div>
+        ${q.reference || q.Reference ? `<p class="grow-quiz-review-ref">${esc(q.reference || q.Reference)}</p>` : ''}
       </div>`;
     });
     html += `</div>`;
@@ -226,6 +248,6 @@ function _paintResults(root) {
   view.querySelector('[data-back]').addEventListener('click',  () => { _state.mode = 'lobby'; _paintLobby(root); });
   wireHelp(view, () => {
     return `I just took the Bible Quiz and scored ${pct}% (${correct}/${_state.picked.length}).` +
-      (wrong.length ? ` I'd value prayer and study guidance on these areas: ${wrong.slice(0, 5).map((w) => w.q.Category || w.q.Question).filter(Boolean).join('; ')}` : '');
+      (wrong.length ? ` I'd value prayer and study guidance on these areas: ${wrong.slice(0, 5).map((w) => w.q.category || w.q.Category || w.q.question).filter(Boolean).join('; ')}` : '');
   }, { category: 'Discipleship: Bible Quiz', source: 'Bible Quiz', confidential: false });
 }

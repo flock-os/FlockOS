@@ -30,10 +30,10 @@ export function render() {
 
       <div class="grow-split">
         <aside class="grow-split-aside">
-          <div class="grow-gen-list" data-bind="list">${loadingCards(8)}</div>
+          <div class="grow-gen-list grow-gen-list--scroll" data-bind="list">${loadingCards(8)}</div>
         </aside>
-        <article class="grow-split-main" data-bind="detail">
-          <p class="grow-muted">Pick a name to read their story.</p>
+        <article class="grow-split-main grow-gen-detail-panel" data-bind="detail">
+          <p class="grow-muted" style="padding:20px; margin:0;">Pick a name to read their story.</p>
         </article>
       </div>
     </section>
@@ -62,19 +62,33 @@ async function _load(root) {
 
 function _filtered() {
   if (!_state.q) return _state.rows;
-  return _state.rows.filter((p) => ((p.Name || '') + ' ' + (p.Title || '') + ' ' + (p.Meaning || '')).toLowerCase().includes(_state.q));
+  // data uses lowercase keys: name, title, meaning
+  return _state.rows.filter((p) => ((p.name || '') + ' ' + (p.title || '') + ' ' + (p.meaning || '')).toLowerCase().includes(_state.q));
+}
+
+function _initial(name) {
+  const parts = (name || '?').trim().split(/\s+/);
+  return parts.length > 1 ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase() : (parts[0][0] || '?').toUpperCase();
 }
 
 function _paint(root) {
   const list = _filtered();
   const listEl = root.querySelector('[data-bind="list"]');
   if (!list.length) { listEl.innerHTML = emptyState({ icon: '🌳', title: 'No matches' }); return; }
-  listEl.innerHTML = list.map((p, i) => `
-    <button class="grow-gen-row ${_state.selected === (p.Name || i) ? 'is-active' : ''}" data-p="${esc(String(p.Name || i))}">
-      <span class="grow-gen-name">${esc(p.Name || 'Unknown')}</span>
-      <span class="grow-gen-meaning">${esc(p.Meaning || '')}</span>
-    </button>
-  `).join('');
+  listEl.innerHTML = list.map((p, i) => {
+    const nm = p.name || '';
+    const key = nm || String(i);
+    const isActive = _state.selected === key;
+    const ini = _initial(nm);
+    return `
+    <button class="grow-gen-row ${isActive ? 'is-active' : ''}" data-p="${esc(key)}">
+      <span class="grow-gen-avatar" aria-hidden="true">${esc(ini)}</span>
+      <span class="grow-gen-info">
+        <span class="grow-gen-name">${esc(nm || '(unnamed)')}</span>
+        ${p.title ? `<span class="grow-gen-role">${esc(p.title)}</span>` : (p.meaning ? `<span class="grow-gen-meaning">${esc(p.meaning)}</span>` : '')}
+      </span>
+    </button>`;
+  }).join('');
   listEl.querySelectorAll('[data-p]').forEach((btn) => btn.addEventListener('click', () => {
     _state.selected = btn.dataset.p; _paint(root); _paintDetail(root);
   }));
@@ -85,17 +99,23 @@ function _paintDetail(root) {
   const det = root.querySelector('[data-bind="detail"]');
   if (!_state.selected) return;
   const list = _filtered();
-  const p = list.find((x, i) => String(x.Name || i) === String(_state.selected));
+  const p = list.find((x, i) => String(x.name || i) === String(_state.selected));
   if (!p) return;
+  const nm = p.name || '';
   det.innerHTML = /* html */`
-    <h2 class="grow-detail-title">${esc(p.Name || '')}</h2>
-    <div class="grow-lex-meta">
-      ${p.Title    ? chip(p.Title, 'topic') : ''}
-      ${p.Lifespan ? chip(p.Lifespan, 'neutral') : ''}
-      ${p.Reference ? chip(p.Reference, 'level') : ''}
+    <div class="grow-gen-detail-head">
+      <div class="grow-gen-avatar grow-gen-avatar--lg" aria-hidden="true">${esc(_initial(nm))}</div>
+      <div>
+        <h2 class="grow-detail-title" style="margin:0 0 6px;">${esc(nm)}</h2>
+        ${p.title ? `<p class="grow-muted" style="margin:0;">${esc(p.title)}</p>` : ''}
+      </div>
     </div>
-    ${p.Meaning ? `<p class="grow-muted">Name means: ${esc(p.Meaning)}</p>` : ''}
-    ${p.Bio     ? `<p class="grow-detail-body">${esc(snip(p.Bio, 1200))}</p>` : ''}
-    ${p.Children ? `<h4 class="grow-detail-h4">Children</h4><p class="grow-detail-body">${esc(p.Children)}</p>` : ''}
+    <div class="grow-lex-meta" style="margin:14px 0;">
+      ${p.lifespan  ? chip(p.lifespan + ' yrs', 'neutral') : ''}
+      ${p.reference ? chip(p.reference, 'level') : ''}
+      ${p.meaning   ? chip('Means: ' + p.meaning, 'topic') : ''}
+    </div>
+    ${p.bio     ? `<p class="grow-detail-body">${esc(snip(p.bio, 1200))}</p>` : ''}
+    ${p.children ? `<h4 class="grow-detail-h4" style="margin:14px 0 6px; font-size:13px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted,#888);">Children</h4><p class="grow-detail-body">${esc(p.children)}</p>` : ''}
   `;
 }

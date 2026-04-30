@@ -144,29 +144,30 @@ function _paintOYB(root) {
 
 function _oybTodayCard(e) {
   const streams = [
-    { label: 'Old Testament', val: e.ot, color: '#c2410c' },
-    { label: 'New Testament', val: e.nt, color: '#1d4ed8' },
-    { label: 'Psalms',        val: e.ps, color: '#059669' },
-    { label: 'Proverbs',      val: e.pr, color: '#d97706' },
+    { label: 'Old Testament', val: e.ot, color: '#c2410c', icon: '📜' },
+    { label: 'New Testament', val: e.nt, color: '#1d4ed8', icon: '✝️' },
+    { label: 'Psalms',        val: e.ps, color: '#059669', icon: '🎶' },
+    { label: 'Proverbs',      val: e.pr, color: '#d97706', icon: '💡' },
   ].filter((s) => s.val);
 
   return /* html */`
-    <div class="grow-oyb-card">
-      <div class="grow-oyb-card-head">
-        <span class="grow-oyb-day">Day ${e.day}</span>
-        <span class="grow-oyb-date">${esc(e.date)}</span>
+    <div class="grow-oyb-hero">
+      <div class="grow-oyb-hero-left">
+        <div class="grow-oyb-hero-label">Today</div>
+        <div class="grow-oyb-hero-day">Day ${e.day}</div>
+        <div class="grow-oyb-hero-date">${esc(e.date)}</div>
       </div>
-      <div class="grow-oyb-streams">
+      <div class="grow-oyb-hero-streams">
         ${streams.map((s) => `
-          <div class="grow-oyb-stream">
-            <span class="grow-oyb-stream-label" style="color:${s.color}">${s.label}</span>
-            <span class="grow-oyb-stream-val">${esc(s.val)}</span>
+          <div class="grow-oyb-hero-stream">
+            <span class="grow-oyb-hero-stream-label" style="color:${s.color}">${s.label}</span>
+            <span class="grow-oyb-hero-stream-val">${esc(s.val)}</span>
           </div>
         `).join('')}
       </div>
     </div>
-    <div style="text-align:center; margin: 12px 0 4px;">
-      <button class="grow-btn grow-btn--ghost" data-oyb-toggle style="font-size:14px;">See all 365 days ▼</button>
+    <div style="text-align:center; margin: 14px 0 2px;">
+      <button class="grow-btn grow-btn--ghost" data-oyb-toggle style="font-size:13px; padding:8px 20px;">See all 365 days ▼</button>
     </div>
   `;
 }
@@ -203,17 +204,30 @@ function _save(p) { try { localStorage.setItem(STORAGE, JSON.stringify(p)); } ca
 function _planCard(p, prog) {
   const done = prog ? Object.values(prog.days || {}).filter(Boolean).length : 0;
   const pct  = Math.min(100, Math.round((done / p.days) * 100));
+  const r    = 28; // circle radius
+  const circ = 2 * Math.PI * r;
+  const dash = circ - (pct / 100) * circ;
   return /* html */`
-    <article class="grow-card grow-card--plan" data-id="${esc(p.id)}">
-      <div class="grow-card-body">
-        <div class="grow-card-tags">${esc(p.category)} · ${p.days} days</div>
-        <h3 class="grow-card-title">${esc(p.title)}</h3>
-        <p class="grow-card-desc">${esc(p.description)}</p>
-        <div class="grow-progress"><div class="grow-progress-fill" style="width:${pct}%; background:${accent}"></div></div>
-        <div class="grow-card-foot">
-          <span class="grow-card-meta">${done} / ${p.days} days · ${pct}%</span>
-          <button class="grow-btn grow-btn--ghost" data-toggle="${esc(p.id)}">Mark today</button>
+    <article class="grow-plan-card" data-id="${esc(p.id)}">
+      <div class="grow-plan-card-top">
+        <div class="grow-plan-ring">
+          <svg viewBox="0 0 72 72" width="72" height="72">
+            <circle cx="36" cy="36" r="${r}" fill="none" stroke="var(--border,rgba(255,255,255,.1))" stroke-width="6"/>
+            <circle cx="36" cy="36" r="${r}" fill="none" stroke="${accent}" stroke-width="6"
+              stroke-dasharray="${circ.toFixed(1)}" stroke-dashoffset="${dash.toFixed(1)}"
+              stroke-linecap="round" transform="rotate(-90 36 36)"/>
+          </svg>
+          <span class="grow-plan-ring-pct">${pct}%</span>
         </div>
+        <div class="grow-plan-info">
+          <div class="grow-plan-cat">${esc(p.category)} · ${p.days} days</div>
+          <h3 class="grow-plan-title">${esc(p.title)}</h3>
+          <p class="grow-plan-desc">${esc(p.description)}</p>
+        </div>
+      </div>
+      <div class="grow-plan-card-foot">
+        <span class="grow-plan-done">${done} / ${p.days} days</span>
+        <button class="grow-btn grow-btn--ghost" data-toggle="${esc(p.id)}" style="font-size:12px; padding:6px 14px;">✓ Mark today</button>
       </div>
     </article>
   `;
