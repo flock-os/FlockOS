@@ -4,7 +4,7 @@
     blessed God." — 1 Timothy 1:10-11
    ══════════════════════════════════════════════════════════════════════════════ */
 
-import { esc, snip, emptyState, loadingCards, sectionHead, mdInline } from './the_gospel_shared.js';
+import { esc, snip, emptyState, loadingCards, sectionHead, mdInline, stripHtml } from './the_gospel_shared.js';
 
 export const name        = 'the_gospel_theology';
 export const title       = 'Theology';
@@ -169,7 +169,7 @@ function _section(s) {
   return /* html */`
     <article class="grow-doctrine">
       <h3 class="grow-doctrine-title">${esc(s.title || '')}</h3>
-      ${s.description ? `<div class="grow-doctrine-body">${mdInline(snip(s.description, 600))}</div>` : ''}
+      ${s.description ? `<div class="grow-doctrine-body">${mdInline(snip(stripHtml(s.description), 600))}</div>` : ''}
       ${scriptures ? `<div class="grow-scriptures">${scriptures}</div>` : ''}
     </article>
   `;
