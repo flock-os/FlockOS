@@ -7,6 +7,10 @@
 
 /* ── TheVine-backed data accessors ────────────────────────────────────────── */
 
+function _isFB() {
+  return typeof Modules !== 'undefined' && Modules._isFirebaseComms && Modules._isFirebaseComms();
+}
+
 function _rows(res) {
   if (Array.isArray(res)) return res;
   if (res && Array.isArray(res.rows)) return res.rows;
