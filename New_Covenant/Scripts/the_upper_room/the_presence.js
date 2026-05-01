@@ -7,18 +7,12 @@
    Stored at presenceRtdb()/{uid}: { state, ts, view? }
    ══════════════════════════════════════════════════════════════════════════════ */
 
-import { callWhen, when } from '../the_legacy_bridge.js';
-
-const NAME = 'TheUpperRoom';
-
-export const ready = () => when(NAME);
-
 /** Set my own presence. */
-export const setMine = (state, view)  => callWhen(NAME, 'setPresence', state, view);
+export const setMine = (state, view)  => window.UpperRoom?.setPresence?.(state, view);
 
 /** Subscribe to presence for a list of uids; onChange receives a map { uid: presence }. */
 export async function watch(uids, onChange) {
-  const M = await when(NAME);
+  const M = window.UpperRoom;
   if (typeof M.watchPresence === 'function') return M.watchPresence(uids, onChange);
   // Fallback: empty.
   onChange({});
@@ -26,4 +20,4 @@ export async function watch(uids, onChange) {
 }
 
 /** Read presence for one uid. */
-export const read = (uid) => callWhen(NAME, 'readPresence', uid);
+export const read = (uid) => window.UpperRoom?.readPresence?.(uid);

@@ -4,13 +4,7 @@
     book of life." — Revelation 20:12
    ══════════════════════════════════════════════════════════════════════════════ */
 
-import { bridge, when, callWhen } from '../the_legacy_bridge.js';
 import { read, write } from '../the_cistern.js';
-
-const NAME = 'TheScrolls';
-
-export const ready = () => when(NAME);
-export const live  = () => bridge(NAME);
 
 // ── Member name cache (Cistern-backed, survives page reload) ─────────────────
 const _MEMBER_MAP_KEY = 'scrolls:member_name_map';
@@ -132,7 +126,54 @@ function _typeIcon(type) {
   return '🫱';
 }
 
-export const log       = (...a) => callWhen(NAME, 'log', ...a);
-export const forPerson = (...a) => callWhen(NAME, 'forPerson', ...a);
-export const types     = (...a) => callWhen(NAME, 'types', ...a);
-export const filter    = (...a) => callWhen(NAME, 'filter', ...a);
+// ── TYPES — interaction type constants ───────────────────────────────────────
+export const TYPES = Object.freeze({
+  PROFILE_VIEW:       'profile_view',  PROFILE_SAVE:       'profile_save',
+  CALL:               'call',          TEXT:               'text',
+  EMAIL:              'email',         VISIT:              'visit',
+  NOTE:               'note',          PRAYER:             'prayer',
+  PRAYER_REPLY:       'prayer_reply',
+  CARE_CREATE:        'care_create',   CARE_UPDATE:        'care_update',
+  CARE_RESOLVE:       'care_resolve',  CARE_INTERACTION:   'care_interaction',
+  COMPASSION_CREATE:  'compassion_create', COMPASSION_UPDATE: 'compassion_update',
+  COMPASSION_APPROVE: 'compassion_approve', COMPASSION_DENY: 'compassion_deny',
+  OUTREACH_CREATE:    'outreach_create', OUTREACH_UPDATE:  'outreach_update',
+  OUTREACH_FOLLOWUP:  'outreach_followup',
+});
+
+/** Log an interaction entry to the backend. */
+export async function log(type, personId, detail = '', extra = {}) {
+  const session = (typeof Nehemiah !== 'undefined' && Nehemiah.getSession)
+    ? Nehemiah.getSession() : {};
+  const entry = {
+    id:         Date.now() + '_' + Math.random().toString(36).substr(2, 6),
+    ts:         new Date().toISOString(),
+    type,
+    user:       session?.email || '?',
+    personId:   personId || '',
+    personName: extra?.personName || '',
+    detail,
+    extra,
+  };
+  // Fire-and-forget to backend
+  try {
+    if (window.UpperRoom?.createContactLog) {
+      await window.UpperRoom.createContactLog(entry);
+    } else if (window.TheVine?.flock?.contacts?.create) {
+      await window.TheVine.flock.contacts.create(entry);
+    }
+  } catch (_) {}
+  return entry;
+}
+
+/** Alias for timeline() — get interactions for a specific person. */
+export const forPerson = (personId, limit) => timeline(personId, limit);
+
+/** Return TYPES constant (for callers that used to call TheScrolls.types()). */
+export const types = () => TYPES;
+
+/** Filter timeline by interaction type. */
+export async function filter(type, personId, limit = 50) {
+  const rows = await timeline(personId, limit * 3);
+  return type ? rows.filter(e => e.type === type).slice(0, limit) : rows.slice(0, limit);
+}

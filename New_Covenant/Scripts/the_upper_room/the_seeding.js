@@ -5,10 +5,6 @@
    On first comms touch in a church, ensure these channels exist. Idempotent.
    ══════════════════════════════════════════════════════════════════════════════ */
 
-import { when } from '../the_legacy_bridge.js';
-
-const NAME = 'TheUpperRoom';
-
 export const SEEDS = [
   { name: 'general',       description: 'For everyone in the church.' },
   { name: 'announcements', description: 'Read-only firehose.' },
@@ -18,7 +14,7 @@ export const SEEDS = [
 /** Idempotent: list existing channels by name; create only the seeds that
  *  don't yet exist. Safe to call on every Fellowship mount. */
 export async function ensureSeeds() {
-  const M = await when(NAME);
+  const M = window.UpperRoom;
   if (typeof M.browseChannels !== 'function' || typeof M.createChannel !== 'function') return;
 
   let existing = [];

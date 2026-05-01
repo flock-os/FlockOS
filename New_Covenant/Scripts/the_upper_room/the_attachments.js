@@ -6,19 +6,13 @@
    Returns a stable URL the message body can reference.
    ══════════════════════════════════════════════════════════════════════════════ */
 
-import { callWhen, when } from '../the_legacy_bridge.js';
-
-const NAME = 'TheUpperRoom';
-
-export const ready = () => when(NAME);
-
 const MAX_BYTES = 25 * 1024 * 1024; // 25 MB
 
 /** Upload a File / Blob and return { url, name, size, contentType }. */
 export async function upload(file, { channelId } = {}) {
   if (!file) throw new Error('No file');
   if (file.size > MAX_BYTES) throw new Error('File is too large (25 MB max).');
-  return callWhen(NAME, 'uploadAttachment', file, { channelId });
+  return window.UpperRoom?.uploadAttachment?.(file, { channelId });
 }
 
 /** Validate before bothering the network. */

@@ -5,16 +5,10 @@
    Same approach as the_channels: facade today, direct Firestore tomorrow.
    ══════════════════════════════════════════════════════════════════════════════ */
 
-import { callWhen, when } from '../the_legacy_bridge.js';
-
-const NAME = 'TheUpperRoom';
-
-export const ready = () => when(NAME);
-
 /** Stream messages for a channel. onChange receives an array (oldest-first).
  *  Returns an unsubscribe function. */
 export async function watch(channelId, onChange, { limit = 100 } = {}) {
-  const M = await when(NAME);
+  const M = window.UpperRoom;
 
   if (typeof M.listenMessages === 'function') {
     M.listenMessages(channelId, (rows) => {
@@ -39,9 +33,9 @@ export async function watch(channelId, onChange, { limit = 100 } = {}) {
   return () => { cancelled = true; };
 }
 
-export const list   = (channelId, limit) => callWhen(NAME, 'getMessages', channelId, limit);
-export const send   = (channelId, body) => callWhen(NAME, 'sendMessage', channelId, body);
-export const remove = (channelId, messageId) => callWhen(NAME, 'deleteMessage', channelId, messageId);
+export const list   = (channelId, limit) => window.UpperRoom?.getMessages?.(channelId, limit);
+export const send   = (channelId, body) => window.UpperRoom?.sendMessage?.(channelId, body);
+export const remove = (channelId, messageId) => window.UpperRoom?.deleteMessage?.(channelId, messageId);
 // edit / react are not in the legacy surface yet — expose stubs that throw
 // rather than silently no-op so callers get a clear error.
 export const edit   = () => { throw new Error('editMessage not implemented'); };

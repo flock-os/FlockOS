@@ -14,28 +14,22 @@
      send(threadId, body)      — send a message
    ══════════════════════════════════════════════════════════════════════════════ */
 
-import { callWhen, when } from '../the_legacy_bridge.js';
-
-const NAME = 'TheUpperRoom';
-
-export const ready = () => when(NAME);
-
 export function threadIdFor(uidA, uidB) {
   return [String(uidA), String(uidB)].sort().join('_');
 }
 
 /** List DM threads I'm part of. Backed by listConversations('dm'). */
-export const list      = () => callWhen(NAME, 'listConversations', 'dm');
+export const list      = () => window.UpperRoom?.listConversations?.('dm');
 /** Messages in a DM thread are stored under conversations/{id}/messages
  *  — same shape as channel messages. */
-export const messages  = (threadId, limit) => callWhen(NAME, 'getMessages', threadId, limit);
+export const messages  = (threadId, limit) => window.UpperRoom?.getMessages?.(threadId, limit);
 /** Send a DM message — sendMessage handles all conversation types. */
-export const send      = (threadId, body)  => callWhen(NAME, 'sendMessage', threadId, body);
+export const send      = (threadId, body)  => window.UpperRoom?.sendMessage?.(threadId, body);
 /** Ensure a DM thread exists with the given peer (email/uid). */
-export const openWith  = (peerEmail) => callWhen(NAME, 'createDM', peerEmail);
+export const openWith  = (peerEmail) => window.UpperRoom?.createDM?.(peerEmail);
 
 export async function watch(onChange) {
-  const M = await when(NAME);
+  const M = window.UpperRoom;
 
   if (typeof M.listenConversations === 'function') {
     M.listenConversations('dm', (rows) => {

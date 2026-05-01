@@ -12,12 +12,7 @@
      enabled()            — boolean
    ══════════════════════════════════════════════════════════════════════════════ */
 
-import { callWhen, when } from '../the_legacy_bridge.js';
 import { getVapidKey } from './the_firebase_config.js';
-
-const NAME = 'TheUpperRoom';
-
-export const ready = () => when(NAME);
 
 export async function register() {
   if (typeof Notification === 'undefined') return { ok: false, reason: 'no-notification-api' };
@@ -25,11 +20,11 @@ export async function register() {
   if (!vapid) return { ok: false, reason: 'no-vapid-key' };
   const perm = await Notification.requestPermission();
   if (perm !== 'granted') return { ok: false, reason: 'denied' };
-  return callWhen(NAME, 'registerPush', { vapid });
+  return window.UpperRoom?.registerPush?.({ vapid });
 }
 
 export async function unregister() {
-  try { return await callWhen(NAME, 'unregisterPush'); }
+  try { return await window.UpperRoom?.unregisterPush?.(); }
   catch (_) { return { ok: false }; }
 }
 

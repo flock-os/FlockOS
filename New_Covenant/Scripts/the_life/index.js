@@ -3,12 +3,7 @@
    "In him was life; and the life was the light of men." — John 1:4
    ══════════════════════════════════════════════════════════════════════════════ */
 
-import { bridge, when, callWhen } from '../the_legacy_bridge.js';
 
-const NAME = 'TheLife';
-
-export const ready = () => when(NAME);
-export const live  = () => bridge(NAME);
 
 /* ── TheVine-backed data accessors ────────────────────────────────────────── */
 
@@ -305,8 +300,28 @@ if (typeof window !== 'undefined') {
 }
 
 
-/* ── Legacy bridge stubs (used when window global supports them) ─────────── */
-export const outreachList    = (...a) => callWhen(NAME, 'outreachList', ...a);
-export const discipleshipFor = (...a) => callWhen(NAME, 'discipleshipFor', ...a);
-export const commsLog        = (...a) => callWhen(NAME, 'commsLog', ...a);
-export const notesFor        = (...a) => callWhen(NAME, 'notesFor', ...a);
+/* ── Convenience delegates (formerly bridge stubs) ─────────────────────────── */
+export async function outreachList(params = {}) {
+  const r = _isFB()
+    ? window.UpperRoom?.listOutreachContacts?.(params)
+    : window.TheVine?.flock?.outreach?.contacts?.list?.(params);
+  return _rows(await r);
+}
+export async function discipleshipFor(memberId) {
+  const r = _isFB()
+    ? window.UpperRoom?.listDiscEnrollments?.({ memberId })
+    : window.TheVine?.flock?.discipleship?.enrollments?.list?.({ memberId });
+  return _rows(await r);
+}
+export async function commsLog(params = {}) {
+  const r = _isFB()
+    ? window.UpperRoom?.listConversations?.(params)
+    : window.TheVine?.flock?.comms?.messages?.list?.(params);
+  return _rows(await r);
+}
+export async function notesFor(memberId) {
+  const r = _isFB()
+    ? window.UpperRoom?.listPastoralNotes?.({ memberId })
+    : window.TheVine?.flock?.notes?.list?.({ memberId });
+  return _rows(await r);
+}

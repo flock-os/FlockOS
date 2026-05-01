@@ -7,8 +7,6 @@
    own their slice; this index just wires them up under one namespace.
    ══════════════════════════════════════════════════════════════════════════════ */
 
-import { bridge, when, callWhen } from '../the_legacy_bridge.js';
-
 import * as firebaseConfig from './the_firebase_config.js';
 import * as tenant         from './the_tenant.js';
 import * as identity       from './the_identity.js';
@@ -23,11 +21,6 @@ import * as emoji          from './the_emoji.js';
 import * as seeding        from './the_seeding.js';
 import * as attachments    from './the_attachments.js';
 import * as push           from './the_push.js';
-
-const NAME = 'TheUpperRoom';
-
-export const ready = () => when(NAME);
-export const live  = () => bridge(NAME);
 
 /* Aggregate namespaces — views import these, not the legacy globals. */
 export {
