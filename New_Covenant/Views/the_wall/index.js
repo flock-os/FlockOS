@@ -1210,46 +1210,127 @@ function _wireAuditPanel(root) {
   if (!panel.classList.contains('wall-panel--hidden')) _refreshAudit(root);
 }
 
+// ── Audit — well-known Firestore sentinel documents ──────────────────────
+// Each entry is a document path (relative to churches/{churchId}/) that the
+// app expects to exist. The audit checks whether each doc is present and
+// offers a one-click Create when it is missing.
+// This is implemented entirely here using firebase.firestore() directly —
+// it has NO dependency on UpperRoom.isReady(), UpperRoom.auditDirectories(),
+// or any other method that doesn't exist.
+
+function _auditChurchId() {
+  const UR = window.UpperRoom;
+  if (UR && typeof UR.churchId === 'function') return UR.churchId() || 'FlockOS';
+  if (typeof window.FLOCK_CHURCH_ID === 'string' && window.FLOCK_CHURCH_ID) return window.FLOCK_CHURCH_ID;
+  try {
+    const m = window.location.pathname.match(/\/Nations\/([^/]+)\//);
+    if (m) return m[1];
+  } catch (_) {}
+  return 'FlockOS';
+}
+
+function _auditDb() {
+  if (typeof firebase !== 'undefined' && firebase.firestore) return firebase.firestore();
+  return null;
+}
+
+// Well-known sentinel documents the app expects under churches/{churchId}/.
+// Each has: id (unique key), label, kind (display), subPath (doc path inside churches/{cid})
+// and defaults (object to merge on creation).
+const _AUDIT_ITEMS = [
+  {
+    id:      'church-root',
+    label:   'Church root document',
+    kind:    'Document',
+    subPath: '',   // the church doc itself: churches/{cid}
+    defaults: { createdAt: null, name: '', setupComplete: false },
+  },
+  {
+    id:      'config-general',
+    label:   'General config',
+    kind:    'Document',
+    subPath: 'config/general',
+    defaults: { createdAt: null },
+  },
+  {
+    id:      'channel-general',
+    label:   '#general channel',
+    kind:    'Channel',
+    subPath: 'channels/general',
+    defaults: { name: 'general', type: 'channel', createdAt: null, description: 'General discussion' },
+  },
+  {
+    id:      'channel-announcements',
+    label:   '#announcements channel',
+    kind:    'Channel',
+    subPath: 'channels/announcements',
+    defaults: { name: 'announcements', type: 'channel', createdAt: null, description: 'Church announcements' },
+  },
+  {
+    id:      'channel-prayer',
+    label:   '#prayer-requests channel',
+    kind:    'Channel',
+    subPath: 'channels/prayer-requests',
+    defaults: { name: 'prayer-requests', type: 'channel', createdAt: null, description: 'Prayer requests' },
+  },
+  {
+    id:      'settings-notif',
+    label:   'Notification settings scaffold',
+    kind:    'Document',
+    subPath: 'settings/notifications',
+    defaults: { createdAt: null },
+  },
+];
+
+function _auditDocRef(db, churchId, subPath) {
+  const root = db.collection('churches').doc(churchId);
+  if (!subPath) return root;
+  const parts = subPath.split('/');
+  let ref = root;
+  for (let i = 0; i < parts.length - 1; i += 2) {
+    ref = ref.collection(parts[i]).doc(parts[i + 1]);
+  }
+  return ref;
+}
+
+async function _auditCheckAll(db, churchId) {
+  return Promise.all(_AUDIT_ITEMS.map(async (item) => {
+    try {
+      const ref = _auditDocRef(db, churchId, item.subPath);
+      const snap = await ref.get();
+      return { ...item, exists: snap.exists };
+    } catch (_) {
+      return { ...item, exists: false };
+    }
+  }));
+}
+
 async function _refreshAudit(root) {
   const host = root.querySelector('[data-bind="audit-list"]');
   if (!host) return;
   host.innerHTML = `<flock-skeleton rows="4"></flock-skeleton>`;
 
-  // Wait for UpperRoom to come online (up to ~10s) before declaring "not ready".
-  const UR = await _waitForUpperRoom(10000);
-  if (!UR || !UR.auditDirectories) {
-    host.innerHTML = `<div class="life-empty">Backend not ready yet — try Re-scan in a moment.</div>`;
+  const db = _auditDb();
+  if (!db) {
+    host.innerHTML = `<div class="life-empty">Firebase not loaded — refresh the page and try again.</div>`;
     return;
   }
 
+  const churchId = _auditChurchId();
   try {
-    const rows = await UR.auditDirectories();
-    _renderAuditRows(host, rows);
+    const rows = await _auditCheckAll(db, churchId);
+    _renderAuditRows(host, rows, churchId);
   } catch (err) {
     host.innerHTML = `<div class="life-empty" style="color:#b91c1c">Audit failed: ${_e(err?.message || String(err))}</div>`;
   }
 }
 
-function _waitForUpperRoom(timeoutMs) {
-  return new Promise((resolve) => {
-    const start = Date.now();
-    const tick = () => {
-      const UR = window.UpperRoom;
-      if (UR && typeof UR.isReady === 'function' && UR.isReady()) {
-        return resolve(UR);
-      }
-      if (Date.now() - start >= timeoutMs) return resolve(null);
-      setTimeout(tick, 250);
-    };
-    tick();
-  });
-}
-
-function _renderAuditRows(host, rows) {
+function _renderAuditRows(host, rows, churchId) {
   if (!rows.length) {
     host.innerHTML = `<div class="life-empty">No items to audit.</div>`;
     return;
   }
+  const cid = _e(churchId || _auditChurchId());
   host.innerHTML = rows.map((r) => {
     const ok = r.exists;
     const dot = ok
@@ -1259,11 +1340,12 @@ function _renderAuditRows(host, rows) {
     const action = ok
       ? `<span style="color:var(--ink-muted,#7a7f96);font-size:.85rem">OK</span>`
       : `<button class="flock-btn flock-btn--primary flock-btn--sm" data-act="audit-init" data-id="${_e(r.id)}" type="button">Create</button>`;
+    const pathLabel = r.subPath ? `churches/${cid}/${r.subPath}` : `churches/${cid}`;
     return `
       <div class="wall-setting-row" data-row-id="${_e(r.id)}" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border:1px solid var(--line,#e5e7ef);border-radius:8px;margin-bottom:6px;background:var(--bg-raised,#fff)">
         <div style="display:flex;flex-direction:column;gap:2px;min-width:0">
           <div style="font-weight:600;color:var(--ink,#1b264f)">${dot}${_e(r.label)}</div>
-          <div style="font-size:.78rem;color:var(--ink-muted,#7a7f96)">${_e(r.kind)} · ${_e(r.id)} · ${status}</div>
+          <div style="font-size:.78rem;color:var(--ink-muted,#7a7f96)">${_e(r.kind)} · ${pathLabel} · ${status}</div>
         </div>
         <div data-bind="action">${action}</div>
       </div>`;
@@ -1271,12 +1353,17 @@ function _renderAuditRows(host, rows) {
 }
 
 async function _initOne(root, id) {
-  const UR = window.UpperRoom;
-  if (!UR || !UR.initializeDirectory) return;
+  const db = _auditDb();
+  if (!db) return;
+  const item = _AUDIT_ITEMS.find((i) => i.id === id);
+  if (!item) return;
+  const churchId = _auditChurchId();
   const row = root.querySelector(`[data-row-id="${id}"] [data-bind="action"]`);
   if (row) row.innerHTML = `<span style="color:var(--ink-muted,#7a7f96);font-size:.85rem">Creating…</span>`;
   try {
-    await UR.initializeDirectory(id);
+    const ref = _auditDocRef(db, churchId, item.subPath);
+    const now = firebase.firestore.FieldValue.serverTimestamp();
+    await ref.set({ ...item.defaults, createdAt: now }, { merge: true });
     await _refreshAudit(root);
   } catch (err) {
     if (row) row.innerHTML = `<span style="color:#b91c1c;font-size:.8rem">${_e(err?.message || 'Failed')}</span>`;
@@ -1284,13 +1371,25 @@ async function _initOne(root, id) {
 }
 
 async function _initAllMissing(root) {
-  const UR = window.UpperRoom;
-  if (!UR || !UR.initializeAllMissing) return;
+  const db = _auditDb();
   const host = root.querySelector('[data-bind="audit-list"]');
+  if (!db) {
+    if (host) host.innerHTML = `<div class="life-empty">Firebase not loaded.</div>`;
+    return;
+  }
   if (host) host.innerHTML = `<div class="life-empty">Initializing missing items…</div>`;
+  const churchId = _auditChurchId();
+  const now = firebase.firestore.FieldValue.serverTimestamp();
   try {
-    const rows = await UR.initializeAllMissing();
-    _renderAuditRows(host, rows);
+    const rows = await _auditCheckAll(db, churchId);
+    await Promise.all(
+      rows.filter((r) => !r.exists).map((item) => {
+        const ref = _auditDocRef(db, churchId, item.subPath);
+        return ref.set({ ...item.defaults, createdAt: now }, { merge: true }).catch(() => {});
+      })
+    );
+    const refreshed = await _auditCheckAll(db, churchId);
+    _renderAuditRows(host, refreshed, churchId);
   } catch (err) {
     if (host) host.innerHTML = `<div class="life-empty" style="color:#b91c1c">Initialization failed: ${_e(err?.message || String(err))}</div>`;
   }
