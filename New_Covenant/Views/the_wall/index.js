@@ -68,6 +68,11 @@ const SECTIONS = [
     icon: '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>',
     custom: 'maintenance',
   },
+  {
+    key: 'depmap', label: 'Dependencies',
+    icon: '<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>',
+    custom: 'depmap',
+  },
 ];
 
 export function render() {
@@ -97,6 +102,7 @@ export function render() {
               <h2 class="wall-panel-title">${_e(s.label)}</h2>
               ${s.custom === 'audit'         ? _auditPanelMarkup()         :
                 s.custom === 'maintenance'   ? _maintenancePanelMarkup()   :
+                s.custom === 'depmap'        ? _depMapPanelMarkup()         :
                 s.custom === 'wellspring'    ? _wellspringPanelMarkup()    :
                 s.custom === 'church'        ? _churchPanelMarkup()        :
                 s.custom === 'members'       ? _membersPanelMarkup()       :
@@ -153,6 +159,9 @@ export function mount(root) {
 
   // Maintenance panel wiring
   _wireMaintenancePanel(root);
+
+  // Dependencies panel wiring
+  _wireDepMapPanel(root);
 
   // JP API panel wiring — load status immediately
   _wireIntegrationsPanel(root);
@@ -1923,5 +1932,235 @@ function _settingRow(s) {
 function _e(s) {
   return String(s ?? '').replace(/[&<>"']/g, (c) =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+/* ── Dependency map panel ────────────────────────────────────────────────── */
+
+const _DEP_MAP = {
+  generated: new Date().toISOString().split('T')[0],
+  entry: 'New_Covenant/index.html',
+  layers: [
+    {
+      name: 'Firebase compat SDK',
+      type: 'defer-script',
+      role: 'Cloud database, auth, and functions',
+      scripts: [
+        'firebase-app-compat.js',
+        'firebase-firestore-compat.js',
+        'firebase-auth-compat.js',
+        'firebase-functions-compat.js',
+      ],
+    },
+    {
+      name: 'Classic Backend (defer)',
+      type: 'defer-script',
+      role: 'Tabernacle service layer — shared with legacy FlockOS shell',
+      scripts: [
+        { file: 'firm_foundation.js',    role: 'Boot utilities & GAS URL resolver' },
+        { file: 'the_upper_room.js',     global: 'UpperRoom',      role: 'Realtime comms auth & Firestore' },
+        { file: 'fine_linen.js',         role: 'Shared utility belt' },
+        { file: 'the_true_vine.js',      global: 'TheVine',        role: 'GAS + Firestore API client (4 branches: flock/missions/extra/app)' },
+        { file: 'the_wellspring.js',     global: 'TheWellspring',  role: 'Offline-first data engine' },
+        { file: 'the_well.js',           global: 'TheWell',        role: 'In-memory & IndexedDB cache' },
+        { file: 'the_tabernacle.js',     role: 'Legacy view engine (Tabernacle modules)' },
+        { file: 'the_truth.js',          global: 'TheTruth',       role: 'Scripture & apologetics data' },
+        { file: 'the_seasons.js',        global: 'TheSeason',      role: 'Calendar & church calendar data' },
+        { file: 'the_way.js',            global: 'TheWay',         role: 'Discipleship paths' },
+        { file: 'the_harvest.js',        global: 'TheHarvest',     role: 'Outreach & evangelism' },
+        { file: 'the_life.js',           global: 'TheLife',        role: 'Pastoral care engine' },
+        { file: 'the_shepherd.js',       global: 'TheShepherd',    role: 'Member & shepherding layer' },
+        { file: 'the_fold.js',           global: 'TheFold',        role: 'Flock directory & groups' },
+        { file: 'the_scrolls.js',        global: 'TheScrolls',     role: 'GAS file transmission' },
+        { file: 'the_window_bridge.js',  role: 'Promotes all ↑ globals to window.*' },
+      ],
+    },
+    {
+      name: 'ES Module Boot (modulepreload)',
+      type: 'module',
+      role: 'New Covenant shell — loaded in parallel via <link rel=modulepreload>',
+      scripts: [
+        { file: 'the_ark.js',                    role: 'Entry point — mounts veil, registers views, handles routing' },
+        { file: 'the_adornment.js',              role: 'Theme engine — dark/light mode, flash prevention' },
+        { file: 'the_lampstand.js',              role: 'UI component library' },
+        { file: 'the_oil.js',                    role: 'Session & auth state manager' },
+        { file: 'the_watchmen.js',               role: 'Global error boundary & unhandled rejection reporter' },
+        { file: 'the_living_water_register.js',  role: 'Service worker registration (PWA / offline)' },
+        { file: 'the_legacy_bridge.js',          role: 'window.* → ES module bridge (polls globals)' },
+        { file: 'the_manna.js',                  role: 'Offline-first data layer (IndexedDB queue)' },
+        { file: 'the_cistern.js',                role: 'Cache utilities (TTL, stale-while-revalidate)' },
+      ],
+    },
+    {
+      name: 'Router — the_scribes/',
+      type: 'module',
+      role: 'Client-side router — hash/query routing, history, prefetch',
+      scripts: ['index.js', 'the_path.js', 'the_chronicle.js', 'the_herald.js'],
+    },
+    {
+      name: 'Chrome — the_veil/',
+      type: 'module',
+      role: 'App shell — topbar, sidebar nav, main content mount, footer',
+      scripts: [
+        { file: 'index.js',          role: 'Shell orchestrator' },
+        { file: 'the_crown.js',      role: 'Topbar (search, profile, dark-mode toggle)' },
+        { file: 'the_pillars.js',    role: 'Sidebar navigation (SECTIONS data + badge mounts)' },
+        { file: 'the_courtyard.js',  role: 'Main content area (view mount / unmount)' },
+        { file: 'the_hem.js',        role: 'Mobile footer tab bar' },
+      ],
+    },
+    {
+      name: 'Auth — the_priesthood/',
+      type: 'module',
+      role: 'Authentication, session tokens, RBAC guards',
+      scripts: [
+        { file: 'index.js',              role: 'Auth orchestrator' },
+        { file: 'the_garments.js',       role: 'Session tokens & persistence' },
+        { file: 'the_anointing.js',      role: 'Login / logout flow, sign-in UI' },
+        { file: 'the_breastplate.js',    role: 'Role-based access control guards' },
+      ],
+    },
+    {
+      name: 'Realtime Comms — the_upper_room/ (ES module layer)',
+      type: 'module',
+      role: 'Firebase Firestore/Auth realtime layer for channels, DMs, presence',
+      scripts: [
+        'index.js', 'the_firebase_config.js', 'the_tenant.js', 'the_identity.js',
+        'the_channels.js', 'the_messages.js', 'the_dms.js', 'the_presence.js',
+        'the_typing.js', 'the_unread.js', 'the_mentions.js', 'the_emoji.js',
+        'the_seeding.js', 'the_attachments.js', 'the_push.js',
+      ],
+    },
+    {
+      name: 'Care Module — the_life/ (ES module layer)',
+      type: 'module',
+      role: 'Pastoral care badge subscription and warm-up',
+      scripts: ['index.js'],
+    },
+  ],
+  views: {
+    Home:         ['the_good_shepherd'],
+    Worship:      ['the_anatomy_of_worship', 'quarterly_worship', 'the_pentecost'],
+    Mission:      ['the_great_commission', 'the_gospel_invitation', 'the_harvest', 'the_way', 'the_truth', 'fishing_for_men', 'fishing_for_data'],
+    Comms:        ['the_fellowship', 'the_announcements', 'the_prayer_chain'],
+    Care:         ['the_fold', 'the_life', 'the_seasons', 'the_call_to_forgive', 'prayerful_action'],
+    Discipleship: [
+      'the_growth', 'the_gospel_courses', 'the_gospel_quizzes', 'the_gospel_reading',
+      'the_gospel_theology', 'the_gospel_teaching_plans', 'the_gospel_lexicon',
+      'the_gospel_library', 'the_gospel_devotionals', 'the_gospel_apologetics',
+      'the_gospel_counseling', 'the_gospel_heart', 'the_gospel_mirror',
+      'the_gospel_genealogy', 'the_gospel_journal', 'the_gospel_certificates',
+      'the_gospel_analytics',
+    ],
+    Stewardship:  ['the_gift_drift', 'the_weavers_plan'],
+    Legacy:       ['the_generations'],
+    Build:        ['the_wall', 'bezalel', 'content-admin', 'the_invitation', 'software_deployment_referral', 'about_flockos', 'learn_more'],
+  },
+};
+
+function _depMapPanelMarkup() {
+  const totalScripts = _DEP_MAP.layers.reduce((n, l) => n + l.scripts.length, 0);
+  const totalViews   = Object.values(_DEP_MAP.views).flat().length;
+  const totalGlobals = _DEP_MAP.layers
+    .flatMap(l => l.scripts)
+    .filter(s => typeof s === 'object' && s.global).length;
+
+  const pill = (label, color) =>
+    `<span style="font-size:.68rem;font-weight:700;padding:2px 8px;border-radius:99px;background:${color}20;color:${color};border:1px solid ${color}40;">${label}</span>`;
+
+  const layerColors = {
+    'defer-script': '#d97706',
+    'module':       '#6366f1',
+  };
+
+  const scriptLine = (s, indent = '│   ') => {
+    if (typeof s === 'string') {
+      return `${indent}<span style="color:var(--ink-muted)">${_e(s)}</span>\n`;
+    }
+    const g = s.global ? ` <span style="color:#10b981;font-weight:600;">→ window.${_e(s.global)}</span>` : '';
+    return `${indent}<span style="color:var(--ink)">${_e(s.file)}</span>${g}<span style="color:var(--ink-muted);font-size:.75em;">  ${_e(s.role)}</span>\n`;
+  };
+
+  const layerBlocks = _DEP_MAP.layers.map((l, i) => {
+    const color = layerColors[l.type] || '#6366f1';
+    const isLast = i === _DEP_MAP.layers.length - 1;
+    const connector = isLast ? '└─' : '├─';
+    const childPfx  = isLast ? '    ' : '│   ';
+    const scripts = l.scripts.map(s => scriptLine(s, childPfx)).join('');
+    return `${connector} <span style="color:${color};font-weight:700;">[${_e(l.name)}]</span>  <span style="color:var(--ink-muted);font-size:.8em;">${_e(l.role)}</span>\n${scripts}`;
+  }).join('\n');
+
+  const viewBlocks = Object.entries(_DEP_MAP.views).map(([cat, views], i, arr) => {
+    const isLast = i === arr.length - 1;
+    const connector = isLast ? '    └─' : '    ├─';
+    const names = views.map(v => `<span style="color:#6366f1">${_e(v)}</span>`).join('  ');
+    return `${connector} <span style="color:#0ea5e9;font-weight:600;">${_e(cat)}</span>  ${names}`;
+  }).join('\n');
+
+  const tree = `<span style="color:var(--gold);font-weight:700;">New Covenant PWA</span>  ·  <span style="color:var(--ink-muted)">index.html</span>
+│
+${layerBlocks}
+├─ <span style="color:#0ea5e9;font-weight:700;">[Views]</span>  <span style="color:var(--ink-muted);font-size:.8em;">Lazy dynamic imports via the_ark.js — ${totalViews} registered</span>
+${viewBlocks}`;
+
+  return `
+<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:18px;">
+  <div class="inv-stat-card" style="flex:1;min-width:120px;padding:12px 16px;">
+    <div class="inv-stat-n" style="color:#6366f1;font-size:1.4rem;">${totalScripts}</div>
+    <div class="inv-stat-label">Scripts</div>
+  </div>
+  <div class="inv-stat-card" style="flex:1;min-width:120px;padding:12px 16px;">
+    <div class="inv-stat-n" style="color:#0ea5e9;font-size:1.4rem;">${totalViews}</div>
+    <div class="inv-stat-label">Views</div>
+  </div>
+  <div class="inv-stat-card" style="flex:1;min-width:120px;padding:12px 16px;">
+    <div class="inv-stat-n" style="color:#10b981;font-size:1.4rem;">${totalGlobals}</div>
+    <div class="inv-stat-label">Window Globals</div>
+  </div>
+  <div class="inv-stat-card" style="flex:1;min-width:120px;padding:12px 16px;">
+    <div class="inv-stat-n" style="color:#d97706;font-size:1.4rem;">${_DEP_MAP.layers.length}</div>
+    <div class="inv-stat-label">Layers</div>
+  </div>
+</div>
+
+<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
+  <div style="font-size:.82rem;color:var(--ink-muted);">
+    Architecture tree — entry point → layers → views.
+    ${pill('defer', '#d97706')} = classic script &nbsp; ${pill('module', '#6366f1')} = ES module &nbsp;
+    <span style="color:#10b981;font-weight:600;">→ window.X</span> = global exposed via bridge
+  </div>
+  <div style="display:flex;gap:8px;">
+    <button class="flock-btn flock-btn--ghost" style="font-size:.78rem;padding:6px 14px;" data-act="dm-copy-tree">📋 Copy tree</button>
+    <button class="flock-btn flock-btn--ghost" style="font-size:.78rem;padding:6px 14px;" data-act="dm-copy-json">{ } Copy JSON</button>
+  </div>
+</div>
+
+<pre id="dm-tree-pre" style="background:var(--bg-sunken);border:1px solid var(--line);border-radius:10px;
+  padding:16px;font-size:.74rem;line-height:1.7;overflow-x:auto;white-space:pre-wrap;word-break:break-word;
+  max-height:640px;overflow-y:auto;color:var(--ink);font-family:monospace;margin:0;">${tree}</pre>
+`;
+}
+
+function _wireDepMapPanel(root) {
+  const panel = root.querySelector('[data-wall-panel="depmap"]');
+  if (!panel) return;
+
+  const _copy = async (text, btn, label) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      btn.textContent = '✓ Copied!';
+    } catch (_) {
+      btn.textContent = 'Select text manually';
+    }
+    setTimeout(() => { btn.textContent = label; }, 2500);
+  };
+
+  panel.querySelector('[data-act="dm-copy-tree"]')?.addEventListener('click', (e) => {
+    const pre = panel.querySelector('#dm-tree-pre');
+    _copy(pre?.textContent || '', e.currentTarget, '📋 Copy tree');
+  });
+
+  panel.querySelector('[data-act="dm-copy-json"]')?.addEventListener('click', (e) => {
+    _copy(JSON.stringify(_DEP_MAP, null, 2), e.currentTarget, '{ } Copy JSON');
+  });
 }
 
