@@ -981,6 +981,7 @@ flock-tabs [role="tablist"], .tabs-bar {
   transition: color 0.15s;
 }
 .garments-request-link:hover { color: rgba(255,255,255,0.75); }
+.garments-request-sep { color: rgba(255,255,255,0.20); margin: 0 3px; }
 
 /* ════════════════════════════════════════════════════════════════════════════
    SPLASH (the_lampstand)
