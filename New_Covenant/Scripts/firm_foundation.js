@@ -559,8 +559,8 @@ const Nehemiah = (() => {
    * @returns {Promise<Object>} server response
    */
   async function register(opts) {
-    if (!opts.email || !opts.passcode || !opts.firstName) {
-      throw new Error('Email, passcode, and first name are required.');
+    if (!opts.email || !opts.firstName) {
+      throw new Error('Email and first name are required.');
     }
 
     const result = await TheVine.john.auth.register(opts);
