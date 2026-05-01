@@ -431,7 +431,7 @@ function _openMemberSheet(person, V, onReload) {
             <div class="life-sheet-label">Gender</div>
             <select class="life-sheet-input" data-field="gender">
               <option value="">— Select —</option>
-              ${['Male','Female','Non-binary','Prefer not to say'].map(g => `<option value="${_e(g)}"${(person.gender||'') === g ? ' selected' : ''}>${_e(g)}</option>`).join('')}
+              ${['Male','Female'].map(g => `<option value="${_e(g)}"${(person.gender||'') === g ? ' selected' : ''}>${_e(g)}</option>`).join('')}
             </select>
           </div>
         </div>
@@ -1010,7 +1010,7 @@ function _openNewMemberSheet(onReload) {
             <div class="life-sheet-label">Gender</div>
             <select class="life-sheet-input" data-field="gender">
               <option value="">— Select —</option>
-              ${['Male','Female','Non-binary','Prefer not to say'].map(g => `<option value="${_e(g)}">${_e(g)}</option>`).join('')}
+              ${['Male','Female'].map(g => `<option value="${_e(g)}">${_e(g)}</option>`).join('')}
             </select>
           </div>
         </div>
