@@ -288,7 +288,7 @@ html, body {
    ════════════════════════════════════════════════════════════════════════════ */
 .veil-side {
   background: var(--side-bg) !important;
-  padding: 14px 10px 24px; overflow-y: auto;
+  padding: 14px 10px calc(var(--footer-h, 30px) + var(--safe-bottom, 0px) + 24px); overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: rgba(255,255,255,0.10) transparent;
 }
