@@ -12,7 +12,7 @@ export const setMine = (state, view)  => window.UpperRoom?.setPresence?.(state, 
 
 /** Subscribe to presence for a list of uids; onChange receives a map { uid: presence }. */
 export async function watch(uids, onChange) {
-  const M = window.UpperRoom;
+  const M = window.UpperRoom ?? {};
   if (typeof M.watchPresence === 'function') return M.watchPresence(uids, onChange);
   // Fallback: empty.
   onChange({});

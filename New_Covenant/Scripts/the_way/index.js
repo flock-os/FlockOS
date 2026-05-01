@@ -3869,7 +3869,3 @@
   function _fetchQuizResults() {
     return _isFB() ? UpperRoom.listLrnQuizResults({}) : TheVine.flock.call('learning.quizResults.list', {});
   }
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // PUBLIC API
-  // ══════════════════════════════════════════════════════════════════════════

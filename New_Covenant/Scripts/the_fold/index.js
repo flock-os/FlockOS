@@ -286,7 +286,3 @@
       ], function(p) { return _isFB() ? UpperRoom.updateAttendance(p) : TheVine.flock.attendance.update(p); }, id, function(p) { return _isFB() ? UpperRoom.getAttendance(p.id || p) : TheVine.flock.attendance.get(p); });
     }
   }
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // PUBLIC API
-  // ══════════════════════════════════════════════════════════════════════════

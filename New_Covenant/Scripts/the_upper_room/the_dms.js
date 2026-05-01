@@ -29,7 +29,7 @@ export const send      = (threadId, body)  => window.UpperRoom?.sendMessage?.(th
 export const openWith  = (peerEmail) => window.UpperRoom?.createDM?.(peerEmail);
 
 export async function watch(onChange) {
-  const M = window.UpperRoom;
+  const M = window.UpperRoom ?? {};
 
   if (typeof M.listenConversations === 'function') {
     M.listenConversations('dm', (rows) => {

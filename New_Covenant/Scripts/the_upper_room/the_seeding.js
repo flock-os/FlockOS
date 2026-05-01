@@ -14,7 +14,7 @@ export const SEEDS = [
 /** Idempotent: list existing channels by name; create only the seeds that
  *  don't yet exist. Safe to call on every Fellowship mount. */
 export async function ensureSeeds() {
-  const M = window.UpperRoom;
+  const M = window.UpperRoom ?? {};
   if (typeof M.browseChannels !== 'function' || typeof M.createChannel !== 'function') return;
 
   let existing = [];

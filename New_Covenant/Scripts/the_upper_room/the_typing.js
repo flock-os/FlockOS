@@ -18,7 +18,7 @@ export async function ping(channelId) {
 }
 
 export async function watch(channelId, onChange) {
-  const M = window.UpperRoom;
+  const M = window.UpperRoom ?? {};
   if (typeof M.listenTyping === 'function') {
     M.listenTyping(channelId, (uids) => {
       try { onChange(Array.isArray(uids) ? uids : []); } catch (_) {}

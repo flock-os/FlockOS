@@ -913,5 +913,3 @@
     }
     _toast('App data synced (' + total + ' records).', 'success');
   }
-
-  // ── Public API ────────────────────────────────────────────────────────────

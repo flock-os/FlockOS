@@ -8,7 +8,7 @@
 /** Stream messages for a channel. onChange receives an array (oldest-first).
  *  Returns an unsubscribe function. */
 export async function watch(channelId, onChange, { limit = 100 } = {}) {
-  const M = window.UpperRoom;
+  const M = window.UpperRoom ?? {};
 
   if (typeof M.listenMessages === 'function') {
     M.listenMessages(channelId, (rows) => {
