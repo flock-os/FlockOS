@@ -1207,11 +1207,18 @@ function _auditPanelMarkup() {
       Scans the live backend for well-known channels and collections this app expects.
       Anything missing can be created with one click — no manual Firestore work required.
     </p>
-    <div class="wall-audit-actions" style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+    <div class="wall-audit-actions" style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap">
       <button class="flock-btn flock-btn--ghost" data-act="audit-refresh" type="button">Re-scan</button>
       <button class="flock-btn flock-btn--primary" data-act="audit-init-all" type="button">Initialize all missing</button>
-      <button class="flock-btn flock-btn--ghost" data-act="audit-export-xlsx" type="button">⬇ Export to .xlsx</button>
-      <button class="flock-btn flock-btn--ghost" data-act="audit-export-json" type="button">⬇ Export to .json</button>
+    </div>
+    <div class="wall-audit-actions" style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
+      <button class="flock-btn flock-btn--ghost" data-act="audit-export-xlsx" type="button">⬇ Export .xlsx</button>
+      <button class="flock-btn flock-btn--ghost" data-act="audit-export-json" type="button">⬇ Export .json</button>
+      <button class="flock-btn flock-btn--ghost" data-act="audit-download-seed" type="button">⬇ Download seed .json</button>
+      <label class="flock-btn flock-btn--ghost" style="cursor:pointer;margin:0" title="Import a FlockOS JSON file into live Firestore">
+        ⬆ Import .json
+        <input type="file" accept=".json" id="audit-import-input" style="display:none">
+      </label>
     </div>
     <div data-bind="audit-export-msg" style="margin-bottom:10px;font-size:.84rem;min-height:1.2em"></div>
     <div class="wall-audit-list" data-bind="audit-list">
@@ -1227,11 +1234,22 @@ function _wireAuditPanel(root) {
     const btn = e.target.closest('[data-act]');
     if (!btn) return;
     const act = btn.dataset.act;
-    if (act === 'audit-refresh')    return _refreshAudit(root);
-    if (act === 'audit-init-all')  return _initAllMissing(root);
-    if (act === 'audit-init')      return _initOne(root, btn.dataset.id);
-    if (act === 'audit-export-xlsx') return _exportFirestoreXlsx(root, btn);
-    if (act === 'audit-export-json') return _exportFirestoreJson(root, btn);
+    if (act === 'audit-refresh')       return _refreshAudit(root);
+    if (act === 'audit-init-all')      return _initAllMissing(root);
+    if (act === 'audit-init')          return _initOne(root, btn.dataset.id);
+    if (act === 'audit-export-xlsx')   return _exportFirestoreXlsx(root, btn);
+    if (act === 'audit-export-json')   return _exportFirestoreJson(root, btn);
+    if (act === 'audit-download-seed') return _downloadSeedJson(root);
+  });
+  // Wire the import file input
+  const fileInput = root.querySelector('#audit-import-input');
+  if (fileInput) {
+    fileInput.addEventListener('change', async (e) => {
+      const file = e.target.files?.[0];
+      if (file) await _importFirestoreJson(root, file);
+      fileInput.value = '';
+    });
+  }
   });
   // Initial load if user lands directly on audit (deep-link future-proof).
   if (!panel.classList.contains('wall-panel--hidden')) _refreshAudit(root);
@@ -1577,6 +1595,174 @@ async function _exportFirestoreJson(root, btn) {
   const sheets = Object.keys(exportDoc.collections).join(', ');
   setMsg(`✓ Exported ${totalDocs} docs (${sheets}) → ${fname}`, '#16a34a');
   btn.disabled = false; btn.textContent = orig;
+}
+
+/* ── Seed database + JSON import ─────────────────────────────────────────
+   _SEED_DB      — complete fresh-church Firestore structure (no real data)
+   _downloadSeedJson — downloads seed as FlockOS-Firestore-JSON-v1
+   _deserializeFromJson — restores { __type:'timestamp', iso } → Timestamp
+   _importFirestoreJson — reads any v1 JSON and batch-writes to Firestore  */
+
+// Mapping from JSON collection sheet name → Firestore path info.
+// type 'sub'  = churches/{cid}/subPath/{_id}
+// type 'top'  = {path}/{_id}  (top-level collection)
+// 'skip'      = never write (backend-only, e.g. Church root)
+const _IMPORT_MAP = {
+  Church:   { type: 'skip' },
+  Channels: { type: 'sub',  path: 'channels' },
+  Config:   { type: 'sub',  path: 'config'   },
+  Settings: { type: 'sub',  path: 'settings' },
+  Members:  { type: 'sub',  path: 'members'  },
+  Users:    { type: 'top',  path: 'users'    },
+  Messages: { type: 'sub',  path: 'messages' },
+};
+
+// Complete seed — one fresh church, all default docs, all empty collections.
+// null on timestamp fields → serverTimestamp() on import.
+function _buildSeedDb(churchId) {
+  return {
+    __meta: {
+      exportedAt: new Date().toISOString(),
+      churchId,
+      format:  'FlockOS-Firestore-JSON-v1',
+      version: 'seed-1.0',
+      note:    'Fresh seed database for a new FlockOS church. ' +
+               'Import via Admin → Church Audit → Import .json. ' +
+               'Null timestamp fields become server timestamps on import.',
+    },
+    collections: {
+      // Church root is backend-only; included for visibility only — never imported.
+      Church: [
+        { _id: churchId, name: churchId, setupComplete: false, createdAt: null },
+      ],
+      Channels: [
+        { _id: 'general',        name: 'general',        slug: 'general',        type: 'channel', description: 'General discussion',   createdAt: null, messageCount: 0, sortOrder: 1 },
+        { _id: 'announcements',  name: 'announcements',  slug: 'announcements',  type: 'channel', description: 'Church announcements',  createdAt: null, messageCount: 0, sortOrder: 2 },
+        { _id: 'prayer-requests',name: 'prayer-requests',slug: 'prayer-requests',type: 'channel', description: 'Prayer requests',       createdAt: null, messageCount: 0, sortOrder: 3 },
+      ],
+      Config: [
+        { _id: 'general', setupComplete: false, createdAt: null },
+      ],
+      Settings: [
+        { _id: 'notifications', emailEnabled: true, inAppEnabled: true, quietHoursStart: '22:00', quietHoursEnd: '07:00', createdAt: null },
+      ],
+      Members:  [],
+      Users:    [],
+      Messages: [],
+    },
+  };
+}
+
+function _downloadSeedJson(root) {
+  const msgEl = root.querySelector('[data-bind="audit-export-msg"]');
+  const setMsg = (t, c) => { if (msgEl) { msgEl.textContent = t; msgEl.style.color = c || 'var(--ink-muted,#7a7f96)'; } };
+  const churchId = _auditChurchId();
+  const seed  = _buildSeedDb(churchId);
+  const json  = JSON.stringify(seed, null, 2);
+  const blob  = new Blob([json], { type: 'application/json' });
+  const url   = URL.createObjectURL(blob);
+  const fname = `FlockOS-SEED-${churchId}.json`;
+  const a     = Object.assign(document.createElement('a'), { href: url, download: fname });
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  setMsg(`✓ Seed downloaded → ${fname}  (${Object.keys(seed.collections).length} collections, import-ready)`, '#16a34a');
+}
+
+function _deserializeFromJson(val) {
+  if (val === null || val === undefined) return null;
+  if (typeof val === 'object' && val.__type === 'timestamp' && val.iso) {
+    return firebase.firestore.Timestamp.fromDate(new Date(val.iso));
+  }
+  if (Array.isArray(val)) return val.map(_deserializeFromJson);
+  if (typeof val === 'object') {
+    const out = {};
+    for (const [k, v] of Object.entries(val)) out[k] = _deserializeFromJson(v);
+    return out;
+  }
+  return val;
+}
+
+// Promote null on known timestamp field names → serverTimestamp().
+const _TS_FIELDS = new Set(['createdAt','updatedAt','lastUpdated','timestamp','sentAt','publishedAt','lastContact']);
+function _resolveTimestamps(doc) {
+  const out = {};
+  for (const [k, v] of Object.entries(doc)) {
+    out[k] = (v === null && _TS_FIELDS.has(k))
+      ? firebase.firestore.FieldValue.serverTimestamp()
+      : v;
+  }
+  return out;
+}
+
+async function _importFirestoreJson(root, file) {
+  const msgEl = root.querySelector('[data-bind="audit-export-msg"]');
+  const setMsg = (t, c) => { if (msgEl) { msgEl.textContent = t; msgEl.style.color = c || 'var(--ink-muted,#7a7f96)'; } };
+
+  const db = _auditDb();
+  if (!db) return setMsg('Firebase not connected — refresh and try again.', '#b91c1c');
+
+  setMsg('Reading file…');
+  let parsed;
+  try {
+    const text = await file.text();
+    parsed = JSON.parse(text);
+  } catch (err) {
+    return setMsg('Invalid JSON file: ' + (err?.message || String(err)), '#b91c1c');
+  }
+
+  if (parsed?.__meta?.format !== 'FlockOS-Firestore-JSON-v1') {
+    return setMsg('Not a FlockOS JSON file (missing __meta.format). Only FlockOS-Firestore-JSON-v1 files are supported.', '#b91c1c');
+  }
+
+  const churchId = parsed.__meta?.churchId || _auditChurchId();
+  const collections = parsed.collections || {};
+  const churchRef = db.collection('churches').doc(churchId);
+
+  let totalWritten = 0;
+  let totalSkipped = 0;
+  const errors = [];
+
+  for (const [sheetName, rows] of Object.entries(collections)) {
+    const spec = _IMPORT_MAP[sheetName];
+    if (!spec || spec.type === 'skip') { totalSkipped += (rows?.length || 0); continue; }
+    if (!Array.isArray(rows) || !rows.length) continue;
+
+    setMsg(`Importing ${sheetName} (${rows.length} docs)…`);
+
+    // Batch in chunks of 400 (Firestore max is 500 per batch).
+    for (let i = 0; i < rows.length; i += 400) {
+      const chunk = rows.slice(i, i + 400);
+      const batch = db.batch();
+      for (const rawDoc of chunk) {
+        const { _id, ...fields } = rawDoc;
+        if (!_id) continue;
+        const deserialized = _deserializeFromJson(fields);
+        const resolved     = _resolveTimestamps(deserialized);
+        let ref;
+        if (spec.type === 'sub') {
+          ref = churchRef.collection(spec.path).doc(String(_id));
+        } else {
+          ref = db.collection(spec.path).doc(String(_id));
+        }
+        batch.set(ref, resolved, { merge: true });
+      }
+      try {
+        await batch.commit();
+        totalWritten += chunk.length;
+      } catch (err) {
+        errors.push(`${sheetName}: ${err?.message || String(err)}`);
+      }
+    }
+  }
+
+  if (errors.length) {
+    setMsg(`⚠ Import finished with errors. Written: ${totalWritten}, Skipped: ${totalSkipped}. Errors: ${errors.slice(0,3).join(' | ')}`, '#b45309');
+  } else {
+    setMsg(`✓ Import complete — ${totalWritten} docs written to churches/${_e(churchId)}. Skipped: ${totalSkipped} (backend-only).`, '#16a34a');
+    _refreshAudit(root);
+  }
 }
 
 /* ── Maintenance panel ──────────────────────────────────────────────────
