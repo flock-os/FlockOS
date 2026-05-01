@@ -221,10 +221,14 @@ const TheVine = (() => {
     // ── Top progress bar ───────────────────────────────────────────────
     if (window.TopBar) window.TopBar.start();
 
+    try {
+
     // ── Local resolver hook — The Wellspring ───────────────────────────
+    // Wrapped in the outer try so TopBar.done() is guaranteed in the
+    // finally block even if the resolver throws (stale DB, etc.).
     if (typeof _config.LOCAL_RESOLVER === 'function') {
       const localResult = await _config.LOCAL_RESOLVER(action, params);
-      if (localResult !== undefined) { if (window.TopBar) window.TopBar.done(); return localResult; }
+      if (localResult !== undefined) { return localResult; }
     }
 
     if (!baseUrl) throw new Error('TheVine: endpoint URL not configured for action "' + action + '"');
@@ -299,6 +303,11 @@ const TheVine = (() => {
       throw e;
     } finally {
       clearTimeout(timer);
+    }
+
+    } finally {
+      // Outer finally — always releases the TopBar, even when the local
+      // resolver throws or the base URL check fails before reaching fetch.
       if (window.TopBar) window.TopBar.done();
     }
   }
