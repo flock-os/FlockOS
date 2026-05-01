@@ -2,1052 +2,327 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta http-equiv="refresh" content="0; url=Covenant/Nations/Root/FlockOS.html">
-  <script>window.location.replace('Covenant/Nations/Root/FlockOS.html');</script>
-  <title>FlockOS</title>
-  <link rel="icon" type="image/png" href="Covenant/Courts/TheTabernacle/Images/FlockOS_AppIcon.png">
-  <link rel="apple-touch-icon" href="Covenant/Courts/TheTabernacle/Images/FlockOS_AppIcon.png">
-  <meta name="theme-color" content="#faf9f6">
-  <meta name="description" content="FlockOS Suite launcher — apps and deployments.">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
+  <title>FlockOS — Church Technology, Built to Be Shared</title>
+  <link rel="icon" type="image/png" href="New_Covenant/Images/NewCovenant.png">
+  <link rel="apple-touch-icon" href="New_Covenant/Images/NewCovenant.png">
+  <meta name="theme-color" content="#0c1445">
+  <meta name="description" content="FlockOS — complete church management and GROW discipleship tools. Free forever. 210 countries. Built to be shared.">
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="FlockOS — Church Technology, Built to Be Shared">
+  <meta property="og:description" content="Complete pastoral care, member management, discipleship, and outreach. Free forever. 210 countries. 256-bit encrypted.">
+  <meta property="og:image" content="New_Covenant/Images/NewCovenant.png">
+  <meta property="og:type" content="website">
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Cinzel:wght@500;600&family=Merriweather:ital@0;1&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Merriweather:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+
   <style>
-    *,*::before,*::after { box-sizing: border-box; margin: 0; padding: 0; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg:           #faf9f6;
-      --bg-raised:    #ffffff;
-      --bg-deep:      #f0eeea;
-      --ink:          #2c2c2c;
-      --ink-muted:    #525252;
-      --ink-faint:    #a0a0a0;
-      --accent:       #7eaacc;
-      --accent-soft:  rgba(126,170,204,0.12);
-      --gold:         #8B7028;
-      --gold-soft:    rgba(139,112,40,0.15);
-      --line:         #c9c4bc;
-      --line-strong:  #ada69b;
-      --shadow-sm:    0 1px 3px rgba(0,0,0,0.06);
-      --shadow-md:    0 4px 12px rgba(0,0,0,0.06);
-      --shadow-lg:    0 8px 24px rgba(0,0,0,0.08);
-      --font-sans:    'Inter', system-ui, -apple-system, sans-serif;
-      --font-serif:   'Merriweather', Georgia, serif;
-      --font-display: 'Cinzel', serif;
+      --bg:          #09102e;
+      --bg-raised:   #111b44;
+      --bg-card:     #141f4e;
+      --ink:         #eef1fb;
+      --ink-muted:   #9ba8d0;
+      --ink-faint:   #5a6894;
+      --gold:        #e8a838;
+      --gold-soft:   rgba(232,168,56,0.14);
+      --accent:      #5b8dee;
+      --accent-soft: rgba(91,141,238,0.14);
+      --line:        rgba(255,255,255,0.08);
+      --line-strong: rgba(255,255,255,0.14);
+      --shadow-md:   0 6px 24px rgba(0,0,0,0.32);
+      --shadow-lg:   0 12px 40px rgba(0,0,0,0.44);
+      --font:        'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+      --font-serif:  'Merriweather', Georgia, serif;
+      --radius:      20px;
     }
 
     html, body {
-      min-height: 100%;
-      color: var(--ink);
-      font-family: var(--font-sans);
+      height: 100%;
+      font-family: var(--font);
       font-size: 16px;
       line-height: 1.6;
       -webkit-font-smoothing: antialiased;
-      color-scheme: light;
-      scroll-behavior: smooth;
-    }
-
-    body {
-      background:
-        radial-gradient(circle at top left, var(--gold-soft), transparent 34%),
-        radial-gradient(circle at top right, var(--accent-soft), transparent 34%),
-        linear-gradient(180deg, #fffefb 0%, var(--bg) 50%, var(--bg-deep) 100%);
-      background-attachment: fixed;
-    }
-
-    .launcher {
-      max-width: 1080px;
-      margin: 0 auto;
-      padding: 1.6rem 1.25rem 2.5rem;
-      display: flex;
-      flex-direction: column;
-      gap: 1.5rem;
-    }
-
-    /* ── Slim brand header ── */
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-    }
-    .brand img {
-      width: 44px;
-      height: 44px;
-      border-radius: 12px;
-      box-shadow: var(--shadow-sm);
-      background: #fff;
-      padding: 4px;
-    }
-    .brand-text h1 {
-      font-family: var(--font-serif);
-      font-size: 1.25rem;
-      font-weight: 700;
+      background: var(--bg);
       color: var(--ink);
-      letter-spacing: 0;
-      line-height: 1.1;
-    }
-    .brand-text p {
-      font-size: 0.92rem;
-      color: var(--ink-muted);
-      margin-top: 0.1rem;
+      overflow-x: hidden;
     }
 
-    /* ── Section header ── */
-    .section-title {
-      display: flex;
-      align-items: baseline;
-      justify-content: space-between;
-      gap: 0.75rem;
-      padding-inline: 0.15rem;
-    }
-    .section-title h2 {
-      font-size: 0.92rem;
-      font-weight: 700;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: var(--gold);
-    }
-    .section-title small {
-      font-size: 0.9rem;
-      color: var(--ink);
-    }
-
-    /* ── Mission panel ── */
-    .mission {
-      padding: 1rem 1rem 1.05rem;
-      background:
-        linear-gradient(180deg, #ffffff 0%, #fdfbf7 100%);
-      border: 1px solid var(--line);
-      border-radius: 16px;
-      box-shadow: var(--shadow-sm);
-    }
-    .mission h2 {
-      font-size: 0.92rem;
-      font-weight: 700;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: var(--gold);
-      margin-bottom: 0.5rem;
-    }
-    .mission p {
-      font-size: 1rem;
-      color: var(--ink-muted);
-      max-width: 76ch;
-    }
-    .mission-grid {
-      margin-top: 0.8rem;
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 0.65rem;
-    }
-    .mission-point {
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      background: var(--bg-raised);
-      padding: 0.65rem 0.75rem;
-    }
-    .mission-point strong {
-      display: block;
-      font-size: 0.86rem;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: var(--ink);
-      margin-bottom: 0.25rem;
-    }
-    .mission-point span {
-      display: block;
-      font-size: 0.95rem;
-      color: var(--ink-muted);
-      line-height: 1.55;
-    }
-
-    /* ── App grid (3 cards) ── */
-    .app-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 0.85rem;
-    }
-    .app-card {
-      display: flex;
-      align-items: center;
-      gap: 0.85rem;
-      padding: 0.95rem 1rem;
-      background: var(--bg-raised);
-      border: 1px solid var(--line);
-      border-radius: 14px;
-      box-shadow: var(--shadow-sm);
-      text-decoration: none;
-      color: inherit;
-      transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
-      cursor: pointer;
-    }
-    .app-card:hover {
-      transform: translateY(-2px);
-      box-shadow: var(--shadow-md);
-      border-color: var(--accent);
-    }
-    .app-card img {
-      width: 44px;
-      height: 44px;
-      border-radius: 12px;
-      object-fit: contain;
-      background: #fff;
-      padding: 3px;
-      box-shadow: var(--shadow-sm);
-      flex-shrink: 0;
-    }
-    .app-meta {
-      min-width: 0;
-      flex: 1;
-    }
-    .app-name {
-      font-size: 1.04rem;
-      font-weight: 700;
-      color: var(--ink);
-      line-height: 1.2;
-    }
-    .app-tag {
-      font-size: 0.92rem;
-      color: var(--ink-muted);
-      margin-top: 0.15rem;
-    }
-
-    /* ── Deployment chart ── */
-    .chart-shell {
-      padding: 1.1rem 1rem 1.4rem;
-      background: var(--bg-raised);
-      border: 1px solid var(--line);
-      border-radius: 16px;
-      box-shadow: var(--shadow-sm);
-    }
-
-    .org-chart {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      width: 100%;
-    }
-    .org-root, .org-branch-row {
-      display: flex;
-      justify-content: center;
-      width: 100%;
-    }
-    .org-stem {
-      width: 2px;
-      height: 28px;
-      background: linear-gradient(180deg, rgba(60,59,110,0.35), rgba(60,59,110,0.08));
-    }
-    .org-branch-row {
-      position: relative;
-      gap: 0.85rem;
-      flex-wrap: wrap;
-    }
-    .org-branch-row::before {
+    body::before {
       content: '';
-      position: absolute;
-      top: 0;
-      left: calc(50% - (var(--branch-span, 0px) / 2));
-      width: var(--branch-span, 0px);
-      height: 2px;
-      background: linear-gradient(90deg, rgba(60,59,110,0.10), rgba(60,59,110,0.30), rgba(60,59,110,0.10));
-    }
-    .org-child-stem {
-      width: 2px;
-      height: 22px;
-      background: linear-gradient(180deg, rgba(60,59,110,0.25), rgba(60,59,110,0.06));
-    }
-
-    .node-card {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      text-align: center;
-      padding: 0.9rem 0.75rem 0.95rem;
-      background: var(--bg-raised);
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      box-shadow: var(--shadow-sm);
-      text-decoration: none;
-      color: inherit;
-      width: 100%;
-      transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
-      cursor: pointer;
-    }
-    .node-card:hover {
-      transform: translateY(-2px);
-      box-shadow: var(--shadow-md);
-      border-color: var(--accent);
-    }
-    .node-card--root {
-      border-color: rgba(139,112,40,0.28);
-      background:
-        linear-gradient(180deg, #fff, #fdfbf6);
-      max-width: 220px;
-    }
-    .node-icon {
-      width: 56px;
-      height: 56px;
-      border-radius: 14px;
-      object-fit: contain;
-      background: #fff;
-      padding: 4px;
-      box-shadow: var(--shadow-sm);
-      margin-bottom: 0.55rem;
-    }
-    .node-card--root .node-icon {
-      width: 68px;
-      height: 68px;
-    }
-    .node-name {
-      font-size: 0.98rem;
-      font-weight: 700;
-      color: var(--ink);
-      line-height: 1.2;
-    }
-    .node-card--root .node-name { font-size: 1.08rem; }
-    .node-short {
-      font-size: 0.82rem;
-      font-weight: 600;
-      letter-spacing: 0.05em;
-      text-transform: uppercase;
-      color: var(--ink-faint);
-      margin-top: 0.25rem;
-    }
-    .node-badge {
-      margin-top: 0.55rem;
-      font-size: 0.78rem;
-      font-weight: 600;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-      padding: 0.34rem 0.72rem;
-      border-radius: 999px;
-      border: 1px solid var(--line-strong);
-      color: var(--ink);
-      background: var(--accent-soft);
-    }
-    .node-card--root .node-badge {
-      color: var(--gold);
-      background: var(--gold-soft);
-      border-color: rgba(197,164,78,0.35);
-    }
-
-    /* ── Footer ── */
-    .footer {
-      text-align: center;
-      padding-top: 0.5rem;
-    }
-    .footer p {
-      font-family: var(--font-serif);
-      font-style: italic;
-      font-size: 0.95rem;
-      color: var(--ink-muted);
-    }
-    .footer small {
-      display: block;
-      margin-top: 0.3rem;
-      font-size: 0.86rem;
-      color: var(--ink);
-    }
-    .footer .referral-link {
-      display: inline-block;
-      margin-top: 0.65rem;
-      font-size: 0.9rem;
-      font-weight: 700;
-      color: var(--accent);
-      text-decoration: underline;
-      text-underline-offset: 2px;
-    }
-    .footer .referral-link:hover {
-      color: var(--ink);
-    }
-
-    /* ── Manage button in section header ── */
-    .section-actions {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-    .btn-add-church {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.3rem;
-      font-size: 0.8rem;
-      font-weight: 700;
-      letter-spacing: 0.04em;
-      padding: 0.32rem 0.7rem;
-      border-radius: 999px;
-      border: 1px solid var(--accent);
-      background: var(--accent-soft);
-      color: var(--accent);
-      cursor: pointer;
-      transition: background 0.15s, border-color 0.15s, color 0.15s;
-      text-transform: uppercase;
-    }
-    .btn-add-church:hover { background: var(--accent); color: #fff; }
-
-    .btn-export-codex {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.3rem;
-      font-size: 0.8rem;
-      font-weight: 700;
-      letter-spacing: 0.04em;
-      padding: 0.32rem 0.7rem;
-      border-radius: 999px;
-      border: 1px solid var(--gold);
-      background: var(--gold-soft);
-      color: var(--gold);
-      cursor: pointer;
-      transition: background 0.15s, border-color 0.15s, color 0.15s;
-      text-transform: uppercase;
-    }
-    .btn-export-codex:hover { background: var(--gold); color: #fff; }
-
-    /* ── Per-card edit/delete overlay ── */
-    .org-child-wrap {
-      position: relative;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      flex: 1 1 160px;
-      min-width: 150px;
-      max-width: 200px;
-    }
-    .card-actions {
-      position: absolute;
-      top: 26px; /* below stem */
-      right: 0;
-      display: flex;
-      gap: 3px;
-      z-index: 2;
-      opacity: 0;
-      transition: opacity 0.15s;
-    }
-    .org-child-wrap:hover .card-actions,
-    .org-child-wrap:focus-within .card-actions { opacity: 1; }
-    .card-btn {
-      width: 26px;
-      height: 26px;
-      border-radius: 6px;
-      border: 1px solid var(--line-strong);
-      background: var(--bg-raised);
-      cursor: pointer;
-      font-size: 0.75rem;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: background 0.12s, border-color 0.12s;
-      box-shadow: var(--shadow-sm);
-    }
-    .card-btn--edit:hover  { background: var(--accent); border-color: var(--accent); color: #fff; }
-    .card-btn--delete:hover { background: #c0392b; border-color: #c0392b; color: #fff; }
-
-    /* ── Modal ── */
-    .modal-overlay {
-      display: none;
       position: fixed;
       inset: 0;
-      background: rgba(0,0,0,0.45);
-      z-index: 1000;
-      align-items: center;
-      justify-content: center;
-      padding: 1rem;
+      background:
+        radial-gradient(ellipse 80% 50% at 50% -10%, rgba(91,141,238,0.18) 0%, transparent 70%),
+        radial-gradient(ellipse 60% 40% at 80% 100%, rgba(232,168,56,0.10) 0%, transparent 60%);
+      pointer-events: none;
+      z-index: 0;
     }
-    .modal-overlay.open { display: flex; }
-    .modal {
-      background: var(--bg-raised);
-      border: 1px solid var(--line);
-      border-radius: 18px;
-      box-shadow: var(--shadow-lg);
-      width: 100%;
-      max-width: 520px;
-      max-height: 90vh;
-      overflow-y: auto;
-      padding: 1.5rem;
+
+    .page {
+      position: relative;
+      z-index: 1;
       display: flex;
       flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      padding: 3rem 1.25rem 4rem;
+      gap: 3rem;
+    }
+
+    /* Hero */
+    .hero {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
       gap: 1rem;
+      max-width: 640px;
     }
-    .modal-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-    .modal-title {
-      font-size: 1.05rem;
-      font-weight: 700;
-      color: var(--ink);
-    }
-    .modal-close {
-      width: 30px;
-      height: 30px;
-      border: none;
-      background: none;
-      font-size: 1.3rem;
-      color: var(--ink-muted);
-      cursor: pointer;
-      border-radius: 6px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .modal-close:hover { background: var(--bg-deep); color: var(--ink); }
-    .field {
-      display: flex;
-      flex-direction: column;
-      gap: 0.3rem;
-    }
-    .field label {
-      font-size: 0.82rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: var(--ink-muted);
-    }
-    .field input, .field textarea {
-      padding: 0.55rem 0.7rem;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      font-size: 0.95rem;
-      font-family: var(--font-sans);
-      color: var(--ink);
-      background: var(--bg);
-      width: 100%;
-      transition: border-color 0.15s;
-    }
-    .field input:focus, .field textarea:focus {
-      outline: none;
-      border-color: var(--accent);
-    }
-    .field textarea { resize: vertical; min-height: 72px; }
-    .icon-picker {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(52px, 1fr));
-      gap: 0.5rem;
-    }
-    .icon-opt {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 3px;
-      padding: 5px;
-      border: 2px solid var(--line);
-      border-radius: 10px;
-      cursor: pointer;
-      transition: border-color 0.12s, background 0.12s;
-      background: var(--bg);
-    }
-    .icon-opt:hover { border-color: var(--accent); background: var(--accent-soft); }
-    .icon-opt.selected { border-color: var(--accent); background: var(--accent-soft); }
-    .icon-opt img { width: 36px; height: 36px; object-fit: contain; border-radius: 8px; }
-    .icon-opt span { font-size: 0.6rem; color: var(--ink-muted); text-align: center; line-height: 1.1; }
-    .modal-footer {
-      display: flex;
-      gap: 0.6rem;
-      justify-content: flex-end;
-    }
-    .btn-save {
-      padding: 0.5rem 1.2rem;
-      border: none;
-      border-radius: 999px;
-      background: var(--accent);
-      color: #fff;
-      font-weight: 700;
-      font-size: 0.9rem;
-      cursor: pointer;
-      transition: opacity 0.15s;
-    }
-    .btn-save:hover { opacity: 0.85; }
-    .btn-cancel {
-      padding: 0.5rem 1rem;
-      border: 1px solid var(--line-strong);
-      border-radius: 999px;
-      background: none;
-      color: var(--ink-muted);
-      font-size: 0.9rem;
-      cursor: pointer;
-    }
-    .btn-cancel:hover { background: var(--bg-deep); color: var(--ink); }
 
-    /* ── Export panel ── */
-    .export-panel {
-      display: none;
-      flex-direction: column;
+    .hero-wordmark {
+      display: flex;
+      align-items: center;
       gap: 0.6rem;
     }
-    .export-panel.open { display: flex; }
-    .export-panel label {
-      font-size: 0.82rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: var(--ink-muted);
+
+    .hero-wordmark img {
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
     }
-    .export-panel textarea {
-      font-family: 'Courier New', monospace;
-      font-size: 0.78rem;
-      padding: 0.7rem;
-      border: 1px solid var(--line);
-      border-radius: 10px;
-      background: var(--bg-deep);
-      color: var(--ink);
-      width: 100%;
-      height: 180px;
-      resize: vertical;
-    }
-    .btn-copy {
-      align-self: flex-end;
-      padding: 0.4rem 1rem;
-      border: 1px solid var(--accent);
-      border-radius: 999px;
-      background: var(--accent-soft);
-      color: var(--accent);
-      font-weight: 700;
-      font-size: 0.82rem;
-      cursor: pointer;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-    }
-    .btn-copy:hover { background: var(--accent); color: #fff; }
-    .copy-notice {
-      font-size: 0.82rem;
+
+    .hero-wordmark span {
+      font-size: 1.5rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
       color: var(--gold);
-      font-weight: 600;
-      text-align: right;
-      min-height: 1.2em;
     }
 
-    /* ── Responsive ── */
-    @media (max-width: 720px) {
-      .org-branch-row::before { display: none; }
-      .org-child-wrap {
-        flex: 0 1 calc(50% - 0.45rem);
-        max-width: none;
-      }
+    .hero h1 {
+      font-size: clamp(2rem, 5vw, 2.9rem);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1.1;
+      color: var(--ink);
     }
-    @media (max-width: 480px) {
-      .org-branch-row {
-        flex-direction: column;
-        align-items: center;
-        gap: 0;
-      }
-      .org-child-wrap {
-        flex-basis: auto;
-        width: 100%;
-        max-width: 240px;
-      }
-      .org-child-stem { height: 16px; }
+
+    .hero h1 em {
+      font-style: normal;
+      color: var(--gold);
+    }
+
+    .hero p {
+      font-size: 1.08rem;
+      color: var(--ink-muted);
+      max-width: 52ch;
+      line-height: 1.7;
+    }
+
+    .hero-badges {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 0.5rem;
+      margin-top: 0.25rem;
+    }
+
+    .badge {
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      padding: 0.3rem 0.75rem;
+      border-radius: 999px;
+      border: 1px solid var(--line-strong);
+      color: var(--ink-muted);
+      background: rgba(255,255,255,0.04);
+    }
+
+    /* Product cards */
+    .products {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.5rem;
+      width: 100%;
+      max-width: 740px;
+    }
+
+    .product-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 1.1rem;
+      padding: 2.2rem 1.75rem 2rem;
+      background: var(--bg-card);
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-md);
+      text-decoration: none;
+      color: inherit;
+      transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .product-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse 70% 50% at 50% 0%, var(--card-glow, rgba(91,141,238,0.10)), transparent 70%);
+      pointer-events: none;
+    }
+
+    .product-card:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-lg);
+      border-color: var(--card-accent, var(--accent));
+    }
+
+    .product-card--flockos { --card-glow: rgba(91,141,238,0.12); --card-accent: var(--accent); }
+    .product-card--grow    { --card-glow: rgba(232,168,56,0.12);  --card-accent: var(--gold); }
+
+    .product-logo {
+      width: 96px;
+      height: 96px;
+      border-radius: 24px;
+      object-fit: contain;
+      box-shadow: var(--shadow-md);
+      position: relative;
+      z-index: 1;
+    }
+
+    .product-name {
+      font-size: 1.5rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      position: relative;
+      z-index: 1;
+    }
+
+    .product-card--flockos .product-name { color: #a0beff; }
+    .product-card--grow    .product-name { color: var(--gold); }
+
+    .product-desc {
+      font-size: 0.97rem;
+      color: var(--ink-muted);
+      line-height: 1.6;
+      max-width: 30ch;
+      position: relative;
+      z-index: 1;
+    }
+
+    .product-cta {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.88rem;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      padding: 0.55rem 1.3rem;
+      border-radius: 999px;
+      border: 1px solid var(--card-accent, var(--accent));
+      color: var(--card-accent, var(--accent));
+      background: transparent;
+      transition: background 0.15s, color 0.15s;
+      position: relative;
+      z-index: 1;
+    }
+
+    .product-card:hover .product-cta {
+      background: var(--card-accent, var(--accent));
+      color: #fff;
+    }
+
+    /* Footer verse */
+    .verse {
+      text-align: center;
+      max-width: 52ch;
+    }
+
+    .verse p {
+      font-family: var(--font-serif);
+      font-style: italic;
+      font-size: 1rem;
+      color: var(--ink-faint);
+      line-height: 1.7;
+    }
+
+    .verse cite {
+      display: block;
+      margin-top: 0.4rem;
+      font-family: var(--font);
+      font-style: normal;
+      font-size: 0.82rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--gold);
+    }
+
+    .verse small {
+      display: block;
+      margin-top: 0.9rem;
+      font-size: 0.8rem;
+      color: var(--ink-faint);
+    }
+
+    @media (max-width: 600px) {
+      .page { padding: 2rem 1rem 3rem; gap: 2.25rem; }
+      .product-logo { width: 80px; height: 80px; }
     }
   </style>
 </head>
 <body>
 
-  <main class="launcher">
+  <div class="page">
 
-    <header class="brand">
-      <img src="Covenant/Courts/TheTabernacle/Images/FlockOS_AppIcon.png" alt="FlockOS">
-      <div class="brand-text">
-        <h1>FlockOS Suite</h1>
-        <p>Apps and deployments — one launcher.</p>
+    <header class="hero">
+      <div class="hero-wordmark">
+        <img src="New_Covenant/Images/NewCovenant.png" alt="FlockOS">
+        <span>FlockOS</span>
+      </div>
+      <h1>Church technology<br><em>built to be shared.</em></h1>
+      <p>Complete pastoral care, discipleship, and outreach tools. Google Sheets, Firebase, or fully offline. Free forever.</p>
+      <div class="hero-badges">
+        <span class="badge">210 Countries</span>
+        <span class="badge">256-bit Encrypted</span>
+        <span class="badge">Offline-Capable</span>
+        <span class="badge">Free Forever</span>
       </div>
     </header>
 
-    <section class="mission" aria-label="Mission and architecture overview">
-      <h2>Mission &amp; Architecture</h2>
-      <p>
-        FlockOS is built to help churches move from intention to action with clarity. Its architecture keeps a single master source,
-        then distributes consistent builds to church environments, reducing deployment friction while preserving local reliability.
-      </p>
-      <div class="mission-grid">
-        <article class="mission-point">
-          <strong>Security Posture</strong>
-          <span>Least-privilege access rules, explicit deployment targets, and auditable configuration boundaries support responsible stewardship of church data.</span>
-        </article>
-        <article class="mission-point">
-          <strong>Rapid Deployment</strong>
-          <span>One coordinated build pipeline propagates updates across branches, enabling faster rollout with fewer manual steps and less drift.</span>
-        </article>
-        <article class="mission-point">
-          <strong>Operational Confidence</strong>
-          <span>Offline-capable experiences and shared core patterns help teams deliver dependable service across diverse church contexts.</span>
-        </article>
-      </div>
+    <section class="products" aria-label="Products">
+
+      <a class="product-card product-card--flockos" href="Nations/Root/">
+        <img class="product-logo" src="New_Covenant/Images/NewCovenant.png" alt="FlockOS">
+        <div class="product-name">FlockOS</div>
+        <p class="product-desc">Church management, member care, discipleship, and pastoral tools — all in one.</p>
+        <span class="product-cta">Open FlockOS &#8594;</span>
+      </a>
+
+      <a class="product-card product-card--grow" href="Nations/Root/grow-public.html">
+        <img class="product-logo" src="New_Covenant/Images/GrowIcon.png" alt="GROW">
+        <div class="product-name">GROW</div>
+        <p class="product-desc">Daily devotionals, reading plans, and discipleship content. Open to everyone.</p>
+        <span class="product-cta">Open GROW &#8594;</span>
+      </a>
+
     </section>
 
-    <!-- ── Apps ── -->
-    <section>
-      <div class="section-title">
-        <h2>Apps</h2>
-        <small>Open a Tool</small>
-      </div>
-      <div class="app-grid">
-        <a class="app-card" href="Covenant/Nations/Root/FlockOS.html">
-          <img src="Covenant/Courts/TheTabernacle/Images/FlockOS_AppIcon.png" alt="FlockOS">
-          <div class="app-meta">
-            <div class="app-name">FlockOS</div>
-            <div class="app-tag">Church operating system</div>
-          </div>
-        </a>
-        <a class="app-card" href="Covenant/Nations/Root/FlockChat.html">
-          <img src="Covenant/Courts/TheFellowship/FlockChat/Images/FlockChat_AppIcon.png" alt="FlockChat">
-          <div class="app-meta">
-            <div class="app-name">FlockChat</div>
-            <div class="app-tag">Congregational messaging</div>
-          </div>
-        </a>
-        <a class="app-card" href="Covenant/Nations/Root/ATOG.html">
-          <img src="Covenant/Courts/TheUpperRoom/ATOG/Images/ATOG_AppIcon.png" alt="A Touch of the Gospel">
-          <div class="app-meta">
-            <div class="app-name">A Touch of the Gospel</div>
-            <div class="app-tag">Study and formation</div>
-          </div>
-        </a>
-      </div>
-    </section>
-
-    <!-- ── Deployments ── -->
-    <section>
-      <div class="section-title">
-        <h2>Deployments</h2>
-        <div class="section-actions">
-          <small>Church Builds</small>
-          <button class="btn-add-church" onclick="openModal()">+ Add Church</button>
-          <button class="btn-export-codex" onclick="toggleExport()">⬇ Export Codex</button>
-        </div>
-      </div>
-      <div class="chart-shell">
-        <div class="org-chart" id="orgChart" aria-live="polite">
-          <div class="org-root">
-            <div class="node-card node-card--root">
-              <div class="node-name">Loading Builds</div>
-              <div class="node-short">Please Wait</div>
-              <span class="node-badge">Loading</span>
-            </div>
-          </div>
-        </div>
-        <div class="export-panel" id="exportPanel">
-          <label>Copy updated builds_codex.js content — paste into Covenant/Courts/TheTabernacle/Scripts/builds_codex.js</label>
-          <textarea id="exportCode" readonly></textarea>
-          <button class="btn-copy" onclick="copyCodex()">Copy to Clipboard</button>
-          <div class="copy-notice" id="copyNotice"></div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ── Church Edit Modal ── -->
-    <div class="modal-overlay" id="modalOverlay" onclick="handleOverlayClick(event)">
-      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
-        <div class="modal-header">
-          <div class="modal-title" id="modalTitle">Add Church Deployment</div>
-          <button class="modal-close" onclick="closeModal()" aria-label="Close">&times;</button>
-        </div>
-        <div class="field">
-          <label>Church Name</label>
-          <input type="text" id="f-name" placeholder="e.g. Trinity Baptist" maxlength="60">
-        </div>
-        <div class="field">
-          <label>Short Label</label>
-          <input type="text" id="f-short" placeholder="e.g. TBC-Indio" maxlength="30">
-        </div>
-        <div class="field">
-          <label>Link (href)</label>
-          <input type="text" id="f-href" placeholder="e.g. Covenant/Nations/TBC/FlockOS/Pages/index.html">
-        </div>
-        <div class="field">
-          <label>Alt Text</label>
-          <input type="text" id="f-alt" placeholder="e.g. Trinity Baptist Church" maxlength="60">
-        </div>
-        <div class="field">
-          <label>Description</label>
-          <textarea id="f-desc" placeholder="Short description of this deployment…"></textarea>
-        </div>
-        <div class="field">
-          <label>Badge Text</label>
-          <input type="text" id="f-badge" placeholder="Open Deployment" maxlength="40">
-        </div>
-        <div class="field">
-          <label>Icon</label>
-          <div class="icon-picker" id="iconPicker"></div>
-          <input type="hidden" id="f-image">
-        </div>
-        <div class="modal-footer">
-          <button class="btn-cancel" onclick="closeModal()">Cancel</button>
-          <button class="btn-save" onclick="saveChurch()">Save</button>
-        </div>
-      </div>
-    </div>
-
-    <footer class="footer">
-      <p>&ldquo;Go therefore and make disciples of all nations&hellip;&rdquo; &mdash;&nbsp;Matthew 28:19</p>
-      <small>Soli Deo Gloria | FlockOS | Built to be Shared</small>
-      <a class="referral-link" href="Covenant/Courts/TheTabernacle/Pages/software_deployment_referral.html">Refer a Pastor who would benefit from FlockOS</a>
+    <footer class="verse">
+      <p>"Go therefore and make disciples of all nations, baptizing them in the name of the Father and of the Son and of the Holy Spirit."</p>
+      <cite>Matthew 28:19</cite>
+      <small>Soli Deo Gloria &mdash; FlockOS &mdash; Built to Be Shared</small>
     </footer>
 
-  </main>
-
-  <script>
-    /* ── Constants ──────────────────────────────────────────────────── */
-    const LS_KEY = 'flock.builds.deployments';
-    const ICONS = [
-      { file: 'FlockOS_AppIcon.png',   label: 'Default'   },
-      { file: 'FlockOS_Pink.png',      label: 'Pink'      },
-      { file: 'FlockOS_Blue.png',      label: 'Blue'      },
-      { file: 'FlockOS_Green.png',     label: 'Green'     },
-      { file: 'FlockOS_Orange.png',    label: 'Orange'    },
-      { file: 'FlockOS_Red.png',       label: 'Red'       },
-      { file: 'FlockOS_White.png',     label: 'White'     },
-      { file: 'FlockOS_Midnight.png',  label: 'Midnight'  },
-      { file: 'FlockOS_BurntOrange.png', label: 'Burnt Or.' },
-      { file: 'FlockOS_BlueBirds.png', label: 'BlueBirds' },
-      { file: 'FlockOS_Angels.png',    label: 'Angels'    },
-      { file: 'FlockOS_Camo.png',      label: 'Camo'      },
-      { file: 'FlockOS_OD.png',        label: 'OD'        },
-    ];
-    const IMG_BASE = 'Covenant/Courts/TheTabernacle/Images/';
-
-    /* ── State ──────────────────────────────────────────────────────── */
-    let _editIndex = null;  // null = add, number = editing deployment at that index
-    let _deployments = [];  // live array (base codex + localStorage overrides)
-    let _baseRoot = {};
-
-    /* ── HTML escape ────────────────────────────────────────────────── */
-    function escapeHtml(value) {
-      return String(value || '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
-    }
-
-    /* ── LocalStorage helpers ───────────────────────────────────────── */
-    function _loadOverrides() {
-      try {
-        const raw = localStorage.getItem(LS_KEY);
-        if (raw) return JSON.parse(raw);
-      } catch (_) {}
-      return null;
-    }
-    function _saveOverrides(arr) {
-      try { localStorage.setItem(LS_KEY, JSON.stringify(arr)); } catch (_) {}
-    }
-    function _clearOverrides() {
-      try { localStorage.removeItem(LS_KEY); } catch (_) {}
-    }
-
-    /* ── Markup ─────────────────────────────────────────────────────── */
-    function normalizeRoot(root) {
-      const out = Object.assign({}, root || {});
-      if (/Covenant\/Gate\/SuiteGate\/index\.html/i.test(out.href || '') ||
-          /FlockOS_Churches\.html/i.test(out.href || '') ||
-          /^Covenant\/Nations\/FlockOS\/index\.html$/i.test(out.href || '')) {
-        out.href = 'Covenant/Nations/Root/FlockOS.html';
-      }
-      return out;
-    }
-
-    function rootMarkup(root) {
-      return '<div class="org-root">'
-        + '<a class="node-card node-card--root" href="' + escapeHtml(root.href || 'Covenant/Nations/Root/FlockOS.html') + '">'
-        + '<img class="node-icon" src="' + escapeHtml(root.image || IMG_BASE + 'FlockOS_AppIcon.png') + '" alt="' + escapeHtml(root.alt || root.name || 'FlockOS') + '">'
-        + '<div class="node-name">' + escapeHtml(root.name || 'FlockOS') + '</div>'
-        + '<div class="node-short">' + escapeHtml(root.short || 'Master Build') + '</div>'
-        + '<span class="node-badge">' + escapeHtml(root.badge || 'Open Master Build') + '</span>'
-        + '</a>'
-        + '</div>';
-    }
-
-    function deploymentMarkup(item, idx) {
-      return '<div class="org-child-wrap">'
-        + '<div class="card-actions">'
-        + '  <button class="card-btn card-btn--edit" title="Edit" onclick="openModal(' + idx + ')" aria-label="Edit ' + escapeHtml(item.name) + '">✏</button>'
-        + '  <button class="card-btn card-btn--delete" title="Delete" onclick="deleteChurch(' + idx + ')" aria-label="Delete ' + escapeHtml(item.name) + '">✕</button>'
-        + '</div>'
-        + '<div class="org-child-stem"></div>'
-        + '<a class="node-card" href="' + escapeHtml(item.href || '#') + '">'
-        + '<img class="node-icon" src="' + escapeHtml(item.image || IMG_BASE + 'FlockOS_AppIcon.png') + '" alt="' + escapeHtml(item.alt || item.name || 'Deployment') + '">'
-        + '<div class="node-name">' + escapeHtml(item.name || 'Deployment') + '</div>'
-        + '<div class="node-short">' + escapeHtml(item.short || '') + '</div>'
-        + '<span class="node-badge">' + escapeHtml(item.badge || 'Open Deployment') + '</span>'
-        + '</a>'
-        + '</div>';
-    }
-
-    /* ── Render ─────────────────────────────────────────────────────── */
-    function renderChart() {
-      const chart = document.getElementById('orgChart');
-      if (!chart) return;
-      let html = rootMarkup(_baseRoot);
-      if (_deployments.length) {
-        html += '<div class="org-stem"></div>';
-        html += '<div class="org-branch-row" id="branchRow">';
-        _deployments.forEach(function(d, i) { html += deploymentMarkup(d, i); });
-        html += '</div>';
-      }
-      chart.innerHTML = html;
-      updateBranchSpan();
-      updateExport();
-    }
-
-    function updateBranchSpan() {
-      const row = document.getElementById('branchRow');
-      if (!row) return;
-      const kids = Array.from(row.querySelectorAll('.org-child-wrap'));
-      if (kids.length < 2) return;
-      const first = kids[0].getBoundingClientRect();
-      const last  = kids[kids.length - 1].getBoundingClientRect();
-      const span  = (last.left + last.width / 2) - (first.left + first.width / 2);
-      row.style.setProperty('--branch-span', Math.max(0, span) + 'px');
-    }
-
-    /* ── Initial load ───────────────────────────────────────────────── */
-    function loadChart() {
-      if (!window.FLOCK_BUILDS_DATA) {
-        const chart = document.getElementById('orgChart');
-        if (chart) chart.innerHTML = '<div class="org-root"><div class="node-card node-card--root"><div class="node-name">Builds Unavailable</div><div class="node-short">Load Error</div><span class="node-badge">Review builds_codex.js</span></div></div>';
-        return;
-      }
-      _baseRoot = normalizeRoot(window.FLOCK_BUILDS_DATA.root);
-      const base = Array.isArray(window.FLOCK_BUILDS_DATA.deployments)
-        ? window.FLOCK_BUILDS_DATA.deployments : [];
-      const saved = _loadOverrides();
-      _deployments = saved !== null ? saved : base.slice();
-      buildIconPicker();
-      renderChart();
-    }
-
-    /* ── Icon picker ────────────────────────────────────────────────── */
-    function buildIconPicker() {
-      const picker = document.getElementById('iconPicker');
-      if (!picker) return;
-      picker.innerHTML = ICONS.map(function(ic) {
-        const path = IMG_BASE + ic.file;
-        return '<div class="icon-opt" data-img="' + escapeHtml(path) + '" onclick="selectIcon(this)" tabindex="0">'
-          + '<img src="' + escapeHtml(path) + '" alt="' + escapeHtml(ic.label) + '">'
-          + '<span>' + escapeHtml(ic.label) + '</span>'
-          + '</div>';
-      }).join('');
-    }
-
-    function selectIcon(el) {
-      document.querySelectorAll('.icon-opt').forEach(function(o) { o.classList.remove('selected'); });
-      el.classList.add('selected');
-      document.getElementById('f-image').value = el.dataset.img;
-    }
-
-    function setSelectedIcon(imgPath) {
-      document.querySelectorAll('.icon-opt').forEach(function(o) {
-        o.classList.toggle('selected', o.dataset.img === imgPath);
-      });
-      document.getElementById('f-image').value = imgPath || '';
-    }
-
-    /* ── Modal open/close ───────────────────────────────────────────── */
-    function openModal(idx) {
-      _editIndex = (typeof idx === 'number') ? idx : null;
-      const overlay = document.getElementById('modalOverlay');
-      document.getElementById('modalTitle').textContent =
-        _editIndex !== null ? 'Edit Church Deployment' : 'Add Church Deployment';
-
-      // Populate form
-      const d = _editIndex !== null ? _deployments[_editIndex] : {};
-      document.getElementById('f-name').value  = d.name        || '';
-      document.getElementById('f-short').value = d.short       || '';
-      document.getElementById('f-href').value  = d.href        || '';
-      document.getElementById('f-alt').value   = d.alt         || '';
-      document.getElementById('f-desc').value  = d.description || '';
-      document.getElementById('f-badge').value = d.badge       || 'Open Deployment';
-      setSelectedIcon(d.image || (IMG_BASE + 'FlockOS_AppIcon.png'));
-
-      overlay.classList.add('open');
-      document.getElementById('f-name').focus();
-    }
-
-    function closeModal() {
-      document.getElementById('modalOverlay').classList.remove('open');
-      _editIndex = null;
-    }
-
-    function handleOverlayClick(e) {
-      if (e.target === document.getElementById('modalOverlay')) closeModal();
-    }
-
-    /* ── Save ───────────────────────────────────────────────────────── */
-    function saveChurch() {
-      const name = document.getElementById('f-name').value.trim();
-      if (!name) { document.getElementById('f-name').focus(); return; }
-      const entry = {
-        type:        'deployment',
-        name:        name,
-        short:       document.getElementById('f-short').value.trim(),
-        href:        document.getElementById('f-href').value.trim(),
-        alt:         document.getElementById('f-alt').value.trim() || name,
-        description: document.getElementById('f-desc').value.trim(),
-        badge:       document.getElementById('f-badge').value.trim() || 'Open Deployment',
-        image:       document.getElementById('f-image').value || (IMG_BASE + 'FlockOS_AppIcon.png'),
-      };
-      if (_editIndex !== null) {
-        _deployments[_editIndex] = entry;
-      } else {
-        _deployments.push(entry);
-      }
-      _saveOverrides(_deployments);
-      closeModal();
-      renderChart();
-    }
-
-    /* ── Delete ─────────────────────────────────────────────────────── */
-    function deleteChurch(idx) {
-      const name = (_deployments[idx] || {}).name || 'this deployment';
-      if (!confirm('Delete "' + name + '"? This cannot be undone from the UI.')) return;
-      _deployments.splice(idx, 1);
-      _saveOverrides(_deployments);
-      renderChart();
-    }
-
-    /* ── Export ─────────────────────────────────────────────────────── */
-    function toggleExport() {
-      const panel = document.getElementById('exportPanel');
-      panel.classList.toggle('open');
-      if (panel.classList.contains('open')) updateExport();
-    }
-
-    function updateExport() {
-      const ta = document.getElementById('exportCode');
-      if (!ta) return;
-      const root = _baseRoot;
-      const deps = _deployments;
-      const rootStr = JSON.stringify(root, null, 2).split('\n').map(function(l){ return '    ' + l; }).join('\n');
-      const depsStr = deps.map(function(d) {
-        return JSON.stringify(d, null, 2).split('\n').map(function(l){ return '      ' + l; }).join('\n');
-      }).join(',\n');
-      ta.value =
-        '// HAND-MAINTAINED — keep in sync with Architechtural Docs/Old Covenant/Runbooks/Builds.md\n'
-        + '// Used by FlockOS_Churches.html — eliminates fetch() so the page works locally (file://).\n'
-        + '// To update: edit Builds.md AND this file together.\n\n'
-        + 'window.FLOCK_BUILDS_DATA = {\n'
-        + '  root:\n' + rootStr + ',\n'
-        + '  deployments: [\n'
-        + depsStr + '\n'
-        + '  ]\n'
-        + '};\n';
-    }
-
-    function copyCodex() {
-      const ta = document.getElementById('exportCode');
-      ta.select();
-      try {
-        document.execCommand('copy');
-        const n = document.getElementById('copyNotice');
-        n.textContent = 'Copied! Paste into builds_codex.js then run a BCP to distribute.';
-        setTimeout(function() { n.textContent = ''; }, 4000);
-      } catch (_) {}
-    }
-
-    window.addEventListener('load', loadChart);
-    window.addEventListener('resize', updateBranchSpan);
-  </script>
-
-  <script src="Covenant/Courts/TheTabernacle/Scripts/builds_codex.js"></script>
+  </div>
 
 </body>
 </html>
