@@ -931,6 +931,22 @@ function _wireWellspringPanel(root) {
 
 function _getWS() { return window.TheWellspring || null; }
 
+// SheetJS is not bundled in the main app shell (heavy library, rarely needed).
+// We lazy-load it from CDN the first time import or export is triggered.
+let _sheetJsPromise = null;
+function _ensureSheetJS() {
+  if (typeof XLSX !== 'undefined') return Promise.resolve();
+  if (_sheetJsPromise) return _sheetJsPromise;
+  _sheetJsPromise = new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js';
+    s.onload  = () => resolve();
+    s.onerror = () => { _sheetJsPromise = null; reject(new Error('Could not load SheetJS. Check internet connection.')); };
+    document.head.appendChild(s);
+  });
+  return _sheetJsPromise;
+}
+
 async function _refreshWellspringStatus(root) {
   const panel = root.querySelector('[data-wall-panel="wellspring"]');
   if (!panel) return;
@@ -965,8 +981,8 @@ async function _refreshWellspringStatus(root) {
     }
     if (toggleLbl) toggleLbl.textContent = active ? 'On' : 'Off';
     if (fileName) fileName.textContent = st.fileName || '—';
-    if (tabs)     tabs.textContent = st.tabs != null ? st.tabs : '—';
-    if (rows)     rows.textContent = st.rows != null ? st.rows.toLocaleString() : '—';
+    if (tabs)     tabs.textContent = st.tabCount != null ? st.tabCount : '—';
+    if (rows)     rows.textContent = st.totalRows != null ? st.totalRows.toLocaleString() : '—';
 
     // Vault
     const vaultExists = WS.vault && await WS.vault.exists();
@@ -1018,11 +1034,19 @@ async function _importWellspringFile(root, file) {
 
   if (!WS) { setStatus('Wellspring not available.', '#b91c1c'); return; }
 
-  setStatus('Importing… this may take a moment for large files.');
-  setProgress(0, 'Reading file…');
-
+  setStatus('Loading spreadsheet library…');
+  setProgress(0, 'Loading SheetJS…');
   try {
-    setProgress(10, 'Parsing spreadsheet…');
+    await _ensureSheetJS();
+  } catch (err) {
+    setStatus('Could not load parser: ' + (err?.message || String(err)), '#b91c1c');
+    if (progressWr) progressWr.style.display = 'none';
+    return;
+  }
+
+  setStatus('Importing… this may take a moment for large files.');
+  setProgress(10, 'Parsing spreadsheet…');
+  try {
     await WS.load(file);
     setProgress(100, 'Import complete.');
     setStatus(`✓ Imported "${file.name}" successfully.`, '#16a34a');
@@ -1045,7 +1069,7 @@ async function _vaultSetup(root) {
   if (!pin || pin.length < 6) return setMsg('PIN must be at least 6 characters.', '#b91c1c');
 
   const UR = window.UpperRoom;
-  const session = UR ? { email: UR.currentUser?.().email || '', role: 'admin', source: 'FlockOS' } : { role: 'admin', source: 'FlockOS' };
+  const session = UR ? { email: (typeof UR.userEmail === 'function' ? UR.userEmail() : '') || '', role: 'admin', source: 'FlockOS' } : { role: 'admin', source: 'FlockOS' };
 
   try {
     setMsg('Encrypting vault…');
@@ -1108,9 +1132,18 @@ async function _wellspringExport(root, btn) {
 
   btn.disabled = true;
   const orig = btn.textContent;
-  btn.textContent = 'Exporting…';
+  btn.textContent = 'Loading…';
   setMsg('');
 
+  try {
+    await _ensureSheetJS();
+  } catch (err) {
+    setMsg('Could not load export library: ' + (err?.message || String(err)), '#b91c1c');
+    btn.disabled = false; btn.textContent = orig;
+    return;
+  }
+
+  btn.textContent = 'Exporting…';
   try {
     await WS.exportDB();
     setMsg('✓ Export downloaded.', '#16a34a');
@@ -1135,7 +1168,8 @@ async function _wellspringClear(root, btn) {
 
   try {
     await WS.clearAll();
-    setMsg('Local data cleared. Offline mode has been turned off.', '#b45309');
+    await WS.disable();
+    setMsg('Local data cleared and offline mode turned off.', '#b45309');
     await _refreshWellspringStatus(root);
   } catch (err) {
     setMsg('Clear failed: ' + (err?.message || String(err)), '#b91c1c');

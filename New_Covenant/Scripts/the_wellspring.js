@@ -750,3 +750,8 @@ const TheWellspring = (() => {
   }
 
 })();
+
+// Expose on window so other classic scripts (the_ark.js, Admin panel, etc.)
+// can access it via window.TheWellspring. (const/let at top-level of classic
+// scripts are NOT added to the global object, unlike var.)
+window.TheWellspring = TheWellspring;
