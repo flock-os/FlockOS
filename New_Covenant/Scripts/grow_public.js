@@ -42,6 +42,13 @@ const NAV = [
       { name: 'the_gospel_genealogy',     title: 'Genealogy',          icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="9" y1="11" x2="9" y2="21"/><line x1="5" y1="16" x2="13" y2="16"/></svg>`,                         accent: '#92400e' },
     ],
   },
+  /* About */
+  {
+    section: 'About',
+    items: [
+      { name: 'the_gospel_why', title: 'The Why', icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 2-3 4"/><circle cx="12" cy="17" r=".5" fill="currentColor"/></svg>`, accent: '#e8a838' },
+    ],
+  },
 ];
 
 /* Flat module list for quick lookup */

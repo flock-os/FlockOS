@@ -129,7 +129,7 @@ const SECTIONS = [
       { name: 'the_invitation',              label: 'Invitations',    icon: ICON.userplus },
       { name: 'software_deployment_referral', label: 'Deploy & Refer', icon: ICON.upload },
       { name: 'learn_more',                  label: 'Learn More',     icon: ICON.info },
-      { name: 'about_flockos',               label: 'About FlockOS',  icon: ICON.question },
+      { name: 'about_flockos',               label: 'The Why',        icon: ICON.question },
     ],
   },
 ];
