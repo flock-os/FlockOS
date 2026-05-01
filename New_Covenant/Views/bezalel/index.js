@@ -296,7 +296,7 @@ const _CHURCH_PRESETS = {
 
 const _FIELD_ORDER = [
   'CHURCH_NAME', 'CHURCH_TIMEZONE', 'FIRESTORE_PROJECT_ID', 'FIRESTORE_CHURCH_ID',
-  'SYNC_SECRET', 'MASTER_SYNC_SECRET', 'FIREBASE_SERVICE_ACCOUNT',
+  'SYNC_SECRET', 'MASTER_SYNC_SECRET', 'FIREBASE_SERVICE_ACCOUNT', 'TRUTH_SERVICE_ACCOUNT',
   'ADMIN_EMAIL', 'ADMIN_FIRST', 'ADMIN_LAST', 'ADMIN_PASSWORD', 'NOTIFY_EMAIL',
   'CHURCH_APP_URL',
   'TWILIO_SID', 'TWILIO_TOKEN', 'TWILIO_NUMBER',
@@ -417,6 +417,14 @@ function _churchSetupTab() {
           <textarea id="bz-FIREBASE_SERVICE_ACCOUNT" rows="4" placeholder='{"type":"service_account","project_id":"..."}'
             style="padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);font-size:0.78rem;font-family:monospace;width:100%;box-sizing:border-box;resize:vertical;"></textarea>
           <div style="font-size:0.74rem;color:var(--ink-muted);">GCP Console → IAM → Service Accounts → Download JSON for this church's Firebase project.</div>
+        </div>
+      </div>
+      <div style="grid-column:1/-1;">
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          <label for="bz-TRUTH_SERVICE_ACCOUNT" style="font-size:0.78rem;font-weight:700;color:var(--ink);text-transform:uppercase;letter-spacing:0.04em;">Truth Service Account JSON <span style="font-size:0.72rem;font-weight:400;text-transform:none;color:var(--ink-muted);">Paste full JSON — enables truth seeding from flockos-truth</span></label>
+          <textarea id="bz-TRUTH_SERVICE_ACCOUNT" rows="4" placeholder='{"type":"service_account","project_id":"flockos-truth","client_email":"..."}'
+            style="padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);font-size:0.78rem;font-family:monospace;width:100%;box-sizing:border-box;resize:vertical;"></textarea>
+          <div style="font-size:0.74rem;color:var(--ink-muted);">GCP Console → flockos-truth project → IAM → Service Accounts → Download JSON. Required for <code style="font-family:monospace;background:rgba(0,0,0,0.08);padding:1px 4px;border-radius:3px;">setupTruthSheet()</code> to seed Books, Devotionals, Theology, etc. from Firestore during setup.</div>
         </div>
       </div>
     </div>
@@ -596,7 +604,7 @@ function _bzPlainOutput(root) {
     '  props.setProperties({',
   ];
   Object.entries(props).forEach(([key, raw]) => {
-    const escaped = key === 'FIREBASE_SERVICE_ACCOUNT' ? _bzEscJson(raw) : _bzEsc(raw);
+    const escaped = (key === 'FIREBASE_SERVICE_ACCOUNT' || key === 'TRUTH_SERVICE_ACCOUNT') ? _bzEscJson(raw) : _bzEsc(raw);
     lines.push(`    '${key}': '${escaped}',`);
   });
   lines.push('  });');
