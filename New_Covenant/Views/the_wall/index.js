@@ -1210,7 +1210,9 @@ function _auditPanelMarkup() {
     <div class="wall-audit-actions" style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
       <button class="flock-btn flock-btn--ghost" data-act="audit-refresh" type="button">Re-scan</button>
       <button class="flock-btn flock-btn--primary" data-act="audit-init-all" type="button">Initialize all missing</button>
+      <button class="flock-btn flock-btn--ghost" data-act="audit-export-xlsx" type="button">⬇ Export to .xlsx</button>
     </div>
+    <div data-bind="audit-export-msg" style="margin-bottom:10px;font-size:.84rem;min-height:1.2em"></div>
     <div class="wall-audit-list" data-bind="audit-list">
       <flock-skeleton rows="4"></flock-skeleton>
     </div>
@@ -1224,9 +1226,10 @@ function _wireAuditPanel(root) {
     const btn = e.target.closest('[data-act]');
     if (!btn) return;
     const act = btn.dataset.act;
-    if (act === 'audit-refresh')  return _refreshAudit(root);
-    if (act === 'audit-init-all') return _initAllMissing(root);
-    if (act === 'audit-init')     return _initOne(root, btn.dataset.id);
+    if (act === 'audit-refresh')    return _refreshAudit(root);
+    if (act === 'audit-init-all')  return _initAllMissing(root);
+    if (act === 'audit-init')      return _initOne(root, btn.dataset.id);
+    if (act === 'audit-export-xlsx') return _exportFirestoreXlsx(root, btn);
   });
   // Initial load if user lands directly on audit (deep-link future-proof).
   if (!panel.classList.contains('wall-panel--hidden')) _refreshAudit(root);
@@ -1418,6 +1421,88 @@ async function _initAllMissing(root) {
   } catch (err) {
     if (host) host.innerHTML = `<div class="life-empty" style="color:#b91c1c">Initialization failed: ${_e(err?.message || String(err))}</div>`;
   }
+}
+
+/* ── Firestore → xlsx export ────────────────────────────────────────── */
+// Exports all readable Firestore data under churches/{churchId} to a .xlsx
+// workbook — one sheet per collection.  Top-level-only collection names are
+// discovered from a fixed allow-list; client SDK cannot list subcollections.
+const _FS_EXPORT_SPECS = [
+  { sheet: 'Church',    fetch: (db, cid) => db.collection('churches').doc(cid).get().then(s => s.exists ? [{ _id: cid, ...s.data() }] : []) },
+  { sheet: 'Channels',  fetch: (db, cid) => db.collection('churches').doc(cid).collection('channels').get().then(s => s.docs.map(d => ({ _id: d.id, ...d.data() }))) },
+  { sheet: 'Config',    fetch: (db, cid) => db.collection('churches').doc(cid).collection('config').get().then(s => s.docs.map(d => ({ _id: d.id, ...d.data() }))) },
+  { sheet: 'Settings',  fetch: (db, cid) => db.collection('churches').doc(cid).collection('settings').get().then(s => s.docs.map(d => ({ _id: d.id, ...d.data() }))) },
+  { sheet: 'Members',   fetch: (db, cid) => db.collection('churches').doc(cid).collection('members').get().then(s => s.docs.map(d => ({ _id: d.id, ...d.data() }))) },
+  { sheet: 'Users',     fetch: (db)      => db.collection('users').get().then(s => s.docs.map(d => ({ _id: d.id, ...d.data() }))) },
+  { sheet: 'Messages',  fetch: (db, cid) => db.collection('churches').doc(cid).collection('messages').limit(2000).get().then(s => s.docs.map(d => ({ _id: d.id, ...d.data() }))) },
+];
+
+function _flattenForSheet(rows) {
+  // Flatten Firestore Timestamps and nested objects one level deep.
+  return rows.map((row) => {
+    const out = {};
+    for (const [k, v] of Object.entries(row)) {
+      if (v && typeof v === 'object' && typeof v.toDate === 'function') {
+        out[k] = v.toDate().toISOString();
+      } else if (v && typeof v === 'object' && !Array.isArray(v)) {
+        out[k] = JSON.stringify(v);
+      } else if (Array.isArray(v)) {
+        out[k] = v.join(', ');
+      } else {
+        out[k] = v ?? '';
+      }
+    }
+    return out;
+  });
+}
+
+async function _exportFirestoreXlsx(root, btn) {
+  const msgEl = root.querySelector('[data-bind="audit-export-msg"]');
+  const setMsg = (t, c) => { if (msgEl) { msgEl.textContent = t; msgEl.style.color = c || 'var(--ink-muted,#7a7f96)'; } };
+
+  const db = _auditDb();
+  if (!db) return setMsg('Firebase not connected — refresh and try again.', '#b91c1c');
+
+  btn.disabled = true;
+  const orig = btn.textContent;
+  btn.textContent = 'Loading library…';
+  setMsg('');
+
+  try {
+    await _ensureSheetJS();
+  } catch (err) {
+    setMsg('Could not load export library: ' + (err?.message || String(err)), '#b91c1c');
+    btn.disabled = false; btn.textContent = orig; return;
+  }
+
+  btn.textContent = 'Fetching data…';
+  const churchId = _auditChurchId();
+  const wb = XLSX.utils.book_new();
+  let totalRows = 0;
+
+  for (const spec of _FS_EXPORT_SPECS) {
+    try {
+      const rows = await spec.fetch(db, churchId);
+      if (!rows.length) continue;
+      const flat = _flattenForSheet(rows);
+      const ws = XLSX.utils.json_to_sheet(flat);
+      XLSX.utils.book_append_sheet(wb, ws, spec.sheet);
+      totalRows += rows.length;
+    } catch (_) {
+      // Permission denied or collection doesn't exist — skip silently.
+    }
+  }
+
+  if (wb.SheetNames.length === 0) {
+    setMsg('No readable data found. Check Firestore permissions.', '#b45309');
+    btn.disabled = false; btn.textContent = orig; return;
+  }
+
+  const date   = new Date().toISOString().slice(0, 10);
+  const fname  = `FlockOS-${_e(churchId)}-${date}.xlsx`;
+  XLSX.writeFile(wb, fname);
+  setMsg(`✓ Exported ${totalRows} rows across ${wb.SheetNames.length} sheet(s) → ${fname}`, '#16a34a');
+  btn.disabled = false; btn.textContent = orig;
 }
 
 /* ── Maintenance panel ──────────────────────────────────────────────────
