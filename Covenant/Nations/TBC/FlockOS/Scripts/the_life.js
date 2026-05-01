@@ -1422,6 +1422,8 @@ const TheLife = (() => {
     delete data.updatedAt;
     // If a directory member is selected, clear the guest name so it doesn't pollute the record
     if (data.memberId) delete data.memberName;
+    // Never overwrite Lead Pastor notes with blank on updates — notes field renders empty for non-LP users
+    if (_fpCareId && !_canViewNotes()) delete data.notes;
 
     // Validate required fields
     if (!_requireField(data.careType || data['Care Type'], 'Care Type')) { if (btn) { btn.disabled = false; btn.textContent = '\uD83D\uDCBE Save Care Case'; } return; }

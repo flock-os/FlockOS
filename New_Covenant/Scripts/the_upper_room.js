@@ -2422,11 +2422,6 @@
     return _groupsRef().doc(id).update(data);
   }
 
-  function deleteGroup(id) {
-    if (typeof id === 'object') id = id.id;
-    return _groupsRef().doc(id).delete();
-  }
-
   /* ── Group Members sub-collection: groups/{groupId}/members ──── */
 
   function _groupMembersRef(groupId) {
@@ -3968,15 +3963,15 @@
   }
 
   function createAlbum(data) {
-    data.createdAt = _now();
-    data.createdBy = _userEmail;
+    data.createdAt = _ts();
+    data.createdBy = _userEmail();
     return _albumsRef().add(data).then(function(ref) { data.id = ref.id; return data; });
   }
 
   function updateAlbum(data) {
     var id = data.id; delete data.id;
-    data.updatedAt = _now();
-    data.updatedBy = _userEmail;
+    data.updatedAt = _ts();
+    data.updatedBy = _userEmail();
     return _albumsRef().doc(id).update(data);
   }
 
@@ -4034,7 +4029,7 @@
     return _statsConfigRef().get().then(function(snap) {
       var metricKeys = [];
       snap.forEach(function(d) { var c = d.data(); metricKeys.push(c.key || c.metricKey || d.id); });
-      var snapData = { createdAt: _now(), createdBy: _userEmail, label: 'Auto-compute', metrics: {} };
+      var snapData = { createdAt: _ts(), createdBy: _userEmail(), label: 'Auto-compute', metrics: {} };
       metricKeys.forEach(function(k) { snapData.metrics[k] = 0; }); // placeholder for real values
       return _statsSnapshotsRef().add(snapData);
     });
@@ -4051,12 +4046,12 @@
   function listStatsConfig()   { return _statsConfigRef().get().then(_snapToArr); }
   function getStatsConfig(id)  { return _statsConfigRef().doc(id).get().then(function(d) { var o = d.data() || {}; o.id = d.id; return { config: o }; }); }
   function createStatsConfig(data) {
-    data.createdAt = _now(); data.createdBy = _userEmail;
+    data.createdAt = _ts(); data.createdBy = _userEmail();
     return _statsConfigRef().add(data);
   }
   function updateStatsConfig(data) {
     var id = data.id; delete data.id;
-    data.updatedAt = _now(); data.updatedBy = _userEmail;
+    data.updatedAt = _ts(); data.updatedBy = _userEmail();
     return _statsConfigRef().doc(id).update(data);
   }
   function deleteStatsConfig(id) { return _statsConfigRef().doc(id).delete(); }
@@ -4070,7 +4065,7 @@
     return _statsSnapshotsRef().doc(id).get().then(function(d) { var o = d.data() || {}; o.id = d.id; return { snapshot: o }; });
   }
   function createStatsSnapshot(data) {
-    data.createdAt = _now(); data.createdBy = _userEmail;
+    data.createdAt = _ts(); data.createdBy = _userEmail();
     return _statsSnapshotsRef().add(data).then(function(ref) { data.id = ref.id; return data; });
   }
   function deleteStatsSnapshot(id) { return _statsSnapshotsRef().doc(id).delete(); }
@@ -4078,12 +4073,12 @@
   // ── Views CRUD ──────────────────────────────────────────────────
   function listStatsViews()    { return _statsViewsRef().get().then(_snapToArr); }
   function createStatsView(data) {
-    data.createdAt = _now(); data.createdBy = _userEmail;
+    data.createdAt = _ts(); data.createdBy = _userEmail();
     return _statsViewsRef().add(data);
   }
   function updateStatsView(data) {
     var id = data.id; delete data.id;
-    data.updatedAt = _now(); data.updatedBy = _userEmail;
+    data.updatedAt = _ts(); data.updatedBy = _userEmail();
     return _statsViewsRef().doc(id).update(data);
   }
   function deleteStatsView(id) { return _statsViewsRef().doc(id).delete(); }
@@ -4238,7 +4233,7 @@
     var doc = {
       key: key,
       value: data.value != null ? data.value : '',
-      updatedAt: _now(),
+      updatedAt: _ts(),
       updatedBy: _userEmail
     };
     if (data.description) doc.description = data.description;
@@ -4267,8 +4262,8 @@
     var enabled = !!(data && data.maintenance);
     return _globalAppConfigRef().doc('system').set({
       maintenance: enabled,
-      updatedAt: _now(),
-      updatedBy: _userEmail
+      updatedAt: _ts(),
+      updatedBy: _userEmail()
     }, { merge: true });
   }
 
@@ -4277,7 +4272,7 @@
      ══════════════════════════════════════════════════════════════════ */
 
   function _prefsRef() { return _churchDoc().collection('preferences'); }
-  function _prefsDocId() { return (_userEmail || 'anon').replace(/[^a-zA-Z0-9@._-]/g, '_'); }
+  function _prefsDocId() { return (_userEmail() || 'anon').replace(/[^a-zA-Z0-9@._-]/g, '_'); }
 
   function getUserPreferences() {
     return _prefsRef().doc(_prefsDocId()).get().then(function(d) {
@@ -4286,7 +4281,7 @@
   }
 
   function updateUserPreferences(data) {
-    data.updatedAt = _now();
+    data.updatedAt = _ts();
     return _prefsRef().doc(_prefsDocId()).set(data, { merge: true });
   }
 
@@ -4305,7 +4300,7 @@
     return q.get().then(_snapToArr);
   }
   function createContact(data) {
-    data.createdAt = _now(); data.createdBy = _userEmail;
+    data.createdAt = _ts(); data.createdBy = _userEmail();
     return _contactsRef().add(data).then(function(ref) { data.id = ref.id; return data; });
   }
 
@@ -4315,7 +4310,7 @@
     return q.get().then(_snapToArr);
   }
   function createPastoralNote(data) {
-    data.createdAt = _now(); data.createdBy = _userEmail;
+    data.createdAt = _ts(); data.createdBy = _userEmail();
     return _notesRef().add(data).then(function(ref) { data.id = ref.id; return data; });
   }
 
@@ -4327,8 +4322,8 @@
 
   function createMilestone(data) {
     data = data || {};
-    data.createdAt = _now();
-    data.createdBy = _userEmail;
+    data.createdAt = _ts();
+    data.createdBy = _userEmail();
     return _milestonesRef().add(data).then(function(ref) {
       data.id = ref.id; return data;
     });
@@ -4340,8 +4335,8 @@
     if (!id) return Promise.reject('milestone id required');
     var payload = Object.assign({}, data);
     delete payload.id;
-    payload.updatedAt = _now();
-    payload.updatedBy = _userEmail;
+    payload.updatedAt = _ts();
+    payload.updatedBy = _userEmail();
     return _milestonesRef().doc(id).update(payload).then(function() {
       payload.id = id; return payload;
     });
@@ -4400,8 +4395,8 @@
       email: email,
       role: data.role || 'member',
       displayName: data.displayName || '',
-      updatedAt: _now(),
-      updatedBy: _userEmail
+      updatedAt: _ts(),
+      updatedBy: _userEmail()
     }, { merge: true });
   }
   function removeAccess(data) {
@@ -4425,7 +4420,7 @@
   }
 
   function memberCardsMine() {
-    return _memberCardsRef().where('email', '==', _userEmail)
+    return _memberCardsRef().where('email', '==', _userEmail())
       .limit(1).get().then(function(snap) {
         if (snap.empty) return null;
         var d = snap.docs[0].data(); d.id = snap.docs[0].id; return d;
@@ -4442,7 +4437,7 @@
   }
 
   function memberCardsArchive(opts) {
-    return _memberCardsRef().doc(opts.id).update({ status: 'archived', archivedAt: _now(), archivedBy: _userEmail });
+    return _memberCardsRef().doc(opts.id).update({ status: 'archived', archivedAt: _ts(), archivedBy: _userEmail() });
   }
 
   function memberCardsBulkProvision(opts) {
@@ -4451,7 +4446,7 @@
     var batch = _db.batch();
     for (var i = 0; i < count; i++) {
       var num = prefix + '-' + String(Date.now()).slice(-6) + String(i).padStart(3, '0');
-      batch.set(_memberCardsRef().doc(), { memberNumber: num, status: 'unassigned', createdAt: _now(), createdBy: _userEmail });
+      batch.set(_memberCardsRef().doc(), { memberNumber: num, status: 'unassigned', createdAt: _ts(), createdBy: _userEmail() });
     }
     return batch.commit();
   }
@@ -4486,7 +4481,7 @@
   }
   function createCardLink(data) {
     var cardId = data.cardId; delete data.cardId;
-    data.createdAt = _now();
+    data.createdAt = _ts();
     return _cardLinksRef(cardId).add(data).then(function(ref) { data.id = ref.id; return data; });
   }
   function deleteCardLink(opts) {
@@ -4509,7 +4504,7 @@
     return _cardViewsRef().orderBy('viewedAt', 'desc').limit(opts.limit || 80).get().then(_snapToArr);
   }
   function myCardViews() {
-    return _cardViewsRef().where('viewerEmail', '==', _userEmail)
+    return _cardViewsRef().where('viewerEmail', '==', _userEmail())
       .orderBy('viewedAt', 'desc').limit(30).get().then(_snapToArr);
   }
 
@@ -4538,7 +4533,7 @@
     var batch = _db.batch();
     var ref = _churchDoc().collection(col);
     (p.rows || []).forEach(function(r) {
-      r.createdAt = _now(); r.createdBy = _userEmail;
+      r.createdAt = _ts(); r.createdBy = _userEmail();
       batch.set(ref.doc(), r);
     });
     return batch.commit();
@@ -4549,7 +4544,7 @@
     var batch = _db.batch();
     var ref = _churchDoc().collection('members');
     records.forEach(function(r) {
-      r.createdAt = _now(); r.createdBy = _userEmail;
+      r.createdAt = _ts(); r.createdBy = _userEmail();
       batch.set(ref.doc(), r);
     });
     return batch.commit().then(function() { return { imported: records.length }; });
@@ -4852,7 +4847,6 @@
     getGroup:           getGroup,
     createGroup:        createGroup,
     updateGroup:        updateGroup,
-    deleteGroup:        deleteGroup,
     listGroupMembers:   listGroupMembers,
     addGroupMember:     addGroupMember,
     removeGroupMember:  removeGroupMember,

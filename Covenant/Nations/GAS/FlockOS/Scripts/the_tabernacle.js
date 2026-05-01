@@ -10937,7 +10937,7 @@ const Modules = (() => {
       var dem = '';
       dem += _pp2(
         _ppF('Date of Birth', 'mem_dateOfBirth', (memberRec.dateOfBirth || '').substring(0,10), 'date'),
-        _ppF('Gender',        'mem_gender',      memberRec.gender, 'select', ['','Male','Female','Other']));
+        _ppF('Gender',        'mem_gender',      memberRec.gender, 'select', ['','Male','Female']));
       dem += _pp2(
         _ppF('Marital Status', 'mem_maritalStatus', memberRec.maritalStatus, 'select',
           ['','Single','Married','Divorced','Widowed','Separated']),
