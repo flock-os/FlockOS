@@ -85,25 +85,6 @@
       max-width: 640px;
     }
 
-    .hero-wordmark {
-      display: flex;
-      align-items: center;
-      gap: 0.6rem;
-    }
-
-    .hero-wordmark img {
-      width: 48px;
-      height: 48px;
-      border-radius: 14px;
-    }
-
-    .hero-wordmark span {
-      font-size: 1.5rem;
-      font-weight: 800;
-      letter-spacing: -0.02em;
-      color: var(--gold);
-    }
-
     .hero h1 {
       font-size: clamp(2rem, 5vw, 2.9rem);
       font-weight: 800;
@@ -275,21 +256,70 @@
       color: var(--ink-faint);
     }
 
+    /* Top header bar */
+    .site-header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      width: 100%;
+      background: rgba(9,16,46,0.82);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--line-strong);
+      padding: 0 1.5rem;
+      height: 60px;
+      display: flex;
+      align-items: center;
+    }
+
+    .site-header-inner {
+      max-width: 1080px;
+      width: 100%;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+    }
+
+    .site-header img {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+    }
+
+    .site-header-name {
+      font-size: 1.1rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: var(--gold);
+    }
+
+    .site-header-tagline {
+      font-size: 0.82rem;
+      color: var(--ink-faint);
+      margin-left: 0.25rem;
+    }
+
     @media (max-width: 600px) {
       .page { padding: 2rem 1rem 3rem; gap: 2.25rem; }
       .product-logo { width: 80px; height: 80px; }
+      .site-header-tagline { display: none; }
     }
   </style>
 </head>
 <body>
 
+  <nav class="site-header" role="banner">
+    <div class="site-header-inner">
+      <img src="New_Covenant/Images/NewCovenant.png" alt="FlockOS">
+      <span class="site-header-name">FlockOS</span>
+      <span class="site-header-tagline">Church Technology, Built to Be Shared</span>
+    </div>
+  </nav>
+
   <div class="page">
 
     <header class="hero">
-      <div class="hero-wordmark">
-        <img src="New_Covenant/Images/NewCovenant.png" alt="FlockOS">
-        <span>FlockOS</span>
-      </div>
       <h1>Church technology<br><em>built to be shared.</em></h1>
       <p>Complete pastoral care, discipleship, and outreach tools. Google Sheets, Firebase, or fully offline. Free forever.</p>
       <div class="hero-badges">
