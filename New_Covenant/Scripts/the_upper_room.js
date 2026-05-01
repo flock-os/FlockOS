@@ -4328,7 +4328,7 @@
   function createMilestone(data) {
     data = data || {};
     data.createdAt = _ts();
-    data.createdBy = _userEmail();
+    data.createdBy = _userEmail;
     return _milestonesRef().add(data).then(function(ref) {
       data.id = ref.id; return data;
     });
@@ -4341,7 +4341,7 @@
     var payload = Object.assign({}, data);
     delete payload.id;
     payload.updatedAt = _ts();
-    payload.updatedBy = _userEmail();
+    payload.updatedBy = _userEmail;
     return _milestonesRef().doc(id).update(payload).then(function() {
       payload.id = id; return payload;
     });
