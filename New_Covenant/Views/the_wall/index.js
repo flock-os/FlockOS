@@ -134,8 +134,8 @@ export function mount(root) {
     });
   });
 
-  // Toggle switches
-  root.querySelectorAll('.wall-toggle').forEach((t) => {
+  // Toggle switches — exclude the Wellspring mode toggle which has its own dedicated handler
+  root.querySelectorAll('.wall-toggle:not(#ws-mode-toggle)').forEach((t) => {
     t.addEventListener('click', () => t.classList.toggle('wall-toggle--on'));
   });
 
