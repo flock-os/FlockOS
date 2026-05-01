@@ -84,13 +84,7 @@ const TheLife = (() => {
     try { return Nehemiah.hasGroup('Lead Pastor') || Nehemiah.hasGroup('Master'); } catch(e) { return false; }
   }
   function _canViewNotes() {
-    try {
-      if (_isSeedAdmin() || _isLeadPastor()) return true;
-      // Firebase custom-token users with role=pastor have no groups set yet;
-      // grant note visibility to anyone whose role is pastor or admin.
-      if (typeof Nehemiah !== 'undefined' && (Nehemiah.hasRole('pastor') || Nehemiah.hasRole('admin'))) return true;
-      return false;
-    } catch(e) { return false; }
+    return _isSeedAdmin() || _isLeadPastor();
   }
   function _filterClosed(rows, statusKey) {
     if (_canViewNotes()) {
@@ -1428,6 +1422,8 @@ const TheLife = (() => {
     delete data.updatedAt;
     // If a directory member is selected, clear the guest name so it doesn't pollute the record
     if (data.memberId) delete data.memberName;
+    // Never overwrite Lead Pastor notes with blank on updates — notes field renders empty for non-LP users
+    if (_fpCareId && !_canViewNotes()) delete data.notes;
 
     // Validate required fields
     if (!_requireField(data.careType || data['Care Type'], 'Care Type')) { if (btn) { btn.disabled = false; btn.textContent = '\uD83D\uDCBE Save Care Case'; } return; }
