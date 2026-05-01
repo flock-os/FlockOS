@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
+  <meta name="format-detection" content="telephone=no, date=no, email=no, address=no">
+  <title>GROW with FlockOS</title>
+
+  <!-- Icons -->
+  <link rel="icon" type="image/png" href="https://flock-os.github.io/FlockOS/New_Covenant/Images/GrowIcon.png">
+  <link rel="apple-touch-icon" href="https://flock-os.github.io/FlockOS/New_Covenant/Images/GrowIcon.png">
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Noto+Serif:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+
+  <!-- Styles — loaded from GitHub Pages -->
+  <link rel="stylesheet" href="https://flock-os.github.io/FlockOS/New_Covenant/Styles/american_garments.css">
+  <link rel="stylesheet" href="https://flock-os.github.io/FlockOS/New_Covenant/Styles/new_covenant.css">
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    :root { --bg: #f7f8fb; --bg-raised: #ffffff; --ink: #1b264f; --line: #e5e7ef; }
+
+    html, body {
+      height: 100%; margin: 0; padding: 0;
+      background: var(--bg); color: var(--ink);
+      overflow: hidden;
+    }
+
+    /* ── Shell grid ─────────────────────────────────────────────────────── */
+    .gp-wrap {
+      display: grid;
+      grid-template-areas: "top top" "side main";
+      grid-template-columns: var(--sidebar-w, 256px) 1fr;
+      grid-template-rows: calc(var(--topbar-h, 60px) + var(--safe-top, 0px)) 1fr;
+      height: 100%;
+      position: relative;
+    }
+    #gp-topbar-wrap  { grid-area: top; display: flex; }
+    #gp-sidebar-wrap { grid-area: side; overflow-y: auto; overflow-x: hidden; }
+    #gp-main         { grid-area: main; overflow-y: auto; overflow-x: hidden; padding: 24px 28px 120px; min-width: 0; }
+    #gp-main > *     { max-width: 1200px; margin-left: auto; margin-right: auto; }
+
+    /* ── Topbar ──────────────────────────────────────────────────────────── */
+    #gp-topbar {
+      display: flex; align-items: center; gap: 12px;
+      width: 100%; padding: var(--safe-top, 0px) 20px 0;
+      background: linear-gradient(90deg, #0c1445 0%, #14103a 60%, #0a1128 100%);
+      position: relative; z-index: 400;
+    }
+    #gp-topbar::after {
+      content: ''; position: absolute; bottom: 0; left: 0; right: 0;
+      height: 2.5px; pointer-events: none;
+      background: linear-gradient(90deg, #38bdf8 0%, #818cf8 22%, #a78bfa 40%, #e8a838 58%, #34d399 78%, #38bdf8 100%);
+      background-size: 200% 100%;
+      animation: gp-rainbow 9s linear infinite;
+      opacity: 0.72;
+    }
+    @keyframes gp-rainbow { from { background-position: 0% 0; } to { background-position: 200% 0; } }
+    @media (prefers-reduced-motion: reduce) { #gp-topbar::after { animation: none; opacity: 0.5; } }
+
+    /* ── CTA button ──────────────────────────────────────────────────────── */
+    .gp-cta {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 8px 16px; border-radius: 999px;
+      background: var(--gold, #e8a838); color: #0c1445;
+      font: 600 0.82rem var(--font-ui, 'Plus Jakarta Sans', sans-serif);
+      text-decoration: none; border: 0; cursor: pointer; flex-shrink: 0;
+      transition: background 150ms, transform 100ms, box-shadow 150ms;
+      box-shadow: 0 2px 10px rgba(232,168,56,0.35);
+    }
+    .gp-cta:hover { background: #f0b534; transform: translateY(-1px); box-shadow: 0 4px 16px rgba(232,168,56,0.50); }
+    .gp-cta:active { transform: scale(0.97); }
+
+    /* Sign-in dropdown */
+    .gp-signin-dropdown {
+      position: absolute; top: calc(100% + 10px); right: 0;
+      width: 260px;
+      background: var(--bg-raised, #fff);
+      border: 1px solid var(--line, #e5e7ef);
+      border-radius: 16px;
+      box-shadow: 0 12px 40px rgba(15,23,42,0.16), 0 4px 12px rgba(15,23,42,0.08);
+      z-index: 500; overflow: hidden;
+      animation: gp-dropdown-in 160ms cubic-bezier(.2,.8,.2,1);
+    }
+    @keyframes gp-dropdown-in {
+      from { opacity: 0; transform: translateY(-6px) scale(0.97); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .gp-signin-dropdown-inner { padding: 22px 20px 18px; text-align: center; }
+    .gp-signin-title  { font: 700 1rem var(--font-ui, sans-serif); color: var(--ink, #1b264f); margin: 0 0 6px; }
+    .gp-signin-sub    { font: 0.82rem var(--font-ui, sans-serif); color: var(--ink-muted, #7a7f96); margin: 0 0 18px; line-height: 1.5; }
+    .gp-signin-cta    { width: 100%; justify-content: center; border-radius: 10px; padding: 10px 18px; }
+    .gp-signin-foot   { margin: 14px 0 0; font: 0.74rem var(--font-ui, sans-serif); color: var(--ink-muted, #7a7f96); }
+    .gp-signin-foot strong { color: var(--ink, #1b264f); font-weight: 600; }
+
+    /* ── Sidebar ─────────────────────────────────────────────────────────── */
+    #gp-sidebar-wrap {
+      background: linear-gradient(170deg, #0c1445 0%, #1a0e3c 55%, #0a1128 100%);
+      padding: 14px 10px 120px;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255,255,255,0.10) transparent;
+      display: flex; flex-direction: column;
+    }
+    #gp-sidebar-wrap::-webkit-scrollbar { width: 4px; }
+    #gp-sidebar-wrap::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 4px; }
+    #gp-sidebar { display: flex; flex-direction: column; gap: 0; flex: 1; }
+
+    /* ── Full-access banner ──────────────────────────────────────────────── */
+    .gp-full-access-banner {
+      margin-top: 40px; border-radius: 16px;
+      background: linear-gradient(135deg, rgba(232,168,56,0.12) 0%, rgba(124,58,237,0.10) 100%);
+      border: 1px solid rgba(232,168,56,0.22);
+      padding: 20px 24px;
+    }
+    .gp-full-access-inner { display: flex; align-items: center; flex-wrap: wrap; gap: 14px; }
+    .gp-full-access-label { flex: 1; font: 500 0.95rem var(--font-ui); color: var(--ink, #1b264f); min-width: 200px; }
+
+    /* ── Hamburger ───────────────────────────────────────────────────────── */
+    .gp-hamburger { color: rgba(255,255,255,0.72) !important; }
+
+    /* ── Mobile ──────────────────────────────────────────────────────────── */
+    @media (max-width: 860px) {
+      .gp-wrap {
+        grid-template-columns: 1fr;
+        grid-template-areas: "top" "main";
+      }
+      #gp-sidebar-wrap {
+        display: none;
+        position: fixed; top: calc(var(--topbar-h, 60px) + var(--safe-top, 0px));
+        left: 0; bottom: 0;
+        width: min(280px, 85vw);
+        z-index: 300; overflow-y: auto;
+        transform: translateX(-100%);
+        transition: transform 220ms cubic-bezier(.2,.8,.2,1);
+      }
+      #gp-sidebar-wrap.gp-sidebar-open { display: flex; transform: translateX(0); }
+      #gp-sidebar-wrap.gp-sidebar-open::before {
+        content: '';
+        position: fixed; inset: 0;
+        background: rgba(0,0,0,0.45);
+        z-index: -1;
+        left: min(280px, 85vw);
+        width: calc(100vw - min(280px, 85vw));
+      }
+      .gp-hamburger { display: inline-flex !important; }
+      #gp-main { padding: 16px 16px 120px; }
+    }
+    @media (min-width: 861px) { .gp-hamburger { display: none !important; } }
+  </style>
+</head>
+<body>
+  <div class="gp-wrap">
+    <header id="gp-topbar-wrap" role="banner">
+      <div id="gp-topbar"></div>
+    </header>
+    <nav id="gp-sidebar-wrap" role="navigation" aria-label="GROW modules">
+      <div id="gp-sidebar"></div>
+    </nav>
+    <main id="gp-main" role="main"></main>
+  </div>
+
+  <!-- Firebase (required for prayer/outreach submissions) -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+  <!--
+    grow_public.js loaded from GitHub Pages.
+    All dynamic imports inside it use relative paths resolved against this base URL,
+    so setting document.baseURI via <base> ensures they resolve correctly.
+  -->
+  <base href="https://flock-os.github.io/FlockOS/New_Covenant/">
+  <script type="module" src="https://flock-os.github.io/FlockOS/New_Covenant/Scripts/grow_public.js"></script>
+</body>
+</html>

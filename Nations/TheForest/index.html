@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
+  <meta name="format-detection" content="telephone=no, date=no, email=no, address=no">
+  <title>The Forest</title>
+
+  <!-- PWA manifest -->
+  <link rel="manifest" href="manifest.json">
+
+  <!-- Icons -->
+  <link rel="icon" type="image/png" href="Images/NewCovenant.png">
+  <link rel="apple-touch-icon" href="Images/NewCovenant.png">
+
+  <!-- PWA meta -->
+  <meta name="theme-color" content="#e8a838">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="The Forest">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  <!-- SEO -->
+  <meta name="description" content="FlockOS — complete church management and pastoral care platform. Google Sheets, Firebase Firestore, or fully offline via The Wellspring. 30+ modules. 210 countries. 256-bit encrypted. Free forever.">
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="FlockOS — Church Management & Ministry Platform">
+  <meta property="og:description" content="Complete pastoral care, member management, discipleship, and outreach tools. Runs on Google Sheets, Firebase, or 100% offline. Free forever. 210 countries. 256-bit encrypted.">
+  <meta property="og:image" content="Images/NewCovenant.png">
+  <meta property="og:type" content="website">
+
+  <!-- Fonts + single stylesheet (SharedVessels is the source of truth) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://firestore.googleapis.com">
+  <link rel="dns-prefetch" href="https://firestore.googleapis.com">
+  <!-- Firebase Auth endpoints — on the critical boot path (whoAmI) -->
+  <link rel="preconnect" href="https://identitytoolkit.googleapis.com">
+  <link rel="preconnect" href="https://securetoken.googleapis.com">
+  <link rel="dns-prefetch" href="https://identitytoolkit.googleapis.com">
+  <link rel="dns-prefetch" href="https://securetoken.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Noto+Sans+Hebrew:wght@400;600;700&family=Noto+Serif:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="Styles/american_garments.css">
+  <link rel="stylesheet" href="Styles/new_covenant.css">
+
+  <!--
+    MODULE PRELOAD — boot + home-view graph
+    Without these hints the browser fetches ES modules serially: download
+    the_ark.js → parse → discover 7 imports → download each → parse → discover
+    their imports → … (4–5 round trips before leaf modules start loading).
+    With modulepreload every file in the tree starts fetching AND compiling in
+    parallel the moment the HTML is parsed, collapsing N waterfalls into 1.
+  -->
+  <!-- Core boot modules -->
+  <link rel="modulepreload" href="Scripts/the_ark.js">
+  <link rel="modulepreload" href="Scripts/the_adornment.js">
+  <link rel="modulepreload" href="Scripts/the_lampstand.js">
+  <link rel="modulepreload" href="Scripts/the_oil.js">
+  <link rel="modulepreload" href="Scripts/the_watchmen.js">
+  <link rel="modulepreload" href="Scripts/the_living_water_register.js">
+  <link rel="modulepreload" href="Scripts/the_legacy_bridge.js">
+  <link rel="modulepreload" href="Scripts/the_manna.js">
+  <link rel="modulepreload" href="Scripts/the_cistern.js">
+  <!-- Router -->
+  <link rel="modulepreload" href="Scripts/the_scribes/index.js">
+  <link rel="modulepreload" href="Scripts/the_scribes/the_path.js">
+  <link rel="modulepreload" href="Scripts/the_scribes/the_chronicle.js">
+  <link rel="modulepreload" href="Scripts/the_scribes/the_herald.js">
+  <!-- Chrome (topbar / sidebar / footer) -->
+  <link rel="modulepreload" href="Scripts/the_veil/index.js">
+  <link rel="modulepreload" href="Scripts/the_veil/the_crown.js">
+  <link rel="modulepreload" href="Scripts/the_veil/the_pillars.js">
+  <link rel="modulepreload" href="Scripts/the_veil/the_courtyard.js">
+  <link rel="modulepreload" href="Scripts/the_veil/the_hem.js">
+  <!-- Auth / identity -->
+  <link rel="modulepreload" href="Scripts/the_priesthood/index.js">
+  <link rel="modulepreload" href="Scripts/the_priesthood/the_garments.js">
+  <link rel="modulepreload" href="Scripts/the_priesthood/the_anointing.js">
+  <link rel="modulepreload" href="Scripts/the_priesthood/the_breastplate.js">
+  <!-- Comms / realtime (used by sidebar badge counts) -->
+  <link rel="modulepreload" href="Scripts/the_upper_room/index.js">
+  <link rel="modulepreload" href="Scripts/the_upper_room/the_firebase_config.js">
+  <link rel="modulepreload" href="Scripts/the_upper_room/the_tenant.js">
+  <link rel="modulepreload" href="Scripts/the_upper_room/the_identity.js">
+  <link rel="modulepreload" href="Scripts/the_upper_room/the_channels.js">
+  <link rel="modulepreload" href="Scripts/the_upper_room/the_messages.js">
+  <link rel="modulepreload" href="Scripts/the_upper_room/the_dms.js">
+  <link rel="modulepreload" href="Scripts/the_upper_room/the_presence.js">
+  <link rel="modulepreload" href="Scripts/the_upper_room/the_typing.js">
+  <link rel="modulepreload" href="Scripts/the_upper_room/the_unread.js">
+  <link rel="modulepreload" href="Scripts/the_upper_room/the_mentions.js">
+  <link rel="modulepreload" href="Scripts/the_upper_room/the_emoji.js">
+  <link rel="modulepreload" href="Scripts/the_upper_room/the_seeding.js">
+  <link rel="modulepreload" href="Scripts/the_upper_room/the_attachments.js">
+  <link rel="modulepreload" href="Scripts/the_upper_room/the_push.js">
+  <!-- Care / pastoral -->
+  <link rel="modulepreload" href="Scripts/the_life/index.js">
+  <!-- Calendar / seasons (home view badge) -->
+  <link rel="modulepreload" href="Scripts/the_seasons/index.js">
+  <!-- Comms summary (home view feed) -->
+  <link rel="modulepreload" href="Scripts/the_comms.js">
+  <link rel="modulepreload" href="Scripts/the_scrolls/index.js">
+  <!-- Home view (always the first route — dynamic import, so explicit preload needed) -->
+  <link rel="modulepreload" href="Views/_frame.js">
+  <link rel="modulepreload" href="Views/the_good_shepherd/index.js">
+  <link rel="modulepreload" href="Views/the_good_shepherd/the_pasture.js">
+  <link rel="modulepreload" href="Views/the_good_shepherd/the_count.js">
+  <link rel="modulepreload" href="Views/the_good_shepherd/the_flock_feed.js">
+  <link rel="modulepreload" href="Views/the_good_shepherd/the_next_steps.js">
+  <link rel="modulepreload" href="Views/the_good_shepherd/the_call.js">
+
+  <!-- Flash prevention only — the_adornment.js applies data-theme after boot. -->
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    :root { --bg: #f7f8fb; --bg-raised: #ffffff; --ink: #1b264f; --line: #e5e7ef; }
+    /* html/body share the page background so the iOS PWA safe-area at the
+       bottom (home indicator) flows seamlessly with the page — no visible
+       seam between content and the safe-area band. The topbar paints its
+       own dark over the notch via padding-top: safe-top. */
+    html { height: 100%; overflow: hidden; background: var(--bg); }
+    body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); height: 100%; overflow: hidden; }
+    .veil-wrap {
+      display: grid;
+      grid-template-areas: "top top" "side main";
+      grid-template-columns: 256px 1fr;
+      grid-template-rows: 60px 1fr;
+      height: 100%;
+      min-height: 100vh;
+      position: relative;
+    }
+    #the-veil-top   { grid-area: top; }
+    #the-veil-side  { grid-area: side; overflow-y: auto; overflow-x: hidden; }
+    #the-holy-place { grid-area: main; min-width: 0; overflow-y: auto; }
+    #the-veil-foot  { grid-area: foot; }
+    @media (max-width: 860px) {
+      .veil-wrap {
+        grid-template-columns: 1fr;
+        grid-template-areas: "top" "main" "foot";
+      }
+      #the-veil-side { display: none; }
+    }
+
+    /* ── Pull-to-Refresh ─────────────────────────────────────────────── */
+    @media (max-width: 860px) {
+      .ptr-indicator {
+        display: none; position: fixed; top: 54px; left: 50%; transform: translateX(-50%);
+        z-index: 9998; background: var(--bg-raised); border: 1px solid var(--line);
+        border-radius: 20px; padding: 6px 14px; font-size: 0.75rem; color: var(--ink-muted);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.18); white-space: nowrap;
+      }
+      .ptr-indicator.visible { display: block; }
+    }
+  </style>
+</head>
+<body>
+  <!--
+    THE SHELL CONTRACT (per A-Instructions.md §4)
+    No view markup, no inline JS beyond flash-prevention above, no third
+    structural element. Everything else is mounted by the_ark.js → the_veil.
+  -->
+  <div class="veil-wrap">
+    <header id="the-veil-top"   class="veil-top"   role="banner"></header>
+    <nav    id="the-veil-side"  class="veil-side"  role="navigation" aria-label="Primary"></nav>
+    <main   id="the-holy-place" class="veil-main"  role="main"></main>
+    <footer id="the-veil-foot"  class="veil-foot"  role="contentinfo"></footer>
+    <div    id="the-staff-host" class="staff-host" aria-live="polite" aria-atomic="true"></div>
+  </div>
+
+  <!--
+    Auto-start the new shell. the_ark.js gates auto-start on ?covenant=new,
+    so during the transition both old and new shells coexist; here we are
+    inside the New_Covenant tree so we always start.
+  -->
+  <script>
+    if (!new URLSearchParams(location.search).has('covenant')) {
+      const u = new URL(location.href);
+      u.searchParams.set('covenant', 'new');
+      history.replaceState(null, '', u);
+    }
+  </script>
+
+  <!-- ── Firebase config — flockos-notify project ──────────────────────── -->
+  <script>
+        window.FLOCK_FIREBASE_CONFIG = {
+      apiKey:  'AIzaSyCnIbShg2ra1t4EiP3CffsivwvIK-bNu8M',
+      authDomain:  'flockos-theforest.firebaseapp.com',
+      projectId:  'flockos-theforest',
+      storageBucket:  'flockos-theforest.firebasestorage.app',
+      messagingSenderId:  '476522944133',
+      appId:  '1:476522944133:web:29ad5d19cf5a84c11b7bec',
+      measurementId:  'G-WMGPRHXP0Q',
+    };
+  </script>
+
+  <!-- ── Backend: same scripts as FlockOS Root ───────────────────────────
+       the_legacy_bridge.js polls window for these globals (TheShepherd,
+       TheLife, TheFold, TheScrolls, Nehemiah, TheUpperRoom, etc.). Loading
+       the same set here connects this shell to the live Firestore + GAS data.
+  ──────────────────────────────────────────────────────────────────────── -->
+  <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-functions-compat.js"></script>
+  <script defer src="Scripts/firm_foundation.js"></script>
+  <script defer src="Scripts/the_upper_room.js"></script>
+  <script defer src="Scripts/fine_linen.js"></script>
+  <script defer src="Scripts/the_true_vine.js"></script>
+  <script defer src="Scripts/the_wellspring.js"></script>
+  <script defer src="Scripts/the_well.js"></script>
+  <script defer src="Scripts/the_tabernacle.js"></script>
+  <script defer src="Scripts/the_truth.js"></script>
+  <script defer src="Scripts/the_seasons.js"></script>
+  <script defer src="Scripts/the_way.js"></script>
+  <script defer src="Scripts/the_harvest.js"></script>
+  <script defer src="Scripts/the_life.js"></script>
+  <script defer src="Scripts/the_shepherd.js"></script>
+  <script defer src="Scripts/the_fold.js"></script>
+  <script defer src="Scripts/the_scrolls.js"></script>
+  <!-- Promotes const-globals to window.* so ES module bridge can resolve them -->
+  <script defer src="Scripts/the_window_bridge.js"></script>
+
+  <script type="module" src="Scripts/the_ark.js"></script>
+
+  <!-- Pull-to-Refresh indicator -->
+  <div class="ptr-indicator" id="ptrIndicator">&#8635; Release to refresh</div>
+  <script>
+  // ── Pull-to-Refresh ────────────────────────────────────────────────────────
+  (function () {
+    if (window.innerWidth > 860) return; // desktop — skip
+    var mainEl  = document.getElementById('the-holy-place');
+    var ptr     = document.getElementById('ptrIndicator');
+    if (!mainEl || !ptr) return;
+    var startY = 0, pulling = false, triggered = false;
+
+    mainEl.addEventListener('touchstart', function (e) {
+      if (mainEl.scrollTop > 5) return;
+      startY   = e.touches[0].clientY;
+      pulling  = true;
+      triggered = false;
+    }, { passive: true });
+
+    mainEl.addEventListener('touchmove', function (e) {
+      if (!pulling) return;
+      var dy = e.touches[0].clientY - startY;
+      if (dy > 60 && !triggered) {
+        triggered = true;
+        ptr.classList.add('visible');
+      } else if (dy < 30) {
+        triggered = false;
+        ptr.classList.remove('visible');
+      }
+    }, { passive: true });
+
+    mainEl.addEventListener('touchend', function () {
+      if (triggered) {
+        ptr.textContent = 'Refreshing\u2026';
+        setTimeout(function () { location.reload(); }, 300);
+      } else {
+        ptr.classList.remove('visible');
+      }
+      pulling   = false;
+      triggered = false;
+    }, { passive: true });
+  })();
+  </script>
