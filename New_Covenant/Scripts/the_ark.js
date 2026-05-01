@@ -127,6 +127,7 @@ async function _registerViews() {
   register('the_harvest',              V('the_harvest'),              { command: 'Go to: Harvest' });
   register('the_way',                  V('the_way'),                  { command: 'Go to: The Way' });
   register('the_truth',                V('the_truth'),                { command: 'Go to: Content' });
+  register('the_gospel_invitation',    V('the_gospel_invitation'),    { command: 'Go to: The Invitation' });
 
   // Grow — discipleship dashboard + the_gospel/* learning modules
   register('the_growth',               V('the_growth'),               { command: 'Go to: Grow' });
