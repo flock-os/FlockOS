@@ -356,7 +356,7 @@ function _wireShare(root) {
     // Always target the public GROW page — the recipient won't have an account
     const base     = window.location.origin + window.location.pathname.replace(/[^/]*$/, '');
     const shareUrl = base + 'grow-public.html#the_gospel_invitation';
-    const shareMsg = 'I thought you'd appreciate this — a hope-filled look at Jesus Christ:';
+    const shareMsg = 'I thought you\u2019d appreciate this \u2014 a hope-filled look at Jesus Christ:';
 
     // Use the native Web Share sheet when available (iOS/Android opens SMS, AirDrop, etc.)
     if (navigator.share) {
