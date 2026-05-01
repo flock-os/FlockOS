@@ -36,6 +36,7 @@ const TheWellspring = (() => {
   const VAULT_STORE_NAME = 'vault'; // defined here so _openDB upgrade can reference it
 
   let _db = null;
+  let _dbPromise = null; // in-flight open — deduplicates concurrent _openDB() calls
   let _active = false;
 
 
@@ -43,7 +44,9 @@ const TheWellspring = (() => {
 
   function _openDB() {
     if (_db) return Promise.resolve(_db);
-    return new Promise((resolve, reject) => {
+    // Deduplicate concurrent opens — return the same promise to all callers.
+    if (_dbPromise) return _dbPromise;
+    _dbPromise = new Promise((resolve, reject) => {
       const req = indexedDB.open(DB_NAME, DB_VERSION);
       req.onupgradeneeded = (e) => {
         const db = e.target.result;
@@ -66,13 +69,15 @@ const TheWellspring = (() => {
       };
       req.onsuccess = () => {
         _db = req.result;
+        _dbPromise = null;
         // Reset cached handle if the browser closes the connection (e.g. PWA resume)
-        _db.onclose = () => { _db = null; };
-        _db.onversionchange = () => { _db.close(); _db = null; };
+        _db.onclose = () => { _db = null; _dbPromise = null; };
+        _db.onversionchange = () => { _db.close(); _db = null; _dbPromise = null; };
         resolve(_db);
       };
-      req.onerror = () => reject(new Error('Wellspring: IndexedDB open failed'));
+      req.onerror = () => { _dbPromise = null; reject(new Error('Wellspring: IndexedDB open failed')); };
     });
+    return _dbPromise;
   }
 
   function _tx(storeName, mode) {
