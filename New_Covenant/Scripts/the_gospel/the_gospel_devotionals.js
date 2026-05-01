@@ -32,7 +32,9 @@ function _dayOfYear(iso) {
 }
 
 function _todayISO() {
-  return new Date().toISOString().slice(0, 10);
+  const d = new Date();
+  const p = (n) => String(n).padStart(2, '0');
+  return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
 }
 
 export function render() {
