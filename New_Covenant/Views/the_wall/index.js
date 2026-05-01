@@ -1211,6 +1211,7 @@ function _auditPanelMarkup() {
       <button class="flock-btn flock-btn--ghost" data-act="audit-refresh" type="button">Re-scan</button>
       <button class="flock-btn flock-btn--primary" data-act="audit-init-all" type="button">Initialize all missing</button>
       <button class="flock-btn flock-btn--ghost" data-act="audit-export-xlsx" type="button">⬇ Export to .xlsx</button>
+      <button class="flock-btn flock-btn--ghost" data-act="audit-export-json" type="button">⬇ Export to .json</button>
     </div>
     <div data-bind="audit-export-msg" style="margin-bottom:10px;font-size:.84rem;min-height:1.2em"></div>
     <div class="wall-audit-list" data-bind="audit-list">
@@ -1230,6 +1231,7 @@ function _wireAuditPanel(root) {
     if (act === 'audit-init-all')  return _initAllMissing(root);
     if (act === 'audit-init')      return _initOne(root, btn.dataset.id);
     if (act === 'audit-export-xlsx') return _exportFirestoreXlsx(root, btn);
+    if (act === 'audit-export-json') return _exportFirestoreJson(root, btn);
   });
   // Initial load if user lands directly on audit (deep-link future-proof).
   if (!panel.classList.contains('wall-panel--hidden')) _refreshAudit(root);
@@ -1502,6 +1504,78 @@ async function _exportFirestoreXlsx(root, btn) {
   const fname  = `FlockOS-${_e(churchId)}-${date}.xlsx`;
   XLSX.writeFile(wb, fname);
   setMsg(`✓ Exported ${totalRows} rows across ${wb.SheetNames.length} sheet(s) → ${fname}`, '#16a34a');
+  btn.disabled = false; btn.textContent = orig;
+}
+
+// Serialize Firestore Timestamps and nested objects faithfully for JSON round-trip.
+function _serializeForJson(obj) {
+  if (obj === null || obj === undefined) return obj;
+  if (typeof obj.toDate === 'function') {
+    // Firestore Timestamp → { __type: 'timestamp', iso: '...' } so it can be restored
+    return { __type: 'timestamp', iso: obj.toDate().toISOString() };
+  }
+  if (Array.isArray(obj)) return obj.map(_serializeForJson);
+  if (typeof obj === 'object') {
+    const out = {};
+    for (const [k, v] of Object.entries(obj)) out[k] = _serializeForJson(v);
+    return out;
+  }
+  return obj;
+}
+
+async function _exportFirestoreJson(root, btn) {
+  const msgEl = root.querySelector('[data-bind="audit-export-msg"]');
+  const setMsg = (t, c) => { if (msgEl) { msgEl.textContent = t; msgEl.style.color = c || 'var(--ink-muted,#7a7f96)'; } };
+
+  const db = _auditDb();
+  if (!db) return setMsg('Firebase not connected — refresh and try again.', '#b91c1c');
+
+  btn.disabled = true;
+  const orig = btn.textContent;
+  btn.textContent = 'Fetching data…';
+  setMsg('');
+
+  const churchId = _auditChurchId();
+  const exportDoc = {
+    __meta: {
+      exportedAt: new Date().toISOString(),
+      churchId,
+      format: 'FlockOS-Firestore-JSON-v1',
+      note: 'Timestamps stored as { __type: "timestamp", iso: "..." } for lossless re-import.',
+    },
+    collections: {},
+  };
+
+  let totalDocs = 0;
+  for (const spec of _FS_EXPORT_SPECS) {
+    try {
+      const rows = await spec.fetch(db, churchId);
+      if (!rows.length) continue;
+      exportDoc.collections[spec.sheet] = rows.map((r) => _serializeForJson(r));
+      totalDocs += rows.length;
+    } catch (_) {
+      // Permission denied or missing — skip silently.
+    }
+  }
+
+  if (!Object.keys(exportDoc.collections).length) {
+    setMsg('No readable data found. Check Firestore permissions.', '#b45309');
+    btn.disabled = false; btn.textContent = orig; return;
+  }
+
+  const json  = JSON.stringify(exportDoc, null, 2);
+  const blob  = new Blob([json], { type: 'application/json' });
+  const url   = URL.createObjectURL(blob);
+  const date  = new Date().toISOString().slice(0, 10);
+  const fname = `FlockOS-${churchId}-${date}.json`;
+  const a     = Object.assign(document.createElement('a'), { href: url, download: fname });
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+
+  const sheets = Object.keys(exportDoc.collections).join(', ');
+  setMsg(`✓ Exported ${totalDocs} docs (${sheets}) → ${fname}`, '#16a34a');
   btn.disabled = false; btn.textContent = orig;
 }
 
