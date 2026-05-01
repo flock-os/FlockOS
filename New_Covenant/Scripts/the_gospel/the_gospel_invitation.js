@@ -559,32 +559,51 @@ function _waitForUpperRoom(ms) {
   });
 }
 
+/** Read a single appConfig key directly from Firestore (no auth needed — public project). */
+async function _readAppConfigDirect(key) {
+  const fb = window.firebase;
+  if (!fb) return '';
+  try {
+    const cfg = window.FLOCK_FIREBASE_CONFIG || {
+      apiKey:    'AIzaSyBA-fkxjABbwIHn0i6MPiXbGwahfJmuJeo',
+      authDomain:'flockos-notify.firebaseapp.com',
+      projectId: 'flockos-notify',
+    };
+    const appName = 'grow-church-info';
+    const app = fb.apps.find(a => a.name === appName) || fb.initializeApp(cfg, appName);
+    const db  = app.firestore();
+    const doc = await db.collection('appConfig').doc(key).get();
+    return doc.exists ? (doc.data().value || '') : '';
+  } catch (_) { return ''; }
+}
+
 async function _loadChurchMap(root) {
   const bodyEl = root.querySelector('[data-bind="church-map-body"]');
   if (!bodyEl) return;
 
-  const UR = await _waitForUpperRoom(10000);
-  if (!UR) {
-    // Public GROW mode or backend unavailable
-    bodyEl.innerHTML = _mapSkeletonMsg('Visit our website or contact us to find service times and location.');
-    return;
-  }
+  const UR = await _waitForUpperRoom(5000);
+  const keys = ['church_name','church_address','church_gathering','church_phone','church_website'];
 
   try {
-    const keys = ['church_name','church_address','church_gathering','church_phone','church_website'];
-    const results = await Promise.all(keys.map(k => UR.getAppConfig({ key: k }).catch(() => ({ value: '' }))));
-    const cfg = {};
-    keys.forEach((k, i) => { cfg[k] = (results[i]?.value || '').trim(); });
+    let cfg = {};
+    if (UR) {
+      // Authenticated app — use UpperRoom
+      const results = await Promise.all(keys.map(k => UR.getAppConfig({ key: k }).catch(() => ({ value: '' }))));
+      keys.forEach((k, i) => { cfg[k] = (results[i]?.value || '').trim(); });
+    } else {
+      // Public GROW — read directly from Firestore compat SDK
+      const results = await Promise.all(keys.map(k => _readAppConfigDirect(k)));
+      keys.forEach((k, i) => { cfg[k] = (results[i] || '').trim(); });
+    }
 
     if (!cfg.church_address) {
-      bodyEl.innerHTML = _mapSkeletonMsg('Service location not configured yet. Ask your pastor to set it up in Admin → Settings.');
+      bodyEl.innerHTML = _mapSkeletonMsg('Service location not configured yet.');
       return;
     }
 
-    const encodedAddr = encodeURIComponent(cfg.church_address);
-    const mapsLink    = `https://maps.google.com/maps?q=${encodedAddr}`;
-    const appleMaps   = `https://maps.apple.com/?q=${encodedAddr}`;
-    // Use Google Maps on Android/desktop, Apple Maps on iOS
+    const encodedAddr  = encodeURIComponent(cfg.church_address);
+    const mapsLink     = `https://maps.google.com/maps?q=${encodedAddr}`;
+    const appleMaps    = `https://maps.apple.com/?q=${encodedAddr}`;
     const directionsHref = /iPad|iPhone|iPod/.test(navigator.userAgent) ? appleMaps : mapsLink;
 
     bodyEl.innerHTML = /* html */`
@@ -636,6 +655,8 @@ async function _loadChurchMap(root) {
     bodyEl.innerHTML = _mapSkeletonMsg('Could not load church info right now.');
   }
 }
+
+
 
 function _mapSkeletonMsg(msg) {
   return /* html */`
