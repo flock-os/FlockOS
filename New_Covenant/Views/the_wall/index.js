@@ -41,6 +41,11 @@ const SECTIONS = [
     custom: 'notifications',
   },
   {
+    key: 'wellspring', label: 'The Wellspring',
+    icon: '<path d="M12 2a5 5 0 0 1 5 5c0 5.25-5 11-5 11S7 12.25 7 7a5 5 0 0 1 5-5z"/><circle cx="12" cy="7" r="2"/>',
+    custom: 'wellspring',
+  },
+  {
     key: 'audit', label: 'Audit & Initialize',
     icon: '<path d="M9 11l3 3 8-8"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>',
     custom: 'audit',
@@ -79,6 +84,7 @@ export function render() {
               <h2 class="wall-panel-title">${_e(s.label)}</h2>
               ${s.custom === 'audit'         ? _auditPanelMarkup()         :
                 s.custom === 'maintenance'   ? _maintenancePanelMarkup()   :
+                s.custom === 'wellspring'    ? _wellspringPanelMarkup()    :
                 s.custom === 'church'        ? _churchPanelMarkup()        :
                 s.custom === 'members'       ? _membersPanelMarkup()       :
                 s.custom === 'roles'         ? _rolesPanelMarkup()         :
@@ -129,6 +135,9 @@ export function mount(root) {
   // Audit panel wiring
   _wireAuditPanel(root);
 
+  // Wellspring panel wiring
+  _wireWellspringPanel(root);
+
   // Maintenance panel wiring
   _wireMaintenancePanel(root);
 
@@ -142,6 +151,9 @@ export function mount(root) {
         _loadJpStatus(root);
         _loadBibleApiStatus(root);
       });
+    }
+    if (btn.dataset.wallSection === 'wellspring') {
+      btn.addEventListener('click', () => _refreshWellspringStatus(root));
     }
   });
 
@@ -747,6 +759,389 @@ function _setBibleBadge(badge, state) {
   const { status, text } = map[state] || map['not-set'];
   badge.className = `wall-status-badge wall-status--${status}`;
   badge.textContent = text;
+}
+
+/* ── The Wellspring panel ───────────────────────────────────────────────────
+   Local offline data engine. Loads a .xlsx church database into IndexedDB,
+   then routes TheVine API calls through a local resolver — zero connectivity
+   required. AES-GCM 256-bit PIN vault for offline credential storage.      */
+
+function _wellspringPanelMarkup() {
+  return /* html */`
+    <p style="margin:0 0 18px;color:var(--ink-muted,#7a7f96);font-size:.9rem;line-height:1.7">
+      The Wellspring lets FlockOS run <strong>completely offline</strong> from a single
+      <code>.xlsx</code> file — no internet required. The file is imported into the browser's
+      local IndexedDB and all data calls are routed through the local resolver.
+      Credentials are stored in a <strong>256-bit AES-GCM PIN vault</strong> (PBKDF2, 100 000 iterations).
+    </p>
+
+    <!-- Status card -->
+    <div class="wall-ws-status-card" data-bind="ws-status-card" style="
+        display:flex;align-items:flex-start;gap:16px;
+        background:var(--bg-raised,#fff);border:1px solid var(--line,#e5e7ef);
+        border-radius:12px;padding:18px 20px;margin-bottom:20px">
+      <div style="font-size:2rem;line-height:1;flex-shrink:0">💧</div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px">
+          <span style="font-weight:700;font-size:1rem;color:var(--ink,#1b264f)">Wellspring Status</span>
+          <span class="wall-status-badge wall-status--muted" data-bind="ws-mode-badge">Checking…</span>
+        </div>
+        <div style="display:grid;grid-template-columns:auto 1fr;gap:3px 14px;font-size:.84rem;color:var(--ink-muted,#7a7f96)">
+          <span>File loaded:</span>   <span data-bind="ws-file-name" style="color:var(--ink,#1b264f);font-weight:500">—</span>
+          <span>Tabs loaded:</span>   <span data-bind="ws-tabs">—</span>
+          <span>Total rows:</span>    <span data-bind="ws-rows">—</span>
+          <span>Vault:</span>         <span data-bind="ws-vault-status">—</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mode toggle row -->
+    <div class="wall-setting-row" style="align-items:center;margin-bottom:20px">
+      <div style="display:flex;flex-direction:column;gap:3px">
+        <label class="wall-setting-label" style="font-weight:700">Offline Mode</label>
+        <span style="font-size:.78rem;color:var(--ink-muted,#7a7f96)">
+          Route all TheVine API calls through local IndexedDB instead of cloud back-end.
+        </span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <div class="wall-toggle" id="ws-mode-toggle" role="switch" tabindex="0" aria-label="Enable Wellspring offline mode">
+          <div class="wall-toggle-thumb"></div>
+        </div>
+        <span data-bind="ws-toggle-label" style="font-size:.84rem;color:var(--ink-muted,#7a7f96)">Off</span>
+      </div>
+    </div>
+
+    <!-- File import -->
+    <div style="margin-bottom:20px">
+      <div style="font-weight:600;color:var(--ink,#1b264f);margin-bottom:6px;font-size:.92rem">
+        Load Church Database (.xlsx)
+      </div>
+      <p style="font-size:.82rem;color:var(--ink-muted,#7a7f96);margin:0 0 10px;line-height:1.6">
+        Export the complete FlockOS spreadsheet (all 200 tabs) from your Google Sheet, then load it here.
+        The file is stored locally in IndexedDB — it never leaves the device.
+      </p>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <label class="flock-btn flock-btn--ghost" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px">
+          📂 Choose File
+          <input type="file" accept=".xls,.xlsx" id="ws-file-input" style="display:none">
+        </label>
+        <span data-bind="ws-import-status" style="font-size:.84rem;color:var(--ink-muted,#7a7f96)"></span>
+      </div>
+      <div class="wall-ws-progress" data-bind="ws-progress" style="display:none;margin-top:10px">
+        <div style="height:4px;border-radius:2px;background:var(--line,#e5e7ef);overflow:hidden">
+          <div data-bind="ws-progress-bar" style="height:100%;background:#38bdf8;border-radius:2px;width:0%;transition:width .3s ease"></div>
+        </div>
+        <div data-bind="ws-progress-label" style="font-size:.78rem;color:var(--ink-muted,#7a7f96);margin-top:4px">Importing…</div>
+      </div>
+    </div>
+
+    <!-- PIN Vault section -->
+    <div style="background:var(--bg-raised,#fff);border:1px solid var(--line,#e5e7ef);border-radius:12px;padding:18px 20px;margin-bottom:20px">
+      <div style="font-weight:700;color:var(--ink,#1b264f);margin-bottom:4px;display:flex;align-items:center;gap:8px">
+        🔐 Offline PIN Vault
+        <span class="wall-status-badge wall-status--muted" data-bind="ws-vault-badge">Checking…</span>
+      </div>
+      <p style="font-size:.82rem;color:var(--ink-muted,#7a7f96);margin:0 0 12px;line-height:1.65">
+        Store your login credentials encrypted in IndexedDB for fully offline access.
+        Your PIN is never stored — it's used to derive an AES-256 key via PBKDF2.
+        On the next visit without internet, enter your PIN to restore the session.
+      </p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <div style="display:flex;gap:6px;align-items:center">
+          <input type="password" id="ws-pin-input" placeholder="Enter 6+ digit PIN"
+            autocomplete="new-password" style="font-size:.85rem;padding:6px 10px;
+            border:1px solid var(--line,#e5e7ef);border-radius:8px;width:180px;
+            background:var(--bg-raised,#fff);color:var(--ink,#1b264f)">
+          <button class="flock-btn flock-btn--primary flock-btn--sm" data-act="ws-vault-setup">Set PIN</button>
+        </div>
+        <button class="flock-btn flock-btn--ghost flock-btn--sm" data-act="ws-vault-test">
+          Test Unlock
+        </button>
+        <button class="flock-btn flock-btn--ghost flock-btn--sm" data-act="ws-vault-destroy"
+          style="color:#b91c1c;border-color:#fca5a5">
+          Destroy Vault
+        </button>
+      </div>
+      <div data-bind="ws-vault-msg" style="margin-top:8px;font-size:.82rem;min-height:1.2em"></div>
+    </div>
+
+    <!-- Export & Clear -->
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <button class="flock-btn flock-btn--ghost" data-act="ws-export">
+        ⬇ Export Database (.xlsx)
+      </button>
+      <button class="flock-btn flock-btn--ghost" data-act="ws-clear"
+        style="color:#b91c1c;border-color:#fca5a5">
+        🗑 Clear Local Data
+      </button>
+      <button class="flock-btn flock-btn--ghost flock-btn--sm" data-act="ws-refresh">
+        ↻ Refresh Status
+      </button>
+    </div>
+    <div data-bind="ws-action-msg" style="margin-top:10px;font-size:.84rem;min-height:1.2em"></div>
+
+    <div style="margin-top:24px;padding:14px 16px;background:rgba(56,189,248,.06);
+        border:1px solid rgba(56,189,248,.2);border-radius:10px">
+      <div style="font-size:.78rem;color:var(--ink-muted,#7a7f96);line-height:1.75">
+        <strong style="color:var(--ink,#1b264f)">John 4:14</strong> —
+        <em>"Whoever drinks the water I give them will never thirst. Indeed, the water I give them will
+        become in them a spring of water welling up to eternal life."</em>
+      </div>
+    </div>
+  `;
+}
+
+function _wireWellspringPanel(root) {
+  const panel = root.querySelector('[data-wall-panel="wellspring"]');
+  if (!panel) return;
+
+  // Load initial status
+  _refreshWellspringStatus(root);
+
+  // Mode toggle
+  const toggle = panel.querySelector('#ws-mode-toggle');
+  if (toggle) {
+    toggle.addEventListener('click',  () => _toggleWellspring(root, toggle));
+    toggle.addEventListener('keydown', e => { if (e.key === ' ' || e.key === 'Enter') _toggleWellspring(root, toggle); });
+  }
+
+  // File import
+  const fileInput = panel.querySelector('#ws-file-input');
+  if (fileInput) {
+    fileInput.addEventListener('change', async (e) => {
+      const file = e.target.files?.[0];
+      if (file) await _importWellspringFile(root, file);
+      fileInput.value = ''; // reset so same file can be reloaded
+    });
+  }
+
+  // Vault + action buttons
+  panel.addEventListener('click', async (e) => {
+    const btn = e.target.closest('[data-act]');
+    if (!btn) return;
+    const act = btn.dataset.act;
+    if (act === 'ws-vault-setup')   return _vaultSetup(root);
+    if (act === 'ws-vault-test')    return _vaultTest(root);
+    if (act === 'ws-vault-destroy') return _vaultDestroy(root, btn);
+    if (act === 'ws-export')        return _wellspringExport(root, btn);
+    if (act === 'ws-clear')         return _wellspringClear(root, btn);
+    if (act === 'ws-refresh')       return _refreshWellspringStatus(root);
+  });
+}
+
+function _getWS() { return window.TheWellspring || null; }
+
+async function _refreshWellspringStatus(root) {
+  const panel = root.querySelector('[data-wall-panel="wellspring"]');
+  if (!panel) return;
+
+  const WS = _getWS();
+  const modeBadge  = panel.querySelector('[data-bind="ws-mode-badge"]');
+  const fileName   = panel.querySelector('[data-bind="ws-file-name"]');
+  const tabs       = panel.querySelector('[data-bind="ws-tabs"]');
+  const rows       = panel.querySelector('[data-bind="ws-rows"]');
+  const vaultStat  = panel.querySelector('[data-bind="ws-vault-status"]');
+  const vaultBadge = panel.querySelector('[data-bind="ws-vault-badge"]');
+  const toggle     = panel.querySelector('#ws-mode-toggle');
+  const toggleLbl  = panel.querySelector('[data-bind="ws-toggle-label"]');
+
+  if (!WS) {
+    if (modeBadge) { modeBadge.className = 'wall-status-badge wall-status--warn'; modeBadge.textContent = 'Not loaded'; }
+    return;
+  }
+
+  try {
+    const st = await WS.status();
+    const active = !!st.active;
+    const loaded = !!st.loaded;
+
+    if (modeBadge) {
+      modeBadge.className = `wall-status-badge wall-status--${active ? 'ok' : loaded ? 'muted' : 'warn'}`;
+      modeBadge.textContent = active ? 'Offline Mode ON' : loaded ? 'Data loaded — standby' : 'No data loaded';
+    }
+    if (toggle) {
+      toggle.classList.toggle('wall-toggle--on', active);
+      toggle.setAttribute('aria-checked', String(active));
+    }
+    if (toggleLbl) toggleLbl.textContent = active ? 'On' : 'Off';
+    if (fileName) fileName.textContent = st.fileName || '—';
+    if (tabs)     tabs.textContent = st.tabs != null ? st.tabs : '—';
+    if (rows)     rows.textContent = st.rows != null ? st.rows.toLocaleString() : '—';
+
+    // Vault
+    const vaultExists = WS.vault && await WS.vault.exists();
+    const vaultTxt = vaultExists ? '🔐 Set up (encrypted)' : '⚠ Not configured';
+    if (vaultStat)  vaultStat.textContent  = vaultTxt;
+    if (vaultBadge) {
+      vaultBadge.className = `wall-status-badge wall-status--${vaultExists ? 'ok' : 'warn'}`;
+      vaultBadge.textContent = vaultExists ? 'Vault active' : 'No vault';
+    }
+  } catch (err) {
+    if (modeBadge) { modeBadge.className = 'wall-status-badge wall-status--warn'; modeBadge.textContent = 'Error'; }
+    console.error('[wall/wellspring] status error', err);
+  }
+}
+
+async function _toggleWellspring(root, toggle) {
+  const WS = _getWS();
+  if (!WS) return;
+  const isOn = toggle.classList.contains('wall-toggle--on');
+  const lbl = root.querySelector('[data-bind="ws-toggle-label"]');
+  try {
+    if (isOn) {
+      await WS.disable();
+    } else {
+      await WS.enable();
+    }
+    await _refreshWellspringStatus(root);
+  } catch (err) {
+    const msg = root.querySelector('[data-bind="ws-action-msg"]');
+    if (msg) { msg.textContent = 'Error: ' + (err?.message || String(err)); msg.style.color = '#b91c1c'; }
+  }
+}
+
+async function _importWellspringFile(root, file) {
+  const WS = _getWS();
+  const statusEl   = root.querySelector('[data-bind="ws-import-status"]');
+  const progressWr = root.querySelector('[data-bind="ws-progress"]');
+  const progressBr = root.querySelector('[data-bind="ws-progress-bar"]');
+  const progressLb = root.querySelector('[data-bind="ws-progress-label"]');
+
+  const setStatus = (msg, color = 'var(--ink-muted,#7a7f96)') => {
+    if (statusEl) { statusEl.textContent = msg; statusEl.style.color = color; }
+  };
+  const setProgress = (pct, label) => {
+    if (progressWr) progressWr.style.display = '';
+    if (progressBr) progressBr.style.width = pct + '%';
+    if (progressLb) progressLb.textContent = label;
+  };
+
+  if (!WS) { setStatus('Wellspring not available.', '#b91c1c'); return; }
+
+  setStatus('Importing… this may take a moment for large files.');
+  setProgress(0, 'Reading file…');
+
+  try {
+    setProgress(10, 'Parsing spreadsheet…');
+    await WS.load(file);
+    setProgress(100, 'Import complete.');
+    setStatus(`✓ Imported "${file.name}" successfully.`, '#16a34a');
+    if (progressWr) setTimeout(() => { progressWr.style.display = 'none'; }, 2500);
+    await _refreshWellspringStatus(root);
+  } catch (err) {
+    setStatus('Import failed: ' + (err?.message || String(err)), '#b91c1c');
+    if (progressWr) progressWr.style.display = 'none';
+  }
+}
+
+async function _vaultSetup(root) {
+  const WS = _getWS();
+  const pinEl = root.querySelector('#ws-pin-input');
+  const msg   = root.querySelector('[data-bind="ws-vault-msg"]');
+  const pin   = pinEl?.value?.trim() || '';
+  const setMsg = (text, color) => { if (msg) { msg.textContent = text; msg.style.color = color || 'var(--ink-muted,#7a7f96)'; } };
+
+  if (!WS) return setMsg('Wellspring not available.', '#b91c1c');
+  if (!pin || pin.length < 6) return setMsg('PIN must be at least 6 characters.', '#b91c1c');
+
+  const UR = window.UpperRoom;
+  const session = UR ? { email: UR.currentUser?.().email || '', role: 'admin', source: 'FlockOS' } : { role: 'admin', source: 'FlockOS' };
+
+  try {
+    setMsg('Encrypting vault…');
+    await WS.vault.setup(pin, session);
+    if (pinEl) pinEl.value = '';
+    setMsg('✓ Vault created. Your PIN was used to encrypt credentials — it is never stored.', '#16a34a');
+    await _refreshWellspringStatus(root);
+  } catch (err) {
+    setMsg('Vault setup failed: ' + (err?.message || String(err)), '#b91c1c');
+  }
+}
+
+async function _vaultTest(root) {
+  const WS = _getWS();
+  const pinEl = root.querySelector('#ws-pin-input');
+  const msg   = root.querySelector('[data-bind="ws-vault-msg"]');
+  const pin   = pinEl?.value?.trim() || '';
+  const setMsg = (text, color) => { if (msg) { msg.textContent = text; msg.style.color = color || 'var(--ink-muted,#7a7f96)'; } };
+
+  if (!WS) return setMsg('Wellspring not available.', '#b91c1c');
+  if (!pin) return setMsg('Enter your PIN first.', '#b91c1c');
+
+  try {
+    setMsg('Unlocking…');
+    const session = await WS.vault.unlock(pin);
+    if (pinEl) pinEl.value = '';
+    setMsg(`✓ Vault unlocked. Session: ${_e(session.email || session.role || 'OK')}`, '#16a34a');
+  } catch (err) {
+    if (pinEl) pinEl.value = '';
+    setMsg('Unlock failed: ' + (err?.message || String(err)), '#b91c1c');
+  }
+}
+
+async function _vaultDestroy(root, btn) {
+  if (!confirm('Destroy the offline PIN vault?\n\nYou will not be able to log in offline until you set up the vault again. Proceed?')) return;
+  const WS = _getWS();
+  const msg = root.querySelector('[data-bind="ws-vault-msg"]');
+  const setMsg = (text, color) => { if (msg) { msg.textContent = text; msg.style.color = color || 'var(--ink-muted,#7a7f96)'; } };
+
+  if (!WS) return setMsg('Wellspring not available.', '#b91c1c');
+
+  btn.disabled = true;
+  try {
+    await WS.vault.destroy();
+    setMsg('Vault destroyed.', '#b45309');
+    await _refreshWellspringStatus(root);
+  } catch (err) {
+    setMsg('Failed: ' + (err?.message || String(err)), '#b91c1c');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function _wellspringExport(root, btn) {
+  const WS = _getWS();
+  const msg = root.querySelector('[data-bind="ws-action-msg"]');
+  const setMsg = (text, color) => { if (msg) { msg.textContent = text; msg.style.color = color || 'var(--ink-muted,#7a7f96)'; } };
+
+  if (!WS) return setMsg('Wellspring not available.', '#b91c1c');
+
+  btn.disabled = true;
+  const orig = btn.textContent;
+  btn.textContent = 'Exporting…';
+  setMsg('');
+
+  try {
+    await WS.exportDB();
+    setMsg('✓ Export downloaded.', '#16a34a');
+  } catch (err) {
+    setMsg('Export failed: ' + (err?.message || String(err)), '#b91c1c');
+  } finally {
+    btn.disabled = false; btn.textContent = orig;
+  }
+}
+
+async function _wellspringClear(root, btn) {
+  if (!confirm('Clear ALL local Wellspring data?\n\nThis removes the imported spreadsheet from IndexedDB. The PIN vault is NOT affected.\n\nProceed?')) return;
+  const WS = _getWS();
+  const msg = root.querySelector('[data-bind="ws-action-msg"]');
+  const setMsg = (text, color) => { if (msg) { msg.textContent = text; msg.style.color = color || 'var(--ink-muted,#7a7f96)'; } };
+
+  if (!WS) return setMsg('Wellspring not available.', '#b91c1c');
+
+  btn.disabled = true;
+  const orig = btn.textContent;
+  btn.textContent = 'Clearing…';
+
+  try {
+    await WS.clearAll();
+    setMsg('Local data cleared. Offline mode has been turned off.', '#b45309');
+    await _refreshWellspringStatus(root);
+  } catch (err) {
+    setMsg('Clear failed: ' + (err?.message || String(err)), '#b91c1c');
+  } finally {
+    btn.disabled = false; btn.textContent = orig;
+  }
 }
 
 /* ── Audit panel ────────────────────────────────────────────────────────── */
