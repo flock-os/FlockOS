@@ -64,7 +64,13 @@ const TheWellspring = (() => {
         }
         // v3+: all stores already present
       };
-      req.onsuccess = () => { _db = req.result; resolve(_db); };
+      req.onsuccess = () => {
+        _db = req.result;
+        // Reset cached handle if the browser closes the connection (e.g. PWA resume)
+        _db.onclose = () => { _db = null; };
+        _db.onversionchange = () => { _db.close(); _db = null; };
+        resolve(_db);
+      };
       req.onerror = () => reject(new Error('Wellspring: IndexedDB open failed'));
     });
   }
@@ -73,7 +79,8 @@ const TheWellspring = (() => {
     return _db.transaction(storeName, mode).objectStore(storeName);
   }
 
-  function _put(storeName, key, value) {
+  async function _put(storeName, key, value) {
+    await _openDB();
     return new Promise((resolve, reject) => {
       const req = _tx(storeName, 'readwrite').put(value, key);
       req.onsuccess = () => resolve();
@@ -81,7 +88,8 @@ const TheWellspring = (() => {
     });
   }
 
-  function _get(storeName, key) {
+  async function _get(storeName, key) {
+    await _openDB();
     return new Promise((resolve, reject) => {
       const req = _tx(storeName, 'readonly').get(key);
       req.onsuccess = () => resolve(req.result);
@@ -89,7 +97,8 @@ const TheWellspring = (() => {
     });
   }
 
-  function _del(storeName, key) {
+  async function _del(storeName, key) {
+    await _openDB();
     return new Promise((resolve, reject) => {
       const req = _tx(storeName, 'readwrite').delete(key);
       req.onsuccess = () => resolve();
@@ -97,7 +106,8 @@ const TheWellspring = (() => {
     });
   }
 
-  function _allKeys(storeName) {
+  async function _allKeys(storeName) {
+    await _openDB();
     return new Promise((resolve, reject) => {
       const req = _tx(storeName, 'readonly').getAllKeys();
       req.onsuccess = () => resolve(req.result || []);
