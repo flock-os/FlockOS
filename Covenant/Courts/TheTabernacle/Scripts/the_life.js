@@ -84,7 +84,13 @@ const TheLife = (() => {
     try { return Nehemiah.hasGroup('Lead Pastor') || Nehemiah.hasGroup('Master'); } catch(e) { return false; }
   }
   function _canViewNotes() {
-    return _isSeedAdmin() || _isLeadPastor();
+    try {
+      if (_isSeedAdmin() || _isLeadPastor()) return true;
+      // Firebase custom-token users with role=pastor have no groups set yet;
+      // grant note visibility to anyone whose role is pastor or admin.
+      if (typeof Nehemiah !== 'undefined' && (Nehemiah.hasRole('pastor') || Nehemiah.hasRole('admin'))) return true;
+      return false;
+    } catch(e) { return false; }
   }
   function _filterClosed(rows, statusKey) {
     if (_canViewNotes()) {
