@@ -130,7 +130,10 @@ async function _loadHarvest(root) {
         });
       }
       missionEl.innerHTML = missionaries.length
-        ? missionaries.map(_liveMissionCard).join('')
+        ? missionaries
+            .slice()
+            .sort((a, b) => (a.missionaryName || a.name || '').localeCompare(b.missionaryName || b.name || ''))
+            .map(_liveMissionCard).join('')
         : '<div class="life-empty" style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">No missionary partners on file yet.</div>';
       // Wire edit clicks for live missionaries
       if (missionaries.length) {
@@ -162,6 +165,9 @@ async function _loadHarvest(root) {
         const t = (r.type || r.eventType || r.category || '').toLowerCase();
         return t.includes('outreach') || t.includes('community') || t.includes('service');
       });
+      // Sort newest (most recent start date) first
+      const _tsN = (v) => { if (!v) return 0; if (typeof v === 'object' && v.seconds) return v.seconds * 1000; return new Date(v).getTime() || 0; };
+      rows.sort((a, b) => _tsN(b.startDate || b.createdAt) - _tsN(a.startDate || a.createdAt));
       outreachEl.innerHTML = rows.length
         ? rows.map(_liveOutreachRow).join('')
         : '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">No outreach events on file.</div>';

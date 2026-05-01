@@ -218,6 +218,9 @@ async function _loadGiving(root) {
     if (gifts.length) {
       const txEl = root.querySelector('[data-bind="transactions"]');
       if (txEl) {
+        // Sort newest first before rendering
+        const _tsN = (g) => g.createdAt?.seconds ? g.createdAt.seconds * 1000 : (g.giftDate || g.date ? new Date(g.giftDate || g.date).getTime() : 0);
+        gifts.sort((a, b) => _tsN(b) - _tsN(a));
         txEl.innerHTML = gifts.map(g => {
           const name   = g.name || g.displayName || g.giverName || 'Anonymous';
           const fund   = g.fund || g.fundName || g.designatedFund || 'General Fund';
@@ -409,8 +412,9 @@ async function _loadPledges(root) {
     if (!rows || !rows.length) {
       host.innerHTML = '<div class="life-empty">No pledges on record. Use “New Pledge” to log one.</div>';
       return;
-    }
-    host.innerHTML = rows.map(p => _pledgeRow(p)).join('');
+    }    // Sort newest first
+    const _tsN = (v) => { if (!v) return 0; if (typeof v === 'object' && v.seconds) return v.seconds * 1000; return new Date(v).getTime() || 0; };
+    rows.sort((a, b) => _tsN(b.createdAt || b.pledgeDate) - _tsN(a.createdAt || a.pledgeDate));    host.innerHTML = rows.map(p => _pledgeRow(p)).join('');
     host.querySelectorAll('[data-pledge-id]').forEach(row => {
       row.addEventListener('click', () => {
         const id = row.dataset.pledgeId;

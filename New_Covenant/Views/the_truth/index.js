@@ -105,6 +105,9 @@ async function _loadTruth(root) {
     try {
       const res  = await MXS.list();
       const rows = _rows(res);
+      // Sort newest series first
+      const _tsN = (v) => { if (!v) return 0; if (typeof v === 'object' && v.seconds) return v.seconds * 1000; return new Date(v).getTime() || 0; };
+      rows.sort((a, b) => _tsN(b.createdAt || b.startDate) - _tsN(a.createdAt || a.startDate));
       seriesEl.innerHTML = rows.length
         ? rows.map(_liveSeriesCard).join('')
         : '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">No sermon series on file.</div>';
@@ -131,6 +134,9 @@ async function _loadTruth(root) {
     try {
       const res  = await MX.list();
       const rows = _rows(res);
+      // Sort newest messages/sermons first
+      const _tsNm = (v) => { if (!v) return 0; if (typeof v === 'object' && v.seconds) return v.seconds * 1000; return new Date(v).getTime() || 0; };
+      rows.sort((a, b) => _tsNm(b.deliveredDate || b.date || b.createdAt) - _tsNm(a.deliveredDate || a.date || a.createdAt));
       msgsEl.innerHTML = rows.length
         ? rows.map(_liveMsgRow).join('')
         : '<div style="padding:24px;text-align:center;color:var(--ink-muted,#7a7f96)">No messages on file.</div>';

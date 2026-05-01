@@ -87,8 +87,10 @@ export function mount(root) {
       _liveReqsMap = {};
       rows.forEach(r => { if (r.id) _liveReqsMap[String(r.id)] = r; });
       const CLOSED = new Set(['answered', 'closed', 'archived', 'deleted']);
-      const open   = rows.filter(r => !CLOSED.has((r.status || '').toLowerCase()));
-      const closed = rows.filter(r =>  CLOSED.has((r.status || '').toLowerCase()));
+      const _tsN = (v) => { if (!v) return 0; if (typeof v === 'object' && v.seconds) return v.seconds * 1000; return new Date(v).getTime() || 0; };
+      const _byNewest = (a, b) => _tsN(b.submittedAt || b.createdAt) - _tsN(a.submittedAt || a.createdAt);
+      const open   = rows.filter(r => !CLOSED.has((r.status || '').toLowerCase())).sort(_byNewest);
+      const closed = rows.filter(r =>  CLOSED.has((r.status || '').toLowerCase())).sort(_byNewest);
       if (!rows.length) {
         reqs.querySelector('.pc-col-body').innerHTML = `<div class="pc-col-empty">No standing requests right now.</div>`;
         return;

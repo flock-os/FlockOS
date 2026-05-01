@@ -355,8 +355,10 @@ async function _loadPrayer(root, filterBtns) {
       } catch (_) {}
     }
 
-    const active   = all.filter(r => !_CLOSED_PRAY.has((r.status || 'new').toLowerCase()));
-    const answered = all.filter(r => (r.status || '').toLowerCase() === 'answered');
+    const _tsN = (v) => { if (!v) return 0; if (typeof v === 'object' && v.seconds) return v.seconds * 1000; return new Date(v).getTime() || 0; };
+    const _byNewest = (a, b) => _tsN(b.submittedAt || b.createdAt) - _tsN(a.submittedAt || a.createdAt);
+    const active   = all.filter(r => !_CLOSED_PRAY.has((r.status || 'new').toLowerCase())).sort(_byNewest);
+    const answered = all.filter(r => (r.status || '').toLowerCase() === 'answered').sort(_byNewest);
 
     // Update stats strip with live counts
     const urgentN  = active.filter(r => _normalizeCategory(r.category || '') === 'Urgent').length;
