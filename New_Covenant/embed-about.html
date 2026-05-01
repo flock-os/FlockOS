@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
+  <meta name="format-detection" content="telephone=no, date=no, email=no, address=no">
+  <title>About FlockOS — The Engine Behind Every Ministry</title>
+  <meta name="description" content="FlockOS is a complete church management and ministry platform — given away for free, because the Gospel is free.">
+
+  <!-- Icons -->
+  <link rel="icon" type="image/png" href="https://flock-os.github.io/FlockOS/New_Covenant/Images/GrowIcon.png">
+  <link rel="apple-touch-icon" href="https://flock-os.github.io/FlockOS/New_Covenant/Images/GrowIcon.png">
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,600&family=Noto+Serif:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --navy:    #0c1445;
+      --navy-d:  #080e30;
+      --navy-m:  #14103a;
+      --gold:    #e8a838;
+      --gold-l:  #f5c96a;
+      --sky:     #38bdf8;
+      --emerald: #34d399;
+      --amber:   #fbbf24;
+      --violet:  #a78bfa;
+      --rose:    #fb7185;
+      --ink:     #1b264f;
+      --ink-2:   #4b5680;
+      --line:    #e5e7ef;
+      --bg:      #f7f8fb;
+      --bg-r:    #ffffff;
+      --r:       16px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      line-height: 1.65;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Typography helpers ──────────────────────────────────────────────── */
+    .serif { font-family: 'Noto Serif', Georgia, serif; }
+    .label {
+      font-size: 0.72rem; font-weight: 700; letter-spacing: .12em;
+      text-transform: uppercase; opacity: .7;
+    }
+
+    /* ── Layout ──────────────────────────────────────────────────────────── */
+    .ab-wrap { max-width: 860px; margin: 0 auto; padding: 0 24px 80px; }
+
+    /* ═══════════════════════════════════════════════════════════════════════
+       HERO
+    ═══════════════════════════════════════════════════════════════════════ */
+    .ab-hero {
+      position: relative;
+      background: linear-gradient(145deg, var(--navy-d) 0%, #101a50 55%, var(--navy-m) 100%);
+      padding: 72px 32px 80px;
+      text-align: center;
+      overflow: hidden;
+    }
+
+    /* Star field */
+    .ab-hero::before {
+      content: '';
+      position: absolute; inset: 0;
+      background-image:
+        radial-gradient(1.5px 1.5px at 12% 18%, rgba(255,255,255,.55) 0%, transparent 100%),
+        radial-gradient(1px 1px at 28% 72%, rgba(255,255,255,.4) 0%, transparent 100%),
+        radial-gradient(2px 2px at 44% 35%, rgba(232,168,56,.6) 0%, transparent 100%),
+        radial-gradient(1px 1px at 60% 88%, rgba(255,255,255,.35) 0%, transparent 100%),
+        radial-gradient(1.5px 1.5px at 76% 22%, rgba(255,255,255,.5) 0%, transparent 100%),
+        radial-gradient(1px 1px at 88% 60%, rgba(56,189,248,.5) 0%, transparent 100%),
+        radial-gradient(2px 2px at 7% 55%, rgba(167,139,250,.4) 0%, transparent 100%),
+        radial-gradient(1px 1px at 93% 80%, rgba(255,255,255,.3) 0%, transparent 100%),
+        radial-gradient(1.5px 1.5px at 52% 8%, rgba(255,255,255,.45) 0%, transparent 100%),
+        radial-gradient(1px 1px at 35% 94%, rgba(52,211,153,.4) 0%, transparent 100%);
+      pointer-events: none;
+    }
+
+    /* Gold glow orb */
+    .ab-hero::after {
+      content: '';
+      position: absolute;
+      width: 500px; height: 500px;
+      background: radial-gradient(circle, rgba(232,168,56,.18) 0%, transparent 70%);
+      top: 50%; left: 50%;
+      transform: translate(-50%, -60%);
+      pointer-events: none;
+    }
+
+    .ab-hero-inner { position: relative; z-index: 1; }
+
+    .ab-hero-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(232,168,56,.15);
+      border: 1px solid rgba(232,168,56,.35);
+      border-radius: 100px;
+      padding: 6px 16px;
+      color: var(--gold-l);
+      font-size: 0.78rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase;
+      margin-bottom: 28px;
+    }
+
+    .ab-hero h1 {
+      font-family: 'Noto Serif', Georgia, serif;
+      font-size: clamp(2rem, 5.5vw, 3.4rem);
+      font-weight: 700;
+      color: #ffffff;
+      line-height: 1.18;
+      max-width: 680px;
+      margin: 0 auto 20px;
+    }
+
+    .ab-hero h1 em {
+      font-style: normal;
+      background: linear-gradient(90deg, var(--gold) 0%, var(--gold-l) 60%, var(--amber) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .ab-hero-sub {
+      font-size: clamp(1rem, 2.5vw, 1.18rem);
+      color: rgba(255,255,255,.72);
+      max-width: 560px;
+      margin: 0 auto 36px;
+      line-height: 1.75;
+    }
+
+    .ab-hero-stat-row {
+      display: flex; flex-wrap: wrap; justify-content: center; gap: 12px 28px;
+      margin-top: 8px;
+    }
+
+    .ab-hero-stat {
+      display: flex; flex-direction: column; align-items: center;
+      color: rgba(255,255,255,.55);
+      font-size: 0.82rem;
+    }
+
+    .ab-hero-stat strong {
+      font-size: 1.7rem; font-weight: 800;
+      color: #fff;
+      line-height: 1.1;
+    }
+
+    .ab-hero-stat strong span {
+      background: linear-gradient(90deg, var(--gold), var(--amber));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════
+       STORY PULL-QUOTE
+    ═══════════════════════════════════════════════════════════════════════ */
+    .ab-story {
+      background: var(--bg-r);
+      border-left: 4px solid var(--gold);
+      border-radius: 0 var(--r) var(--r) 0;
+      padding: 36px 36px 36px 40px;
+      margin: 48px 0;
+      box-shadow: 0 2px 20px rgba(12,20,69,.07);
+    }
+
+    .ab-story p {
+      font-family: 'Noto Serif', Georgia, serif;
+      font-size: clamp(1.05rem, 2.5vw, 1.22rem);
+      color: var(--ink);
+      line-height: 1.85;
+      font-style: italic;
+    }
+
+    .ab-story p + p { margin-top: 18px; }
+
+    .ab-story-attr {
+      display: flex; align-items: center; gap: 10px;
+      margin-top: 24px;
+    }
+
+    .ab-story-attr-line {
+      width: 28px; height: 2px;
+      background: var(--gold);
+      border-radius: 2px;
+    }
+
+    .ab-story-attr span {
+      font-size: 0.82rem; font-weight: 600;
+      color: var(--ink-2);
+      letter-spacing: .04em;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════
+       SECTION HEADINGS
+    ═══════════════════════════════════════════════════════════════════════ */
+    .ab-section { margin: 64px 0; }
+
+    .ab-section-head {
+      display: flex; align-items: center; gap: 14px;
+      margin-bottom: 28px;
+    }
+
+    .ab-section-head-icon {
+      width: 44px; height: 44px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.3rem;
+      flex-shrink: 0;
+    }
+
+    .ab-section-head h2 {
+      font-family: 'Noto Serif', Georgia, serif;
+      font-size: clamp(1.35rem, 3.5vw, 1.75rem);
+      font-weight: 700;
+      color: var(--ink);
+      line-height: 1.25;
+    }
+
+    .ab-section-head h2 em {
+      font-style: normal;
+      color: var(--gold);
+    }
+
+    .ab-section p {
+      font-size: 1.02rem;
+      color: var(--ink-2);
+      line-height: 1.8;
+      margin-bottom: 14px;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════
+       BREADTH GRID
+    ═══════════════════════════════════════════════════════════════════════ */
+    .ab-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 16px;
+      margin-top: 28px;
+    }
+
+    .ab-card {
+      background: var(--bg-r);
+      border-radius: var(--r);
+      padding: 22px 22px 20px;
+      border: 1px solid var(--line);
+      box-shadow: 0 2px 12px rgba(12,20,69,.05);
+      transition: transform .18s ease, box-shadow .18s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .ab-card::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0; height: 3px;
+      background: var(--ab-c, var(--gold));
+      border-radius: var(--r) var(--r) 0 0;
+    }
+
+    .ab-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 28px rgba(12,20,69,.1);
+    }
+
+    .ab-card-icon { font-size: 1.6rem; margin-bottom: 10px; }
+
+    .ab-card h3 {
+      font-size: 0.96rem; font-weight: 700;
+      color: var(--ink);
+      margin-bottom: 7px;
+    }
+
+    .ab-card p {
+      font-size: 0.86rem;
+      color: var(--ink-2);
+      line-height: 1.6;
+      margin: 0;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════
+       FREE BANNER
+    ═══════════════════════════════════════════════════════════════════════ */
+    .ab-free {
+      position: relative;
+      background: linear-gradient(135deg, #0c1445 0%, #101a50 50%, #14103a 100%);
+      border-radius: 20px;
+      padding: 56px 40px;
+      text-align: center;
+      overflow: hidden;
+      margin: 64px 0;
+    }
+
+    .ab-free::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: radial-gradient(ellipse 70% 60% at 50% 40%, rgba(232,168,56,.12) 0%, transparent 100%);
+      pointer-events: none;
+    }
+
+    .ab-free-crown {
+      font-size: 3rem;
+      margin-bottom: 16px;
+      display: block;
+    }
+
+    .ab-free h2 {
+      font-family: 'Noto Serif', Georgia, serif;
+      font-size: clamp(1.6rem, 4vw, 2.4rem);
+      font-weight: 700;
+      color: #fff;
+      line-height: 1.22;
+      margin-bottom: 20px;
+    }
+
+    .ab-free h2 em {
+      font-style: normal;
+      background: linear-gradient(90deg, var(--gold), var(--amber));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .ab-free p {
+      font-size: clamp(0.98rem, 2.2vw, 1.12rem);
+      color: rgba(255,255,255,.72);
+      max-width: 560px;
+      margin: 0 auto 14px;
+      line-height: 1.8;
+    }
+
+    .ab-free-verse {
+      display: inline-block;
+      background: rgba(232,168,56,.12);
+      border: 1px solid rgba(232,168,56,.3);
+      border-radius: 10px;
+      padding: 14px 22px;
+      margin-top: 24px;
+    }
+
+    .ab-free-verse p {
+      font-family: 'Noto Serif', Georgia, serif;
+      font-size: 0.98rem;
+      font-style: italic;
+      color: rgba(255,255,255,.85);
+      margin: 0 0 4px;
+    }
+
+    .ab-free-verse span {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--gold-l);
+      letter-spacing: .06em;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════
+       PILLARS
+    ═══════════════════════════════════════════════════════════════════════ */
+    .ab-pillars {
+      display: flex; flex-direction: column; gap: 20px;
+      margin-top: 28px;
+    }
+
+    .ab-pillar {
+      display: flex; gap: 20px; align-items: flex-start;
+      background: var(--bg-r);
+      border-radius: var(--r);
+      padding: 24px 26px;
+      border: 1px solid var(--line);
+      box-shadow: 0 2px 12px rgba(12,20,69,.05);
+    }
+
+    .ab-pillar-num {
+      flex-shrink: 0;
+      width: 40px; height: 40px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1rem; font-weight: 800;
+      color: #fff;
+    }
+
+    .ab-pillar-body h3 {
+      font-size: 1rem; font-weight: 700;
+      color: var(--ink);
+      margin-bottom: 5px;
+    }
+
+    .ab-pillar-body p {
+      font-size: 0.9rem;
+      color: var(--ink-2);
+      line-height: 1.65;
+      margin: 0;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════
+       CLOSING
+    ═══════════════════════════════════════════════════════════════════════ */
+    .ab-closing {
+      text-align: center;
+      padding: 48px 24px 16px;
+    }
+
+    .ab-closing h2 {
+      font-family: 'Noto Serif', Georgia, serif;
+      font-size: clamp(1.4rem, 4vw, 2.1rem);
+      font-weight: 700;
+      color: var(--ink);
+      line-height: 1.3;
+      margin-bottom: 18px;
+    }
+
+    .ab-closing p {
+      font-size: 1.05rem;
+      color: var(--ink-2);
+      max-width: 520px;
+      margin: 0 auto 28px;
+      line-height: 1.8;
+    }
+
+    .ab-closing-logo {
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+      margin-top: 36px; padding-top: 28px;
+      border-top: 1px solid var(--line);
+      color: var(--ink-2);
+      font-size: 0.82rem;
+    }
+
+    .ab-closing-logo img {
+      width: 28px; height: 28px;
+      border-radius: 7px;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════
+       SCROLL REVEAL animation
+    ═══════════════════════════════════════════════════════════════════════ */
+    @media (prefers-reduced-motion: no-preference) {
+      .ab-fade {
+        opacity: 0;
+        transform: translateY(20px);
+        transition: opacity .5s ease, transform .5s ease;
+      }
+      .ab-fade.visible {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════
+       RESPONSIVE
+    ═══════════════════════════════════════════════════════════════════════ */
+    @media (max-width: 640px) {
+      .ab-hero { padding: 52px 20px 64px; }
+      .ab-story { padding: 28px 24px 28px 28px; }
+      .ab-free  { padding: 40px 24px; }
+      .ab-pillar { flex-direction: column; gap: 12px; }
+      .ab-pillar-num { width: 34px; height: 34px; font-size: 0.88rem; }
+      .ab-wrap { padding: 0 16px 60px; }
+      .ab-section { margin: 48px 0; }
+    }
+
+    @media (max-width: 480px) {
+      .ab-grid { grid-template-columns: 1fr 1fr; }
+      .ab-hero h1 { font-size: 1.7rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ═══ HERO ═══════════════════════════════════════════════════════════ -->
+  <div class="ab-hero">
+    <div class="ab-hero-inner">
+      <div class="ab-hero-badge">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        Built for the Church · Given Free
+      </div>
+
+      <h1>
+        The <em>engine</em> behind every<br>
+        interaction, every soul,<br>
+        every ministry.
+      </h1>
+
+      <p class="ab-hero-sub">
+        FlockOS is a complete church management and pastoral care platform —
+        built with the same love, depth, and detail you bring to your congregation,
+        and offered without cost, because what you carry deserves support.
+      </p>
+
+      <div class="ab-hero-stat-row">
+        <div class="ab-hero-stat">
+          <strong><span>30+</span></strong>
+          <span>Ministry Modules</span>
+        </div>
+        <div class="ab-hero-stat">
+          <strong><span>100%</span></strong>
+          <span>Free. Always.</span>
+        </div>
+        <div class="ab-hero-stat">
+          <strong><span>1</span></strong>
+          <span>Mission: Serve Pastors</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ab-wrap">
+
+    <!-- ═══ STORY ═══════════════════════════════════════════════════════ -->
+    <div class="ab-story ab-fade">
+      <p>
+        Somewhere right now, a solo pastor — the preacher, the administrator,
+        the counselor, the janitor, the volunteer coordinator, and the grief
+        chaplain all at once — is trying to remember if he followed up with
+        the sick member he promised to call for prayer last Tuesday.
+      </p>
+      <p>
+        His notes are in a spiral notebook. His calendar is in his head.
+        His member list is a spreadsheet from 2019. And his heart is
+        fully, genuinely, sacrificially in it — every single day.
+      </p>
+      <p>
+        FlockOS was built for him.
+      </p>
+      <div class="ab-story-attr">
+        <div class="ab-story-attr-line"></div>
+        <span>The reason FlockOS exists</span>
+      </div>
+    </div>
+
+    <!-- ═══ WHAT IS FLOCKOS ══════════════════════════════════════════════ -->
+    <div class="ab-section ab-fade">
+      <div class="ab-section-head">
+        <div class="ab-section-head-icon" style="background:rgba(232,168,56,.13);">🏛️</div>
+        <h2>One Platform. <em>Every Dimension</em> of Church Life.</h2>
+      </div>
+      <p>
+        FlockOS isn't a contact list with a prayer request feature bolted on.
+        It's the full infrastructure of a thriving church — built from the ground up
+        around how pastors actually shepherd their people, not how software vendors
+        imagine they do.
+      </p>
+      <p>
+        From the moment someone encounters your church online, through every milestone
+        of their spiritual journey, all the way to the pastoral care notes you leave
+        for your own memory — FlockOS holds the whole story.
+      </p>
+
+      <div class="ab-grid">
+        <div class="ab-card ab-fade" style="--ab-c:var(--gold)">
+          <div class="ab-card-icon">🙏</div>
+          <h3>Pastoral Care & Prayer</h3>
+          <p>Log prayer requests, track follow-up, and never let a promise to pray slip through the cracks again.</p>
+        </div>
+        <div class="ab-card ab-fade" style="--ab-c:var(--emerald)">
+          <div class="ab-card-icon">👥</div>
+          <h3>Member Directory</h3>
+          <p>Rich member profiles with photos, family ties, spiritual history, and notes visible only to your pastoral team.</p>
+        </div>
+        <div class="ab-card ab-fade" style="--ab-c:var(--sky)">
+          <div class="ab-card-icon">🗓️</div>
+          <h3>Groups & Events</h3>
+          <p>Small groups, committees, Bible studies, and church-wide events — scheduled, tracked, and attended.</p>
+        </div>
+        <div class="ab-card ab-fade" style="--ab-c:var(--violet)">
+          <div class="ab-card-icon">🎯</div>
+          <h3>Spiritual Milestones</h3>
+          <p>Record salvations, baptisms, dedications, and other defining moments in a member's walk with God.</p>
+        </div>
+        <div class="ab-card ab-fade" style="--ab-c:var(--rose)">
+          <div class="ab-card-icon">📣</div>
+          <h3>GROW Public Outreach</h3>
+          <p>A public-facing ministry page your church can share — inviting, beautiful, and Gospel-centered.</p>
+        </div>
+        <div class="ab-card ab-fade" style="--ab-c:var(--amber)">
+          <div class="ab-card-icon">💬</div>
+          <h3>FlockChat Messaging</h3>
+          <p>Secure in-app messaging for your team, small groups, and ministry leaders — no third-party apps needed.</p>
+        </div>
+        <div class="ab-card ab-fade" style="--ab-c:var(--emerald)">
+          <div class="ab-card-icon">📖</div>
+          <h3>Scripture & Devotionals</h3>
+          <p>Daily devotionals, one-year Bible plans, Strong's concordance, and teaching resources — built in.</p>
+        </div>
+        <div class="ab-card ab-fade" style="--ab-c:var(--sky)">
+          <div class="ab-card-icon">🌿</div>
+          <h3>Outreach Contact Tracking</h3>
+          <p>Capture guests, track first visits, and follow up with people who are just beginning to seek.</p>
+        </div>
+        <div class="ab-card ab-fade" style="--ab-c:var(--violet)">
+          <div class="ab-card-icon">⚙️</div>
+          <h3>Admin & Configuration</h3>
+          <p>Church settings, service schedules, address, and team management — all in one place, no IT required.</p>
+        </div>
+        <div class="ab-card ab-fade" style="--ab-c:var(--gold)">
+          <div class="ab-card-icon">🕊️</div>
+          <h3>The Invitation</h3>
+          <p>A Gospel presentation page — rich, readable, and shareable — so the message is always one tap away.</p>
+        </div>
+        <div class="ab-card ab-fade" style="--ab-c:var(--rose)">
+          <div class="ab-card-icon">🏥</div>
+          <h3>Counseling & Crisis Resources</h3>
+          <p>Reference tools for pastoral counseling, apologetics, and ministry guidance, right when you need them.</p>
+        </div>
+        <div class="ab-card ab-fade" style="--ab-c:var(--amber)">
+          <div class="ab-card-icon">📊</div>
+          <h3>Multi-Church Deployment</h3>
+          <p>Built to scale from one solo pastor to a network of churches — each with its own identity and data.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ THE FREE SECTION ══════════════════════════════════════════════ -->
+    <div class="ab-free ab-fade">
+      <span class="ab-free-crown">✝️</span>
+      <h2>Free. Not<em> freemium.</em><br>Free — because the Gospel is free.</h2>
+      <p>
+        Every feature. Every module. Every update.
+        No subscription tiers. No "upgrade to unlock pastoral care."
+        No per-seat pricing that punishes growth.
+      </p>
+      <p>
+        The resources of a large church deserve to be in the hands of the smallest congregation.
+        The pastor of twelve should have the same tools as the pastor of twelve hundred.
+      </p>
+      <div class="ab-free-verse">
+        <p>"Freely you have received; freely give."</p>
+        <span>Matthew 10:8</span>
+      </div>
+    </div>
+
+    <!-- ═══ WHY WE BUILT IT ═══════════════════════════════════════════════ -->
+    <div class="ab-section ab-fade">
+      <div class="ab-section-head">
+        <div class="ab-section-head-icon" style="background:rgba(56,189,248,.13);">💡</div>
+        <h2>Why We <em>Built</em> This</h2>
+      </div>
+      <p>
+        Church management software has always been priced as if the church is a business —
+        and the pastor is the product manager. FlockOS was built by someone who understands
+        that pastoral ministry is not a workflow problem. It is a calling.
+      </p>
+      <p>
+        The goal wasn't to automate the pastor out of the picture.
+        It was to hand him back hours — so that when he sits with the grieving widow on a Wednesday,
+        he isn't mentally carrying the weight of fifty things he hasn't tracked yet.
+      </p>
+      <p>
+        FlockOS carries the weight so the pastor can carry the people.
+      </p>
+
+      <div class="ab-pillars">
+        <div class="ab-pillar ab-fade">
+          <div class="ab-pillar-num" style="background:var(--gold)">1</div>
+          <div class="ab-pillar-body">
+            <h3>People, not processes</h3>
+            <p>Every feature traces back to a real pastoral moment — a hospital visit, a prayer request, a discipleship conversation that needed to be remembered.</p>
+          </div>
+        </div>
+        <div class="ab-pillar ab-fade">
+          <div class="ab-pillar-num" style="background:var(--sky)">2</div>
+          <div class="ab-pillar-body">
+            <h3>No tech expertise required</h3>
+            <p>A pastor shouldn't need an IT team to run his church tools. FlockOS deploys with one command and runs in the browser — any device, anywhere.</p>
+          </div>
+        </div>
+        <div class="ab-pillar ab-fade">
+          <div class="ab-pillar-num" style="background:var(--emerald)">3</div>
+          <div class="ab-pillar-body">
+            <h3>Built for the long obedience</h3>
+            <p>Ministry is a marathon. FlockOS is designed to grow with you — from your first twenty members to your five hundredth, the architecture holds.</p>
+          </div>
+        </div>
+        <div class="ab-pillar ab-fade">
+          <div class="ab-pillar-num" style="background:var(--violet)">4</div>
+          <div class="ab-pillar-body">
+            <h3>Gospel-first, always</h3>
+            <p>Outreach tools, the public GROW page, and The Invitation module exist because the mission isn't member management — it's making disciples.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ CLOSING ═════════════════════════════════════════════════════ -->
+    <div class="ab-closing ab-fade">
+      <h2>
+        The flock is worth it.<br>
+        The shepherd is worth it.
+      </h2>
+      <p>
+        If you are a pastor carrying more than you should have to carry alone —
+        FlockOS was built for you. Not sold to you. Built for you.
+      </p>
+
+      <div class="ab-closing-logo">
+        <img src="https://flock-os.github.io/FlockOS/New_Covenant/Images/GrowIcon.png" alt="FlockOS">
+        <span>FlockOS · Church Management & Ministry Platform · Free &amp; Open</span>
+      </div>
+    </div>
+
+  </div><!-- /.ab-wrap -->
+
+  <script>
+    // Scroll reveal
+    const _obs = new IntersectionObserver(entries => {
+      entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); _obs.unobserve(e.target); } });
+    }, { threshold: 0.08, rootMargin: '0px 0px -40px 0px' });
+
+    document.querySelectorAll('.ab-fade').forEach(el => _obs.observe(el));
+  </script>
+</body>
+</html>
