@@ -356,12 +356,15 @@ async function _guardWellspring() {
   if (!W || typeof W.status !== 'function') return;
   try {
     const s = await W.status();
-    // If Wellspring is active but has no locally-imported data, kill it.
-    // Without an Excel import, it returns empty arrays for every API call
-    // and silently blocks all traffic to the live GAS backend.
     if (s.active && (!s.loaded || !s.totalRows)) {
+      // Active but no imported data — kill it so GAS calls pass through.
       if (typeof W.disable === 'function') W.disable();
-      console.info('[NewCovenant] TheWellspring disabled — no local data loaded. API calls will reach GAS.');
+      console.info('[NewCovenant] TheWellspring disabled — no local data. API calls will reach GAS.');
+    } else if (s.active && s.loaded && s.totalRows) {
+      // Active with data — call enable() again to guarantee TheVine.configure()
+      // was called after all defer scripts finished (guards against the timing
+      // window where _autoInit fired before TheVine was on the window).
+      if (typeof W.enable === 'function') await W.enable();
     }
   } catch (_) { /* non-fatal */ }
 }

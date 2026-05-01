@@ -501,8 +501,12 @@ const TheWellspring = (() => {
     await _openDB();
     _active = true;
     localStorage.setItem(LS_KEY, 'true');
+    // Wire TheVine's local resolver — works whether TheVine is already present
+    // (interactive enable) or just became available (DOMContentLoaded path).
     if (typeof TheVine !== 'undefined') {
       TheVine.configure({ LOCAL_RESOLVER: resolve });
+    } else if (typeof window !== 'undefined' && window.TheVine) {
+      window.TheVine.configure({ LOCAL_RESOLVER: resolve });
     }
     if (localStorage.getItem('FLOCKOS_DEBUG')) console.log('[Wellspring] Local data mode ENABLED');
   }
@@ -578,10 +582,22 @@ const TheWellspring = (() => {
 
 
   // ── Auto-enable on page load if previously active ────────────────────────
+  // IMPORTANT: TheVine is a `<script defer>` which executes AFTER the parser
+  // finishes but before DOMContentLoaded fires. _autoInit MUST wait for
+  // DOMContentLoaded so that TheVine is defined when enable() tries to call
+  // TheVine.configure({ LOCAL_RESOLVER: resolve }).
+  // Using a bare setTimeout(0) is not sufficient — defer scripts run later.
 
   function _autoInit() {
-    if (localStorage.getItem(LS_KEY) === 'true') {
-      setTimeout(() => { enable().catch(e => console.warn('[Wellspring] Auto-enable failed:', e)); }, 0);
+    if (localStorage.getItem(LS_KEY) !== 'true') return;
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => {
+        enable().catch(e => console.warn('[Wellspring] Auto-enable failed:', e));
+      }, { once: true });
+    } else {
+      // Already past DOMContentLoaded (e.g. dynamically inserted script)
+      enable().catch(e => console.warn('[Wellspring] Auto-enable failed:', e));
     }
   }
 
