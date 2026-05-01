@@ -8,6 +8,19 @@ import { pageHero } from '../_frame.js';
 export const name  = 'the_wall';
 export const title = 'Admin';
 
+function _waitForUpperRoom(ms) {
+  return new Promise(resolve => {
+    const end = Date.now() + ms;
+    const tick = () => {
+      const UR = window.UpperRoom;
+      if (UR && typeof UR.getAppConfig === 'function') return resolve(UR);
+      if (Date.now() >= end) return resolve(null);
+      setTimeout(tick, 250);
+    };
+    tick();
+  });
+}
+
 const SECTIONS = [
   {
     key: 'general', label: 'Church',
