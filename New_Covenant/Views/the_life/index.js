@@ -963,6 +963,15 @@ async function _loadCare(root, caseMap) {
       _updateStats(root, []);
       return { rows: [], memberDir };
     }
+    // Sort newest first — prefer updatedAt so recently-touched cases float up,
+    // fall back to createdAt. Handles both Firestore Timestamps ({seconds}) and
+    // plain ISO strings / epoch numbers.
+    const _tsNum = (v) => {
+      if (!v) return 0;
+      if (typeof v === 'object' && v.seconds) return v.seconds * 1000;
+      return new Date(v).getTime() || 0;
+    };
+    rows.sort((a, b) => _tsNum(b.updatedAt || b.createdAt) - _tsNum(a.updatedAt || a.createdAt));
     queue.innerHTML = rows.map(c => _liveCareCard(c, memberMap)).join('');
     _updateStats(root, rows);
     return { rows, memberDir };
