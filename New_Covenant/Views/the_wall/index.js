@@ -1219,7 +1219,7 @@ function _auditPanelMarkup() {
     <div class="wall-audit-actions" style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
       <button class="flock-btn flock-btn--ghost" data-act="audit-export-xlsx" type="button">⬇ Export .xlsx</button>
       <button class="flock-btn flock-btn--ghost" data-act="audit-export-json" type="button">⬇ Export .json</button>
-      <button class="flock-btn flock-btn--ghost" data-act="audit-download-seed" type="button">⬇ Download seed .json</button>
+      <button class="flock-btn flock-btn--ghost" data-act="audit-download-seed" type="button">⬇ Download full seed .json</button>
       <label class="flock-btn flock-btn--ghost" style="cursor:pointer;margin:0" title="Import a FlockOS JSON file into live Firestore">
         ⬆ Import .json
         <input type="file" accept=".json" id="audit-import-input" style="display:none">
@@ -1718,10 +1718,9 @@ async function _exportFirestoreJson(root, btn) {
    _importFirestoreJson — reads any v1 JSON and batch-writes to Firestore  */
 
 // _IMPORT_MAP is now derived from _FS_COLLECTIONS above.
-// _buildSeedDb provides a minimal in-browser seed (channels + config + settings).
-// For the FULL 93-collection seed with all content data, run:
-//   node Covenant/Bezalel/Scripts/generate_seed_db.mjs
-// and import the output New_Covenant/Data/seed_database.json via ⬆ Import .json.
+// _buildSeedDb is a minimal in-browser fallback (not used by the download button).
+// The download button fetches Data/seed_database.json directly — the full 97-collection
+// seed regenerated via: node Covenant/Bezalel/Scripts/generate_seed_db.mjs
 function _buildSeedDb(churchId) {
   return {
     __meta: {
@@ -1749,21 +1748,34 @@ function _buildSeedDb(churchId) {
   };
 }
 
-function _downloadSeedJson(root) {
+async function _downloadSeedJson(root) {
   const msgEl = root.querySelector('[data-bind="audit-export-msg"]');
   const setMsg = (t, c) => { if (msgEl) { msgEl.textContent = t; msgEl.style.color = c || 'var(--ink-muted,#7a7f96)'; } };
-  const churchId = _auditChurchId();
-  const seed  = _buildSeedDb(churchId);
-  const json  = JSON.stringify(seed, null, 2);
-  const blob  = new Blob([json], { type: 'application/json' });
-  const url   = URL.createObjectURL(blob);
-  const fname = `FlockOS-SEED-${churchId}.json`;
-  const a     = Object.assign(document.createElement('a'), { href: url, download: fname });
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-  setMsg(`✓ Seed downloaded → ${fname}  (${Object.keys(seed.collections).length} collections, import-ready)`, '#16a34a');
+  const btn = root.querySelector('[data-act="audit-download-seed"]');
+  const orig = btn?.textContent;
+  if (btn) { btn.disabled = true; btn.textContent = 'Downloading…'; }
+  setMsg('Fetching complete seed database…');
+  try {
+    const res = await fetch('Data/seed_database.json');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const blob  = await res.blob();
+    const text  = await blob.text();
+    const seed  = JSON.parse(text);
+    const cols  = Object.keys(seed?.collections || {}).length;
+    const docs  = seed?.__meta?.totalDocs ?? '?';
+    const url   = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
+    const fname = `FlockOS-seed_database.json`;
+    const a     = Object.assign(document.createElement('a'), { href: url, download: fname });
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    setMsg(`✓ Seed downloaded → ${fname}  (${cols} collections, ${docs} docs, import-ready)`, '#16a34a');
+  } catch (err) {
+    setMsg('Download failed: ' + (err?.message || String(err)), '#b91c1c');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = orig; }
+  }
 }
 
 function _deserializeFromJson(val) {

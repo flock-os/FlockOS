@@ -56,7 +56,7 @@ function slug(str = '') {
   return String(str).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
 }
 
-// ── All 93 empty church-side operational collections ──────────────────────
+// ── All empty church-side and content collections ────────────────────────
 // These start empty for a fresh church; format: [collectionName]
 const EMPTY_CHURCH_COLLECTIONS = [
   'members','prayers','journal','contactLog','pastoralNotes','milestones',
@@ -78,6 +78,9 @@ const EMPTY_CHURCH_COLLECTIONS = [
   'statisticsConfig','statisticsSnapshots','statisticsViews',
   'strategicGoals','strategicInitiatives','strategicKeyDates',
   'accessControl','permissions',
+  // Missions sub-tables (data served from local Data/missions.js; Firestore starts empty)
+  'missionsRegions','missionsCities','missionsPartners','missionsPrayerFocus',
+  'missionsUpdates','missionsTeams','missionsMetrics',
 ];
 
 // ── Main ──────────────────────────────────────────────────────────────────
@@ -214,7 +217,7 @@ async function main() {
   }
   collections.readingPlans = readingPlanRows;
 
-  // Strong's concordances (optionally included)
+  // Strong's concordances (empty when --no-strongs, always present for schema parity)
   if (!noStrongs) {
     collections.wordsGreek = normalise(greekStrongs, (r, i) =>
       r.strongs || r.strongsNumber || r.number || `g${i}`
@@ -222,6 +225,9 @@ async function main() {
     collections.wordsHebrew = normalise(hebrewStrongs, (r, i) =>
       r.strongs || r.strongsNumber || r.number || `h${i}`
     );
+  } else {
+    collections.wordsGreek  = [];
+    collections.wordsHebrew = [];
   }
 
   // All empty operational church-side collections

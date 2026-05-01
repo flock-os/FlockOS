@@ -1,6 +1,6 @@
 {
   "__meta": {
-    "exportedAt": "2026-05-01T08:05:47.221Z",
+    "exportedAt": "2026-05-01T08:49:35.827Z",
     "generator": "Covenant/Bezalel/Scripts/generate_seed_db.mjs",
     "churchId": "FlockOS",
     "format": "FlockOS-Firestore-JSON-v1",
@@ -48802,6 +48802,8 @@
         ]
       }
     ],
+    "wordsGreek": [],
+    "wordsHebrew": [],
     "members": [],
     "prayers": [],
     "journal": [],
@@ -48879,8 +48881,6 @@
     "missionsPrayerFocus": [],
     "missionsUpdates": [],
     "missionsTeams": [],
-    "missionsMetrics": [],
-    "wordsGreek": [],
-    "wordsHebrew": []
+    "missionsMetrics": []
   }
 }
