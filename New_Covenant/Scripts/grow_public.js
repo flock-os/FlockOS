@@ -204,7 +204,7 @@ function _renderHome() {
         </div>
         <div class="grow-hero-text">
           <h1 class="grow-hero-title">GROW</h1>
-          <p class="grow-hero-sub">Your library, your habits, your discipleship — freely available. No account required.</p>
+          <p class="grow-hero-sub">Your library, your habits, your discipleship &mdash; freely available in <strong>210 countries</strong>. No account required. Works offline.</p>
         </div>
       </header>
 
