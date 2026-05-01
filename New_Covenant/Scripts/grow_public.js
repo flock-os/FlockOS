@@ -371,14 +371,16 @@ _outreachStyle.textContent = `
 .gp-prayer-overlay {
   position:fixed; inset:0; z-index:900;
   background:rgba(12,20,69,0.75); backdrop-filter:blur(5px);
-  display:flex; align-items:center; justify-content:center; padding:16px;
+  display:flex; align-items:flex-start; justify-content:center;
+  padding:16px 16px 40px; overflow-y:auto;
   animation:gp-overlay-in 180ms ease;
 }
+@media(min-width:600px) { .gp-prayer-overlay { align-items:center; } }
 @keyframes gp-overlay-in { from{opacity:0} to{opacity:1} }
 .gp-prayer-card {
   background:var(--bg-raised,#fff); border:1px solid var(--line,#e5e7ef);
   border-radius:20px; box-shadow:0 24px 72px rgba(15,23,42,.30);
-  width:100%; max-width:520px; max-height:90vh; overflow-y:auto;
+  width:100%; max-width:520px;
   padding:28px 28px 24px;
   animation:gp-card-in 200ms cubic-bezier(.2,.8,.2,1);
 }
