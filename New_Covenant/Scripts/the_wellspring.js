@@ -602,7 +602,14 @@ const TheWellspring = (() => {
   }
 
   _autoInit();
-
+  // Vault constants must be declared here (before the return) so they are
+  // initialized before any vault function executes. The vault functions are
+  // hoisted (function declarations) but const bindings are NOT hoisted —
+  // anything after the return is dead code and those consts would be stuck
+  // in the Temporal Dead Zone, causing a ReferenceError on first vault call.
+  const VAULT_STORE = VAULT_STORE_NAME;
+  const VAULT_KEY   = 'credentials';
+  const VAULT_ITERATIONS = 100000;
 
   // ── Public Surface ───────────────────────────────────────────────────────
 
@@ -646,9 +653,8 @@ const TheWellspring = (() => {
 
   // VAULT_STORE_NAME is defined at the top of the IIFE (near DB_VERSION) so
   // _openDB()'s onupgradeneeded can reference it during schema creation.
-  const VAULT_STORE = VAULT_STORE_NAME; // alias for all vault code below
-  const VAULT_KEY   = 'credentials';
-  const VAULT_ITERATIONS = 100000;
+  // VAULT_STORE / VAULT_KEY / VAULT_ITERATIONS are declared before the return
+  // statement above so they are initialized before any vault function runs.
 
   /**
    * Setup: encrypt session with PIN and store in IndexedDB.
