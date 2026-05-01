@@ -421,10 +421,10 @@ function _churchSetupTab() {
       </div>
       <div style="grid-column:1/-1;">
         <div style="display:flex;flex-direction:column;gap:4px;">
-          <label for="bz-TRUTH_SERVICE_ACCOUNT" style="font-size:0.78rem;font-weight:700;color:var(--ink);text-transform:uppercase;letter-spacing:0.04em;">Truth Service Account JSON <span style="font-size:0.72rem;font-weight:400;text-transform:none;color:var(--ink-muted);">Paste full JSON — enables truth seeding from flockos-truth</span></label>
+          <label for="bz-TRUTH_SERVICE_ACCOUNT" style="font-size:0.78rem;font-weight:700;color:var(--ink);text-transform:uppercase;letter-spacing:0.04em;">Truth Service Account JSON <span style="color:#b91c1c">*</span> <span style="font-size:0.72rem;font-weight:400;text-transform:none;color:var(--ink-muted);">Paste full JSON</span></label>
           <textarea id="bz-TRUTH_SERVICE_ACCOUNT" rows="4" placeholder='{"type":"service_account","project_id":"flockos-truth","client_email":"..."}'
             style="padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);font-size:0.78rem;font-family:monospace;width:100%;box-sizing:border-box;resize:vertical;"></textarea>
-          <div style="font-size:0.74rem;color:var(--ink-muted);">GCP Console → flockos-truth project → IAM → Service Accounts → Download JSON. Required for <code style="font-family:monospace;background:rgba(0,0,0,0.08);padding:1px 4px;border-radius:3px;">setupTruthSheet()</code> to seed Books, Devotionals, Theology, etc. from Firestore during setup.</div>
+          <div style="font-size:0.74rem;color:var(--ink-muted);">GCP Console → flockos-truth project → IAM → Service Accounts → Download JSON. Seeds Books, Devotionals, Theology, etc. into the Sheet during setup.</div>
         </div>
       </div>
     </div>
