@@ -45,6 +45,7 @@ const ICON = {
   upload:     I('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>'),
   info:       I('<circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>'),
   sprout:     I('<path d="M12 22V11"/><path d="M5 13c0-3 3-5 7-4 0 4-3 6-7 4z"/><path d="M19 9c0-3-3-5-7-4 0 4 3 6 7 4z"/>'),
+  envelope:   I('<path d="M3 8l7.89 5.26a2 2 0 0 0 2.22 0L21 8M5 19h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2z"/>'),
 };
 
 const SECTIONS = [
@@ -95,6 +96,7 @@ const SECTIONS = [
     title: 'Mission',
     items: [
       { name: 'the_great_commission',  label: 'Missions',           icon: ICON.globe },
+      { name: 'the_gospel_invitation', label: 'The Invitation',     icon: ICON.envelope },
       { name: 'the_harvest',           label: 'Harvest',            icon: ICON.harvest },
       { name: 'the_way',               label: 'The Way',            icon: ICON.cross },
       { name: 'the_truth',             label: 'Content',            icon: ICON.pen },
