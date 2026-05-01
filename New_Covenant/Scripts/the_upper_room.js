@@ -2422,6 +2422,11 @@
     return _groupsRef().doc(id).update(data);
   }
 
+  function deleteGroup(id) {
+    if (typeof id === 'object') id = id.id;
+    return _groupsRef().doc(id).delete();
+  }
+
   /* ── Group Members sub-collection: groups/{groupId}/members ──── */
 
   function _groupMembersRef(groupId) {
@@ -4847,6 +4852,7 @@
     getGroup:           getGroup,
     createGroup:        createGroup,
     updateGroup:        updateGroup,
+    deleteGroup:        deleteGroup,
     listGroupMembers:   listGroupMembers,
     addGroupMember:     addGroupMember,
     removeGroupMember:  removeGroupMember,

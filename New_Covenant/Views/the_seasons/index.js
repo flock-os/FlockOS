@@ -125,7 +125,14 @@ async function _loadEvents(root) {
     }
     const now = new Date(); now.setHours(0,0,0,0);
     const upcoming = rows
-      .map((ev) => ({ ...ev, _date: new Date(ev.startDate || ev.date || ev.createdAt) }))
+      .map((ev) => {
+        const raw = ev.startDate || ev.date || ev.createdAt || '';
+        // Date-only strings (YYYY-MM-DD) must be parsed as local noon to avoid UTC off-by-one
+        const d = /^\d{4}-\d{2}-\d{2}$/.test(String(raw))
+          ? new Date(raw + 'T12:00:00')
+          : new Date(raw);
+        return { ...ev, _date: d };
+      })
       .filter((ev) => ev._date >= now)
       .sort((a, b) => a._date - b._date);
 

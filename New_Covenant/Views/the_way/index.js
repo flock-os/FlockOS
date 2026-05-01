@@ -229,7 +229,14 @@ function _e(s) {
 
 function _fmtTime(raw) {
   if (!raw) return '';
-  if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(String(raw))) return String(raw).slice(0, 5);
+  // HH:MM or HH:MM:SS — convert to 12h local format
+  const m = /^(\d{1,2}):(\d{2})/.exec(String(raw));
+  if (m) {
+    const h = parseInt(m[1], 10), mn = m[2];
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const h12 = h % 12 || 12;
+    return `${h12}:${mn} ${ampm}`;
+  }
   const d = new Date(raw);
   if (!isNaN(d.getTime())) return d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
   return String(raw);
