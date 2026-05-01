@@ -28,11 +28,12 @@ const TheWellspring = (() => {
 
   // ── Constants ────────────────────────────────────────────────────────────
   const DB_NAME    = 'FlockOS_Wellspring';
-  const DB_VERSION = 2;
+  const DB_VERSION = 3;  // v3: added vault store (v2 had sheets + meta only)
   const STORE_NAME = 'sheets';
   const META_STORE = 'meta';
   const META_KEY   = 'database';
   const LS_KEY     = 'flock_wellspring_mode';
+  const VAULT_STORE_NAME = 'vault'; // defined here so _openDB upgrade can reference it
 
   let _db = null;
   let _active = false;
@@ -46,12 +47,22 @@ const TheWellspring = (() => {
       const req = indexedDB.open(DB_NAME, DB_VERSION);
       req.onupgradeneeded = (e) => {
         const db = e.target.result;
-        // Clean up old stores from previous multi-spring schema
-        for (const name of db.objectStoreNames) {
-          db.deleteObjectStore(name);
+        const oldVersion = e.oldVersion;
+        if (oldVersion <= 1) {
+          // v0 (fresh) or v1 (old multi-spring schema) — wipe all and build clean
+          for (const name of Array.from(db.objectStoreNames)) {
+            db.deleteObjectStore(name);
+          }
+          db.createObjectStore(STORE_NAME);     // key = tab name
+          db.createObjectStore(META_STORE);     // key = 'database' → metadata
+          db.createObjectStore(VAULT_STORE_NAME); // key = 'credentials' → encrypted blob
+        } else if (oldVersion === 2) {
+          // v2 → v3: add vault store only — preserve existing sheet + meta data
+          if (!db.objectStoreNames.contains(VAULT_STORE_NAME)) {
+            db.createObjectStore(VAULT_STORE_NAME);
+          }
         }
-        db.createObjectStore(STORE_NAME); // key = tab name
-        db.createObjectStore(META_STORE); // key = 'database' → metadata
+        // v3+: all stores already present
       };
       req.onsuccess = () => { _db = req.result; resolve(_db); };
       req.onerror = () => reject(new Error('Wellspring: IndexedDB open failed'));
@@ -617,27 +628,11 @@ const TheWellspring = (() => {
      PIN is NEVER stored. Brute force is mitigated by PBKDF2 cost.
      ═══════════════════════════════════════════════════════════════════════════ */
 
-  const VAULT_STORE = 'vault';
+  // VAULT_STORE_NAME is defined at the top of the IIFE (near DB_VERSION) so
+  // _openDB()'s onupgradeneeded can reference it during schema creation.
+  const VAULT_STORE = VAULT_STORE_NAME; // alias for all vault code below
   const VAULT_KEY   = 'credentials';
   const VAULT_ITERATIONS = 100000;
-
-  // Ensure the vault object store exists (safe to call multiple times)
-  function _ensureVaultStore() {
-    return new Promise(function(resolve, reject) {
-      var req = indexedDB.open(DB_NAME, DB_VERSION + 1);
-      req.onupgradeneeded = function(e) {
-        var db = e.target.result;
-        if (!db.objectStoreNames.contains(VAULT_STORE)) {
-          db.createObjectStore(VAULT_STORE);
-        }
-      };
-      req.onsuccess = function() {
-        _db = req.result;
-        resolve();
-      };
-      req.onerror = function() { reject(new Error('Vault store init failed')); };
-    });
-  }
 
   /**
    * Setup: encrypt session with PIN and store in IndexedDB.
@@ -647,7 +642,7 @@ const TheWellspring = (() => {
    */
   async function _vaultSetup(pin, sessionData) {
     if (!pin || pin.length < 6) throw new Error('PIN must be at least 6 characters');
-    await _ensureVaultStore();
+    await _openDB();
     var salt = crypto.getRandomValues(new Uint8Array(16));
     var iv   = crypto.getRandomValues(new Uint8Array(12));
     var key  = await _deriveKey(pin, salt);
@@ -660,7 +655,6 @@ const TheWellspring = (() => {
       createdAt: Date.now(),
       expiresAt: Date.now() + (30 * 24 * 60 * 60 * 1000), // 30 days default
     };
-    await _ensureVaultStore();
     return new Promise(function(resolve, reject) {
       var tx = _db.transaction(VAULT_STORE, 'readwrite');
       tx.objectStore(VAULT_STORE).put(blob, VAULT_KEY);
@@ -675,7 +669,7 @@ const TheWellspring = (() => {
    * @returns {Promise<object>} decrypted session object
    */
   async function _vaultUnlock(pin) {
-    await _ensureVaultStore();
+    await _openDB();
     var blob = await new Promise(function(resolve, reject) {
       var tx = _db.transaction(VAULT_STORE, 'readonly');
       var req = tx.objectStore(VAULT_STORE).get(VAULT_KEY);
@@ -708,7 +702,7 @@ const TheWellspring = (() => {
    */
   async function _vaultExists() {
     try {
-      await _ensureVaultStore();
+      await _openDB();
       var blob = await new Promise(function(resolve, reject) {
         var tx = _db.transaction(VAULT_STORE, 'readonly');
         var req = tx.objectStore(VAULT_STORE).get(VAULT_KEY);
@@ -724,7 +718,7 @@ const TheWellspring = (() => {
    * @returns {Promise<void>}
    */
   async function _vaultDestroy() {
-    await _ensureVaultStore();
+    await _openDB();
     return new Promise(function(resolve, reject) {
       var tx = _db.transaction(VAULT_STORE, 'readwrite');
       tx.objectStore(VAULT_STORE).delete(VAULT_KEY);
