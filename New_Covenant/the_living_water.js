@@ -10,7 +10,7 @@
    • PUSH        → Show notification; click → focus or open app
    ══════════════════════════════════════════════════════════════════════════════ */
 
-const CACHE_NAME = 'flockos-new-covenant-v2.0';
+const CACHE_NAME = 'flockos-new-covenant-v2.1';
 
 /* Derive base path from SW location (works at root or any subpath) */
 const SW_BASE = self.location.pathname.replace(/\/[^\/]+$/, '/');
@@ -24,10 +24,15 @@ const SW_BASE = self.location.pathname.replace(/\/[^\/]+$/, '/');
    Bump CACHE_NAME whenever you add/remove a file here so clients re-cache.
    ─────────────────────────────────────────────────────────────────────────── */
 const PRECACHE_URLS = [
-  /* ── Entry point ──────────────────────────────────────────────────────── */
+  /* ── Entry points ─────────────────────────────────────────────────────── */
   '',
   'index.html',
   'manifest.json',
+
+  /* ── GROW public PWA ─────────────────────────────────────────────────── */
+  'grow-public.html',
+  'grow-manifest.json',
+  'Scripts/grow_public.js',
 
   /* ── Styles ───────────────────────────────────────────────────────────── */
   'Styles/new_covenant.css',
@@ -278,10 +283,23 @@ self.addEventListener('activate', (event) => {
   })());
 });
 
-/* ─── Listen for SKIP_WAITING from the page (forces immediate activation) ──── */
+/* ─── Listen for messages from the page ────────────────────────────────────── */
 self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'SKIP_WAITING') {
+  if (!event.data) return;
+
+  /* Standard update-on-demand signal sent by the_living_water_register.js */
+  if (event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
+  }
+
+  /* Developer force-refresh: wipe all caches so next install re-fetches everything.
+     Triggered by FlockSW.forceRefresh() in the browser console, or ?flock_refresh=1 */
+  if (event.data.type === 'FORCE_REFRESH') {
+    event.waitUntil(
+      caches.keys()
+        .then((keys) => Promise.all(keys.map((k) => caches.delete(k))))
+        .then(() => self.skipWaiting())
+    );
   }
 });
 

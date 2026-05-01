@@ -679,3 +679,9 @@ _route();
 const _spin = document.createElement('style');
 _spin.textContent = '@keyframes spin{to{transform:rotate(360deg)}}';
 document.head.appendChild(_spin);
+
+/* ─── Service worker registration ───────────────────────────────────────────
+   Enables full offline support and PWA install for the GROW app.
+   Uses the shared New Covenant SW (the_living_water.js).
+   ─────────────────────────────────────────────────────────────────────────── */
+import('./the_living_water_register.js').then((m) => m.register()).catch(() => {});

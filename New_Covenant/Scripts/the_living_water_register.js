@@ -81,3 +81,41 @@ export async function unregister() {
   await Promise.all(regs.map((r) => r.unregister().catch(() => false)));
   return true;
 }
+
+/* ──────────────────────────────────────────────────────────────────────────────
+   forceRefresh()
+   Call this to wipe all SW caches and reload from the network. Useful after a
+   deployment when you want users to get the latest version immediately without
+   waiting for the browser's 24-hour SW update cycle.
+
+   From DevTools console: FlockSW.forceRefresh()
+   From a URL param:      add ?flock_refresh=1 to any page URL
+   ────────────────────────────────────────────────────────────────────────── */
+export async function forceRefresh() {
+  // 1. Delete every cache entry this origin owns.
+  try {
+    const keys = await caches.keys();
+    await Promise.all(keys.map((k) => caches.delete(k)));
+  } catch (_) {}
+
+  // 2. Unregister the SW so it re-installs cleanly on next load
+  //    (the new SW will re-precache everything on install).
+  try {
+    const regs = await navigator.serviceWorker.getRegistrations();
+    await Promise.all(regs.map((r) => r.unregister().catch(() => {})));
+  } catch (_) {}
+
+  // 3. Hard-reload from network (bypasses any remaining browser cache).
+  window.location.reload();
+}
+
+/* Expose on window so forceRefresh() is callable from DevTools without imports */
+if (typeof window !== 'undefined') {
+  window.FlockSW = { forceRefresh, unregister };
+}
+
+/* Auto-trigger if page was opened with ?flock_refresh=1 */
+if (typeof location !== 'undefined' &&
+    new URLSearchParams(location.search).get('flock_refresh') === '1') {
+  forceRefresh();
+}
