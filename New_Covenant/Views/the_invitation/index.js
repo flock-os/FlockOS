@@ -80,7 +80,7 @@ async function _loadPending(root) {
 
   listEl.innerHTML = errMsg('Loading pending requests…');
   try {
-    const res  = await V.admin.users.pending();
+    const res  = await V.flock.users.pending();
     const rows = _rows(res);
 
     // Update pending count stat
@@ -117,7 +117,7 @@ async function _loadPending(root) {
         const btn = e.currentTarget;
         btn.disabled = true; btn.textContent = 'Approving…';
         try {
-          await V.admin.users.approve({ id: u.id });
+          await V.flock.users.approve({ id: u.id });
           row.remove();
           // refresh stat
           if (statsEl) {
@@ -134,7 +134,7 @@ async function _loadPending(root) {
         const btn = e.currentTarget;
         btn.disabled = true; btn.textContent = 'Denying…';
         try {
-          await V.admin.users.deny({ id: u.id });
+          await V.flock.users.deny({ id: u.id });
           row.remove();
           if (statsEl) {
             const remaining = listEl.querySelectorAll('.inv-pending-row').length;
@@ -169,8 +169,8 @@ function _wireInvite(root) {
     btn.textContent = 'Sending…';
     try {
       const V = window.TheVine;
-      if (V && V.admin && V.admin.users && V.admin.users.create) {
-        await V.admin.users.create({ email, role });
+      if (V && V.flock && V.flock.users && V.flock.users.create) {
+        await V.flock.users.create({ email, role });
       }
       emailEl.value = '';
       if (status) { status.textContent = `Invitation sent to ${email}.`; status.style.color = '#059669'; }
