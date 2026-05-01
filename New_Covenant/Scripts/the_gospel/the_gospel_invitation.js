@@ -546,13 +546,26 @@ export function mount(root) {
   return () => {};
 }
 
+function _waitForUpperRoom(ms) {
+  return new Promise(resolve => {
+    const end = Date.now() + ms;
+    const tick = () => {
+      const UR = window.UpperRoom;
+      if (UR && typeof UR.getAppConfig === 'function') return resolve(UR);
+      if (Date.now() >= end) return resolve(null);
+      setTimeout(tick, 250);
+    };
+    tick();
+  });
+}
+
 async function _loadChurchMap(root) {
   const bodyEl = root.querySelector('[data-bind="church-map-body"]');
   if (!bodyEl) return;
 
-  const UR = window.UpperRoom;
-  if (!UR || typeof UR.getAppConfig !== 'function') {
-    // Public GROW mode — no auth backend available
+  const UR = await _waitForUpperRoom(10000);
+  if (!UR) {
+    // Public GROW mode or backend unavailable
     bodyEl.innerHTML = _mapSkeletonMsg('Visit our website or contact us to find service times and location.');
     return;
   }
