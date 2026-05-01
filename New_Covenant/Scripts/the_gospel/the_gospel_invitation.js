@@ -307,6 +307,78 @@ export function render() {
         font-size:.9375rem; line-height:1.75; margin:0;
       }
 
+      /* ═══ Church map ═════════════════════════════════════════════ */
+      .gi-map-section {
+        margin-top:48px;
+        border-radius:18px; overflow:hidden;
+        border:1.5px solid var(--line,#e7e5e4);
+        box-shadow:0 4px 20px rgba(0,0,0,.07);
+      }
+      .gi-map-header {
+        background:linear-gradient(135deg,#0c1445,#1a2260);
+        padding:22px 24px 20px; position:relative; overflow:hidden;
+      }
+      .gi-map-header::before {
+        content:''; position:absolute; inset:0;
+        background:radial-gradient(ellipse at 80% 50%,rgba(232,168,56,.18),transparent 60%);
+      }
+      .gi-map-header-inner { position:relative; display:flex; align-items:flex-start; gap:14px; }
+      .gi-map-header-icon {
+        width:44px; height:44px; flex:none; border-radius:12px;
+        background:rgba(232,168,56,.2); border:1.5px solid rgba(232,168,56,.4);
+        display:flex; align-items:center; justify-content:center; font-size:1.3rem;
+      }
+      .gi-map-header h3 { font-size:1.1rem; font-weight:800; color:#fff; margin:0 0 4px; }
+      @media(min-width:560px){ .gi-map-header h3{ font-size:1.25rem; } }
+      .gi-map-header p  { font-size:.8rem; color:rgba(255,255,255,.65); margin:0; line-height:1.5; }
+
+      .gi-map-body { display:grid; grid-template-columns:1fr; }
+      @media(min-width:620px){ .gi-map-body{ grid-template-columns:1fr 300px; } }
+
+      .gi-map-embed { width:100%; height:240px; display:block; border:none; background:var(--bg-sunken,#f4f5f9); }
+      @media(min-width:620px){ .gi-map-embed{ height:300px; order:-1; } }
+
+      .gi-map-info {
+        padding:22px 20px; background:var(--bg-raised,#fff);
+        display:flex; flex-direction:column; gap:14px;
+        border-top:1.5px solid var(--line,#e7e5e4);
+      }
+      @media(min-width:620px){
+        .gi-map-info{ border-top:none; border-left:1.5px solid var(--line,#e7e5e4); }
+      }
+      .gi-map-row { display:flex; align-items:flex-start; gap:12px; }
+      .gi-map-row-icon {
+        width:32px; height:32px; flex:none; border-radius:8px;
+        display:flex; align-items:center; justify-content:center;
+        font-size:.9rem;
+      }
+      .gi-map-row-icon--addr { background:rgba(56,189,248,.13); }
+      .gi-map-row-icon--time { background:rgba(232,168,56,.13); }
+      .gi-map-row-icon--phone{ background:rgba(52,211,153,.13); }
+      .gi-map-row-icon--web  { background:rgba(167,139,250,.13); }
+      .gi-map-row-body { flex:1; min-width:0; }
+      .gi-map-row-label { font-size:.62rem; font-weight:800; text-transform:uppercase; letter-spacing:.12em; color:var(--ink-faint,#a8a29e); margin-bottom:3px; }
+      .gi-map-row-value { font-size:.875rem; color:var(--ink,#1c1917); font-weight:500; line-height:1.45; word-break:break-word; }
+      .gi-map-row-value a { color:var(--c-sky,#38bdf8); text-decoration:none; }
+      .gi-map-row-value a:hover { text-decoration:underline; }
+
+      .gi-map-directions {
+        display:flex; align-items:center; gap:8px; justify-content:center;
+        margin:4px 20px 20px; padding:12px;
+        background:linear-gradient(135deg,rgba(56,189,248,.10),rgba(56,189,248,.05));
+        border:1.5px solid rgba(56,189,248,.25); border-radius:10px;
+        font:.75rem var(--font-ui,sans-serif); font-weight:700;
+        color:var(--c-sky,#38bdf8); text-decoration:none; cursor:pointer;
+        transition:background .2s;
+      }
+      .gi-map-directions:hover { background:rgba(56,189,248,.18); }
+
+      .gi-map-skeleton {
+        padding:32px 20px; text-align:center;
+        color:var(--ink-muted,#78716c); font-size:.875rem; line-height:1.6;
+      }
+      .gi-map-skeleton svg { opacity:.35; margin-bottom:10px; }
+
       /* ═══ Share banner ══════════════════════════════════════════ */
       .gi-share-banner {
         margin-top:48px; margin-bottom:16px;
@@ -406,6 +478,25 @@ export function render() {
         </div>
       </div>
 
+      <!-- Church map -->
+      <div class="gi-map-section">
+        <div class="gi-map-header">
+          <div class="gi-map-header-inner">
+            <div class="gi-map-header-icon">⛪</div>
+            <div>
+              <h3>Come Join Us</h3>
+              <p>You&rsquo;re always welcome. See you Sunday.</p>
+            </div>
+          </div>
+        </div>
+        <div data-bind="church-map-body">
+          <div class="gi-map-skeleton">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <p>Loading church info&hellip;</p>
+          </div>
+        </div>
+      </div>
+
       <!-- Share with a friend -->
       <div class="gi-share-banner">
         <div class="gi-share-banner-inner">
@@ -432,7 +523,99 @@ export function mount(root) {
   _initIAM(root);
   _initTimeline(root);
   _wireShare(root);
+  _loadChurchMap(root);
   return () => {};
+}
+
+async function _loadChurchMap(root) {
+  const bodyEl = root.querySelector('[data-bind="church-map-body"]');
+  if (!bodyEl) return;
+
+  const UR = window.UpperRoom;
+  if (!UR || typeof UR.getAppConfig !== 'function') {
+    // Public GROW mode — no auth backend available
+    bodyEl.innerHTML = _mapSkeletonMsg('Visit our website or contact us to find service times and location.');
+    return;
+  }
+
+  try {
+    const keys = ['church_name','church_address','church_gathering','church_phone','church_website'];
+    const results = await Promise.all(keys.map(k => UR.getAppConfig({ key: k }).catch(() => ({ value: '' }))));
+    const cfg = {};
+    keys.forEach((k, i) => { cfg[k] = (results[i]?.value || '').trim(); });
+
+    if (!cfg.church_address) {
+      bodyEl.innerHTML = _mapSkeletonMsg('Service location not configured yet. Ask your pastor to set it up in Admin → Settings.');
+      return;
+    }
+
+    const encodedAddr = encodeURIComponent(cfg.church_address);
+    const mapsEmbed   = `https://maps.google.com/maps?q=${encodedAddr}&output=embed&z=15`;
+    const mapsLink    = `https://maps.google.com/maps?q=${encodedAddr}`;
+
+    bodyEl.innerHTML = /* html */`
+      <div class="gi-map-body">
+        <iframe
+          class="gi-map-embed"
+          loading="lazy"
+          referrerpolicy="no-referrer-when-downgrade"
+          src="${mapsEmbed}"
+          title="${_esc(cfg.church_name || 'Church location')}"
+          aria-label="Map showing church location"
+        ></iframe>
+        <div class="gi-map-info">
+          ${cfg.church_address ? `
+          <div class="gi-map-row">
+            <div class="gi-map-row-icon gi-map-row-icon--addr">📍</div>
+            <div class="gi-map-row-body">
+              <p class="gi-map-row-label">Address</p>
+              <p class="gi-map-row-value">${_esc(cfg.church_address)}</p>
+            </div>
+          </div>` : ''}
+          ${cfg.church_gathering ? `
+          <div class="gi-map-row">
+            <div class="gi-map-row-icon gi-map-row-icon--time">⏰</div>
+            <div class="gi-map-row-body">
+              <p class="gi-map-row-label">Service Times</p>
+              <p class="gi-map-row-value">${_esc(cfg.church_gathering)}</p>
+            </div>
+          </div>` : ''}
+          ${cfg.church_phone ? `
+          <div class="gi-map-row">
+            <div class="gi-map-row-icon gi-map-row-icon--phone">📞</div>
+            <div class="gi-map-row-body">
+              <p class="gi-map-row-label">Phone</p>
+              <p class="gi-map-row-value"><a href="tel:${_esc(cfg.church_phone)}">${_esc(cfg.church_phone)}</a></p>
+            </div>
+          </div>` : ''}
+          ${cfg.church_website ? `
+          <div class="gi-map-row">
+            <div class="gi-map-row-icon gi-map-row-icon--web">🌐</div>
+            <div class="gi-map-row-body">
+              <p class="gi-map-row-label">Website</p>
+              <p class="gi-map-row-value"><a href="${_esc(cfg.church_website)}" target="_blank" rel="noopener">${_esc(cfg.church_website.replace(/^https?:\/\//, ''))}</a></p>
+            </div>
+          </div>` : ''}
+        </div>
+      </div>
+      <a class="gi-map-directions" href="${mapsLink}" target="_blank" rel="noopener">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
+        Get Directions
+      </a>
+    `;
+  } catch (err) {
+    console.warn('[TheInvitation] church map load failed:', err);
+    bodyEl.innerHTML = _mapSkeletonMsg('Could not load church info right now.');
+  }
+}
+
+function _mapSkeletonMsg(msg) {
+  return /* html */`
+    <div class="gi-map-skeleton">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
+      <p>${_esc(msg)}</p>
+    </div>
+  `;
 }
 
 /* ── Private helpers ─────────────────────────────────────────────────────── */
