@@ -1250,7 +1250,6 @@ function _wireAuditPanel(root) {
       fileInput.value = '';
     });
   }
-  });
   // Initial load if user lands directly on audit (deep-link future-proof).
   if (!panel.classList.contains('wall-panel--hidden')) _refreshAudit(root);
 }
