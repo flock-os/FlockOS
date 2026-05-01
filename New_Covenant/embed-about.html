@@ -438,6 +438,245 @@
     }
 
     /* ═══════════════════════════════════════════════════════════════════════
+       GLOBAL REACH BANNER
+    ═══════════════════════════════════════════════════════════════════════ */
+    .ab-globe {
+      background: linear-gradient(135deg, #0c1445 0%, #0f1f5c 60%, #14103a 100%);
+      border-radius: 20px;
+      padding: 44px 40px;
+      margin: 48px 0;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .ab-globe::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: radial-gradient(ellipse 60% 80% at 5% 50%, rgba(56,189,248,.1) 0%, transparent 100%);
+      pointer-events: none;
+    }
+
+    .ab-globe-inner {
+      display: flex; gap: 40px; align-items: center;
+      position: relative; z-index: 1;
+    }
+
+    .ab-globe-left {
+      flex-shrink: 0;
+      text-align: center;
+      min-width: 120px;
+    }
+
+    .ab-globe-icon { font-size: 3rem; margin-bottom: 8px; }
+
+    .ab-globe-num {
+      font-size: 3.5rem; font-weight: 800; line-height: 1;
+      background: linear-gradient(90deg, var(--sky), var(--emerald));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .ab-globe-label {
+      font-size: 0.75rem; font-weight: 600;
+      color: rgba(255,255,255,.55);
+      letter-spacing: .08em; text-transform: uppercase;
+      margin-top: 4px;
+    }
+
+    .ab-globe-right p {
+      font-size: 0.98rem;
+      color: rgba(255,255,255,.75);
+      line-height: 1.75;
+      margin-bottom: 14px;
+    }
+
+    .ab-globe-right strong { color: #fff; }
+
+    .ab-globe-badges {
+      display: flex; flex-wrap: wrap; gap: 8px;
+      margin-top: 4px;
+    }
+
+    .ab-badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 100px;
+      font-size: 0.75rem; font-weight: 700;
+      letter-spacing: .06em; text-transform: uppercase;
+    }
+
+    .ab-badge--gold    { background: rgba(232,168,56,.18); color: var(--gold-l); border: 1px solid rgba(232,168,56,.3); }
+    .ab-badge--sky     { background: rgba(56,189,248,.15); color: #7dd3fc;      border: 1px solid rgba(56,189,248,.3); }
+    .ab-badge--emerald { background: rgba(52,211,153,.15); color: #6ee7b7;      border: 1px solid rgba(52,211,153,.3); }
+    .ab-badge--violet  { background: rgba(167,139,250,.15); color: #c4b5fd;     border: 1px solid rgba(167,139,250,.3); }
+
+    /* ═══════════════════════════════════════════════════════════════════════
+       WELLSPRING FLOW
+    ═══════════════════════════════════════════════════════════════════════ */
+    .ab-ws-flow {
+      display: flex; align-items: flex-start; gap: 16px;
+      margin: 32px 0 28px;
+      flex-wrap: wrap;
+    }
+
+    .ab-ws-step {
+      flex: 1; min-width: 180px;
+      background: var(--bg-r);
+      border-radius: var(--r);
+      padding: 22px 20px;
+      border: 1px solid var(--line);
+      box-shadow: 0 2px 12px rgba(12,20,69,.05);
+    }
+
+    .ab-ws-step-icon {
+      width: 44px; height: 44px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.4rem;
+      margin-bottom: 12px;
+    }
+
+    .ab-ws-step strong {
+      display: block;
+      font-size: 0.96rem; font-weight: 700;
+      color: var(--ink);
+      margin-bottom: 6px;
+    }
+
+    .ab-ws-step p {
+      font-size: 0.86rem;
+      color: var(--ink-2);
+      line-height: 1.6;
+      margin: 0;
+    }
+
+    .ab-ws-arrow {
+      font-size: 1.5rem;
+      color: var(--line);
+      align-self: center;
+      flex-shrink: 0;
+      padding-top: 2px;
+    }
+
+    .ab-ws-verse {
+      background: rgba(56,189,248,.06);
+      border: 1px solid rgba(56,189,248,.2);
+      border-radius: var(--r);
+      padding: 22px 26px;
+    }
+
+    .ab-ws-verse-text {
+      font-family: 'Noto Serif', Georgia, serif;
+      font-size: 1.05rem;
+      font-style: italic;
+      color: var(--ink);
+      line-height: 1.8;
+      margin-bottom: 8px;
+    }
+
+    .ab-ws-verse-ref {
+      font-size: 0.78rem; font-weight: 600;
+      color: var(--sky);
+      letter-spacing: .05em; text-transform: uppercase;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════
+       BACKEND ENGINES
+    ═══════════════════════════════════════════════════════════════════════ */
+    .ab-engines {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 20px;
+      margin-top: 28px;
+    }
+
+    .ab-engine {
+      border-radius: var(--r);
+      overflow: hidden;
+      border: 1px solid var(--line);
+      box-shadow: 0 2px 16px rgba(12,20,69,.07);
+      transition: transform .18s ease, box-shadow .18s ease;
+    }
+
+    .ab-engine:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 10px 32px rgba(12,20,69,.12);
+    }
+
+    .ab-engine-top {
+      padding: 24px 22px;
+      display: flex; align-items: center; gap: 14px;
+    }
+
+    .ab-engine-logo { font-size: 2rem; }
+
+    .ab-engine-name {
+      font-size: 1rem; font-weight: 700;
+      color: #fff;
+      line-height: 1.3;
+    }
+
+    .ab-engine-body {
+      padding: 20px 22px 22px;
+      background: var(--bg-r);
+    }
+
+    .ab-engine-body p {
+      font-size: 0.9rem;
+      color: var(--ink-2);
+      line-height: 1.7;
+      margin-bottom: 14px;
+    }
+
+    .ab-engine-list {
+      margin: 0;
+      padding: 0 0 0 18px;
+    }
+
+    .ab-engine-list li {
+      font-size: 0.86rem;
+      color: var(--ink-2);
+      line-height: 1.65;
+      margin-bottom: 4px;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════
+       SECURITY STRIP
+    ═══════════════════════════════════════════════════════════════════════ */
+    .ab-security {
+      display: flex; gap: 22px; align-items: flex-start;
+      background: var(--bg-r);
+      border-radius: var(--r);
+      padding: 26px 28px;
+      border: 1px solid rgba(167,139,250,.25);
+      box-shadow: 0 2px 16px rgba(167,139,250,.08);
+      margin: 48px 0;
+    }
+
+    .ab-security-lock {
+      font-size: 2.2rem;
+      flex-shrink: 0;
+      line-height: 1;
+      margin-top: 4px;
+    }
+
+    .ab-security-body h3 {
+      font-size: 1rem; font-weight: 700;
+      color: var(--ink);
+      margin-bottom: 8px;
+      line-height: 1.4;
+    }
+
+    .ab-security-body p {
+      font-size: 0.9rem;
+      color: var(--ink-2);
+      line-height: 1.75;
+      margin: 0;
+    }
+
+    .ab-security-body em { font-style: italic; color: var(--ink); }
+
+    /* ═══════════════════════════════════════════════════════════════════════
        SCROLL REVEAL animation
     ═══════════════════════════════════════════════════════════════════════ */
     @media (prefers-reduced-motion: no-preference) {
@@ -463,11 +702,19 @@
       .ab-pillar-num { width: 34px; height: 34px; font-size: 0.88rem; }
       .ab-wrap { padding: 0 16px 60px; }
       .ab-section { margin: 48px 0; }
+      .ab-globe { padding: 32px 24px; }
+      .ab-globe-inner { flex-direction: column; gap: 24px; text-align: center; }
+      .ab-globe-left { min-width: unset; width: 100%; }
+      .ab-globe-badges { justify-content: center; }
+      .ab-ws-arrow { display: none; }
+      .ab-ws-flow { flex-direction: column; }
+      .ab-security { flex-direction: column; gap: 14px; }
     }
 
     @media (max-width: 480px) {
       .ab-grid { grid-template-columns: 1fr 1fr; }
       .ab-hero h1 { font-size: 1.7rem; }
+      .ab-engines { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -499,12 +746,16 @@
           <span>Ministry Modules</span>
         </div>
         <div class="ab-hero-stat">
+          <strong><span>210</span></strong>
+          <span>Countries Reached</span>
+        </div>
+        <div class="ab-hero-stat">
           <strong><span>100%</span></strong>
           <span>Free. Always.</span>
         </div>
         <div class="ab-hero-stat">
-          <strong><span>1</span></strong>
-          <span>Mission: Serve Pastors</span>
+          <strong><span>256</span></strong>
+          <span>-Bit Encrypted</span>
         </div>
       </div>
     </div>
@@ -531,6 +782,35 @@
       <div class="ab-story-attr">
         <div class="ab-story-attr-line"></div>
         <span>The reason FlockOS exists</span>
+      </div>
+    </div>
+
+    <!-- ═══ GLOBAL REACH ════════════════════════════════════════════════ -->
+    <div class="ab-globe ab-fade">
+      <div class="ab-globe-inner">
+        <div class="ab-globe-left">
+          <div class="ab-globe-icon">🌍</div>
+          <div class="ab-globe-num">210</div>
+          <div class="ab-globe-label">Countries &amp; Territories</div>
+        </div>
+        <div class="ab-globe-right">
+          <p>
+            The truth data built into FlockOS — Scripture, devotionals, teaching plans,
+            lexicons, missions resources, and apologetics — is available in <strong>210 countries</strong>
+            through open-source, freely licensed sources.
+          </p>
+          <p>
+            A pastor in rural Kenya, a house church leader in Southeast Asia, a church planter
+            in a village with no reliable power — the content gets to them. FlockOS was designed
+            so that the next time they walk into town and connect to the web, everything is waiting.
+          </p>
+          <div class="ab-globe-badges">
+            <span class="ab-badge ab-badge--gold">Open Source</span>
+            <span class="ab-badge ab-badge--sky">Free License</span>
+            <span class="ab-badge ab-badge--emerald">Offline-Ready</span>
+            <span class="ab-badge ab-badge--violet">256-bit AES-GCM</span>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -616,6 +896,118 @@
       </div>
     </div>
 
+    <!-- ═══ THE WELLSPRING ══════════════════════════════════════════════ -->
+    <div class="ab-section ab-fade">
+      <div class="ab-section-head">
+        <div class="ab-section-head-icon" style="background:rgba(56,189,248,.13);">💧</div>
+        <h2>The <em>Wellspring</em> — Built for Where the Internet Ends</h2>
+      </div>
+      <p>
+        The vast majority of the global Church is not in a coffee shop with fast Wi-Fi.
+        It is in a village. In a home. In a place where the internet arrives once a week,
+        if at all. FlockOS was built to serve them too — not as an afterthought, but as
+        a first-class citizen of the kingdom.
+      </p>
+      <p>
+        <strong>The Wellspring</strong> is FlockOS's local-first data engine.
+        A pastor can export their entire church database — all members, prayer requests,
+        groups, events, pastoral notes, and history — into a single encrypted file.
+        That file lives on their device. FlockOS reads from it. No internet required.
+      </p>
+
+      <div class="ab-ws-flow ab-fade">
+        <div class="ab-ws-step">
+          <div class="ab-ws-step-icon" style="background:rgba(232,168,56,.12);color:var(--gold);">📥</div>
+          <div class="ab-ws-step-body">
+            <strong>Export once</strong>
+            <p>When connected, export your full church data as an encrypted .xlsx file. All 200+ data tabs. One file.</p>
+          </div>
+        </div>
+        <div class="ab-ws-arrow">→</div>
+        <div class="ab-ws-step">
+          <div class="ab-ws-step-icon" style="background:rgba(52,211,153,.12);color:var(--emerald);">📵</div>
+          <div class="ab-ws-step-body">
+            <strong>Work offline</strong>
+            <p>Load the file into FlockOS. The full app — members, care, groups, events — runs entirely in the browser with no connection.</p>
+          </div>
+        </div>
+        <div class="ab-ws-arrow">→</div>
+        <div class="ab-ws-step">
+          <div class="ab-ws-step-icon" style="background:rgba(167,139,250,.12);color:var(--violet);">🔄</div>
+          <div class="ab-ws-step-body">
+            <strong>Sync when ready</strong>
+            <p>Next time you're online — whether that's tomorrow or next month — export again. Your changes come with you.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="ab-ws-verse ab-fade">
+        <p class="ab-ws-verse-text">&ldquo;Whoever drinks the water I give them will never thirst. Indeed, the water I give them will become in them a spring of water welling up to eternal life.&rdquo;</p>
+        <span class="ab-ws-verse-ref">John 4:14 &mdash; the verse the Wellspring is named for</span>
+      </div>
+    </div>
+
+    <!-- ═══ BACKEND FLEXIBILITY ═══════════════════════════════════════════ -->
+    <div class="ab-section ab-fade">
+      <div class="ab-section-head">
+        <div class="ab-section-head-icon" style="background:rgba(52,211,153,.13);">⚡</div>
+        <h2>Three Engines. <em>One Platform.</em> Zero Lock-in.</h2>
+      </div>
+      <p>
+        FlockOS does not require any particular cloud provider. It meets churches
+        where they are — technically and geographically. Choose the backend that
+        fits your situation. Switch if it ever needs to change.
+      </p>
+
+      <div class="ab-engines ab-fade">
+        <div class="ab-engine">
+          <div class="ab-engine-top" style="background:linear-gradient(135deg,#0f9d58 0%,#0b7d47 100%);">
+            <div class="ab-engine-logo">📊</div>
+            <div class="ab-engine-name">Google Sheets<br>+ Apps Script</div>
+          </div>
+          <div class="ab-engine-body">
+            <p>The original engine. Your church data lives in a Google Spreadsheet you own and control. Google Apps Script serves it as a free JSON API. No servers. No hosting fees. Just a spreadsheet.</p>
+            <ul class="ab-engine-list">
+              <li>Free with any Google account</li>
+              <li>Data is a spreadsheet you can read and edit directly</li>
+              <li>Zero infrastructure to manage</li>
+              <li>Works where smartphones reach Google Drive</li>
+            </ul>
+          </div>
+        </div>
+        <div class="ab-engine">
+          <div class="ab-engine-top" style="background:linear-gradient(135deg,#f57c00 0%,#c35a00 100%);">
+            <div class="ab-engine-logo">🔥</div>
+            <div class="ab-engine-name">Firebase<br>Firestore</div>
+          </div>
+          <div class="ab-engine-body">
+            <p>Real-time, cloud-native. Member data, messaging, prayer chains, and pastoral care all sync live across devices. Scales from a church of 12 to a network of 12,000.</p>
+            <ul class="ab-engine-list">
+              <li>Real-time sync across all devices</li>
+              <li>Generous free tier — most churches pay $0</li>
+              <li>Auth, push notifications, offline cache built in</li>
+              <li>Used by FlockChat and the New Covenant app shell</li>
+            </ul>
+          </div>
+        </div>
+        <div class="ab-engine">
+          <div class="ab-engine-top" style="background:linear-gradient(135deg,#38bdf8 0%,#0284c7 100%);">
+            <div class="ab-engine-logo">💧</div>
+            <div class="ab-engine-name">The Wellspring<br>Local / Offline</div>
+          </div>
+          <div class="ab-engine-body">
+            <p>No internet. No cloud. Your entire church in one encrypted file, loaded directly into the browser and served from IndexedDB. For the pastor the internet hasn’t reached yet.</p>
+            <ul class="ab-engine-list">
+              <li>Zero connectivity required after file is loaded</li>
+              <li>AES-GCM 256-bit encryption — PIN-protected vault</li>
+              <li>All 200+ data tabs available in the browser</li>
+              <li>Export + re-import to sync when back online</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- ═══ THE FREE SECTION ══════════════════════════════════════════════ -->
     <div class="ab-free ab-fade">
       <span class="ab-free-crown">✝️</span>
@@ -687,6 +1079,22 @@
       </div>
     </div>
 
+    <!-- ═══ SECURITY ════════════════════════════════════════════════════ -->
+    <div class="ab-security ab-fade">
+      <div class="ab-security-lock">🔐</div>
+      <div class="ab-security-body">
+        <h3>256-Bit AES-GCM Encryption. PBKDF2 Key Derivation. Your data is yours.</h3>
+        <p>
+          The Wellspring vault uses industry-standard AES-GCM encryption with PBKDF2
+          (100,000 iterations) key derivation from a PIN that is <em>never stored</em>.
+          Church member data — names, addresses, prayer requests, pastoral notes —
+          is encrypted at rest in the browser’s IndexedDB. Only the right PIN unlocks it.
+          No cloud vendor can read it. No breach can expose it. The pastor’s flock
+          is protected even on a shared device in a remote community.
+        </p>
+      </div>
+    </div>
+
     <!-- ═══ CLOSING ═════════════════════════════════════════════════════ -->
     <div class="ab-closing ab-fade">
       <h2>
@@ -694,8 +1102,9 @@
         The shepherd is worth it.
       </h2>
       <p>
-        If you are a pastor carrying more than you should have to carry alone —
-        FlockOS was built for you. Not sold to you. Built for you.
+        Whether you’re running on Firestore in a city megachurch, Google Sheets in
+        a suburban congregation, or a local encrypted file on a phone in a village
+        with no signal — FlockOS works for you. Not sold to you. Built for you.
       </p>
 
       <div class="ab-closing-logo">
