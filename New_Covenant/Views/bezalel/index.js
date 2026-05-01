@@ -265,35 +265,78 @@ async function _fetchAndShow(root, docId) {
 }
 
 /* ── Church Setup tab ─────────────────────────────────────────────────────── */
-const _TZ_OPTIONS = [
-  'America/New_York',
-  'America/Chicago',
-  'America/Denver',
-  'America/Los_Angeles',
-  'America/Phoenix',
-  'America/Anchorage',
-  'Pacific/Honolulu',
-  'America/Puerto_Rico',
-  'Europe/London',
-  'Europe/Berlin',
-  'Africa/Lagos',
-  'Asia/Kolkata',
-  'Asia/Manila',
-  'Australia/Sydney',
+
+const _CHURCH_PRESETS = {
+  flockos: {
+    CHURCH_NAME:          'FlockOS',
+    CHURCH_TIMEZONE:      'America/New_York',
+    FIRESTORE_PROJECT_ID: '',
+    FIRESTORE_CHURCH_ID:  'FlockOS',
+    CHURCH_APP_URL:       'https://script.google.com/macros/s/AKfycbx2pemG039LB609OlVY-OcqLWK75qRV2ZgZNyf4Oc7dGogCR2HC4C__iWUqlG9JfYLt/exec',
+  },
+  tbc: {
+    CHURCH_NAME:          'Trinity Baptist Church',
+    CHURCH_TIMEZONE:      'America/New_York',
+    FIRESTORE_PROJECT_ID: 'flockos-trinity',
+    FIRESTORE_CHURCH_ID:  'TBC',
+    CHURCH_APP_URL:       'https://script.google.com/macros/s/AKfycbwAFp0BQvt0DiDJBjzBrycMripfUHOkP0PwiB_DSXgGVezP_y8jCOVxZWweTp58gai7/exec',
+  },
+  theforest: {
+    CHURCH_NAME:          'The Forest',
+    CHURCH_TIMEZONE:      'America/Chicago',
+    FIRESTORE_PROJECT_ID: 'flockos-theforest',
+    FIRESTORE_CHURCH_ID:  'TheForest',
+    CHURCH_APP_URL:       'https://script.google.com/macros/s/AKfycbwH7HY6_HK8NnP2R4IXfhsVQYnyAhWRStV8t5KJwaD7pnga0QKNj1mxwX5OAYwxEKDI/exec',
+  },
+  custom: {
+    CHURCH_NAME: '', CHURCH_TIMEZONE: 'America/New_York',
+    FIRESTORE_PROJECT_ID: '', FIRESTORE_CHURCH_ID: '', CHURCH_APP_URL: '',
+  },
+};
+
+const _FIELD_ORDER = [
+  'CHURCH_NAME', 'CHURCH_TIMEZONE', 'FIRESTORE_PROJECT_ID', 'FIRESTORE_CHURCH_ID',
+  'SYNC_SECRET', 'MASTER_SYNC_SECRET', 'FIREBASE_SERVICE_ACCOUNT',
+  'ADMIN_EMAIL', 'ADMIN_FIRST', 'ADMIN_LAST', 'ADMIN_PASSWORD', 'NOTIFY_EMAIL',
+  'CHURCH_APP_URL',
+  'TWILIO_SID', 'TWILIO_TOKEN', 'TWILIO_NUMBER',
+  'CHURCH_FOLDER_ID',
 ];
 
-const _TRUTH_DB_ID     = '1ZuLKjP1RUI7TibeHKEC_wUsnjiWq0ic-AXt_LIPKSbM';
-const _TRUTH_PROJECT   = 'flockos-truth';
+const _TZ_OPTIONS = [
+  'America/New_York','America/Chicago','America/Denver','America/Los_Angeles',
+  'America/Phoenix','America/Anchorage','Pacific/Honolulu','America/Puerto_Rico',
+  'Europe/London','Europe/Berlin','Africa/Lagos','Asia/Kolkata','Asia/Manila','Australia/Sydney',
+];
 
-function _field(id, label, opts = {}) {
-  const { type = 'text', placeholder = '', hint = '', required = false, value = '' } = opts;
+function _secretField(id, label, { hint = '', required = false, withGen = false } = {}) {
+  const req = required ? ' <span style="color:#b91c1c">*</span>' : '';
+  const genBtn = withGen
+    ? `<button type="button" data-gen="${_e(id)}" title="Generate random secret"
+        style="position:absolute;right:${withGen ? '64px' : '36px'};top:50%;transform:translateY(-50%);
+          background:none;border:none;cursor:pointer;color:var(--accent);font-size:1rem;padding:4px;"
+      >⚡</button>` : '';
   return `
     <div style="display:flex;flex-direction:column;gap:4px;">
-      <label for="${_e(id)}" style="font-size:0.78rem;font-weight:700;color:var(--ink);text-transform:uppercase;letter-spacing:0.04em;">
-        ${_e(label)}${required ? ' <span style="color:#b91c1c">*</span>' : ''}
-      </label>
-      <input id="${_e(id)}" type="${_e(type)}" placeholder="${_e(placeholder)}"
-        value="${_e(value)}"
+      <label for="${_e(id)}" style="font-size:0.78rem;font-weight:700;color:var(--ink);text-transform:uppercase;letter-spacing:0.04em;">${_e(label)}${req}</label>
+      <div style="position:relative;">
+        <input id="${_e(id)}" type="password" autocomplete="off"
+          style="padding:8px 70px 8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);font-size:0.85rem;font-family:inherit;width:100%;box-sizing:border-box;">
+        ${genBtn}
+        <button type="button" data-eye="${_e(id)}" title="Show/hide"
+          style="position:absolute;right:8px;top:50%;transform:translateY(-50%);
+            background:none;border:none;cursor:pointer;color:var(--ink-muted);font-size:1rem;padding:4px;">👁</button>
+      </div>
+      ${hint ? `<div style="font-size:0.74rem;color:var(--ink-muted);line-height:1.4;">${hint}</div>` : ''}
+    </div>`;
+}
+
+function _textField(id, label, { placeholder = '', hint = '', required = false, type = 'text' } = {}) {
+  const req = required ? ' <span style="color:#b91c1c">*</span>' : '';
+  return `
+    <div style="display:flex;flex-direction:column;gap:4px;">
+      <label for="${_e(id)}" style="font-size:0.78rem;font-weight:700;color:var(--ink);text-transform:uppercase;letter-spacing:0.04em;">${_e(label)}${req}</label>
+      <input id="${_e(id)}" type="${_e(type)}" placeholder="${_e(placeholder)}" autocomplete="off"
         style="padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);font-size:0.85rem;font-family:inherit;width:100%;box-sizing:border-box;">
       ${hint ? `<div style="font-size:0.74rem;color:var(--ink-muted);line-height:1.4;">${hint}</div>` : ''}
     </div>`;
@@ -301,233 +344,271 @@ function _field(id, label, opts = {}) {
 
 function _churchSetupTab() {
   const tzOpts = _TZ_OPTIONS.map(tz =>
-    `<option value="${_e(tz)}"${tz === 'America/New_York' ? ' selected' : ''}>${_e(tz)}</option>`
+    `<option value="${_e(tz)}">${_e(tz)}</option>`
   ).join('');
+
+  const card = (title, body) => `
+    <div class="bz-card" style="background:var(--bg-raised);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:0;">
+      <div style="font-size:0.78rem;font-weight:700;color:var(--ink-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:14px;">${title}</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px;">${body}</div>
+    </div>`;
 
   return `
 <div style="display:grid;gap:14px;">
 
-  <!-- ── Form card ───────────────────────────────────────────────────────── -->
-  <div class="bz-card" style="background:var(--bg-raised);border:1px solid var(--line);border-radius:12px;padding:18px;">
-    <div style="font-size:0.95rem;font-weight:700;color:var(--ink);margin-bottom:4px;">Generate Setup.gs</div>
-    <p style="font-size:0.82rem;color:var(--ink-muted);line-height:1.55;margin:0 0 18px;">
-      Fill in the church details below. Click <strong>Generate</strong> to produce a ready-to-paste
-      <code style="font-family:monospace;background:rgba(0,0,0,0.08);padding:1px 5px;border-radius:3px;">Setup.gs</code>
-      file for the church's Apps Script project.
-      No secrets are included — those go in Script Properties only.
-    </p>
-
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;margin-bottom:18px;">
-      ${_field('bz-church-name', 'Church Name', { placeholder: 'Grace Community Church', required: true, hint: 'Full name — seeded into AppConfig on first run.' })}
-      <div style="display:flex;flex-direction:column;gap:4px;">
-        <label for="bz-tz" style="font-size:0.78rem;font-weight:700;color:var(--ink);text-transform:uppercase;letter-spacing:0.04em;">
-          Timezone <span style="color:#b91c1c">*</span>
-        </label>
-        <select id="bz-tz" style="padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);font-size:0.85rem;font-family:inherit;">
-          ${tzOpts}
-        </select>
-        <div style="font-size:0.74rem;color:var(--ink-muted);">IANA timezone for pastoral email triggers.</div>
-      </div>
-      ${_field('bz-admin-email', 'Admin Email', { type: 'email', placeholder: 'pastor@church.com', required: true, hint: 'Creates the first admin account on setup.' })}
-      ${_field('bz-admin-first', 'Admin First Name', { placeholder: 'John', required: true })}
-      ${_field('bz-admin-last',  'Admin Last Name',  { placeholder: 'Smith', required: true })}
-      ${_field('bz-notify-email', 'Notify Email', { type: 'email', placeholder: 'Same as Admin Email', hint: 'Receives system alerts. Defaults to admin email if left blank.' })}
-      ${_field('bz-folder-id', 'Church Drive Folder ID', { placeholder: '1f4MJgmOUuvqBLj…', hint: 'Google Drive folder ID for this church\'s files. Leave blank to use default.' })}
-      ${_field('bz-app-url', 'Church App URL', { placeholder: 'https://tbc.flockos.app', hint: 'Leave blank now — fill in after Step 6 (Deploy as Web App), then run registerChurchUrl().' })}
+  <!-- Security warning -->
+  <div style="display:flex;gap:10px;padding:12px 14px;background:rgba(185,28,28,0.06);border:1px solid rgba(185,28,28,0.25);border-radius:8px;font-size:0.82rem;color:var(--ink);line-height:1.5;">
+    <span style="font-size:1.1rem;flex-shrink:0;">⚠️</span>
+    <div>
+      <strong>Security:</strong> Secrets entered here never leave your browser — generation is entirely client-side.
+      Do <strong>not</strong> share the generated output. After running <code style="font-family:monospace;background:rgba(0,0,0,0.08);padding:1px 4px;border-radius:3px;">setAllScriptProperties_()</code>
+      in Apps Script, <strong>delete Setup.gs immediately</strong>. Then delete <code style="font-family:monospace;background:rgba(0,0,0,0.08);padding:1px 4px;border-radius:3px;">ADMIN_PASSWORD</code> from Script Properties after first login.
     </div>
-
-    <!-- deployment type -->
-    <div style="margin-bottom:18px;">
-      <div style="font-size:0.78rem;font-weight:700;color:var(--ink);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px;">
-        Deployment Type <span style="color:#b91c1c">*</span>
-      </div>
-      <div style="display:flex;gap:10px;flex-wrap:wrap;">
-        <label style="display:flex;align-items:flex-start;gap:8px;padding:10px 14px;border:1px solid var(--line);border-radius:8px;cursor:pointer;flex:1;min-width:200px;background:var(--bg);">
-          <input type="radio" name="bz-deploy-type" value="gas" checked style="margin-top:2px;">
-          <div>
-            <div style="font-size:0.85rem;font-weight:600;color:var(--ink);">GAS-only</div>
-            <div style="font-size:0.76rem;color:var(--ink-muted);line-height:1.4;">No Firestore. Calls <code style="font-family:monospace">setupFlockOSGAS()</code>. All ~100 tabs built upfront.</div>
-          </div>
-        </label>
-        <label style="display:flex;align-items:flex-start;gap:8px;padding:10px 14px;border:1px solid var(--line);border-radius:8px;cursor:pointer;flex:1;min-width:200px;background:var(--bg);">
-          <input type="radio" name="bz-deploy-type" value="firestore" style="margin-top:2px;">
-          <div>
-            <div style="font-size:0.85rem;font-weight:600;color:var(--ink);">Firestore-backed</div>
-            <div style="font-size:0.76rem;color:var(--ink-muted);line-height:1.4;">Calls <code style="font-family:monospace">setupFlockOSFirestore()</code>. 8 system tabs; data tabs created lazily.</div>
-          </div>
-        </label>
-      </div>
-    </div>
-
-    <!-- firestore-only fields -->
-    <div id="bz-firestore-fields" style="display:none;background:rgba(99,102,241,0.05);border:1px solid rgba(99,102,241,0.2);border-radius:8px;padding:14px;margin-bottom:18px;">
-      <div style="font-size:0.78rem;font-weight:700;color:var(--ink);margin-bottom:12px;">Firestore Details</div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px;">
-        ${_field('bz-firebase-project', 'Firebase Project ID', { placeholder: 'flockos-trinity', hint: 'e.g. flockos-trinity, flockos-theforest' })}
-        ${_field('bz-firestore-church-id', 'Firestore Church ID', { placeholder: 'TBC', hint: 'Short church key used in Firestore paths, e.g. TBC, TheForest' })}
-      </div>
-    </div>
-
-    <button id="bz-gen-btn" class="btn btn-primary" style="font-size:0.85rem;padding:9px 22px;">⚙ Generate Setup.gs</button>
   </div>
 
-  <!-- ── Output card ─────────────────────────────────────────────────────── -->
-  <div id="bz-setup-output" style="display:none;" class="bz-card">
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
-      <div style="font-size:0.9rem;font-weight:700;color:var(--ink);">Setup.gs — ready to paste</div>
-      <button id="bz-setup-copy" class="btn btn-primary" style="font-size:0.8rem;padding:7px 16px;">📋 Copy</button>
+  <!-- Church selector -->
+  <div class="bz-card" style="background:var(--bg-raised);border:1px solid var(--line);border-radius:12px;padding:16px;">
+    <div style="font-size:0.78rem;font-weight:700;color:var(--ink-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:12px;">Select Church Node</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;" id="bz-church-selector">
+      ${[['flockos','🕊 FlockOS'],['tbc','⛪ Trinity Baptist'],['theforest','🌲 The Forest'],['custom','✚ New Church']].map(([id, label]) =>
+        `<button class="bz-church-btn" data-church="${_e(id)}" type="button"
+          style="padding:8px 16px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);
+            font-size:0.82rem;font-family:inherit;cursor:pointer;white-space:nowrap;"
+        >${_e(label)}</button>`
+      ).join('')}
+    </div>
+  </div>
+
+  <!-- Identity -->
+  ${card('◆ Identity', `
+    <div style="display:flex;flex-direction:column;gap:4px;grid-column:1/-1;">
+      <label for="bz-CHURCH_NAME" style="font-size:0.78rem;font-weight:700;color:var(--ink);text-transform:uppercase;letter-spacing:0.04em;">Church Name <span style="color:#b91c1c">*</span></label>
+      <input id="bz-CHURCH_NAME" type="text" placeholder="e.g. Grace Community Church"
+        style="padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);font-size:0.85rem;font-family:inherit;width:100%;box-sizing:border-box;">
+    </div>
+    <div style="display:flex;flex-direction:column;gap:4px;">
+      <label for="bz-CHURCH_TIMEZONE" style="font-size:0.78rem;font-weight:700;color:var(--ink);text-transform:uppercase;letter-spacing:0.04em;">Timezone <span style="color:#b91c1c">*</span></label>
+      <select id="bz-CHURCH_TIMEZONE" style="padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);font-size:0.85rem;font-family:inherit;">${tzOpts}</select>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:4px;">
+      <label for="bz-CHURCH_APP_URL" style="font-size:0.78rem;font-weight:700;color:var(--ink);text-transform:uppercase;letter-spacing:0.04em;">Church App URL <span style="font-size:0.72rem;font-weight:400;text-transform:none;color:var(--ink-muted);">Set after Web App deploy</span></label>
+      <input id="bz-CHURCH_APP_URL" type="text" placeholder="https://script.google.com/macros/s/…/exec"
+        style="padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);font-size:0.85rem;font-family:inherit;width:100%;box-sizing:border-box;">
+    </div>
+  `)}
+
+  <!-- Firestore -->
+  ${card('◆ Firestore', `
+    ${_textField('bz-FIRESTORE_PROJECT_ID', 'Firestore Project ID', { placeholder: 'flockos-yourchurch', required: true })}
+    <div style="display:flex;flex-direction:column;gap:4px;">
+      ${_textField('bz-FIRESTORE_CHURCH_ID', 'Firestore Church ID', { placeholder: 'YourChurch', required: true, hint: 'The key under churches/ in Firestore' })}
+    </div>
+  `)}
+
+  <!-- Secrets -->
+  <div class="bz-card" style="background:var(--bg-raised);border:1px solid var(--line);border-radius:12px;padding:16px;">
+    <div style="font-size:0.78rem;font-weight:700;color:var(--ink-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:14px;">◆ Secrets</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px;">
+      ${_secretField('bz-SYNC_SECRET', 'Sync Secret', { required: true, withGen: true, hint: 'Must match churches/{id}.syncSecret in Firestore. Change both together.' })}
+      ${_secretField('bz-MASTER_SYNC_SECRET', 'Master Sync Secret', { required: true, withGen: true, hint: 'Same value across all churches — from master-api.json.' })}
+      <div style="grid-column:1/-1;">
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          <label for="bz-FIREBASE_SERVICE_ACCOUNT" style="font-size:0.78rem;font-weight:700;color:var(--ink);text-transform:uppercase;letter-spacing:0.04em;">Firebase Service Account JSON <span style="color:#b91c1c">*</span> <span style="font-size:0.72rem;font-weight:400;text-transform:none;color:var(--ink-muted);">Paste full JSON</span></label>
+          <textarea id="bz-FIREBASE_SERVICE_ACCOUNT" rows="4" placeholder='{"type":"service_account","project_id":"..."}'
+            style="padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);font-size:0.78rem;font-family:monospace;width:100%;box-sizing:border-box;resize:vertical;"></textarea>
+          <div style="font-size:0.74rem;color:var(--ink-muted);">GCP Console → IAM → Service Accounts → Download JSON for this church's Firebase project.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Admin Setup -->
+  <div class="bz-card" style="background:var(--bg-raised);border:1px solid var(--line);border-radius:12px;padding:16px;">
+    <div style="font-size:0.78rem;font-weight:700;color:var(--ink-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px;">◆ Admin Setup</div>
+    <div style="font-size:0.74rem;color:#b45309;margin-bottom:14px;">Delete ADMIN_PASSWORD from Script Properties immediately after first login.</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;">
+      ${_textField('bz-ADMIN_EMAIL', 'Admin Email', { type: 'email', placeholder: 'pastor@yourchurch.org', required: true })}
+      ${_textField('bz-NOTIFY_EMAIL', 'Notify Email', { type: 'email', placeholder: 'Same as admin, or notification inbox' })}
+      ${_textField('bz-ADMIN_FIRST', 'Admin First Name', { placeholder: 'First', required: true })}
+      ${_textField('bz-ADMIN_LAST', 'Admin Last Name', { placeholder: 'Last', required: true })}
+      <div style="grid-column:1/-1;">
+        ${_secretField('bz-ADMIN_PASSWORD', 'Admin Password', { required: true, withGen: true, hint: 'Initial password — delete from Script Properties after setup. To reset later, set a new value and run setupFlockOS() again.' })}
+      </div>
+    </div>
+  </div>
+
+  <!-- Optional -->
+  ${card('◆ Optional (Twilio / Drive)', `
+    ${_textField('bz-TWILIO_SID', 'Twilio SID', { placeholder: 'ACxxxxxxxx' })}
+    ${_secretField('bz-TWILIO_TOKEN', 'Twilio Auth Token')}
+    ${_textField('bz-TWILIO_NUMBER', 'Twilio Number', { placeholder: '+15551234567' })}
+    ${_textField('bz-CHURCH_FOLDER_ID', 'Church Drive Folder ID', { placeholder: 'Google Drive folder ID' })}
+  `)}
+
+  <!-- Output -->
+  <div class="bz-card" style="background:var(--bg-raised);border:1px solid var(--line);border-radius:12px;padding:16px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
+      <div style="font-size:0.9rem;font-weight:700;color:var(--ink);">Setup.gs — <code style="font-family:monospace;font-size:0.85em;">setAllScriptProperties_()</code></div>
+      <div style="display:flex;gap:8px;">
+        <button id="bz-setup-copy" class="btn btn-primary" type="button" style="font-size:0.8rem;padding:7px 16px;">📋 Copy</button>
+        <button id="bz-setup-clear" class="btn" type="button"
+          style="font-size:0.8rem;padding:7px 14px;background:none;border:1px solid rgba(185,28,28,0.4);color:#b91c1c;border-radius:6px;cursor:pointer;font-family:inherit;">✕ Clear</button>
+      </div>
     </div>
     <pre id="bz-setup-pre" style="background:var(--bg-sunken);border:1px solid var(--line);border-radius:8px;
       padding:14px;font-size:0.76rem;line-height:1.6;overflow-x:auto;white-space:pre-wrap;word-break:break-word;
-      max-height:500px;overflow-y:auto;color:var(--ink);font-family:monospace;margin:0;"></pre>
-    <div style="margin-top:12px;padding:10px 14px;background:rgba(22,163,74,0.06);border:1px solid rgba(22,163,74,0.2);border-radius:8px;font-size:0.79rem;color:var(--ink-muted);line-height:1.6;">
-      <strong style="color:var(--ink);">Next steps:</strong>
-      In Apps Script → create a new file named <code style="font-family:monospace;background:rgba(0,0,0,0.08);padding:1px 5px;border-radius:3px;">Setup.gs</code>
-      → paste this content → set Script Properties (see below) →
-      run the setup function shown in the file → deploy as Web App →
-      paste the URL back into <code style="font-family:monospace;background:rgba(0,0,0,0.08);padding:1px 5px;border-radius:3px;">churchAppUrl</code>
-      → run <code style="font-family:monospace;background:rgba(0,0,0,0.08);padding:1px 5px;border-radius:3px;">registerChurchUrl()</code>.
+      max-height:420px;overflow-y:auto;color:var(--ink);font-family:monospace;margin:0;"></pre>
+    <div style="margin-top:12px;padding:10px 14px;background:rgba(185,28,28,0.05);border:1px solid rgba(185,28,28,0.2);border-radius:8px;font-size:0.79rem;color:var(--ink);line-height:1.6;">
+      <strong>Steps:</strong>
+      In Apps Script, create <code style="font-family:monospace;background:rgba(0,0,0,0.08);padding:1px 4px;border-radius:3px;">Setup.gs</code> → paste → run <code style="font-family:monospace;background:rgba(0,0,0,0.08);padding:1px 4px;border-radius:3px;">setAllScriptProperties_()</code>
+      → <strong style="color:#b91c1c;">delete Setup.gs immediately</strong>
+      → run <code style="font-family:monospace;background:rgba(0,0,0,0.08);padding:1px 4px;border-radius:3px;">setupFlockOS()</code> in Code.gs
+      → deploy as Web App → paste URL into <code style="font-family:monospace;background:rgba(0,0,0,0.08);padding:1px 4px;border-radius:3px;">CHURCH_APP_URL</code> above and re-generate → run <code style="font-family:monospace;background:rgba(0,0,0,0.08);padding:1px 4px;border-radius:3px;">registerChurchUrl()</code>
+      → <strong style="color:#b45309;">delete ADMIN_PASSWORD from Script Properties.</strong>
     </div>
-  </div>
-
-  <!-- ── Script Properties card ─────────────────────────────────────────── -->
-  <div class="bz-card" style="background:var(--bg-raised);border:1px solid var(--line);border-radius:12px;padding:16px;">
-    <div style="font-size:0.9rem;font-weight:700;color:var(--ink);margin-bottom:8px;">Script Properties (secrets — set manually)</div>
-    <p style="font-size:0.82rem;color:var(--ink-muted);line-height:1.55;margin:0 0 10px;">
-      Set these in <strong>Apps Script → ⚙ Settings → Script Properties</strong>. Never paste secrets into any form.
-    </p>
-    <table style="width:100%;border-collapse:collapse;font-size:0.79rem;">
-      <thead><tr style="border-bottom:1px solid var(--line);">
-        <th style="text-align:left;padding:6px 8px;color:var(--ink-muted);font-weight:700;font-size:0.72rem;text-transform:uppercase;">Property</th>
-        <th style="text-align:left;padding:6px 8px;color:var(--ink-muted);font-weight:700;font-size:0.72rem;text-transform:uppercase;">Description</th>
-      </tr></thead>
-      <tbody>
-        ${[
-          ['FIREBASE_SERVICE_ACCOUNT', "Service account JSON for this church's Firebase project (Firestore deployments only)."],
-          ['TRUTH_SERVICE_ACCOUNT',    'Service account JSON for the flockos-truth project (enables replicateTruthFromMaster).'],
-          ['FIRESTORE_PROJECT_ID',     'Optional — Firebase project ID (e.g. flockos-trinity). Auto-resolved from ChurchRegistry if present.'],
-          ['FIRESTORE_CHURCH_ID',      'Optional — Short church key for Firestore paths (e.g. TBC, TheForest). Auto-resolved if present.'],
-        ].map(([k, v]) => `<tr style="border-bottom:1px solid var(--line);">
-          <td style="padding:8px;font-family:monospace;color:var(--accent);font-size:0.76rem;white-space:nowrap;">${_e(k)}</td>
-          <td style="padding:8px;color:var(--ink-muted);font-size:0.79rem;">${_e(v)}</td>
-        </tr>`).join('')}
-      </tbody>
-    </table>
   </div>
 
 </div>`;
 }
 
 function _wireChurchSetup(root) {
-  const genBtn       = root.querySelector('#bz-gen-btn');
-  const output       = root.querySelector('#bz-setup-output');
-  const pre          = root.querySelector('#bz-setup-pre');
-  const copyBtn      = root.querySelector('#bz-setup-copy');
-  const fsFields     = root.querySelector('#bz-firestore-fields');
-  const deployRadios = root.querySelectorAll('input[name="bz-deploy-type"]');
-
-  /* Show/hide Firestore-specific fields based on deployment type */
-  deployRadios.forEach(r => {
-    r.addEventListener('change', () => {
-      if (fsFields) fsFields.style.display = r.value === 'firestore' ? '' : 'none';
+  // Church selector pre-fill
+  root.querySelectorAll('.bz-church-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      root.querySelectorAll('.bz-church-btn').forEach(b => {
+        b.style.background = 'var(--bg)';
+        b.style.borderColor = 'var(--line)';
+        b.style.color = 'var(--ink)';
+        b.style.fontWeight = '';
+      });
+      btn.style.background = 'var(--accent)';
+      btn.style.borderColor = 'var(--accent)';
+      btn.style.color = 'var(--ink-inverse, #fff)';
+      btn.style.fontWeight = '700';
+      const preset = _CHURCH_PRESETS[btn.dataset.church] || {};
+      Object.entries(preset).forEach(([key, val]) => {
+        const el = root.querySelector(`#bz-${key}`);
+        if (!el) return;
+        if (el.tagName === 'SELECT') { el.value = val; }
+        else if (!el.value.trim()) { el.value = val; }
+      });
+      _bzUpdateOutput(root);
     });
   });
 
-  genBtn?.addEventListener('click', () => {
-    const get = id => root.querySelector(id)?.value?.trim() || '';
-    const deployType = [...deployRadios].find(r => r.checked)?.value || 'gas';
-
-    const churchName   = get('#bz-church-name');
-    const timezone     = get('#bz-tz') || 'America/New_York';
-    const adminEmail   = get('#bz-admin-email');
-    const adminFirst   = get('#bz-admin-first');
-    const adminLast    = get('#bz-admin-last');
-    const notifyEmail  = get('#bz-notify-email') || adminEmail;
-    const folderId     = get('#bz-folder-id');
-    const appUrl       = get('#bz-app-url');
-    const fbProject    = get('#bz-firebase-project');
-    const fsChurchId   = get('#bz-firestore-church-id');
-
-    if (!churchName)  { alert('Church Name is required.'); return; }
-    if (!adminEmail)  { alert('Admin Email is required.'); return; }
-    if (!adminFirst)  { alert('Admin First Name is required.'); return; }
-    if (!adminLast)   { alert('Admin Last Name is required.'); return; }
-
-    const setupFn   = deployType === 'firestore' ? 'setupFlockOSFirestore' : 'setupFlockOSGAS';
-    const today     = new Date().toISOString().split('T')[0];
-
-    const firestoreBlock = deployType === 'firestore' ? `
-
-// ── Firestore identity ─────────────────────────────────────────────────────
-// These are optional here — they can also be set as Script Properties.
-// FIRESTORE_PROJECT_ID and FIRESTORE_CHURCH_ID are auto-resolved from
-// ChurchRegistry if the Script Properties are absent.${fbProject ? `
-var FIRESTORE_PROJECT_ID = '${fbProject}';` : ''}${fsChurchId ? `
-var FIRESTORE_CHURCH_ID  = '${fsChurchId}';` : ''}` : '';
-
-    const gs = `// Setup.gs — ${churchName}
-// Generated by New Covenant Bezalel · ${today}
-// Deployment type: ${deployType === 'firestore' ? 'Firestore-backed' : 'GAS-only'}
-//
-// ══════════════════════════════════════════════════════════════════════
-//  HOW TO DEPLOY
-// ══════════════════════════════════════════════════════════════════════
-//
-//  1. In your church's Google Sheet → Extensions → Apps Script
-//  2. Create a new file named "Setup.gs" and paste this content
-//  3. Paste the other master files (Code.gs, FirestoreSync.gs, etc.)
-//     from the GAS Files tab in Bezalel
-//  4. Set Script Properties (⚙ Settings → Script Properties):
-//       FIREBASE_SERVICE_ACCOUNT  — service account JSON${deployType === 'firestore' ? ' for this church\'s Firebase project' : ' (not required for GAS-only)'}
-//       TRUTH_SERVICE_ACCOUNT     — service account JSON for flockos-truth
-//  5. Select "${setupFn}" in the function dropdown → click ▶ Run
-//     Grant permissions when prompted.
-//  6. Deploy as Web App:
-//       Deploy → New Deployment → Web App
-//       Execute as: Me  |  Access: Anyone
-//     Copy the Web App URL.
-//  7. Paste the Web App URL into DEPLOY_CONFIG.churchAppUrl below,
-//     then run registerChurchUrl() from the dropdown.
-// ══════════════════════════════════════════════════════════════════════
-
-// ── Deployment Configuration ──────────────────────────────────────────
-// Edit here before running setup. No secrets — those go in Script Properties.
-var DEPLOY_CONFIG = {
-  adminEmail:     '${adminEmail}',
-  adminFirst:     '${adminFirst}',
-  adminLast:      '${adminLast}',
-  adminPassword:  '',                          // ← leave blank; set via Script Property if needed
-  notifyEmail:    '${notifyEmail}',
-  truthDbId:      '${_TRUTH_DB_ID}',
-  churchFolderId: '${folderId || ''}',         // ← Google Drive folder ID for this church${!folderId ? '\n  // (leave blank to use the default FlockOS folder)' : ''}
-  churchName:     '${churchName}',
-  timezone:       '${timezone}',
-  churchAppUrl:   '${appUrl}',                 // ← fill in after Step 6, then run registerChurchUrl()
-};
-// ─────────────────────────────────────────────────────────────────────${firestoreBlock}
-
-// ── Step 7: Register Web App URL ──────────────────────────────────────
-// After setup completes and you have deployed as a Web App:
-// paste the URL into DEPLOY_CONFIG.churchAppUrl above, then run this.
-function registerChurchUrl() {
-  registerWebAppUrl(DEPLOY_CONFIG.churchAppUrl);
-}`;
-
-    pre.textContent = gs;
-    output.style.display = '';
-    output.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  // Live update on any input
+  root.querySelectorAll('[id^="bz-"]').forEach(el => {
+    el.addEventListener('input', () => _bzUpdateOutput(root));
+    el.addEventListener('change', () => _bzUpdateOutput(root));
   });
 
-  copyBtn?.addEventListener('click', async () => {
-    const text = pre?.textContent || '';
+  // Eye toggles
+  root.querySelectorAll('[data-eye]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const inp = root.querySelector(`#${btn.dataset.eye}`);
+      if (!inp) return;
+      inp.type = inp.type === 'password' ? 'text' : 'password';
+      btn.textContent = inp.type === 'password' ? '👁' : '🙈';
+    });
+  });
+
+  // Generate buttons
+  root.querySelectorAll('[data-gen]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const inp = root.querySelector(`#${btn.dataset.gen}`);
+      if (!inp) return;
+      inp.value = _bzGenSecret(20);
+      inp.type = 'text';
+      const eyeBtn = root.querySelector(`[data-eye="${btn.dataset.gen}"]`);
+      if (eyeBtn) eyeBtn.textContent = '🙈';
+      _bzUpdateOutput(root);
+    });
+  });
+
+  // Copy
+  root.querySelector('#bz-setup-copy')?.addEventListener('click', async (e) => {
+    const text = _bzPlainOutput(root);
+    const btn = e.currentTarget;
     try {
       await navigator.clipboard.writeText(text);
-      copyBtn.textContent = '✓ Copied!';
-      setTimeout(() => { copyBtn.textContent = '📋 Copy'; }, 2500);
-    } catch (_) {
-      copyBtn.textContent = 'Select & copy manually';
-    }
+      btn.textContent = '✓ Copied!';
+      setTimeout(() => { btn.textContent = '📋 Copy'; }, 2500);
+    } catch (_) { btn.textContent = 'Select & copy manually'; }
   });
+
+  // Clear
+  root.querySelector('#bz-setup-clear')?.addEventListener('click', () => {
+    if (!confirm('Clear all entered values?')) return;
+    root.querySelectorAll('[id^="bz-"]').forEach(el => {
+      if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') el.value = '';
+    });
+    root.querySelectorAll('.bz-church-btn').forEach(b => {
+      b.style.background = 'var(--bg)';
+      b.style.borderColor = 'var(--line)';
+      b.style.color = 'var(--ink)';
+      b.style.fontWeight = '';
+    });
+    _bzUpdateOutput(root);
+  });
+
+  _bzUpdateOutput(root);
+}
+
+function _bzGenSecret(len) {
+  const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%^&*';
+  let out = '';
+  const arr = new Uint8Array(len * 2);
+  crypto.getRandomValues(arr);
+  for (let i = 0; i < arr.length && out.length < len; i++) {
+    const idx = arr[i] % chars.length;
+    out += chars[idx];
+  }
+  return out;
+}
+
+function _bzVal(root, key) {
+  const el = root.querySelector(`#bz-${key}`);
+  return el ? el.value.trim() : '';
+}
+
+function _bzEsc(str) {
+  return str.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n').replace(/\r/g, '');
+}
+
+function _bzEscJson(str) {
+  try {
+    const compact = JSON.stringify(JSON.parse(str));
+    return compact.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  } catch (_) { return _bzEsc(str); }
+}
+
+function _bzPlainOutput(root) {
+  const props = {};
+  _FIELD_ORDER.forEach(key => {
+    const raw = _bzVal(root, key);
+    if (raw) props[key] = raw;
+  });
+  if (!Object.keys(props).length) return '// No values entered yet.';
+  const lines = [
+    '// ── Paste into Apps Script, run ONCE, then DELETE immediately ───',
+    'function setAllScriptProperties_() {',
+    '  var props = PropertiesService.getScriptProperties();',
+    '  props.setProperties({',
+  ];
+  Object.entries(props).forEach(([key, raw]) => {
+    const escaped = key === 'FIREBASE_SERVICE_ACCOUNT' ? _bzEscJson(raw) : _bzEsc(raw);
+    lines.push(`    '${key}': '${escaped}',`);
+  });
+  lines.push('  });');
+  lines.push("  Logger.log('✅ Script Properties set.');");
+  lines.push("  Logger.log('⚠️  Delete this file now.');");
+  lines.push('}');
+  return lines.join('\n');
+}
+
+function _bzUpdateOutput(root) {
+  const pre = root.querySelector('#bz-setup-pre');
+  if (pre) pre.textContent = _bzPlainOutput(root);
 }
 
 /* ── Deployments tab ──────────────────────────────────────────────────────── */
