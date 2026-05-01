@@ -1283,70 +1283,71 @@ function _auditDb() {
   return null;
 }
 
-// Well-known sentinel documents the app expects under churches/{churchId}/.
-// Each has: id (unique key), label, kind (display), subPath (doc path inside churches/{cid})
-// and defaults (object to merge on creation).
+// Well-known sentinel documents the app expects at the root of the Firebase project.
+// The app uses a flat structure — each church has its own Firebase project, so
+// collections live at the root (no churches/{churchId}/ nesting).
+// Each entry: id, label, kind, rootPath (full Firestore doc path), defaults.
 const _AUDIT_ITEMS = [
   {
     id:          'church-root',
     label:       'Church root document',
     kind:        'Document',
-    subPath:     '',   // the church doc itself: churches/{cid}
+    rootPath:    null,  // no root doc in flat-project model — backend sets up project
     defaults:    { createdAt: null, name: '', setupComplete: false },
-    backendOnly: true, // created by GAS during church setup — client cannot write here
+    backendOnly: true,
   },
   {
-    id:      'config-general',
-    label:   'General config',
-    kind:    'Document',
-    subPath: 'config/general',
-    defaults: { createdAt: null },
+    id:       'config-app',
+    label:    'App config (settings/app)',
+    kind:     'Document',
+    rootPath: 'settings/app',
+    defaults: { commsMode: 'firebase', createdAt: null },
   },
   {
-    id:      'channel-general',
-    label:   '#general channel',
-    kind:    'Channel',
-    subPath: 'channels/general',
+    id:       'channel-general',
+    label:    '#general channel',
+    kind:     'Channel',
+    rootPath: 'conversations/general',
     defaults: { name: 'general', type: 'channel', createdAt: null, description: 'General discussion' },
   },
   {
-    id:      'channel-announcements',
-    label:   '#announcements channel',
-    kind:    'Channel',
-    subPath: 'channels/announcements',
+    id:       'channel-announcements',
+    label:    '#announcements channel',
+    kind:     'Channel',
+    rootPath: 'conversations/announcements',
     defaults: { name: 'announcements', type: 'channel', createdAt: null, description: 'Church announcements' },
   },
   {
-    id:      'channel-prayer',
-    label:   '#prayer-requests channel',
-    kind:    'Channel',
-    subPath: 'channels/prayer-requests',
+    id:       'channel-prayer',
+    label:    '#prayer-requests channel',
+    kind:     'Channel',
+    rootPath: 'conversations/prayer-requests',
     defaults: { name: 'prayer-requests', type: 'channel', createdAt: null, description: 'Prayer requests' },
   },
   {
-    id:      'settings-notif',
-    label:   'Notification settings scaffold',
-    kind:    'Document',
-    subPath: 'settings/notifications',
+    id:       'settings-notif',
+    label:    'Notification settings scaffold',
+    kind:     'Document',
+    rootPath: 'settings/notifications',
     defaults: { createdAt: null },
   },
 ];
 
-function _auditDocRef(db, churchId, subPath) {
-  const root = db.collection('churches').doc(churchId);
-  if (!subPath) return root;
-  const parts = subPath.split('/');
-  let ref = root;
-  for (let i = 0; i < parts.length - 1; i += 2) {
+function _auditDocRef(db, rootPath) {
+  if (!rootPath) return null;
+  const parts = rootPath.split('/');
+  let ref = db.collection(parts[0]).doc(parts[1]);
+  for (let i = 2; i < parts.length - 1; i += 2) {
     ref = ref.collection(parts[i]).doc(parts[i + 1]);
   }
   return ref;
 }
 
-async function _auditCheckAll(db, churchId) {
+async function _auditCheckAll(db) {
   return Promise.all(_AUDIT_ITEMS.map(async (item) => {
+    if (!item.rootPath) return { ...item, exists: false }; // backend-only, no ref
     try {
-      const ref = _auditDocRef(db, churchId, item.subPath);
+      const ref = _auditDocRef(db, item.rootPath);
       const snap = await ref.get();
       return { ...item, exists: snap.exists };
     } catch (_) {
@@ -1368,7 +1369,7 @@ async function _refreshAudit(root) {
 
   const churchId = _auditChurchId();
   try {
-    const rows = await _auditCheckAll(db, churchId);
+    const rows = await _auditCheckAll(db);
     _renderAuditRows(host, rows, churchId);
   } catch (err) {
     host.innerHTML = `<div class="life-empty" style="color:#b91c1c">Audit failed: ${_e(err?.message || String(err))}</div>`;
@@ -1392,7 +1393,7 @@ function _renderAuditRows(host, rows, churchId) {
       : r.backendOnly
         ? `<span style="color:var(--ink-muted,#7a7f96);font-size:.8rem;font-style:italic">Backend only — run church setup</span>`
         : `<button class="flock-btn flock-btn--primary flock-btn--sm" data-act="audit-init" data-id="${_e(r.id)}" type="button">Create</button>`;
-    const pathLabel = r.subPath ? `churches/${cid}/${r.subPath}` : `churches/${cid}`;
+    const pathLabel = r.rootPath ? r.rootPath : '(backend-managed)';
     return `
       <div class="wall-setting-row" data-row-id="${_e(r.id)}" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border:1px solid var(--line,#e5e7ef);border-radius:8px;margin-bottom:6px;background:var(--bg-raised,#fff)">
         <div style="display:flex;flex-direction:column;gap:2px;min-width:0">
@@ -1408,12 +1409,11 @@ async function _initOne(root, id) {
   const db = _auditDb();
   if (!db) return;
   const item = _AUDIT_ITEMS.find((i) => i.id === id);
-  if (!item) return;
-  const churchId = _auditChurchId();
+  if (!item || !item.rootPath) return;
   const row = root.querySelector(`[data-row-id="${id}"] [data-bind="action"]`);
   if (row) row.innerHTML = `<span style="color:var(--ink-muted,#7a7f96);font-size:.85rem">Creating…</span>`;
   try {
-    const ref = _auditDocRef(db, churchId, item.subPath);
+    const ref = _auditDocRef(db, item.rootPath);
     const now = firebase.firestore.FieldValue.serverTimestamp();
     await ref.set({ ...item.defaults, createdAt: now }, { merge: true });
     await _refreshAudit(root);
@@ -1433,14 +1433,14 @@ async function _initAllMissing(root) {
   const churchId = _auditChurchId();
   const now = firebase.firestore.FieldValue.serverTimestamp();
   try {
-    const rows = await _auditCheckAll(db, churchId);
+    const rows = await _auditCheckAll(db);
     await Promise.all(
-      rows.filter((r) => !r.exists && !r.backendOnly).map((item) => {
-        const ref = _auditDocRef(db, churchId, item.subPath);
+      rows.filter((r) => !r.exists && !r.backendOnly && r.rootPath).map((item) => {
+        const ref = _auditDocRef(db, item.rootPath);
         return ref.set({ ...item.defaults, createdAt: now }, { merge: true }).catch(() => {});
       })
     );
-    const refreshed = await _auditCheckAll(db, churchId);
+    const refreshed = await _auditCheckAll(db);
     _renderAuditRows(host, refreshed, churchId);
   } catch (err) {
     if (host) host.innerHTML = `<div class="life-empty" style="color:#b91c1c">Initialization failed: ${_e(err?.message || String(err))}</div>`;
@@ -1555,30 +1555,19 @@ const _FS_COLLECTIONS = [
   { name: 'wordsHebrew',             type: 'top',  path: 'wordsHebrew', limit: 5000 },
 ];
 
-// Legacy export spec list (used by xlsx/json exporters) — derived from above.
+// Export spec list (used by xlsx/json exporters) — derived from _FS_COLLECTIONS.
+// The app uses a flat structure: ALL collections live at the Firebase project root.
+// 'sub' vs 'top' only indicates church-scoped vs global content; both read from root.
 const _FS_EXPORT_SPECS = _FS_COLLECTIONS
   .filter(c => c.type !== 'skip')
   .map(c => ({
     sheet: c.name,
-    fetch: c.type === 'sub'
-      ? (db, cid) => {
-          let q = db.collection('churches').doc(cid).collection(c.path);
-          if (c.limit) q = q.limit(c.limit);
-          return q.get().then(s => s.docs.map(d => ({ _id: d.id, ...d.data() })));
-        }
-      : (db) => {
-          let q = db.collection(c.path);
-          if (c.limit) q = q.limit(c.limit);
-          return q.get().then(s => s.docs.map(d => ({ _id: d.id, ...d.data() })));
-        },
+    fetch: (db) => {
+      let q = db.collection(c.path);
+      if (c.limit) q = q.limit(c.limit);
+      return q.get().then(s => s.docs.map(d => ({ _id: d.id, ...d.data() })));
+    },
   }));
-
-// Church-root fetch for the special case
-_FS_EXPORT_SPECS.unshift({
-  sheet: 'churches',
-  fetch: (db, cid) => db.collection('churches').doc(cid).get()
-    .then(s => s.exists ? [{ _id: cid, ...s.data() }] : []),
-});
 
 // Import map derived from _FS_COLLECTIONS (used by _importFirestoreJson)
 const _IMPORT_MAP = Object.fromEntries(
@@ -1630,7 +1619,7 @@ async function _exportFirestoreXlsx(root, btn) {
 
   for (const spec of _FS_EXPORT_SPECS) {
     try {
-      const rows = await spec.fetch(db, churchId);
+      const rows = await spec.fetch(db);
       if (!rows.length) continue;
       const flat = _flattenForSheet(rows);
       const ws = XLSX.utils.json_to_sheet(flat);
@@ -1695,7 +1684,7 @@ async function _exportFirestoreJson(root, btn) {
   let totalDocs = 0;
   for (const spec of _FS_EXPORT_SPECS) {
     try {
-      const rows = await spec.fetch(db, churchId);
+      const rows = await spec.fetch(db);
       if (!rows.length) continue;
       exportDoc.collections[spec.sheet] = rows.map((r) => _serializeForJson(r));
       totalDocs += rows.length;
@@ -1828,7 +1817,6 @@ async function _importFirestoreJson(root, file) {
 
   const churchId = parsed.__meta?.churchId || _auditChurchId();
   const collections = parsed.collections || {};
-  const churchRef = db.collection('churches').doc(churchId);
 
   let totalWritten = 0;
   let totalSkipped = 0;
@@ -1850,12 +1838,8 @@ async function _importFirestoreJson(root, file) {
         if (!_id) continue;
         const deserialized = _deserializeFromJson(fields);
         const resolved     = _resolveTimestamps(deserialized);
-        let ref;
-        if (spec.type === 'sub') {
-          ref = churchRef.collection(spec.path).doc(String(_id));
-        } else {
-          ref = db.collection(spec.path).doc(String(_id));
-        }
+        // All collections live at the project root (flat structure).
+        const ref = db.collection(spec.path).doc(String(_id));
         batch.set(ref, resolved, { merge: true });
       }
       try {
@@ -1870,7 +1854,7 @@ async function _importFirestoreJson(root, file) {
   if (errors.length) {
     setMsg(`⚠ Import finished with errors. Written: ${totalWritten}, Skipped: ${totalSkipped}. Errors: ${errors.slice(0,3).join(' | ')}`, '#b45309');
   } else {
-    setMsg(`✓ Import complete — ${totalWritten} docs written to churches/${_e(churchId)}. Skipped: ${totalSkipped} (backend-only).`, '#16a34a');
+    setMsg(`✓ Import complete — ${totalWritten} docs written to Firestore. Skipped: ${totalSkipped} (backend-only).`, '#16a34a');
     _refreshAudit(root);
   }
 }
