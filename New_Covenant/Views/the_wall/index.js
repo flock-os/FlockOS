@@ -836,16 +836,17 @@ function _wellspringPanelMarkup() {
     <!-- File import -->
     <div style="margin-bottom:20px">
       <div style="font-weight:600;color:var(--ink,#1b264f);margin-bottom:6px;font-size:.92rem">
-        Load Church Database (.xlsx)
+        Load Church Database (.xlsx or .json)
       </div>
       <p style="font-size:.82rem;color:var(--ink-muted,#7a7f96);margin:0 0 10px;line-height:1.6">
         Export the complete FlockOS spreadsheet (all 200 tabs) from your Google Sheet, then load it here.
+        You can also load a FlockOS-Firestore-JSON-v1 export file.
         The file is stored locally in IndexedDB — it never leaves the device.
       </p>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <label class="flock-btn flock-btn--ghost" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px">
           📂 Choose File
-          <input type="file" accept=".xls,.xlsx" id="ws-file-input" style="display:none">
+          <input type="file" accept=".xls,.xlsx,.json" id="ws-file-input" style="display:none">
         </label>
         <span data-bind="ws-import-status" style="font-size:.84rem;color:var(--ink-muted,#7a7f96)"></span>
       </div>
@@ -1056,20 +1057,24 @@ async function _importWellspringFile(root, file) {
 
   if (!WS) { setStatus('Wellspring not available.', '#b91c1c'); return; }
 
-  setStatus('Loading spreadsheet library…');
-  setProgress(0, 'Loading SheetJS…');
-  try {
-    await _ensureSheetJS();
-  } catch (err) {
-    setStatus('Could not load parser: ' + (err?.message || String(err)), '#b91c1c');
-    if (progressWr) progressWr.style.display = 'none';
-    return;
+  const isJson = file.name.toLowerCase().endsWith('.json');
+
+  if (!isJson) {
+    setStatus('Loading spreadsheet library…');
+    setProgress(0, 'Loading SheetJS…');
+    try {
+      await _ensureSheetJS();
+    } catch (err) {
+      setStatus('Could not load parser: ' + (err?.message || String(err)), '#b91c1c');
+      if (progressWr) progressWr.style.display = 'none';
+      return;
+    }
   }
 
   setStatus('Importing… this may take a moment for large files.');
-  setProgress(10, 'Parsing spreadsheet…');
+  setProgress(isJson ? 5 : 10, isJson ? 'Parsing JSON…' : 'Parsing spreadsheet…');
   try {
-    await WS.load(file);
+    await (isJson ? WS.loadJson(file) : WS.load(file));
     setProgress(100, 'Import complete.');
     setStatus(`✓ Imported "${file.name}" successfully.`, '#16a34a');
     if (progressWr) setTimeout(() => { progressWr.style.display = 'none'; }, 2500);

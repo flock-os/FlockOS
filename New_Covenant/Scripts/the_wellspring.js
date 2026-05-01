@@ -152,6 +152,60 @@ const TheWellspring = (() => {
     return { tabs, rowCounts, totalRows };
   }
 
+  /**
+   * Import a FlockOS-Firestore-JSON-v1 export file into IndexedDB.
+   * The JSON's collections map directly to worksheet tabs so the same
+   * TheVine resolver serves both XLSX and JSON-sourced data.
+   * @param {File} file - File object from <input type="file">
+   * @returns {Promise<{ tabs: string[], rowCounts: Object, totalRows: number }>}
+   */
+  async function loadJson(file) {
+    let parsed;
+    try {
+      const text = await file.text();
+      parsed = JSON.parse(text);
+    } catch (err) {
+      throw new Error('Invalid JSON: ' + (err?.message || String(err)));
+    }
+
+    if (parsed?.__meta?.format !== 'FlockOS-Firestore-JSON-v1') {
+      throw new Error('Not a FlockOS JSON file (missing __meta.format = FlockOS-Firestore-JSON-v1).');
+    }
+
+    await _openDB();
+
+    // Clear existing sheet data
+    const existingKeys = await _allKeys(STORE_NAME);
+    for (const key of existingKeys) await _del(STORE_NAME, key);
+
+    const collections = parsed.collections || {};
+    const tabs = Object.keys(collections);
+    const rowCounts = {};
+    let totalRows = 0;
+
+    for (const tabName of tabs) {
+      const rows = Array.isArray(collections[tabName]) ? collections[tabName] : [];
+      // Strip the _id sentinel key so rows match the XLSX shape (plain field objects)
+      const cleaned = rows.map(({ _id, ...fields }) => fields);
+      await _put(STORE_NAME, tabName, cleaned);
+      rowCounts[tabName] = cleaned.length;
+      totalRows += cleaned.length;
+    }
+
+    await _put(META_STORE, META_KEY, {
+      loadedAt: new Date().toISOString(),
+      fileName: file.name,
+      fileSize: file.size,
+      tabCount: tabs.length,
+      totalRows,
+      tabs,
+      rowCounts,
+      sourceFormat: 'FlockOS-Firestore-JSON-v1',
+    });
+
+    return { tabs, rowCounts, totalRows };
+  }
+
 
   // ── Data Access ──────────────────────────────────────────────────────────
 
@@ -622,6 +676,7 @@ const TheWellspring = (() => {
 
     // Data import/export
     load,
+    loadJson,
     exportDB,
 
     // Data access (for direct use if needed)
