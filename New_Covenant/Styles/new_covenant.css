@@ -343,6 +343,7 @@ html, body {
   color: rgba(255,255,255,0.36);
   transition: transform 150ms var(--spring), color 120ms var(--ease);
 }
+.pillars-icon svg { width: 20px; height: 20px; }
 .pillars-item:hover .pillars-icon { transform: scale(1.18); color: rgba(255,255,255,0.78); }
 .pillars-item[aria-current="page"] .pillars-icon,
 .pillars-item.is-active           .pillars-icon { color: var(--gold, #e8a838) !important; }
@@ -967,6 +968,19 @@ flock-tabs [role="tablist"], .tabs-bar {
   margin-top: 22px;
   padding: 0 8px;
 }
+.garments-request-access {
+  text-align: center;
+  margin-top: 14px;
+  font: 0.73rem var(--font-ui, sans-serif);
+  color: rgba(255,255,255,0.30);
+}
+.garments-request-link {
+  background: none; border: none; padding: 0;
+  color: rgba(255,255,255,0.45);
+  font: inherit; cursor: pointer; text-decoration: underline;
+  transition: color 0.15s;
+}
+.garments-request-link:hover { color: rgba(255,255,255,0.75); }
 
 /* ════════════════════════════════════════════════════════════════════════════
    SPLASH (the_lampstand)

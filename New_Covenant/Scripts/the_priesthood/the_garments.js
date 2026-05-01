@@ -44,6 +44,10 @@ export async function renderGarments(/* { mode } */) {
         <p class="garments-scripture">
           "Let your priests be clothed with righteousness." — Psalm 132:9 (ESV)
         </p>
+
+        <p class="garments-request-access">
+          Not set up yet? <button type="button" class="garments-request-link" data-act="request-access">Request access</button>
+        </p>
       </form>
     `;
 
@@ -105,5 +109,9 @@ export async function renderGarments(/* { mode } */) {
 
     document.body.appendChild(root);
     setTimeout(() => form.querySelector('#gc-email').focus(), 30);
+
+    root.querySelector('[data-act="request-access"]')?.addEventListener('click', () => {
+      window.open('grow-public.html?signup=1', '_self');
+    });
   });
 }
