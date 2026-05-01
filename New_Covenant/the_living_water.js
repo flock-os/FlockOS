@@ -10,7 +10,7 @@
    • PUSH        → Show notification; click → focus or open app
    ══════════════════════════════════════════════════════════════════════════════ */
 
-const CACHE_NAME = 'flockos-new-covenant-v2.1';
+const CACHE_NAME = 'flockos-new-covenant-v2.2';
 
 /* Derive base path from SW location (works at root or any subpath) */
 const SW_BASE = self.location.pathname.replace(/\/[^\/]+$/, '/');
@@ -113,6 +113,20 @@ const PRECACHE_URLS = [
   'Scripts/the_scrolls/the_bible_link.js',
   'Scripts/the_shofar/index.js',
   'Scripts/the_trumpet/index.js',
+
+  /* ── Domain flat-export shims (coexist alongside /index.js) ───────────── */
+  'Scripts/the_life.js',
+  'Scripts/the_harvest.js',
+  'Scripts/the_seasons.js',
+  'Scripts/the_truth.js',
+  'Scripts/the_way.js',
+  'Scripts/the_well.js',
+  'Scripts/the_fold.js',
+  'Scripts/the_shepherd.js',
+  'Scripts/the_scrolls.js',
+  'Scripts/the_upper_room.js',
+  'Scripts/the_stones.js',
+  'Scripts/the_tabernacle.js',
 
   /* ── Shared utilities ─────────────────────────────────────────────────── */
   'Scripts/the_comms.js',

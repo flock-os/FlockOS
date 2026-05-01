@@ -105,8 +105,11 @@ export async function forceRefresh() {
     await Promise.all(regs.map((r) => r.unregister().catch(() => {})));
   } catch (_) {}
 
-  // 3. Hard-reload from network (bypasses any remaining browser cache).
-  window.location.reload();
+  // 3. Hard-reload from network, stripping ?flock_refresh=1 to avoid an
+  //    infinite reload loop if this function was triggered by the URL param.
+  const reloadUrl = new URL(location.href);
+  reloadUrl.searchParams.delete('flock_refresh');
+  location.replace(reloadUrl.href);
 }
 
 /* Expose on window so forceRefresh() is callable from DevTools without imports */
