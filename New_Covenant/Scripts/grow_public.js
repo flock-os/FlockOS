@@ -90,6 +90,11 @@ topbar.innerHTML = /* html */`
           Sign in
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
         </a>
+        <div style="margin-top:8px;">
+          <button id="gp-signup-btn" style="width:100%;padding:10px;border:1.5px solid var(--gold,#e8a838);border-radius:50px;background:transparent;color:var(--gold,#e8a838);font:600 0.84rem var(--font-ui,sans-serif);cursor:pointer;transition:background .15s,color .15s;" onmouseover="this.style.background='var(--gold,#e8a838)';this.style.color='#0c1445'" onmouseout="this.style.background='transparent';this.style.color='var(--gold,#e8a838)'">
+            ✉️ Request Access
+          </button>
+        </div>
         <p class="gp-signin-foot">Powered by <strong>FlockOS</strong></p>
       </div>
     </div>
@@ -115,6 +120,15 @@ function _initSigninDropdown() {
 
   /* Close on Escape */
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') _close(); });
+
+  /* Request Access button */
+  const signupBtn = document.getElementById('gp-signup-btn');
+  if (signupBtn) {
+    signupBtn.addEventListener('click', () => {
+      _close();
+      _openOutreachModal('I\'d like to request access to FlockOS.', { name: 'signup', title: 'Request Access' });
+    });
+  }
 }
 _initSigninDropdown();
 
@@ -436,15 +450,15 @@ function _openOutreachModal(prefillSummary, ctx) {
   overlay.setAttribute('aria-labelledby', 'gp-pr-title');
 
   const _ctxLabel = ctx?.title || '';
-  const _ctxNote  = _ctxLabel ? `Sent from: ${_ctxLabel}` : '';
+  const _isSignup = ctx?.name === 'signup';
 
   function _renderForm() {
     return /* html */`
       <div class="gp-prayer-head">
         <div>
-          <p class="gp-prayer-title" id="gp-pr-title">🙏 Send a Request to Your Pastor</p>
-          <p class="gp-prayer-sub">Fill in your information so pastoral staff can follow up with you personally.</p>
-          ${_ctxLabel ? `<p style="margin:6px 0 0;font:600 0.74rem var(--font-ui,sans-serif);color:var(--gold,#e8a838);letter-spacing:.04em;">📍 ${_ctxLabel}</p>` : ''}
+          <p class="gp-prayer-title" id="gp-pr-title">${_isSignup ? '✉️ Request Access to FlockOS' : '🙏 Send a Request to Your Pastor'}</p>
+          <p class="gp-prayer-sub">${_isSignup ? 'Fill in your info and a shepherd will reach out to get you set up.' : 'Fill in your information so pastoral staff can follow up with you personally.'}</p>
+          ${_ctxLabel && !_isSignup ? `<p style="margin:6px 0 0;font:600 0.74rem var(--font-ui,sans-serif);color:var(--gold,#e8a838);letter-spacing:.04em;">📍 ${_ctxLabel}</p>` : ''}
         </div>
       </div>
 
@@ -474,7 +488,8 @@ function _openOutreachModal(prefillSummary, ctx) {
         <div class="gp-prayer-field">
           <label class="gp-prayer-label" for="gp-pr-type">Request Type</label>
           <select class="gp-prayer-input" id="gp-pr-type">
-            <option value="Prayer Request">Prayer Request</option>
+            ${_isSignup ? '<option value="Access Request" selected>Access Request</option>' : ''}
+            <option value="Prayer Request"${!_isSignup ? '' : ''}>Prayer Request</option>
             <option value="Pastoral Care">Pastoral Care</option>
             <option value="Counseling">Counseling</option>
             <option value="General Contact">General Contact</option>
@@ -490,8 +505,8 @@ function _openOutreachModal(prefillSummary, ctx) {
       </div>
 
       <div class="gp-prayer-field">
-        <label class="gp-prayer-label" for="gp-pr-msg">Your Message <span style="color:#b91c1c">*</span></label>
-        <textarea class="gp-prayer-input" id="gp-pr-msg" placeholder="Share what's on your heart…"></textarea>
+        <label class="gp-prayer-label" for="gp-pr-msg">${_isSignup ? 'Tell us about yourself' : 'Your Message'} <span style="color:#b91c1c">*</span></label>
+        <textarea class="gp-prayer-input" id="gp-pr-msg" placeholder="${_isSignup ? 'What brings you here? Any church or background info helps…' : 'Share what\'s on your heart…'}"></textarea>
       </div>
 
       <div id="gp-pr-err" class="gp-prayer-err" hidden></div>
@@ -499,7 +514,7 @@ function _openOutreachModal(prefillSummary, ctx) {
       <div class="gp-prayer-actions">
         <button class="gp-prayer-submit" id="gp-pr-send">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-          Send to Pastoral Team
+          ${_isSignup ? 'Request Access' : 'Send to Pastoral Team'}
         </button>
         <button class="gp-prayer-cancel" id="gp-pr-cancel">Cancel</button>
       </div>
