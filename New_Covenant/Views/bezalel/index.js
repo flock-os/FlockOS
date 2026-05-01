@@ -504,9 +504,24 @@ function _wireChurchSetup(root) {
     });
   });
 
-  // Live update on any input
+  // Auto-load persisted SA credentials from localStorage
+  const _SA_KEYS = ['FIREBASE_SERVICE_ACCOUNT', 'TRUTH_SERVICE_ACCOUNT'];
+  _SA_KEYS.forEach(key => {
+    const stored = localStorage.getItem('bz_' + key);
+    if (stored) {
+      const el = root.querySelector(`#bz-${key}`);
+      if (el && !el.value.trim()) el.value = stored;
+    }
+  });
+
+  // Live update on any input; persist SA fields to localStorage
   root.querySelectorAll('[id^="bz-"]').forEach(el => {
-    el.addEventListener('input', () => _bzUpdateOutput(root));
+    el.addEventListener('input', () => {
+      if (_SA_KEYS.some(k => el.id === 'bz-' + k) && el.value.trim()) {
+        localStorage.setItem('bz_' + el.id.replace('bz-', ''), el.value.trim());
+      }
+      _bzUpdateOutput(root);
+    });
     el.addEventListener('change', () => _bzUpdateOutput(root));
   });
 
@@ -544,9 +559,10 @@ function _wireChurchSetup(root) {
     } catch (_) { btn.textContent = 'Select & copy manually'; }
   });
 
-  // Clear
+  // Clear — wipes form values AND localStorage SA entries
   root.querySelector('#bz-setup-clear')?.addEventListener('click', () => {
     if (!confirm('Clear all entered values?')) return;
+    _SA_KEYS.forEach(key => localStorage.removeItem('bz_' + key));
     root.querySelectorAll('[id^="bz-"]').forEach(el => {
       if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') el.value = '';
     });
