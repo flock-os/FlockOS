@@ -332,19 +332,38 @@ export function render() {
       @media(min-width:560px){ .gi-map-header h3{ font-size:1.25rem; } }
       .gi-map-header p  { font-size:.8rem; color:rgba(255,255,255,.65); margin:0; line-height:1.5; }
 
-      .gi-map-body { display:grid; grid-template-columns:1fr; }
-      @media(min-width:620px){ .gi-map-body{ grid-template-columns:1fr 300px; } }
+      .gi-map-body { padding:20px 20px 4px; background:var(--bg-raised,#fff); }
 
-      .gi-map-embed { width:100%; height:240px; display:block; border:none; background:var(--bg-sunken,#f4f5f9); }
-      @media(min-width:620px){ .gi-map-embed{ height:300px; order:-1; } }
+      .gi-map-pin-banner {
+        width:100%; border-radius:12px; overflow:hidden; margin-bottom:18px;
+        background:linear-gradient(135deg,#0c1445 0%,#1a2260 100%);
+        display:flex; align-items:center; justify-content:center;
+        padding:24px 20px; gap:16px; cursor:pointer; text-decoration:none;
+        transition:opacity .2s;
+        border:1.5px solid rgba(56,189,248,.18);
+      }
+      .gi-map-pin-banner:hover { opacity:.88; }
+      .gi-map-pin-icon {
+        width:48px; height:48px; flex:none; border-radius:50%;
+        background:rgba(232,168,56,.2); border:2px solid rgba(232,168,56,.45);
+        display:flex; align-items:center; justify-content:center; font-size:1.5rem;
+      }
+      .gi-map-pin-text { color:#fff; }
+      .gi-map-pin-text strong { display:block; font-size:.95rem; font-weight:700; margin-bottom:2px; }
+      .gi-map-pin-text span { font-size:.78rem; color:rgba(255,255,255,.6); }
+      .gi-map-pin-arrow {
+        margin-left:auto; flex:none;
+        width:32px; height:32px; border-radius:50%;
+        background:rgba(56,189,248,.15); border:1px solid rgba(56,189,248,.3);
+        display:flex; align-items:center; justify-content:center;
+        color:#38bdf8;
+      }
 
       .gi-map-info {
-        padding:22px 20px; background:var(--bg-raised,#fff);
         display:flex; flex-direction:column; gap:14px;
-        border-top:1.5px solid var(--line,#e7e5e4);
       }
-      @media(min-width:620px){
-        .gi-map-info{ border-top:none; border-left:1.5px solid var(--line,#e7e5e4); }
+      @media(min-width:540px){
+        .gi-map-info{ display:grid; grid-template-columns:1fr 1fr; gap:14px 24px; }
       }
       .gi-map-row { display:flex; align-items:flex-start; gap:12px; }
       .gi-map-row-icon {
@@ -550,28 +569,24 @@ async function _loadChurchMap(root) {
     }
 
     const encodedAddr = encodeURIComponent(cfg.church_address);
-    const mapsEmbed   = `https://maps.google.com/maps?q=${encodedAddr}&output=embed&z=15`;
     const mapsLink    = `https://maps.google.com/maps?q=${encodedAddr}`;
+    const appleMaps   = `https://maps.apple.com/?q=${encodedAddr}`;
+    // Use Google Maps on Android/desktop, Apple Maps on iOS
+    const directionsHref = /iPad|iPhone|iPod/.test(navigator.userAgent) ? appleMaps : mapsLink;
 
     bodyEl.innerHTML = /* html */`
       <div class="gi-map-body">
-        <iframe
-          class="gi-map-embed"
-          loading="lazy"
-          referrerpolicy="no-referrer-when-downgrade"
-          src="${mapsEmbed}"
-          title="${_esc(cfg.church_name || 'Church location')}"
-          aria-label="Map showing church location"
-        ></iframe>
+        <a class="gi-map-pin-banner" href="${directionsHref}" target="_blank" rel="noopener" aria-label="Open in Maps">
+          <div class="gi-map-pin-icon">📍</div>
+          <div class="gi-map-pin-text">
+            <strong>${_esc(cfg.church_name || 'Our Church')}</strong>
+            <span>${_esc(cfg.church_address)}</span>
+          </div>
+          <div class="gi-map-pin-arrow">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          </div>
+        </a>
         <div class="gi-map-info">
-          ${cfg.church_address ? `
-          <div class="gi-map-row">
-            <div class="gi-map-row-icon gi-map-row-icon--addr">📍</div>
-            <div class="gi-map-row-body">
-              <p class="gi-map-row-label">Address</p>
-              <p class="gi-map-row-value">${_esc(cfg.church_address)}</p>
-            </div>
-          </div>` : ''}
           ${cfg.church_gathering ? `
           <div class="gi-map-row">
             <div class="gi-map-row-icon gi-map-row-icon--time">⏰</div>
@@ -598,7 +613,7 @@ async function _loadChurchMap(root) {
           </div>` : ''}
         </div>
       </div>
-      <a class="gi-map-directions" href="${mapsLink}" target="_blank" rel="noopener">
+      <a class="gi-map-directions" href="${directionsHref}" target="_blank" rel="noopener">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
         Get Directions
       </a>
