@@ -913,3 +913,23 @@
     }
     _toast('App data synced (' + total + ' records).', 'success');
   }
+
+/* Expose as window.TheTruth for inline onclick= handlers */
+if (typeof window !== 'undefined') {
+  window.TheTruth = {
+    syncBundle,
+    liveBundle,
+    bundleLastSynced,
+    openEditor,
+    save,
+    del,
+    renderList,
+    goPage,
+    editFromTable,
+    filter,
+    switchTab,
+    currentTab,
+    render,
+    forceSyncAll,
+  };
+}

@@ -2521,3 +2521,49 @@
   }
 
   export function preload() { _calLoad().catch(function() {}); }
+
+/* Expose as window.TheSeasons for inline onclick= handlers */
+if (typeof window !== 'undefined') {
+  window.TheSeasons = {
+    todoFilterBy,
+    calEventDetail,
+    calDayClick,
+    calNav,
+    calToday,
+    calSetView,
+    calQuickAdd,
+    calNewPersonal,
+    calEditPersonal,
+    calDeletePersonal,
+    calDeleteEvent,
+    calEditEvent,
+    calArchiveEvent,
+    calCancelEvent,
+    rsvpToEvent,
+    viewEventRsvps,
+    calDownloadICS,
+    _calCopyUrl,
+    calSubscribe,
+    calRegenToken,
+    calSwitchMode,
+    calDelegation,
+    _calGrantDelegation,
+    _calRevokeDelegation,
+    calRefresh,
+    _calSettingsSave,
+    newTask,
+    assignTask,
+    editTask,
+    completeTask,
+    archiveTask,
+    unarchiveTask,
+    deleteTask,
+    todoRefresh,
+    openCheckinSession,
+    closeCheckinSession,
+    renderCalendar,
+    renderTodo,
+    renderCheckin,
+    preload,
+  };
+}

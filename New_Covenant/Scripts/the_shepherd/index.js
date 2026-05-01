@@ -1247,3 +1247,29 @@
     _allPeople = null;  // force fresh data on return to list
     if (_container) renderApp(_container);
   }
+
+/* Expose as window.TheShepherd for inline onclick= handlers */
+if (typeof window !== 'undefined') {
+  window.TheShepherd = {
+    renderApp,
+    _search,
+    _filter,
+    _loadPerms,
+    _loadVolunteers,
+    _loadHistory,
+    _approve,
+    _deny,
+    openProfile,
+    saveAll,
+    _createMember,
+    _deleteMember,
+    _createCard,
+    _selectPreset,
+    _onAdvChkChange,
+    _savePerms,
+    _deleteUser,
+    _resetPasscode,
+    _createUserAccount,
+    backToList,
+  };
+}

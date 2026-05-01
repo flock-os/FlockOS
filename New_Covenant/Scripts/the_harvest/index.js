@@ -919,3 +919,27 @@
   }
 
   export function resetHome() { _activeTab = 'overview'; }
+
+/* Expose as window.TheHarvest for inline onclick= handlers */
+if (typeof window !== 'undefined') {
+  window.TheHarvest = {
+    switchTab,
+    renderHub,
+    refresh,
+    _newEvent,
+    _newSermon,
+    _newServicePlan,
+    _newSong,
+    _newMinistry,
+    _newVolunteer,
+    _editEvent,
+    _editSermon,
+    _editServicePlan,
+    _editSong,
+    _editMinistry,
+    _editVolunteer,
+    _sermonSeries,
+    _vcardOpen,
+    resetHome,
+  };
+}

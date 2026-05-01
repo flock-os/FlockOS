@@ -286,3 +286,14 @@
       ], function(p) { return _isFB() ? UpperRoom.updateAttendance(p) : TheVine.flock.attendance.update(p); }, id, function(p) { return _isFB() ? UpperRoom.getAttendance(p.id || p) : TheVine.flock.attendance.get(p); });
     }
   }
+
+/* Expose as window.TheFold for inline onclick= handlers */
+if (typeof window !== 'undefined') {
+  window.TheFold = {
+    renderApp,
+    switchTab,
+    _search,
+    editGroup,
+    editAttendance,
+  };
+}

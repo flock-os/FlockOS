@@ -2101,3 +2101,10 @@ async function msSaveImportedSong(parsed) {
     }
 }
 window.openMusicStandApp = openMusicStandApp;
+
+/* Expose as window.TheShofar for inline onclick= handlers */
+if (typeof window !== 'undefined') {
+  window.TheShofar = {
+    openMusicStandApp,
+  };
+}
