@@ -2519,3 +2519,5 @@
     _calMode = 'checkin';
     renderCalendar(el);
   }
+
+  export function preload() { _calLoad().catch(function() {}); }

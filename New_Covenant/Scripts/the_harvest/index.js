@@ -909,3 +909,13 @@
       ));
     } catch (e) { _panel(_errHtml(e.message)); }
   }
+
+  export function _vcardOpen(memberNumber) {
+    var result = _isFB()
+      ? UpperRoom.memberCardsVcard({ memberNumber: memberNumber })
+      : TheVine.flock.memberCards.vcard({ memberNumber: memberNumber });
+    if (typeof result === 'string') { window.open(result); }
+    else if (result && typeof result.then === 'function') { result.then(function(u) { if (u) window.open(u); }); }
+  }
+
+  export function resetHome() { _activeTab = 'overview'; }

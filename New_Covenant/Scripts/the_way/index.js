@@ -3869,3 +3869,6 @@
   function _fetchQuizResults() {
     return _isFB() ? UpperRoom.listLrnQuizResults({}) : TheVine.flock.call('learning.quizResults.list', {});
   }
+
+  export function resetHome() { _activeTab = 'dashboard'; }
+  export const _lexTestament = _twLexFilter;  // backward-compat alias
