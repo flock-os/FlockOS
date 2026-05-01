@@ -60,110 +60,294 @@ const WORK = [
   { title: 'The Ascension',   sub: 'The Eternal Advocate', summary: 'Jesus ascended to the Father, where He currently reigns and intercedes for His people.',                       hope: 'You have a perfect representative in the highest court of reality.' },
 ];
 
+/* Accent colors for each invitation card */
+const INV_COLORS = ['#7eaacc', '#34d399', '#a78bfa'];
+
 /* ── Render ──────────────────────────────────────────────────────────────── */
 
 export function render() {
   return /* html */`
     <style data-module="gi">
-      /* ── Invitation cards ─────────────────────────────────────── */
-      .gi-grid { display:grid; grid-template-columns:1fr; gap:16px; }
-      @media(min-width:600px){ .gi-grid{ grid-template-columns:repeat(3,1fr); } }
-      .gi-card {
-        background:var(--bg-raised,#fff); border-radius:12px; padding:20px;
-        border:1px solid var(--line,#e7e5e4); cursor:pointer;
-        transition:border-color .25s, box-shadow .25s; text-align:left;
-      }
-      .gi-card:hover { border-color:#7eaacc; box-shadow:0 4px 14px rgba(0,0,0,.08); }
-      .gi-card-icon  { font-size:2rem; margin-bottom:12px; }
-      .gi-card h3    { font-size:1rem; font-weight:700; color:var(--ink,#1c1917); margin-bottom:8px; }
-      .gi-card-quote { color:var(--ink-muted,#57534e); font-style:italic; font-size:.9rem; margin-bottom:6px; line-height:1.65; }
-      .gi-card-ref   { font-size:.72rem; font-weight:700; color:var(--ink-faint,#a8a29e); text-transform:uppercase; letter-spacing:.06em; margin-bottom:12px; }
-      .gi-card-insight { display:none; padding-top:12px; border-top:1px solid var(--line,#e7e5e4); font-size:.9rem; line-height:1.7; color:var(--ink-muted,#57534e); }
-      .gi-card-insight.open { display:block; }
-      .gi-insight-label { display:block; color:#7eaacc; font-weight:700; font-size:.68rem; text-transform:uppercase; letter-spacing:.14em; margin-bottom:4px; }
-      .gi-toggle { text-align:center; color:var(--ink-faint,#a8a29e); font-size:1.25rem; margin-top:10px; transition:color .2s; user-select:none; }
-      .gi-card:hover .gi-toggle { color:#7eaacc; }
+      /* ═══ Animations ═══════════════════════════════════════════ */
+      @keyframes gi-fadein { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+      .gi-fadein { animation:gi-fadein .3s ease both; }
 
-      /* ── I AM section ────────────────────────────────────────── */
-      .gi-iam-wrap { border:1px solid var(--line,#e7e5e4); border-radius:12px; overflow:hidden; }
+      /* ═══ Section chrome ════════════════════════════════════════ */
+      .gi-section { margin-top:44px; }
+      .gi-section-head {
+        display:flex; align-items:center; gap:14px; margin-bottom:20px;
+        padding-bottom:14px; border-bottom:2px solid var(--line,#e7e5e4);
+      }
+      .gi-section-num {
+        flex:none; width:36px; height:36px; border-radius:50%;
+        display:flex; align-items:center; justify-content:center;
+        font-weight:800; font-size:.9rem; color:#fff;
+      }
+      .gi-section-num--1 { background:linear-gradient(135deg,#7eaacc,#38bdf8); }
+      .gi-section-num--2 { background:linear-gradient(135deg,#a78bfa,#7c3aed); }
+      .gi-section-num--3 { background:linear-gradient(135deg,#fbbf24,#e8a838); }
+      .gi-section-title  { flex:1; }
+      .gi-section-title h2 {
+        font-size:1.1rem; font-weight:700; color:var(--ink,#1c1917);
+        margin:0 0 3px;
+      }
+      @media(min-width:600px){ .gi-section-title h2{ font-size:1.25rem; } }
+      .gi-section-title p {
+        font-size:.82rem; color:var(--ink-muted,#57534e); line-height:1.55; margin:0;
+      }
+
+      /* ═══ Invitation cards ══════════════════════════════════════ */
+      .gi-grid { display:grid; grid-template-columns:1fr; gap:14px; }
+      @media(min-width:560px){ .gi-grid{ grid-template-columns:repeat(3,1fr); } }
+
+      .gi-card {
+        position:relative; overflow:hidden;
+        border-radius:14px; padding:22px 20px 16px;
+        border:1.5px solid transparent;
+        cursor:pointer; transition:box-shadow .25s, transform .2s;
+        text-align:left; display:flex; flex-direction:column;
+      }
+      .gi-card::before {
+        content:''; position:absolute; inset:0; opacity:.08;
+        background:var(--gi-c); transition:opacity .25s;
+      }
+      .gi-card:hover::before { opacity:.16; }
+      .gi-card:hover { box-shadow:0 6px 22px rgba(0,0,0,.10); transform:translateY(-2px); }
+
+      .gi-card-accent {
+        position:absolute; top:0; left:0; right:0; height:4px;
+        background:var(--gi-c);
+      }
+      .gi-card-icon  { font-size:2.2rem; margin-bottom:10px; }
+      .gi-card h3    {
+        font-size:.95rem; font-weight:700;
+        color:var(--gi-c); margin-bottom:8px; line-height:1.3;
+      }
+      .gi-card-quote {
+        color:var(--ink,#1c1917); font-style:italic;
+        font-size:.88rem; margin-bottom:6px; line-height:1.7;
+        flex:1;
+      }
+      .gi-card-ref {
+        display:inline-block; padding:2px 10px;
+        background:var(--gi-c); border-radius:999px;
+        font-size:.68rem; font-weight:700; color:#fff;
+        letter-spacing:.04em; margin-bottom:14px;
+      }
+      .gi-card-insight {
+        display:none; padding:14px 0 4px;
+        border-top:1px solid rgba(0,0,0,.08);
+        font-size:.875rem; line-height:1.7; color:var(--ink-muted,#57534e);
+      }
+      .gi-card-insight.open { display:block; animation:gi-fadein .25s ease; }
+      .gi-insight-label {
+        display:block; color:var(--gi-c); font-weight:700;
+        font-size:.65rem; text-transform:uppercase; letter-spacing:.14em; margin-bottom:6px;
+      }
+      .gi-toggle {
+        text-align:center; font-size:1.1rem; margin-top:8px;
+        color:var(--gi-c); opacity:.6; transition:opacity .2s; user-select:none;
+      }
+      .gi-card:hover .gi-toggle { opacity:1; }
+
+      /* ═══ I AM section ══════════════════════════════════════════ */
+      .gi-iam-wrap {
+        border-radius:14px; overflow:hidden;
+        border:1.5px solid var(--line,#e7e5e4);
+        box-shadow:0 2px 12px rgba(0,0,0,.05);
+      }
       .gi-iam-grid { display:grid; grid-template-columns:1fr; }
-      @media(min-width:700px){ .gi-iam-grid{ grid-template-columns:5fr 7fr; } }
+      @media(min-width:680px){ .gi-iam-grid{ grid-template-columns:220px 1fr; } }
+
       .gi-iam-sidebar {
-        background:var(--bg-sunken,#fafaf9); padding:16px;
-        display:flex; flex-direction:column; gap:3px;
+        background:var(--bg-sunken,#f4f5f9);
+        padding:12px 10px; display:flex; flex-direction:column; gap:2px;
       }
-      @media(min-width:700px){
-        .gi-iam-sidebar { border-right:1px solid var(--line,#e7e5e4); min-height:380px; justify-content:center; }
+      @media(min-width:680px){
+        .gi-iam-sidebar {
+          border-right:1.5px solid var(--line,#e7e5e4);
+          min-height:420px; justify-content:center; padding:20px 12px;
+        }
       }
+      /* On mobile: horizontal scrolling pill tabs */
+      @media(max-width:679px){
+        .gi-iam-sidebar {
+          flex-direction:row; overflow-x:auto; gap:6px;
+          padding:12px; scrollbar-width:none; -webkit-overflow-scrolling:touch;
+        }
+        .gi-iam-sidebar::-webkit-scrollbar { display:none; }
+      }
+
       .gi-iam-nav {
-        padding:10px 14px; cursor:pointer; border-radius:8px;
-        font-size:.85rem; font-weight:500; color:var(--ink-muted,#78716c);
-        border-left:3px solid transparent; transition:all .2s;
-        display:flex; align-items:center; gap:10px;
+        padding:9px 13px; cursor:pointer; border-radius:8px;
+        font-size:.8rem; font-weight:500; color:var(--ink-muted,#78716c);
+        border:1.5px solid transparent;
+        transition:background .18s, border-color .18s, color .18s;
+        display:flex; align-items:center; gap:8px; white-space:nowrap; flex:none;
+      }
+      @media(min-width:680px){
+        .gi-iam-nav { white-space:normal; flex:none; border-radius:8px; }
       }
       .gi-iam-nav.active {
-        background:rgba(126,170,204,.13); border-left-color:#7eaacc;
-        color:var(--ink,#292524); font-weight:600;
+        background:rgba(167,139,250,.15);
+        border-color:rgba(167,139,250,.45);
+        color:var(--ink,#1c1917); font-weight:700;
       }
-      .gi-iam-content { padding:24px; min-height:260px; display:flex; flex-direction:column; justify-content:center; }
-      @media(min-width:700px){ .gi-iam-content{ padding:32px; } }
+
+      .gi-iam-content {
+        padding:24px 20px; min-height:260px;
+        display:flex; flex-direction:column; justify-content:center;
+        background:var(--bg-raised,#fff);
+      }
+      @media(min-width:680px){ .gi-iam-content{ padding:36px 32px; } }
+
       .gi-iam-badge {
-        display:inline-block; padding:3px 10px; border-radius:999px;
-        border:1px solid var(--line,#e7e5e4); font-size:.68rem; font-weight:700;
-        letter-spacing:.18em; text-transform:uppercase; color:#7eaacc; margin-bottom:16px;
+        display:inline-flex; align-items:center; gap:6px;
+        padding:4px 12px; border-radius:999px; margin-bottom:16px;
+        background:rgba(167,139,250,.14); border:1px solid rgba(167,139,250,.35);
+        font-size:.65rem; font-weight:800; letter-spacing:.2em;
+        text-transform:uppercase; color:#7c3aed;
       }
-      .gi-iam-title  { font-size:1.75rem; font-weight:700; color:var(--ink,#1c1917); line-height:1.2; margin-bottom:16px; }
-      @media(min-width:700px){ .gi-iam-title{ font-size:2.25rem; } }
-      .gi-iam-meta   { display:grid; grid-template-columns:1fr 1fr; gap:16px; padding-top:16px; border-top:1px solid var(--line,#e7e5e4); margin-bottom:16px; }
-      .gi-iam-meta-label { font-size:.68rem; font-weight:700; text-transform:uppercase; letter-spacing:.12em; color:var(--ink-faint,#a8a29e); margin-bottom:4px; }
-      .gi-iam-need   { font-size:1rem; color:var(--ink,#292524); font-style:italic; }
-      .gi-iam-verse  { font-size:.875rem; color:#7eaacc; font-family:monospace; }
-      .gi-iam-desc   { font-size:.9375rem; color:var(--ink-muted,#57534e); line-height:1.78; }
+      .gi-iam-title {
+        font-size:1.7rem; font-weight:800; color:var(--ink,#1c1917);
+        line-height:1.15; margin-bottom:20px;
+      }
+      @media(min-width:680px){ .gi-iam-title{ font-size:2.2rem; } }
 
-      /* ── Timeline ────────────────────────────────────────────── */
-      .gi-tl-wrap { display:grid; grid-template-columns:1fr; gap:16px; }
-      @media(min-width:600px){ .gi-tl-wrap{ grid-template-columns:5fr 7fr; } }
-      .gi-tl-nav  { border-left:2px solid var(--line,#e7e5e4); }
+      .gi-iam-meta {
+        display:grid; grid-template-columns:1fr 1fr; gap:16px;
+        padding:16px 0; border-top:1.5px solid var(--line,#e7e5e4);
+        border-bottom:1.5px solid var(--line,#e7e5e4); margin-bottom:18px;
+      }
+      .gi-iam-meta-label {
+        font-size:.62rem; font-weight:800; text-transform:uppercase;
+        letter-spacing:.14em; color:var(--ink-faint,#a8a29e); margin-bottom:5px;
+      }
+      .gi-iam-need  { font-size:.95rem; color:var(--ink,#292524); font-style:italic; font-weight:500; }
+      .gi-iam-verse { font-size:.875rem; color:#7c3aed; font-family:monospace; font-weight:700; }
+      .gi-iam-desc  { font-size:.9rem; color:var(--ink-muted,#57534e); line-height:1.8; }
+
+      /* ═══ Timeline ══════════════════════════════════════════════ */
+      .gi-tl-wrap {
+        display:grid; grid-template-columns:1fr; gap:12px;
+      }
+      @media(min-width:580px){ .gi-tl-wrap{ grid-template-columns:200px 1fr; gap:20px; } }
+
+      .gi-tl-nav { display:flex; flex-direction:column; gap:4px; }
+      @media(max-width:579px){
+        .gi-tl-nav {
+          flex-direction:row; overflow-x:auto; gap:8px;
+          scrollbar-width:none; -webkit-overflow-scrolling:touch; padding-bottom:4px;
+        }
+        .gi-tl-nav::-webkit-scrollbar { display:none; }
+      }
+
       .gi-tl-item {
-        padding:14px 18px; margin-left:-3px;
-        border-left:4px solid transparent; cursor:pointer; transition:border-color .2s;
+        padding:13px 16px; border-radius:10px; cursor:pointer;
+        border:1.5px solid var(--line,#e7e5e4);
+        transition:all .2s; flex:none;
       }
-      .gi-tl-item:hover  { border-left-color:var(--line,#d6d3d1); }
-      .gi-tl-item.active { border-left-color:#7eaacc; }
-      .gi-tl-item h4     { font-weight:700; font-size:.9875rem; color:var(--ink-faint,#a8a29e); }
-      .gi-tl-item.active h4 { color:var(--ink,#292524); }
-      .gi-tl-item-sub    { font-size:.7rem; text-transform:uppercase; letter-spacing:.12em; color:var(--ink-faint,#a8a29e); margin-top:2px; }
-      .gi-tl-panel { background:var(--bg-sunken,#fafaf9); padding:24px; border-radius:12px; border:1px solid var(--line,#e7e5e4); }
-      .gi-tl-panel h3    { font-size:1.5rem; font-weight:700; color:var(--ink,#292524); margin-bottom:4px; }
-      .gi-tl-panel-sub   { color:#7eaacc; font-weight:700; text-transform:uppercase; letter-spacing:.1em; font-size:.75rem; margin-bottom:16px; }
-      .gi-mission-label  { font-size:.68rem; font-weight:700; color:var(--ink-faint,#a8a29e); text-transform:uppercase; letter-spacing:.12em; margin-bottom:6px; padding-bottom:6px; border-bottom:1px solid var(--line,#e7e5e4); }
-      .gi-mission-text   { color:var(--ink-muted,#57534e); font-size:1rem; line-height:1.75; margin-bottom:20px; }
-      .gi-tl-hope { background:var(--bg-raised,#fff); padding:16px; border-radius:8px; border-left:4px solid #7eaacc; }
-      .gi-tl-hope-label  { font-size:.68rem; font-weight:700; color:#7eaacc; text-transform:uppercase; letter-spacing:.12em; margin-bottom:4px; }
-      .gi-tl-hope p      { color:var(--ink,#292524); font-weight:500; font-style:italic; font-size:.9375rem; line-height:1.75; }
+      @media(max-width:579px){ .gi-tl-item{ min-width:140px; } }
+      .gi-tl-item:hover  { border-color:#fbbf24; background:rgba(251,191,36,.06); }
+      .gi-tl-item.active {
+        background:rgba(232,168,56,.12);
+        border-color:var(--gold,#e8a838);
+        box-shadow:0 2px 8px rgba(232,168,56,.18);
+      }
+      .gi-tl-item h4 {
+        font-weight:700; font-size:.88rem;
+        color:var(--ink-faint,#a8a29e); margin:0 0 3px; line-height:1.25;
+        transition:color .2s;
+      }
+      .gi-tl-item.active h4 { color:var(--gold-text,#b45309); }
+      .gi-tl-item-sub {
+        font-size:.65rem; text-transform:uppercase; letter-spacing:.1em;
+        color:var(--ink-faint,#a8a29e);
+      }
+      .gi-tl-item.active .gi-tl-item-sub { color:var(--gold-text,#b45309); opacity:.7; }
 
-      /* ── Section chrome ──────────────────────────────────────── */
-      .gi-section      { margin-top:36px; }
-      .gi-section-head { margin-bottom:16px; }
-      .gi-section-head h2 { font-size:1.2rem; font-weight:700; color:var(--ink,#1c1917); margin-bottom:4px; }
-      .gi-section-head p  { font-size:.875rem; color:var(--ink-muted,#57534e); line-height:1.6; }
+      .gi-tl-panel {
+        border-radius:14px; padding:24px 20px;
+        border:1.5px solid rgba(232,168,56,.3);
+        background:linear-gradient(145deg,rgba(232,168,56,.06) 0%,var(--bg-raised,#fff) 60%);
+        box-shadow:0 2px 16px rgba(232,168,56,.10);
+      }
+      @media(min-width:580px){ .gi-tl-panel{ padding:28px 26px; } }
 
-      /* ── Share banner ────────────────────────────────────────── */
+      .gi-tl-panel h3 {
+        font-size:1.4rem; font-weight:800; color:var(--ink,#1c1917);
+        margin:0 0 4px;
+      }
+      @media(min-width:580px){ .gi-tl-panel h3{ font-size:1.65rem; } }
+      .gi-tl-panel-sub {
+        color:var(--gold-text,#b45309); font-weight:700;
+        text-transform:uppercase; letter-spacing:.1em; font-size:.72rem;
+        margin-bottom:18px; display:block;
+      }
+      .gi-mission-label {
+        font-size:.62rem; font-weight:800; color:var(--ink-faint,#a8a29e);
+        text-transform:uppercase; letter-spacing:.12em;
+        margin-bottom:8px; padding-bottom:8px;
+        border-bottom:1.5px solid rgba(232,168,56,.25);
+      }
+      .gi-mission-text {
+        color:var(--ink-muted,#57534e); font-size:.93rem; line-height:1.78; margin-bottom:20px;
+      }
+      .gi-tl-hope {
+        background:linear-gradient(135deg,rgba(232,168,56,.15),rgba(251,191,36,.08));
+        padding:16px 18px; border-radius:10px;
+        border-left:4px solid var(--gold,#e8a838);
+      }
+      .gi-tl-hope-label {
+        font-size:.62rem; font-weight:800; color:var(--gold-text,#b45309);
+        text-transform:uppercase; letter-spacing:.12em; margin-bottom:6px;
+      }
+      .gi-tl-hope p {
+        color:var(--ink,#1c1917); font-weight:600; font-style:italic;
+        font-size:.9375rem; line-height:1.75; margin:0;
+      }
+
+      /* ═══ Share banner ══════════════════════════════════════════ */
       .gi-share-banner {
-        margin-top:44px;
-        background:linear-gradient(135deg,rgba(126,170,204,.12),rgba(126,170,204,.05));
-        border:1px solid rgba(126,170,204,.28); border-radius:14px; padding:28px 24px;
-        text-align:center;
+        margin-top:48px; margin-bottom:16px;
+        background:linear-gradient(135deg,#0c1445 0%,#1a2260 50%,#0c1445 100%);
+        border-radius:18px; padding:32px 24px; text-align:center;
+        box-shadow:0 4px 24px rgba(12,20,69,.25);
+        position:relative; overflow:hidden;
       }
-      .gi-share-banner p    { font-size:.9375rem; color:var(--ink-muted,#57534e); margin-bottom:14px; line-height:1.65; }
+      .gi-share-banner::before {
+        content:''; position:absolute; inset:0;
+        background:radial-gradient(ellipse at 70% 30%,rgba(232,168,56,.18),transparent 65%),
+                   radial-gradient(ellipse at 20% 80%,rgba(126,170,204,.15),transparent 60%);
+      }
+      .gi-share-banner-inner { position:relative; }
+      .gi-share-icon {
+        width:48px; height:48px; border-radius:50%;
+        background:rgba(232,168,56,.2); border:2px solid rgba(232,168,56,.4);
+        display:flex; align-items:center; justify-content:center;
+        margin:0 auto 14px; font-size:1.4rem;
+      }
+      .gi-share-banner h3 {
+        font-size:1.15rem; font-weight:800; color:#fff; margin:0 0 8px;
+      }
+      @media(min-width:560px){ .gi-share-banner h3{ font-size:1.35rem; } }
+      .gi-share-banner p {
+        font-size:.875rem; color:rgba(255,255,255,.72); margin:0 auto 20px;
+        line-height:1.65; max-width:380px;
+      }
       .gi-share-btn {
-        display:inline-flex; align-items:center; gap:8px;
-        background:#7eaacc; color:#fff; border:none; border-radius:50px;
-        padding:12px 26px; font:600 .9rem var(--font-ui,sans-serif); cursor:pointer;
-        text-decoration:none; transition:background .2s, transform .1s;
+        display:inline-flex; align-items:center; gap:9px;
+        background:var(--gold,#e8a838); color:#0c1445; border:none;
+        border-radius:50px; padding:13px 28px;
+        font:700 .9rem var(--font-ui,sans-serif); cursor:pointer;
+        box-shadow:0 4px 16px rgba(232,168,56,.4);
+        transition:background .2s, transform .15s, box-shadow .2s;
       }
-      .gi-share-btn:hover  { background:#6394ba; }
-      .gi-share-btn:active { transform:scale(.97); }
+      .gi-share-btn:hover {
+        background:#fbbf24;
+        box-shadow:0 6px 22px rgba(232,168,56,.55); transform:translateY(-1px);
+      }
+      .gi-share-btn:active { transform:scale(.96); }
     </style>
 
     <section class="grow-page" data-grow="the_gospel_invitation">
@@ -172,26 +356,32 @@ export function render() {
         <div class="grow-hero-icon">${icon}</div>
         <div class="grow-hero-text">
           <h1 class="grow-hero-title">${title}</h1>
-          <p class="grow-hero-sub">${description}</p>
+          <p class="grow-hero-sub">Three pillars of hope — His invitations, His identity, and His finished work.</p>
         </div>
       </header>
 
       <!-- § 1: The Great Invitations -->
       <div class="gi-section">
         <div class="gi-section-head">
-          <h2>1. The Great Invitations</h2>
-          <p>Jesus issued personal calls characterized by grace rather than performance. Tap each card to uncover the profound hope He offers.</p>
+          <div class="gi-section-num gi-section-num--1">1</div>
+          <div class="gi-section-title">
+            <h2>The Great Invitations</h2>
+            <p>Personal calls of grace — tap each card to uncover the hope He offers.</p>
+          </div>
         </div>
         <div class="gi-grid">
-          ${INVITATIONS.map(_invCard).join('')}
+          ${INVITATIONS.map((c, i) => _invCard(c, INV_COLORS[i])).join('')}
         </div>
       </div>
 
       <!-- § 2: The I AM Declarations -->
       <div class="gi-section">
         <div class="gi-section-head">
-          <h2>2. The &ldquo;I AM&rdquo; Declarations</h2>
-          <p>Seven metaphors from the Gospel of John in which Jesus declares how He perfectly meets the deepest needs of the soul.</p>
+          <div class="gi-section-num gi-section-num--2">2</div>
+          <div class="gi-section-title">
+            <h2>The &ldquo;I AM&rdquo; Declarations</h2>
+            <p>Seven metaphors from John&rsquo;s Gospel — select one to explore His identity.</p>
+          </div>
         </div>
         <div class="gi-iam-wrap">
           <div class="gi-iam-grid">
@@ -204,8 +394,11 @@ export function render() {
       <!-- § 3: The Finished Work -->
       <div class="gi-section">
         <div class="gi-section-head">
-          <h2>3. The Finished Work</h2>
-          <p>Hope is not just found in what Jesus said, but in what He accomplished. Tap each event to understand the historical progression of His redemptive mission.</p>
+          <div class="gi-section-num gi-section-num--3">3</div>
+          <div class="gi-section-title">
+            <h2>The Finished Work</h2>
+            <p>What He accomplished — tap each event to walk through His redemptive mission.</p>
+          </div>
         </div>
         <div class="gi-tl-wrap">
           <div class="gi-tl-nav" data-bind="tl-nav"></div>
@@ -215,13 +408,17 @@ export function render() {
 
       <!-- Share with a friend -->
       <div class="gi-share-banner">
-        <p>Know someone who needs to hear this?<br><strong>Share this with a friend</strong> &mdash; a hope-filled look at Jesus Christ.</p>
-        <button class="gi-share-btn" data-act="share-sms">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.38 2 2 0 0 1 3.6 1.21h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 8.91A16 16 0 0 0 16 17l.96-.96a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
-          </svg>
-          Share via Text Message
-        </button>
+        <div class="gi-share-banner-inner">
+          <div class="gi-share-icon">✉️</div>
+          <h3>Share This with a Friend</h3>
+          <p>Know someone carrying a heavy load? Send them a hope-filled look at Jesus Christ.</p>
+          <button class="gi-share-btn" data-act="share-sms">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.38 2 2 0 0 1 3.6 1.21h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 8.91A16 16 0 0 0 16 17l.96-.96a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+            </svg>
+            Send via Text Message
+          </button>
+        </div>
       </div>
 
     </section>
@@ -244,9 +441,10 @@ function _esc(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
 }
 
-function _invCard(c) {
+function _invCard(c, color) {
   return /* html */`
-    <div class="gi-card">
+    <div class="gi-card" style="--gi-c:${color}">
+      <div class="gi-card-accent"></div>
       <div class="gi-card-icon">${c.icon}</div>
       <h3>${_esc(c.title)}</h3>
       <p class="gi-card-quote">&ldquo;${_esc(c.quote)}&rdquo;</p>
@@ -288,19 +486,21 @@ function _initIAM(root) {
     const d = IAM[idx];
     navEl.querySelectorAll('.gi-iam-nav').forEach((el, i) => el.classList.toggle('active', i === idx));
     panelEl.innerHTML = /* html */`
-      <div class="gi-iam-badge">The Declaration</div>
-      <div class="gi-iam-title">I AM the<br><span style="color:${d.color}">${_esc(d.label)}</span></div>
-      <div class="gi-iam-meta">
-        <div>
-          <p class="gi-iam-meta-label">The Need Met</p>
-          <p class="gi-iam-need">${_esc(d.need)}</p>
+      <div class="gi-fadein">
+        <div class="gi-iam-badge">✦ The Declaration</div>
+        <div class="gi-iam-title">I AM<br><span style="color:${d.color}">${_esc(d.label)}</span></div>
+        <div class="gi-iam-meta">
+          <div>
+            <p class="gi-iam-meta-label">The Need Met</p>
+            <p class="gi-iam-need">${_esc(d.need)}</p>
+          </div>
+          <div>
+            <p class="gi-iam-meta-label">The Reference</p>
+            <p class="gi-iam-verse">${_esc(d.verse)}</p>
+          </div>
         </div>
-        <div>
-          <p class="gi-iam-meta-label">The Reference</p>
-          <p class="gi-iam-verse">${_esc(d.verse)}</p>
-        </div>
+        <p class="gi-iam-desc">${_esc(d.description)}</p>
       </div>
-      <p class="gi-iam-desc">${_esc(d.description)}</p>
     `;
   }
 
@@ -336,7 +536,6 @@ function _initTimeline(root) {
       <p class="gi-tl-item-sub">${_esc(item.sub)}</p>
     </div>
   `).join('');
-
   function showWork(idx) {
     navEl.querySelectorAll('.gi-tl-item').forEach((el, i) => el.classList.toggle('active', i === idx));
     panelEl.innerHTML = _tlPanel(WORK[idx]);
