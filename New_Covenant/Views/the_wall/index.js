@@ -1443,19 +1443,143 @@ async function _initAllMissing(root) {
   }
 }
 
-/* ── Firestore → xlsx export ────────────────────────────────────────── */
-// Exports all readable Firestore data under churches/{churchId} to a .xlsx
-// workbook — one sheet per collection.  Top-level-only collection names are
-// discovered from a fixed allow-list; client SDK cannot list subcollections.
-const _FS_EXPORT_SPECS = [
-  { sheet: 'Church',    fetch: (db, cid) => db.collection('churches').doc(cid).get().then(s => s.exists ? [{ _id: cid, ...s.data() }] : []) },
-  { sheet: 'Channels',  fetch: (db, cid) => db.collection('churches').doc(cid).collection('channels').get().then(s => s.docs.map(d => ({ _id: d.id, ...d.data() }))) },
-  { sheet: 'Config',    fetch: (db, cid) => db.collection('churches').doc(cid).collection('config').get().then(s => s.docs.map(d => ({ _id: d.id, ...d.data() }))) },
-  { sheet: 'Settings',  fetch: (db, cid) => db.collection('churches').doc(cid).collection('settings').get().then(s => s.docs.map(d => ({ _id: d.id, ...d.data() }))) },
-  { sheet: 'Members',   fetch: (db, cid) => db.collection('churches').doc(cid).collection('members').get().then(s => s.docs.map(d => ({ _id: d.id, ...d.data() }))) },
-  { sheet: 'Users',     fetch: (db)      => db.collection('users').get().then(s => s.docs.map(d => ({ _id: d.id, ...d.data() }))) },
-  { sheet: 'Messages',  fetch: (db, cid) => db.collection('churches').doc(cid).collection('messages').limit(2000).get().then(s => s.docs.map(d => ({ _id: d.id, ...d.data() }))) },
+/* ── Firestore → xlsx / json export + import ─────────────────────────────
+   _FS_COLLECTIONS defines ALL known Firestore collections.
+   type 'sub'  = churches/{cid}/{path}  (church-scoped)
+   type 'top'  = {path}                 (top-level, global content)
+   type 'skip' = backend-only, never written by client               */
+const _FS_COLLECTIONS = [
+  // Church envelope
+  { name: 'churches',                type: 'skip'                                    },
+  // Church sub-collections
+  { name: 'channels',                type: 'sub',  path: 'channels'                 },
+  { name: 'config',                  type: 'sub',  path: 'config'                   },
+  { name: 'settings',                type: 'sub',  path: 'settings'                 },
+  { name: 'members',                 type: 'sub',  path: 'members'                  },
+  { name: 'prayers',                 type: 'sub',  path: 'prayers'                  },
+  { name: 'journal',                 type: 'sub',  path: 'journal'                  },
+  { name: 'contactLog',              type: 'sub',  path: 'contactLog'               },
+  { name: 'pastoralNotes',           type: 'sub',  path: 'pastoralNotes'            },
+  { name: 'milestones',              type: 'sub',  path: 'milestones'               },
+  { name: 'households',              type: 'sub',  path: 'households'               },
+  { name: 'todos',                   type: 'sub',  path: 'todos'                    },
+  { name: 'attendance',              type: 'sub',  path: 'attendance'               },
+  { name: 'events',                  type: 'sub',  path: 'events'                   },
+  { name: 'rsvps',                   type: 'sub',  path: 'rsvps'                    },
+  { name: 'calendarEvents',          type: 'sub',  path: 'calendarEvents'           },
+  { name: 'checkinSessions',         type: 'sub',  path: 'checkinSessions'          },
+  { name: 'groups',                  type: 'sub',  path: 'groups'                   },
+  { name: 'groupMembers',            type: 'sub',  path: 'groupMembers'             },
+  { name: 'giving',                  type: 'sub',  path: 'giving'                   },
+  { name: 'pledges',                 type: 'sub',  path: 'pledges'                  },
+  { name: 'volunteers',              type: 'sub',  path: 'volunteers'               },
+  { name: 'conversations',           type: 'sub',  path: 'conversations'            },
+  { name: 'messages',               type: 'sub',  path: 'messages',   limit: 2000  },
+  { name: 'notifications',           type: 'sub',  path: 'notifications'            },
+  { name: 'templates',               type: 'sub',  path: 'templates'                },
+  { name: 'broadcasts',              type: 'sub',  path: 'broadcasts'               },
+  { name: 'ministries',              type: 'sub',  path: 'ministries'               },
+  { name: 'servicePlans',            type: 'sub',  path: 'servicePlans'             },
+  { name: 'songs',                   type: 'sub',  path: 'songs'                    },
+  { name: 'albums',                  type: 'sub',  path: 'albums'                   },
+  { name: 'sermons',                 type: 'sub',  path: 'sermons'                  },
+  { name: 'sermonSeries',            type: 'sub',  path: 'sermonSeries'             },
+  { name: 'sermonReviews',           type: 'sub',  path: 'sermonReviews'            },
+  { name: 'careCases',               type: 'sub',  path: 'careCases'                },
+  { name: 'careInteractions',        type: 'sub',  path: 'careInteractions'         },
+  { name: 'careAssignments',         type: 'sub',  path: 'careAssignments'          },
+  { name: 'compassionRequests',      type: 'sub',  path: 'compassionRequests'       },
+  { name: 'compassionLogs',          type: 'sub',  path: 'compassionLogs'           },
+  { name: 'compassionResources',     type: 'sub',  path: 'compassionResources'      },
+  { name: 'outreachContacts',        type: 'sub',  path: 'outreachContacts'         },
+  { name: 'outreachCampaigns',       type: 'sub',  path: 'outreachCampaigns'        },
+  { name: 'outreachFollowUps',       type: 'sub',  path: 'outreachFollowUps'        },
+  { name: 'discipleshipPaths',       type: 'sub',  path: 'discipleshipPaths'        },
+  { name: 'discipleshipSteps',       type: 'sub',  path: 'discipleshipSteps'        },
+  { name: 'discipleshipEnrollments', type: 'sub',  path: 'discipleshipEnrollments'  },
+  { name: 'discipleshipMentoring',   type: 'sub',  path: 'discipleshipMentoring'    },
+  { name: 'discipleshipMeetings',    type: 'sub',  path: 'discipleshipMeetings'     },
+  { name: 'discipleshipAssessments', type: 'sub',  path: 'discipleshipAssessments'  },
+  { name: 'discipleshipMilestones',  type: 'sub',  path: 'discipleshipMilestones'   },
+  { name: 'discipleshipGoals',       type: 'sub',  path: 'discipleshipGoals'        },
+  { name: 'discipleshipCertificates',type: 'sub',  path: 'discipleshipCertificates' },
+  { name: 'learningTopics',          type: 'sub',  path: 'learningTopics'           },
+  { name: 'learningPlaylists',       type: 'sub',  path: 'learningPlaylists'        },
+  { name: 'learningPlaylistItems',   type: 'sub',  path: 'learningPlaylistItems'    },
+  { name: 'learningProgress',        type: 'sub',  path: 'learningProgress'         },
+  { name: 'learningNotes',           type: 'sub',  path: 'learningNotes'            },
+  { name: 'learningBookmarks',       type: 'sub',  path: 'learningBookmarks'        },
+  { name: 'learningRecommendations', type: 'sub',  path: 'learningRecommendations'  },
+  { name: 'learningQuizzes',         type: 'sub',  path: 'learningQuizzes'          },
+  { name: 'learningQuizResults',     type: 'sub',  path: 'learningQuizResults'      },
+  { name: 'learningCertificates',    type: 'sub',  path: 'learningCertificates'     },
+  { name: 'theologyCategories',      type: 'sub',  path: 'theologyCategories'       },
+  { name: 'theologySections',        type: 'sub',  path: 'theologySections'         },
+  { name: 'memberCards',             type: 'sub',  path: 'memberCards'              },
+  { name: 'cardLinks',               type: 'sub',  path: 'cardLinks'                },
+  { name: 'memberCardViews',         type: 'sub',  path: 'memberCardViews'          },
+  { name: 'statisticsConfig',        type: 'sub',  path: 'statisticsConfig'         },
+  { name: 'statisticsSnapshots',     type: 'sub',  path: 'statisticsSnapshots'      },
+  { name: 'statisticsViews',         type: 'sub',  path: 'statisticsViews'          },
+  { name: 'strategicGoals',          type: 'sub',  path: 'strategicGoals'           },
+  { name: 'strategicInitiatives',    type: 'sub',  path: 'strategicInitiatives'     },
+  { name: 'strategicKeyDates',       type: 'sub',  path: 'strategicKeyDates'        },
+  { name: 'accessControl',          type: 'sub',  path: 'accessControl'            },
+  { name: 'permissions',             type: 'sub',  path: 'permissions'              },
+  // Top-level content collections (global, not church-scoped)
+  { name: 'users',                   type: 'top',  path: 'users'                    },
+  { name: 'books',                   type: 'top',  path: 'books'                    },
+  { name: 'genealogy',               type: 'top',  path: 'genealogy'                },
+  { name: 'counseling',              type: 'top',  path: 'counseling'               },
+  { name: 'devotionals',             type: 'top',  path: 'devotionals'              },
+  { name: 'heart',                   type: 'top',  path: 'heart'                    },
+  { name: 'mirror',                  type: 'top',  path: 'mirror'                   },
+  { name: 'theology',                type: 'top',  path: 'theology'                 },
+  { name: 'quiz',                    type: 'top',  path: 'quiz'                     },
+  { name: 'apologetics',             type: 'top',  path: 'apologetics'              },
+  { name: 'missionsRegistry',        type: 'top',  path: 'missionsRegistry'         },
+  { name: 'missionsRegions',         type: 'top',  path: 'missionsRegions'          },
+  { name: 'missionsCities',          type: 'top',  path: 'missionsCities'           },
+  { name: 'missionsPartners',        type: 'top',  path: 'missionsPartners'         },
+  { name: 'missionsPrayerFocus',     type: 'top',  path: 'missionsPrayerFocus'      },
+  { name: 'missionsUpdates',         type: 'top',  path: 'missionsUpdates'          },
+  { name: 'missionsTeams',           type: 'top',  path: 'missionsTeams'            },
+  { name: 'missionsMetrics',         type: 'top',  path: 'missionsMetrics'          },
+  { name: 'reading',                 type: 'top',  path: 'reading'                  },
+  { name: 'readingPlans',            type: 'top',  path: 'readingPlans'             },
+  { name: 'wordsGreek',              type: 'top',  path: 'wordsGreek',  limit: 5000 },
+  { name: 'wordsHebrew',             type: 'top',  path: 'wordsHebrew', limit: 5000 },
 ];
+
+// Legacy export spec list (used by xlsx/json exporters) — derived from above.
+const _FS_EXPORT_SPECS = _FS_COLLECTIONS
+  .filter(c => c.type !== 'skip')
+  .map(c => ({
+    sheet: c.name,
+    fetch: c.type === 'sub'
+      ? (db, cid) => {
+          let q = db.collection('churches').doc(cid).collection(c.path);
+          if (c.limit) q = q.limit(c.limit);
+          return q.get().then(s => s.docs.map(d => ({ _id: d.id, ...d.data() })));
+        }
+      : (db) => {
+          let q = db.collection(c.path);
+          if (c.limit) q = q.limit(c.limit);
+          return q.get().then(s => s.docs.map(d => ({ _id: d.id, ...d.data() })));
+        },
+  }));
+
+// Church-root fetch for the special case
+_FS_EXPORT_SPECS.unshift({
+  sheet: 'churches',
+  fetch: (db, cid) => db.collection('churches').doc(cid).get()
+    .then(s => s.exists ? [{ _id: cid, ...s.data() }] : []),
+});
+
+// Import map derived from _FS_COLLECTIONS (used by _importFirestoreJson)
+const _IMPORT_MAP = Object.fromEntries(
+  _FS_COLLECTIONS.map(c => [c.name, { type: c.type, path: c.path }])
+);
 
 function _flattenForSheet(rows) {
   // Flatten Firestore Timestamps and nested objects one level deep.
@@ -1603,52 +1727,34 @@ async function _exportFirestoreJson(root, btn) {
    _deserializeFromJson — restores { __type:'timestamp', iso } → Timestamp
    _importFirestoreJson — reads any v1 JSON and batch-writes to Firestore  */
 
-// Mapping from JSON collection sheet name → Firestore path info.
-// type 'sub'  = churches/{cid}/subPath/{_id}
-// type 'top'  = {path}/{_id}  (top-level collection)
-// 'skip'      = never write (backend-only, e.g. Church root)
-const _IMPORT_MAP = {
-  Church:   { type: 'skip' },
-  Channels: { type: 'sub',  path: 'channels' },
-  Config:   { type: 'sub',  path: 'config'   },
-  Settings: { type: 'sub',  path: 'settings' },
-  Members:  { type: 'sub',  path: 'members'  },
-  Users:    { type: 'top',  path: 'users'    },
-  Messages: { type: 'sub',  path: 'messages' },
-};
-
-// Complete seed — one fresh church, all default docs, all empty collections.
-// null on timestamp fields → serverTimestamp() on import.
+// _IMPORT_MAP is now derived from _FS_COLLECTIONS above.
+// _buildSeedDb provides a minimal in-browser seed (channels + config + settings).
+// For the FULL 93-collection seed with all content data, run:
+//   node Covenant/Bezalel/Scripts/generate_seed_db.mjs
+// and import the output New_Covenant/Data/seed_database.json via ⬆ Import .json.
 function _buildSeedDb(churchId) {
   return {
     __meta: {
       exportedAt: new Date().toISOString(),
       churchId,
       format:  'FlockOS-Firestore-JSON-v1',
-      version: 'seed-1.0',
-      note:    'Fresh seed database for a new FlockOS church. ' +
-               'Import via Admin → Church Audit → Import .json. ' +
-               'Null timestamp fields become server timestamps on import.',
+      version: 'seed-2.0-minimal',
+      note:    'Minimal church setup seed (channels + config + settings). ' +
+               'For the complete 93-collection seed with content data, run: ' +
+               'node Covenant/Bezalel/Scripts/generate_seed_db.mjs',
     },
     collections: {
-      // Church root is backend-only; included for visibility only — never imported.
-      Church: [
-        { _id: churchId, name: churchId, setupComplete: false, createdAt: null },
+      churches:  [{ _id: churchId, name: churchId, setupComplete: false, createdAt: null }],
+      channels: [
+        { _id: 'general',         name: 'general',         slug: 'general',         type: 'channel', description: 'General discussion',   createdAt: null, messageCount: 0, sortOrder: 1 },
+        { _id: 'announcements',   name: 'announcements',   slug: 'announcements',   type: 'channel', description: 'Church announcements',  createdAt: null, messageCount: 0, sortOrder: 2 },
+        { _id: 'prayer-requests', name: 'prayer-requests', slug: 'prayer-requests', type: 'channel', description: 'Prayer requests',       createdAt: null, messageCount: 0, sortOrder: 3 },
       ],
-      Channels: [
-        { _id: 'general',        name: 'general',        slug: 'general',        type: 'channel', description: 'General discussion',   createdAt: null, messageCount: 0, sortOrder: 1 },
-        { _id: 'announcements',  name: 'announcements',  slug: 'announcements',  type: 'channel', description: 'Church announcements',  createdAt: null, messageCount: 0, sortOrder: 2 },
-        { _id: 'prayer-requests',name: 'prayer-requests',slug: 'prayer-requests',type: 'channel', description: 'Prayer requests',       createdAt: null, messageCount: 0, sortOrder: 3 },
-      ],
-      Config: [
-        { _id: 'general', setupComplete: false, createdAt: null },
-      ],
-      Settings: [
-        { _id: 'notifications', emailEnabled: true, inAppEnabled: true, quietHoursStart: '22:00', quietHoursEnd: '07:00', createdAt: null },
-      ],
-      Members:  [],
-      Users:    [],
-      Messages: [],
+      config:    [{ _id: 'general', setupComplete: false, createdAt: null }],
+      settings:  [{ _id: 'notifications', emailEnabled: true, inAppEnabled: true, quietHoursStart: '22:00', quietHoursEnd: '07:00', createdAt: null }],
+      members:   [],
+      users:     [],
+      messages:  [],
     },
   };
 }
