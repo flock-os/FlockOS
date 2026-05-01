@@ -1261,11 +1261,12 @@ function _auditDb() {
 // and defaults (object to merge on creation).
 const _AUDIT_ITEMS = [
   {
-    id:      'church-root',
-    label:   'Church root document',
-    kind:    'Document',
-    subPath: '',   // the church doc itself: churches/{cid}
-    defaults: { createdAt: null, name: '', setupComplete: false },
+    id:          'church-root',
+    label:       'Church root document',
+    kind:        'Document',
+    subPath:     '',   // the church doc itself: churches/{cid}
+    defaults:    { createdAt: null, name: '', setupComplete: false },
+    backendOnly: true, // created by GAS during church setup — client cannot write here
   },
   {
     id:      'config-general',
@@ -1361,7 +1362,9 @@ function _renderAuditRows(host, rows, churchId) {
     const status = ok ? 'Exists' : 'Missing';
     const action = ok
       ? `<span style="color:var(--ink-muted,#7a7f96);font-size:.85rem">OK</span>`
-      : `<button class="flock-btn flock-btn--primary flock-btn--sm" data-act="audit-init" data-id="${_e(r.id)}" type="button">Create</button>`;
+      : r.backendOnly
+        ? `<span style="color:var(--ink-muted,#7a7f96);font-size:.8rem;font-style:italic">Backend only — run church setup</span>`
+        : `<button class="flock-btn flock-btn--primary flock-btn--sm" data-act="audit-init" data-id="${_e(r.id)}" type="button">Create</button>`;
     const pathLabel = r.subPath ? `churches/${cid}/${r.subPath}` : `churches/${cid}`;
     return `
       <div class="wall-setting-row" data-row-id="${_e(r.id)}" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border:1px solid var(--line,#e5e7ef);border-radius:8px;margin-bottom:6px;background:var(--bg-raised,#fff)">
@@ -1405,7 +1408,7 @@ async function _initAllMissing(root) {
   try {
     const rows = await _auditCheckAll(db, churchId);
     await Promise.all(
-      rows.filter((r) => !r.exists).map((item) => {
+      rows.filter((r) => !r.exists && !r.backendOnly).map((item) => {
         const ref = _auditDocRef(db, churchId, item.subPath);
         return ref.set({ ...item.defaults, createdAt: now }, { merge: true }).catch(() => {});
       })
