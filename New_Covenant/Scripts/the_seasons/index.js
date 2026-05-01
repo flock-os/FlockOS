@@ -2522,9 +2522,15 @@
 
   export function preload() { _calLoad().catch(function() {}); }
 
+  export async function todayCount() {
+    await _calLoad();
+    return _calEventsForDate(_calFmt(new Date())).length;
+  }
+
 /* Expose as window.TheSeasons for inline onclick= handlers */
 if (typeof window !== 'undefined') {
   window.TheSeasons = {
+    todayCount,
     todoFilterBy,
     calEventDetail,
     calDayClick,
