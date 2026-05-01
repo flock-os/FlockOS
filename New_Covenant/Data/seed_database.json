@@ -5,7 +5,7 @@
     "churchId": "FlockOS",
     "format": "FlockOS-Firestore-JSON-v1",
     "version": "seed-2.0",
-    "collections": 88,
+    "collections": 97,
     "totalDocs": 3868,
     "includesStrongs": false,
     "note": "Complete seed database for a fresh FlockOS church deployment. Import via: Admin → Church Audit → ⬆ Import .json \"churches\" collection is backend-only — skipped on import. Content collections (books, theology, missions, etc.) are top-level Firestore collections. Church-operational collections (members, sermons, etc.) start empty. Strong's concordances omitted (run without --no-strongs to include)."
@@ -48872,6 +48872,15 @@
     "strategicInitiatives": [],
     "strategicKeyDates": [],
     "accessControl": [],
-    "permissions": []
+    "permissions": [],
+    "missionsRegions": [],
+    "missionsCities": [],
+    "missionsPartners": [],
+    "missionsPrayerFocus": [],
+    "missionsUpdates": [],
+    "missionsTeams": [],
+    "missionsMetrics": [],
+    "wordsGreek": [],
+    "wordsHebrew": []
   }
 }
