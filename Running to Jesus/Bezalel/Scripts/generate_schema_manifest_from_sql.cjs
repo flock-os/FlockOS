@@ -13,8 +13,8 @@ function parseManifestMeta(sqlText) {
   if (!m) {
     return {
       source: {
-        syncTabMap: 'Architechtural Docs/New Covenant/Architecture/D-Master SyncHandler.md',
-        fieldReverseMap: 'Architechtural Docs/New Covenant/Architecture/E-Master CamelCase.md',
+        syncTabMap: 'Architechtural Docs/New Covenant/Architecture/B-Master Code.md',
+        fieldReverseMap: 'Architechtural Docs/New Covenant/Architecture/B-Master Code.md',
       },
       totals: {
         collectionsInSyncMap: null,
