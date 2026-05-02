@@ -127,15 +127,6 @@ const TheShepherd = (() => {
     return typeof Modules !== 'undefined' && typeof Modules._isFirebaseComms === 'function' && Modules._isFirebaseComms();
   }
 
-  // Ensure UpperRoom is authenticated before any Firestore write
-  async function _ensureUpperRoom() {
-    if (typeof UpperRoom === 'undefined') return;
-    if (!UpperRoom.isReady || !UpperRoom.isReady()) {
-      await UpperRoom.init();
-      if (!UpperRoom.isReady()) await UpperRoom.authenticate();
-    }
-  }
-
   // ══════════════════════════════════════════════════════════════════════════
   // PEOPLE LIST — search, filter, table
   // ══════════════════════════════════════════════════════════════════════════
@@ -154,8 +145,6 @@ const TheShepherd = (() => {
     try {
       // Re-use cached data on paginate / reload; fetch fresh on first load
       if (!_allPeople) {
-        // Ensure Firebase is authenticated before any Firestore read/write
-        if (_isFB()) await _ensureUpperRoom();
         // Clear stale search/filter state when loading fresh data
         _searchQ = '';
         _filterVal = 'all';
@@ -378,7 +367,6 @@ const TheShepherd = (() => {
   async function _loadPerms(email) {
     var el = document.getElementById('pp-sec-permissions');
     if (!el) return;
-    if (_isFB()) await _ensureUpperRoom();
     var canEditPerms = false;
     try {
       if (typeof Nehemiah !== 'undefined' && (Nehemiah.can('users.permissions') || Nehemiah.can('users.edit'))) {
@@ -846,7 +834,6 @@ const TheShepherd = (() => {
   async function saveAll() {
     var email = _openEmail;
     if (!email) { alert('No person loaded.'); return; }
-    if (_isFB()) await _ensureUpperRoom();
     var btn = document.getElementById('pp-save-btn');
     var st1 = document.getElementById('pp-save-status');
     var st2 = document.getElementById('pp-save-status2');
@@ -957,9 +944,8 @@ const TheShepherd = (() => {
     var label = email && email.indexOf('_mid_') !== 0 ? email : (memberId || 'this member');
     if (!confirm('Permanently DELETE the member record for ' + label + '?\n\nThis removes their record from Members. The login account (if any) is NOT deleted.\n\nThis cannot be undone.')) return;
     try {
-      if (_isFB()) await _ensureUpperRoom();
       await (_isFB() ? UpperRoom.deleteMember(memberId || email) : TheVine.flock.call('members.delete', { id: memberId, targetEmail: email && email.indexOf('_mid_') !== 0 ? email : '' }));
-      _toast('Member record deleted.',   'success');
+      _toast('Member record deleted.', 'success');
       if (typeof TheScrolls !== 'undefined') TheScrolls.log(TheScrolls.TYPES.ADMIN_ACTION, email, 'Deleted member record', { memberId: memberId });
       // Return to people list since the profile no longer has a member record
       _allPeople = null; renderApp(_container);
@@ -970,7 +956,6 @@ const TheShepherd = (() => {
     var p = _ppData[(email || '').toLowerCase()] || {};
     var u = p.user || {};
     try {
-      if (_isFB()) await _ensureUpperRoom();
       await (_isFB() ? UpperRoom.createMemberCard({
         email: email, firstName: u.firstName || '', lastName: u.lastName || '',
         phone: u.phone || '', photoUrl: u.photoUrl || '', status: 'Active'
@@ -1085,7 +1070,6 @@ const TheShepherd = (() => {
 
     var grants = Array.from(baseSet);
     try {
-      if (_isFB()) await _ensureUpperRoom();
       await (_isFB() ? UpperRoom.setPermissions(targetEmail, grants, []) : TheVine.flock.call('permissions.setAll', { targetEmail: targetEmail, grants: grants, denies: [] }));
       if (st) { st.textContent = '\u2713 Saved'; setTimeout(function() { if (st) st.textContent = ''; }, 2000); }
     } catch (e) {
