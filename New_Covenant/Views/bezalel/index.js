@@ -44,20 +44,6 @@ const GAS_DOCS = [
     description: 'Main GAS backend — paste as Code.gs. Contains all CRUD handlers, dispatcher, setupFlockOS(), and DEPLOY_CONFIG.',
   },
   {
-    id: 'firestoresync',
-    label: 'FirestoreSync.gs',
-    filename: 'C-Master FirestoreSync.md',
-    path: new URL('../../Architechtural Docs/C-Master FirestoreSync.md', import.meta.url).href,
-    description: 'Hourly Firestore → Sheet sync. Paste as FirestoreSync.gs.',
-  },
-  {
-    id: 'synchandler',
-    label: 'SyncHandler.gs',
-    filename: 'D-Master SyncHandler.md',
-    path: new URL('../../Architechtural Docs/D-Master SyncHandler.md', import.meta.url).href,
-    description: 'Receives Cloud Function → Sheet writes. Paste as SyncHandler.gs.',
-  },
-  {
     id: 'camelcase',
     label: 'CamelCase.gs',
     filename: 'E-Master CamelCase.md',
@@ -220,9 +206,9 @@ function _gasFilesTab() {
 </div>
 <div style="margin-top:16px;padding:12px 14px;background:rgba(232,168,56,0.08);border:1px solid rgba(232,168,56,0.25);border-radius:8px;font-size:0.8rem;color:var(--ink-muted);line-height:1.5;">
   <strong style="color:var(--ink);">How to deploy a new church:</strong>
-  Open the church's Google Sheet → Extensions → Apps Script → Create each file above →
-  Paste the contents → Set Script Properties (FIREBASE_SERVICE_ACCOUNT, TRUTH_SERVICE_ACCOUNT) →
-  Run <code style="background:rgba(0,0,0,0.1);padding:1px 5px;border-radius:3px;font-family:monospace;">setupFlockOS()</code> once.
+  Open the church's Google Sheet → Extensions → Apps Script → paste <strong>Code.gs</strong> and <strong>CamelCase.gs</strong> →
+  Set Script Properties via Church Setup tab (FIREBASE_SERVICE_ACCOUNT, TRUTH_SERVICE_ACCOUNT required) →
+  Run <code style="background:rgba(0,0,0,0.1);padding:1px 5px;border-radius:3px;font-family:monospace;">setupFlockOS()</code> once. FirestoreSync and SyncHandler are now included in Code.gs.
 </div>`;
 }
 
