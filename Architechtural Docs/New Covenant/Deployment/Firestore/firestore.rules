@@ -33,10 +33,6 @@ service cloud.firestore {
           || request.auth.token.get('isSeed', false) == true;
     }
 
-    function isSeedOnly() {
-      return request.auth.token.get('isSeed', false) == true;
-    }
-
     function isLeaderOrAbove() {
       return userRole() in ['leader', 'pastor', 'admin', 'seed']
           || request.auth.token.get('isSeed', false) == true;
