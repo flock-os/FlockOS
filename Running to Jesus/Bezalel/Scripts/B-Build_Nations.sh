@@ -166,6 +166,8 @@ PYEOF
   # ── 5. Patch flockos.html — <title>, apple title, Firebase config ──
   FB_CONFIG_JSON=$(jq -r '.firebaseConfig // "null"' "$CFG")
   export _NC_FB_CONFIG="$FB_CONFIG_JSON"
+  GAS_ONLY=$(jq -r '.gasOnly // false' "$CFG")
+  export _NC_GAS_ONLY="$GAS_ONLY"
   python3 << 'PYEOF'
 import os, json, re
 
@@ -187,25 +189,45 @@ content = re.sub(
     content
 )
 
-# Patch window.FLOCK_FIREBASE_CONFIG — only when church has its own config
+# Handle Firebase config / GAS-only stripping
+gas_only = os.environ.get('_NC_GAS_ONLY', 'false').strip().lower() == 'true'
+
 try:
     fb_obj = json.loads(fb_raw)
-    if isinstance(fb_obj, dict) and 'projectId' in fb_obj:
-        lines = ['    window.FLOCK_FIREBASE_CONFIG = {']
-        for k, v in fb_obj.items():
-            lines.append(f"      {k}:  '{v}',")
-        lines.append('    };')
-        new_block = '\n'.join(lines)
-        content = re.sub(
-            r'window\.FLOCK_FIREBASE_CONFIG\s*=\s*\{[^}]+\};',
-            new_block,
-            content,
-            flags=re.DOTALL
-        )
-        print('  ✓ flockos.html Firebase config replaced with church config')
-    else:
-        print('  ✓ flockos.html Firebase config kept as default (shared)')
 except Exception:
+    fb_obj = None
+
+if gas_only:
+    # GAS-only build — strip ALL Firebase references from flockos.html
+    # Remove firestore preconnect / dns-prefetch lines
+    content = re.sub(r'[ \t]*<link[^>]+firestore\.googleapis\.com[^>]*>\n?', '', content)
+    # Remove firebase_config modulepreload
+    content = re.sub(r'[ \t]*<link[^>]+the_firebase_config\.js[^>]*>\n?', '', content)
+    # Remove window.FLOCK_FIREBASE_CONFIG script block
+    content = re.sub(
+        r'[ \t]*<script>\s*window\.FLOCK_FIREBASE_CONFIG\s*=\s*\{[^}]+\};\s*</script>\n?',
+        '',
+        content,
+        flags=re.DOTALL
+    )
+    # Remove Firebase SDK <script> tags
+    content = re.sub(r'[ \t]*<script[^>]+gstatic\.com/firebasejs[^>]*></script>\n?', '', content)
+    print('  ✓ flockos.html Firebase stripped (GAS-only build)')
+elif isinstance(fb_obj, dict) and 'projectId' in fb_obj:
+    # Church has its own Firebase project — patch the config block
+    cfg_lines = ['    window.FLOCK_FIREBASE_CONFIG = {']
+    for k, v in fb_obj.items():
+        cfg_lines.append(f"      {k}:  '{v}',")
+    cfg_lines.append('    };')
+    new_block = '\n'.join(cfg_lines)
+    content = re.sub(
+        r'window\.FLOCK_FIREBASE_CONFIG\s*=\s*\{[^}]+\};',
+        new_block,
+        content,
+        flags=re.DOTALL
+    )
+    print('  ✓ flockos.html Firebase config replaced with church config')
+else:
     print('  ✓ flockos.html Firebase config kept as default (shared)')
 
 with open(path, 'w') as f:
