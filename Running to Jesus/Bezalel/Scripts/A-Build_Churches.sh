@@ -265,33 +265,7 @@ if [ -f "$SHARED_CSS" ]; then
   fi
 fi
 
-# ── Sync Tabernacle scripts + CSS into New_Covenant (self-contained dev copy) ─
-# New_Covenant keeps local copies so it can be developed independently of FlockOS.
-# BCP overwrites them so they always stay current with Tabernacle source.
-NC_DIR="$WORKSPACE_ROOT/New_Covenant"
-if [ -d "$NC_DIR/Scripts" ]; then
-  NC_SCRIPTS_CHANGED=false
-  for _f in firm_foundation.js the_upper_room.js fine_linen.js the_true_vine.js \
-             the_wellspring.js the_well.js the_tabernacle.js the_truth.js \
-             the_seasons.js the_way.js the_harvest.js the_life.js \
-             the_shepherd.js the_fold.js the_scrolls.js; do
-    _src="$SOURCE_DIR/Scripts/$_f"
-    _dst="$NC_DIR/Scripts/$_f"
-    if [ -f "$_src" ] && ! cmp -s "$_src" "$_dst" 2>/dev/null; then
-      if ! $DRY_RUN; then cp "$_src" "$_dst"; fi
-      NC_SCRIPTS_CHANGED=true
-    fi
-  done
-  # Sync CSS too
-  _css_dst="$NC_DIR/Styles/american_garments.css"
-  if [ -f "$SHARED_CSS" ] && ! cmp -s "$SHARED_CSS" "$_css_dst" 2>/dev/null; then
-    if ! $DRY_RUN; then cp "$SHARED_CSS" "$_css_dst"; fi
-    NC_SCRIPTS_CHANGED=true
-  fi
-  if $NC_SCRIPTS_CHANGED; then
-    echo "  → Tabernacle scripts + CSS synced → New_Covenant"
-  fi
-fi
+# New_Covenant is a separate product. No sync from Tabernacle.
 
 # ── Build each church ───────────────────────────────────────────────────
 for config in "$BUILD_CONFIGS_DIR"/*.json; do
