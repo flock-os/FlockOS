@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
+  <title>FlockOS-GAS</title>
+  <link rel="icon" type="image/png" href="Images/NewCovenant.png">
+  <link rel="apple-touch-icon" href="Images/NewCovenant.png">
+  <meta name="theme-color" content="#0c1445">
+  <meta name="description" content="FlockOS-GAS — complete church management and GROW discipleship tools. Free forever. 210 countries. Built to be shared.">
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="FlockOS-GAS">
+  <meta property="og:description" content="Complete pastoral care, member management, discipleship, and outreach. Free forever. 210 countries. 256-bit encrypted.">
+  <meta property="og:image" content="Images/NewCovenant.png">
+  <meta property="og:type" content="website">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Merriweather:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:          #09102e;
+      --bg-raised:   #111b44;
+      --bg-card:     #141f4e;
+      --ink:         #eef1fb;
+      --ink-muted:   #9ba8d0;
+      --ink-faint:   #5a6894;
+      --gold:        #e8a838;
+      --gold-soft:   rgba(232,168,56,0.14);
+      --accent:      #5b8dee;
+      --accent-soft: rgba(91,141,238,0.14);
+      --line:        rgba(255,255,255,0.08);
+      --line-strong: rgba(255,255,255,0.14);
+      --shadow-md:   0 6px 24px rgba(0,0,0,0.32);
+      --shadow-lg:   0 12px 40px rgba(0,0,0,0.44);
+      --font:        'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+      --font-serif:  'Merriweather', Georgia, serif;
+      --radius:      20px;
+    }
+
+    html, body {
+      height: 100%;
+      font-family: var(--font);
+      font-size: 16px;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      background: var(--bg);
+      color: var(--ink);
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 80% 50% at 50% -10%, rgba(91,141,238,0.18) 0%, transparent 70%),
+        radial-gradient(ellipse 60% 40% at 80% 100%, rgba(232,168,56,0.10) 0%, transparent 60%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── Top header ─────────────────────────────────────────────────── */
+    .site-header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      width: 100%;
+      background: rgba(9,16,46,0.82);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--line-strong);
+      padding: 0 1.5rem;
+      height: 60px;
+      display: flex;
+      align-items: center;
+    }
+    .site-header-inner {
+      max-width: 1080px;
+      width: 100%;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+    }
+    .site-header img { width: 36px; height: 36px; border-radius: 10px; }
+    .site-header-name {
+      font-size: 1.1rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: var(--gold);
+    }
+
+    /* ── Page ───────────────────────────────────────────────────────── */
+    .page {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: calc(100vh - 60px);
+      padding: 3rem 1.25rem 4rem;
+      gap: 3rem;
+    }
+
+    /* ── Hero ───────────────────────────────────────────────────────── */
+    .hero {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 1rem;
+      max-width: 640px;
+    }
+    .hero h1 {
+      font-size: clamp(1.75rem, 5vw, 2.6rem);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1.2;
+      color: var(--ink);
+    }
+    .hero h1 em { font-style: normal; color: var(--gold); }
+    .hero p {
+      font-size: 1.05rem;
+      color: var(--ink-muted);
+      max-width: 48ch;
+      line-height: 1.7;
+    }
+    .hero-badges {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 0.5rem;
+      margin-top: 0.25rem;
+    }
+    .badge {
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      padding: 0.3rem 0.75rem;
+      border-radius: 999px;
+      border: 1px solid var(--line-strong);
+      color: var(--ink-muted);
+      background: rgba(255,255,255,0.04);
+    }
+
+    /* ── Product cards ──────────────────────────────────────────────── */
+    .products {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.5rem;
+      width: 100%;
+      max-width: 740px;
+    }
+    .product-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 1.1rem;
+      padding: 2.2rem 1.75rem 2rem;
+      background: var(--bg-card);
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-md);
+      text-decoration: none;
+      color: inherit;
+      transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+      position: relative;
+      overflow: hidden;
+      min-height: 340px;
+    }
+    .product-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse 70% 50% at 50% 0%, var(--card-glow, rgba(91,141,238,0.10)), transparent 70%);
+      pointer-events: none;
+    }
+    .product-card:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-lg);
+      border-color: var(--card-accent, var(--accent));
+    }
+    .product-card--flockos { --card-glow: rgba(91,141,238,0.12); --card-accent: var(--accent); }
+    .product-card--grow    { --card-glow: rgba(232,168,56,0.12);  --card-accent: var(--gold); }
+
+    .product-logo {
+      width: 96px;
+      height: 96px;
+      border-radius: 24px;
+      object-fit: contain;
+      box-shadow: var(--shadow-md);
+      position: relative;
+      z-index: 1;
+    }
+    .product-name {
+      font-size: 1.5rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      position: relative;
+      z-index: 1;
+    }
+    .product-card--flockos .product-name { color: #a0beff; }
+    .product-card--grow    .product-name { color: var(--gold); }
+
+    .product-desc {
+      font-size: 0.97rem;
+      color: var(--ink-muted);
+      line-height: 1.6;
+      max-width: 30ch;
+      position: relative;
+      z-index: 1;
+      flex: 1;
+    }
+    .product-cta {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.88rem;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      padding: 0.55rem 1.3rem;
+      border-radius: 999px;
+      border: 1px solid var(--card-accent, var(--accent));
+      color: var(--card-accent, var(--accent));
+      background: transparent;
+      transition: background 0.15s, color 0.15s;
+      position: relative;
+      z-index: 1;
+    }
+    .product-card:hover .product-cta {
+      background: var(--card-accent, var(--accent));
+      color: #fff;
+    }
+
+    /* ── Footer verse ───────────────────────────────────────────────── */
+    .verse { text-align: center; max-width: 52ch; }
+    .verse p {
+      font-family: var(--font-serif);
+      font-style: italic;
+      font-size: 1rem;
+      color: var(--ink-faint);
+      line-height: 1.7;
+    }
+    .verse cite {
+      display: block;
+      margin-top: 0.4rem;
+      font-family: var(--font);
+      font-style: normal;
+      font-size: 0.82rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--gold);
+    }
+    .verse small {
+      display: block;
+      margin-top: 0.9rem;
+      font-size: 0.8rem;
+      color: var(--ink-faint);
+    }
+
+    @media (max-width: 600px) {
+      .page { padding: 2rem 1rem 3rem; gap: 2.25rem; }
+      .product-logo { width: 80px; height: 80px; }
+    }
+  </style>
+</head>
+<body>
+
+  <nav class="site-header" role="banner">
+    <div class="site-header-inner">
+      <img src="Images/NewCovenant.png" alt="FlockOS">
+      <span class="site-header-name">FlockOS-GAS</span>
+    </div>
+  </nav>
+
+  <div class="page">
+
+    <header class="hero">
+      <h1>Welcome to <em>FlockOS-GAS.</em></h1>
+      <p>Choose an app to get started.</p>
+      <div class="hero-badges">
+        <span class="badge">210 Countries</span>
+        <span class="badge">256-bit Encrypted</span>
+        <span class="badge">Offline-Capable</span>
+        <span class="badge">Free Forever</span>
+      </div>
+    </header>
+
+    <section class="products" aria-label="Products">
+
+      <a class="product-card product-card--flockos" href="flockos.html">
+        <img class="product-logo" src="Images/NewCovenant.png" alt="FlockOS">
+        <div class="product-name">FlockOS</div>
+        <p class="product-desc">Church management, member care, discipleship, and pastoral tools — all in one.</p>
+        <span class="product-cta">Open FlockOS &#8594;</span>
+      </a>
+
+      <a class="product-card product-card--grow" href="grow-public.html">
+        <img class="product-logo" src="Images/GrowIcon.png" alt="GROW">
+        <div class="product-name">GROW</div>
+        <p class="product-desc">Daily devotionals, reading plans, and discipleship content. Open to everyone.</p>
+        <span class="product-cta">Open GROW &#8594;</span>
+      </a>
+
+    </section>
+
+    <footer class="verse">
+      <p>"Go therefore and make disciples of all nations, baptizing them in the name of the Father and of the Son and of the Holy Spirit."</p>
+      <cite>Matthew 28:19</cite>
+      <small>Soli Deo Gloria &mdash; FlockOS &mdash; Built to Be Shared</small>
+    </footer>
+
+  </div>
+
+</body>
+</html>

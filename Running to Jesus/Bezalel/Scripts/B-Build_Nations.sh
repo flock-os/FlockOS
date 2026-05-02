@@ -51,6 +51,7 @@ CHURCHES=(
   "FlockOS|FlockOS-Root.json|flockos-v1.01"
   "TBC|Trinity.json|flockos-tbc-v1.01"
   "TheForest|TheForest.json|flockos-theforest-v1.01"
+  "GAS|GAS.json|flockos-gas-v1.01"
 )
 
 # ── Pre-flight ────────────────────────────────────────────────────────
@@ -58,7 +59,8 @@ echo "Running pre-flight checks…"
 PREFLIGHT_OK=true
 
 [ -d "$NEW_COVENANT" ] || { echo "  ✗ MISSING: New_Covenant/"; PREFLIGHT_OK=false; }
-[ -f "$NEW_COVENANT/index.html" ] || { echo "  ✗ MISSING: New_Covenant/index.html"; PREFLIGHT_OK=false; }
+[ -f "$NEW_COVENANT/index.html" ] || { echo "  ✗ MISSING: New_Covenant/index.html (selector)"; PREFLIGHT_OK=false; }
+[ -f "$NEW_COVENANT/flockos.html" ] || { echo "  ✗ MISSING: New_Covenant/flockos.html (app)"; PREFLIGHT_OK=false; }
 [ -f "$NEW_COVENANT/the_living_water.js" ] || { echo "  ✗ MISSING: New_Covenant/the_living_water.js"; PREFLIGHT_OK=false; }
 [ -f "$NEW_COVENANT/Scripts/the_true_vine.js" ] || { echo "  ✗ MISSING: New_Covenant/Scripts/the_true_vine.js"; PREFLIGHT_OK=false; }
 
@@ -161,7 +163,7 @@ with open(path, 'w') as f:
 print('  ✓ manifest.json patched')
 PYEOF
 
-  # ── 5. Patch index.html — <title>, apple title, Firebase config ────
+  # ── 5. Patch flockos.html — <title>, apple title, Firebase config ──
   FB_CONFIG_JSON=$(jq -r '.firebaseConfig // "null"' "$CFG")
   export _NC_FB_CONFIG="$FB_CONFIG_JSON"
   python3 << 'PYEOF'
@@ -170,7 +172,7 @@ import os, json, re
 t          = os.environ['_NC_TARGET']
 name       = os.environ['_NC_CHURCH_NAME']
 fb_raw     = os.environ['_NC_FB_CONFIG']
-path       = t + '/index.html'
+path       = t + '/flockos.html'
 
 with open(path, 'r') as f:
     content = f.read()
@@ -189,7 +191,6 @@ content = re.sub(
 try:
     fb_obj = json.loads(fb_raw)
     if isinstance(fb_obj, dict) and 'projectId' in fb_obj:
-        # Build JS object literal from JSON
         lines = ['    window.FLOCK_FIREBASE_CONFIG = {']
         for k, v in fb_obj.items():
             lines.append(f"      {k}:  '{v}',")
@@ -201,15 +202,33 @@ try:
             content,
             flags=re.DOTALL
         )
-        print('  ✓ index.html Firebase config replaced with church config')
+        print('  ✓ flockos.html Firebase config replaced with church config')
     else:
-        print('  ✓ index.html Firebase config kept as default (shared)')
+        print('  ✓ flockos.html Firebase config kept as default (shared)')
 except Exception:
-    print('  ✓ index.html Firebase config kept as default (shared)')
+    print('  ✓ flockos.html Firebase config kept as default (shared)')
 
 with open(path, 'w') as f:
     f.write(content)
-print(f'  ✓ index.html title → {name}')
+print(f'  ✓ flockos.html title → {name}')
+PYEOF
+
+  # ── 6. Patch index.html selector — replace {{CHURCH_NAME}} ────────
+  python3 << 'PYEOF'
+import os
+
+t    = os.environ['_NC_TARGET']
+name = os.environ['_NC_CHURCH_NAME']
+path = t + '/index.html'
+
+with open(path, 'r') as f:
+    content = f.read()
+
+content = content.replace('{{CHURCH_NAME}}', name)
+
+with open(path, 'w') as f:
+    f.write(content)
+print(f'  ✓ index.html selector → {name}')
 PYEOF
 
   echo "  ✓ Nations/$FOLDER complete"
