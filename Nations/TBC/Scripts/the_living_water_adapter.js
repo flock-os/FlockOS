@@ -280,6 +280,15 @@ export function buildAdapter(domain, V) {
   // Probed on every call — UpperRoom may finish init mid-session.
   const fsReady = () => !!(UR && typeof UR.isReady === 'function' && UR.isReady());
 
+  // Ensure UpperRoom is authenticated before routing a call to Firestore.
+  const _ensureUR = async () => {
+    if (!UR) return;
+    if (!UR.isReady || !UR.isReady()) {
+      if (typeof UR.init === 'function') await UR.init();
+      if (!UR.isReady() && typeof UR.authenticate === 'function') await UR.authenticate();
+    }
+  };
+
   const verbMap = _DOMAIN_MAP[domain] || {};
   const isSpDomain = domain.startsWith('flock.strategicPlan.');
   const gas = isSpDomain ? _gasStrategicPlan(V, domain) : (_gasNs(V, domain) || {});
@@ -290,13 +299,16 @@ export function buildAdapter(domain, V) {
     if (!cfg) continue;
     const { ur: urMethod, urArgs, gasCall } = cfg;
 
-    adapter[verb] = (...callArgs) => {
+    adapter[verb] = async (...callArgs) => {
       const payload = callArgs[0];
 
       // ── Firestore path ──────────────────────────────────────────────────
-      if (fsReady() && urMethod && UR && typeof UR[urMethod] === 'function') {
-        const args = urArgs ? urArgs(payload) : callArgs;
-        return UR[urMethod](...args);
+      if (UR && urMethod && typeof UR[urMethod] === 'function') {
+        await _ensureUR();
+        if (fsReady()) {
+          const args = urArgs ? urArgs(payload) : callArgs;
+          return UR[urMethod](...args);
+        }
       }
 
       // ── GAS fallback ────────────────────────────────────────────────────

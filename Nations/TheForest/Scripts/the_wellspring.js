@@ -28,15 +28,13 @@ const TheWellspring = (() => {
 
   // ── Constants ────────────────────────────────────────────────────────────
   const DB_NAME    = 'FlockOS_Wellspring';
-  const DB_VERSION = 3;  // v3: added vault store (v2 had sheets + meta only)
+  const DB_VERSION = 2;
   const STORE_NAME = 'sheets';
   const META_STORE = 'meta';
   const META_KEY   = 'database';
   const LS_KEY     = 'flock_wellspring_mode';
-  const VAULT_STORE_NAME = 'vault'; // defined here so _openDB upgrade can reference it
 
   let _db = null;
-  let _dbPromise = null; // in-flight open — deduplicates concurrent _openDB() calls
   let _active = false;
 
 
@@ -44,48 +42,27 @@ const TheWellspring = (() => {
 
   function _openDB() {
     if (_db) return Promise.resolve(_db);
-    // Deduplicate concurrent opens — return the same promise to all callers.
-    if (_dbPromise) return _dbPromise;
-    _dbPromise = new Promise((resolve, reject) => {
+    return new Promise((resolve, reject) => {
       const req = indexedDB.open(DB_NAME, DB_VERSION);
       req.onupgradeneeded = (e) => {
         const db = e.target.result;
-        const oldVersion = e.oldVersion;
-        if (oldVersion <= 1) {
-          // v0 (fresh) or v1 (old multi-spring schema) — wipe all and build clean
-          for (const name of Array.from(db.objectStoreNames)) {
-            db.deleteObjectStore(name);
-          }
-          db.createObjectStore(STORE_NAME);     // key = tab name
-          db.createObjectStore(META_STORE);     // key = 'database' → metadata
-          db.createObjectStore(VAULT_STORE_NAME); // key = 'credentials' → encrypted blob
-        } else if (oldVersion === 2) {
-          // v2 → v3: add vault store only — preserve existing sheet + meta data
-          if (!db.objectStoreNames.contains(VAULT_STORE_NAME)) {
-            db.createObjectStore(VAULT_STORE_NAME);
-          }
+        // Clean up old stores from previous multi-spring schema
+        for (const name of db.objectStoreNames) {
+          db.deleteObjectStore(name);
         }
-        // v3+: all stores already present
+        db.createObjectStore(STORE_NAME); // key = tab name
+        db.createObjectStore(META_STORE); // key = 'database' → metadata
       };
-      req.onsuccess = () => {
-        _db = req.result;
-        _dbPromise = null;
-        // Reset cached handle if the browser closes the connection (e.g. PWA resume)
-        _db.onclose = () => { _db = null; _dbPromise = null; };
-        _db.onversionchange = () => { _db.close(); _db = null; _dbPromise = null; };
-        resolve(_db);
-      };
-      req.onerror = () => { _dbPromise = null; reject(new Error('Wellspring: IndexedDB open failed')); };
+      req.onsuccess = () => { _db = req.result; resolve(_db); };
+      req.onerror = () => reject(new Error('Wellspring: IndexedDB open failed'));
     });
-    return _dbPromise;
   }
 
   function _tx(storeName, mode) {
     return _db.transaction(storeName, mode).objectStore(storeName);
   }
 
-  async function _put(storeName, key, value) {
-    await _openDB();
+  function _put(storeName, key, value) {
     return new Promise((resolve, reject) => {
       const req = _tx(storeName, 'readwrite').put(value, key);
       req.onsuccess = () => resolve();
@@ -93,8 +70,7 @@ const TheWellspring = (() => {
     });
   }
 
-  async function _get(storeName, key) {
-    await _openDB();
+  function _get(storeName, key) {
     return new Promise((resolve, reject) => {
       const req = _tx(storeName, 'readonly').get(key);
       req.onsuccess = () => resolve(req.result);
@@ -102,8 +78,7 @@ const TheWellspring = (() => {
     });
   }
 
-  async function _del(storeName, key) {
-    await _openDB();
+  function _del(storeName, key) {
     return new Promise((resolve, reject) => {
       const req = _tx(storeName, 'readwrite').delete(key);
       req.onsuccess = () => resolve();
@@ -111,8 +86,7 @@ const TheWellspring = (() => {
     });
   }
 
-  async function _allKeys(storeName) {
-    await _openDB();
+  function _allKeys(storeName) {
     return new Promise((resolve, reject) => {
       const req = _tx(storeName, 'readonly').getAllKeys();
       req.onsuccess = () => resolve(req.result || []);
@@ -162,60 +136,6 @@ const TheWellspring = (() => {
       totalRows: totalRows,
       tabs: tabs,
       rowCounts: rowCounts,
-    });
-
-    return { tabs, rowCounts, totalRows };
-  }
-
-  /**
-   * Import a FlockOS-Firestore-JSON-v1 export file into IndexedDB.
-   * The JSON's collections map directly to worksheet tabs so the same
-   * TheVine resolver serves both XLSX and JSON-sourced data.
-   * @param {File} file - File object from <input type="file">
-   * @returns {Promise<{ tabs: string[], rowCounts: Object, totalRows: number }>}
-   */
-  async function loadJson(file) {
-    let parsed;
-    try {
-      const text = await file.text();
-      parsed = JSON.parse(text);
-    } catch (err) {
-      throw new Error('Invalid JSON: ' + (err?.message || String(err)));
-    }
-
-    if (parsed?.__meta?.format !== 'FlockOS-Firestore-JSON-v1') {
-      throw new Error('Not a FlockOS JSON file (missing __meta.format = FlockOS-Firestore-JSON-v1).');
-    }
-
-    await _openDB();
-
-    // Clear existing sheet data
-    const existingKeys = await _allKeys(STORE_NAME);
-    for (const key of existingKeys) await _del(STORE_NAME, key);
-
-    const collections = parsed.collections || {};
-    const tabs = Object.keys(collections);
-    const rowCounts = {};
-    let totalRows = 0;
-
-    for (const tabName of tabs) {
-      const rows = Array.isArray(collections[tabName]) ? collections[tabName] : [];
-      // Strip the _id sentinel key so rows match the XLSX shape (plain field objects)
-      const cleaned = rows.map(({ _id, ...fields }) => fields);
-      await _put(STORE_NAME, tabName, cleaned);
-      rowCounts[tabName] = cleaned.length;
-      totalRows += cleaned.length;
-    }
-
-    await _put(META_STORE, META_KEY, {
-      loadedAt: new Date().toISOString(),
-      fileName: file.name,
-      fileSize: file.size,
-      tabCount: tabs.length,
-      totalRows,
-      tabs,
-      rowCounts,
-      sourceFormat: 'FlockOS-Firestore-JSON-v1',
     });
 
     return { tabs, rowCounts, totalRows };
@@ -570,12 +490,8 @@ const TheWellspring = (() => {
     await _openDB();
     _active = true;
     localStorage.setItem(LS_KEY, 'true');
-    // Wire TheVine's local resolver — works whether TheVine is already present
-    // (interactive enable) or just became available (DOMContentLoaded path).
     if (typeof TheVine !== 'undefined') {
       TheVine.configure({ LOCAL_RESOLVER: resolve });
-    } else if (typeof window !== 'undefined' && window.TheVine) {
-      window.TheVine.configure({ LOCAL_RESOLVER: resolve });
     }
     if (localStorage.getItem('FLOCKOS_DEBUG')) console.log('[Wellspring] Local data mode ENABLED');
   }
@@ -651,34 +567,15 @@ const TheWellspring = (() => {
 
 
   // ── Auto-enable on page load if previously active ────────────────────────
-  // IMPORTANT: TheVine is a `<script defer>` which executes AFTER the parser
-  // finishes but before DOMContentLoaded fires. _autoInit MUST wait for
-  // DOMContentLoaded so that TheVine is defined when enable() tries to call
-  // TheVine.configure({ LOCAL_RESOLVER: resolve }).
-  // Using a bare setTimeout(0) is not sufficient — defer scripts run later.
 
   function _autoInit() {
-    if (localStorage.getItem(LS_KEY) !== 'true') return;
-
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', () => {
-        enable().catch(e => console.warn('[Wellspring] Auto-enable failed:', e));
-      }, { once: true });
-    } else {
-      // Already past DOMContentLoaded (e.g. dynamically inserted script)
-      enable().catch(e => console.warn('[Wellspring] Auto-enable failed:', e));
+    if (localStorage.getItem(LS_KEY) === 'true') {
+      setTimeout(() => { enable().catch(e => console.warn('[Wellspring] Auto-enable failed:', e)); }, 0);
     }
   }
 
   _autoInit();
-  // Vault constants must be declared here (before the return) so they are
-  // initialized before any vault function executes. The vault functions are
-  // hoisted (function declarations) but const bindings are NOT hoisted —
-  // anything after the return is dead code and those consts would be stuck
-  // in the Temporal Dead Zone, causing a ReferenceError on first vault call.
-  const VAULT_STORE = VAULT_STORE_NAME;
-  const VAULT_KEY   = 'credentials';
-  const VAULT_ITERATIONS = 100000;
+
 
   // ── Public Surface ───────────────────────────────────────────────────────
 
@@ -691,7 +588,6 @@ const TheWellspring = (() => {
 
     // Data import/export
     load,
-    loadJson,
     exportDB,
 
     // Data access (for direct use if needed)
@@ -721,10 +617,27 @@ const TheWellspring = (() => {
      PIN is NEVER stored. Brute force is mitigated by PBKDF2 cost.
      ═══════════════════════════════════════════════════════════════════════════ */
 
-  // VAULT_STORE_NAME is defined at the top of the IIFE (near DB_VERSION) so
-  // _openDB()'s onupgradeneeded can reference it during schema creation.
-  // VAULT_STORE / VAULT_KEY / VAULT_ITERATIONS are declared before the return
-  // statement above so they are initialized before any vault function runs.
+  const VAULT_STORE = 'vault';
+  const VAULT_KEY   = 'credentials';
+  const VAULT_ITERATIONS = 100000;
+
+  // Ensure the vault object store exists (safe to call multiple times)
+  function _ensureVaultStore() {
+    return new Promise(function(resolve, reject) {
+      var req = indexedDB.open(DB_NAME, DB_VERSION + 1);
+      req.onupgradeneeded = function(e) {
+        var db = e.target.result;
+        if (!db.objectStoreNames.contains(VAULT_STORE)) {
+          db.createObjectStore(VAULT_STORE);
+        }
+      };
+      req.onsuccess = function() {
+        _db = req.result;
+        resolve();
+      };
+      req.onerror = function() { reject(new Error('Vault store init failed')); };
+    });
+  }
 
   /**
    * Setup: encrypt session with PIN and store in IndexedDB.
@@ -734,7 +647,7 @@ const TheWellspring = (() => {
    */
   async function _vaultSetup(pin, sessionData) {
     if (!pin || pin.length < 6) throw new Error('PIN must be at least 6 characters');
-    await _openDB();
+    await _ensureVaultStore();
     var salt = crypto.getRandomValues(new Uint8Array(16));
     var iv   = crypto.getRandomValues(new Uint8Array(12));
     var key  = await _deriveKey(pin, salt);
@@ -747,6 +660,7 @@ const TheWellspring = (() => {
       createdAt: Date.now(),
       expiresAt: Date.now() + (30 * 24 * 60 * 60 * 1000), // 30 days default
     };
+    await _ensureVaultStore();
     return new Promise(function(resolve, reject) {
       var tx = _db.transaction(VAULT_STORE, 'readwrite');
       tx.objectStore(VAULT_STORE).put(blob, VAULT_KEY);
@@ -761,7 +675,7 @@ const TheWellspring = (() => {
    * @returns {Promise<object>} decrypted session object
    */
   async function _vaultUnlock(pin) {
-    await _openDB();
+    await _ensureVaultStore();
     var blob = await new Promise(function(resolve, reject) {
       var tx = _db.transaction(VAULT_STORE, 'readonly');
       var req = tx.objectStore(VAULT_STORE).get(VAULT_KEY);
@@ -794,7 +708,7 @@ const TheWellspring = (() => {
    */
   async function _vaultExists() {
     try {
-      await _openDB();
+      await _ensureVaultStore();
       var blob = await new Promise(function(resolve, reject) {
         var tx = _db.transaction(VAULT_STORE, 'readonly');
         var req = tx.objectStore(VAULT_STORE).get(VAULT_KEY);
@@ -810,7 +724,7 @@ const TheWellspring = (() => {
    * @returns {Promise<void>}
    */
   async function _vaultDestroy() {
-    await _openDB();
+    await _ensureVaultStore();
     return new Promise(function(resolve, reject) {
       var tx = _db.transaction(VAULT_STORE, 'readwrite');
       tx.objectStore(VAULT_STORE).delete(VAULT_KEY);
@@ -836,8 +750,3 @@ const TheWellspring = (() => {
   }
 
 })();
-
-// Expose on window so other classic scripts (the_ark.js, Admin panel, etc.)
-// can access it via window.TheWellspring. (const/let at top-level of classic
-// scripts are NOT added to the global object, unlike var.)
-window.TheWellspring = TheWellspring;

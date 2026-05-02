@@ -2833,101 +2833,61 @@ const TheWay = (() => {
         return;
       }
 
-      // Sort by sortOrder so questions appear in canonical sequence
-      var sorted = data.slice().sort(function(a, b) { return (a.sortOrder || 0) - (b.sortOrder || 0); });
-
-      // ── Styles ─────────────────────────────────────────────────────────────
-      var html = '<style>'
-        + 'details.apol-item{background:var(--bg-raised);border:1px solid var(--line);border-radius:14px;overflow:hidden;transition:box-shadow .15s;}'
-        + 'details.apol-item:hover{box-shadow:0 2px 10px rgba(0,0,0,.07);}'
-        + 'details.apol-item[open]{box-shadow:0 4px 18px rgba(0,0,0,.08);}'
-        + 'details.apol-item summary{list-style:none;display:flex;align-items:center;gap:12px;padding:14px 18px;cursor:pointer;user-select:none;}'
-        + 'details.apol-item summary::-webkit-details-marker{display:none;}'
-        + 'details.apol-item summary:hover{background:var(--bg-sunken,rgba(0,0,0,.03));}'
-        + 'details.apol-item .apol-chevron{transform:rotate(90deg);display:inline-block;transition:transform .2s ease;color:var(--ink-muted);font-size:0.9rem;}'
-        + 'details.apol-item[open] .apol-chevron{transform:rotate(270deg);}'
-        + 'details.apol-item .apol-body{padding:0 18px 18px 58px;border-top:1px solid var(--line);}'
-        + '.apol-cat-pill{display:inline-block;padding:3px 10px;border-radius:20px;background:var(--bg-sunken,#ebebf0);color:var(--ink-muted);font-size:0.68rem;font-weight:700;letter-spacing:.06em;margin:12px 0 8px;}'
-        + '.apol-answer{font-size:0.88rem;color:var(--ink);line-height:1.7;margin-bottom:10px;}'
-        + '.apol-quote{margin:0 0 10px;padding:10px 16px;border-left:4px solid #3b82f6;font-style:italic;color:var(--ink);background:rgba(59,130,246,.06);border-radius:0 8px 8px 0;font-size:0.88rem;line-height:1.6;}'
-        + '.apol-ref{font-size:0.78rem;color:var(--ink-muted);}'
-        + '.apol-ref a{color:var(--ink-muted);text-decoration:none;}'
-        + '.apol-ref a:hover{text-decoration:underline;}'
-        + '</style>';
-
-      // ── Header card ─────────────────────────────────────────────────────────
-      html += '<div style="background:var(--bg-raised);border:1px solid var(--line);border-radius:16px;'
-            + 'padding:20px 22px;margin-bottom:20px;display:flex;align-items:center;gap:16px;">';
-      html += '<div style="width:54px;height:54px;min-width:54px;border-radius:14px;'
-            + 'background:var(--bg-sunken,#ebebf0);display:flex;align-items:center;'
-            + 'justify-content:center;font-size:1.6rem;">\u2696\uFE0F</div>';
-      html += '<div>'
-            + '<div style="font-size:1.2rem;font-weight:800;color:var(--ink);margin-bottom:4px;">Apologetics</div>'
-            + '<div style="font-size:0.85rem;color:var(--ink-muted);line-height:1.5;">'
-            + 'Common objections to the faith \u2014 answered with scripture, reason, and a steady tone.</div>'
-            + '</div></div>';
-
-      // ── Search ──────────────────────────────────────────────────────────────
-      html += '<div style="margin-bottom:16px;">'
-            + '<input type="text" placeholder="Search questions\u2026" '
-            + 'oninput="TheWay._filterPanel(\'apol\',this.value)" '
-            + 'style="width:100%;box-sizing:border-box;padding:12px 16px;border:1px solid var(--line);'
-            + 'border-radius:10px;background:var(--bg-raised);color:var(--ink);'
-            + 'font-size:max(0.9rem,16px);font-family:inherit;outline:none;">'
-            + '</div>';
-
-      // ── Question accordion list ──────────────────────────────────────────────
-      html += '<div id="apol-grid" style="display:flex;flex-direction:column;gap:8px;">';
-
-      sorted.forEach(function(q, idx) {
-        var num   = idx + 1;
-        var title = q.questionTitle || q.shortTitle || 'Question';
-        var cat   = (q.categoryTitle || '').replace(/[\u{1F000}-\u{1FFFF}\u2600-\u27FF]/gu, '').trim();
-        var search = (title + ' ' + (q.answerContent || '') + ' ' + (q.categoryTitle || '') + ' ' + (q.quoteText || '')).toLowerCase();
-
-        html += '<details class="apol-item browse-item" data-search="' + _e(search) + '">';
-
-        // Summary row
-        html += '<summary>'
-              // Number badge
-              + '<span style="min-width:28px;height:28px;border-radius:50%;'
-              + 'background:var(--bg-sunken,#e8e8ed);color:var(--ink-muted);'
-              + 'font-size:0.72rem;font-weight:700;display:flex;align-items:center;'
-              + 'justify-content:center;flex-shrink:0;">' + num + '</span>'
-              // Question text
-              + '<span style="flex:1;font-weight:600;font-size:0.9rem;color:var(--ink);">' + _e(title) + '</span>'
-              // Chevron
-              + '<span class="apol-chevron">\u203A</span>'
-              + '</summary>';
-
-        // Body
-        html += '<div class="apol-body">';
-        if (cat) {
-          html += '<span class="apol-cat-pill">' + _e(cat.toUpperCase()) + '</span>';
-        }
-        if (q.answerContent) {
-          html += '<p class="apol-answer">' + _e(q.answerContent) + '</p>';
-        }
-        if (q.quoteText) {
-          html += '<blockquote class="apol-quote">' + _e(q.quoteText);
-          if (q.referenceText) {
-            var ref = q.referenceUrl
-              ? '<a href="' + _e(q.referenceUrl) + '" target="_blank" rel="noopener">' + _e(q.referenceText) + '</a>'
-              : _bibleLink(q.referenceText);
-            html += '<br><span style="font-size:0.78rem;font-style:normal;opacity:.7;">\u2014 ' + ref + '</span>';
-          }
-          html += '</blockquote>';
-        } else if (q.referenceText) {
-          var ref2 = q.referenceUrl
-            ? '<a href="' + _e(q.referenceUrl) + '" target="_blank" rel="noopener">' + _e(q.referenceText) + '</a>'
-            : _bibleLink(q.referenceText);
-          html += '<div class="apol-ref">\u2014 ' + ref2 + '</div>';
-        }
-        html += '</div>'; // .apol-body
-        html += '</details>';
+      // Group by category; data is sorted by categoryTitle + shortTitle from export script
+      var cats = {};
+      var catOrder = [];
+      data.forEach(function(r) {
+        var cat   = r.categoryTitle || 'General';
+        var color = r.categoryColor || '#6366f1';
+        var intro = r.categoryIntro || '';
+        if (!cats[cat]) { cats[cat] = { color: color, intro: intro, items: [] }; catOrder.push(cat); }
+        cats[cat].items.push(r);
       });
 
-      html += '</div>'; // #apol-grid
+      var html = '<div style="margin-bottom:12px;">';
+      html += '<input type="text" placeholder="Search apologetics\u2026" '
+            + 'oninput="TheWay._filterPanel(\'apol\',this.value)" '
+            + 'style="width:100%;max-width:400px;padding:8px 12px;border:1px solid var(--line);border-radius:6px;'
+            + 'background:var(--bg-raised);color:var(--ink);font-size:max(0.88rem,16px);font-family:inherit;"></div>';
+
+      html += '<div id="apol-grid">';
+      catOrder.forEach(function(cat) {
+        var grp = cats[cat];
+        var searchText = (cat + ' ' + grp.intro + ' ' + grp.items.map(function(q) {
+          return (q.questionTitle || q.shortTitle || '') + ' ' + (q.answerContent || '');
+        }).join(' ')).toLowerCase();
+
+        html += '<details class="browse-item" data-search="' + _e(searchText) + '" '
+              + 'style="margin-bottom:8px;border:1px solid var(--line);border-radius:8px;overflow:hidden;">';
+        html += '<summary style="padding:12px 16px;background:var(--bg-raised);cursor:pointer;'
+              + 'font-weight:700;font-size:0.88rem;border-left:4px solid ' + _e(grp.color) + ';">'
+              + _e(cat) + ' <span style="font-size:0.75rem;color:var(--ink-muted);">(' + grp.items.length + ')</span></summary>';
+        html += '<div style="padding:14px 16px;">';
+        if (grp.intro) {
+          html += '<div style="background:var(--lilac-soft);border-radius:6px;padding:10px 14px;'
+                + 'margin-bottom:12px;font-size:0.82rem;color:var(--lilac);">' + _e(grp.intro) + '</div>';
+        }
+        grp.items.forEach(function(q) {
+          var title = q.questionTitle || q.shortTitle || 'Question';
+          html += '<div style="padding:10px 0;border-bottom:1px solid var(--line);">';
+          html += '<div style="font-weight:600;font-size:0.85rem;margin-bottom:4px;">' + _e(title) + '</div>';
+          if (q.answerContent) html += '<div style="font-size:0.82rem;color:var(--ink-muted);line-height:1.6;">' + _e(q.answerContent) + '</div>';
+          if (q.quoteText) {
+            html += '<blockquote style="margin:8px 0 0;padding:8px 14px;border-left:3px solid var(--gold);'
+                  + 'font-style:italic;color:var(--gold);">' + _e(q.quoteText) + '</blockquote>';
+          }
+          if (q.referenceText) {
+            var ref = q.referenceUrl
+              ? '<a href="' + _e(q.referenceUrl) + '" target="_blank" rel="noopener" style="color:var(--link);">' + _e(q.referenceText) + '</a>'
+              : _bibleLink(q.referenceText);
+            html += '<div style="font-size:0.78rem;color:var(--ink-muted);margin-top:6px;">' + ref + '</div>';
+          }
+          html += '</div>';
+        });
+        html += '</div></details>';
+      });
+      html += '</div>';
+
       _panel(html);
     } catch (e) {
       _panel(_errHtml(e.message));

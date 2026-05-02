@@ -5,7 +5,7 @@
 
    Strategy:
    • APP SHELL   → Cache-first, background refresh (fast loads)
-   • NAVIGATION  → Network-first, offline fallback to cached app.html
+   • NAVIGATION  → Network-first, offline fallback to cached index.html
    • FONTS       → Cache-first (immutable after first fetch)
    • PUSH        → Show notification; click → focus or open app
    ══════════════════════════════════════════════════════════════════════════════ */
@@ -27,7 +27,6 @@ const PRECACHE_URLS = [
   /* ── Entry points ─────────────────────────────────────────────────────── */
   '',
   'index.html',
-  'app.html',
   'manifest.json',
 
   /* ── GROW public PWA ─────────────────────────────────────────────────── */
@@ -410,7 +409,7 @@ async function _networkFirstNav(request) {
     return fresh;
   } catch (_) {
     const cached = await caches.match(request) ||
-                   await caches.match(SW_BASE + 'app.html') ||
+                   await caches.match(SW_BASE + 'index.html') ||
                    await caches.match(SW_BASE);
     if (cached) return cached;
     return new Response(

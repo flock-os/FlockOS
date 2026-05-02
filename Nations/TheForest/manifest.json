@@ -2,7 +2,7 @@
   "name": "The Forest",
   "short_name": "TheForest",
   "description": "Complete church management and pastoral care platform. Google Sheets, Firebase, or fully offline via The Wellspring. 30+ modules. 210 countries. 256-bit encrypted. Free forever.",
-  "start_url": "./app.html",
+  "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",

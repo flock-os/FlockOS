@@ -41,28 +41,7 @@ const GAS_DOCS = [
     label: 'Code.gs',
     filename: 'B-Master Code.md',
     path: new URL('../../Architechtural Docs/B-Master Code.md', import.meta.url).href,
-    description: 'Main GAS backend — paste as Code.gs. Contains all CRUD handlers, dispatcher, setupFlockOS(), and DEPLOY_CONFIG.',
-  },
-  {
-    id: 'firestoresync',
-    label: 'FirestoreSync.gs',
-    filename: 'C-Master FirestoreSync.md',
-    path: new URL('../../Architechtural Docs/C-Master FirestoreSync.md', import.meta.url).href,
-    description: 'Hourly Firestore → Sheet sync. Paste as FirestoreSync.gs.',
-  },
-  {
-    id: 'synchandler',
-    label: 'SyncHandler.gs',
-    filename: 'D-Master SyncHandler.md',
-    path: new URL('../../Architechtural Docs/D-Master SyncHandler.md', import.meta.url).href,
-    description: 'Receives Cloud Function → Sheet writes. Paste as SyncHandler.gs.',
-  },
-  {
-    id: 'camelcase',
-    label: 'CamelCase.gs',
-    filename: 'E-Master CamelCase.md',
-    path: new URL('../../Architechtural Docs/E-Master CamelCase.md', import.meta.url).href,
-    description: 'Auto-generated FIELD_REVERSE_MAP (Firestore camelCase → Sheet headers). Paste as CamelCase.gs.',
+    description: 'Main GAS backend — paste as Code.gs. Contains all CRUD handlers, dispatcher, camelCase normalization, setupFlockOS(), and DEPLOY_CONFIG.',
   },
 ];
 
@@ -220,9 +199,9 @@ function _gasFilesTab() {
 </div>
 <div style="margin-top:16px;padding:12px 14px;background:rgba(232,168,56,0.08);border:1px solid rgba(232,168,56,0.25);border-radius:8px;font-size:0.8rem;color:var(--ink-muted);line-height:1.5;">
   <strong style="color:var(--ink);">How to deploy a new church:</strong>
-  Open the church's Google Sheet → Extensions → Apps Script → Create each file above →
-  Paste the contents → Set Script Properties (FIREBASE_SERVICE_ACCOUNT, TRUTH_SERVICE_ACCOUNT) →
-  Run <code style="background:rgba(0,0,0,0.1);padding:1px 5px;border-radius:3px;font-family:monospace;">setupFlockOS()</code> once.
+  Open the church's Google Sheet → Extensions → Apps Script → paste <strong>Code.gs</strong> →
+  Set Script Properties via Church Setup tab (FIREBASE_SERVICE_ACCOUNT, TRUTH_SERVICE_ACCOUNT required) →
+  Run <code style="background:rgba(0,0,0,0.1);padding:1px 5px;border-radius:3px;font-family:monospace;">setupFlockOS()</code> once. FirestoreSync, SyncHandler, and camelCase normalization are all included in Code.gs.
 </div>`;
 }
 
@@ -296,7 +275,7 @@ const _CHURCH_PRESETS = {
 
 const _FIELD_ORDER = [
   'CHURCH_NAME', 'CHURCH_TIMEZONE', 'FIRESTORE_PROJECT_ID', 'FIRESTORE_CHURCH_ID',
-  'SYNC_SECRET', 'MASTER_SYNC_SECRET', 'FIREBASE_SERVICE_ACCOUNT',
+  'SYNC_SECRET', 'MASTER_SYNC_SECRET', 'FIREBASE_SERVICE_ACCOUNT', 'TRUTH_SERVICE_ACCOUNT',
   'ADMIN_EMAIL', 'ADMIN_FIRST', 'ADMIN_LAST', 'ADMIN_PASSWORD', 'NOTIFY_EMAIL',
   'CHURCH_APP_URL',
   'TWILIO_SID', 'TWILIO_TOKEN', 'TWILIO_NUMBER',
@@ -413,10 +392,24 @@ function _churchSetupTab() {
       ${_secretField('bz-MASTER_SYNC_SECRET', 'Master Sync Secret', { required: true, withGen: true, hint: 'Same value across all churches — from master-api.json.' })}
       <div style="grid-column:1/-1;">
         <div style="display:flex;flex-direction:column;gap:4px;">
-          <label for="bz-FIREBASE_SERVICE_ACCOUNT" style="font-size:0.78rem;font-weight:700;color:var(--ink);text-transform:uppercase;letter-spacing:0.04em;">Firebase Service Account JSON <span style="color:#b91c1c">*</span> <span style="font-size:0.72rem;font-weight:400;text-transform:none;color:var(--ink-muted);">Paste full JSON</span></label>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <label for="bz-FIREBASE_SERVICE_ACCOUNT" style="font-size:0.78rem;font-weight:700;color:var(--ink);text-transform:uppercase;letter-spacing:0.04em;">Firebase Service Account JSON <span style="color:#b91c1c">*</span></label>
+            <button type="button" data-sa-load="bz-FIREBASE_SERVICE_ACCOUNT" style="font-size:0.72rem;padding:2px 10px;border:1px solid var(--line);border-radius:5px;background:var(--bg);color:var(--ink);cursor:pointer;font-family:inherit;">📂 Load file</button>
+          </div>
           <textarea id="bz-FIREBASE_SERVICE_ACCOUNT" rows="4" placeholder='{"type":"service_account","project_id":"..."}'
             style="padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);font-size:0.78rem;font-family:monospace;width:100%;box-sizing:border-box;resize:vertical;"></textarea>
-          <div style="font-size:0.74rem;color:var(--ink-muted);">GCP Console → IAM → Service Accounts → Download JSON for this church's Firebase project.</div>
+          <div style="font-size:0.74rem;color:var(--ink-muted);">Load the JSON file for this church's Firebase project, or paste it directly.</div>
+        </div>
+      </div>
+      <div style="grid-column:1/-1;">
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <label for="bz-TRUTH_SERVICE_ACCOUNT" style="font-size:0.78rem;font-weight:700;color:var(--ink);text-transform:uppercase;letter-spacing:0.04em;">Truth Service Account JSON <span style="color:#b91c1c">*</span></label>
+            <button type="button" data-sa-load="bz-TRUTH_SERVICE_ACCOUNT" style="font-size:0.72rem;padding:2px 10px;border:1px solid var(--line);border-radius:5px;background:var(--bg);color:var(--ink);cursor:pointer;font-family:inherit;">📂 Load file</button>
+          </div>
+          <textarea id="bz-TRUTH_SERVICE_ACCOUNT" rows="4" placeholder='{"type":"service_account","project_id":"flockos-truth","client_email":"..."}'
+            style="padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);font-size:0.78rem;font-family:monospace;width:100%;box-sizing:border-box;resize:vertical;"></textarea>
+          <div style="font-size:0.74rem;color:var(--ink-muted);">Load the flockos-truth service account JSON, or paste it directly. Seeds Books, Devotionals, Theology, etc. during setup.</div>
         </div>
       </div>
     </div>
@@ -496,9 +489,47 @@ function _wireChurchSetup(root) {
     });
   });
 
-  // Live update on any input
+  // File picker buttons for SA JSON fields
+  const _SA_KEYS = ['FIREBASE_SERVICE_ACCOUNT', 'TRUTH_SERVICE_ACCOUNT'];
+  root.querySelectorAll('[data-sa-load]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.json,application/json';
+      input.onchange = () => {
+        const file = input.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = e => {
+          const el = root.querySelector(`#${btn.dataset.saLoad}`);
+          if (!el) return;
+          el.value = e.target.result.trim();
+          localStorage.setItem('bz_' + btn.dataset.saLoad.replace('bz-', ''), el.value);
+          _bzUpdateOutput(root);
+        };
+        reader.readAsText(file);
+      };
+      input.click();
+    });
+  });
+
+  // Auto-load persisted SA credentials from localStorage (survives until cache clear)
+  _SA_KEYS.forEach(key => {
+    const stored = localStorage.getItem('bz_' + key);
+    if (stored) {
+      const el = root.querySelector(`#bz-${key}`);
+      if (el && !el.value.trim()) el.value = stored;
+    }
+  });
+
+  // Live update on any input; persist SA fields to localStorage
   root.querySelectorAll('[id^="bz-"]').forEach(el => {
-    el.addEventListener('input', () => _bzUpdateOutput(root));
+    el.addEventListener('input', () => {
+      if (_SA_KEYS.some(k => el.id === 'bz-' + k) && el.value.trim()) {
+        localStorage.setItem('bz_' + el.id.replace('bz-', ''), el.value.trim());
+      }
+      _bzUpdateOutput(root);
+    });
     el.addEventListener('change', () => _bzUpdateOutput(root));
   });
 
@@ -536,9 +567,10 @@ function _wireChurchSetup(root) {
     } catch (_) { btn.textContent = 'Select & copy manually'; }
   });
 
-  // Clear
+  // Clear — wipes form values AND localStorage SA entries
   root.querySelector('#bz-setup-clear')?.addEventListener('click', () => {
     if (!confirm('Clear all entered values?')) return;
+    _SA_KEYS.forEach(key => localStorage.removeItem('bz_' + key));
     root.querySelectorAll('[id^="bz-"]').forEach(el => {
       if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') el.value = '';
     });
@@ -596,7 +628,7 @@ function _bzPlainOutput(root) {
     '  props.setProperties({',
   ];
   Object.entries(props).forEach(([key, raw]) => {
-    const escaped = key === 'FIREBASE_SERVICE_ACCOUNT' ? _bzEscJson(raw) : _bzEsc(raw);
+    const escaped = (key === 'FIREBASE_SERVICE_ACCOUNT' || key === 'TRUTH_SERVICE_ACCOUNT') ? _bzEscJson(raw) : _bzEsc(raw);
     lines.push(`    '${key}': '${escaped}',`);
   });
   lines.push('  });');
