@@ -1245,7 +1245,7 @@ window.FLOCK_CHURCH_ID = "tbc";
     delete payload.id;
     payload.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
     payload.updatedBy = _userEmail;
-    return _membersRef().doc(id).update(payload).then(function() {
+    return _membersRef().doc(id).set(payload, { merge: true }).then(function() {
       payload.id = id; return payload;
     });
   }
@@ -1463,7 +1463,7 @@ window.FLOCK_CHURCH_ID = "tbc";
     delete payload.id;
     payload.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
     payload.updatedBy = _userEmail;
-    return _memberCardsRef().doc(id).update(payload).then(function() {
+    return _memberCardsRef().doc(id).set(payload, { merge: true }).then(function() {
       payload.id = id; return payload;
     });
   }
