@@ -296,6 +296,12 @@ service cloud.firestore {
         allow write: if isSignedIn() && isPastorOrAdmin();
       }
 
+      // ── Member Roles (FlockOS Access Level) ─────────────────────────
+      match /memberRoles/{memberId} {
+        allow read: if isSignedIn() && isPastorOrAdmin();
+        allow write: if isSignedIn() && isPastorOrAdmin();
+      }
+
       // ── Care Cases ──────────────────────────────────────────────────
       match /careCases/{caseId} {
         // Read: creator, assigned caregiver, or leader+
