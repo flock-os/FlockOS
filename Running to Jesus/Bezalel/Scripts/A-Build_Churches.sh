@@ -214,6 +214,9 @@ with open(sys.argv[2], 'w') as f:
     f.write(out)
 print('  → bezalel_codex.js regenerated (' + str(lines) + ' lines)')
 " "$MASTER_CODE" "$CODEX_OUT"
+  # Also copy to New_Covenant/Scripts/ so the New Covenant Bezalel view can load it
+  cp "$CODEX_OUT" "$WORKSPACE_ROOT/New_Covenant/Scripts/bezalel_codex.js" 2>/dev/null && \
+    echo "  → bezalel_codex.js copied to New_Covenant/Scripts/" || true
 fi
 
 # ── Publish combined schema manifest to FlockOS-Truth backup store ─────────
