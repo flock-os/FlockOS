@@ -6,6 +6,10 @@
   <title>FlockOS-GAS</title>
   <link rel="icon" type="image/png" href="Images/NewCovenant.png">
   <link rel="apple-touch-icon" href="Images/NewCovenant.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="FlockOS">
   <meta name="theme-color" content="#0c1445">
   <meta name="description" content="FlockOS-GAS — complete church management and GROW discipleship tools. Free forever. 210 countries. Built to be shared.">
 
@@ -74,10 +78,10 @@
       backdrop-filter: blur(12px);
       -webkit-backdrop-filter: blur(12px);
       border-bottom: 1px solid var(--line-strong);
-      padding: 0 1.5rem;
-      height: 60px;
+      padding: env(safe-area-inset-top, 0px) 1.5rem 0;
+      height: calc(60px + env(safe-area-inset-top, 0px));
       display: flex;
-      align-items: center;
+      align-items: flex-end;
     }
     .site-header-inner {
       max-width: 1080px;

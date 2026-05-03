@@ -218,28 +218,57 @@ async function _fetchAndShow(root, docId) {
   btn.disabled = true;
   btn.textContent = '⏳ Loading…';
 
-  try {
-    const resp = await fetch(doc.path);
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    const text = await resp.text();
+  const _finish = (text) => {
     pre.textContent = text;
     box.style.display = '';
-
-    /* Copy to clipboard */
     try {
-      await navigator.clipboard.writeText(text);
-      btn.disabled = false;
-      btn.textContent = '✓ Copied!';
-      setTimeout(() => { btn.textContent = '📋 Load & Copy'; }, 3000);
+      navigator.clipboard.writeText(text).then(() => {
+        btn.disabled = false;
+        btn.textContent = '✓ Copied!';
+        setTimeout(() => { btn.textContent = '📋 Load & Copy'; }, 3000);
+      }).catch(() => {
+        btn.disabled = false;
+        btn.textContent = '📋 Loaded (select & copy)';
+      });
     } catch (_) {
       btn.disabled = false;
       btn.textContent = '📋 Loaded (select & copy)';
     }
-  } catch (err) {
+  };
+
+  const _error = (msg) => {
     btn.disabled = false;
     btn.textContent = '⚠ Error loading';
-    pre.textContent = `Error: ${err.message}\n\nFallback: open the file directly at:\n${doc.path}`;
+    pre.textContent = msg;
     box.style.display = '';
+  };
+
+  /* Code.gs: use pre-embedded window.BEZALEL_CODE_GS, lazy-loading
+     bezalel_codex.js if needed — avoids fetching the gitignored source file */
+  if (docId === 'code') {
+    if (window.BEZALEL_CODE_GS) {
+      _finish(window.BEZALEL_CODE_GS);
+      return;
+    }
+    const base = new URL('.', import.meta.url).href.split('/Views/')[0];
+    const scriptSrc = base + '/Scripts/bezalel_codex.js';
+    const s = document.createElement('script');
+    s.src = scriptSrc;
+    s.onload = () => {
+      if (window.BEZALEL_CODE_GS) { _finish(window.BEZALEL_CODE_GS); }
+      else { _error('Error: BEZALEL_CODE_GS not found in bezalel_codex.js'); }
+    };
+    s.onerror = () => _error(`Error: failed to load bezalel_codex.js\n\nFallback: open the file directly at:\n${doc.path}`);
+    document.head.appendChild(s);
+    return;
+  }
+
+  try {
+    const resp = await fetch(doc.path);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    _finish(await resp.text());
+  } catch (err) {
+    _error(`Error: ${err.message}\n\nFallback: open the file directly at:\n${doc.path}`);
   }
 }
 
