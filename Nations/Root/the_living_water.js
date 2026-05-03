@@ -341,6 +341,13 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  /* View modules — network-first so deploys are visible immediately.
+     Falls back to cache when offline. */
+  if (url.pathname.includes('/Views/') && /\.js$/.test(url.pathname)) {
+    event.respondWith(_networkFirst(request));
+    return;
+  }
+
   /* Static assets (JS, CSS, SVG, images) — stale-while-revalidate */
   if (/\.(js|css|svg|png|jpg|webp|woff2?)$/.test(url.pathname)) {
     event.respondWith(_staleWhileRevalidate(request));
@@ -377,6 +384,18 @@ self.addEventListener('notificationclick', (event) => {
 });
 
 /* ─── Helpers ───────────────────────────────────────────────────────────────── */
+
+async function _networkFirst(request) {
+  const cache = await caches.open(CACHE_NAME);
+  try {
+    const fresh = await fetch(request);
+    if (fresh.ok) cache.put(request, fresh.clone());
+    return fresh;
+  } catch (_) {
+    const cached = await cache.match(request);
+    return cached || new Response('Offline', { status: 503 });
+  }
+}
 
 async function _cacheFirst(request) {
   const cached = await caches.match(request);
