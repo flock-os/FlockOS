@@ -88,7 +88,7 @@ export async function summary() {
 
   // GAS interaction ledger — last 5 entries (any person).
   try {
-    const tl = await scrolls.feed(5);
+    const tl = await scrolls.timeline(null, 5);
     out.recentInteractions = Array.isArray(tl) ? tl : [];
   } catch (_) {}
 
