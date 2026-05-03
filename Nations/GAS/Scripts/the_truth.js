@@ -232,8 +232,20 @@ const TheTruth = (() => {
     } catch (_) { return null; }
   }
 
+  // Returns true when running in a GAS sheet deployment (no Firebase).
+  function _isGAS() { return typeof firebase === 'undefined'; }
+
+  // GAS-mode API call via TheVine.
+  async function _gasCall(action, params) {
+    if (typeof TheVine === 'undefined') throw new Error('TheVine not available');
+    var res = await TheVine.flock.call(action, params || {});
+    if (!res || !res.ok) throw new Error((res && res.error) || action + ' failed');
+    return res;
+  }
+
   async function _initTruth() {
     if (_truthReady) return;
+    if (_isGAS()) { _truthReady = true; return; } // GAS: no Firebase needed
     if (typeof firebase === 'undefined') throw new Error('Firebase SDK not loaded');
 
     if (window.FLOCK_TRUTH_USE_LOCAL) {
@@ -521,19 +533,25 @@ const TheTruth = (() => {
 
     try {
       await _initTruth();
-      var col = _truthDb.collection(tab.key);
-
-      if (isNew) {
-        var newDocId = _docId(tab, data);
-        await col.doc(newDocId).set(data);
+      var savedDocId;
+      if (_isGAS()) {
+        // GAS deployment: write to church Google Sheet via Code.gs
+        var origEl2 = document.getElementById('tt-orig-docid');
+        var upsertId = isNew ? _docId(tab, data) : (origEl2 ? origEl2.value : _docId(tab, data));
+        var upsertRes = await _gasCall('truth.upsert', { collection: tab.key, id: upsertId, data: Object.assign({}, data, { id: upsertId }) });
+        savedDocId = upsertRes.id || upsertId;
       } else {
-        var origEl = document.getElementById('tt-orig-docid');
-        var docRef = origEl ? col.doc(origEl.value) : col.doc(_docId(tab, data));
-        await docRef.set(data, { merge: true });
+        var col = _truthDb.collection(tab.key);
+        if (isNew) {
+          var newDocId = _docId(tab, data);
+          await col.doc(newDocId).set(data);
+        } else {
+          var origEl = document.getElementById('tt-orig-docid');
+          var docRef = origEl ? col.doc(origEl.value) : col.doc(_docId(tab, data));
+          await docRef.set(data, { merge: true });
+        }
+        savedDocId = isNew ? newDocId : (origEl ? origEl.value : _docId(tab, data));
       }
-
-      // Resolve the final doc ID for cache patching
-      var savedDocId = isNew ? newDocId : (origEl ? origEl.value : _docId(tab, data));
 
       var modal = document.getElementById('tt-modal');
       if (modal) modal.remove();
@@ -558,7 +576,11 @@ const TheTruth = (() => {
     try {
       await _initTruth();
       var decodedId = decodeURIComponent(docId);
-      await _truthDb.collection(tab.key).doc(decodedId).delete();
+      if (_isGAS()) {
+        await _gasCall('truth.delete', { collection: tab.key, id: decodedId });
+      } else {
+        await _truthDb.collection(tab.key).doc(decodedId).delete();
+      }
       delete _allRows[tab.key];
 
       // Remove from localStorage live bundle immediately
@@ -690,37 +712,46 @@ const TheTruth = (() => {
     var pg  = (page != null) ? page : (_pages[tab.key] || 1);
     _pages[tab.key] = pg;
 
-    // Fetch and cache all rows from Firestore if not already loaded
+    // Fetch and cache all rows if not already loaded
     if (!_allRows[tab.key]) {
       container.innerHTML = _spinner();
       try {
         await _initTruth();
-        var snap;
-        if (window.FLOCK_TRUTH_USE_LOCAL) {
-          // Church deployment — always fetch live (church data changes frequently)
-          snap = await _truthDb.collection(tab.key).get();
+        if (_isGAS()) {
+          // GAS deployment: read from church Google Sheet via Code.gs
+          var gasRes = await _gasCall('truth.list', { collection: tab.key });
+          _allRows[tab.key] = (gasRes.rows || []).map(function(row, i) {
+            row._docId = row.id || String(i + 1);
+            return row;
+          });
         } else {
-          // ROOT truth database — serve from IndexedDB cache unless weekly refresh is due
-          var src = _truthFetchSource();
-          try {
-            snap = await _truthDb.collection(tab.key).get({ source: src });
-            if (src === 'server') _markTruthRefreshed();
-          } catch (_cacheErr) {
-            // Cache miss (first load, cleared browser data, etc.) — fall back to server
-            snap = await _truthDb.collection(tab.key).get({ source: 'server' });
-            _markTruthRefreshed();
+          var snap;
+          if (window.FLOCK_TRUTH_USE_LOCAL) {
+            // Church deployment — always fetch live (church data changes frequently)
+            snap = await _truthDb.collection(tab.key).get();
+          } else {
+            // ROOT truth database — serve from IndexedDB cache unless weekly refresh is due
+            var src = _truthFetchSource();
+            try {
+              snap = await _truthDb.collection(tab.key).get({ source: src });
+              if (src === 'server') _markTruthRefreshed();
+            } catch (_cacheErr) {
+              // Cache miss (first load, cleared browser data, etc.) — fall back to server
+              snap = await _truthDb.collection(tab.key).get({ source: 'server' });
+              _markTruthRefreshed();
+            }
           }
+          _allRows[tab.key] = snap.docs.map(function(doc, i) {
+            var d = doc.data();
+            d._docId = doc.id;
+            // For reading plan: synthesize row index from doc ID (day_001 → 1)
+            if (tab.key === 'reading') {
+              var m = doc.id.match(/(\d+)/);
+              d._rowIndex = m ? String(parseInt(m[1], 10)) : String(i + 1);
+            }
+            return d;
+          });
         }
-        _allRows[tab.key] = snap.docs.map(function(doc, i) {
-          var d = doc.data();
-          d._docId = doc.id;
-          // For reading plan: synthesize row index from doc ID (day_001 → 1)
-          if (tab.key === 'reading') {
-            var m = doc.id.match(/(\d+)/);
-            d._rowIndex = m ? String(parseInt(m[1], 10)) : String(i + 1);
-          }
-          return d;
-        });
       } catch (e) {
         container.innerHTML = _errHtml(e.message);
         return;
