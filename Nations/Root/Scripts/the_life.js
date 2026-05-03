@@ -570,7 +570,7 @@ const TheLife = (() => {
     var nonMemberVisible = !rec.memberId ? '' : 'none';
     var nonMemberRow = '<div id="fp-nonmember-row" style="margin-bottom:12px;display:' + nonMemberVisible + ';">'
       + '<label style="display:block;font-size:0.72rem;color:var(--ink-muted);margin-bottom:3px;">Guest / Non-member Name</label>'
-      + '<input id="fp-memberName" data-field="memberName" type="text" value="' + _e(rec.memberName || '') + '"'
+      + '<input id="fp-memberName" data-field="memberName" type="text" value="' + _e(rec.memberName || rec.party1 || '') + '"'
       + ' placeholder="Full name of person receiving care\u2026"'
       + ' style="width:100%;background:rgba(255,255,255,0.07);border:1px solid var(--line);border-radius:6px;padding:7px 10px;color:var(--ink);font-size:max(0.92rem,16px);font-family:inherit;">'
       + '</div>';
@@ -3106,7 +3106,7 @@ const TheLife = (() => {
         else if (_dys > 7) ovPills += _statusBadge('High', _dys + 'd ago');
         if (c.nextReviewDate) { var _ovRd = new Date(c.nextReviewDate); if (!isNaN(_ovRd) && _ovRd.getTime() < Date.now()) ovPills += _statusBadge('Urgent', '\uD83D\uDD14 Review'); }
         h += _flockCard({
-          name: _e(_memberName(c.memberId) || c.memberName || c.memberId || ''),
+          name: _e(_memberName(c.memberId) || c.memberName || c.party1 || c.memberId || ''),
           pills: ovPills,
           body: _e((c.careType || '') + (c.summary ? ' \u2014 ' + c.summary.substring(0, 100) : '')),
           assigned: _memberName(c.primaryCaregiverId) || c.assignedName || '',
@@ -3179,7 +3179,7 @@ const TheLife = (() => {
         if (!isNaN(_rd) && _rd.getTime() < now) extraPills += _statusBadge('Urgent', '\uD83D\uDD14 Review overdue');
       }
       h += _flockCard({
-        name: _e(_memberName(c.memberId) || c.memberName || c.memberId || ''),
+        name: _e(_memberName(c.memberId) || c.memberName || c.party1 || c.memberId || ''),
         pills: _statusBadge(c.priority || 'Normal') + _statusBadge(c.status) + extraPills,
         body: _e((c.careType || '') + (c.summary ? ' \u2014 ' + c.summary.substring(0, 120) : '')),
         assigned: _memberName(c.primaryCaregiverId) || c.assignedName || '',
@@ -3409,7 +3409,7 @@ const TheLife = (() => {
       if (_notesAdmin && (c.notes || c.summary)) {
         notes.push({
           type: 'Care', icon: '\u2764\uFE0F',
-          name: _memberName(c.memberId) || c.memberName || c.memberId || '',
+          name: _memberName(c.memberId) || c.memberName || c.party1 || c.memberId || '',
           text: c.notes || c.summary || '',
           date: c.updatedAt || c.createdAt || '',
           id: c.id,
@@ -3418,7 +3418,7 @@ const TheLife = (() => {
       } else if (!_notesAdmin && c.summary) {
         notes.push({
           type: 'Care', icon: '\u2764\uFE0F',
-          name: _memberName(c.memberId) || c.memberName || c.memberId || '',
+          name: _memberName(c.memberId) || c.memberName || c.party1 || c.memberId || '',
           text: c.summary,
           date: c.updatedAt || c.createdAt || '',
           id: c.id,
@@ -3605,7 +3605,7 @@ const TheLife = (() => {
       html += '<div class="flock-card-grid">';
       unassigned.forEach(function(c) {
         html += _flockCard({
-          name: _e(_memberName(c.memberId) || c.memberName || c.memberId || '(Unknown)'),
+          name: _e(_memberName(c.memberId) || c.memberName || c.party1 || c.memberId || '(Unknown)'),
           pills: _statusBadge(c.priority || 'Normal') + _statusBadge(c.status),
           body: _e((c.careType || '') + (c.summary ? ' — ' + c.summary.substring(0, 120) : '')),
           date: c.createdAt || '',
@@ -4276,7 +4276,7 @@ const TheLife = (() => {
           html += '<div class="flock-card-grid">';
           openCases.slice(0, 4).forEach(function(c) {
             html += _flockCard({
-              name: _e(_memberName(c.memberId) || c.memberName || c.memberId || ''),
+              name: _e(_memberName(c.memberId) || c.memberName || c.party1 || c.memberId || ''),
               pills: _statusBadge(c.priority || 'Normal') + _statusBadge(c.status),
               body: _e((c.careType || '') + (c.summary ? ' \u2014 ' + c.summary.substring(0, 100) : '')),
               assigned: _memberName(c.primaryCaregiverId) || c.assignedName || '',
