@@ -11,6 +11,7 @@ export const title = 'The Call to Forgive';
 
 let _activeCtfSheet = null;
 let _liveCasesMap   = {};
+let _membersCache   = null;  // { id, name }[]
 
 const _e = s => String(s ?? '').replace(/[&<>"']/g,(c)=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
@@ -97,6 +98,7 @@ export function render() {
 export function mount(root) {
   const reload = () => _loadCases(root, reload);
   reload();
+  _loadMembers();  // preload member list for party dropdowns
   root.querySelector('[data-act="open-case"]')?.addEventListener('click', () => _openCaseSheet(null, reload));
   return () => { _closeCtfSheet(); };
 }
@@ -106,6 +108,43 @@ function _rows(res) {
   if (res && Array.isArray(res.rows)) return res.rows;
   if (res && Array.isArray(res.data)) return res.data;
   return [];
+}
+
+// ── Member directory helpers ─────────────────────────────────────────────────
+
+async function _loadMembers() {
+  if (_membersCache) return _membersCache;
+  try {
+    const V  = window.TheVine;
+    const UR = window.UpperRoom;
+    const raw = UR && typeof UR.listMembers === 'function' && UR.isReady?.()
+      ? _rows(await UR.listMembers({ limit: 500 }))
+      : _rows(await V.flock.call('members.list', { limit: 500 }));
+    _membersCache = raw
+      .filter(m => (m.firstName || m.lastName || m.memberName))
+      .map(m => {
+        const name = ((m.preferredName || m.firstName || '') + ' ' + (m.lastName || '')).trim()
+                  || m.memberName || m.email || '';
+        return { id: String(m.id || m.memberId || m.email || name), name };
+      })
+      .sort((a, b) => a.name.localeCompare(b.name));
+  } catch (_) {
+    _membersCache = [];
+  }
+  return _membersCache;
+}
+
+function _memberOptions(selectedName) {
+  const members = _membersCache || [];
+  const opts = ['<option value="">— Select member —</option>'];
+  members.forEach(m => {
+    const sel = m.name === selectedName ? ' selected' : '';
+    opts.push(`<option value="${_e(m.name)}"${sel}>${_e(m.name)}</option>`);
+  });
+  if (selectedName && !members.find(m => m.name === selectedName)) {
+    opts.splice(1, 0, `<option value="${_e(selectedName)}" selected>${_e(selectedName)}</option>`);
+  }
+  return opts.join('');
 }
 
 async function _loadCases(root, onReload) {
@@ -192,7 +231,7 @@ function _closeCtfSheet() {
   setTimeout(() => { t.remove(); if (_activeCtfSheet === t) _activeCtfSheet = null; }, 320);
 }
 
-function _openCaseSheet(c, onReload) {
+async function _openCaseSheet(c, onReload) {
   _closeCtfSheet();
   const V   = window.TheVine;
   const MX  = buildAdapter('flock.care', V);
@@ -200,6 +239,13 @@ function _openCaseSheet(c, onReload) {
   const useFB = !!(UR && typeof UR.isReady === 'function' && UR.isReady() && typeof UR.createCareCase === 'function');
   const isNew = !c;
   const uid   = c?.id ? String(c.id) : '';
+
+  // Resolve existing party names (handle both field naming conventions)
+  const existingParty1 = c?.party1 || c?.memberName || '';
+  const existingParty2 = c?.party2 || c?.otherParty || '';
+
+  // Ensure member list is loaded before building the form
+  await _loadMembers();
 
   const sheet = document.createElement('div');
   sheet.className = 'life-sheet';
@@ -210,7 +256,7 @@ function _openCaseSheet(c, onReload) {
       <div class="life-sheet-hd">
         <div class="life-sheet-hd-info">
           <div class="life-sheet-hd-name">${isNew ? 'Open Reconciliation Case' : 'Edit Case'}</div>
-          <div class="life-sheet-hd-meta">${isNew ? 'Begin the ministry of reconciliation' : _e((c?.party1 || '') + (c?.party2 ? ' & ' + c.party2 : ''))}</div>
+          <div class="life-sheet-hd-meta">${isNew ? 'Begin the ministry of reconciliation' : _e((existingParty1 || '') + (existingParty2 ? ' & ' + existingParty2 : ''))}</div>
         </div>
         <button class="life-sheet-close" aria-label="Close">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
@@ -219,11 +265,15 @@ function _openCaseSheet(c, onReload) {
       <div class="life-sheet-body">
         <div class="life-sheet-field">
           <div class="life-sheet-label">First Party / Member Name <span style="color:#dc2626">*</span></div>
-          <input class="life-sheet-input" data-field="party1" type="text" value="${_e(c?.party1 || '')}" placeholder="Name of the primary person">
+          <select class="life-sheet-input" data-field="party1">
+            ${_memberOptions(existingParty1)}
+          </select>
         </div>
         <div class="life-sheet-field">
           <div class="life-sheet-label">Second Party <span style="color:#6b7280;font-weight:400">(optional)</span></div>
-          <input class="life-sheet-input" data-field="party2" type="text" value="${_e(c?.party2 || '')}" placeholder="Name of the other party">
+          <select class="life-sheet-input" data-field="party2">
+            ${_memberOptions(existingParty2)}
+          </select>
         </div>
         <div class="life-sheet-field">
           <div class="life-sheet-label">Issue / Description</div>
@@ -265,11 +315,14 @@ function _openCaseSheet(c, onReload) {
     const btn = sheet.querySelector('[data-save]');
     btn.disabled = true; btn.textContent = isNew ? 'Opening…' : 'Saving…';
     const payload = {
-      careType: 'reconciliation',
-      party1:   p1,
-      party2:   sheet.querySelector('[data-field="party2"]').value.trim() || undefined,
-      summary:  sheet.querySelector('[data-field="issue"]').value.trim() || undefined,
-      status:   isNew ? 'Processing' : (sheet.querySelector('[data-field="stage"]')?.value || 'Processing'),
+      careType:   'reconciliation',
+      party1:     p1,
+      party2:     sheet.querySelector('[data-field="party2"]').value.trim() || undefined,
+      // Align with Pastoral Care field names so both views read the same record
+      memberName: p1,
+      memberId:   (_membersCache || []).find(m => m.name === p1)?.id || undefined,
+      summary:    sheet.querySelector('[data-field="issue"]').value.trim() || undefined,
+      status:     isNew ? 'Processing' : (sheet.querySelector('[data-field="stage"]')?.value || 'Processing'),
     };
     Object.keys(payload).forEach(k => { if (payload[k] === undefined) delete payload[k]; });
     if (!isNew) payload.id = uid;
@@ -301,7 +354,7 @@ function _openCaseSheet(c, onReload) {
   });
 
   sheet.querySelector('[data-delete]')?.addEventListener('click', async () => {
-    const party = c?.party1 || 'this case';
+    const party = existingParty1 || 'this case';
     if (!confirm(`Permanently delete the case for "${party}"? This cannot be undone.`)) return;
     const btn = sheet.querySelector('[data-delete]');
     btn.disabled = true; btn.textContent = 'Deleting…';
