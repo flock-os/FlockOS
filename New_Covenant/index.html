@@ -274,6 +274,17 @@
       .page { padding: 2rem 1rem 3rem; gap: 2.25rem; }
       .product-logo { width: 80px; height: 80px; }
     }
+
+    /* ── Pull-to-Refresh ─────────────────────────────────────────────── */
+    @media (max-width: 860px) {
+      .ptr-indicator {
+        display: none; position: fixed; top: 58px; left: 50%; transform: translateX(-50%);
+        z-index: 9998; background: var(--bg-raised,#1e2030); border: 1px solid var(--line,rgba(255,255,255,0.08));
+        border-radius: 20px; padding: 6px 14px; font-size: 0.75rem; color: var(--ink-muted,#9ca3af);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.28); white-space: nowrap;
+      }
+      .ptr-indicator.visible { display: block; }
+    }
   </style>
 </head>
 <body>
@@ -324,5 +335,47 @@
 
   </div>
 
+  <!-- Pull-to-Refresh indicator -->
+  <div class="ptr-indicator" id="ptrIndicator">&#8635; Release to refresh</div>
+  <script>
+  // ── Pull-to-Refresh ────────────────────────────────────────────────────────
+  (function () {
+    if (window.innerWidth > 860) return; // desktop — skip
+    var ptr = document.getElementById('ptrIndicator');
+    if (!ptr) return;
+    var startY = 0, pulling = false, triggered = false;
+
+    document.addEventListener('touchstart', function (e) {
+      var scrollY = window.scrollY || document.documentElement.scrollTop;
+      if (scrollY > 5) return;
+      startY    = e.touches[0].clientY;
+      pulling   = true;
+      triggered = false;
+    }, { passive: true });
+
+    document.addEventListener('touchmove', function (e) {
+      if (!pulling) return;
+      var dy = e.touches[0].clientY - startY;
+      if (dy > 60 && !triggered) {
+        triggered = true;
+        ptr.classList.add('visible');
+      } else if (dy < 30) {
+        triggered = false;
+        ptr.classList.remove('visible');
+      }
+    }, { passive: true });
+
+    document.addEventListener('touchend', function () {
+      if (triggered) {
+        ptr.textContent = 'Refreshing\u2026';
+        setTimeout(function () { location.reload(); }, 300);
+      } else {
+        ptr.classList.remove('visible');
+      }
+      pulling   = false;
+      triggered = false;
+    }, { passive: true });
+  })();
+  </script>
 </body>
 </html>
